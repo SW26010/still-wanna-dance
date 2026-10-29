@@ -445,9 +445,9 @@ test('library tabs name their result panel and catalog version supports hover an
   await page.keyboard.press('Enter');await expect(panel.getByRole('table',{name:'曲库资源'})).toBeVisible();
   expect(await resources.getAttribute('aria-controls')).toBe(await panel.getAttribute('id'));
   const coverage=page.getByText('曲库覆盖率',{exact:true});
-  await coverage.hover();await expect(page.getByRole('tooltip')).toHaveText('清单版本：未知');
+  await coverage.hover();await expect(page.getByRole('tooltip')).toContainText('统计清单版本：未知');
   await page.keyboard.press('Escape');await page.mouse.move(0,0);
-  await coverage.focus();await expect(page.getByRole('tooltip')).toHaveText('清单版本：未知');
-  await expect(coverage).toHaveAccessibleDescription('清单版本：未知');
+  await coverage.focus();await expect(page.getByRole('tooltip')).toContainText('统计清单版本：未知');
+  await expect(coverage).toHaveAccessibleDescription(/统计清单版本：未知/);
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
 });

@@ -17,7 +17,7 @@ func TestStorageV7Constraints(t *testing.T) {
 	}
 	defer store.Close()
 	const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	if _, err := store.db.Exec(`INSERT INTO songs(song_id) VALUES(1); INSERT INTO media(md5) VALUES(?)`, key); err != nil {
+	if _, err := store.db.Exec(`INSERT INTO songs(id) VALUES(1); INSERT INTO media(md5) VALUES(?)`, key); err != nil {
 		t.Fatal(err)
 	}
 	for name, query := range map[string]string{
@@ -57,7 +57,7 @@ func TestStorageV7Constraints(t *testing.T) {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO song_urls VALUES(2,'api','cf','url','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',1,1,1,0);
-INSERT INTO songs(song_id) VALUES(2); INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')`); err != nil {
+INSERT INTO songs(id) VALUES(2); INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')`); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {

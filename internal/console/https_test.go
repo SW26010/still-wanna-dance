@@ -322,4 +322,7 @@ func TestHTTPSStartupStorageFailureReleasesPorts(t *testing.T) {
 	if portAvailable(c.videoAddress) != nil || portAvailable(c.httpsAddress) != nil {
 		t.Fatal("engine failure leaked listeners")
 	}
+	if c.videoListener != nil || c.https != nil || c.httpServer != nil {
+		t.Fatal("engine failure retained gateway port ownership")
+	}
 }

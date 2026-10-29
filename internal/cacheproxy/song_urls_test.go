@@ -13,7 +13,7 @@ func TestSongAndResourceURLsShareValidityRules(t *testing.T) {
 	ctx := t.Context()
 	const key = "0123456789abcdef0123456789abcdef"
 	now := time.Now().Add(-time.Minute)
-	for i, name := range []string{"old", "latest", "other-node", "expired", "future", "failed", "invalid"} {
+	for i, name := range []string{"expired", "old", "latest", "other-node", "failed", "invalid", "future"} {
 		at := now.Add(time.Duration(i) * time.Second)
 		o := SongURL{SongID: 42, API: "https://api.udon.dance/" + name, Node: "cf", URL: "https://play.udon.dance/files/1/42-video.mp4?e=" + key + "&s=12", QueryStartedAt: at, ObservedAt: at}
 		switch name {
@@ -124,7 +124,7 @@ func TestSongURLPersistenceOrderingAndFailure(t *testing.T) {
 	}
 }
 
-func TestSongURLConflictPreservesMapping(t *testing.T) {
+func TestSongURLReplacesBackupMapping(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
 	const expected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -136,7 +136,7 @@ func TestSongURLConflictPreservesMapping(t *testing.T) {
 		t.Fatal(err)
 	}
 	var mapped string
-	if err := s.usage.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=42").Scan(&mapped); err != nil || mapped != expected {
+	if err := s.usage.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=42").Scan(&mapped); err != nil || mapped != "0123456789abcdef0123456789abcdef" {
 		t.Fatal(mapped, err)
 	}
 	var size sql.NullInt64

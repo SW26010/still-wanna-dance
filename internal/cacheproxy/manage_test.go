@@ -59,7 +59,7 @@ func managementFixture(t *testing.T, n int) (string, []CacheEntry) {
 			args  []any
 		}{
 			{`INSERT INTO media(md5,byte_size) VALUES (?, ?)`, []any{key, i + 1}},
-			{`INSERT INTO songs(song_id,name) VALUES (?,?)`, []any{fmt.Sprint(i + 1), fmt.Sprintf("舞曲 %03d", i+1)}},
+			{`INSERT INTO songs(id,name) VALUES (?,?)`, []any{fmt.Sprint(i + 1), fmt.Sprintf("舞曲 %03d", i+1)}},
 			{`INSERT INTO song_media VALUES (?,?)`, []any{fmt.Sprint(i + 1), key}},
 		} {
 			if _, err = u.db.Exec(statement.query, statement.args...); err != nil {
@@ -129,7 +129,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES ('2','共享歌'); INSERT INTO song_media VALUES ('2',?); INSERT INTO song_usage VALUES (2,2,2,200)`, e.Key)
+	_, err = u.db.Exec(`INSERT INTO songs(id,name) VALUES ('2','共享歌'); INSERT INTO song_media VALUES ('2',?); INSERT INTO song_usage VALUES (2,2,2,200)`, e.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestLibraryResourcePageBoundsAssociationsAndSearchesHiddenSongs(t *testing.
 	}
 	for i := 100; i < 125; i++ {
 		id := fmt.Sprint(i)
-		if _, err = u.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?)`, id, "hidden-"+id+strings.Repeat("名", 350)); err != nil {
+		if _, err = u.db.Exec(`INSERT INTO songs(id,name) VALUES (?,?)`, id, "hidden-"+id+strings.Repeat("名", 350)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = u.db.Exec(`INSERT INTO song_media VALUES (?,?)`, id, entries[0].Key); err != nil {

@@ -120,13 +120,13 @@ func TestSongURLMetadataPreservesOrderingAndMapping(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].URL != o.URL {
 		t.Fatal(got, err)
 	}
-	// A newer observation may replace the URL, but not the first mapping.
+	// A newer observation replaces URL and mapping together.
 	newer := tied
 	newer.QueryStartedAt = at.Add(time.Nanosecond)
 	if err := s.ObserveSongURL(ctx, newer); err != nil {
 		t.Fatal(err)
 	}
-	assertSongResource(t, s, "42", key)
+	assertSongResource(t, s, "42", other)
 	got, err = s.SongURLs(ctx, 42, "cf")
 	if err != nil || len(got) != 1 || got[0].URL != newer.URL {
 		t.Fatal(got, err)

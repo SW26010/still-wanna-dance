@@ -345,7 +345,7 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err = db.Exec("INSERT INTO songs(song_id) VALUES (99); INSERT INTO song_usage VALUES (99,1,1,1000)"); err != nil {
+	if _, err = db.Exec("INSERT INTO songs(id) VALUES (99); INSERT INTO song_usage VALUES (99,1,1,1000)"); err != nil {
 		t.Fatal(err)
 	}
 	w = vrcxRequest(t, c, "apply", map[string]any{"id": p.ID})

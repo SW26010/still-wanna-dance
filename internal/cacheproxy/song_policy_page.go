@@ -42,15 +42,15 @@ func ReadSongPage(ctx context.Context, paths LibraryPaths, query string, policy 
 		return result, err
 	}
 	defer tx.Rollback()
-	const from = ` FROM songs s LEFT JOIN song_media m ON m.song_id=s.song_id
- LEFT JOIN song_preferences p ON p.song_id=s.song_id
- WHERE (?='' OR instr(lower(COALESCE(s.name,s.composed_title,'')),lower(?))>0 OR CAST(s.song_id AS TEXT)=?)
+	const from = ` FROM songs s LEFT JOIN song_media m ON m.song_id=s.id
+ LEFT JOIN song_preferences p ON p.song_id=s.id
+ WHERE (?='' OR instr(lower(COALESCE(s.name,'')),lower(?))>0 OR CAST(s.id AS TEXT)=?)
  AND (?='' OR COALESCE(p.policy,'normal')=?)`
 	args := []any{query, query, query, policy, policy}
 	if err := tx.QueryRowContext(ctx, "SELECT count(*)"+from, args...).Scan(&result.Total); err != nil {
 		return result, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT CAST(s.song_id AS TEXT), substr(COALESCE(s.name,s.composed_title,''),1,300), COALESCE(p.policy,'normal'), COALESCE(m.md5,'')"+from+" ORDER BY s.song_id DESC LIMIT 50 OFFSET ?", append(args, offset)...)
+	rows, err := tx.QueryContext(ctx, "SELECT CAST(s.id AS TEXT), substr(COALESCE(s.name,''),1,300), COALESCE(p.policy,'normal'), COALESCE(m.md5,'')"+from+" ORDER BY s.id DESC LIMIT 50 OFFSET ?", append(args, offset)...)
 	if err != nil {
 		return result, err
 	}

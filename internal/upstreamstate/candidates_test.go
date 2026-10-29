@@ -266,15 +266,15 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil {
 				t.Fatalf("expected healthy A with only historical throughput: %+v", r)
 			}
-			if s, ok := m.Recommended(Resource); ok {
-				t.Fatal("expired throughput remained recommendable", s)
+			if s, ok := m.Recommended(Resource); !ok || s.Result.EstimatedSpeedBPS != nil {
+				t.Fatal("healthy HTTPS should remain usable without a speed estimate", s)
 			}
 			if updateWhileExpired {
 				m.mu.Lock()
 				m.updatePreferencesLocked(f, at, CheckLatency)
 				m.mu.Unlock()
-				if m.preferences[Resource] != nil {
-					t.Fatal("preference retained without fresh throughput")
+				if m.preferences[Resource] == nil {
+					t.Fatal("lost healthy HTTPS preference")
 				}
 			}
 

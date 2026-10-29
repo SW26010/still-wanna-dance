@@ -75,7 +75,7 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 		seedPrioritySong(t, s, id, key)
 	}
 	writeTestFile(t, cfg.videoFile(key), payload)
-	if _, err := s.usage.db.Exec("UPDATE songs SET end=CASE song_id WHEN 1 THEN 180 WHEN 2 THEN 240 ELSE 120 END"); err != nil {
+	if _, err := s.usage.db.Exec("UPDATE songs SET end=CASE id WHEN 1 THEN 180 WHEN 2 THEN 240 ELSE 120 END"); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []int64{1, 2} {

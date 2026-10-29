@@ -17,6 +17,7 @@ type Inventory struct {
 	Catalog         cacheproxy.CatalogStatus `json:"catalog"`
 	CoverageKnown   bool                     `json:"coverageKnown"`
 	CoveredSongs    int                      `json:"coveredSongs"`
+	UnresolvedSongs int                      `json:"unresolvedSongs"`
 	TotalSongs      int                      `json:"totalSongs"`
 	CatalogRevision string                   `json:"catalogRevision"`
 	Videos          int                      `json:"videos"`
@@ -174,7 +175,7 @@ func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
 		return
 	}
 	if catalog.Status.Revision == "" || len(catalog.Songs) == 0 {
-		result.Error = "本地尚无有效 MD5 清单，无法计算覆盖率"
+		result.Error = "本地尚无有效歌曲清单，无法计算覆盖率"
 		if refreshErr != nil {
 			result.Error += "：" + refreshErr.Error()
 		}
@@ -182,6 +183,10 @@ func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
 	}
 	for _, song := range catalog.Songs {
 		checksum := song.MD5
+		if checksum == "" {
+			result.UnresolvedSongs++
+			continue
+		}
 		if catalog.Files.Present[checksum] {
 			result.CoveredSongs++
 		}

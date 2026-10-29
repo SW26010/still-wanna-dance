@@ -38,7 +38,7 @@ func TestMediaTimingUsesMatchingCatalogVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,start,end) VALUES (1,50,240),(2,80,300),(3,0,900)`); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,240),(2,80,300),(3,0,900)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, other); err != nil {

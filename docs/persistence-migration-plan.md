@@ -29,7 +29,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 复审修正所有权夹具：候选提供者保留 `CloseIdleConnections`，候选 Transport 指向原对象，避免函数包装掩盖误关闭。定向测试通过（`ownership.txt`）；通过 Go overlay 分别注入关闭候选提供者和候选 Transport 的错误，两次均触发 `closed borrowed connection pool` 断言（`ownership-provider-mutation.txt`、`ownership-candidate-mutation.txt`）。注入源码仅保存在上述忽略目录，不改动产品文件。
 
-当前数据库已随响应来源统计升为 v7，新增请求与累计的三个固化字节字段，沿用开发期旧格式拒绝且不改写的约定。当前依据见[存储契约](storage.md)；下方 v6 首发收口记录保留当时验证范围，不能作为现行格式。后继格式演练测试已基于新 v7 样本继续验证。
+当前数据库已随 Udon 曲库改造升为 v8，库存/任务快照为 v3；此前 v7 新增的响应来源字节字段继续保留。沿用开发期旧格式拒绝且不改写的约定，当前依据见[存储契约](storage.md)及[曲库改造验证](research/udon-catalog-decision-draft-20261029.md#实施进度2026-10-29)。下方 v6/v7 收口记录保留当时验证范围，不能作为现行格式；后继格式演练使用独立的新 v8 样本。
 
 ## 2026-10-27 首发数据库收口
 

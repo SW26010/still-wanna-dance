@@ -110,8 +110,45 @@ func TestCoverageOnlineStillUsesDatabaseSnapshot(t *testing.T) {
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	c.startInventoryScan()
 	v := waitInventory(t, c)
-	// ID 2 was retained locally. Counting the HTTP response directly gives 1.
-	if v.Error != "" || v.TotalSongs != 2 || v.CoveredSongs != 2 || v.CatalogRevision != "20261001000000" || v.Catalog.CheckedAt.IsZero() {
+	// ID 2 remains in the library but no longer belongs to the accepted catalog.
+	if v.Error != "" || v.TotalSongs != 1 || v.CoveredSongs != 1 || v.CatalogRevision != "20261001000000" || v.Catalog.CheckedAt.IsZero() {
 		t.Fatal(v)
+	}
+}
+
+func TestCoverageSeedIsUnknownAndUnresolvedMembersStayInDenominator(t *testing.T) {
+	c := testConsole(t)
+	if err := c.store.ApplyBundledMediaSeed(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	cfg := fixtureCacheConfig()
+	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	engine, err := cacheproxy.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.service = engine
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "offline", 503) }))
+	defer api.Close()
+	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
+	var seeded Inventory
+	c.addInventoryCoverage(t.Context(), &seeded)
+	if seeded.CoverageKnown || seeded.TotalSongs != 0 || seeded.Error == "" {
+		t.Fatal(seeded)
+	}
+	key := strings.Repeat("a", 32)
+	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261028000000", Source: "fixture", Songs: []cacheproxy.CatalogSong{{ID: 9000001, MD5: key}, {ID: 9000002, MD5: key}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261029000000", Source: cacheproxy.UdonCatalogURL, Songs: []cacheproxy.CatalogSong{{ID: 9000002}, {ID: 9000003}, {ID: 9000004}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfg.VideoDir, key+".mp4"), []byte("local"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var current Inventory
+	c.addInventoryCoverage(t.Context(), &current)
+	if current.Error != "" || !current.CoverageKnown || current.TotalSongs != 3 || current.CoveredSongs != 1 || current.UnresolvedSongs != 2 {
+		t.Fatal(current)
 	}
 }

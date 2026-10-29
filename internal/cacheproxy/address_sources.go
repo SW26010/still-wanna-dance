@@ -66,7 +66,7 @@ func (s *Server) resolvePlaybackVideo(ctx context.Context, id string) (video, er
 
 // Share in-flight checks across probes and range requests. Their lifetime is
 // owned by the server, so serving cached bytes or disconnecting cannot cancel
-// diagnostic check. Differences are logged without changing content or mappings.
+// check. Fresh evidence updates future mappings without changing this response.
 func (s *Server) startPlaybackCheck(id string, local video) *playbackCheck {
 	// Source policy is fixed for this process; only song identity keys a check.
 	n, _ := strconv.ParseInt(id, 10, 64)

@@ -24,7 +24,7 @@ func TestStoreCreationPreservesRecoveryFiles(t *testing.T) {
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA cache_size=1; INSERT INTO songs(song_id,name) VALUES(7,'original')"); err != nil {
+	if _, err := db.Exec("PRAGMA cache_size=1; INSERT INTO songs(id,name) VALUES(7,'original')"); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := db.Begin()
@@ -32,7 +32,7 @@ func TestStoreCreationPreservesRecoveryFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec("UPDATE songs SET name='pending' WHERE song_id=7; WITH RECURSIVE n(x) AS (VALUES(100) UNION ALL SELECT x+1 FROM n WHERE x<3000) INSERT INTO songs(song_id,name) SELECT x, printf('%01000d',x) FROM n"); err != nil {
+	if _, err := tx.Exec("UPDATE songs SET name='pending' WHERE id=7; WITH RECURSIVE n(x) AS (VALUES(100) UNION ALL SELECT x+1 FROM n WHERE x<3000) INSERT INTO songs(id,name) SELECT x, printf('%01000d',x) FROM n"); err != nil {
 		t.Fatal(err)
 	}
 	journal, err := os.ReadFile(seed + "-journal")
@@ -125,7 +125,7 @@ func TestStorePreservesV6WithoutVideoOrObservation(t *testing.T) {
 	if err := validateStorageDatabase(s.db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec("INSERT INTO songs(song_id) VALUES(17); INSERT INTO song_preferences VALUES(17,'favorite')"); err != nil {
+	if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(17); INSERT INTO song_preferences VALUES(17,'favorite')"); err != nil {
 		t.Fatal(err)
 	}
 	var count int

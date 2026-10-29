@@ -46,7 +46,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if err := s.SyncCatalog(context.Background(), testCandidate("20000101000000", CatalogSong{ID: 1344, MD5: v.key, Name: &name})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`UPDATE songs SET volume=0.8 WHERE song_id='1344'`); err != nil {
+	if _, err := s.usage.db.Exec(`UPDATE songs SET volume=0.8 WHERE id='1344'`); err != nil {
 		t.Fatal(err)
 	}
 	if source, err := s.PrefetchSong(context.Background(), "1344", videoURL(payload)); source != "MISS" || err != nil {
@@ -70,7 +70,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	var title, checksum string
 	var volume float64
 	var size int64
-	if err := s.usage.db.QueryRow(`SELECT s.name, s.volume, v.md5, v.byte_size FROM songs s JOIN song_media c USING(song_id) JOIN media v USING(md5)`).Scan(&title, &volume, &checksum, &size); err != nil {
+	if err := s.usage.db.QueryRow(`SELECT s.name, s.volume, v.md5, v.byte_size FROM songs s JOIN song_media c ON c.song_id=s.id JOIN media v USING(md5)`).Scan(&title, &volume, &checksum, &size); err != nil {
 		t.Fatal(err)
 	}
 	if title != "My song" || volume != 0.8 || len(checksum) != 32 || size != int64(len(payload)) {
@@ -93,7 +93,7 @@ func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
 	if _, err := os.Stat(files[0]); !os.IsNotExist(err) {
 		t.Fatal("video not evicted", err)
 	}
-	if err := restarted.usage.db.QueryRow(`SELECT name FROM songs WHERE song_id='1344'`).Scan(&title); err != nil || title != "My song" {
+	if err := restarted.usage.db.QueryRow(`SELECT name FROM songs WHERE id='1344'`).Scan(&title); err != nil || title != "My song" {
 		t.Fatal("eviction lost song", title, err)
 	}
 	var versions int

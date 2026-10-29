@@ -149,7 +149,7 @@ func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overw
 	if _, err = tx.ExecContext(ctx, "DELETE FROM song_usage"); err != nil {
 		return err
 	}
-	songs, err := tx.PrepareContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING")
+	songs, err := tx.PrepareContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING")
 	if err != nil {
 		return err
 	}

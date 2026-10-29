@@ -105,6 +105,7 @@ type Result struct {
 	Reason             string    `json:"reason,omitempty"`
 	Stage              string    `json:"stage,omitempty"`
 	HTTP               int       `json:"http,omitempty"`
+	Scheme             string    `json:"scheme,omitempty"`
 	Entry              string    `json:"entry"`
 	Route              string    `json:"route"`
 	EstimatedLatencyMS *float64  `json:"estimatedLatencyMS"`
@@ -119,6 +120,9 @@ type Result struct {
 	SampleSongID int64 `json:"sampleSongID,omitempty"`
 }
 type observation struct {
+	err                 error
+	scheme              string
+	responded           bool
 	resourceSource      upstreamrequest.ResourceSource
 	resourceHost        string
 	catalogTime         string
@@ -248,7 +252,7 @@ func (m *Monitor) record(o observation) {
 		if o.at.Before(last.at) {
 			return
 		}
-		if last.state != "available" || o.state != "available" || last.songID != o.songID {
+		if last.state != "available" || o.state != "available" || last.songID != o.songID || observedScheme(last.scheme) != observedScheme(o.scheme) {
 			h = nil
 		}
 	}
@@ -279,13 +283,13 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 			return
 		}
 		if o, ok := m.throughput[key]; ok {
-			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration}
+			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: observedScheme(o.scheme)}
 		}
 		if r.State != "available" {
 			return
 		}
 		r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = nil, nil, 0
-		if o, ok := m.throughput[key]; ok && now.Before(o.at.Add(m.policy.ThroughputInterval)) {
+		if o, ok := m.throughput[key]; ok && observedScheme(o.scheme) == r.Scheme && now.Before(o.at.Add(m.policy.ThroughputInterval)) {
 			speed, ms := float64(o.bytes)/o.transferDuration.Seconds(), float64(o.transferDuration)/float64(time.Millisecond)
 			r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = &speed, &ms, o.bytes
 			r.ThroughputObservedAt = o.at
@@ -306,6 +310,7 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 	r.ValidUntil = validUntil(last, m.policy)
 	r.SampleSongID = last.songID
 	r.HTTP = last.http
+	r.Scheme = observedScheme(last.scheme)
 	r.Stage = last.stage
 	r.TransferredBytes = last.bytes
 	if last.transferDuration > 0 {
@@ -350,6 +355,15 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 		r.EstimatedSpeedBPS = &speed
 	}
 	return r
+}
+
+// Before protocol fallback, every persisted sample was HTTPS. Empty values in
+// existing snapshots retain that meaning; new observations record the protocol.
+func observedScheme(scheme string) string {
+	if scheme == "" {
+		return "https"
+	}
+	return scheme
 }
 
 // resultsLocked preserves route definition order, regardless of measurements.

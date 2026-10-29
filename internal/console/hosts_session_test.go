@@ -92,33 +92,29 @@ func TestHostsSessionReuseAndExitPolicy(t *testing.T) {
 	}
 }
 
-func TestHostsSessionChecksOwnedReadyMappingBeforeAuthorization(t *testing.T) {
+func TestHostsSessionReusesReadyMappingWithoutAuthorization(t *testing.T) {
 	owned, _ := transformHosts(hostsBaseline, "enable")
 	for _, tc := range []struct {
-		name, initial       string
-		restore, wantLaunch bool
+		name, initial string
+		restore       bool
 	}{
-		{"owned default", owned, true, true},
-		{"owned persistent", owned, false, false},
-		{"unowned default", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n", true, false},
-		{"unowned API with unrelated marker", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n", true, false},
+		{"owned default", owned, true},
+		{"owned persistent", owned, false},
+		{"unowned default", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n", true},
+		{"unowned API with unrelated marker", hostsBaseline + "127.0.0.1 api.udon.dance # user\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h, launches := fixtureHostsController(t, tc.initial)
 			if err := h.change("enable", tc.restore); err != nil {
 				t.Fatal(err)
 			}
-			if (*launches > 0) != tc.wantLaunch || h.prepared.Load() != tc.wantLaunch {
+			if *launches != 0 || h.prepared.Load() {
 				t.Fatal("wrong authorization decision", *launches, h.prepared.Load())
 			}
 			if err := h.close(tc.restore); err != nil {
 				t.Fatal(err)
 			}
-			want := tc.initial
-			if tc.wantLaunch {
-				want = hostsBaseline
-			}
-			if got := readHostsFixture(t, h.path); got != want {
+			if got := readHostsFixture(t, h.path); got != tc.initial {
 				t.Fatalf("%q", got)
 			}
 		})
@@ -335,7 +331,7 @@ func TestHostsShutdownCancelsPendingAuthorization(t *testing.T) {
 	}
 }
 
-func TestAccelerationPreparesExistingConnectionOnlyWhenNeeded(t *testing.T) {
+func TestAccelerationReusesExistingConnectionWithoutPreparingRestore(t *testing.T) {
 	for _, restore := range []bool{true, false} {
 		c := testConsole(t)
 		owned, _ := transformHosts(hostsBaseline, "enable")
@@ -347,15 +343,125 @@ func TestAccelerationPreparesExistingConnectionOnlyWhenNeeded(t *testing.T) {
 		c.savedSettings = c.settings
 
 		c.AutoStart()
-		if (*launches == 1) != restore {
-			t.Fatal("automatic acceleration did not prepare needed cleanup")
+		if *launches != 0 || c.httpServer == nil {
+			t.Fatal("automatic acceleration requested permission or did not start")
 		}
 		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
-		if (*launches == 1) != restore || h.status().ExitRestorePrepared != restore {
-			t.Fatal("explicit start did not check cleanup capability", *launches)
+		if *launches != 0 || h.status().ExitRestorePrepared {
+			t.Fatal("explicit start prepared cleanup", *launches)
 		}
+	}
+}
+
+func TestHostsRestorePreparationEndpointDoesNotControlAcceleration(t *testing.T) {
+	for _, failure := range []string{"none", "canceled", "preflight"} {
+		t.Run(failure, func(t *testing.T) {
+			c := testConsole(t)
+			owned, _ := transformHosts(hostsBaseline, "enable")
+			h, launches := fixtureHostsController(t, owned)
+			c.hosts = h
+			launch := h.launch
+			attempts := 0
+			h.launch = func(ctx context.Context) (hostsConnection, error) {
+				attempts++
+				if failure == "canceled" && attempts == 1 {
+					return nil, errors.Join(errors.New("fixture authorization"), errHostsAuthorizationCanceled)
+				}
+				session, err := launch(ctx)
+				if failure == "preflight" && err == nil {
+					return failedPrepareHosts{session}, nil
+				}
+				return session, err
+			}
+			request := func() *httptest.ResponseRecorder {
+				r := httptest.NewRequest("POST", "http://"+c.address+"/api/hosts/prepare", nil)
+				r.Header.Set("X-SWD-Token", c.token)
+				w := httptest.NewRecorder()
+				c.ServeHTTP(w, r)
+				return w
+			}
+			c.AutoStart() // Automatic acceleration is off; startup must not prompt.
+			if attempts != 0 || c.httpServer != nil {
+				t.Fatal("startup requested authorization or enabled acceleration")
+			}
+			w := request()
+			if w.Code != 200 {
+				var response map[string]string
+				if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+					t.Fatal(err)
+				}
+				if (response["code"] == "uac_canceled") != (failure == "canceled") {
+					t.Fatal("wrong cancellation classification", response)
+				}
+			}
+			if (w.Code == 200) != (failure == "none") || h.prepared.Load() != (failure == "none") || attempts != 1 || c.httpServer != nil || readHostsFixture(t, h.path) != owned {
+				t.Fatal("repair changed hosts, enabled acceleration or hid failure", w.Code, w.Body.String())
+			}
+			if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil || c.httpServer == nil || attempts != 1 {
+				t.Fatal("acceleration retried or depended on repair", err, attempts)
+			}
+			server, activation := c.httpServer, c.activation
+			if session, ok := h.session.(failedPrepareHosts); ok {
+				h.session = session.hostsConnection
+			}
+			if w = request(); w.Code != 200 || !h.prepared.Load() || *launches != 1 || c.httpServer != server || c.activation != activation || readHostsFixture(t, h.path) != owned {
+				t.Fatal("repair retry changed acceleration or did not prepare cleanup", w.Code, w.Body.String())
+			}
+			if err := c.Close(); err != nil || readHostsFixture(t, h.path) != hostsBaseline || *launches != 1 {
+				t.Fatal("exit did not reuse restoration permission", err)
+			}
+		})
+	}
+}
+
+func TestHostsRepairClearsOnlyResolvedPermissionError(t *testing.T) {
+	for _, unrelated := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing permission", true: "edited mapping"}[unrelated], func(t *testing.T) {
+			c := testConsole(t)
+			owned, _ := transformHosts(hostsBaseline, "enable")
+			h, _ := fixtureHostsController(t, owned)
+			c.hosts = h
+			if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+				t.Fatal(err)
+			}
+			c.beginVideoRequest(time.Now())()
+			if unrelated {
+				if err := h.prepareRestore(); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(h.path, []byte(strings.ReplaceAll(owned, "127.0.0.1 api", "192.0.2.1 api")), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := c.disableAcceleration(); err == nil || c.activation.ConnectionError == "" {
+				t.Fatal("stop did not record its restoration failure")
+			}
+			if err := os.WriteFile(h.path, []byte(owned), 0600); err != nil {
+				t.Fatal(err)
+			}
+			before, generation := c.activation, c.activationGeneration
+			c.cdnError = "unrelated gateway error"
+			c.recordActionError("/api/queue/start", errors.New("unrelated queue error"))
+			if !unrelated {
+				launch := h.launch
+				h.launch = func(context.Context) (hostsConnection, error) { return nil, errHostsAuthorizationCanceled }
+				if err := c.prepareHostsRestore(); err == nil || c.activation != before {
+					t.Fatal("failed repair cleared the unresolved permission error", err)
+				}
+				h.launch = launch
+			}
+			if err := c.prepareHostsRestore(); err != nil {
+				t.Fatal(err)
+			}
+			if (c.activation.ConnectionError != "") != unrelated {
+				t.Fatalf("resolved permission error survived or unrelated error disappeared: %q", c.activation.ConnectionError)
+			}
+			if c.activation.Phase != before.Phase || c.activation.Error != before.Error || c.activation.Started != before.Started || c.activation.ReadyAt != before.ReadyAt || c.activation.FirstRequest != before.FirstRequest || c.activationGeneration != generation || c.cdnError != "unrelated gateway error" || c.actionErrors["queue"] != "unrelated queue error" || c.httpServer != nil || readHostsFixture(t, h.path) != owned {
+				t.Fatal("repair changed observation, history, other errors, gateway or hosts")
+			}
+		})
 	}
 }
 

@@ -36,7 +36,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		var v candidate
 		var err error
 		switch response.Route {
-		case "kiva", "wanna":
+		case "api", "kiva", "wanna":
 			var full cacheproxy.Catalog
 			full, err = cacheproxy.ParseCatalog(response.Body, response.Source)
 			v.full, v.revision = &full, full.Revision
@@ -57,8 +57,11 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 	if (len(candidates) == 0 && len(failures) == 0) || ctx.Err() != nil {
 		return
 	}
-	// Only MD5 catalogs are business inputs; offer newer versions first.
+	// Offer newer versions first, preferring canonical Udon at the same version.
 	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].at.Equal(candidates[j].at) {
+			return cacheproxy.IsUdonCatalog(candidates[i].source) && !cacheproxy.IsUdonCatalog(candidates[j].source)
+		}
 		return candidates[i].at.After(candidates[j].at)
 	})
 	c.lifecycleMu.Lock()

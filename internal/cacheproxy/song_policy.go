@@ -118,7 +118,7 @@ func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolic
 	if policy == SongNormal {
 		_, err = tx.ExecContext(ctx, "DELETE FROM song_preferences WHERE song_id=?", id)
 	} else {
-		_, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id)
+		_, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", id)
 		if err == nil {
 			_, err = tx.ExecContext(ctx, `INSERT INTO song_preferences(song_id,policy) VALUES (?,?)
  ON CONFLICT(song_id) DO UPDATE SET policy=excluded.policy`, id, policy)

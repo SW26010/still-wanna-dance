@@ -18,7 +18,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	for id, key := range map[string]string{"1": shared, "2": shared, "3": missing, "4": orphan, "5": hidden} {
 		seedPrioritySong(t, s, id, key)
 	}
-	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',group_name='Group' WHERE song_id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
+	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',groupName='Group' WHERE id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
 	writeTestFile(t, cfg.videoFile(shared), "shared")
@@ -26,21 +26,21 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	// Neither a partial spool nor an invalid file becomes a complete video.
 	writeTestFile(t, filepath.Join(cfg.VideoDir, "unfinished.part"), "ignored")
 	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources"})
-	if err != nil || page.Total != 3 || len(page.Resources) != 3 || page.FileCount != 2 || page.TotalBytes != 12 {
+	if err != nil || page.Total != 4 || len(page.Resources) != 4 || page.FileCount != 2 || page.TotalBytes != 12 {
 		t.Fatal(page, err)
 	}
 	r := page.Resources[shared]
 	if r.SongCount != 2 || r.Local == nil || r.Local.Stamp == "" || *r.Size != 6 || r.Duration != nil {
 		t.Fatal(r)
 	}
-	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] != nil {
+	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] == nil || page.Resources[hidden].Local != nil {
 		t.Fatal(page)
 	}
 	if _, err := s.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
 		t.Fatal(err)
 	}
 	recent, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Sort: "recent"})
-	if err != nil || len(recent.Keys) != 3 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Keys[2] != missing || recent.Resources[orphan].Local.LastRequest != 200 {
+	if err != nil || len(recent.Keys) != 4 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Resources[orphan].Local.LastRequest != 200 {
 		t.Fatal(recent, err)
 	}
 	songs, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Search: "Singer"})
@@ -51,7 +51,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 		t.Fatal("shared file has inconsistent deletion identity")
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Filter: "missing"})
-	if err != nil || page.Total != 1 || page.Keys[0] != missing {
+	if err != nil || page.Total != 2 || !slices.Contains(page.Keys, missing) || !slices.Contains(page.Keys, hidden) {
 		t.Fatal(page, err)
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
@@ -63,7 +63,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 		t.Fatal(removed, err)
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
-	if err != nil || page.Total != 0 || page.FileCount != 1 || page.TotalBytes != 6 {
+	if err != nil || page.Total != 1 || page.Resources[orphan].Local != nil || page.FileCount != 1 || page.TotalBytes != 6 {
 		t.Fatal(page, err)
 	}
 	var count int
@@ -87,7 +87,7 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000121; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.usage.db.Exec(`INSERT INTO song_usage VALUES (?,1,?,?)`, id, float64(id-9000000), now); err != nil {
@@ -147,7 +147,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000051; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (?,'Z real')`, id); err != nil {
+		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,'Z real')`, id); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.usage.db.Exec(`INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at) VALUES (?,1,?,?)`, id, float64(id-9000001)/1000, now); err != nil {
@@ -155,7 +155,7 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 		}
 	}
 	// Every real score is below the priors, including one real score of zero.
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
 		t.Fatal(err)
 	}
 	first, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score"}, now)
@@ -193,7 +193,7 @@ func TestLibrarySortDirectionsAcrossPages(t *testing.T) {
 	for id := 1; id <= 63; id++ {
 		key := fmt.Sprintf("%032x", id)
 		seedPrioritySong(t, s, fmt.Sprint(9000000+id), key)
-		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE song_id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
+		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
 			t.Fatal(err)
 		}
 		if id <= 61 {

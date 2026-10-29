@@ -133,7 +133,8 @@ func run() (resultErr error) {
 		if err != nil {
 			return err
 		}
-		if err := store.Close(); err != nil {
+		seedErr := store.ApplyBundledMediaSeed(context.Background())
+		if err := errors.Join(seedErr, store.Close()); err != nil {
 			return err
 		}
 		cfg.Logger.Info("database_created", "database", *database)
@@ -163,6 +164,9 @@ func run() (resultErr error) {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
+	if err := store.ApplyBundledMediaSeed(context.Background()); err != nil {
+		return err
+	}
 	cfg.Store = store
 	service, err := cacheproxy.New(cfg)
 	if err != nil {

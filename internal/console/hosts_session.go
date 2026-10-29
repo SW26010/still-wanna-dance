@@ -19,6 +19,11 @@ import (
 
 const hostsReplyTimeout = 10 * time.Second
 
+var (
+	errHostsRestorePermission     = errors.New("尚未取得恢复权限，请点击游戏连接状态中的「修复」后重试")
+	errHostsAuthorizationCanceled = errors.New("管理员授权已取消")
+)
+
 // The protocol has no paths, file contents or executable commands. Both modes
 // use the same session; only the cleanup policy differs.
 type hostsRequest struct {
@@ -89,15 +94,14 @@ func (h *hostsController) change(action string, restore bool) error {
 	if err != nil {
 		return err
 	}
-	// An existing owned mapping still needs an authorized cleanup session in
-	// default mode. User/other-tool mappings are never adopted or removed.
-	needsRestore := action == "enable" && restore && hasManagedHosts(string(data))
-	if next == string(data) && !needsRestore {
+	// Reusing a ready mapping does not require restoration permission. The
+	// user prepares it explicitly; starting acceleration must not retry UAC.
+	if next == string(data) {
 		return nil
 	}
 	if h.session == nil {
 		if action == "disable" {
-			return errors.New("游戏接入尚未取得恢复权限，请先开始加速完成授权后重试")
+			return errHostsRestorePermission
 		}
 		h.session, err = h.launch(h.ctx)
 		if err != nil {

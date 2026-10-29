@@ -24,6 +24,7 @@ type Batch struct {
 	Reused         int                        `json:"reused"`
 	ScanOnly       bool                       `json:"scanOnly"`
 	Missing        int                        `json:"missing"`
+	Unresolved     int                        `json:"unresolved"`
 	Updated        time.Time                  `json:"updated"`
 	Finished       time.Time                  `json:"finished"`
 	Running        bool                       `json:"running"`
@@ -194,6 +195,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch.Hits, c.batch.Downloaded = progress.Hits, progress.Downloaded
 		c.batch.Failed, c.batch.Skipped = progress.Failed, progress.Skipped
 		c.batch.Missing, c.batch.Reused, c.batch.CatalogHits = progress.Missing, progress.Reused, progress.CatalogHits
+		c.batch.Unresolved = progress.Unresolved
 		c.batch.BudgetReached = progress.BudgetReached
 		c.batch.Current = ""
 		if progress.CurrentSongID != "" {
@@ -207,7 +209,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if scanOnly {
 			c.batch.Phase = "正在检查 MD5 文件是否齐备"
 		} else {
-			c.batch.Phase = "正在按缺失 MD5 下载补齐"
+			c.batch.Phase = "正在解析歌曲并补齐缺失视频"
 		}
 	})
 	if result.BudgetReached {
@@ -238,6 +240,6 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	} else if target != nil {
 		c.batch.Phase = "所选歌曲或资源已处理完成；同 MD5 共用一份视频"
 	} else {
-		c.batch.Phase = "所有已知歌曲已处理完成；同 MD5 共用一份视频"
+		c.batch.Phase = "当前清单歌曲已处理完成；同 MD5 共用一份视频"
 	}
 }

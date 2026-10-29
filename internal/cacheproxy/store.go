@@ -30,16 +30,17 @@ type Store struct {
 
 	// Every mapping/preference commit and engine eviction/publication use the
 	// same locks. No post-commit callback substitutes for this exclusion.
-	retentionRunMu sync.Mutex
-	mappingMu      sync.Mutex
-	engine         atomic.Pointer[Server]
-	mu             sync.Mutex
-	wg             sync.WaitGroup
-	closed         bool
-	done           chan struct{}
-	closeErr       error
-	failure        error
-	failed         chan struct{}
+	retentionRunMu      sync.Mutex
+	mappingMu           sync.Mutex
+	catalogObservations map[string]catalogObservation // Protected by mappingMu; diagnostic only.
+	engine              atomic.Pointer[Server]
+	mu                  sync.Mutex
+	wg                  sync.WaitGroup
+	closed              bool
+	done                chan struct{}
+	closeErr            error
+	failure             error
+	failed              chan struct{}
 
 	// One shared wakeup channel coalesces changes without retaining subscribers.
 	historyRevision uint64

@@ -60,8 +60,8 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	defer db.Close()
 	var size sql.NullInt64
 	var mapped string
-	if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=1").Scan(&mapped, &size); err != nil || mapped != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || size.Valid {
-		t.Fatalf("URL changed catalog mapping or unrelated metadata: %s, %+v, %v", mapped, size, err)
+	if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=1").Scan(&mapped, &size); err != nil || mapped != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" || !size.Valid || size.Int64 != 5678 {
+		t.Fatalf("URL did not update mapping and metadata: %s, %+v, %v", mapped, size, err)
 	}
 	if err := db.QueryRow("SELECT byte_size FROM media WHERE md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'").Scan(&size); err != nil || !size.Valid || size.Int64 != 5678 {
 		t.Fatalf("URL metadata not saved: %+v, %v", size, err)
@@ -144,7 +144,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	}
 }
 
-func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
+func TestMonitorMetadataBackfillFollowsSongOrderIncludingUdonOnlySong(t *testing.T) {
 	c := testConsole(t)
 	keys := map[int64]string{1981: strings.Repeat("a", 32), 5404: strings.Repeat("b", 32)}
 	var mu sync.Mutex
@@ -198,7 +198,7 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 		}
 	}
 	assertRequests(1981, 10)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404}) {
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
 	requested = nil
@@ -206,14 +206,17 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRequests(5404, 12)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
-		t.Fatal("metadata still incomplete", pending)
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
+		t.Fatal("Udon-only song was not scheduled", pending)
 	}
 	requested = nil
 	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
 		t.Fatal(err)
 	}
 	assertRequests(42, 14)
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
+		t.Fatal("metadata still incomplete", pending)
+	}
 }
 
 func TestMonitorMetadataCandidatesDoNotOpenOrReviveStorage(t *testing.T) {

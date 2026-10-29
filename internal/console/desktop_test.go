@@ -113,7 +113,7 @@ func TestDesktopRepairsRunningGateway(t *testing.T) {
 			if err := c.DesktopCommand(desktop.StartAcceleration); err != nil {
 				t.Fatal(err)
 			}
-			if s := c.DesktopState(); !s.Ready || s.NeedsExitPreparation || c.httpServer != server || c.activation.Phase != "waiting" {
+			if s := c.DesktopState(); !s.Ready || s.NeedsExitPreparation != tc.needsRestore || c.httpServer != server || c.activation.Phase != "waiting" {
 				t.Fatal("repair did not reuse the running gateway", s, c.activation)
 			}
 		})

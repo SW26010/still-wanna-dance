@@ -19,7 +19,7 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.wg.Wait()
-	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
+	if _, err := s.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
@@ -51,7 +51,7 @@ func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 	}
 	// Body delivery finishes independently of background publication/indexing.
 	s.wg.Wait()
-	if _, err := s.usage.db.Exec("INSERT INTO songs(song_id,end) VALUES (1,120)"); err != nil {
+	if _, err := s.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {

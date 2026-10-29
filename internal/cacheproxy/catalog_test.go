@@ -23,16 +23,15 @@ func TestCatalogProtocolSampleAndAtomicRoundTrip(t *testing.T) {
 	if err := s.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	var name, artist, group, tags, urls, shader string
+	var name, artist, group, tags, shader string
 	var volume, start, end float64
 	var flip, width int
-	var aya sql.NullString
-	err = s.usage.db.QueryRow("SELECT name,artist,group_name,volume,start,end,flip,double_width,aya_id,tags_json,original_urls_json,shader_motion_json FROM songs WHERE song_id=90000").Scan(&name, &artist, &group, &volume, &start, &end, &flip, &width, &aya, &tags, &urls, &shader)
+	err = s.usage.db.QueryRow("SELECT name,artist,groupName,volume,start,end,flip,double_width,tag,shader_motion FROM songs WHERE id=90000").Scan(&name, &artist, &group, &volume, &start, &end, &flip, &width, &tags, &shader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "测试" || artist != "测试" || group != "Hide" || volume != 1 || start != 0 || end != 8 || flip != 1 || width != 0 || aya.Valid || tags != "[]" || shader != "[]" || !strings.Contains(urls, "bilibili.com") {
-		t.Fatal(name, artist, group, volume, start, end, flip, width, aya, tags, urls, shader)
+	if name != "测试" || artist != "测试" || group != "Hide" || volume != 1 || start != 0 || end != 8 || flip != 1 || width != 0 || tags != "[]" || shader != "[]" {
+		t.Fatal(name, artist, group, volume, start, end, flip, width, tags, shader)
 	}
 	// Same normalized data despite object formatting is a duplicate, not a write.
 	var generic any
@@ -56,34 +55,6 @@ func testCandidate(revision string, songs ...CatalogSong) Catalog {
 	return Catalog{Source: "test", Revision: revision, Songs: songs}
 }
 
-func TestCatalogAyaIDNumberStoredLosslesslyAsNullableText(t *testing.T) {
-	for _, value := range []string{"null", "0", "42", "9007199254740993", "18446744073709551616", "-12", "1.2300", "1e+400"} {
-		t.Run(value, func(t *testing.T) {
-			body := strings.Replace(catalogSample, `"ayaId":null`, `"ayaId":`+value, 1)
-			c, err := ParseCatalog([]byte(body), "test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			s, _ := setup(t, nil)
-			if err := s.SyncCatalog(context.Background(), c); err != nil {
-				t.Fatal(err)
-			}
-			var got sql.NullString
-			var storageType string
-			if err := s.usage.db.QueryRow("SELECT aya_id,typeof(aya_id) FROM songs WHERE song_id=90000").Scan(&got, &storageType); err != nil {
-				t.Fatal(err)
-			}
-			if value == "null" {
-				if got.Valid || storageType != "null" || c.Songs[0].AyaID != nil {
-					t.Fatal(got, storageType, string(c.Songs[0].AyaID))
-				}
-			} else if !got.Valid || got.String != value || storageType != "text" || string(c.Songs[0].AyaID) != value {
-				t.Fatal(got, storageType, string(c.Songs[0].AyaID))
-			}
-		})
-	}
-}
-
 func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
@@ -104,11 +75,11 @@ func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	if err := s.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	assertSongResource(t, s, "1", b)
+	assertSongResource(t, s, "1", a)
 	assertSongResource(t, s, "2", a)
 	var count, size int
 	var got string
-	if err := s.usage.db.QueryRow("SELECT name FROM songs WHERE song_id=1").Scan(&got); err != nil || got != "new" {
+	if err := s.usage.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&got); err != nil || got != "new" {
 		t.Fatal(got, err)
 	}
 	if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
@@ -124,7 +95,7 @@ func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	if err := s.usage.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name IN ('video_versions','current_videos','song_videos','resource_usage')").Scan(&count); err != nil || count != 0 {
 		t.Fatal(count, err)
 	}
-	for _, query := range []string{"INSERT INTO song_media VALUES (999,'" + a + "')", "INSERT INTO media(md5) VALUES (NULL)", "UPDATE songs SET flip=2 WHERE song_id=1", "UPDATE songs SET tags_json='{}' WHERE song_id=1"} {
+	for _, query := range []string{"INSERT INTO song_media VALUES (999,'" + a + "')", "INSERT INTO media(md5) VALUES (NULL)", "UPDATE songs SET flip=2 WHERE id=1", "UPDATE songs SET tag='{}' WHERE id=1"} {
 		if _, err := s.usage.db.Exec(query); err == nil {
 			t.Fatal("constraint not enforced", query)
 		}
@@ -139,7 +110,7 @@ func TestCatalogRollbackAndWatermark(t *testing.T) {
 	if err := s.SyncCatalog(ctx, first); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("CREATE TRIGGER reject_second BEFORE INSERT ON songs WHEN NEW.song_id=2 BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
+	if _, err := s.usage.db.Exec("CREATE TRIGGER reject_second BEFORE INSERT ON songs WHEN NEW.id=2 BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
 		t.Fatal(err)
 	}
 	next := testCandidate("20261002000000", CatalogSong{ID: 1, MD5: b}, CatalogSong{ID: 2, MD5: b})
@@ -166,7 +137,7 @@ func TestCatalogRollbackAndWatermark(t *testing.T) {
 			t.Fatal("stale/conflicting candidate accepted")
 		}
 	}
-	assertSongResource(t, s, "1", b)
+	assertSongResource(t, s, "1", a)
 }
 
 func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
@@ -198,7 +169,7 @@ func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
 		}
 	}()
 	wg.Wait()
-	assertSongResource(t, s, "1", b)
+	assertSongResource(t, s, "1", a)
 	// Simulate an older fetch finishing after the new version has committed.
 	if err := s.SyncCatalog(ctx, old); err == nil {
 		t.Fatal("late older candidate accepted")
@@ -217,7 +188,7 @@ func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
 		}
 	}()
 	wg.Wait()
-	assertSongResource(t, s, "1", b)
+	assertSongResource(t, s, "1", a)
 }
 
 func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
@@ -242,7 +213,7 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 	if err := s.SyncCatalog(ctx, next); err != nil {
 		t.Fatal("obsolete Udon watermark blocked update", err)
 	}
-	assertSongResource(t, s, "1", b)
+	assertSongResource(t, s, "1", a)
 	if err := s.SyncCatalog(ctx, first); err == nil {
 		t.Fatal("old mirror accepted")
 	}
@@ -253,7 +224,8 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 	if err := s.SyncCatalog(ctx, next); err != nil {
 		t.Fatal("same-version mirror rewrote data", err)
 	}
-	next.Songs[0].MD5 = a
+	conflictName := "conflict"
+	next.Songs[0].Name = &conflictName
 	if err := s.SyncCatalog(ctx, next); err == nil {
 		t.Fatal("same-version conflict accepted")
 	}
@@ -270,7 +242,7 @@ func TestOldStoreRejectedWithoutAnyFileChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec("PRAGMA user_version=2; CREATE TABLE songs(song_id TEXT PRIMARY KEY,title TEXT); INSERT INTO songs VALUES ('1','preserve')")
+	_, err = db.Exec("PRAGMA user_version=2; CREATE TABLE songs(id TEXT PRIMARY KEY,title TEXT); INSERT INTO songs VALUES ('1','preserve')")
 	db.Close()
 	if err != nil {
 		t.Fatal(err)

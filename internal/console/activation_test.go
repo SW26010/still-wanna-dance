@@ -149,6 +149,18 @@ func TestActivationPortFailureRollsBackHosts(t *testing.T) {
 			if c.cdnError == "" || c.activation.ConnectionError != "" {
 				t.Fatal("port conflict was attributed to hosts", c.activation, c.cdnError)
 			}
+			// This unrelated listener belongs to the same process. Only the
+			// gateway's own listeners may be treated as available, not every PID match.
+			w := httptest.NewRecorder()
+			c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+			var status struct {
+				Running, PortOK, HTTPSPortOK bool
+				CDNError                     string
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || w.Code != 200 ||
+				status.Running || status.PortOK != https || status.HTTPSPortOK == https || status.CDNError == "" {
+				t.Fatalf("real port conflict was hidden: %d %s", w.Code, w.Body.String())
+			}
 		})
 	}
 }

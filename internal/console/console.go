@@ -77,6 +77,7 @@ type Console struct {
 	vrcxPreview            *vrcxPreview
 	vrcxNotify             bool                        // startup Toast only; set during automatic library creation
 	vrcxImportDismissed    bool                        // protected by mu; persisted user choice outside editable Settings
+	videoImportSuggestion  bool                        // protected by mu; only the first run of a configuration, until acknowledged
 	proxyImports           map[string]proxyImportDraft // protected by mu
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
@@ -149,7 +150,13 @@ type Console struct {
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
-	return newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
+	c, err := newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
+	if err == nil && c.store != nil {
+		if seedErr := c.store.ApplyBundledMediaSeed(context.Background()); seedErr != nil {
+			return nil, errors.Join(seedErr, c.Close())
+		}
+	}
+	return c, err
 }
 
 func newConsole(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory) (*Console, error) {
@@ -171,7 +178,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: cacheproxy.UdonCatalogURL}
 	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
@@ -189,6 +196,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if err != nil {
 		return nil, err
 	}
+	c.videoImportSuggestion = data == nil
 	if data != nil {
 		if err := json.Unmarshal(data, &c.settings); err != nil {
 			return nil, fmt.Errorf("读取程序配置：%w", err)
@@ -496,29 +504,36 @@ func (c *Console) startLocked() (err error) {
 		c.startGatewayQueueLocked()
 		return nil
 	}
-	// Activation owns the hosts setup; this step binds both local listeners.
+	// Publish ownership together with binding so status probes cannot contend
+	// with our listeners, including while the engine is still opening.
+	c.mu.Lock()
 	l, err := net.Listen("tcp4", c.videoAddress)
 	if err != nil {
+		c.mu.Unlock()
 		return desktop.PortError(c.videoAddress, err)
 	}
 	secure, err := net.Listen("tcp4", c.httpsAddress)
 	if err != nil {
 		l.Close()
+		c.mu.Unlock()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
+	relay := newHTTPSRelay(secure, c.dns.DialContext)
+	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
+	c.videoListener, c.https = l, relay
+	c.mu.Unlock()
 	engine, err := c.ensureEngineLocked()
 	if err != nil {
+		c.mu.Lock()
 		l.Close()
-		secure.Close()
+		relay.close() // Serving has not started, so there are no clients to drain.
+		c.videoListener, c.https = nil, nil
+		c.mu.Unlock()
 		return err
 	}
 	h := &http.Server{Handler: engine, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.mu.Lock()
 	c.httpServer = h
-	c.videoListener = l
-	relay := newHTTPSRelay(secure, c.dns.DialContext)
-	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
-	c.https = relay
 	c.cdnError = ""
 	c.mu.Unlock()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
@@ -569,12 +584,16 @@ func (c *Console) stopLocked() {
 		c.activation.Phase = "stopped"
 	}
 	listener, relay, server := c.videoListener, c.https, c.httpServer
-	c.videoListener, c.https, c.httpServer = nil, nil, nil
-	c.mu.Unlock()
-	defer c.mu.Lock()
+	// Release ports before clearing ownership. Draining clients stays outside mu.
 	if listener != nil {
 		listener.Close()
 	}
+	if relay != nil {
+		relay.listener.Close()
+	}
+	c.videoListener, c.https, c.httpServer = nil, nil, nil
+	c.mu.Unlock()
+	defer c.mu.Lock()
 	if relay != nil {
 		relay.close()
 	}
@@ -770,6 +789,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CDNError              string                  `json:"cdnError"`
 			StorageError          string                  `json:"storageError,omitempty"`
 			VRCXImportAvailable   bool                    `json:"vrcxImportAvailable"`
+			VideoImportSuggested  bool                    `json:"videoImportSuggested"`
 			ActionErrors          map[string]string       `json:"actionErrors"`
 			Batch                 Batch                   `json:"batch"`
 			Import                ImportStatus            `json:"import"`
@@ -790,8 +810,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
-			RestartRequired: c.savedSettings != c.settings,
-			PortOK:          running, HTTPSPortOK: running, CDNError: c.cdnError,
+			RestartRequired:      c.savedSettings != c.settings,
+			VideoImportSuggested: c.videoImportSuggestion,
+			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
@@ -812,8 +833,21 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Queue.Active = append([]int64(nil), c.queue.Active...)
 		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
+		// Port ownership and running must come from the same snapshot. Binding,
+		// releasing and probing ports share mu; engine I/O never holds it.
+		if !running {
+			result.PortOK = c.videoListener != nil || portAvailable(c.videoAddress) == nil
+			if !result.PortOK {
+				result.PortOwner = desktop.PortOwner(c.videoAddress)
+			}
+			result.HTTPSPortOK = c.https != nil || portAvailable(c.httpsAddress) == nil
+			if !result.HTTPSPortOK {
+				result.HTTPSPortOwner = desktop.PortOwner(c.httpsAddress)
+			}
+		}
 		c.mu.Unlock()
 		result.Hosts = c.hosts.status()
+		result.VideoImportSuggested = result.VideoImportSuggested && result.Hosts.Ready && !result.Hosts.Managed && !result.Hosts.Conflict
 		if store, err := c.businessStore(); err != nil {
 			result.StorageError = applog.SafeError(err).Error()
 		} else if !vrcxDismissed {
@@ -832,16 +866,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			result.Traffic = cacheproxy.ReadTrafficStats(libraryPaths(result.ActiveSettings).DatabasePath)
-		}
-		if !running {
-			result.PortOK = portAvailable(c.videoAddress) == nil
-			if !result.PortOK {
-				result.PortOwner = desktop.PortOwner(c.videoAddress)
-			}
-			result.HTTPSPortOK = portAvailable(c.httpsAddress) == nil
-			if !result.HTTPSPortOK {
-				result.HTTPSPortOwner = desktop.PortOwner(c.httpsAddress)
-			}
 		}
 		writeJSON(w, result)
 		return
@@ -906,6 +930,12 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	}
 	var err error
 	switch r.URL.Path {
+	case "/api/import/dismiss-suggestion":
+		c.mu.Lock()
+		c.videoImportSuggestion = false
+		c.mu.Unlock()
+		writeJSON(w, map[string]bool{"ok": true})
+		return
 	case "/api/proxy/import/discard":
 		var input struct {
 			ID string `json:"id"`
@@ -979,6 +1009,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
 	case "/api/activation/disable":
 		err = c.disableAcceleration()
+	case "/api/hosts/prepare":
+		err = c.prepareHostsRestore()
 	case "/api/settings/theme":
 		var input struct {
 			Theme string `json:"theme"`
@@ -1034,7 +1066,11 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
-		writeJSON(w, map[string]string{"error": err.Error()})
+		failure := map[string]string{"error": err.Error()}
+		if errors.Is(err, errHostsAuthorizationCanceled) {
+			failure["code"] = "uac_canceled"
+		}
+		writeJSON(w, failure)
 		return
 	}
 	slog.Info("console_action_completed", "action", r.URL.Path)

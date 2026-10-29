@@ -77,7 +77,7 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	defer db.Close()
 	if _, err = db.Exec(`INSERT INTO media(md5) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 		INSERT INTO song_media VALUES (99,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-		CREATE TRIGGER fail_import BEFORE INSERT ON song_usage WHEN new.song_id=1 BEGIN SELECT RAISE(ABORT,'disk full'); END`); err != nil {
+		CREATE TRIGGER fail_import BEFORE INSERT ON song_usage WHEN new.id=1 BEGIN SELECT RAISE(ABORT,'disk full'); END`); err != nil {
 		t.Fatal(err)
 	}
 	h := historyAt(1, start)
@@ -91,7 +91,7 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	if err = db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&count); err != nil || count != 1 {
 		t.Fatal("old rows lost", count, err)
 	}
-	if err = db.QueryRow("SELECT count(*) FROM songs WHERE song_id=1").Scan(&count); err != nil || count != 0 {
+	if err = db.QueryRow("SELECT count(*) FROM songs WHERE id=1").Scan(&count); err != nil || count != 0 {
 		t.Fatal("partial placeholder", count, err)
 	}
 	if _, err = db.Exec("DROP TRIGGER fail_import"); err != nil {
@@ -262,7 +262,7 @@ func TestHistoricalUsageFullAndForeignKeyRollback(t *testing.T) {
 				code = sqlite3.SQLITE_FULL
 			} else {
 				// Simulate failure to establish the foreign-key prerequisite.
-				if _, err = db.Exec("CREATE TRIGGER skip_placeholder BEFORE INSERT ON songs WHEN new.song_id=1 BEGIN SELECT RAISE(IGNORE); END"); err != nil {
+				if _, err = db.Exec("CREATE TRIGGER skip_placeholder BEFORE INSERT ON songs WHEN new.id=1 BEGIN SELECT RAISE(IGNORE); END"); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -273,7 +273,11 @@ func TestHistoricalUsageFullAndForeignKeyRollback(t *testing.T) {
 			}
 			for _, table := range []string{"songs", "song_usage"} {
 				var count, id int
-				if err = db.QueryRow("SELECT count(*), min(song_id) FROM "+table).Scan(&count, &id); err != nil || count != 1 || id != 99 {
+				key := "song_id"
+				if table == "songs" {
+					key = "id"
+				}
+				if err = db.QueryRow("SELECT count(*), min("+key+") FROM "+table).Scan(&count, &id); err != nil || count != 1 || id != 99 {
 					t.Fatal("rollback lost old data or kept partial data", table, count, id, err)
 				}
 			}

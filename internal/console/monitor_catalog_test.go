@@ -27,7 +27,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	old := monitorFull("wanna", "20261001000000", "old", a)
 	newer := monitorFull("kiva", "20261002000000", "full", b)
-	// Udon arrives first, but must not block this batch's complete metadata.
+	// Newer Udon metadata wins while both older backups can fill resource holes.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "latest name"), old, newer, newer})
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
@@ -37,31 +37,29 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	assert := func() {
 		t.Helper()
 		var name, artist, md5 string
-		if err := db.QueryRow("SELECT name,artist,md5 FROM songs JOIN song_media USING(song_id) WHERE song_id=1").Scan(&name, &artist, &md5); err != nil {
+		if err := db.QueryRow("SELECT name,COALESCE(artist,''),md5 FROM songs JOIN song_media ON song_media.song_id=songs.id WHERE song_id=1").Scan(&name, &artist, &md5); err != nil {
 			t.Fatal(err)
 		}
-		if name != "full" || artist != "artist" || md5 != b {
+		if name != "latest name" || artist != "" || md5 != b {
 			t.Fatalf("%q %q %q", name, artist, md5)
 		}
 		var count int
-		if err := db.QueryRow("SELECT count(*) FROM songs").Scan(&count); err != nil || count != 1 {
+		if err := db.QueryRow("SELECT count(*) FROM songs").Scan(&count); err != nil || count != 2 {
 			t.Fatalf("songs=%d, err=%v", count, err)
 		}
 		var revision string
-		if err := db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='songs'").Scan(&revision); err != nil || revision != newerRevision {
+		if err := db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='songs'").Scan(&revision); err != nil || revision != "20261003000000" {
 			t.Fatalf("full revision=%s, err=%v", revision, err)
 		}
 	}
 	assert()
-	// Udon cannot add ID 2 or overwrite MD5 metadata, regardless of its time.
+	// A same-source metadata conflict and older backups cannot undo accepted data.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{old, monitorNames("20261003000000", "conflict"), monitorFull("wanna", "20261002000000", "full", a)})
 	assert()
 	// Fully invalid newer data must not advance any watermark.
 	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261004000000", "invalid", "bad")})
 	assert()
 }
-
-const newerRevision = "20261002000000"
 
 func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	c := testConsole(t)
@@ -88,7 +86,7 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 			t.Fatal(err)
 		}
 		var got string
-		err = db.QueryRow("SELECT name FROM songs WHERE song_id=1").Scan(&got)
+		err = db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&got)
 		db.Close()
 		if err != nil || got != want {
 			t.Fatalf("%s: name=%q, error=%v", root, got, err)
@@ -114,14 +112,14 @@ func TestMonitorCatalogCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 	}
 }
 
-func TestMonitorUdonNeverOpensStorage(t *testing.T) {
+func TestMonitorUdonUpdatesStoreWithoutStartingEngine(t *testing.T) {
 	c := testConsole(t)
-	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorNames("20990101000000", "ignored")})
+	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorNames("20990101000000", "canonical")})
 	if c.service != nil {
 		t.Fatal("Udon opened database")
 	}
-	if status, err := c.store.CatalogStatus(context.Background()); err != nil || status.Revision != "" {
-		t.Fatal("Udon changed catalog", status, err)
+	if status, err := c.store.CatalogStatus(context.Background()); err != nil || status.Revision != "20990101000000" {
+		t.Fatal("Udon catalog not accepted", status, err)
 	}
 }
 

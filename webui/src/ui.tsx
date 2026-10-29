@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode, type MouseEventHandler } from 'react';
 import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastBody, ToastFooter, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
@@ -24,19 +24,28 @@ export function Provider({ children }: PropsWithChildren) {
   }, [dark]);
   return <ThemeContext.Provider value={{preference,setPreference}}><FluentProvider className="app-provider" data-theme={dark?'dark':'light'} style={{colorScheme:dark?'dark':'light'}} theme={{ ...(dark ? webDarkTheme : webLightTheme), fontFamilyBase: '"Segoe UI", "Microsoft YaHei", sans-serif' }}>{children}<Toaster toasterId="app-notices" position="bottom-end" limit={4} pauseOnHover pauseOnWindowBlur /></FluentProvider></ThemeContext.Provider>;
 }
-export function Notification({message,body,action,error=false,persistent=false}: {message?:string;body?:string;action?:{href:string;label:string};error?:boolean;persistent?:boolean}) {
-  const toastId=useId('notice'),{dispatchToast,dismissToast}=useToastController('app-notices');
-  const href=action?.href,label=action?.label;
+export function Notification({message,body,action,error=false,persistent=false,onDismiss,dismissLabel,disabled=false}: {message?:string;body?:ReactNode;action?:{href:string;label:string;onClick?:MouseEventHandler<HTMLAnchorElement>};error?:boolean;persistent?:boolean;onDismiss?:()=>void;dismissLabel?:string;disabled?:boolean}) {
+  const toastId=useId('notice'),{dispatchToast,dismissToast,updateToast}=useToastController('app-notices');
+  const href=action?.href,label=action?.label,onAction=action?.onClick;
+  const close=<Button appearance="transparent" size="small" icon={<DismissRegular/>} aria-label="关闭通知" disabled={disabled} onClick={onDismiss}/>;
+  const link=<Link href={href} disabled={disabled} onClick={onAction}>{label}</Link>;
+  const content=<Toast>
+    <ToastTitle action={onDismiss?close:<ToastTrigger>{close}</ToastTrigger>}>{message}</ToastTitle>
+    {body&&<ToastBody>{body}</ToastBody>}
+    {(href&&label||dismissLabel)&&<ToastFooter>{href&&label&&(onAction?link:<ToastTrigger>{link}</ToastTrigger>)}{dismissLabel&&<Button appearance="transparent" size="small" disabled={disabled} onClick={onDismiss}>{dismissLabel}</Button>}</ToastFooter>}
+  </Toast>;
+  const latest=useRef(content),current=useRef<string|undefined>(undefined);latest.current=content;
   useEffect(()=>{
     if(!message)return;
-    const id=toastId+'-'+crypto.randomUUID();
-    dispatchToast(<Toast>
-      <ToastTitle action={<ToastTrigger><Button appearance="transparent" size="small" icon={<DismissRegular/>} aria-label="关闭通知"/></ToastTrigger>}>{message}</ToastTitle>
-      {body&&<ToastBody>{body}</ToastBody>}
-      {href&&label&&<ToastFooter><ToastTrigger><Link href={href}>{label}</Link></ToastTrigger></ToastFooter>}
-    </Toast>,{toastId:id,intent:error?'error':'info',timeout:error||persistent?-1:7000});
-    return()=>dismissToast(id);
-  },[message,body,href,label,error,persistent,toastId,dispatchToast,dismissToast]);
+    const id=toastId+'-'+crypto.randomUUID();current.current=id;
+    dispatchToast(latest.current,{toastId:id,intent:error?'error':'info',timeout:error||persistent?-1:7000});
+    return()=>{current.current=undefined;dismissToast(id);};
+  },[message,error,persistent,toastId,dispatchToast,dismissToast]);
+  // Update pending controls and body in place without restarting the notice or
+  // replacing the focused action on every status refresh.
+  useEffect(()=>{
+    if(current.current)updateToast({toastId:current.current,content:latest.current});
+  },[body,href,label,onAction,onDismiss,dismissLabel,disabled,updateToast]);
   return null;
 }
 export function Hint({children,label='说明'}:PropsWithChildren<{label?:string}>) {
@@ -47,9 +56,10 @@ export function RecordDetails({title,children}:PropsWithChildren<{title:string}>
   return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
-export function StatusBadge({label,color,children,description}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string}>) {
+export function StatusBadge({label,color,children,description,action}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string;action?:{label:string;onClick:()=>void;disabled?:boolean}}>) {
   const Icon=statusIcons[color];
   const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true" tabIndex={description?0:undefined}>{label&&<>{label}：</>}{children}</Badge>;
+  if(action)return <Popover openOnHover size="small" positioning={{strategy:'fixed',overflowBoundaryPadding:16}}><PopoverTrigger>{badge}</PopoverTrigger><PopoverSurface aria-label={`${label}说明`}><span>{description} </span><Link as="button" disabled={action.disabled} disabledFocusable={action.disabled} onClick={action.onClick}>{action.label}</Link></PopoverSurface></Popover>;
   return description?<Tooltip content={description} relationship="description">{badge}</Tooltip>:badge;
 }
 export function TableRegion({children,label}:PropsWithChildren<{label:string}>) {

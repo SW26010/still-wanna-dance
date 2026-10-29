@@ -49,7 +49,7 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resul
 			return err
 		}
 		defer tx.Rollback()
-		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(song_id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
 			return err
 		}
 		if promote {

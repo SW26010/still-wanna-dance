@@ -9,12 +9,13 @@ import (
 // Activation is a process-local observation window, shared by all console tabs.
 // It is deliberately independent of persisted traffic and download statistics.
 type Activation struct {
-	Phase           string    `json:"phase"`
-	Started         time.Time `json:"started"`
-	ReadyAt         time.Time `json:"readyAt"`
-	FirstRequest    time.Time `json:"firstRequest"`
-	Error           string    `json:"error"`
-	ConnectionError string    `json:"connectionError,omitempty"`
+	Phase                    string    `json:"phase"`
+	Started                  time.Time `json:"started"`
+	ReadyAt                  time.Time `json:"readyAt"`
+	FirstRequest             time.Time `json:"firstRequest"`
+	Error                    string    `json:"error"`
+	ConnectionError          string    `json:"connectionError,omitempty"`
+	restorePermissionMissing bool      // identifies the current connection error without parsing its message
 }
 
 func (c *Console) activationPhase(phase string) {
@@ -77,8 +78,8 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 		}
 	}()
 	c.activationPhase("hosts")
-	// The shared hosts controller checks both the mapping and the ability to
-	// restore it before deciding whether authorization is necessary.
+	// Only missing mappings require authorization here. Restoration permission
+	// for an existing connection is prepared separately at the user's request.
 	if err = change("enable"); err != nil {
 		connectionErr = fmt.Errorf("游戏接入失败：%w", err)
 		return connectionErr
@@ -126,6 +127,7 @@ func (c *Console) disableAcceleration() error {
 	restore := c.settings.RestoreHostsOnExit
 	c.activation.Phase, c.activation.Error = "stopping", ""
 	c.activation.ConnectionError = ""
+	c.activation.restorePermissionMissing = false
 	c.mu.Unlock()
 	var err error
 	if restore {
@@ -141,6 +143,7 @@ func (c *Console) disableAcceleration() error {
 	if err != nil {
 		c.activation.Error = err.Error()
 		c.activation.ConnectionError = err.Error()
+		c.activation.restorePermissionMissing = errors.Is(err, errHostsRestorePermission)
 	}
 	return err
 }
@@ -170,4 +173,29 @@ func (c *Console) changeHostsLocked(action string) error {
 		return errors.New("程序正在退出")
 	}
 	return c.hosts.change(action, restore)
+}
+
+// Prepare restoration without enabling acceleration or changing hosts.
+func (c *Console) prepareHostsRestore() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	closing, restore := c.closing, c.settings.RestoreHostsOnExit
+	c.mu.Unlock()
+	if closing {
+		return errors.New("程序正在退出")
+	}
+	if !restore {
+		return nil
+	}
+	if err := c.hosts.prepareRestore(); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.hosts.prepared.Load() && c.activation.restorePermissionMissing {
+		c.activation.ConnectionError = ""
+		c.activation.restorePermissionMissing = false
+	}
+	return nil
 }

@@ -77,19 +77,60 @@ test('request observation details remain in connection diagnostics',async({page}
   await expect(page.locator('#service').getByText(/检测开始：.*首个请求：/)).toBeVisible();
 });
 
-test('existing managed connection can prepare exit cleanup despite automatic gateway startup',async({page})=>{
-  const api=await mockAPI(page);api.state.running=true;api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
+for(const width of [320,1280])test(`existing connection accelerates without permission and repairs from its status (${width})`,async({page},info)=>{
+  const api=await mockAPI(page);api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
+  await page.setViewportSize({width,height:850});
+  await page.emulateMedia({colorScheme:width===320?'dark':'light'});
   await page.goto('/');
   const connection=page.getByRole('status',{name:'游戏连接',exact:true});
   await expect(connection).toHaveText('游戏连接：需检查');await connection.hover();
-  await expect(page.getByRole('tooltip')).toContainText('游戏接入尚未准备恢复权限');
+  const popup=page.getByRole('group',{name:'游戏连接说明',exact:true});
+  await expect(popup).toContainText('尚未取得恢复权限，停止或退出时无法恢复直连。');
+  await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath('restore-permission.png'),animations:'disabled'});
+  expect(api.calls.some(c=>c.path==='hosts/prepare')).toBe(false);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
+  await expect(connection).toHaveText('游戏连接：需检查');
+  await page.mouse.move(0,0);await page.getByRole('button',{name:'停止加速',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toContainText('尚未取得恢复权限，将保留游戏接入');
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('直接退出会保留接入');
+  await page.route('**/api/hosts/prepare',route=>route.fulfill({status:400,json:{error:'管理员授权已取消',code:'uac_canceled'}}));
+  await connection.hover();
+  await popup.getByRole('button',{name:'修复',exact:true}).click();
+  await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeEnabled();
+  await expect(connection).toHaveText('游戏连接：需检查');
+  await expect(page.getByRole('listitem',{name:'管理员授权已取消',exact:true})).toHaveCount(0);
+  await page.unroute('**/api/hosts/prepare');
+  await page.keyboard.press('Escape');await expect(popup).toBeHidden();
+  await connection.focus();
+  await page.keyboard.press('Enter');await expect(popup).toBeVisible();
+  await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');await expect(popup).toBeHidden();
+  await expect(connection).toBeFocused();
+  await page.keyboard.press('Enter');await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(connection).toHaveText('游戏连接：已接入');
+  await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
+  expect(api.calls.filter(c=>c.path==='hosts/prepare')).toHaveLength(1);
   await navigate(page,'网络');
-  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
-  await expect(page.getByText(/游戏接入尚未准备恢复权限/)).toHaveCount(0);
   expect(api.calls.filter(c=>c.path==='activation/enable')).toHaveLength(1);
+});
+
+for(const error of ['hosts 助手连接已中断，请重新打开应用后修复游戏连接','hosts 授权未完成（可能取消了 UAC）：无法连接助手'])test(`restore repair retains failure instructions: ${error}`,async({page})=>{
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
+  await page.route('**/api/hosts/prepare',route=>route.fulfill({status:400,json:{error}}));
+  await page.goto('/');
+  await page.getByRole('status',{name:'游戏连接',exact:true}).hover();
+  const repair=page.getByRole('group',{name:'游戏连接说明',exact:true}).getByRole('button',{name:'修复',exact:true});
+  await repair.click();
+  await expect(page.getByRole('listitem',{name:error,exact:true})).toBeVisible();
+  await expect(page.getByRole('status',{name:'游戏连接',exact:true})).toHaveText('游戏连接：需检查');
+  await expect(repair).toBeEnabled();
+  await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
 });
 
 for(const restore of [true,false])for(const queue of [true,false])test(`stop and resume follow active policies (${restore}, ${queue})`,async({page},info)=>{

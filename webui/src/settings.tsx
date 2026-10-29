@@ -174,7 +174,7 @@ export function ImportPanel() {
   const [selecting, setSelecting] = useState(false);
   useEffect(() => setCleanup(false), [job.id]);
   return <Panel id="video-import" title="导入视频"><StorageBudgetNotice settings={s.activeSettings}/>
-    <p>扫描子文件夹，校验并导入缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
+    <p>离线扫描子文件夹，校验并导入已知资源中缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
     <p>导入到当前完整视频目录：{s.activeSettings.videoDir}</p>
     <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
       <DirectoryField purpose="import-directory" label="外部目录" value={source} disabled={app.unavailable || !!job.running} onChange={setSource} onPending={setSelecting}/><Button type="submit" disabled={app.unavailable || job.running || selecting || !source.trim()}>扫描并导入</Button>

@@ -96,6 +96,7 @@ const actionMessages: Record<string,string> = {
   'settings/theme':'主题已应用。',
   'activation/enable':'视频加速已开启。',
   'activation/disable':'视频加速已停止。',
+  'hosts/prepare':'恢复权限已准备。',
   'batch/scan':'已开始检查缺失视频。', 'batch/start':'已开始下载缺失视频。',
   'batch/cancel':'已请求停止批量任务。', 'inventory/scan':'已开始更新曲库。',
   'import/start':'已开始扫描并导入视频。', 'import/cleanup':'已处理源文件清理，请查看导入结果。',
@@ -143,7 +144,7 @@ export function useConsole(enabled: boolean, page: string) {
     if (lock.current || stopped || shutdown.current) return false;
     lock.current = true; setBusy(true);
     const hosts = path === 'activation/enable';
-    const restorePermission = path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
+    const restorePermission = path === 'hosts/prepare' || path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnExit' in body && body.restoreHostsOnExit === true && status.data?.settings.restoreHostsOnExit === false;
     setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
     try {
       const result=await request<{action?:unknown}>(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
@@ -159,7 +160,9 @@ export function useConsole(enabled: boolean, page: string) {
         setStopped(true); setMessage('重启响应未确认，正在等待新进程…');
         await waitForRestart();return false;
       }
-      setMessage(e instanceof APIError ? e.message : unconfirmedAction,undefined,true); return false;
+      // A declined repair leaves the connection warning available for retry.
+      // Unknown outcomes still need the shared timeout/connection-loss notice.
+      setMessage(e instanceof APIError ? path==='hosts/prepare'&&e.code==='uac_canceled'?'':e.message : unconfirmedAction,undefined,true); return false;
     } finally { lock.current = false; setBusy(false); refresh(); }
   }
   return { status, revision, busy, stopped, dirtySettings, setSettingsDirty, message, messageError, setMessage, refresh, action, confirm: confirmation.confirm, dialog: confirmation.dialog,

@@ -26,7 +26,7 @@ func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, erro
 }
 
 // Follow only validated video redirects. Rebuild every request through the
-// origin transport, upgrading HTTP Locations without ever sending plaintext.
+// origin transport and the shared HTTPS-first attempt policy.
 // API requests retain the client's no-redirect policy so their Location can be
 // parsed separately.
 func (s *Server) videoResponse(r *http.Request, original video, attempts *resourceAttempts) (*http.Response, error) {
@@ -61,6 +61,13 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 			return nil, errTooManyVideoRedirects
 		}
 		attempts.redirects++
+		if resp.Request != nil && resp.Request.URL.Scheme == "http" && u.Scheme == "https" {
+			previous := *resp.Request.URL
+			previous.Scheme = "https"
+			if previous.String() == u.String() {
+				s.candidates(next, attempts).attempts.RequireHTTPS()
+			}
+		}
 		next.Header = r.Header.Clone()
 		r = next
 	}
@@ -70,7 +77,9 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 // alternate URLs and API lookup; download workers never probe or rank routes.
 type resourceCandidates struct {
 	transports []http.RoundTripper
-	next       int
+	attempts   *upstreamrequest.Attempts
+	err        error
+	done       bool
 }
 type resourceAttempts struct {
 	targets   map[string]*resourceCandidates
@@ -81,7 +90,9 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 	if attempts.targets == nil {
 		attempts.targets = make(map[string]*resourceCandidates)
 	}
-	key := r.URL.String()
+	target := *r.URL
+	target.Scheme = s.cfg.OriginScheme
+	key := target.String()
 	if candidates := attempts.targets[key]; candidates != nil {
 		return candidates
 	}
@@ -92,7 +103,8 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 	if len(transports) == 0 {
 		transports = []http.RoundTripper{s.client.Transport}
 	}
-	candidates := &resourceCandidates{transports: append([]http.RoundTripper(nil), transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]...)}
+	transports = append([]http.RoundTripper(nil), transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]...)
+	candidates := &resourceCandidates{transports: transports, attempts: upstreamrequest.NewAttempts(s.cfg.OriginScheme, len(transports))}
 	attempts.targets[key] = candidates
 	return candidates
 }
@@ -128,31 +140,33 @@ func (b *resourceBody) Close() error {
 
 func (b *resourceBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
-	if err != nil && b.ctx.Err() != nil {
-		err = context.Cause(b.ctx)
-	}
-	return n, err
+	return n, upstreamrequest.AttemptError(b.ctx, err)
 }
 
 func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (*http.Response, error) {
 	candidates := s.candidates(r, attempts)
 	transports := candidates.transports
 	var failures []error
-	// One configured channel may retry a failed block once. Multiple measured
-	// channels advance without revisiting a failed candidate. Each attempt has its
-	// own timeout; a shorter caller/task deadline still bounds the whole operation.
-	limit := max(2, len(transports))
-	for candidates.next < limit {
+	// Protocol fallbacks and channel changes share one cursor. Header validation
+	// and body failures feed this same cursor before another request is sent.
+	for {
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}
+		attempt, ok := candidates.attempts.Next(candidates.err)
+		if !ok {
+			candidates.done = true
+			if candidates.err != nil && len(failures) == 0 {
+				failures = append(failures, candidates.err)
+			}
+			break
+		}
+		candidates.err = nil
 		release, err := s.requests.acquire(r.Context())
 		if err != nil {
 			return nil, err
 		}
-		i := candidates.next
-		candidates.next++
-		transport := transports[i%len(transports)]
+		transport := transports[attempt.Index]
 		if transport == nil {
 			release()
 			continue
@@ -164,7 +178,9 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })
 		}
-		resp, err := client.Do(r.Clone(ctx))
+		request := r.Clone(ctx)
+		request.URL.Scheme = attempt.Scheme
+		resp, err := client.Do(request)
 		if err == nil && resp.StatusCode < 500 {
 			closeBody := sync.OnceValue(resp.Body.Close)
 			stopBody := context.AfterFunc(ctx, func() { closeBody() })
@@ -175,15 +191,11 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			err = fmt.Errorf("upstream status %d", resp.StatusCode)
 			resp.Body.Close()
 		}
-		if err != nil && ctx.Err() != nil {
-			err = context.Cause(ctx)
-		}
+		err = upstreamrequest.AttemptError(ctx, err)
 		cancel()
 		release()
+		candidates.err = err
 		failures = append(failures, applog.SafeError(err))
-		if len(transports) == 1 {
-			break
-		}
 	}
 	if len(failures) == 0 {
 		return nil, errors.New("no executable resource channel")
@@ -221,10 +233,8 @@ func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempt
 				r = resp.Request.Clone(ctx)
 			}
 			candidates := s.candidates(r, attempts)
-			if candidates.next < len(candidates.transports) {
-				continue
-			}
-			return nil, "", err
+			candidates.err = err
+			continue
 		}
 		return resp, v.host, nil
 	}

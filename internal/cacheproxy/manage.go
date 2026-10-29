@@ -59,8 +59,8 @@ func readCacheEntry(ctx context.Context, paths LibraryPaths, key string, db *sql
  COALESCE((SELECT max(requested_at) FROM request_events WHERE resource_md5=v.md5),0)),
  (SELECT count(*) FROM song_media WHERE md5=v.md5),
  (SELECT json_group_array(json_object('id',song_id,'title',title)) FROM
-  (SELECT CAST(s.song_id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title
-   FROM song_media sv JOIN songs s ON s.song_id=sv.song_id WHERE sv.md5=v.md5 ORDER BY s.song_id LIMIT 20)),
+  (SELECT CAST(s.id AS TEXT) song_id,COALESCE(substr(s.name,1,300),'') title
+   FROM song_media sv JOIN songs s ON s.id=sv.song_id WHERE sv.md5=v.md5 ORDER BY s.id LIMIT 20)),
  (SELECT COALESCE(group_concat(song_id),'') FROM
   (SELECT sv.song_id
    FROM song_media sv WHERE sv.md5=v.md5 ORDER BY sv.song_id))

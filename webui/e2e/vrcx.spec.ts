@@ -73,13 +73,18 @@ test('closing the startup toast does not import or dismiss the library suggestio
   expect(calls.map(c=>c.path)).toEqual(['detect','detect']);
 });
 
-test('a toast that times out stays dismissed across navigation',async({page})=>{
+test('the startup toast waits for a click and stays dismissed after closing',async({page})=>{
+  await page.clock.install();
   const {calls}=await fixture(page,0,true);await page.goto('/');
   const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
   await expect(notice).toBeVisible();
   await page.bringToFront();
-  await expect(notice).toHaveCount(0,{timeout:12000});
-  await navigate(page,'历史');await navigate(page,'加速');
+  await page.clock.runFor(12000);
+  await expect(notice).toBeVisible();
+  await navigate(page,'历史');
+  await expect(notice).toBeVisible();
+  await notice.getByRole('button',{name:'关闭通知',exact:true}).click();
+  await navigate(page,'加速');
   await expect(notice).toHaveCount(0);
   expect(calls.map(c=>c.path)).toEqual(['detect']);
 });

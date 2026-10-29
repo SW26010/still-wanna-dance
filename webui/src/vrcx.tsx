@@ -128,7 +128,7 @@ export function VRCXProvider({target,page,children}:PropsWithChildren<{target:st
     if (page !== 'library') setNotice(true);
   },[model.suggested,model.notify,page,app.stopped]);
   return <VRCXContext.Provider value={model}>
-    {notice&&<Notification message="检测到 VRCX 数据库" body="可在曲库导入历史，安排歌曲下载与保留顺序。确认前不会读取内容。" action={{href:'#/library',label:'前往曲库'}}/>}
+    {notice&&<Notification message="检测到 VRCX 数据库" body="可在曲库导入历史，安排歌曲下载与保留顺序。确认前不会读取内容。" action={{href:'#/library',label:'前往曲库'}} persistent/>}
     {children}
   </VRCXContext.Provider>;
 }

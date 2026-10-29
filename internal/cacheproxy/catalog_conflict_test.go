@@ -22,13 +22,13 @@ func TestCatalogConflictDiagnosticKeepsAcceptedData(t *testing.T) {
 			fresh := "new"
 			changed.Songs[0].Name = &fresh
 		} else {
-			changed.Songs[0].MD5 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+			changed.Songs[0].ID = 43
 		}
 		err := s.SyncCatalog(ctx, changed)
 		if !errors.Is(err, ErrCatalogConflict) {
 			t.Fatal(err)
 		}
-		want := "MD5 改变 1"
+		want := "新增 1，移除 1"
 		if metadata {
 			want = "元数据或规范化表示变化"
 		}
@@ -36,7 +36,7 @@ func TestCatalogConflictDiagnosticKeepsAcceptedData(t *testing.T) {
 			t.Fatal(err)
 		}
 		var key, storedName string
-		if err := s.usage.db.QueryRow("SELECT md5,name FROM song_media JOIN songs USING(song_id) WHERE song_id=42").Scan(&key, &storedName); err != nil {
+		if err := s.usage.db.QueryRow("SELECT md5,name FROM song_media JOIN songs ON songs.id=song_media.song_id WHERE song_id=42").Scan(&key, &storedName); err != nil {
 			t.Fatal(err)
 		}
 		if key != original.Songs[0].MD5 || storedName != "old" {

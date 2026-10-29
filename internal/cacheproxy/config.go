@@ -36,7 +36,8 @@ type Config struct {
 	Origins           map[string]string
 	// IsResourceHost checks the current API-derived resource domain set.
 	IsResourceHost func(string) bool
-	// OriginScheme defaults to HTTPS. HTTP is restricted to loopback test origins.
+	// OriginScheme defaults to HTTPS, with bounded HTTP fallback on transport
+	// failures. Explicit HTTP remains restricted to loopback test origins.
 	OriginScheme string
 	// ResolvePlayback supplies a fresh address under the shared source policy.
 	// It owns network selection and evidence recording, never download execution.

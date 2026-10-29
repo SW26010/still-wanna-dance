@@ -32,6 +32,7 @@ Thumbs.db
 *.sqlite-shm
 !internal/cacheproxy/testdata/storage-v6.sqlite
 !internal/cacheproxy/testdata/storage-v7.sqlite
+!internal/cacheproxy/testdata/storage-v8.sqlite
 
 # Known legacy test layouts (rejected, never migrated)
 /stepstash-data/
@@ -48,6 +49,7 @@ Thumbs.db
 /work/
 /data/*
 !/data/initial-priority/
+!/data/media-seed/
 
 # Generated evidence is archived; Git keeps only manifests, small data and SVG.
 /docs/evidence/**/*.png

@@ -22,9 +22,9 @@ func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queu
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.usage.db.QueryContext(ctx, `SELECT q.value,m.byte_size,s.end,substr(COALESCE(NULLIF(s.name,''),s.composed_title,''),1,300)
- FROM json_each(?) q LEFT JOIN songs s ON s.song_id=q.value
- LEFT JOIN song_media sm ON sm.song_id=s.song_id LEFT JOIN media m ON m.md5=sm.md5`, string(encoded))
+	rows, err := s.usage.db.QueryContext(ctx, `SELECT q.value,m.byte_size,s.end,substr(COALESCE(s.name,''),1,300)
+ FROM json_each(?) q LEFT JOIN songs s ON s.id=q.value
+ LEFT JOIN song_media sm ON sm.song_id=s.id LEFT JOIN media m ON m.md5=sm.md5`, string(encoded))
 	if err != nil {
 		return nil, s.storageError(err)
 	}

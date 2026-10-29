@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestOfflineSongPolicyRespectsStorageLockAndVersion(t *testing.T) {
@@ -147,7 +148,8 @@ func TestResourcePoliciesFollowSharedCurrentAssociations(t *testing.T) {
 	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	if err := syncTestCatalog(s, ctx, map[string]string{"1": b, "2": a}); err != nil {
+	now := time.Now()
+	if err := s.ObserveSongURL(ctx, SongURL{SongID: 1, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/1-new.mp4?e=" + b + "&s=12", QueryStartedAt: now, ObservedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.resourcePolicies(ctx)
@@ -174,7 +176,7 @@ func TestSongPolicyValidationAndTransactionRollback(t *testing.T) {
 		t.Fatal("expected failure")
 	}
 	var count int
-	if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM songs WHERE song_id=123").Scan(&count); err != nil || count != 0 {
+	if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=123").Scan(&count); err != nil || count != 0 {
 		t.Fatal("partial placeholder write", count, err)
 	}
 }

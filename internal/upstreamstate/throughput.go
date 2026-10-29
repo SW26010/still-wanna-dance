@@ -15,6 +15,7 @@ import (
 
 // Only sample metadata is persisted: no playable URLs or proxy credentials.
 type ThroughputSample struct {
+	Scheme     string        `json:"scheme,omitempty"`
 	ObservedAt time.Time     `json:"observedAt"`
 	SongID     int64         `json:"songID"`
 	Bytes      int64         `json:"bytes"`
@@ -66,6 +67,9 @@ func (m *Monitor) loadThroughputTime() {
 		m.lastThroughput = time.Time{}
 	}
 	for key, sample := range state.Samples {
+		if sample.Scheme != "" && sample.Scheme != "http" && sample.Scheme != "https" {
+			continue
+		}
 		if !restorableThroughputKey(key) {
 			continue
 		}
@@ -73,7 +77,7 @@ func (m *Monitor) loadThroughputTime() {
 			continue
 		}
 		if existing, ok := m.throughput[key]; !ok || sample.ObservedAt.After(existing.at) {
-			m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration}
+			m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration, scheme: observedScheme(sample.Scheme)}
 		}
 	}
 }
@@ -113,7 +117,7 @@ func (m *Monitor) saveThroughputTime() error {
 		if !restorableThroughputKey(key) {
 			continue
 		}
-		state.Samples[key] = ThroughputSample{ObservedAt: o.at.UTC(), SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration}
+		state.Samples[key] = ThroughputSample{ObservedAt: o.at.UTC(), SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: observedScheme(o.scheme)}
 	}
 	b, err := json.Marshal(state)
 	if err != nil {

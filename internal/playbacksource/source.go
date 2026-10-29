@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
 
@@ -72,22 +73,14 @@ func (r Resolver) Resolve(ctx context.Context, id int64) (Address, error) {
 			return Address{}, err
 		}
 		clients := r.Clients(ctx, entry.Endpoint(base))
-		for i, client := range clients {
-			if err := ctx.Err(); err != nil {
-				return Address{}, err
-			}
-			budget := r.AttemptTimeout
-			if deadline, ok := ctx.Deadline(); ok {
-				budget = min(budget, time.Until(deadline)/time.Duration(len(clients)-i))
-			}
-			attempt, cancel := context.WithTimeout(ctx, budget)
-			address, err := fetch(attempt, client, base, entry, id, r.MaxFileBytes)
-			cancel()
-			if err == nil {
-				return address, nil
-			}
-			failures = append(failures, err)
+		address, err := upstreamrequest.Fetch(ctx, entry.SongURL(base, id), clients, r.AttemptTimeout,
+			func(attempt context.Context, client *http.Client, target string) (Address, error) {
+				return fetch(attempt, client, base, entry, id, r.MaxFileBytes, target)
+			})
+		if err == nil {
+			return address, nil
 		}
+		failures = append(failures, err)
 	}
 	if err := ctx.Err(); err != nil {
 		return Address{}, err
@@ -98,13 +91,13 @@ func (r Resolver) Resolve(ctx context.Context, id int64) (Address, error) {
 	return Address{}, errors.Join(failures...)
 }
 
-func fetch(ctx context.Context, client *http.Client, base string, entry Entry, id, maxBytes int64) (Address, error) {
+func fetch(ctx context.Context, client *http.Client, base string, entry Entry, id, maxBytes int64, target string) (Address, error) {
 	started := time.Now()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, entry.SongURL(base, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return Address{}, err
 	}
-	resp, err := client.Do(req)
+	resp, err := upstreamrequest.Do(client, req)
 	if err != nil {
 		return Address{}, err
 	}

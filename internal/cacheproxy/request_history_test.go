@@ -23,7 +23,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	if err := s.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(song_id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?)`, key, strings.Repeat("b", 32)); err != nil {
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?)`, key, strings.Repeat("b", 32)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.usage.db.Exec(`INSERT INTO song_media VALUES(42,?),(43,?)`, strings.Repeat("b", 32), key); err != nil {

@@ -24,7 +24,7 @@ func completeSongMetadata(t *testing.T, s *Server, id int64, key string) {
 	}
 }
 
-func TestSongMetadataCandidatesUseRetentionPriority(t *testing.T) {
+func TestSongMetadataCandidatesUseSongPriority(t *testing.T) {
 	s, _ := setup(t, nil)
 	const a, b, c = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccccccccccccccc"
 	ctx := context.Background()
@@ -45,13 +45,11 @@ func TestSongMetadataCandidatesUseRetentionPriority(t *testing.T) {
 			t.Fatalf("candidates=%v, want=%v: %v", got, want, err)
 		}
 	}
-	// Shared resource scores add; ties use the retained resource's highest ID,
-	// then higher song ID within that resource, just like batch preparation.
-	assert([]int64{104, 102, 101, 103})
+	// A shared resource does not inflate either song's metadata priority.
+	assert([]int64{104, 103, 102, 101})
 	completeSongMetadata(t, s, 104, c)
 	completeSongMetadata(t, s, 101, a)
-	// Complete song 101 still contributes its score to incomplete song 102.
-	assert([]int64{102, 103})
+	assert([]int64{103, 102})
 	completeSongMetadata(t, s, 102, a)
 	assert([]int64{103})
 	completeSongMetadata(t, s, 103, b)
@@ -84,6 +82,7 @@ func TestSongMetadataCandidatesDetectMissingCurrentMetadata(t *testing.T) {
 		missing      bool
 	}{
 		{"complete", "", false},
+		{"missing_mapping", "DELETE FROM song_media", true},
 		{"unknown_size", "UPDATE media SET byte_size=NULL", true},
 		{"zero_size", "UPDATE media SET byte_size=0", true},
 		{"missing_cf", "DELETE FROM song_urls WHERE node='cf'", true},

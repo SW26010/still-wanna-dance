@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 、`storage-v3.sqlite`、`storage-v4.sqlite` 、`storage-v5.sqlite` 、`storage-v6.sqlite` 和 `storage-v7.sqlite`，v2～v6 覆盖旧格式拒绝，v7 覆盖当前格式及全部 14 张表。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 、`storage-v3.sqlite`、`storage-v4.sqlite` 、`storage-v5.sqlite` 、`storage-v6.sqlite` 、`storage-v7.sqlite` 和 `storage-v8.sqlite`，v2～v7 覆盖旧格式拒绝，v8 覆盖当前格式及全部 14 张表。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 
@@ -62,6 +62,8 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 新增二进制默认拒绝；固定样本必须匹配登记路径与 SHA256。超过 256 KiB 提醒，超过 1 MiB 必须登记精确例外。例外文件为 `scripts/repository-artifacts-policy.json`，需说明用途；已发布研究输入和完整许可声明已登记。新增或修改例外需审查，不用修改后缀、Base64 或压缩规避检查。`.gitignore` 只减少误加文件，不能代替历史检查。
 
 Web UI 的 `app.js` 是离线构建所需的生成产物。重建后按构建清单核对字节数和 SHA256，为新版本追加精确例外，保留历史版本的登记。历史改写后重新检查整个范围，不能只更新最终产物的哈希。
+
+`data/media-seed/media-seed.json` 是离线启动所需的产品资源快照，按精确字节数和 SHA256 登记。只包含 MD5、可选大小、歌曲映射及脱敏来源摘要；生成与版本规则见[快照说明](../data/media-seed/README.md)。用户数据库、URL、统计及偏好不得随快照入库。
 
 产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico` 和 `internal/branding/logo_windows_amd64.syso`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验 ICO 重建结果，不写文件。随后运行 `go generate ./internal/branding`，由固定版本 `github.com/akavel/rsrc@v0.10.2` 将 `logo.ico` 封装为 Windows amd64 图标资源，不附加 manifest 或执行代码。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 

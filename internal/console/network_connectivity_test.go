@@ -221,7 +221,7 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 		header := make(http.Header)
 		switch r.URL.Path {
 		case "/Api/Songs/list":
-			body = string(monitorNames("20261016000000", "Udon must not replace MD5 metadata").Body)
+			body = string(monitorNames("20261016000000", "canonical Udon metadata").Body)
 			// Use one ID so the chosen playback sample is deterministic.
 			body = strings.ReplaceAll(body, `,{"id":2,"name":"new song"}`, "")
 		case "/api/v2/wanna/songs":
@@ -272,7 +272,7 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 	defer db.Close()
 	var name, checksum string
 	var size int64
-	if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media USING(song_id) JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "initialized by monitor" || checksum != md5 || size != 1234 {
+	if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media ON song_media.song_id=songs.id JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "canonical Udon metadata" || checksum != md5 || size != 1234 {
 		t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
 	}
 	for _, node := range []string{"cf"} {

@@ -603,9 +603,9 @@ func (o *blockObserver) labelVideos(snapshot *BlockSnapshot) {
 				SELECT json_extract(value,'$.resource') resource,
 				       json_extract(value,'$.songID') song_id FROM json_each(?)
 			)
-			SELECT r.resource, COALESCE(CAST(s.song_id AS TEXT),r.song_id,''),
-			       substr(COALESCE(NULLIF(s.name,''),s.composed_title,''),1,300)
-			FROM requested r LEFT JOIN songs s ON s.song_id=COALESCE(NULLIF(r.song_id,''),
+			SELECT r.resource, COALESCE(CAST(s.id AS TEXT),r.song_id,''),
+			       substr(COALESCE(s.name,''),1,300)
+			FROM requested r LEFT JOIN songs s ON s.id=COALESCE(NULLIF(r.song_id,''),
 				(SELECT sm.song_id FROM song_media sm WHERE sm.md5=r.resource ORDER BY sm.song_id LIMIT 1))`, string(data))
 		if err == nil {
 			defer rows.Close()

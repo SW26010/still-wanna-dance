@@ -19,6 +19,8 @@ pnpm --dir webui check
 
 使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
+前端构建与检查统一启用 TypeScript `noUnusedLocals`、`noUnusedParameters`，移除失去用途的声明和参数。设置保存的真实双页面、持久化与重启回归可设置 `SWD_SETTINGS_BROWSER_EVIDENCE` 为隔离输出目录，再通过上述临时目录入口执行 `go test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v`；测试固定第二个页面的旧状态快照以检查部分更新，并覆盖目录确认期间的策略变化、拒绝后重新确认及无关字段合并。原生选择器用隔离目录替代，检查与保存均经过真实 Console，不启动网关或修改 hosts。
+
 ## 测试维护与 CI 修复
 
 目标是平衡发现真实问题的效果与长期维护成本，让失败容易复现和定位。测试数量、模拟数量和单次全绿都不能单独证明验证质量；选择能判断具体风险的最小可靠检查，验证分工以[实机验收机制](live-acceptance-process.md)为准。

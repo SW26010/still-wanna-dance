@@ -1271,3 +1271,26 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 - 320px forced-colors、390px 深色和 1280px 浅色布局检查通过，导入与下载模块截图已检查，窄屏自然换行且无页面横向溢出；文字说明支持键盘聚焦和 Escape。未测试实际辅助技术朗读。
 
 证据在忽略目录 `artifacts/storage-budget-20261030/`：`build.log`、`check.log`、`browser-unsandboxed.log` 与 `browser-unsandboxed/` 为成功结果。`browser.log` 保留首轮启动失败并停止的记录；`launch-probe.log` 及 `launch-probe/` 的单用例错误确认 Edge 在沙箱内启动即退出、出现 `TransactNamedPipe` 管道错误，尚未执行页面断言。沙箱外使用同一套夹具与回归通过，未修改产品代码绕过环境问题。未替换用户运行程序、修改 hosts、启动 VRC、提交或推送；没有必须依赖 VRC 的新增验收项。
+
+## 2026-10-30 设置部分更新与发布前维护收尾
+
+基于 `a1e71f21`，设置表单改为只提交修改字段，Console 在生命周期锁内合并最新已保存值后沿用完整校验和原子保存。省略/null 保留值，显式 false、0 和清空路径仍按字段语义处理，生效与重启规则不变；现行契约见[配置生命周期](../settings-lifecycle.md)。同期移除仅供旧测试使用的 `SetSongPolicyOffline`、独立 `ImportSongUsage` 和 `ReadSongUsageCount`，必要测试使用应用持有的 Store；旧 `/api/songs` 查询与偏好写入均保留。前端启用未使用局部声明/参数检查并清除两处遗留，纠正现行文档中的独立存储位置、快照格式和打包验证范围。
+
+- **真实浏览器失败对照**：`TestSettingsSeparateBrowsers` 连接隔离 Console、SQLite 和内嵌页面，只固定第二个页面的旧状态快照，两次 POST 均到真实后端。修复前 A 保存 `warn`，B 只改下载并发后实际读回 `info`；修复后两项均保留，B 的请求只含并发字段及确认标志。页面刷新和关闭/重新创建 Console 后再次验证两项保存值，运行配置在重启前保持不变，没有启动视频引擎或网关。
+- **Go 回归**：缺失/null/显式零值与空串、非法部分更新保持原文件，以及两次字段更新与主题/VRCX 选择并发保存的定向检查通过；不可读凭据及未知字段保持。`internal/cacheproxy` 与 `internal/console` 两个完整包通过（65.646 秒、68.042 秒）；导入测试完成生命周期整理后再定向通过，覆盖整体替换、失败回滚、媒体与映射保持及重开。
+- **Edge 相关回归**：首轮 67/69。两项失败源于旧断言要求重新发送未修改的保留模式和预加载时长；修改为断言最小提交与合并后的完整状态后，相关三个测试文件 **23/23 通过**。其余设置、代理草稿、存储选择、重启提示、授权等待和监测场景复用首轮通过结果；夹具检查不外推真实持久化，真实链路由上一项单独覆盖。
+- **静态与构建检查**：前端 build/check（含新增未使用项检查及内嵌资源一致性）通过；`go vet -tags=no_easytier ./cmd/... ./internal/... ./data/... ./experiments/...`、`go build -tags=no_easytier ./cmd/... ./internal/...` 和差异格式检查通过。
+
+原始证据保存在忽略目录 `artifacts/release-maintenance-20261030/`。`settings-browser-before.log` 保留沙箱原子重命名失败，`settings-browser-before-normal.log` 保留首轮控件定位错误；修正测试定位后的 `settings-browser-before-repro.log` 才是产品缺陷的失败对照。`settings-after.log`、`go-packages.log`、`webui-tests.log`、`webui-recheck.log`、`final-directed.log` 和 `browser/settings-result.json` 保留后续结果。未执行正式候选 ZIP 的打包/覆盖升级、跨平台 CI 或新的游戏验收；本次没有必须依赖 VRC 的新增场景。
+
+### 同日评审补漏：目录确认与保存策略绑定
+
+首轮部分更新未覆盖确认期间其他页面修改保留策略的竞态。扩展同一真实双页面回归：B 选择已有视频的新目录，在“不限制”确认框打开后，A 保存“不保留”；修复前 B 的过期确认仍返回 200。该失败保存在 `policy-before.log`，不把此前普通设置并发通过扩大为目录确认已安全。
+
+确认请求改为携带所展示的数据库、视频目录、保留模式、预算和收藏保护值，后端在生命周期锁内与最终合并值核对。修复后同场景返回 400，配置和原视频保持；B 按刷新后的策略重新确认可成功，期间 A 再修改日志级别仍被保留。没有确认或仅提交旧布尔值不能接管已有视频；确认不落盘，不引入版本号或服务器确认状态。现行接口以[配置生命周期](../settings-lifecycle.md)为准。
+
+- 真实 Console／Edge 失败对照及重开验证通过；没有启动网关或视频淘汰，测试视频字节保持。原生路径选择仅返回测试目录，其后的检查和保存均经过真实后端。
+- 七项 API 场景通过：数据库、视频目录、保留模式、预算、收藏保护不匹配，以及缺少确认、旧布尔确认均拒绝且不改配置。Console 整包通过（72.570 秒）。
+- 设置、存储、代理草稿相关 Edge 回归 **37/37 通过**；前端 build/check、Console vet、命令行/桌面入口 build、gofmt 与差异格式检查通过。
+
+补漏证据仍在同一忽略目录：`policy-after.log`、`policy-console.log`、`policy-webui.log`、`policy-build.log`、`policy-check.log`、`policy-review/settings-result.json`。正式候选包、跨平台及游戏验证边界与首轮相同。

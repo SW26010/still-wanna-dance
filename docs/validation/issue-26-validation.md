@@ -37,6 +37,23 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 
 本次回执与原始日志位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-25-evidence/`：`windows.log`、`linux.log`、`release.log`、`published-release.json`、`public-rebuild-result.json` 及 `logs/portable-upgrade/e8c6c4cd4d2b4e81b5d13fa1da618756/persisted-data.log`。本节证明该版本的公开交付，不替代实机台账中不同范围的历史结果。
 
+### v1.0.0-beta.2 公开交付完成
+
+从发布前最新 `origin/main` 提交 `5fccb01a641194122f871643b88ac88d1ec38b0b` 创建非 main 分支 `codex/release-v1.0.0-beta.2`，合入 Beta 1 已验证的自动发布、离线元数据收集与升级夹具修复，保留 main 后续 14 个提交。正式发行提交为 `a7dbeca4ae93454737d9195b9b8a278bd73bb8fa`；main 未修改，发布前 48 项工具回归、前端资源一致性及 actionlint 通过。
+
+[check #26](https://github.com/SW26010/still-wanna-dance/actions/runs/40942588702) 首次运行于 2026-10-30 04:16（北京时间）完成，Windows、Linux 和独立 release job 全部成功，无失败重跑。[v1.0.0-beta.2](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.2) 已公开且标记为 Pre-release，tag 指向上述发行提交；附件全部由 Actions 自动上传。
+
+两平台各 **355 项浏览器测试通过**；Windows 工具回归 **48/48**，Linux **40 通过、8 项 Windows 专属测试跳过**。Go 测试、vet、编译及 Linux race/gofmt 通过。正式包的源码独立重建、Portable 冒烟及 `ci-26` → Beta 2 的默认存储、外置库、自定义配置 **3/3** 覆盖升级通过；此处升级起点是同提交候选包，不将结果扩大为已验证公开 Beta 1 → Beta 2。
+
+独立 release runner 从无凭据公共 URL 下载 Portable 和完整源码，核对哈希及源码/EXE 身份，使用全新缓存重建成功，输出 `verified=true`。发行 EXE SHA256 为 `7256ef32cd6a59295649e33ff051ed794325a5dec5862c56dcc760cc7576cb98`。五个附件的大小与 GitHub SHA256 一致；公开发行清单及两份校验文件也已下载核对。不承诺 EXE 逐字节可复现。
+
+| 正式附件 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Windows amd64 Portable ZIP | 20,905,848 | `71d986dcb912cc3798b903536d2bdb7eefc6009a80e59f8356173c4da58a085e` |
+| 完整对应源码 tar.gz | 399,466,350 | `dcd730e2d7f89fe69c035ca4333763d99ff7f83512d6ecb56ecff5fa4eefbedd` |
+
+原始证据保留在忽略目录 `artifacts/release-v1.0.0-beta.2/`：两平台及 release 日志、`build-manifest.json`、`published-release.json`、`public-rebuild-result.json`、公开校验文件和 `logs/portable-upgrade/87d211edd26f49b8ac59222829202134/persisted-data.log`。本节记录该版本的公开交付结果，不替代既有实机台账。
+
 ## 2026-10-26 发布前核对
 
 核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。

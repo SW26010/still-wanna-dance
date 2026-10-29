@@ -98,7 +98,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 ```sql
 CREATE TABLE song_preferences (
- song_id INTEGER PRIMARY KEY REFERENCES songs(song_id),
+ song_id INTEGER PRIMARY KEY REFERENCES songs(id),
  policy TEXT NOT NULL CHECK(policy IN ('blocked','favorite'))
 ) STRICT;
 ```

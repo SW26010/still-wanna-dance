@@ -20,8 +20,12 @@ import (
 // after this attempt, including when the remote endpoint is unavailable.
 func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Server) error {
 	candidate, err := c.fetchCatalogSnapshot(ctx)
+	var syncFailures []error
 	if err == nil {
 		err = engine.SyncCatalog(ctx, candidate)
+		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
+			syncFailures = append(syncFailures, err)
+		}
 	}
 	if c.checksumURL == cacheproxy.UdonCatalogURL {
 		missing, checkErr := engine.CatalogNeedsMappings(ctx)
@@ -33,9 +37,6 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 			var failures []error
 			if errors.Is(err, cacheproxy.ErrLocalStorage) {
 				return err
-			}
-			if errors.Is(err, cacheproxy.ErrCatalogConflict) {
-				failures = append(failures, err)
 			}
 			for _, source := range []string{cacheproxy.KivaCatalogURL, cacheproxy.WannaCatalogURL} {
 				backup, fetchErr := c.fetchCatalogSource(ctx, source)
@@ -54,18 +55,15 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 					usable = true
 				} else {
 					failures = append(failures, syncErr)
+					syncFailures = append(syncFailures, syncErr)
 				}
 			}
 			if usable {
-				err = nil
+				// Optional fetch failures do not invalidate usable metadata, but
+				// failed local synchronization must remain visible to the caller.
+				err = errors.Join(syncFailures...)
 			} else {
 				err = errors.Join(append([]error{err}, failures...)...)
-			}
-			// Keep conflicts visible even when another source was usable.
-			for _, failure := range failures {
-				if errors.Is(failure, cacheproxy.ErrCatalogConflict) {
-					err = errors.Join(err, failure)
-				}
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -223,6 +224,17 @@ func (c *Calibration) Close() {
 }
 
 func calibrationClient(ctx context.Context, source upstreamrequest.Snapshot, target, upstream string) (*http.Client, error) {
+	clients, err := calibrationClients(ctx, source, target, upstream)
+	if err != nil {
+		return nil, err
+	}
+	// Media measurement stays on one candidate for each resource host.
+	return clients[0], nil
+}
+
+// Metadata preparation can try the requested upstream's remaining paths. It
+// shares the normal complete-request and protocol attempt budget in Fetch.
+func calibrationClients(ctx context.Context, source upstreamrequest.Snapshot, target, upstream string) ([]*http.Client, error) {
 	if source.Candidates == nil {
 		return nil, errors.New("channel_unavailable")
 	}
@@ -230,11 +242,17 @@ func calibrationClient(ctx context.Context, source upstreamrequest.Snapshot, tar
 	if err != nil {
 		return nil, errors.New("channel_unavailable")
 	}
+	var clients []*http.Client
 	for _, candidate := range cs {
 		if candidate.Mode == upstream || (upstream == "proxy" && candidate.Mode == "socks5") {
-			// Pin one candidate for this host; never rotate exits mid-test.
-			return requestClient(candidate.Transport), nil
+			clients = append(clients, requestClient(candidate.Transport))
+			if len(clients) == upstreamrequest.MaxOperationCandidates {
+				break
+			}
 		}
+	}
+	if len(clients) != 0 {
+		return clients, nil
 	}
 	return nil, errors.New("channel_unavailable")
 }
@@ -273,15 +291,15 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 		if ctx.Err() != nil || ready() || len(samples) == calibrationMaxVideos {
 			break
 		}
-		catalogClient, err := calibrationClient(ctx, source, entry(Catalog, routeID), upstream)
+		catalogClients, err := calibrationClients(ctx, source, entry(Catalog, routeID), upstream)
 		if err != nil {
 			continue
 		}
-		o, id, catalog := probeCatalogData(ctx, catalogClient, p, routeID)
+		o, id, catalog := probeCatalogData(ctx, catalogClients[0], p, routeID, catalogClients[1:]...)
 		if o.state != "available" || id == 0 {
 			continue
 		}
-		client, err := calibrationClient(ctx, source, entry(PlaybackURL, playbackRoutes[0].ID), upstream)
+		clients, err := calibrationClients(ctx, source, entry(PlaybackURL, playbackRoutes[0].ID), upstream)
 		if err != nil {
 			continue
 		}
@@ -301,7 +319,7 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 				break
 			}
 		}
-		prepareCalibrationSamples(ctx, client, p, pending, func(sample videoSample) bool {
+		prepareCalibrationSamples(ctx, clients, p, pending, func(sample videoSample) bool {
 			if sample.size < 16*calibrationBlock || seenVideos[sample.checksum] {
 				return false
 			}
@@ -338,7 +356,7 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 
 // Resolve metadata only, with bounded parallelism. Cancel and join every probe
 // before returning, so preparation cannot contaminate download CPU samples.
-func prepareCalibrationSamples(parent context.Context, client *http.Client, p Policy, ids []int64, accept func(videoSample) bool) {
+func prepareCalibrationSamples(parent context.Context, clients []*http.Client, p Policy, ids []int64, accept func(videoSample) bool) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	jobs := make(chan int64, len(ids))
@@ -354,7 +372,7 @@ func prepareCalibrationSamples(parent context.Context, client *http.Client, p Po
 				if ctx.Err() != nil {
 					return
 				}
-				_, sample := probePlayback(ctx, client, p, id, playbackRoutes[0])
+				_, sample := probePlayback(ctx, clients[0], p, id, playbackRoutes[0], clients[1:]...)
 				if sample == nil {
 					continue
 				}
@@ -454,6 +472,9 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}, channel *upst
 		}
 		c.cancel()
 		c.publishLocked()
+		slog.Info("network_calibration_finished", "upstream", upstream, "phase", c.state.Phase,
+			"reason", c.state.Reason, "prepared_videos", c.state.PreparedVideos,
+			"prepared_bytes", c.state.PreparedBytes, "downloaded_bytes", c.state.Bytes)
 		close(done)
 	}()
 	prep, cancel := context.WithTimeout(ctx, c.limits.prepare)

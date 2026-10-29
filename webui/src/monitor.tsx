@@ -1,4 +1,4 @@
-import { Button, Link, Subtitle2, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
+import { Button, Subtitle2, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
 import { useApp } from './hooks';
 import { Panel, RecordDetails, TableRegion } from './ui';
 import { type HealthResult, type Health, date, dated } from './types';
@@ -24,7 +24,7 @@ export function healthImpact(h: Health) {
   });
   return summaries.join('；')+'。';
 }
-function HealthRow({row:r,minutes,separator,wait='等待调度信息',context}: {row:HealthResult;minutes:number;separator:boolean;wait?:string;context?:string}) {
+function HealthRow({row:r,minutes,wait='等待调度信息',context}: {row:HealthResult;minutes:number;wait?:string;context?:string}) {
   const saved = r.lastThroughput, speed = saved ? saved.bytes / (saved.durationNs/1e9) : r.estimatedSpeedBPS;
   const at = saved?.observedAt || r.throughputObservedAt;
   const song=saved?.songID ?? r.throughputSongID, duration=saved?saved.durationNs/1e6:r.transferDurationMS, bytes=saved?.bytes ?? r.transferredBytes;
@@ -45,7 +45,7 @@ function HealthRow({row:r,minutes,separator,wait='等待调度信息',context}: 
   </TableRow>;
 }
 function HealthTable({rows,minutes,wait,label}:{rows:HealthResult[];minutes:number;wait?:string;label:string}) {
-  return <TableRegion label={label}><Table size="small" className="health-table" aria-label={label}><TableHeader><TableRow>{['线路','状态','延迟','速度','详情'].map(name=><TableHeaderCell key={name}>{name}</TableHeaderCell>)}</TableRow></TableHeader><TableBody>{rows.map((r,i)=><HealthRow key={`${r.entry}:${r.channelID}:${r.ip}:${i}`} row={r} minutes={minutes} separator={false} wait={wait}/>)}</TableBody></Table></TableRegion>;
+  return <TableRegion label={label}><Table size="small" className="health-table" aria-label={label}><TableHeader><TableRow>{['线路','状态','延迟','速度','详情'].map(name=><TableHeaderCell key={name}>{name}</TableHeaderCell>)}</TableRow></TableHeader><TableBody>{rows.map((r,i)=><HealthRow key={`${r.entry}:${r.channelID}:${r.ip}:${i}`} row={r} minutes={minutes} wait={wait}/>)}</TableBody></Table></TableRegion>;
 
 }
 

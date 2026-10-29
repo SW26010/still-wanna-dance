@@ -30,7 +30,7 @@
     "webui/src/library.tsx": "a303c803652ecf0273ababb07df08e789773d8d9653e57fa35233acb0ff9ce26",
     "webui/src/lifecycle.ts": "18b406ca24b669cb62f43d39bff25d911cca60a13f45506df17fc2de034b8f60",
     "webui/src/main.tsx": "ab29472305f0722f0c9ec412d77d61c7f7c92329627183493c03646cebf2fb8a",
-    "webui/src/monitor.tsx": "8a8800350c20e967205a9191c0968640fa3881c8719738b25583588c3fd05d7a",
+    "webui/src/monitor.tsx": "d43f2612ff53237a3e63c4c5cc6e1e54155c188c9d36823a6245de7832d7c11f",
     "webui/src/network.tsx": "2f210005568ab59f29ca50325f30cefae05c0295ef25f1bafb834cf0dd94f811",
     "webui/src/page-feedback.ts": "016037828327857dbbc53720e65bcd74ae877e754708942cd129d2173f483e0c",
     "webui/src/path-picker.tsx": "7c0bf0b3f8690382cc482f27af32841233ce0037c616f3506431c1fba8ac9ba0",
@@ -45,12 +45,12 @@
     "webui/src/types.ts": "6efacdf890b3dc0c054ba6ac5dce949b0f616f151cd9275662ef67dc917da145",
     "webui/src/ui.tsx": "8fec371e9171762a311697a0fa8682bce903d0f931ebc25182f925b413e1703a",
     "webui/src/vrcx.tsx": "6c9e8ecd7df95f152d9a195abbe7721e74b83a17433037b3ac5962f73493ae38",
-    "webui/tsconfig.json": "44dff406cf3f779783246649cf91818baf140478718636f600c5458d0140b514"
+    "webui/tsconfig.json": "9d336110e57e28523641eabc563dc105b7ee578e863531a473f4b3570dd05f57"
   },
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6",
     "internal/console/assets/webui/app.css": "4dd0899dfda7769c2eacbcedbd34ed54310887f31f83dbe43d4a1add3abbc2f5",
-    "internal/console/assets/webui/app.js": "34bc5009d367957b78e324da86e06c7a2b33db6fb74626f056b67f3d2bcd88c4",
+    "internal/console/assets/webui/app.js": "ff0b1c8f60f0d612f295abc4b2493a071e72da0d505595af81d23f8dc3d9f9fb",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "3fc0d69fc38c6156e4712233c87e17c04b7fba430c6efde77d168d950975481b",
     "internal/console/assets/webui/webui-notices.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6"

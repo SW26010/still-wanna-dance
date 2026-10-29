@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "329 unique candidates, both protocols fully covered",
+    "894 records, seven retained interruptions, no duplicate completed logical sample",
+    "All success records have exact block length, 206, requested remote, one fresh connection and expected SHA256",
+    "Each shortlisted IP has three serial confirmation records",
+    "Every final IP has six serial holdout records, started after frozen selection",
+    "HTTP paired ratios independently recomputed from elapsed times",
+    "Original analyzer verifies Wi-Fi local addresses/interface and global/per-IP overlap"
+  ],
+  "passed": true,
+  "sanitizedTrialsSHA256": "58cf82042b26f9f828e2b71aa28a2a8df26fea306e49f0945a62838ce2adbcc1"
+}

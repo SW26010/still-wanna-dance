@@ -18,6 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 | 文件 | 来源与用途 |
 | --- | --- |
+| [wifi-ip-selection-20261029/manifest.json](wifi-ip-selection-20261029/manifest.json)、[初始窗口清单](upstream-window-20261029/manifest.json) | 329 个 IPv4、固定 1 MiB 块、四路初筛后串行确认和六轮留出：HTTP 优选相对三 DNS 配对中位 3.46–3.86 倍；HTTPS 候选 12/12、DNS 0/18。894 条记录含七次中断，旧观察和多路批次分开；同 IP 协议配对另列。完整脱敏附件及源码快照本地/备份已校验，尚未发布，见[报告](../validation/wifi-ip-selection-20261029.md)与[附件说明](wifi-ip-selection-20261029/README.md) |
 | [live-20261029-01/manifest.json](live-20261029-01/manifest.json) | `fc9f4c3e` 加已验证的 UAC 修复，同一 EXE 的 6254 CF 独立冷缓存后台开/关对照：真实 MISS、前后台重叠、两次音画正常，完成 LA-040 剩余场景。保留预定取消及单配对性能边界；hosts 与进程清理已核实，见[报告](../acceptance/live-acceptance-20261029-01.md) |
 | [windows-native-20261029/summary.json](windows-native-20261029/summary.json) | 真实 UAC 暴露取消误报，修复后取消/授权、缺权启停、连接提示清除和退出恢复通过；12 项状态/清理断言及两构建指纹，原始私有材料留在本地。开发 ZIP 同包覆盖不代替最终发行，见[本机报告](../validation/windows-native-validation.md#2026-10-29恢复权限原生复测与取消识别修复) |
 | [live-20261028-01/manifest.json](live-20261028-01/manifest.json) | `98e39617` 同一干净 EXE 的真实单人及追加多人验收：未缓存慢网 Seek 恢复、2 秒队列接手、离房撤销、API 屏蔽后切歌、中途接入/直连恢复、非 owner 追赶均有用户反馈与关联事件。超时后进度回退保留为倾向播放器重试的观察，不单列 SWD 发布阻塞；未代替 CI 或发行包检查，见[报告](../acceptance/live-acceptance-20261028-01.md) |

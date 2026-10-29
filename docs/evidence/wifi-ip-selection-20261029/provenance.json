@@ -1,0 +1,143 @@
+{
+  "sourceRevision": "7782f1310ccf53a3155a3f631b521bfddcf486c9",
+  "scope": "Final r2 standalone probe plus five internal dependencies; not a complete product tree. Initial snapshot predates the r2 resume-check change in experiment/wide.go.",
+  "finalExecutableSHA256": "915c345b8828423ddedb3b979aa12e1a1e81e3a2f9c14c103303291e31b22602",
+  "sources": [
+    {
+      "path": "_provenance/runner-source/experiment/controller.go",
+      "bytes": 14316,
+      "sha256": "e7d663dd4894c1ca1494e511742adafd36d350b87488f28bdad8a9e50a9a3247"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/core.go",
+      "bytes": 12456,
+      "sha256": "f300b7871cc49fced94dde03b49f18a7c731a2979ea1b39b7ec435acbf8ef52f"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/singlelane.go",
+      "bytes": 9264,
+      "sha256": "59e187830cfedb9a3bd5a2bb6a781f7e77dd261346b00653b15c1ed3635e4043"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/sweep.go",
+      "bytes": 4408,
+      "sha256": "e19b8b662004b4d2dfd90df8b235ee90a96fa24f5abffec9aa137c58fa54d62e"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/wide.go",
+      "bytes": 18881,
+      "sha256": "6363358636807b7578abb521efb3303379e61142b789c62f3803df53b0fa4d25"
+    },
+    {
+      "path": "_provenance/runner-source/go.mod",
+      "bytes": 8182,
+      "sha256": "0174e16d4224de17755aaf826b46b2f47be65786a242226e838ec40823e22a76"
+    },
+    {
+      "path": "_provenance/runner-source/go.sum",
+      "bytes": 37336,
+      "sha256": "0919a6caf64ae2b8a079e8877dab3bf963eb12666688251b041bcdaee9e145af"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/logger.go",
+      "bytes": 1456,
+      "sha256": "c5227dbf33e1b058c20da8814197e925c2d5d4c7f19108ee7542b2f73bfb8a76"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/trace.go",
+      "bytes": 1894,
+      "sha256": "c5c3cdaf4989777ee1ce1469e5f95afa47c634701b91a75f30e5a1248fb55191"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/writer.go",
+      "bytes": 2482,
+      "sha256": "11ba723906c82e6b6d09a3f3287876ddcba8b34a167bcc7989a2e9b10d06ec1f"
+    },
+    {
+      "path": "_provenance/runner-source/internal/playbacksource/source.go",
+      "bytes": 3712,
+      "sha256": "f5f4c6b0aaaba6a35894c75a2ea2cde11d3a6826ba53e9550fe6fce84c4f86cd"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns.go",
+      "bytes": 8916,
+      "sha256": "757f2f7e5863989fe456134d2ab6af310f18ae0c72f34a983a6e0b3a44695e0c"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_dial.go",
+      "bytes": 1282,
+      "sha256": "b6b9a1ce1f151499effd7d1533ac1c5c731ef322327d1d2ae1f5b73f411da15f"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_pool.go",
+      "bytes": 1411,
+      "sha256": "c99ec1aaeb829dae68b611dae92ebc7ca54e3499d043393b3d679a8dc0b70540"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_providers.go",
+      "bytes": 3018,
+      "sha256": "0d3048bb4ed5e77c9979895600b25424de760c5a2a03e80aecb816fb17a6c716"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_refresh.go",
+      "bytes": 5444,
+      "sha256": "d8ed2b152d176159778df1843be2df5bf62481e5d15cf435348dfe015722997a"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_wire.go",
+      "bytes": 3164,
+      "sha256": "6a5f3699883efa8ae83a3b2d1fded3cd1b598728bb8ce77fa9cb3dc3d68efb25"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/socks.go",
+      "bytes": 3288,
+      "sha256": "ab14f753e3f34e3390314c6a6f26d81ae6269aecc8c350b0b9d9128481a3f9aa"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/attempts.go",
+      "bytes": 9488,
+      "sha256": "440e7850ddefbc6eda608d69e20b903b1fbfd5fb71c4d91a2c71a07c5aaf625e"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/candidates.go",
+      "bytes": 10567,
+      "sha256": "d58d63b17c9b6b1ef473cf7af58a340a912d5cd9c3d3fbe55ef9ef53408a5667"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/channel.go",
+      "bytes": 1426,
+      "sha256": "b92be5cb3635e675f49e07856e8f6428cde796416f51540c1ea871528983d162"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/errors.go",
+      "bytes": 339,
+      "sha256": "a92f2604bad4ab029ce86391971580974b0a731f51c80f108b3b87dcc46de63d"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/resources.go",
+      "bytes": 6540,
+      "sha256": "780eaa3c2c74a6cf3c3a0775c88ab71993933c248975d0790272557564094e96"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/resource_activity.go",
+      "bytes": 1859,
+      "sha256": "8e5f03819bdb996cb3e31f4e808a90ef40db8f58f29497038244b75d9768021b"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/host.go",
+      "bytes": 822,
+      "sha256": "5bcac5f98f200ecb49c7e57a307024cfd454c4adb1c52570753fd04765cc3059"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/parse.go",
+      "bytes": 1633,
+      "sha256": "78b23707131136cceee12a2981a938b2d75f24d1536edbdc74c7da11dd6b36f2"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/playback.go",
+      "bytes": 1253,
+      "sha256": "e7acaf5e5fad1d47c151597935052f4c2990706033768612c8d62e7894be7479"
+    }
+  ],
+  "privacy": "No binaries, target URLs, binding configurations, private connections or raw errors included. Historical scripts require private inputs and are preserved for inspection, not automatic reruns."
+}

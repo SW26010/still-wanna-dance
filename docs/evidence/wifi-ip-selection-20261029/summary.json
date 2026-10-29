@@ -1,0 +1,1159 @@
+{
+  "schema": 1,
+  "date": "2026-10-29 evening to 2026-10-30 early morning, Asia/Shanghai",
+  "candidateCount": 329,
+  "protocols": [
+    "http",
+    "https"
+  ],
+  "method": {
+    "screenWorkers": 4,
+    "perIPConnections": 1,
+    "confirmAndHoldoutWorkers": 1,
+    "song": 42,
+    "host": "play.udon.dance",
+    "offset": 8388608,
+    "bytes": 1048576,
+    "sha256": "3004a6effabbfc907339499cc8ae5be5b1ce2f1cd59b5c9ff30ad0e11ca24af7",
+    "timeoutSeconds": 30
+  },
+  "samples": {
+    "wide-screen/http": {
+      "records": 331,
+      "passed": 104,
+      "failed": 225,
+      "interrupted": 2,
+      "bytes": 114038683
+    },
+    "wide-screen/https": {
+      "records": 334,
+      "passed": 93,
+      "failed": 236,
+      "interrupted": 5,
+      "bytes": 106695233
+    },
+    "dns-control/http": {
+      "records": 28,
+      "passed": 27,
+      "failed": 1,
+      "interrupted": 0,
+      "bytes": 28490327
+    },
+    "dns-control/https": {
+      "records": 28,
+      "passed": 1,
+      "failed": 27,
+      "interrupted": 0,
+      "bytes": 2591548
+    },
+    "resume-check/http": {
+      "records": 2,
+      "passed": 2,
+      "failed": 0,
+      "interrupted": 0,
+      "bytes": 2097152
+    },
+    "confirm/http": {
+      "records": 42,
+      "passed": 34,
+      "failed": 8,
+      "interrupted": 0,
+      "bytes": 36769678
+    },
+    "failed-screen-audit/http": {
+      "records": 12,
+      "passed": 1,
+      "failed": 11,
+      "interrupted": 0,
+      "bytes": 1048576
+    },
+    "confirm/https": {
+      "records": 45,
+      "passed": 41,
+      "failed": 4,
+      "interrupted": 0,
+      "bytes": 44959991
+    },
+    "failed-screen-audit/https": {
+      "records": 12,
+      "passed": 1,
+      "failed": 11,
+      "interrupted": 0,
+      "bytes": 1834999
+    },
+    "holdout/http": {
+      "records": 30,
+      "passed": 30,
+      "failed": 0,
+      "interrupted": 0,
+      "bytes": 31457280
+    },
+    "holdout/https": {
+      "records": 30,
+      "passed": 12,
+      "failed": 18,
+      "interrupted": 0,
+      "bytes": 19031250
+    }
+  },
+  "records": 894,
+  "logicalRecords": 887,
+  "interrupted": 7,
+  "readBytes": 389014717,
+  "elapsedSeconds": 4354.717,
+  "pausedSeconds": 832.982,
+  "selectionFrozenTSeconds": 3674.765,
+  "holdoutStartTSeconds": 3674.7656139,
+  "holdoutEndTSeconds": 4354.717,
+  "finalRows": [
+    {
+      "protocol": "http",
+      "ip": "104.26.4.28",
+      "dns": true,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.2180419833897232,
+      "medianSeconds": 4.60071965,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.1756378962015512,
+          "seconds": 5.6935321000000005,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.309271399879879,
+          "seconds": 3.233406,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.2459058338527889,
+          "seconds": 4.0665973,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.23026040310169052,
+          "seconds": 4.3429091,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.20582356367775587,
+          "seconds": 4.858530200000001,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.19618208090529396,
+          "seconds": 5.0973055,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        }
+      ]
+    },
+    {
+      "protocol": "http",
+      "ip": "104.26.5.28",
+      "dns": true,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.20908090425722484,
+      "medianSeconds": 4.7884159,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.21621717458423328,
+          "seconds": 4.6249795,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.28250071098366436,
+          "seconds": 3.5398141,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.28851892876037755,
+          "seconds": 3.4659771,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.2019446339302164,
+          "seconds": 4.9518523,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.16302013448639432,
+          "seconds": 6.1342115999999995,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.1537225230981926,
+          "seconds": 6.5052276,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        }
+      ]
+    },
+    {
+      "protocol": "http",
+      "ip": "172.67.69.58",
+      "dns": true,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.20713081394836966,
+      "medianSeconds": 4.8278708,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.23293152334980127,
+          "seconds": 4.293107200000001,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.2069445757105385,
+          "seconds": 4.8322117,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.19603118401345307,
+          "seconds": 5.1012292,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.18864768061072346,
+          "seconds": 5.3008868,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.21594227068437052,
+          "seconds": 4.6308673,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.2073170521862008,
+          "seconds": 4.8235299000000005,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SEA"
+        }
+      ]
+    },
+    {
+      "protocol": "http",
+      "ip": "104.21.96.1",
+      "dns": false,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.8034568565431082,
+      "medianSeconds": 1.24510335,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.819256056514249,
+          "seconds": 1.2206196,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.8219850758745654,
+          "seconds": 1.2165671,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.8209220859564531,
+          "seconds": 1.2181423999999998,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.7838871064602566,
+          "seconds": 1.2756939,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.7876576565719674,
+          "seconds": 1.2695870999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.7759227447863617,
+          "seconds": 1.2887880999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        }
+      ]
+    },
+    {
+      "protocol": "http",
+      "ip": "104.21.64.1",
+      "dns": false,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.7661395442384298,
+      "medianSeconds": 1.3052966,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.7709449356434441,
+          "seconds": 1.2971095,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.7919018219126837,
+          "seconds": 1.2627827999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.7824036786743203,
+          "seconds": 1.2781125999999998,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.7613341528334154,
+          "seconds": 1.3134837,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.7449917741733254,
+          "seconds": 1.3422967000000001,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.7598377715964131,
+          "seconds": 1.3160704,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        }
+      ]
+    },
+    {
+      "protocol": "https",
+      "ip": "104.26.4.28",
+      "dns": true,
+      "attempted": 6,
+      "passed": 0,
+      "failed": 6,
+      "medianMiBPerSec": null,
+      "medianSeconds": null,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 10.415177400000001,
+          "bytes": 0,
+          "status": 0,
+          "cache": ""
+        },
+        {
+          "round": 2,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0005177,
+          "bytes": 114478,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 3,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0001239,
+          "bytes": 343173,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 4,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.000473699999997,
+          "bytes": 359557,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 5,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0001376,
+          "bytes": 605295,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 6,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0003703,
+          "bytes": 277629,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        }
+      ]
+    },
+    {
+      "protocol": "https",
+      "ip": "104.26.5.28",
+      "dns": true,
+      "attempted": 6,
+      "passed": 0,
+      "failed": 6,
+      "medianMiBPerSec": null,
+      "medianSeconds": null,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.000077700000002,
+          "bytes": 589824,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 2,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0002514,
+          "bytes": 572525,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 3,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.000237700000003,
+          "bytes": 408693,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 4,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.000396100000003,
+          "bytes": 408703,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 5,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0001225,
+          "bytes": 601209,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 6,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0005573,
+          "bytes": 408707,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        }
+      ]
+    },
+    {
+      "protocol": "https",
+      "ip": "172.67.69.58",
+      "dns": true,
+      "attempted": 6,
+      "passed": 0,
+      "failed": 6,
+      "medianMiBPerSec": null,
+      "medianSeconds": null,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0004415,
+          "bytes": 311296,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 2,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 10.283876,
+          "bytes": 0,
+          "status": 0,
+          "cache": ""
+        },
+        {
+          "round": 3,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0003899,
+          "bytes": 376823,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 4,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0002081,
+          "bytes": 688128,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 5,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.000428,
+          "bytes": 252117,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        },
+        {
+          "round": 6,
+          "ok": false,
+          "mibPerSec": null,
+          "seconds": 30.0004122,
+          "bytes": 130181,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "LAX"
+        }
+      ]
+    },
+    {
+      "protocol": "https",
+      "ip": "104.21.32.1",
+      "dns": false,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.6305549343627779,
+      "medianSeconds": 1.58605145,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.6244885048839685,
+          "seconds": 1.6013105,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.730439808034575,
+          "seconds": 1.3690381999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.6218731440973355,
+          "seconds": 1.6080450000000002,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.5983514102275129,
+          "seconds": 1.6712587,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.6366213638415872,
+          "seconds": 1.5707924,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.6600789467621907,
+          "seconds": 1.5149702999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        }
+      ]
+    },
+    {
+      "protocol": "https",
+      "ip": "104.21.64.1",
+      "dns": false,
+      "attempted": 6,
+      "passed": 6,
+      "failed": 0,
+      "medianMiBPerSec": 0.7115889001878171,
+      "medianSeconds": 1.410018,
+      "rounds": [
+        {
+          "round": 1,
+          "ok": true,
+          "mibPerSec": 0.7527255816950387,
+          "seconds": 1.3285054,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 2,
+          "ok": true,
+          "mibPerSec": 0.6233895121571864,
+          "seconds": 1.6041334999999999,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 3,
+          "ok": true,
+          "mibPerSec": 0.7770005355087691,
+          "seconds": 1.2870004,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 4,
+          "ok": true,
+          "mibPerSec": 0.769164739396218,
+          "seconds": 1.3001116,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 5,
+          "ok": true,
+          "mibPerSec": 0.6704522186805956,
+          "seconds": 1.4915306000000002,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        },
+        {
+          "round": 6,
+          "ok": true,
+          "mibPerSec": 0.6333072094109451,
+          "seconds": 1.5790125000000002,
+          "bytes": 1048576,
+          "status": 206,
+          "cache": "HIT",
+          "colo": "SJC"
+        }
+      ]
+    }
+  ],
+  "pairedComparisons": [
+    {
+      "protocol": "http",
+      "candidate": "104.21.96.1",
+      "baseline": "104.26.4.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 4.664460655883292
+        },
+        {
+          "round": 2,
+          "ratio": 2.6578114762432747
+        },
+        {
+          "round": 3,
+          "ratio": 3.33835953826088
+        },
+        {
+          "round": 4,
+          "ratio": 3.404350448018917
+        },
+        {
+          "round": 5,
+          "ratio": 3.8268585117161322
+        },
+        {
+          "round": 6,
+          "ratio": 3.9551152745746183
+        }
+      ],
+      "medianRatio": 3.6156044798675246,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "http",
+      "candidate": "104.21.96.1",
+      "baseline": "104.26.5.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 3.7890424666292435
+        },
+        {
+          "round": 2,
+          "ratio": 2.9096743615703566
+        },
+        {
+          "round": 3,
+          "ratio": 2.8452971508092983
+        },
+        {
+          "round": 4,
+          "ratio": 3.8816931710655664
+        },
+        {
+          "round": 5,
+          "ratio": 4.831658733772578
+        },
+        {
+          "round": 6,
+          "ratio": 5.047554054851997
+        }
+      ],
+      "medianRatio": 3.8353678188474047,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "http",
+      "candidate": "104.21.96.1",
+      "baseline": "172.67.69.58",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 3.5171540748649295
+        },
+        {
+          "round": 2,
+          "ratio": 3.9720059008664625
+        },
+        {
+          "round": 3,
+          "ratio": 4.1877117158059685
+        },
+        {
+          "round": 4,
+          "ratio": 4.15529681532537
+        },
+        {
+          "round": 5,
+          "ratio": 3.647538085413754
+        },
+        {
+          "round": 6,
+          "ratio": 3.742686559567085
+        }
+      ],
+      "medianRatio": 3.857346230216774,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "http",
+      "candidate": "104.21.64.1",
+      "baseline": "104.26.4.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 4.389399738418384
+        },
+        {
+          "round": 2,
+          "ratio": 2.5605401023834027
+        },
+        {
+          "round": 3,
+          "ratio": 3.1817206872070583
+        },
+        {
+          "round": 4,
+          "ratio": 3.306405020481031
+        },
+        {
+          "round": 5,
+          "ratio": 3.6195650335726817
+        },
+        {
+          "round": 6,
+          "ratio": 3.873125252266141
+        }
+      ],
+      "medianRatio": 3.462985027026856,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "http",
+      "candidate": "104.21.64.1",
+      "baseline": "104.26.5.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 3.5656045229797484
+        },
+        {
+          "round": 2,
+          "ratio": 2.8031852350222066
+        },
+        {
+          "round": 3,
+          "ratio": 2.7117932332409524
+        },
+        {
+          "round": 4,
+          "ratio": 3.7700142757766995
+        },
+        {
+          "round": 5,
+          "ratio": 4.569937183038593
+        },
+        {
+          "round": 6,
+          "ratio": 4.942917643311483
+        }
+      ],
+      "medianRatio": 3.667809399378224,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "http",
+      "candidate": "104.21.64.1",
+      "baseline": "172.67.69.58",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [
+        {
+          "round": 1,
+          "ratio": 3.309749254014407
+        },
+        {
+          "round": 2,
+          "ratio": 3.8266372490977862
+        },
+        {
+          "round": 3,
+          "ratio": 3.99122049184086
+        },
+        {
+          "round": 4,
+          "ratio": 4.035746161143835
+        },
+        {
+          "round": 5,
+          "ratio": 3.449958045788237
+        },
+        {
+          "round": 6,
+          "ratio": 3.6651002104446695
+        }
+      ],
+      "medianRatio": 3.745868729771228,
+      "positivePairs": 6,
+      "candidateFailures": 0,
+      "baselineFailures": 0,
+      "engineeringGainSupported": true
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.32.1",
+      "baseline": "104.26.4.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.32.1",
+      "baseline": "104.26.5.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.32.1",
+      "baseline": "172.67.69.58",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.64.1",
+      "baseline": "104.26.4.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.64.1",
+      "baseline": "104.26.5.28",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    },
+    {
+      "protocol": "https",
+      "candidate": "104.21.64.1",
+      "baseline": "172.67.69.58",
+      "frozenEligible": true,
+      "identical": false,
+      "pairs": [],
+      "medianRatio": null,
+      "positivePairs": 0,
+      "candidateFailures": 0,
+      "baselineFailures": 6,
+      "engineeringGainSupported": false
+    }
+  ],
+  "httpsFailureStages": {
+    "beforeValid206": 2,
+    "incomplete206Body": 16
+  },
+  "allSuccessfulHoldoutCacheHIT": true,
+  "integrity": {
+    "issues": [],
+    "logicalCoverageComplete": true,
+    "selectionFrozenBeforeHoldout": true,
+    "allHoldoutRowsSameFinalBuild": true,
+    "observedPeakConcurrentRequests": 4,
+    "oneRequestPerIP": true,
+    "singleBlockHashConfirmed": true,
+    "sourceAndInterfaceChecksPassed": true
+  },
+  "limits": [
+    "Only this Wi-Fi path, fixed video block and current observation period.",
+    "A screen completion is a sample, not a durable IP recommendation.",
+    "HTTP and HTTPS are analyzed separately; neither ranking is assumed to predict the other.",
+    "Failures and incomplete samples are retained; incomplete bodies are not assigned an achieved full-block speed.",
+    "Candidate order and later holdout are separated; chosen finalists must be frozen before holdout.",
+    "DNS controls are explicit fixed addresses, not observations of ordinary product path selection."
+  ]
+}

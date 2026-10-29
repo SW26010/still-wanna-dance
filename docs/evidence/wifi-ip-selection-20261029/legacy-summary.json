@@ -1,0 +1,1369 @@
+{
+  "observer": {
+    "rounds": 26,
+    "rawRequests": 214,
+    "deadlineExcluded": 1,
+    "groups": {
+      "playback/http:/IPv4": {
+        "attempted": 26,
+        "passed": 26,
+        "failed": 0,
+        "failureStages": {}
+      },
+      "playback/https:/IPv4": {
+        "attempted": 26,
+        "passed": 0,
+        "failed": 26,
+        "failureStages": {
+          "connecting": 17,
+          "tls": 8,
+          "headers": 1
+        }
+      },
+      "playback/http:/IPv6": {
+        "attempted": 26,
+        "passed": 23,
+        "failed": 3,
+        "failureStages": {
+          "headers": 3
+        }
+      },
+      "playback/https:/IPv6": {
+        "attempted": 25,
+        "passed": 0,
+        "failed": 25,
+        "failureStages": {
+          "connecting": 21,
+          "tls": 4
+        }
+      },
+      "resource/http:/IPv4": {
+        "attempted": 25,
+        "passed": 25,
+        "failed": 0,
+        "failureStages": {}
+      },
+      "resource/https:/IPv4": {
+        "attempted": 25,
+        "passed": 0,
+        "failed": 25,
+        "failureStages": {
+          "connecting": 12,
+          "tls": 13
+        }
+      },
+      "resource/http:/IPv6": {
+        "attempted": 25,
+        "passed": 23,
+        "failed": 2,
+        "failureStages": {
+          "body": 2
+        }
+      },
+      "resource/https:/IPv6": {
+        "attempted": 25,
+        "passed": 0,
+        "failed": 25,
+        "failureStages": {
+          "connecting": 21,
+          "tls": 4
+        }
+      },
+      "control-cloudflare/https:/IPv4": {
+        "attempted": 5,
+        "passed": 4,
+        "failed": 1,
+        "failureStages": {
+          "connecting": 1
+        }
+      },
+      "control-cloudflare/https:/IPv6": {
+        "attempted": 5,
+        "passed": 0,
+        "failed": 5,
+        "failureStages": {
+          "connecting": 4,
+          "tls": 1
+        }
+      }
+    }
+  },
+  "batches": {
+    "benchmark": {
+      "phases": {
+        "reference": {
+          "recorded": 1,
+          "passed": 1,
+          "failed": 0,
+          "interrupted": 0
+        },
+        "screen": {
+          "recorded": 18,
+          "passed": 10,
+          "failed": 8,
+          "interrupted": 0
+        },
+        "measure": {
+          "recorded": 14,
+          "passed": 10,
+          "failed": 4,
+          "interrupted": 0
+        }
+      },
+      "complete": false,
+      "readBytes": 233293050,
+      "arms": [
+        {
+          "phase": "reference",
+          "round": 0,
+          "arm": "dns-reference",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 4,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 49.0037655,
+          "mibPerSec": 0.32650552129509314
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 4.4908526,
+          "mibPerSec": 0.222674865792745
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 11.0597868,
+          "mibPerSec": 0.09041765615228678
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 5.442034,
+          "mibPerSec": 0.1837548240235177
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "103.21.244.1",
+          "ips": [
+            "103.21.244.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 15.0001649,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.16.0.1",
+          "ips": [
+            "104.16.0.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0295104,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 6.484651700000001,
+          "mibPerSec": 0.1542102870382383
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "172.64.144.1",
+          "ips": [
+            "172.64.144.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 14.9995808,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.17.96.1",
+          "ips": [
+            "104.17.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 15.000236500000002,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 1,
+          "arm": "104.17.160.1",
+          "ips": [
+            "104.17.160.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 2904,
+          "seconds": 15.0003405,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.17.160.1",
+          "ips": [
+            "104.17.160.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 32768,
+          "seconds": 15.005031,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.17.96.1",
+          "ips": [
+            "104.17.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 49152,
+          "seconds": 15.0004559,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "172.64.144.1",
+          "ips": [
+            "172.64.144.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 65536,
+          "seconds": 15.0000681,
+          "mibPerSec": null
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 12.3187042,
+          "mibPerSec": 0.08117736928856527
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.16.0.1",
+          "ips": [
+            "104.16.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 7.7875874000000005,
+          "mibPerSec": 0.12840947377361053
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "103.21.244.1",
+          "ips": [
+            "103.21.244.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 9.1262605,
+          "mibPerSec": 0.10957390488689206
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 8.8413404,
+          "mibPerSec": 0.11310502194893435
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 4.5798993,
+          "mibPerSec": 0.21834541209235758
+        },
+        {
+          "phase": "screen",
+          "round": 2,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 5.126317299999999,
+          "mibPerSec": 0.19507181110307006
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "dns-1",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 4018968,
+          "seconds": 90.0010307,
+          "mibPerSec": null
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "multi-4",
+          "ips": [
+            "104.26.4.28",
+            "172.67.69.58",
+            "104.26.5.28"
+          ],
+          "concurrency": 4,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 37.113100100000004,
+          "mibPerSec": 0.431114618743477
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "multi-16",
+          "ips": [
+            "104.26.4.28",
+            "172.67.69.58",
+            "104.26.5.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 16.5486153,
+          "mibPerSec": 0.966848265546423
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "best-2",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 2,
+          "ok": false,
+          "bytes": 9755505,
+          "seconds": 90.000512,
+          "mibPerSec": null
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "best-4",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 4,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 51.4371692,
+          "mibPerSec": 0.31105910859495745
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "multi-8",
+          "ips": [
+            "104.26.4.28",
+            "172.67.69.58",
+            "104.26.5.28"
+          ],
+          "concurrency": 8,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 19.271194,
+          "mibPerSec": 0.8302547314919874
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "best-1",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 11080214,
+          "seconds": 90.00015069999999,
+          "mibPerSec": null
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "dns-8",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 8,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 21.2826758,
+          "mibPerSec": 0.751785167915775
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "best-8",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 8,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 20.2397863,
+          "mibPerSec": 0.7905221805627464
+        },
+        {
+          "phase": "measure",
+          "round": 1,
+          "arm": "best-16",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 23.5849085,
+          "mibPerSec": 0.6783999183206498
+        },
+        {
+          "phase": "measure",
+          "round": 2,
+          "arm": "multi-16",
+          "ips": [
+            "104.26.4.28",
+            "172.67.69.58",
+            "104.26.5.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 13.2498166,
+          "mibPerSec": 1.2075638843182175
+        },
+        {
+          "phase": "measure",
+          "round": 2,
+          "arm": "best-2",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 2,
+          "ok": false,
+          "bytes": 13252867,
+          "seconds": 90.00040059999999,
+          "mibPerSec": null
+        },
+        {
+          "phase": "measure",
+          "round": 2,
+          "arm": "best-4",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 4,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 32.7183087,
+          "mibPerSec": 0.4890228326502708
+        },
+        {
+          "phase": "measure",
+          "round": 2,
+          "arm": "multi-8",
+          "ips": [
+            "104.26.4.28",
+            "172.67.69.58",
+            "104.26.5.28"
+          ],
+          "concurrency": 8,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 18.447098099999998,
+          "mibPerSec": 0.8673450920716902
+        }
+      ]
+    },
+    "ip-focus": {
+      "phases": {
+        "ip-focus": {
+          "recorded": 8,
+          "passed": 6,
+          "failed": 2,
+          "interrupted": 0
+        }
+      },
+      "complete": true,
+      "readBytes": 104993737,
+      "arms": [
+        {
+          "phase": "ip-focus",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 18.1190806,
+          "mibPerSec": 0.8830470128820995
+        },
+        {
+          "phase": "ip-focus",
+          "round": 1,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 12.927168,
+          "mibPerSec": 1.237703416556511
+        },
+        {
+          "phase": "ip-focus",
+          "round": 1,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 14.5128065,
+          "mibPerSec": 1.1024745627249974
+        },
+        {
+          "phase": "ip-focus",
+          "round": 1,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 16,
+          "ok": false,
+          "bytes": 2261839,
+          "seconds": 6.2064889,
+          "mibPerSec": null
+        },
+        {
+          "phase": "ip-focus",
+          "round": 2,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 16,
+          "ok": false,
+          "bytes": 2068602,
+          "seconds": 6.2266666,
+          "mibPerSec": null
+        },
+        {
+          "phase": "ip-focus",
+          "round": 2,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 27.4493823,
+          "mibPerSec": 0.5828910765689617
+        },
+        {
+          "phase": "ip-focus",
+          "round": 2,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 24.732619800000002,
+          "mibPerSec": 0.646918932542682
+        },
+        {
+          "phase": "ip-focus",
+          "round": 2,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 16,
+          "ok": true,
+          "bytes": 16777216,
+          "seconds": 13.4114521,
+          "mibPerSec": 1.193010263221236
+        }
+      ]
+    },
+    "https-candidates": {
+      "phases": {
+        "https-screen": {
+          "recorded": 9,
+          "passed": 0,
+          "failed": 9,
+          "interrupted": 0
+        }
+      },
+      "complete": true,
+      "readBytes": 2311206,
+      "arms": [
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0309572,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0293866,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 8.0005285,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "103.21.244.1",
+          "ips": [
+            "103.21.244.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 851081,
+          "seconds": 8.0004161,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.16.0.1",
+          "ips": [
+            "104.16.0.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 933888,
+          "seconds": 8.000186,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 286624,
+          "seconds": 8.000220500000001,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "172.64.144.1",
+          "ips": [
+            "172.64.144.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 81920,
+          "seconds": 7.9996641,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.17.96.1",
+          "ips": [
+            "104.17.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 75773,
+          "seconds": 7.9997375,
+          "mibPerSec": null
+        },
+        {
+          "phase": "https-screen",
+          "round": 1,
+          "arm": "104.17.160.1",
+          "ips": [
+            "104.17.160.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 81920,
+          "seconds": 8.000414899999999,
+          "mibPerSec": null
+        }
+      ]
+    },
+    "single-lane": {
+      "phases": {
+        "single-screen": {
+          "recorded": 14,
+          "passed": 12,
+          "failed": 1,
+          "interrupted": 1
+        }
+      },
+      "complete": false,
+      "readBytes": 13384170,
+      "arms": [
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 9.5691934,
+          "mibPerSec": 0.10450201581253442
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.26.5.28",
+          "ips": [
+            "104.26.5.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 6.260142,
+          "mibPerSec": 0.1597407854326627
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "172.67.69.58",
+          "ips": [
+            "172.67.69.58"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 6.5411798,
+          "mibPerSec": 0.15287762002811786
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "103.21.244.1",
+          "ips": [
+            "103.21.244.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 799203,
+          "seconds": 30.0004838,
+          "mibPerSec": null
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.16.0.1",
+          "ips": [
+            "104.16.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 9.646837999999999,
+          "mibPerSec": 0.10366090940886538
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 12.1583225,
+          "mibPerSec": 0.08224818843224466
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "172.64.144.1",
+          "ips": [
+            "172.64.144.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 4.2649313,
+          "mibPerSec": 0.23447036532569707
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.17.96.1",
+          "ips": [
+            "104.17.96.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 5.8612636,
+          "mibPerSec": 0.17061167492961757
+        },
+        {
+          "phase": "single-screen",
+          "round": 1,
+          "arm": "104.17.160.1",
+          "ips": [
+            "104.17.160.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 7.8427137,
+          "mibPerSec": 0.12750688578622985
+        },
+        {
+          "phase": "single-screen",
+          "round": 2,
+          "arm": "104.17.160.1",
+          "ips": [
+            "104.17.160.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 2.0645761,
+          "mibPerSec": 0.48436093007179537
+        },
+        {
+          "phase": "single-screen",
+          "round": 2,
+          "arm": "104.17.96.1",
+          "ips": [
+            "104.17.96.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 3.5751746,
+          "mibPerSec": 0.2797066190837225
+        },
+        {
+          "phase": "single-screen",
+          "round": 2,
+          "arm": "172.64.144.1",
+          "ips": [
+            "172.64.144.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 10.6433197,
+          "mibPerSec": 0.09395564806720971
+        },
+        {
+          "phase": "single-screen",
+          "round": 2,
+          "arm": "104.24.0.1",
+          "ips": [
+            "104.24.0.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 11.0985429,
+          "mibPerSec": 0.09010191779319067
+        },
+        {
+          "phase": "single-screen",
+          "round": 2,
+          "arm": "104.16.0.1",
+          "ips": [
+            "104.16.0.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 2055,
+          "seconds": 0.9145039,
+          "mibPerSec": null
+        }
+      ]
+    },
+    "single-lane-wide": {
+      "phases": {
+        "wide-screen": {
+          "recorded": 24,
+          "passed": 6,
+          "failed": 18,
+          "interrupted": 0
+        },
+        "dns-control": {
+          "recorded": 2,
+          "passed": 1,
+          "failed": 0,
+          "interrupted": 1
+        }
+      },
+      "complete": false,
+      "readBytes": 8312135,
+      "arms": [
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "162.158.100.158",
+          "ips": [
+            "162.158.100.158"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.030142700000001,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "162.158.100.158",
+          "ips": [
+            "162.158.100.158"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.028868999999999,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.18.96.1",
+          "ips": [
+            "104.18.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 268501,
+          "seconds": 30.0004703,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.18.96.1",
+          "ips": [
+            "104.18.96.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 12.9778889,
+          "mibPerSec": 0.07705413474451919
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.25.96.1",
+          "ips": [
+            "104.25.96.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 15.915143500000001,
+          "mibPerSec": 0.06283323804149174
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.25.96.1",
+          "ips": [
+            "104.25.96.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 10.9812353,
+          "mibPerSec": 0.09106443607487401
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.20.173.137",
+          "ips": [
+            "104.20.173.137"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0297414,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.20.173.137",
+          "ips": [
+            "104.20.173.137"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0282936,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.23.96.1",
+          "ips": [
+            "104.23.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.029508,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.23.96.1",
+          "ips": [
+            "104.23.96.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0333919,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.25.103.47",
+          "ips": [
+            "104.25.103.47"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 9.8253536,
+          "mibPerSec": 0.1017775075290929
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.25.103.47",
+          "ips": [
+            "104.25.103.47"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 11.9820625,
+          "mibPerSec": 0.08345808578447993
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "188.114.102.47",
+          "ips": [
+            "188.114.102.47"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.029885,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "188.114.102.47",
+          "ips": [
+            "188.114.102.47"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0324133,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "172.70.240.125",
+          "ips": [
+            "172.70.240.125"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0296412,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "172.70.240.125",
+          "ips": [
+            "172.70.240.125"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0292772999999995,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "162.158.185.78",
+          "ips": [
+            "162.158.185.78"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0292014,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "162.158.185.78",
+          "ips": [
+            "162.158.185.78"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0320733,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.23.109.0",
+          "ips": [
+            "104.23.109.0"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0329141,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.23.109.0",
+          "ips": [
+            "104.23.109.0"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0295535,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.17.128.1",
+          "ips": [
+            "104.17.128.1"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0290496000000005,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "104.17.128.1",
+          "ips": [
+            "104.17.128.1"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 16.3885653,
+          "mibPerSec": 0.061018153919794316
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "103.22.200.32",
+          "ips": [
+            "103.22.200.32"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0299245,
+          "mibPerSec": null
+        },
+        {
+          "phase": "wide-screen",
+          "round": 1,
+          "arm": "103.22.200.32",
+          "ips": [
+            "103.22.200.32"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 0,
+          "seconds": 6.0289113,
+          "mibPerSec": null
+        },
+        {
+          "phase": "dns-control",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": true,
+          "bytes": 1048576,
+          "seconds": 10.794156300000001,
+          "mibPerSec": 0.09264272002435243
+        },
+        {
+          "phase": "dns-control",
+          "round": 1,
+          "arm": "104.26.4.28",
+          "ips": [
+            "104.26.4.28"
+          ],
+          "concurrency": 1,
+          "ok": false,
+          "bytes": 703602,
+          "seconds": 18.977375,
+          "mibPerSec": null
+        }
+      ]
+    }
+  },
+  "notes": [
+    "The first broad serial batch retained 26 observations and was stopped for four-worker screening.",
+    "The 9-IP single-lane pilot retained 14 observations; one was interrupted by the user-directed scope change. Its recorded failure count must not be treated as an unconditional upstream-failure rate.",
+    "The 16MiB benchmark retained 14 full result records; an additional interrupted round-2 dns-1 arm has no completed result and is excluded.",
+    "The 16-way fixed-IP comparison completed all 8 arms.",
+    "Legacy HTTPS screening overlapped legacy HTTP screening; their speeds must not be pooled.",
+    "Earlier default-route and corrected Wi-Fi observations remain separately archived."
+  ]
+}

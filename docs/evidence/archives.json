@@ -66,6 +66,17 @@
       "releaseTagCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
       "evidenceCommit": "ed0470a0ec506a92980c358d51dff5fb6f62d369",
       "releaseId": 413937530
+    },
+    {
+      "batch": "wifi-ip-selection-20261029",
+      "name": "wifi-ip-selection-20261029-v2.zip",
+      "releaseTag": "evidence-20261029-wifi-ip-selection-v2",
+      "bytes": 197891,
+      "sha256": "e42a3238d049f2670deda59bf76e191ce69ea802af13017c3882942cc0a8da76",
+      "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261029-wifi-ip-selection-v2/wifi-ip-selection-20261029-v2.zip",
+      "status": "local-verified-not-published",
+      "sourceRevision": "7782f1310ccf53a3155a3f631b521bfddcf486c9",
+      "originalEvidenceCommit": null
     }
   ]
 }

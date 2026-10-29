@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 2,
+  "batch": "wifi-ip-selection-20261029",
+  "status": "complete-historical-observation",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "archive": {
+    "batch": "wifi-ip-selection-20261029",
+    "name": "wifi-ip-selection-20261029-v2.zip",
+    "releaseTag": "evidence-20261029-wifi-ip-selection-v2",
+    "bytes": 197891,
+    "sha256": "e42a3238d049f2670deda59bf76e191ce69ea802af13017c3882942cc0a8da76",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261029-wifi-ip-selection-v2/wifi-ip-selection-20261029-v2.zip",
+    "status": "local-verified-not-published",
+    "sourceRevision": "7782f1310ccf53a3155a3f631b521bfddcf486c9",
+    "originalEvidenceCommit": null
+  },
+  "files": [
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-summary.json",
+      "bytes": 32738,
+      "sha256": "08ff88ecef0e611d36cdd4029a5a599ac2beccb6f2f1a26c6373f141cab3d064",
+      "gitBlob": "b8428eae7eaa48b28dda705b9b1f4debc3b54674"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/plan.json",
+      "bytes": 23770,
+      "sha256": "498c987233c23d88cf9b1fc6dc1a436f65c35e215d1b33e90b5a99d4455b4cd9",
+      "gitBlob": "65447af151d55c7e3e480ce421a3eb2ea7e55423"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/privacy-review.json",
+      "bytes": 1013,
+      "sha256": "2387f75bf2b6655152caedb732c17d1c48b0c7c3496122cf5356ad746f59cc52",
+      "gitBlob": "349d6fb613c1fd2238878920944012550ee961c8"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/protocol-comparison.json",
+      "bytes": 8051,
+      "sha256": "bd0365bf4b3a1ac8fbc0004d72fea6858e216d664690ee856d424e30e45270f5",
+      "gitBlob": "b992a816e366d7d26a5bcc4bac1b4c0a3e23d04f"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/provenance.json",
+      "bytes": 5671,
+      "sha256": "3a6ee9c2a8273d85170006f6f5086f676afe3fd2a182276e40beae2d7566ea9b",
+      "gitBlob": "41203722d033d68b6c4eda415d9283e6307427dd"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/README.md",
+      "bytes": 3084,
+      "sha256": "febe6ab8bb5c8bfc71a954cdaad66e6523d746d5827817c21b921c400a375739",
+      "gitBlob": "7a65d476dfe475ef168a7f560d470504dfe4d564"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/selection.json",
+      "bytes": 3624,
+      "sha256": "5375cc7783c7e751c905f05853c82cdd94e33b94ac61e4f93de75865f73fd904",
+      "gitBlob": "181129d0e18d40ccc643ff17b5aa007bc1ed425e"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/summary.json",
+      "bytes": 27316,
+      "sha256": "97812b77669e72b7dd164ffcaa20d4d391bf31af7fc42845aa90733c75c3a915",
+      "gitBlob": "ce7aa6aca536c886dc970f3a680a0387e8e0f0fa"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/verification.json",
+      "bytes": 709,
+      "sha256": "ca3db3bb8bcf47416a16f60132958b23e4d64d7303e315190cbff63bdeb95c50",
+      "gitBlob": "290f2db2ecf6709ae191fe0f788088f44644fd4c"
+    },
+    {
+      "path": "docs/validation/wifi-ip-selection-20261029.md",
+      "bytes": 9634,
+      "sha256": "287895ded804256b0ce1645fa15fe7eafe437442410f0badf39200bac50fc819",
+      "gitBlob": "806250d22a189ca646f1e490d77b38b68a64e3fd"
+    },
+    {
+      "path": "docs/validation/upstream-wifi-windows-20261029.md",
+      "bytes": 4908,
+      "sha256": "9a56169a6560d75da3f2ab26cb1fc484cdb760e61b633242e436733b37bca520",
+      "gitBlob": "1e6805b2fd88dd5b0605e125872eaa50dff28cbe"
+    },
+    {
+      "path": "experiments/upstream-wifi/analyze.mjs",
+      "bytes": 8528,
+      "sha256": "431b6ad5751c87c5db9ad8559b804b8fa27a48159701be325076bc4cfb494d03",
+      "gitBlob": "4a2aeaa13cb0c41946a04cb47b911236ca456e81"
+    },
+    {
+      "path": "experiments/upstream-wifi/README.md",
+      "bytes": 1637,
+      "sha256": "6f76b3a9c6a707cb3e8c504a516fe21df3e2bcf9e0f0f4e15da125881723c225",
+      "gitBlob": "2883a8c2ed64338c37806e5545d3f06155cdb029"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "_provenance/historical-tools/analyze.mjs",
+      "bytes": 3902,
+      "sha256": "e47d4baa0d255faf237fe2a34b9b05784158b16f6b04ed65bd42b213e65e16e8"
+    },
+    {
+      "path": "_provenance/historical-tools/controller-before-ip-focus.txt",
+      "bytes": 11819,
+      "sha256": "e83cebf3114264848717bf5f829a487a2c6b10421b36071b5b13a580f1553e53"
+    },
+    {
+      "path": "_provenance/historical-tools/sampler.mjs",
+      "bytes": 7656,
+      "sha256": "ebb4722453aa87b35bed70ef724b99499ae334ead83f3e0837fcbe9571116d7a"
+    },
+    {
+      "path": "_provenance/historical-tools/wide-analysis.mjs",
+      "bytes": 7869,
+      "sha256": "9409fbd38bac49b0639049f897cabd18a4e1b894532719998a34c43338926efa"
+    },
+    {
+      "path": "_provenance/historical-tools/wide-four-initial-source.go.txt",
+      "bytes": 14761,
+      "sha256": "0e651006409e3f36a6d31be392ba422223f03b29e23d509febd82ab1f9b1e8d7"
+    },
+    {
+      "path": "_provenance/historical-tools/wide-serial-source.go.txt",
+      "bytes": 11990,
+      "sha256": "0a74bbb50fc3dec248a7659f0929c22aaf82fce0c3149d66fa5f99215767e79b"
+    },
+    {
+      "path": "_provenance/initial-tools/attempts-candidate-snapshot.go",
+      "bytes": 7714,
+      "sha256": "049f8d5461d30714315d365e4309d4f263e272677adfbab2a59905fac9e9040a"
+    },
+    {
+      "path": "_provenance/initial-tools/product-window-candidate.go",
+      "bytes": 8568,
+      "sha256": "90bfcab71a23b2f35bd1e994c551b6477061e725e4031287f2948f0537c00164"
+    },
+    {
+      "path": "_provenance/initial-tools/product-window-default.go",
+      "bytes": 7001,
+      "sha256": "d697c93d435bbd3749248534947a9dca66335a9989e0bb57b6301a58c27705ab"
+    },
+    {
+      "path": "_provenance/initial-tools/product-window.go",
+      "bytes": 8568,
+      "sha256": "08eb6f907c73c4d99a76fcf3490f9c110bf144713e0a1beb3d7845d061255ce4"
+    },
+    {
+      "path": "_provenance/initial-tools/summarize.mjs",
+      "bytes": 5534,
+      "sha256": "0fb409b78892c6600a3d4bb1de3c3f609c9d6ea1829b7ce36b501dc3f34107b8"
+    },
+    {
+      "path": "_provenance/initial-tools/window-sampler-initial.mjs",
+      "bytes": 6184,
+      "sha256": "e1f10bf4203a27f25c3967386f1fb3743760a31fb8485d08f5addc1ff4c77768"
+    },
+    {
+      "path": "_provenance/initial-tools/window-sampler.mjs",
+      "bytes": 6294,
+      "sha256": "652908bf80f5c1104a99b67c1f78a1d638c3bac3ef6bb9fcff806d9c53b2179a"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/controller.go",
+      "bytes": 14316,
+      "sha256": "e7d663dd4894c1ca1494e511742adafd36d350b87488f28bdad8a9e50a9a3247"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/core.go",
+      "bytes": 12456,
+      "sha256": "f300b7871cc49fced94dde03b49f18a7c731a2979ea1b39b7ec435acbf8ef52f"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/singlelane.go",
+      "bytes": 9264,
+      "sha256": "59e187830cfedb9a3bd5a2bb6a781f7e77dd261346b00653b15c1ed3635e4043"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/sweep.go",
+      "bytes": 4408,
+      "sha256": "e19b8b662004b4d2dfd90df8b235ee90a96fa24f5abffec9aa137c58fa54d62e"
+    },
+    {
+      "path": "_provenance/runner-source/experiment/wide.go",
+      "bytes": 18881,
+      "sha256": "6363358636807b7578abb521efb3303379e61142b789c62f3803df53b0fa4d25"
+    },
+    {
+      "path": "_provenance/runner-source/go.mod",
+      "bytes": 8182,
+      "sha256": "0174e16d4224de17755aaf826b46b2f47be65786a242226e838ec40823e22a76"
+    },
+    {
+      "path": "_provenance/runner-source/go.sum",
+      "bytes": 37336,
+      "sha256": "0919a6caf64ae2b8a079e8877dab3bf963eb12666688251b041bcdaee9e145af"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/logger.go",
+      "bytes": 1456,
+      "sha256": "c5227dbf33e1b058c20da8814197e925c2d5d4c7f19108ee7542b2f73bfb8a76"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/trace.go",
+      "bytes": 1894,
+      "sha256": "c5c3cdaf4989777ee1ce1469e5f95afa47c634701b91a75f30e5a1248fb55191"
+    },
+    {
+      "path": "_provenance/runner-source/internal/applog/writer.go",
+      "bytes": 2482,
+      "sha256": "11ba723906c82e6b6d09a3f3287876ddcba8b34a167bcc7989a2e9b10d06ec1f"
+    },
+    {
+      "path": "_provenance/runner-source/internal/playbacksource/source.go",
+      "bytes": 3712,
+      "sha256": "f5f4c6b0aaaba6a35894c75a2ea2cde11d3a6826ba53e9550fe6fce84c4f86cd"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns.go",
+      "bytes": 8916,
+      "sha256": "757f2f7e5863989fe456134d2ab6af310f18ae0c72f34a983a6e0b3a44695e0c"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_dial.go",
+      "bytes": 1282,
+      "sha256": "b6b9a1ce1f151499effd7d1533ac1c5c731ef322327d1d2ae1f5b73f411da15f"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_pool.go",
+      "bytes": 1411,
+      "sha256": "c99ec1aaeb829dae68b611dae92ebc7ca54e3499d043393b3d679a8dc0b70540"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_providers.go",
+      "bytes": 3018,
+      "sha256": "0d3048bb4ed5e77c9979895600b25424de760c5a2a03e80aecb816fb17a6c716"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_refresh.go",
+      "bytes": 5444,
+      "sha256": "d8ed2b152d176159778df1843be2df5bf62481e5d15cf435348dfe015722997a"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/dns_wire.go",
+      "bytes": 3164,
+      "sha256": "6a5f3699883efa8ae83a3b2d1fded3cd1b598728bb8ce77fa9cb3dc3d68efb25"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamnet/socks.go",
+      "bytes": 3288,
+      "sha256": "ab14f753e3f34e3390314c6a6f26d81ae6269aecc8c350b0b9d9128481a3f9aa"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/attempts.go",
+      "bytes": 9488,
+      "sha256": "440e7850ddefbc6eda608d69e20b903b1fbfd5fb71c4d91a2c71a07c5aaf625e"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/candidates.go",
+      "bytes": 10567,
+      "sha256": "d58d63b17c9b6b1ef473cf7af58a340a912d5cd9c3d3fbe55ef9ef53408a5667"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/channel.go",
+      "bytes": 1426,
+      "sha256": "b92be5cb3635e675f49e07856e8f6428cde796416f51540c1ea871528983d162"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/errors.go",
+      "bytes": 339,
+      "sha256": "a92f2604bad4ab029ce86391971580974b0a731f51c80f108b3b87dcc46de63d"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/resource_activity.go",
+      "bytes": 1859,
+      "sha256": "8e5f03819bdb996cb3e31f4e808a90ef40db8f58f29497038244b75d9768021b"
+    },
+    {
+      "path": "_provenance/runner-source/internal/upstreamrequest/resources.go",
+      "bytes": 6540,
+      "sha256": "780eaa3c2c74a6cf3c3a0775c88ab71993933c248975d0790272557564094e96"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/host.go",
+      "bytes": 822,
+      "sha256": "5bcac5f98f200ecb49c7e57a307024cfd454c4adb1c52570753fd04765cc3059"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/parse.go",
+      "bytes": 1633,
+      "sha256": "78b23707131136cceee12a2981a938b2d75f24d1536edbdc74c7da11dd6b36f2"
+    },
+    {
+      "path": "_provenance/runner-source/internal/videometa/playback.go",
+      "bytes": 1253,
+      "sha256": "e7acaf5e5fad1d47c151597935052f4c2990706033768612c8d62e7894be7479"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/events.jsonl",
+      "bytes": 953,
+      "sha256": "5318a4e366c0a620ba55f68bc63043ccefa482ad0d4a50359c53001122865f2d"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-benchmark.jsonl",
+      "bytes": 90931,
+      "sha256": "7a530b927ccf7b243d4a7939cb07d046b5c7ea127cd3cb6f8d97252b68fdaa49"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-https-candidates.jsonl",
+      "bytes": 4288,
+      "sha256": "6e4e36da9a847518cffc9e67db6b2d96817b3fabcb26beeb4f945752c2c3c728"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-ip-focus.jsonl",
+      "bytes": 43484,
+      "sha256": "ca16f41fdc648adc3a859de0434befac3a31682702a9cca407725c9c9f544573"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-observer.jsonl",
+      "bytes": 58290,
+      "sha256": "aa422c947f82c9e52e090448d355195bcf91d88df62b6745bc617dcfe0604b7c"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-single-lane-wide.jsonl",
+      "bytes": 12802,
+      "sha256": "ccf6a1f565c7db4879f1924fcdfe2180c6ce57cd39c21d19eca9d250e97742db"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/legacy-single-lane.jsonl",
+      "bytes": 7730,
+      "sha256": "3e5a0881c29eeac329d2d4e69a760b33e100c05da33736eb0f08dbbe596d95fa"
+    },
+    {
+      "path": "docs/evidence/wifi-ip-selection-20261029/single-lane-trials.jsonl",
+      "bytes": 504896,
+      "sha256": "58cf82042b26f9f828e2b71aa28a2a8df26fea306e49f0945a62838ce2adbcc1"
+    }
+  ],
+  "originalManifest": {
+    "storage": "private-local-archive",
+    "reason": "Pre-normalization export manifests contain private provenance or absolute timestamps; originals retained unchanged locally."
+  },
+  "retention": {
+    "localArchiveVerified": true,
+    "externalBackupVerified": true,
+    "publicDownloadVerified": false
+  },
+  "privacy": "Explicit sanitized exports and source snapshots only; no private raw files or binaries."
+}

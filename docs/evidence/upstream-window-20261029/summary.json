@@ -1,0 +1,654 @@
+{
+  "observedDate": "2026-10-29",
+  "binding": {
+    "interface": "Wi-Fi",
+    "sourceAddressesVerified": true,
+    "sourceConstrainedRouteMatchesInterface": true,
+    "weakHostSendDisabled": true,
+    "dnsAlsoBound": true,
+    "ipv6Source": "globally routable, ULA excluded"
+  },
+  "sets": {
+    "default-matrix": {
+      "startSeconds": 0.0,
+      "endSeconds": 320.252,
+      "requests": {
+        "playback/http:/IPv4": {
+          "attempted": 11,
+          "passed": 11,
+          "successElapsedMs": [
+            565,
+            610,
+            2642,
+            999,
+            603,
+            835,
+            609,
+            768,
+            1030,
+            779,
+            588
+          ],
+          "failurePhases": {},
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "playback/https:/IPv4": {
+          "attempted": 10,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 10
+          },
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "playback/http:/IPv6": {
+          "attempted": 10,
+          "passed": 10,
+          "successElapsedMs": [
+            862,
+            604,
+            2235,
+            606,
+            1610,
+            616,
+            571,
+            602,
+            2472,
+            986
+          ],
+          "failurePhases": {},
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "playback/https:/IPv6": {
+          "attempted": 10,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 10
+          },
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "resource/https:/IPv4": {
+          "attempted": 10,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 10
+          },
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "resource/http:/IPv4": {
+          "attempted": 10,
+          "passed": 9,
+          "successElapsedMs": [
+            2110,
+            3242,
+            1726,
+            5735,
+            3376,
+            3100,
+            2886,
+            2492,
+            2812
+          ],
+          "failurePhases": {
+            "body": 1
+          },
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "resource/http:/IPv6": {
+          "attempted": 10,
+          "passed": 10,
+          "successElapsedMs": [
+            2138,
+            1960,
+            1650,
+            2456,
+            2092,
+            1707,
+            2180,
+            2918,
+            1949,
+            2059
+          ],
+          "failurePhases": {},
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "resource/https:/IPv6": {
+          "attempted": 10,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 10
+          },
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "control-cloudflare/https:/IPv4": {
+          "attempted": 4,
+          "passed": 4,
+          "successElapsedMs": [
+            255,
+            256,
+            224,
+            241
+          ],
+          "failurePhases": {},
+          "ips": [
+            "198.18.6.148"
+          ]
+        }
+      },
+      "operations": []
+    },
+    "wifi-matrix": {
+      "startSeconds": 512.756,
+      "endSeconds": 692.774,
+      "requests": {
+        "playback/http:/IPv4": {
+          "attempted": 4,
+          "passed": 4,
+          "successElapsedMs": [
+            749,
+            1609,
+            613,
+            810
+          ],
+          "failurePhases": {},
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "playback/https:/IPv4": {
+          "attempted": 4,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 2,
+            "connecting": 2
+          },
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "playback/http:/IPv6": {
+          "attempted": 4,
+          "passed": 4,
+          "successElapsedMs": [
+            813,
+            584,
+            1803,
+            609
+          ],
+          "failurePhases": {},
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "playback/https:/IPv6": {
+          "attempted": 4,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "connecting": 3,
+            "tls": 1
+          },
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "resource/http:/IPv4": {
+          "attempted": 3,
+          "passed": 3,
+          "successElapsedMs": [
+            2250,
+            3437,
+            2790
+          ],
+          "failurePhases": {},
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "resource/https:/IPv4": {
+          "attempted": 3,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 1,
+            "connecting": 2
+          },
+          "ips": [
+            "104.26.4.28",
+            "104.26.5.28",
+            "172.67.69.58"
+          ]
+        },
+        "resource/http:/IPv6": {
+          "attempted": 3,
+          "passed": 3,
+          "successElapsedMs": [
+            1968,
+            1849,
+            2270
+          ],
+          "failurePhases": {},
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "resource/https:/IPv6": {
+          "attempted": 3,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "connecting": 2,
+            "tls": 1
+          },
+          "ips": [
+            "2606:4700:20::681a:41c",
+            "2606:4700:20::681a:51c",
+            "2606:4700:20::ac43:453a"
+          ]
+        },
+        "control-cloudflare/https:/IPv4": {
+          "attempted": 1,
+          "passed": 1,
+          "successElapsedMs": [
+            3161
+          ],
+          "failurePhases": {},
+          "ips": [
+            "104.16.124.96"
+          ]
+        },
+        "control-cloudflare/https:/IPv6": {
+          "attempted": 1,
+          "passed": 0,
+          "successElapsedMs": [],
+          "failurePhases": {
+            "tls": 1
+          },
+          "ips": [
+            "2606:4700::6810:7c60"
+          ]
+        }
+      },
+      "operations": []
+    },
+    "default-product-baseline": {
+      "startSeconds": 93.2130222,
+      "endSeconds": 347.9501448,
+      "requests": {},
+      "operations": [
+        {
+          "tSeconds": 123.2133611,
+          "bytes": 0,
+          "elapsedMs": 30000,
+          "error": "context deadline exceeded",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "",
+          "round": 1,
+          "sha256": "",
+          "songs": 0
+        },
+        {
+          "tSeconds": 134.8684561,
+          "bytes": 2885371,
+          "elapsedMs": 11654,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 1,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 160.6852377,
+          "elapsedMs": 25816,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 1
+        },
+        {
+          "tSeconds": 160.9733055,
+          "bytes": 0,
+          "elapsedMs": 288,
+          "error": "upstream request channel is not ready",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 1
+        },
+        {
+          "tSeconds": 175.0648557,
+          "bytes": 2885371,
+          "elapsedMs": 14091,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 2,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 205.0650053,
+          "bytes": 0,
+          "elapsedMs": 30000,
+          "error": "context deadline exceeded",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "",
+          "round": 2,
+          "sha256": "",
+          "songs": 0
+        },
+        {
+          "tSeconds": 230.7107151,
+          "elapsedMs": 25645,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 2
+        },
+        {
+          "tSeconds": 257.7238381,
+          "bytes": 262144,
+          "elapsedMs": 27013,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 2
+        },
+        {
+          "tSeconds": 287.7243119,
+          "bytes": 0,
+          "elapsedMs": 30000,
+          "error": "context deadline exceeded",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "",
+          "round": 3,
+          "sha256": "",
+          "songs": 0
+        },
+        {
+          "tSeconds": 292.5418744,
+          "bytes": 2885371,
+          "elapsedMs": 4817,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 3,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 318.3829892,
+          "elapsedMs": 25841,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 3
+        },
+        {
+          "tSeconds": 347.9501448,
+          "bytes": 262144,
+          "elapsedMs": 29567,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 3
+        }
+      ]
+    },
+    "wifi-product-baseline": {
+      "startSeconds": 524.8887584,
+      "endSeconds": 790.0994174,
+      "requests": {},
+      "operations": [
+        {
+          "tSeconds": 545.7247881,
+          "bytes": 0,
+          "elapsedMs": 20836,
+          "error": "context deadline exceeded\ncontext deadline exceeded\ncontext deadline exceeded\nupstream request channel is not ready\nupstream request channel is not ready\ndial tcp4 <wifi-local-v4>:0->172.67.69.58:443: i/o timeout",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "",
+          "round": 1,
+          "sha256": "",
+          "songs": 0
+        },
+        {
+          "tSeconds": 564.8345533,
+          "bytes": 2885371,
+          "elapsedMs": 19109,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 1,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 590.2487121,
+          "elapsedMs": 25414,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 1
+        },
+        {
+          "tSeconds": 617.652875,
+          "bytes": 262144,
+          "elapsedMs": 27404,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 1
+        },
+        {
+          "tSeconds": 633.2328677,
+          "bytes": 2885371,
+          "elapsedMs": 15579,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 2,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 657.2115825,
+          "bytes": 2885371,
+          "elapsedMs": 23978,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "20261028232411",
+          "round": 2,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 657.6598622,
+          "elapsedMs": 448,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 2
+        },
+        {
+          "tSeconds": 686.1927842,
+          "bytes": 262144,
+          "elapsedMs": 28532,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 2
+        },
+        {
+          "tSeconds": 716.1931531,
+          "bytes": 0,
+          "elapsedMs": 30000,
+          "error": "context deadline exceeded",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "",
+          "round": 3,
+          "sha256": "",
+          "songs": 0
+        },
+        {
+          "tSeconds": 737.5633825,
+          "bytes": 2885371,
+          "elapsedMs": 21370,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 3,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 762.964908,
+          "elapsedMs": 25401,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 3
+        },
+        {
+          "tSeconds": 790.0994174,
+          "bytes": 262144,
+          "elapsedMs": 27134,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 3
+        }
+      ]
+    },
+    "wifi-product-candidate": {
+      "startSeconds": 631.5896374,
+      "endSeconds": 702.9036822,
+      "requests": {},
+      "operations": [
+        {
+          "tSeconds": 657.502559,
+          "bytes": 2885371,
+          "elapsedMs": 25912,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-policy",
+          "revision": "20261028232411",
+          "round": 1,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 686.0739174,
+          "bytes": 2885371,
+          "elapsedMs": 28571,
+          "error": "",
+          "kind": "operation",
+          "label": "catalog-http",
+          "revision": "20261028232411",
+          "round": 1,
+          "sha256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+          "songs": 10470
+        },
+        {
+          "tSeconds": 691.6674355,
+          "elapsedMs": 5593,
+          "error": "",
+          "kind": "operation",
+          "label": "playback-policy",
+          "round": 1
+        },
+        {
+          "tSeconds": 702.9036822,
+          "bytes": 262144,
+          "elapsedMs": 11236,
+          "error": "",
+          "kind": "operation",
+          "label": "resource-policy",
+          "round": 1
+        }
+      ]
+    }
+  },
+  "excluded": [
+    {
+      "source": "window-wifi.private.jsonl",
+      "reason": "Initial IPv6 source selection used ULA; this entire initial batch excluded from the main matrix. IPv4 observations retained in local raw files."
+    },
+    {
+      "source": "product-window-wifi.private.jsonl",
+      "reason": "Mixed-family product run used ULA IPv6, aborted and excluded."
+    }
+  ],
+  "limitations": [
+    "Default and Wi-Fi samples must not be pooled; the default control DNS returned a synthetic 198.18 address.",
+    "New Node requests versus Go connection reuse and different client stacks are separate observations.",
+    "Three-round old-policy versus one-round candidate is an observational comparison; requests overlapped and bandwidth varied. It is not a controlled speed benchmark.",
+    "Resource policy probe uses shared Fetch and validated 256 KiB Range, not the complete cacheproxy download scheduler.",
+    "No production executable, application configuration or hosts change; no game launch."
+  ],
+  "candidateSource": {
+    "tSeconds": 613.197,
+    "label": "External workspace change observed; frozen for this experiment; not authored here",
+    "sha256": "049f8d5461d30714315d365e4309d4f263e272677adfbab2a59905fac9e9040a"
+  },
+  "timeBasis": "Seconds from the earliest captured timestamp in this initial-window batch; shared with its five JSONL files. The absolute origin is omitted."
+}

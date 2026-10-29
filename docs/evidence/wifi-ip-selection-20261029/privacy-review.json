@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "scope": "Explicit sanitized exports and source snapshots only; no private raw files or binaries.",
+  "checks": [
+    "All attachment members decoded as UTF-8",
+    "No known private binding source addresses or original resource URL",
+    "No personal paths, link-local/private IPv4 or signed URL patterns",
+    "No absolute capture timestamps or local interface numbers in exported JSON/JSONL",
+    "Private raw-log identifiers and hashes retained only in local originals",
+    "Initial-window timestamps share one relative origin, preserving all cross-file offsets"
+  ],
+  "retained": [
+    "Public destination IPs",
+    "Relative request timing and complete failure counts",
+    "Content and source SHA256"
+  ],
+  "historicalSourceException": "Unmodified historical source retains its fixed planned deadline constant; this is not a captured event time.",
+  "timeNormalization": {
+    "convertedTimestamps": 401,
+    "removedInterfaceFields": 4,
+    "absoluteOriginPublished": false
+  }
+}

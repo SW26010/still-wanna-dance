@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "batch": "upstream-window-20261029",
+  "status": "complete-historical-observation",
+  "hashBasis": "git-blob",
+  "pathBasis": "repository-relative",
+  "archive": {
+    "batch": "wifi-ip-selection-20261029",
+    "name": "wifi-ip-selection-20261029-v2.zip",
+    "releaseTag": "evidence-20261029-wifi-ip-selection-v2",
+    "bytes": 197891,
+    "sha256": "e42a3238d049f2670deda59bf76e191ce69ea802af13017c3882942cc0a8da76",
+    "url": "https://github.com/SW26010/still-wanna-dance/releases/download/evidence-20261029-wifi-ip-selection-v2/wifi-ip-selection-20261029-v2.zip",
+    "status": "local-verified-not-published",
+    "sourceRevision": "7782f1310ccf53a3155a3f631b521bfddcf486c9",
+    "originalEvidenceCommit": null
+  },
+  "files": [
+    {
+      "path": "docs/evidence/upstream-window-20261029/summary.json",
+      "bytes": 17508,
+      "sha256": "6470d00fc81c76f9ef81f7a771a705d9c60fd87b3daa69dc8828682afece89a1",
+      "gitBlob": "0baf839a827d415c66722e860a049b21b50ac1fe"
+    },
+    {
+      "path": "docs/validation/upstream-window-20261029.md",
+      "bytes": 8664,
+      "sha256": "306b2ec525edb00e8a74de1077a41b0dcf05da5a3bc589553e2cc701f4616f03",
+      "gitBlob": "4048c661792d9a1ccc9f6a5b42bd02f297457b15"
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "docs/evidence/upstream-window-20261029/default-matrix.jsonl",
+      "bytes": 44547,
+      "sha256": "898b762a3d9ba1bc0158099b2259d92113c6c934f8d78d9446694306e0499c36"
+    },
+    {
+      "path": "docs/evidence/upstream-window-20261029/default-product-baseline.jsonl",
+      "bytes": 22654,
+      "sha256": "471ca736812bed531afda3b88e34455c78561a4157956fb3ad525c3351b1fea0"
+    },
+    {
+      "path": "docs/evidence/upstream-window-20261029/wifi-matrix.jsonl",
+      "bytes": 17586,
+      "sha256": "c91b8f05465950c773f4348766405b5bcb4763f5fa3510160fcc7765023d672f"
+    },
+    {
+      "path": "docs/evidence/upstream-window-20261029/wifi-product-baseline.jsonl",
+      "bytes": 23182,
+      "sha256": "ce6c2e5e037dbfb074beb113836170f10699f8e9d103e4e91479cbd5c380ece9"
+    },
+    {
+      "path": "docs/evidence/upstream-window-20261029/wifi-product-candidate.jsonl",
+      "bytes": 5697,
+      "sha256": "f104c3afdfdfc02b74d40eb62dae1a4f855ad8913b1d9516c19ee03195994f68"
+    }
+  ],
+  "originalManifest": {
+    "storage": "private-local-archive",
+    "reason": "Pre-normalization export manifests contain private provenance or absolute timestamps; originals retained unchanged locally."
+  },
+  "retention": {
+    "localArchiveVerified": true,
+    "externalBackupVerified": true,
+    "publicDownloadVerified": false
+  },
+  "privacy": "Explicit sanitized exports and source snapshots only; no private raw files or binaries.",
+  "buildHashes": {
+    "product-window.exe": "fbe9b4c4eed6455165ac7c455648044dfa792dda833b7f76f3d39e7519f13dea",
+    "product-window-wifi.exe": "873bb6ff91fc0a942c71326f6cc65fd5f3f2845d400beefd429466e5fe9a498f",
+    "product-window-candidate.exe": "dabcbd7297761e8343a93a43cd5534323c99a1e46c78e738b0a30fbb39fee2e7"
+  }
+}

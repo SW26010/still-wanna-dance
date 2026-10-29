@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "phase": "holdout",
+  "pairing": "Same IP, same block, same round; protocol order alternated by round, never concurrent.",
+  "limitation": "Protocol, port and path effects are not isolated TLS cost; no throughput ratio when either request is incomplete.",
+  "comparisons": [
+    {
+      "ip": "104.26.4.28",
+      "dns": true,
+      "httpPassed": 6,
+      "httpsPassed": 0,
+      "successfulPairs": 0,
+      "httpFasterPairs": 0,
+      "medianRatio": null,
+      "pairs": [
+        {
+          "round": 1,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 5693.5321,
+          "httpsElapsedMs": 10415.1774,
+          "httpMiBPerSec": 0.1756378962015512,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 2,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 3233.406,
+          "httpsElapsedMs": 30000.5177,
+          "httpMiBPerSec": 0.309271399879879,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 3,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4066.5973,
+          "httpsElapsedMs": 30000.1239,
+          "httpMiBPerSec": 0.24590583385278894,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 4,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4342.9091,
+          "httpsElapsedMs": 30000.4737,
+          "httpMiBPerSec": 0.23026040310169052,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 5,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4858.5302,
+          "httpsElapsedMs": 30000.1376,
+          "httpMiBPerSec": 0.20582356367775587,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 6,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 5097.3055,
+          "httpsElapsedMs": 30000.3703,
+          "httpMiBPerSec": 0.196182080905294,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        }
+      ]
+    },
+    {
+      "ip": "104.26.5.28",
+      "dns": true,
+      "httpPassed": 6,
+      "httpsPassed": 0,
+      "successfulPairs": 0,
+      "httpFasterPairs": 0,
+      "medianRatio": null,
+      "pairs": [
+        {
+          "round": 1,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4624.9795,
+          "httpsElapsedMs": 30000.0777,
+          "httpMiBPerSec": 0.21621717458423328,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 2,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 3539.8141,
+          "httpsElapsedMs": 30000.2514,
+          "httpMiBPerSec": 0.28250071098366436,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 3,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 3465.9771,
+          "httpsElapsedMs": 30000.2377,
+          "httpMiBPerSec": 0.28851892876037755,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 4,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4951.8523,
+          "httpsElapsedMs": 30000.3961,
+          "httpMiBPerSec": 0.2019446339302164,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 5,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 6134.2116,
+          "httpsElapsedMs": 30000.1225,
+          "httpMiBPerSec": 0.16302013448639432,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 6,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 6505.2276,
+          "httpsElapsedMs": 30000.5573,
+          "httpMiBPerSec": 0.1537225230981926,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        }
+      ]
+    },
+    {
+      "ip": "172.67.69.58",
+      "dns": true,
+      "httpPassed": 6,
+      "httpsPassed": 0,
+      "successfulPairs": 0,
+      "httpFasterPairs": 0,
+      "medianRatio": null,
+      "pairs": [
+        {
+          "round": 1,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4293.1072,
+          "httpsElapsedMs": 30000.4415,
+          "httpMiBPerSec": 0.23293152334980124,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 2,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4832.2117,
+          "httpsElapsedMs": 10283.876,
+          "httpMiBPerSec": 0.2069445757105385,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 3,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 5101.2292,
+          "httpsElapsedMs": 30000.3899,
+          "httpMiBPerSec": 0.1960311840134531,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 4,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 5300.8868,
+          "httpsElapsedMs": 30000.2081,
+          "httpMiBPerSec": 0.18864768061072348,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 5,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4630.8673,
+          "httpsElapsedMs": 30000.428,
+          "httpMiBPerSec": 0.2159422706843705,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        },
+        {
+          "round": 6,
+          "httpOK": true,
+          "httpsOK": false,
+          "httpElapsedMs": 4823.5299,
+          "httpsElapsedMs": 30000.4122,
+          "httpMiBPerSec": 0.2073170521862008,
+          "httpsMiBPerSec": null,
+          "ratio": null
+        }
+      ]
+    },
+    {
+      "ip": "104.21.64.1",
+      "dns": false,
+      "httpPassed": 6,
+      "httpsPassed": 6,
+      "successfulPairs": 6,
+      "httpFasterPairs": 5,
+      "medianRatio": 1.0676912690163864,
+      "pairs": [
+        {
+          "round": 1,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1297.1095,
+          "httpsElapsedMs": 1328.5054,
+          "httpMiBPerSec": 0.7709449356434442,
+          "httpsMiBPerSec": 0.7527255816950387,
+          "ratio": 1.0242045101049682
+        },
+        {
+          "round": 2,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1262.7828,
+          "httpsElapsedMs": 1604.1335,
+          "httpMiBPerSec": 0.7919018219126838,
+          "httpsMiBPerSec": 0.6233895121571865,
+          "ratio": 1.27031624124117
+        },
+        {
+          "round": 3,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1278.1126,
+          "httpsElapsedMs": 1287.0004,
+          "httpMiBPerSec": 0.7824036786743204,
+          "httpsMiBPerSec": 0.7770005355087691,
+          "ratio": 1.0069538474153217
+        },
+        {
+          "round": 4,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1313.4837,
+          "httpsElapsedMs": 1300.1116,
+          "httpMiBPerSec": 0.7613341528334154,
+          "httpsMiBPerSec": 0.769164739396218,
+          "ratio": 0.9898193635748963
+        },
+        {
+          "round": 5,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1342.2967,
+          "httpsElapsedMs": 1491.5306,
+          "httpMiBPerSec": 0.7449917741733254,
+          "httpsMiBPerSec": 0.6704522186805956,
+          "ratio": 1.1111780279278047
+        },
+        {
+          "round": 6,
+          "httpOK": true,
+          "httpsOK": true,
+          "httpElapsedMs": 1316.0704,
+          "httpsElapsedMs": 1579.0125,
+          "httpMiBPerSec": 0.7598377715964131,
+          "httpsMiBPerSec": 0.6333072094109451,
+          "ratio": 1.1997933393228812
+        }
+      ]
+    }
+  ]
+}

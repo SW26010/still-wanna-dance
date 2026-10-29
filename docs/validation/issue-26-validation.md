@@ -2,6 +2,16 @@
 
 本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
+## 2026-10-30 Beta 候选与自动发布
+
+`dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。
+
+首次使用旧 `v0.0.0-ci-validation.20261029` 作覆盖起点时，其首次配置为 v7，被当前 v8 检查拒绝；没有增加旧配置迁移或放宽断言。改用同提交的 `ci-22` 后，ZIP 覆盖冒烟通过，真实 EXE 的三布局持久化检查均报 `upgrade changed storage.sqlite`。
+
+定向复现用同一对 EXE 保留合成 SQLite 前后快照：仅 `catalog_state` 从 0 行变为 1 行、`media` 从 0 变为 10,446 行、`songs` 与 `song_media` 各从 0 变为 10,471 行，其余表未变化。通用 `newConsoleWithWorkForTest` 有意省略发行预置曲库，而真实 `New` 在启动时写入预置数据；升级夹具冻结的是未完成产品初始化的数据库。现在在冻结哈希前调用同一 `ApplyBundledMediaSeed`，仍逐文件检查数据库、配置、凭据回执、快照、媒体与未知文件，不忽略数据库或改成较弱断言。
+
+同一对 `ci-22` / Beta 实际 EXE 重跑完整 ZIP 覆盖与持久化检查，默认存储、外置库、自定义配置 **3/3 通过**。诊断代码已移除，失败、合成快照及修复后结果保留在忽略目录 `artifacts/release-v1.0.0-beta.1/` 的 `upgrade.log`、`upgrade-diagnostic/` 和 `upgrade-fixed.log`；没有产品行为修改。
+
 ## 2026-10-26 发布前核对
 
 核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。

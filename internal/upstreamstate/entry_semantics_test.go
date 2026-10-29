@@ -40,7 +40,11 @@ func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 					return nil, tc.err
 				}))
 				o, _ := probeCatalog(context.Background(), client, DefaultPolicy())
-				if calls != 1 || o.state != tc.state || o.stage != stage || o.latency != 0 {
+				wantCalls := 1
+				if tc.name == "peer-eof" || tc.name == "request-deadline" {
+					wantCalls = 2 // HTTPS transport failure permits one HTTP attempt.
+				}
+				if calls != wantCalls || o.state != tc.state || o.stage != stage || o.latency != 0 {
 					t.Fatalf("calls=%d observation=%+v", calls, o)
 				}
 				m := testMonitor(t, fixture)

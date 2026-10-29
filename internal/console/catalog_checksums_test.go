@@ -287,7 +287,7 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 
 func TestCatalogRequestConstructionErrorPrivacy(t *testing.T) {
 	c := &Console{checksumURL: "https://example.invalid/%zz?token=synthetic-catalog-secret"}
-	_, err := c.fetchCatalogWithClient(context.Background(), &http.Client{})
+	_, err := c.fetchCatalogWithClient(context.Background(), &http.Client{}, c.checksumURL)
 	if err == nil {
 		t.Fatal("expected request construction error")
 	}

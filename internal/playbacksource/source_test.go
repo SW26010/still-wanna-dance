@@ -3,6 +3,7 @@ package playbacksource
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +12,23 @@ import (
 type transport struct {
 	id string
 	do func(*http.Request) (*http.Response, error)
+}
+
+func TestResolverProtocolFallbackKeepsSourceIdentity(t *testing.T) {
+	const raw = "http://play.udon.dance/files/1/42-video.mp4?e=00000000000000000000000000000000&s=1"
+	var schemes []string
+	c := client("fixed-channel", func(r *http.Request) (*http.Response, error) {
+		schemes = append(schemes, r.URL.Scheme)
+		if r.URL.Scheme == "https" {
+			return nil, io.EOF
+		}
+		return &http.Response{StatusCode: 302, Header: http.Header{"Location": {raw}}, Body: http.NoBody, Request: r}, nil
+	})
+	r := Resolver{AttemptTimeout: time.Second, MaxFileBytes: 1024, Clients: func(context.Context, string) []*http.Client { return []*http.Client{c} }}
+	a, err := r.Resolve(context.Background(), 42)
+	if err != nil || a.URL != raw || a.API != DefaultBaseURL+"/Api/Songs/play" || a.ChannelID != "fixed-channel" || len(schemes) != 2 || schemes[0] != "https" || schemes[1] != "http" {
+		t.Fatal(a, schemes, err)
+	}
 }
 
 func (t transport) RoundTrip(r *http.Request) (*http.Response, error) { return t.do(r) }

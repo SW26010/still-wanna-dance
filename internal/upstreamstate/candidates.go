@@ -52,7 +52,7 @@ func recommendable(r Result) bool {
 		return false
 	}
 	if r.Operation == Resource {
-		return r.EstimatedSpeedBPS != nil
+		return r.EstimatedSpeedBPS != nil || observedScheme(r.Scheme) == "https" && r.EstimatedLatencyMS != nil
 	}
 	return r.EstimatedLatencyMS != nil
 }
@@ -68,6 +68,13 @@ func score(r Result) float64 {
 		return 0
 	}
 	return 1 / max(*r.EstimatedLatencyMS, 0.001)
+}
+
+func preferred(a, b Result) bool {
+	if observedScheme(a.Scheme) != observedScheme(b.Scheme) {
+		return observedScheme(a.Scheme) == "https"
+	}
+	return score(a) > score(b)
 }
 
 func improves(best, current Result, threshold float64) bool {
@@ -125,10 +132,11 @@ func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 		}
 		eligible = append(eligible, *r)
 	}
-	sort.SliceStable(eligible, func(i, j int) bool { return score(eligible[i]) > score(eligible[j]) })
+	sort.SliceStable(eligible, func(i, j int) bool { return preferred(eligible[i], eligible[j]) })
 	if pref := m.preferences[op]; pref != nil {
 		for i := range eligible {
-			if resultID(eligible[i]) == pref.current {
+			if resultID(eligible[i]) == pref.current && observedScheme(eligible[i].Scheme) == observedScheme(eligible[0].Scheme) &&
+				(op != Resource || eligible[i].EstimatedSpeedBPS != nil || eligible[0].EstimatedSpeedBPS == nil) {
 				winner := eligible[i]
 				copy(eligible[1:i+1], eligible[:i])
 				eligible[0] = winner
@@ -163,7 +171,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 				available = append(available, r)
 			}
 		}
-		sort.SliceStable(available, func(i, j int) bool { return score(available[i]) > score(available[j]) })
+		sort.SliceStable(available, func(i, j int) bool { return preferred(available[i], available[j]) })
 		if len(available) == 0 {
 			delete(m.preferences, op)
 			continue
@@ -180,7 +188,8 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 				current = &available[i]
 			}
 		}
-		if current == nil {
+		if current == nil || observedScheme(best.Scheme) == "https" && observedScheme(current.Scheme) == "http" ||
+			op == Resource && current.EstimatedSpeedBPS == nil && best.EstimatedSpeedBPS != nil {
 			pref.current, pref.challenger, pref.wins = resultID(best), "", 0
 			continue
 		}

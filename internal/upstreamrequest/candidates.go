@@ -190,9 +190,25 @@ func (p *Pool) Current(target string) []Candidate {
 	}
 	var cs []Candidate
 	if p.mode != "socks5" {
+		var v4, v6 []Candidate
 		for _, a := range p.dns.CurrentAddresses(host) {
 			if time.Now().Before(a.Expires) {
-				cs = append(cs, Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires})
+				c := Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires}
+				if net.ParseIP(a.IP).To4() != nil {
+					v4 = append(v4, c)
+				} else {
+					v6 = append(v6, c)
+				}
+			}
+		}
+		// Cold fixed-IP requests cover both families before exhausting one.
+		// Measured order is still supplied by Monitor, never by DNS or dialing.
+		for i := 0; i < max(len(v4), len(v6)); i++ {
+			if i < len(v6) {
+				cs = append(cs, v6[i])
+			}
+			if i < len(v4) {
+				cs = append(cs, v4[i])
 			}
 		}
 	}

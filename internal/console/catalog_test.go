@@ -42,6 +42,28 @@ func TestCatalogUsesHTTPSForProductionAPI(t *testing.T) {
 	}
 }
 
+type truncatedCatalogBody struct{}
+
+func (truncatedCatalogBody) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
+func (truncatedCatalogBody) Close() error             { return nil }
+
+func TestCatalogProtocolFallbackReadsCompleteBody(t *testing.T) {
+	var schemes []string
+	c := &Console{checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
+	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+		schemes = append(schemes, r.URL.Scheme)
+		body := io.ReadCloser(io.NopCloser(strings.NewReader(testMD5CatalogBody("20261004235822", map[int]string{1: "body"}))))
+		if r.URL.Scheme == "https" {
+			body = truncatedCatalogBody{}
+		}
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: body, Request: r}, nil
+	})}
+	catalog, err := c.fetchCatalogSnapshot(context.Background())
+	if err != nil || len(catalog.Songs) != 1 || len(schemes) != 2 || schemes[0] != "https" || schemes[1] != "http" {
+		t.Fatal(catalog, schemes, err)
+	}
+}
+
 func TestMD5CatalogBodyRespectsTimeout(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"code":200,`)

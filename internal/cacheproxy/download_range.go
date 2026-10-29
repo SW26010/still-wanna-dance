@@ -55,6 +55,7 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 		var err error
 		var data []byte
 		exhausted := false
+		received := false
 		err = func() error {
 			if resp == nil {
 				req, err := s.routeRequest(transferCtx, blockVideo)
@@ -66,7 +67,8 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 					req.Header.Set("If-Match", etag)
 				}
 				candidates := s.candidates(req, attempts)
-				if candidates.next >= max(2, len(candidates.transports)) {
+				candidates.attempts.RetrySingle = true
+				if candidates.done {
 					exhausted = true
 					return last
 				}
@@ -86,6 +88,7 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 				}
 				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
 			}
+			received = true
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				return err
 			}
@@ -99,8 +102,11 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 				if err != nil {
 					return err
 				}
-				if n != end-start {
+				if n < end-start {
 					return io.ErrUnexpectedEOF
+				}
+				if n > end-start {
+					return errors.New("oversized range response")
 				}
 				return nil
 			}
@@ -111,8 +117,11 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 			if err != nil {
 				return err
 			}
-			if int64(len(data)) != end-start {
+			if int64(len(data)) < end-start {
 				return io.ErrUnexpectedEOF
+			}
+			if int64(len(data)) > end-start {
+				return errors.New("oversized range response")
 			}
 			return nil
 		}()
@@ -124,6 +133,17 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 			return context.Cause(ctx)
 		}
 		if err != nil {
+			// Only this response's body/validation errors belong to blockVideo.
+			// videoResponse already records transport errors on the actual target;
+			// a failed redirect must not authorize downgrading its healthy origin.
+			if received {
+				req, requestErr := s.routeRequest(ctx, blockVideo)
+				if requestErr == nil {
+					candidate := s.candidates(req, attempts)
+					candidate.err = err
+					candidate.attempts.RetrySingle = true
+				}
+			}
 			last = applog.SafeError(err)
 			if errors.Is(err, errTooManyVideoRedirects) {
 				break

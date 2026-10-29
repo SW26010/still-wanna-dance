@@ -10,6 +10,7 @@ import (
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -34,29 +35,16 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, engine *cacheproxy.Se
 func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	var failures []error
 	clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: c.checksumURL})
-	for i, client := range clients {
-		if err := ctx.Err(); err != nil {
-			return cacheproxy.Catalog{}, err
-		}
-		attempt, stop := channelAttempt(ctx, 30*time.Second, len(clients)-i)
-		catalog, err := c.fetchCatalogWithClient(attempt, client)
-		stop()
-		if err == nil {
-			return catalog, nil
-		}
-		failures = append(failures, err)
-	}
-	return cacheproxy.Catalog{}, errors.Join(failures...)
+	return upstreamrequest.Fetch(ctx, c.checksumURL, clients, 30*time.Second, c.fetchCatalogWithClient)
 }
 
-func (c *Console) fetchCatalogWithClient(ctx context.Context, client *http.Client) (cacheproxy.Catalog, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.checksumURL, nil)
+func (c *Console) fetchCatalogWithClient(ctx context.Context, client *http.Client, target string) (cacheproxy.Catalog, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return cacheproxy.Catalog{}, applog.SafeError(err)
 	}
-	resp, err := client.Do(req)
+	resp, err := upstreamrequest.Do(client, req)
 	if err != nil {
 		return cacheproxy.Catalog{}, applog.SafeError(err)
 	}

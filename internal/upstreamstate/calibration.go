@@ -368,11 +368,14 @@ func prepareCalibrationSamples(parent context.Context, clients []*http.Client, p
 	var wg sync.WaitGroup
 	for range min(calibrationPrepareWorkers, len(ids)) {
 		wg.Go(func() {
+			// Each worker owns a short sequential batch. Reuse a fully validated
+			// route instead of rediscovering the same failed paths for every song.
+			session := upstreamrequest.NewSession(clients)
 			for id := range jobs {
 				if ctx.Err() != nil {
 					return
 				}
-				_, sample := probePlayback(ctx, clients[0], p, id, playbackRoutes[0], clients[1:]...)
+				_, sample, _ := probePlaybackSession(ctx, session, p, id, playbackRoutes[0])
 				if sample == nil {
 					continue
 				}

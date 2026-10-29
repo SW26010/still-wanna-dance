@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewedAt": "2026-10-28",
-  "noticesSHA256": "3fc0d69fc38c6156e4712233c87e17c04b7fba430c6efde77d168d950975481b",
+  "noticesSHA256": "a781c09901fceae05ff75a162ab1736c68f86d943be3684201cadf289521ea44",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",

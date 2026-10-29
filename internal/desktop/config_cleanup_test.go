@@ -28,7 +28,7 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt")}
+	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("video-import")}
 	for _, target := range owned {
 		put(target)
 		put(filepath.Join(filepath.Dir(target), workfiles.TempName(target)))

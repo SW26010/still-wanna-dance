@@ -11,10 +11,82 @@ import (
 	"path/filepath"
 )
 
-// ImportedVideo is a receipt for exactly one newly published source file.
+var ErrImportSourceChanged = errors.New("源文件已移动、删除或修改")
+var ErrImportedSourceMissing = errors.New("源文件已不存在，无需清理")
+
+// ImportFile freezes a source's identity without reading its video contents.
+type ImportFile struct {
+	Source   string `json:"source"`
+	FileID   string `json:"fileID"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"`
+}
+
+// ImportedVideo is a durable receipt for exactly one newly published source.
 type ImportedVideo struct {
-	Source, Destination, MD5 string
-	info                     os.FileInfo
+	ImportFile
+	Destination string `json:"destination"`
+	MD5         string `json:"md5"`
+}
+
+func SnapshotImportFile(source string) (ImportFile, error) {
+	f, info, err := openImportSource(source)
+	if err != nil {
+		return ImportFile{}, err
+	}
+	defer f.Close()
+	id, err := fileIdentity(f)
+	if err != nil {
+		return ImportFile{}, err
+	}
+	if id == "" {
+		return ImportFile{}, errors.New("无法确认源文件身份")
+	}
+	return ImportFile{Source: source, FileID: id, Size: info.Size(), Modified: info.ModTime().UnixNano()}, nil
+}
+
+func openImportSource(source string) (*os.File, os.FileInfo, error) {
+	info, err := os.Lstat(source)
+	if os.IsNotExist(err) {
+		return nil, nil, ErrImportSourceChanged
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, nil, ErrImportSourceChanged
+	}
+	f, err := os.Open(source)
+	if os.IsNotExist(err) {
+		return nil, nil, ErrImportSourceChanged
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	opened, err := f.Stat()
+	if err == nil && !sameVerifiedFile(info, opened) {
+		err = ErrImportSourceChanged
+	}
+	if err != nil {
+		f.Close()
+		return nil, nil, err
+	}
+	return f, opened, nil
+}
+
+func (snapshot ImportFile) check(f *os.File) error {
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	id, err := fileIdentity(f)
+	if err != nil {
+		return err
+	}
+	if snapshot.FileID == "" || id != snapshot.FileID || !info.Mode().IsRegular() || info.Size() != snapshot.Size || info.ModTime().UnixNano() != snapshot.Modified {
+		return ErrImportSourceChanged
+	}
+	return nil
 }
 
 func hashImport(ctx context.Context, f *os.File) (string, error) {
@@ -31,31 +103,33 @@ func hashImport(ctx context.Context, f *os.File) (string, error) {
 // ImportVideo never overwrites an existing cache entry. A link attempt detects
 // actual volume boundaries, including mount points, rather than drive letters.
 func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[string]bool) (*ImportedVideo, error) {
+	snapshot, err := SnapshotImportFile(source)
+	if err != nil {
+		return nil, err
+	}
+	return s.ImportSnapshotVideo(ctx, snapshot, allowed)
+}
+
+// ImportSnapshotVideo never admits a replacement for the enumerated source.
+func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, allowed map[string]bool) (*ImportedVideo, error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
-	info, err := os.Lstat(source)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, errors.New("源视频不是普通文件")
-	}
-	f, err := os.Open(source)
+	source := snapshot.Source
+	f, info, err := openImportSource(source)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	opened, err := f.Stat()
-	if err != nil {
+	if err := snapshot.check(f); err != nil {
 		return nil, err
-	}
-	if !sameVerifiedFile(info, opened) {
-		return nil, errors.New("源视频已改变")
 	}
 	key, err := hashImport(ctx, f)
 	if err != nil {
+		return nil, err
+	}
+	if err := snapshot.check(f); err != nil {
 		return nil, err
 	}
 	if !allowed[key] {
@@ -107,11 +181,14 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 		}
 	}
 	current, err := os.Lstat(source)
+	if os.IsNotExist(err) {
+		return nil, ErrImportSourceChanged
+	}
 	if err != nil {
 		return nil, err
 	}
 	if !sameVerifiedFile(info, current) {
-		return nil, errors.New("源视频在导入期间改变")
+		return nil, ErrImportSourceChanged
 	}
 	staged, err := os.Open(stage)
 	if err != nil {
@@ -120,6 +197,19 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 	digest, err := hashImport(ctx, staged)
 	staged.Close()
 	if err != nil {
+		return nil, err
+	}
+	current, err = os.Lstat(source)
+	if os.IsNotExist(err) {
+		return nil, ErrImportSourceChanged
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !sameVerifiedFile(info, current) {
+		return nil, ErrImportSourceChanged
+	}
+	if err := snapshot.check(f); err != nil {
 		return nil, err
 	}
 	if digest != key {
@@ -150,7 +240,7 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 	s.retentionMu.Lock()
 	s.retainVideoLocked(key, &retainedVideo{path: dest, key: key, size: published.Size(), recent: published.ModTime().UnixMilli(), modified: published.ModTime().UnixNano()})
 	s.retentionMu.Unlock()
-	return &ImportedVideo{Source: source, Destination: dest, MD5: key, info: info}, nil
+	return &ImportedVideo{ImportFile: snapshot, Destination: dest, MD5: key}, nil
 }
 
 // RemoveImportedSource refuses stale receipts and missing/corrupt destinations.
@@ -159,6 +249,22 @@ func (s *Server) RemoveImportedSource(ctx context.Context, receipt ImportedVideo
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	if !validMD5(receipt.MD5) || filepath.Clean(receipt.Destination) != filepath.Clean(s.cfg.videoFile(receipt.MD5)) {
+		return errors.New("导入回执不属于当前视频目录")
+	}
+	source, sourceInfo, err := openImportSource(receipt.Source)
+	if errors.Is(err, ErrImportSourceChanged) {
+		if _, statErr := os.Lstat(receipt.Source); os.IsNotExist(statErr) {
+			return ErrImportedSourceMissing
+		}
+	}
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	if err := receipt.ImportFile.check(source); err != nil {
+		return err
+	}
 	s.pinVideo(video{key: receipt.MD5})
 	defer s.releaseVideo(video{key: receipt.MD5})
 	for _, path := range []string{receipt.Destination, receipt.Source} {
@@ -169,28 +275,41 @@ func (s *Server) RemoveImportedSource(ctx context.Context, receipt ImportedVideo
 		if !info.Mode().IsRegular() {
 			return errors.New("文件已被替换")
 		}
-		if path == receipt.Source && !sameVerifiedFile(receipt.info, info) {
-			return errors.New("源文件已改变，未删除")
+		if path == receipt.Source && !sameVerifiedFile(sourceInfo, info) {
+			return ErrImportSourceChanged
 		}
 		f, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		digest, err := hashImport(ctx, f)
+		if err == nil && path == receipt.Source {
+			err = receipt.ImportFile.check(f)
+		}
 		f.Close()
 		if err != nil {
 			return err
 		}
 		if digest != receipt.MD5 {
+			if path == receipt.Source {
+				return ErrImportSourceChanged
+			}
 			return errors.New("文件 MD5 已改变，未删除")
 		}
+	}
+	// Windows does not permit unlinking a source while this handle is open.
+	if err := source.Close(); err != nil {
+		return err
 	}
 	info, err := os.Lstat(receipt.Source)
 	if err != nil {
 		return err
 	}
-	if !sameVerifiedFile(receipt.info, info) {
-		return errors.New("源文件已改变，未删除")
+	if !sameVerifiedFile(sourceInfo, info) {
+		return ErrImportSourceChanged
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	return os.Remove(receipt.Source)
 }

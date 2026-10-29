@@ -17,6 +17,7 @@ export interface Job {
 }
 export interface ImportJob extends Job {
   id?: number; imported?: number; skipped?: number; deleted?: number; cleanupAvailable?: boolean;
+  present?: boolean; paused?: boolean; scopeMismatch?: boolean; source?: string; videoDir?: string; detail?: string;
 }
 export interface HealthResult {
   operation: string; route: string; mode: string; entry: string; state: string; channelID?: string; ip?: string;

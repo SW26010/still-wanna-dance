@@ -8,6 +8,7 @@
 | --- | --- |
 | 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[命令行服务](service.md)、[功能范围](scope.md)、[日志](logging.md) |
 | 下载架构与运行参数 | [下载需求与资源管理设计](download-resource-design.md)是规则、接口及验证边界的统一依据；[块调度设计](block-scheduler-design.md)解释实现，[运行规则](download-concurrency.md)汇总参数 |
+| 视频导入、暂停与恢复 | [固定清单、恢复与源文件清理](video-import.md) |
 | 队列与视频保留 | [队列预加载](queue-prefetch.md)、[视频存储预算](cache-retention.md) |
 | 歌曲屏蔽与收藏 | [需求准入、队列计时与资源保留规则](download-resource-design.md#8-歌曲屏蔽与收藏)、[偏好表与版本边界](storage.md#歌曲偏好存储) |
 | 配置、存储与生命周期 | [配置生命周期](settings-lifecycle.md)、[存储契约](storage.md)、[运行文件生命周期](runtime-lifecycle.md)、[曲库与需求统计](song-catalog-design.md) |

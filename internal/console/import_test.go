@@ -40,8 +40,13 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 		}
 		receipts = append(receipts, *receipt)
 	}
-	c.importReceipts = receipts
-	c.importStatus = ImportStatus{ID: 1, Imported: 2, CleanupAvailable: true}
+	task := videoImportTask{Version: 1, ID: 1, Source: root, DatabasePath: c.settings.DatabasePath, VideoDir: c.settings.VideoDir, Enumerated: true}
+	for i := range receipts {
+		task.Files = append(task.Files, videoImportItem{File: receipts[i].ImportFile, Result: "imported", Receipt: &receipts[i]})
+	}
+	if err := c.commitImportTask(task); err != nil {
+		t.Fatal(err)
+	}
 	// A temporarily unavailable destination must preserve its source and receipt.
 	missing := receipts[1].Destination
 	if err := os.Rename(missing, missing+".held"); err != nil {
@@ -62,8 +67,8 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 		}
 	}
 	waitCleanup()
-	if len(c.importReceipts) != 1 || c.importReceipts[0].Source != receipts[1].Source || !c.importStatus.CleanupAvailable || c.importStatus.Deleted != 1 || c.importStatus.Failed != 1 {
-		t.Fatalf("failed receipt not retained: %+v, %+v", c.importStatus, c.importReceipts)
+	if c.importTask.Files[0].Receipt != nil || c.importTask.Files[1].Receipt == nil || !c.importStatus.CleanupAvailable || c.importStatus.Deleted != 1 || c.importTask.Files[1].CleanupError == "" {
+		t.Fatalf("failed receipt not retained: %+v, %+v", c.importStatus, c.importTask)
 	}
 	if _, err := os.Stat(receipts[0].Source); !os.IsNotExist(err) {
 		t.Fatal("successful source remains", err)
@@ -78,7 +83,7 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitCleanup()
-	if len(c.importReceipts) != 0 || c.importStatus.CleanupAvailable || c.importStatus.Deleted != 2 || c.importStatus.Total != 1 || c.importStatus.Checked != 1 || c.importStatus.Failed != 0 {
+	if c.importTask.Files[1].Receipt != nil || c.importStatus.CleanupAvailable || c.importStatus.Deleted != 2 || c.importStatus.Total != 2 || c.importStatus.Checked != 2 || c.importStatus.Error != "" {
 		t.Fatalf("retry did not finish: %+v", c.importStatus)
 	}
 	if _, err := os.Stat(receipts[1].Source); !os.IsNotExist(err) {
@@ -116,6 +121,11 @@ func TestImportUsesAllKnownMediaWithoutNetworkOrMapping(t *testing.T) {
 		}
 	}
 	for attempt := 0; attempt < 2; attempt++ {
+		if attempt > 0 {
+			if err := c.discardImport(c.importStatus.ID, true); err != nil {
+				t.Fatal(err)
+			}
+		}
 		if err := c.startImport(source); err != nil {
 			t.Fatal(err)
 		}
@@ -183,19 +193,23 @@ func TestImportMediaOnlyAndCancellation(t *testing.T) {
 			if kind == "canceled" {
 				cancel()
 			}
-			c.runImport(ctx, engine, source, c.settings.VideoDir, make(chan struct{}))
+			task := videoImportTask{Version: 1, ID: 1, Source: source, DatabasePath: c.settings.DatabasePath, VideoDir: c.settings.VideoDir}
+			if err := c.commitImportTask(task); err != nil {
+				t.Fatal(err)
+			}
+			err = c.runImport(ctx, engine, task)
 			state := c.importStatus
 			switch kind {
 			case "media-only":
-				if state.Imported != 1 || state.Error != "" {
+				if state.Imported != 1 || err != nil {
 					t.Fatal(state)
 				}
 			case "empty":
-				if state.Checked != 0 || !strings.Contains(state.Error, "本地尚无已知资源") {
+				if state.Checked != 0 || err == nil || !strings.Contains(err.Error(), "本地尚无已知资源") {
 					t.Fatal(state)
 				}
 			case "canceled":
-				if state.Checked != 0 || state.Error != context.Canceled.Error() {
+				if state.Checked != 0 || !errors.Is(err, context.Canceled) {
 					t.Fatal(state)
 				}
 			}
@@ -225,17 +239,17 @@ func TestImportEnumerationFreezesPathsAndExcludesStorage(t *testing.T) {
 	if err != nil || len(files) != 2 {
 		t.Fatal(files, err)
 	}
-	old := files[0]
+	old := files[0].File.Source
 	if err := os.Rename(old, old+".moved"); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "later.mp4"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 2 || files[0] != old {
+	if len(files) != 2 || files[0].File.Source != old {
 		t.Fatal("snapshot changed", files)
 	}
-	if _, err := os.Stat(files[0]); !os.IsNotExist(err) {
+	if _, err := os.Stat(files[0].File.Source); !os.IsNotExist(err) {
 		t.Fatal("snapshot followed renamed source")
 	}
 }

@@ -17,6 +17,7 @@ func TestManagementAdmissionThroughRouter(t *testing.T) {
 		{"POST", "/api/storage/create"}, {"POST", "/api/vrcx/preview"},
 		{"POST", "/api/proxy/import"}, {"POST", "/api/settings"},
 		{"POST", "/api/import/dismiss-suggestion"},
+		{"POST", "/api/import/pause"}, {"POST", "/api/import/resume"}, {"POST", "/api/import/discard"}, {"POST", "/api/import/cleanup"},
 		{"POST", "/api/hosts/prepare"},
 		{"POST", "/api/exit"}, {"POST", "/api/restart"},
 		{"POST", "/api/terms/accept"}, {"POST", "/api/terms/leave"}, {"POST", "/api/terms/return"},

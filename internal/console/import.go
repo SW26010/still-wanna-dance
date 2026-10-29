@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,12 @@ import (
 
 type ImportStatus struct {
 	ID               uint64 `json:"id"`
+	Present          bool   `json:"present"`
 	Running          bool   `json:"running"`
+	Paused           bool   `json:"paused"`
+	ScopeMismatch    bool   `json:"scopeMismatch"`
+	Source           string `json:"source"`
+	VideoDir         string `json:"videoDir"`
 	Phase            string `json:"phase"`
 	Total            int    `json:"total"`
 	Checked          int    `json:"checked"`
@@ -23,6 +29,7 @@ type ImportStatus struct {
 	Deleted          int    `json:"deleted"`
 	CleanupAvailable bool   `json:"cleanupAvailable"`
 	Error            string `json:"error"`
+	Detail           string `json:"detail"`
 }
 
 func insideImportRoot(root, path string) bool {
@@ -30,8 +37,8 @@ func insideImportRoot(root, path string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func enumerateImport(ctx context.Context, source, storage string) ([]string, error) {
-	var files []string
+func enumerateImport(ctx context.Context, source, storage string) ([]videoImportItem, error) {
+	var files []videoImportItem
 	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -47,7 +54,15 @@ func enumerateImport(ctx context.Context, source, storage string) ([]string, err
 		}
 		switch strings.ToLower(filepath.Ext(path)) {
 		case ".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v", ".wmv", ".flv", ".mpg", ".mpeg", ".ts", ".m2ts", ".mts", ".3gp", ".ogv", ".vob":
-			files = append(files, path)
+			snapshot, err := cacheproxy.SnapshotImportFile(path)
+			if errors.Is(err, cacheproxy.ErrImportSourceChanged) {
+				files = append(files, videoImportItem{File: cacheproxy.ImportFile{Source: path}, Result: "skipped", Reason: err.Error()})
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			files = append(files, videoImportItem{File: snapshot})
 		}
 		return nil
 	})
@@ -58,10 +73,10 @@ func (c *Console) startImport(source string) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	closing, running, videoDir := c.closing, c.importStatus.Running, c.settings.VideoDir
+	closing, present, videoDir := c.closing, c.importStatus.Present, c.settings.VideoDir
 	c.mu.Unlock()
-	if closing || running {
-		return errors.New("导入任务正在运行或应用正在退出")
+	if closing || present {
+		return errors.New("请先结束或放弃当前导入任务")
 	}
 	if strings.TrimSpace(source) == "" {
 		return errors.New("请指定外部目录")
@@ -81,8 +96,7 @@ func (c *Console) startImport(source string) error {
 	if !info.IsDir() {
 		return errors.New("请选择目录")
 	}
-	_, err = cacheproxy.CacheDirectory(videoDir)
-	if err != nil {
+	if _, err = cacheproxy.CacheDirectory(videoDir); err != nil {
 		return err
 	}
 	storage, err := filepath.EvalSymlinks(videoDir)
@@ -100,134 +114,229 @@ func (c *Console) startImport(source string) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.importCancel = cancel
-	c.importDone = make(chan struct{})
-	c.importReceipts = nil
-	c.importStatus = ImportStatus{ID: c.importStatus.ID + 1, Running: true, Phase: "正在读取已知资源"}
-	go c.runImport(ctx, engine, source, storage, c.importDone)
+	paths := libraryPaths(c.settings)
+	task := videoImportTask{Version: 1, ID: (rand.Uint64() >> 12) + 1, Source: source, DatabasePath: paths.DatabasePath, VideoDir: paths.VideoDir}
+	if err := c.saveImportTask(task); err != nil {
+		return err
+	}
+	c.launchImport(engine, task, false)
 	return nil
 }
 
-func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, source, storage string, done chan struct{}) {
-	defer close(done)
-	defer func() {
-		c.mu.Lock()
-		c.importStatus.Running = false
-		c.importStatus.CleanupAvailable = len(c.importReceipts) > 0
-		if c.importCancel != nil {
-			c.importCancel()
+// lifecycleMu serializes admission. The worker owns its copy; mu only protects
+// short publications of durable progress and never covers file I/O.
+func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, cleanup bool) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	c.publishImportTask(task)
+	c.mu.Lock()
+	c.importCancel, c.importDone = cancel, done
+	c.importStatus.Running = true
+	c.importStatus.Paused = false
+	c.importStatus.CleanupAvailable = false
+	c.importStatus.Error = ""
+	c.importStatus.Phase = "正在读取已知资源"
+	if cleanup {
+		c.importStatus.Phase = "正在清理已导入的源文件"
+	}
+	c.mu.Unlock()
+	go func() {
+		defer close(done)
+		defer cancel()
+		var err error
+		if cleanup {
+			err = c.runImportCleanup(ctx, engine, task)
+		} else {
+			err = c.runImport(ctx, engine, task)
 		}
+		c.mu.Lock()
 		c.importCancel = nil
+		status := c.importTask.status(c.settings)
+		if cleanup {
+			status.Phase = "清理结束"
+			if status.CleanupAvailable {
+				status.Phase = "部分源文件未清理，可再次确认后重试"
+			}
+		}
+		if err != nil && !errors.Is(err, context.Canceled) {
+			status.Error = err.Error()
+		}
+		if errors.Is(err, context.Canceled) && cleanup {
+			status.Phase = "清理已暂停，继续清理需要重新确认"
+		}
+		c.importStatus = status
 		c.mu.Unlock()
 	}()
-	fail := func(err error) {
-		c.mu.Lock()
-		c.importStatus.Error = err.Error()
-		c.importStatus.Phase = "导入未完成"
-		c.mu.Unlock()
+}
+
+func (c *Console) resumeImport(id uint64) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	task, err := c.idleImport(id)
+	if err != nil {
+		return err
 	}
+	if !task.status(c.settings).Paused {
+		return errors.New("本次导入已经完成")
+	}
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
+		return err
+	}
+	c.launchImport(engine, task, false)
+	return nil
+}
+
+func (c *Console) pauseImport(id uint64) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing || id != c.importStatus.ID || !c.importStatus.Running || c.importCancel == nil {
+		return errors.New("本次导入无法暂停，请刷新状态")
+	}
+	c.importStatus.Phase = "正在暂停"
+	c.importCancel()
+	return nil
+}
+
+func (c *Console) discardImport(id uint64, confirmed bool) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	valid := !c.closing && c.importStatus.Present && !c.importStatus.Running && id == c.importStatus.ID
+	c.mu.Unlock()
+	if !confirmed || !valid {
+		return errors.New("请确认结束本次导入并刷新状态")
+	}
+	if err := os.Remove(c.files().State("video-import")); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	c.mu.Lock()
+	c.importTask, c.importStatus = nil, ImportStatus{}
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *Console) idleImport(id uint64) (videoImportTask, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing || c.importStatus.Running || c.importTask == nil || id != c.importTask.ID {
+		return videoImportTask{}, errors.New("本次导入不可操作，请刷新状态")
+	}
+	if c.importTask.status(c.settings).ScopeMismatch {
+		return videoImportTask{}, errors.New("本次导入的数据位置与当前生效位置不一致，请恢复原位置后重启，或放弃本次导入")
+	}
+	return c.importTask.clone(), nil
+}
+
+func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) error {
 	allowed, err := engine.KnownMedia(ctx)
 	if err != nil {
-		fail(err)
-		return
+		return err
 	}
 	if len(allowed) == 0 {
-		fail(errors.New("本地尚无已知资源，未开始导入，请先更新曲库"))
-		return
+		return errors.New("本地尚无已知资源，未开始导入，请先更新曲库")
+	}
+	if !task.Enumerated {
+		c.mu.Lock()
+		c.importStatus.Phase = "正在枚举视频文件"
+		c.mu.Unlock()
+		storage, err := filepath.EvalSymlinks(task.VideoDir)
+		if err != nil {
+			return err
+		}
+		files, err := enumerateImport(ctx, task.Source, storage)
+		if err != nil {
+			return err
+		}
+		task.Files, task.Enumerated = files, true
+		if err := c.commitImportTask(task); err != nil {
+			return err
+		}
 	}
 	c.mu.Lock()
-	c.importStatus.Phase = "正在枚举视频文件"
-	c.mu.Unlock()
-	files, err := enumerateImport(ctx, source, storage)
-	if err != nil {
-		fail(err)
-		return
-	}
-	c.mu.Lock()
-	c.importStatus.Total = len(files)
 	c.importStatus.Phase = "正在校验并导入"
 	c.mu.Unlock()
-	for _, path := range files {
+	for i := range task.Files {
+		item := &task.Files[i]
+		if item.Result != "" && item.Result != "failed" {
+			continue
+		}
 		if err := ctx.Err(); err != nil {
-			fail(err)
-			return
+			return err
 		}
-		receipt, err := engine.ImportVideo(ctx, path, allowed)
-		c.mu.Lock()
-		c.importStatus.Checked++
-		if err != nil {
-			c.importStatus.Failed++
-			c.importStatus.Error = path + "：" + err.Error()
-		} else if receipt == nil {
-			c.importStatus.Skipped++
-		} else {
-			c.importStatus.Imported++
-			c.importReceipts = append(c.importReceipts, *receipt)
+		receipt, err := engine.ImportSnapshotVideo(ctx, item.File, allowed)
+		if errors.Is(err, context.Canceled) {
+			return err
 		}
-		c.mu.Unlock()
+		item.Reason, item.Receipt = "", receipt
+		switch {
+		case errors.Is(err, cacheproxy.ErrImportSourceChanged):
+			item.Result, item.Reason = "skipped", err.Error()
+		case err != nil:
+			item.Result, item.Reason = "failed", err.Error()
+		case receipt == nil:
+			item.Result, item.Reason = "skipped", "目标已存在、资源未知或已屏蔽"
+		default:
+			item.Result = "imported"
+		}
+		// Even if pause arrives after publication, first commit its receipt.
+		if err := c.commitImportTask(task); err != nil {
+			return err
+		}
 	}
-	c.mu.Lock()
-	c.importStatus.Phase = "导入完成"
-	c.mu.Unlock()
+	return nil
 }
 
 func (c *Console) cleanupImport(id uint64, confirmed bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !confirmed {
 		return errors.New("删除不可逆，必须再次确认")
 	}
-	if c.closing || c.importStatus.Running || id != c.importStatus.ID || !c.importStatus.CleanupAvailable {
+	task, err := c.idleImport(id)
+	if err != nil {
+		return err
+	}
+	if !task.status(c.settings).CleanupAvailable {
 		return errors.New("本次导入不可清理，请刷新状态")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	c.importCancel = cancel
-	c.importDone = make(chan struct{})
-	c.importStatus.Running = true
-	c.importStatus.CleanupAvailable = false
-	c.importStatus.Phase = "正在清理已导入的源文件"
-	c.importStatus.Checked = 0
-	c.importStatus.Total = len(c.importReceipts)
-	c.importStatus.Error = ""
-	c.importStatus.Failed = 0
-	receipts := append([]cacheproxy.ImportedVideo(nil), c.importReceipts...)
-	engine, done := c.service, c.importDone
-	go func() {
-		defer close(done)
-		defer cancel()
-		var remaining []cacheproxy.ImportedVideo
-		for i, receipt := range receipts {
-			if ctx.Err() != nil {
-				remaining = append(remaining, receipts[i:]...)
-				break
-			}
-			err := engine.RemoveImportedSource(ctx, receipt)
-			c.mu.Lock()
-			c.importStatus.Checked++
-			if err == nil {
-				c.importStatus.Deleted++
-			} else {
-				remaining = append(remaining, receipt)
-				c.importStatus.Failed++
-				c.importStatus.Error = receipt.Source + "：" + err.Error()
-			}
-			c.mu.Unlock()
+	engine, err := c.ensureEngineLocked()
+	if err != nil {
+		return err
+	}
+	c.launchImport(engine, task, true)
+	return nil
+}
+
+func (c *Console) runImportCleanup(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) error {
+	for i := range task.Files {
+		item := &task.Files[i]
+		if item.Receipt == nil {
+			continue
 		}
-		c.mu.Lock()
-		c.importStatus.Running = false
-		c.importStatus.Phase = "清理结束"
-		c.importStatus.CleanupAvailable = len(remaining) > 0
-		if c.importStatus.CleanupAvailable {
-			c.importStatus.Phase = "部分源文件未清理，可再次确认后重试"
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		c.importCancel = nil
-		c.importReceipts = remaining
-		c.mu.Unlock()
-	}()
+		err := engine.RemoveImportedSource(ctx, *item.Receipt)
+		if errors.Is(err, context.Canceled) {
+			return err
+		}
+		item.CleanupError = ""
+		switch {
+		case err == nil:
+			item.Cleanup, item.Receipt = "deleted", nil
+		case errors.Is(err, cacheproxy.ErrImportedSourceMissing):
+			item.Cleanup, item.Receipt, item.CleanupError = "missing", nil, err.Error()
+		case errors.Is(err, cacheproxy.ErrImportSourceChanged):
+			item.Cleanup, item.Receipt, item.CleanupError = "changed", nil, err.Error()
+		default:
+			item.CleanupError = err.Error()
+		}
+		if err := c.commitImportTask(task); err != nil {
+			return err
+		}
+	}
 	return nil
 }

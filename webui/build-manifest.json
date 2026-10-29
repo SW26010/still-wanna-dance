@@ -22,7 +22,7 @@
     "webui/src/data-table.tsx": "0c94db3b20c9def81901ba3f073ee6d08c237fbcf4b7d4c6cd2b0a8c69fb2724",
     "webui/src/diagnostics.tsx": "202d1430393aaf92af4458286b31c48a115c00cace57402109738ff8462f174d",
     "webui/src/documents.tsx": "77eccd7a7ff97f1ea601413314d7572ff8fdcbad79f85cd91fd0a99e996ef789",
-    "webui/src/help-content.tsx": "d6cfa6644bfcb59b7f2ef6bc5720bb9fb00b865c703a1c347fce1996a5ebdc38",
+    "webui/src/help-content.tsx": "0407c060a5280ffb66543dddfd8d3cf003ca1b6e81c12910f08287a78111f770",
     "webui/src/home-library.tsx": "1b9ef79b2b5721aed65dbebe467ff62b98bb88c46b608bb6576fe1f76479f028",
     "webui/src/hooks.tsx": "01f92bf9066fc38816121ed770611f1c9d0ba03f278d6133593e0905204461e3",
     "webui/src/hosts-notice.tsx": "0c9448a445c4b684edbc42d7d0138d6af49d49841290fee7546dd1706413afd5",
@@ -38,11 +38,11 @@
     "webui/src/request-timeline.tsx": "fdff6383ab157a0e4c389270dada33a8e9c28fe1f4ca0a0858485f4b1021b40f",
     "webui/src/requests.ts": "101b8545ed997b78c71643530c6fc23895d898d5b38212b66c0b1450ce1682b5",
     "webui/src/settings-page.tsx": "655c7133ba4f733406b2a95542e91815eea4f54e93d5c63233d2d34d7c5f58ef",
-    "webui/src/settings.tsx": "e21bf04379961fc6a9df0f97b6fcb9d9b05fa10c2c9aa45060d62ee259890a79",
+    "webui/src/settings.tsx": "22df2a5b8a7f5218bd26bc1b4ca903795b5c9fa58a2754f5f168e2d87fe2bbbb",
     "webui/src/storage-directory.tsx": "96472409d0a7e1266188c4a10c6d51d5bce0a5542f1bedeb35a9ee70f33f565a",
     "webui/src/styles.css": "6ca0d37115e480bca2d36b1d0ff17753b7027fe22c1e7e544c9a8248469bc01e",
     "webui/src/terms-consent.tsx": "e69a4a3a7d41314c47d84bf12d45e46f0e38279652567432df4a77b16ec62cda",
-    "webui/src/types.ts": "2b9e4e99f6c9207cb5e787f7c64b3f38c49551d245bef1c3e9c16037fdc1bd9f",
+    "webui/src/types.ts": "c7cdd18170ea6b452c9a70a80ed331eb8e81cb03d07cd7edce1b1384098dd3cf",
     "webui/src/ui.tsx": "8fec371e9171762a311697a0fa8682bce903d0f931ebc25182f925b413e1703a",
     "webui/src/vrcx.tsx": "6c9e8ecd7df95f152d9a195abbe7721e74b83a17433037b3ac5962f73493ae38",
     "webui/tsconfig.json": "44dff406cf3f779783246649cf91818baf140478718636f600c5458d0140b514"
@@ -50,7 +50,7 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6",
     "internal/console/assets/webui/app.css": "c9a9a3badb292ce3a5d762652366268d76da592a325b75dd2f795618615528f5",
-    "internal/console/assets/webui/app.js": "65c57ede4c23222130f1faf319cd518d7838f1fd7b4cebcff54a21842d3cc161",
+    "internal/console/assets/webui/app.js": "680b53fd440ec8a7739846b15563a90b9e07aa8e232dd8e32961be3700b468dd",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "a781c09901fceae05ff75a162ab1736c68f86d943be3684201cadf289521ea44",
     "internal/console/assets/webui/webui-notices.txt": "89e11fdf64ebdfc5b8b98085e4eee3dad30a3e52ada8374b428aa830f022eda6"

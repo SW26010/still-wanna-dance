@@ -61,3 +61,13 @@ Windows 删除语义参考 [Microsoft DeleteFile 文档](https://learn.microsoft
 合并结果本机 Edge **345/345**、跟踪目录 Go 全包测试（`-tags=no_easytier -count=1`）、vet、build、前端类型及内嵌资源检查通过。工具测试首次 **45/46**，原因是子进程在 `GOTOOLCHAIN=local` 下选中 PATH 中的 Go 1.27.1；仅为本轮验证显式选择已安装的 Go 1.27.3 后 **46/46** 通过，未修改全局环境或产品代码。
 
 完整历史资源检查发现 `9d9068db`、`e1eb1605` 和 `7782f131` 的三个 WebUI bundle 漏登。分别读取原 Git blob，核对字节数及 SHA256 与对应提交构建清单一致后追加精确例外；已有登记保留，检查 **0 errors**，既有大小提示保留。原始输出在忽略目录 `artifacts/merge-main-20261029/`，包括首次工具链失败、修正后工具测试和资源检查前后结果。本段记录本机合并检查，合并分支的远端平台结果以 PR 所列运行记录为准；未新增游戏实机结论。
+
+## 2026-10-30：顺序回退取消与块大小测试边界
+
+合并分支 `b5576d7e` 的 [`check` #20](https://github.com/SW26010/still-wanna-dance/actions/runs/40904412520)在 Ubuntu race 阶段出现一个普通断言失败，并非 race detector 报告数据竞争：`TestConfiguredBlockSizeHTTPAndPublication/524288/sequential=true` 在最终请求计数得到 `map[1:1 2:1]`，旧断言只接受 `map[1:1]`。此前浏览器、工具、普通 Go 测试、vet 和 build 通过；Windows 完整任务成功，包含浏览器、工具、Go 测试、vet、build、便携打包及实际 ZIP 验证。相关下载实现及该测试在本次主线合并前后未变。
+
+日志显示短 GET 完成后顺序响应失去需求而取消，块 0、1 已完成，尾块尚未完成；重复 GET 复用已有块，随后独立补齐为缺失块 2 重新请求，上游再次忽略 Range 返回整文件，最终发布与重开 HIT 正常。这符合[不保留块下载暂停与恢复](../download-resource-design.md#7-不保留块下载暂停与恢复)，旧测试将“小响应通常先完整落盘”的时序当成了契约。
+
+本机原用例 race 重复 20 次未复现。随后只控制测试上游：首次顺序响应写完两个完整块、Flush 后等待真实请求取消，不发送尾块。原请求计数断言连续 **3/3** 复现同一 `map[1:1 2:1]`；未改产品实现。保留此受控边界并严格断言块 1、2 各请求一次后，全部四种块大小和两种响应方式重复十轮，**80/80** 子用例通过；缓存与调度整包 race 回归通过（89.350／1.145 秒）。重复 GET 不回源、发布字节与 MD5、跨块大小重开 HIT、Range 对齐和采样排除断言全部保留；没有增加固定延迟、重试或放宽为任意请求次数。
+
+同类顺序采样和发布用例按持续需求或明确事件验证，没有发现同一短 GET 完整下载假设。原始日志在 `artifacts/merge-main-20261029/`：`ubuntu-check20.log`、`block-size-race-before.log`、`block-size-race-repro.log`、`block-size-race-fixed.log`、`cache-scheduler-race-fixed.log`。本机 Windows 受控结果不替代 Linux 复核，修正提交的远端运行记录见 [PR #40](https://github.com/SW26010/still-wanna-dance/pull/40)。

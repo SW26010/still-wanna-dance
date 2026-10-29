@@ -119,7 +119,7 @@ func (s *Server) reserveBatchVideo(ctx context.Context, v video) (func(bool), er
 	if extra < 0 {
 		extra = 0
 	}
-	if !favorite && extra > 0 && (used >= s.cfg.MaxCacheBytes || extra > s.cfg.MaxCacheBytes-used) {
+	if !favorite && extra > 0 && (used >= s.cfg.VideoBudgetBytes || extra > s.cfg.VideoBudgetBytes-used) {
 		b.stopped = true
 		return nil, ErrBatchBudget
 	}

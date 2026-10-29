@@ -29,7 +29,7 @@ func (s *Server) reservePublication(ctx context.Context, v video) (*publicationR
 	}
 	s.retentionMu.Lock()
 	unlimited := s.cfg.CacheUnlimited
-	limit := s.cfg.MaxCacheBytes
+	limit := s.cfg.VideoBudgetBytes
 	s.retentionMu.Unlock()
 	policies, err := s.resourcePolicies(ctx)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Server) selectPublicationsLocked(priorities map[string]ResourcePriority
 	applyRetentionPriorities(videos, priorities)
 	sort.Slice(videos, func(i, j int) bool { return lowerRetentionPriority(videos[i], videos[j]) })
 	for _, item := range videos {
-		if total <= s.cfg.MaxCacheBytes {
+		if total <= s.cfg.VideoBudgetBytes {
 			break
 		}
 		if policies[item.key].favorite {

@@ -184,7 +184,7 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 		}
 		_, _ = w.Write([]byte(body[first : last+1]))
 	}, func(cfg *Config) {
-		cfg.BlockSize, cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = blockSize, 2, 0
+		cfg.BlockSize, cfg.DownloadConcurrencySoftLimit, cfg.DownloadGrowInterval = blockSize, 2, 0
 		cfg.ObserveBlockSchedule = func(e blocksched.Event) {
 			if e.Kind == "started" {
 				started <- e.Key

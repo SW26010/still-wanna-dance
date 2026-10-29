@@ -61,7 +61,7 @@ test('request detail keeps identity, expansion and focus while adjacent records 
 
 for(const outcome of ['approved','timeout'] as const)test('exit policy save waits for authorization: '+outcome,async({page})=>{
   const api=await mockAPI(page);
-  api.state.settings.restoreHostsOnExit=false;api.state.activeSettings.restoreHostsOnExit=false;
+  api.state.settings.restoreHostsOnStopOrExit=false;api.state.activeSettings.restoreHostsOnStopOrExit=false;
   await page.addInitScript(()=>{AbortSignal.timeout=(ms:number)=>{const c=new AbortController();setTimeout(()=>c.abort(new DOMException('Timed out','TimeoutError')),ms);return c.signal;};});
   let release=()=>{},calls=0;const waiting=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/settings',async route=>{calls++;await waiting;if(outcome==='approved')await route.fallback();else await route.abort().catch(()=>{});});
@@ -74,11 +74,11 @@ for(const outcome of ['approved','timeout'] as const)test('exit policy save wait
   await expect(page.getByRole('listitem',{name:'正在准备退出恢复权限，请留意管理员授权。',exact:true})).toBeVisible();
   if(outcome==='approved'){
     release();await expect(page.getByRole('listitem',{name:'设置已保存。',exact:true})).toBeVisible();
-    expect(api.state.activeSettings.restoreHostsOnExit).toBe(true);
+    expect(api.state.activeSettings.restoreHostsOnStopOrExit).toBe(true);
   }else{
     await page.clock.fastForward(80001);
     await expect(page.getByRole('listitem',{name:/操作结果尚未确认.*勿重复提交/})).toBeVisible();
-    await expect(restore).toBeChecked();expect(api.state.activeSettings.restoreHostsOnExit).toBe(false);release();
+    await expect(restore).toBeChecked();expect(api.state.activeSettings.restoreHostsOnStopOrExit).toBe(false);release();
   }
   expect(calls).toBe(1);
 });

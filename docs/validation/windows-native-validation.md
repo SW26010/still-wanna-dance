@@ -49,3 +49,45 @@
 本地证据目录：`artifacts/windows-native-20261026-01/`。主要文件为 `preflight.json`、`build*.json`、`terms-fix.patch`、`build-03.patch`、`package*.log`、`hosts-targeted-03.log`、`duplicate-launch.json`、`after-conflicts.json`、`uac-cancel*.json`、`uac-accept*.json`、`after-tray-exit.json`、`after-web-exit.json`、`move.json`、`moved-storage.png` 和 `final-cleanup.json`。搬迁后连续程序日志位于 `moved-install/SWD/logs/app.log`，保留修复前乱码失败及之后复测结果。
 
 操作者选择先完成本机项目，未提供第二 Windows 用户或独立机器。本轮也未执行另一管理员账户输入凭据、实际条款升级后重新确认、凭据写入失败的人工重试、持久化 hosts 模式及其他接入故障、任务栏重建、系统 DPI／读屏器、注销／关机／取消注销、断电或最终候选 ZIP 覆盖升级。剩余边界按[非 VRC 跟进](../validation-followups.md#确实依赖-windows-环境的部分)保留，不追加 VRC 台账。
+
+## 2026-10-29：恢复权限原生复测与取消识别修复
+
+本轮按操作者选择只验 Windows，不开展 VRC 验收。Windows 11 `10.0.26300`、当前普通桌面用户、Chrome 访问真实托盘 EXE；配置和数据库均为 v8，独立空媒体库，自动加速与队列关闭。条款 `2026-10-29.1` 由操作者本人阅读确认，所有 UAC 选项均由操作者点击。已有 VRChat 进程未被本轮启动或操作，不据其存在记为游戏实测。
+
+源码基线 `e42f35bedac0ba840dda4d560a1155246599c81c`，Go 1.27.3。版本前缀为 `dev-windows-native-20261029-`：
+
+| 构建 | EXE SHA256 | ZIP / 差异与边界 |
+| --- | --- | --- |
+| 01，干净基线 | `dadfa1486ba9d771765c2cdc585ef397daebb8d0469eef6904a8c866fa05b7c0` | ZIP SHA256 `947ddfc704800260286e3995e9ac686655fc3dfe99a06bb8f10ae995e6a9e9ff` |
+| 02，修复版 | `3b49affac9ef72ab35aa062f7e19f68f003c7977100ac8edf4d959d0cfbd4fcc` | `dirty=true`，补丁 SHA256 `2761d1ec6b2d02a065aebd024e61e2c13b6f6bd1f227804bb460af661202dedd`；只覆盖已退出的隔离 EXE，未重新打包 |
+
+02 补丁仅包含 hosts 启动器及其测试。构建后出现的其他并行工作区改动不属于此次 EXE，不能外推本轮结论。
+
+### 实际结果
+
+| 场景 | 结果 |
+| --- | --- |
+| 01 ZIP 隔离检查 | 精确白名单、条款门禁、独立工作目录、锁、重启、同包覆盖、整目录搬迁及自定义配置隔离通过；同包覆盖不等于跨版本升级 |
+| 原生授权建立映射，关闭恢复后正常退出 | 01/02 均成功；只增加预期的 SWD 管理映射，退出后映射保留、助手和端口释放 |
+| 已有映射、恢复开启但无权限助手 | 为构造此条件，仅在程序退出后修改隔离配置，系统 hosts 始终由产品操作；重启不主动提权，页面显示「需检查」 |
+| 01 点击修复并拒绝 UAC | **失败**：仍弹出含 `The operation was canceled by the user` 的错误；hosts 不变、没有残留助手。原计划的一次取消误点为同意，按实际成功记录，未计作取消覆盖 |
+| 02 拒绝 UAC | **修复后通过**：只保留黄色提醒，无取消错误 Toast，按钮恢复可用；hosts 不变、无残留助手 |
+| 拒绝后开始加速，再停止 | 01/02 均无需再次授权即可运行；停止释放 80/443，并明确报告恢复缺权，保留映射 |
+| 停止失败后主动修复 | 01/02 同意后均清除已解决的连接权限提示，保留历史操作错误；网关仍停止、hosts 内容不变，只准备恢复能力 |
+| 02 从网页退出 | 正常关闭且恢复 hosts 到测试前逐字节 SHA256；主进程、权限助手与 80/443/19089 监听全部消失 |
+
+### 失败原因、修复与开发验证
+
+Windows PowerShell 的 `Start-Process` 将 Shell 启动的原生异常转成不带内层原生错误码的普通异常。本机不存在 EXE 的探针同样得到 `InvalidOperationException`、空 `NativeErrorCode`，因此旧测试直接伪造 `Win32Exception` 虽然通过，却没有覆盖真实包装层。
+
+新增 `TestHostsElevationPreservesNativeShellErrors` 通过不存在的 EXE 产生真实 Shell 错误，测试内仅把待分类码从取消换为文件不存在，避免弹 UAC；生产启动、异常处理及 Go 结果解析均实际执行。修复前明确失败，修复后通过。启动器改用 [.NET Process.Start](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.start?view=netframework-4.8.1) 保留原生异常，继续使用 `runas`、隐藏窗口及原有受限命名管道；只识别原生取消码，不按中英文文案猜测。实际取消和成功路径再由上述 02 UAC 复测确认。
+
+`TestHostsElevation*`、Console/Desktop 的 `Hosts|Acceleration|Activation|AutoStart|AutoAcceleration|Desktop|ExitPolicy` 回归、同范围 vet、嵌入 WebUI 一致性与标准桌面构建通过。01 打包前全部 `cmd/...`、`internal/...` Go 测试及 vet、112 个链接模块声明检查通过；这些全量结果对应 01，不冒充 02 全量重跑。
+
+初次打包在测试通过后被主机 PATH 中 Go 1.27.1 与 `GOTOOLCHAIN=local` 拦截；仅为后续命令选择已安装的 1.27.3 后成功，原日志保留。沙箱启动器另有一次 `CreateProcessSecurityEnvironment` 失败，普通用户环境执行检查；未据此修改产品文件权限或系统设置。
+
+### 证据、清理与剩余边界
+
+[脱敏摘要与原始证据指纹](../evidence/windows-native-20261029/summary.json)包含 12 项状态/清理断言，全部通过。原始日志、操作回执、实际 hosts 快照、构建、补丁和修复前后截图保存在忽略目录 `artifacts/windows-native-20261029-01/`；公开材料不含实际 hosts、身份路径或条款密文。两轮结束时均恢复原 hosts，最后隔离配置保持恢复开启；没有强杀测试服务或整文件回放 hosts。
+
+本轮补齐当前恢复权限入口的真实 UAC 取消/成功及正常退出，未测试最终正式 ZIP、不同候选版本升级、对应源码离线重建、跨用户/另一管理员、会话结束、断电或辅助技术。没有新增 VRC 待验项。代码修复、记录与摘要作为同一提交交付；未推送。

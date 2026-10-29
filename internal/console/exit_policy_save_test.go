@@ -23,7 +23,7 @@ func TestExitPolicySavePreparesWithoutChangingHosts(t *testing.T) {
 	for _, existing := range []bool{false, true} {
 		c := testConsole(t)
 		next := c.settings
-		next.RestoreHostsOnExit = false
+		next.RestoreHostsOnStopOrExit = false
 		if err := c.save(next); err != nil {
 			t.Fatal(err)
 		}
@@ -39,11 +39,11 @@ func TestExitPolicySavePreparesWithoutChangingHosts(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		next.RestoreHostsOnExit = true
+		next.RestoreHostsOnStopOrExit = true
 		if err := c.save(next); err != nil {
 			t.Fatal(err)
 		}
-		if *launches != 1 || !h.prepared.Load() || !c.settings.RestoreHostsOnExit || c.settings != c.savedSettings || readHostsFixture(t, h.path) != owned {
+		if *launches != 1 || !h.prepared.Load() || !c.settings.RestoreHostsOnStopOrExit || c.settings != c.savedSettings || readHostsFixture(t, h.path) != owned {
 			t.Fatal("save did not commit one prepared exit policy without changing hosts")
 		}
 		if err := c.Close(); err != nil || readHostsFixture(t, h.path) != hostsBaseline || *launches != 1 {
@@ -57,7 +57,7 @@ func TestExitPolicySaveFailureLeavesConfigurationAndExitUnchanged(t *testing.T) 
 		t.Run(failure, func(t *testing.T) {
 			c := testConsole(t)
 			next := c.settings
-			next.RestoreHostsOnExit = false
+			next.RestoreHostsOnStopOrExit = false
 			if err := c.save(next); err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +85,7 @@ func TestExitPolicySaveFailureLeavesConfigurationAndExitUnchanged(t *testing.T) 
 					t.Fatal(err)
 				}
 			}
-			next.RestoreHostsOnExit = true
+			next.RestoreHostsOnStopOrExit = true
 			next.PrepareAheadSeconds++
 			if err := c.save(next); err == nil {
 				t.Fatal("faulted save reported success")
@@ -110,7 +110,7 @@ func TestExitPolicySaveWithoutManagedHostsDoesNotRequestPermission(t *testing.T)
 	c.hosts = h
 	for _, restore := range []bool{false, true} {
 		next := c.settings
-		next.RestoreHostsOnExit = restore
+		next.RestoreHostsOnStopOrExit = restore
 		if err := c.save(next); err != nil || *launches != 0 {
 			t.Fatal("saving without managed hosts requested permission", err)
 		}

@@ -17,7 +17,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await expect(page.getByRole('link',{name:'打开退出设置',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('link',{name:'打开退出设置',exact:true}).click();
-  await expect(page).toHaveURL(/#restoreHostsOnExit$/);
+  await expect(page).toHaveURL(/#restoreHostsOnStopOrExit$/);
   await expect(page.getByRole('tab',{name:'常规',exact:true})).toHaveAttribute('aria-selected','true');
   const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await expect(restore).toBeFocused();

@@ -27,8 +27,8 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await expect(on).toBeChecked();
   await save.click();
   await expect(save).toBeDisabled();
-  expect(api.state.settings.aggressiveCacheReclamation).toBe('on');
-  expect(api.state.activeSettings.aggressiveCacheReclamation).toBe('auto');
+  expect(api.state.settings.aggressiveBlockReclamation).toBe('on');
+  expect(api.state.activeSettings.aggressiveBlockReclamation).toBe('auto');
   await page.reload();
   await expect(on).toBeChecked();
   await off.check();
@@ -43,7 +43,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await save.click();
   await expect(save).toBeDisabled();
-  expect(api.state.settings.aggressiveCacheReclamation).toBe('auto');
+  expect(api.state.settings.aggressiveBlockReclamation).toBe('auto');
   await page.reload();
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前开启）：/)).toBeVisible();

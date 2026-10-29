@@ -21,7 +21,7 @@ func TestDownloadSettingsValidation(t *testing.T) {
 	} {
 		cfg := DefaultConfig()
 		cfg.VideoDir = t.TempDir()
-		cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
+		cfg.DownloadConcurrencySoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
 		if err := cfg.validate(); (err == nil) != tc.valid {
 			t.Fatalf("limit=%d interval=%s: %v", tc.limit, tc.interval, err)
 		}
@@ -39,7 +39,7 @@ func TestConfiguredDownloadSchedulerAdmission(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := DefaultConfig()
 				cfg.VideoDir = t.TempDir()
-				cfg.DownloadSoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
+				cfg.DownloadConcurrencySoftLimit, cfg.DownloadGrowInterval = tc.limit, tc.interval
 				s := newDownloadScheduler(cfg)
 				defer s.Close()
 				started := make(chan time.Time, tc.limit+1)

@@ -49,7 +49,7 @@ func TestRefreshPreservesCatalogWriteFailures(t *testing.T) {
 				}
 				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
 			})
-			err = c.refreshLocalCatalog(t.Context(), engine)
+			err = c.refreshLocalCatalog(t.Context(), engine.Store)
 			if err == nil || !strings.Contains(err.Error(), "catalog write rejected") {
 				t.Fatalf("catalog write failure hidden: %v", err)
 			}
@@ -114,7 +114,7 @@ func TestRefreshUdonAndEqualBackupParticipation(t *testing.T) {
 				}
 				return &http.Response{StatusCode: code, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
 			})
-			if err := c.refreshLocalCatalog(context.Background(), engine); err != nil {
+			if err := c.refreshLocalCatalog(context.Background(), engine.Store); err != nil {
 				t.Fatal(err)
 			}
 			for _, host := range []string{"api.udon.dance", "x.kiva.moe", "wanna.kiva.moe"} {

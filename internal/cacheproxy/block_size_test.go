@@ -55,6 +55,14 @@ func TestConfiguredBlockSizeHTTPAndPublication(t *testing.T) {
 					mu.Unlock()
 					if sequential {
 						w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+						if start == blockSize {
+							// Keep the tail incomplete until the short GET releases its demand.
+							// A later preparation must reuse complete blocks and fetch the tail.
+							w.Write(body[:2*blockSize])
+							w.(http.Flusher).Flush()
+							<-r.Context().Done()
+							return
+						}
 						w.Write(body)
 						return
 					}
@@ -133,7 +141,9 @@ func TestConfiguredBlockSizeHTTPAndPublication(t *testing.T) {
 				defer mu.Unlock()
 				wantRequests := map[int64]int{0: 1, 1: 1, 2: 1}
 				if sequential {
-					wantRequests = map[int64]int{1: 1}
+					// The first short GET cancels before the tail arrives; its repeat
+					// reuses block 1, and preparation requests only the missing block 2.
+					wantRequests = map[int64]int{1: 1, 2: 1}
 				}
 				if len(requests) != len(wantRequests) {
 					t.Fatal("unexpected upstream work", requests)

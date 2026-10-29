@@ -9,22 +9,24 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"syscall"
 	"time"
 )
 
 // Attempts owns one endpoint's bounded request cursor, including body failures.
 // Callers validate content and report the complete attempt's error to Next.
-// HTTPS paths precede HTTP fallbacks; a fallback consumes the same six-attempt
-// budget. Source URLs, candidate identities and connection adapters stay intact.
+// Each ranked path tries HTTPS before its qualified HTTP fallback, then moves
+// to the next path. Both protocols consume the same six-attempt budget. Source
+// URLs, candidate identities and connection adapters stay intact.
 type Attempts struct {
 	// RetrySingle preserves the resource loader's one retry after a failed body
 	// on a sole configured path. It does not increase the shared attempt ceiling.
 	RetrySingle       bool
 	count, next, used int
 	scheme            string
+	firstScheme       string
 	last              Attempt
-	fallbacks         []int
 	blocked           bool
 	upgrade           bool
 }
@@ -46,30 +48,24 @@ func (a *Attempts) Next(err error) (Attempt, bool) {
 	if a.used > 0 {
 		if !HTTPFallbackAllowed(err) {
 			a.blocked = true
-		} else if a.last.Scheme == "https" {
-			a.fallbacks = append(a.fallbacks, a.last.Index)
 		}
 	}
 	if a.used >= MaxOperationCandidates || a.count == 0 {
 		return Attempt{}, false
 	}
-	// Reserve the last slot for a qualified fallback instead of multiplying the
-	// budget by the number of protocols. Known business/certificate failures do
-	// not qualify, so all remaining HTTPS candidates can still be attempted.
-	reserve := a.scheme == "https" && !a.blocked && len(a.fallbacks) > 0 && a.used == MaxOperationCandidates-1
 	var next Attempt
 	switch {
 	case a.upgrade:
 		next = Attempt{Index: a.last.Index, Scheme: "https"}
 		a.upgrade = false
-	case a.next < a.count && !reserve:
+	case !a.blocked && a.last.Scheme == "https" && HTTPFallbackAllowed(err):
+		next = Attempt{Index: a.last.Index, Scheme: "http"}
+	case a.next < a.count:
 		next = Attempt{Index: a.next, Scheme: a.scheme}
+		if a.next == 0 && a.firstScheme != "" {
+			next.Scheme = a.firstScheme
+		}
 		a.next++
-	case !a.blocked && len(a.fallbacks) > 0:
-		next = Attempt{Index: a.fallbacks[0], Scheme: "http"}
-		a.fallbacks = a.fallbacks[1:]
-		// No return to the HTTPS phase after starting plaintext fallbacks.
-		a.next = a.count
 	case a.RetrySingle && a.count == 1 && a.used == 1:
 		next = a.last
 	default:
@@ -85,14 +81,24 @@ func (a *Attempts) Next(err error) (Attempt, bool) {
 func (a *Attempts) RequireHTTPS() {
 	if a.used > 0 && a.last.Scheme == "http" {
 		a.upgrade, a.blocked = true, true
+		a.scheme = "https"
 	}
 }
 
 func (a *Attempts) remaining() int {
-	// Reserve time for known remaining paths/fallbacks, not hypothetical HTTP
-	// attempts. In particular, a healthy sole HTTPS catalog keeps its full read
-	// timeout instead of losing half to a fallback it may never need.
-	return max(1, min(MaxOperationCandidates-a.used+1, a.count-a.next+1+len(a.fallbacks)))
+	// Budget response-header waiting for the same path/protocol sequence as
+	// Next, including a possible fallback on the current secure path. Without
+	// that reserve, a lone HTTPS timeout consumes the entire caller deadline.
+	// Once headers arrive, Fetch still gives the body the full remaining time.
+	paths := a.count - a.next
+	remaining := 1 + paths
+	if a.scheme == "https" && !a.blocked {
+		remaining += paths
+		if a.last.Scheme == "https" {
+			remaining++
+		}
+	}
+	return max(1, min(MaxOperationCandidates-a.used+1, remaining))
 }
 
 // HTTPFallbackAllowed classifies transport failures only. Application errors,
@@ -134,16 +140,60 @@ func AttemptError(ctx context.Context, err error) error {
 // uses Attempts directly so its cursor survives
 // response headers and partial body reads.
 func Fetch[T any](ctx context.Context, target string, clients []*http.Client, timeout time.Duration, read func(context.Context, *http.Client, string) (T, error)) (T, error) {
-	var zero T
+	var value T
+	err := NewSession(clients).Read(ctx, target, timeout, func(ctx context.Context, client *http.Client, target string) error {
+		var err error
+		value, err = read(ctx, client, target)
+		return err
+	})
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return value, nil
+}
+
+// Session reuses a validated path/protocol within a short, sequential batch of
+// reads from one endpoint. Each Read gets a fresh attempt budget. Failure drops
+// the preference; changing the endpoint starts fresh. It has no timers or
+// background work of its own and must not be shared by concurrent callers.
+// Use Fetch for independent requests, which always begin with the source scheme.
+type Session struct {
+	clients   []*http.Client
+	preferred *http.Client
+	endpoint  string
+	scheme    string
+}
+
+func NewSession(clients []*http.Client) *Session {
+	return &Session{clients: slices.Clone(clients)}
+}
+
+// Read treats success as complete content validation, not just response headers.
+// The batch owner supplies the lifetime and cancellation; transports retain
+// their ordinary DNS/configuration validity checks.
+func (s *Session) Read(ctx context.Context, target string, timeout time.Duration, read func(context.Context, *http.Client, string) error) error {
 	u, err := url.Parse(target)
 	if err != nil || u.Scheme != "http" && u.Scheme != "https" {
-		return zero, errors.New("invalid upstream URL")
+		return errors.New("invalid upstream URL")
 	}
+	endpoint := u.Scheme + "://" + u.Host + u.EscapedPath()
+	clients := s.clients
+	firstScheme := ""
+	if s.preferred != nil && s.endpoint == endpoint {
+		clients = slices.Clone(clients)
+		i := slices.Index(clients, s.preferred)
+		copy(clients[1:i+1], clients[:i])
+		clients[0] = s.preferred
+		firstScheme = s.scheme
+	}
+	s.preferred = nil
 	attempts := NewAttempts(u.Scheme, len(clients))
+	attempts.firstScheme = firstScheme
 	var failures []error
 	for {
 		if ctx.Err() != nil {
-			return zero, context.Cause(ctx)
+			return context.Cause(ctx)
 		}
 		attempt, ok := attempts.Next(err)
 		if !ok {
@@ -164,21 +214,22 @@ func Fetch[T any](ctx context.Context, target string, clients []*http.Client, ti
 		client.Transport = headerBudgetTransport{RoundTripper: transport, stop: timer.Stop}
 		v := *u
 		v.Scheme = attempt.Scheme
-		value, failure := read(child, &client, v.String())
+		failure := read(child, &client, v.String())
 		failure = AttemptError(child, failure)
 		timer.Stop()
 		cancel(nil)
 		stop()
 		if failure == nil {
-			return value, nil
+			s.preferred, s.endpoint, s.scheme = clients[attempt.Index], endpoint, attempt.Scheme
+			return nil
 		}
 		err = failure
 		failures = append(failures, err)
 	}
 	if len(failures) == 0 {
-		return zero, ErrUnavailable
+		return ErrUnavailable
 	}
-	return zero, errors.Join(failures...)
+	return errors.Join(failures...)
 }
 
 // Only bounds waiting for headers; it neither retries nor changes the request.

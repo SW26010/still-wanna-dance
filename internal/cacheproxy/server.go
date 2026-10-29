@@ -209,7 +209,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 
 	s := &Server{Store: store, cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
 		requests:      new(requestActivity),
-		rangeBuffers:  make(chan []byte, cfg.DownloadSoftLimit),
+		rangeBuffers:  make(chan []byte, cfg.DownloadConcurrencySoftLimit),
 		versionPins:   make(map[string]int),
 		retentionWake: make(chan struct{}, 1), retentionDone: make(chan struct{}),
 		flights: make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
@@ -252,15 +252,15 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	s.scheduler = newDownloadScheduler(cfg)
 	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
 		"block_size_bytes", cfg.BlockSize,
-		"video_request_soft_limit", cfg.DownloadSoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
-		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "max_cache_bytes", cfg.MaxCacheBytes, "cache_unlimited", cfg.CacheUnlimited,
-		"aggressive_cache_reclamation", cfg.AggressiveCacheReclamation)
+		"video_request_soft_limit", cfg.DownloadConcurrencySoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
+		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "video_budget_bytes", cfg.VideoBudgetBytes, "cache_unlimited", cfg.CacheUnlimited,
+		"aggressive_block_reclamation", cfg.AggressiveBlockReclamation)
 	failed = false
 	return s, nil
 }
 
 func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
-	return blocksched.New(blocksched.Config{SoftLimit: cfg.DownloadSoftLimit,
+	return blocksched.New(blocksched.Config{SoftLimit: cfg.DownloadConcurrencySoftLimit,
 		SampleBytes:  cfg.BlockSize,
 		GrowInterval: cfg.DownloadGrowInterval,
 		PrepareAhead: cfg.PrepareAhead,

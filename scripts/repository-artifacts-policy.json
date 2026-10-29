@@ -822,6 +822,34 @@
       "bytes": 1198268,
       "sha256": "ead2fe919c84ce034786dc42a2ca84d03a873abb917c524aecf20cbc1f36ebb8",
       "reason": "Historical production WebUI from 2819074c: explicit hosts restore permission preparation. Exact Git blob bytes match that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199663,
+      "sha256": "dac63b8a193f5aafaa036e03052c99397f46e1b4e931941d55cc4453f0f50b64",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Explain unavailable coverage using the file-check error while catalog metadata continues to update independently."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199741,
+      "sha256": "ef0d844980eb188f760ffd4fb19cd74b221d991c7edd78d6aa3c74a042307040",
+      "reason": "Historical production WebUI from 9d9068db: configuration v8 field names. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1199654,
+      "sha256": "0c10cfce457ee2aa122fad6149c31614c8a92ba3e7ba85c32c71fa9b810ecb61",
+      "reason": "Historical production WebUI from e1eb1605: initialize settings drafts from normalized backend settings. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted generated artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1200383,
+      "sha256": "ac1e0ca11c04102f55ee70f75901e2ff2021c50aa2cedf4ba9a6398cc78e61cf",
+      "reason": "Production WebUI from 7782f131: follow initial catalog work until coverage is populated. Exact Git blob SHA256 matches webui/build-manifest.json and the current pnpm --dir webui check; register the omitted generated artifact without changing the bundle."
     }
   ]
 }

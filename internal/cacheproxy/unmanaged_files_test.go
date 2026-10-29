@@ -15,7 +15,7 @@ func TestStorageLeavesUnmanagedFilesUntouched(t *testing.T) {
 	}
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, root, true)
-	cfg.MaxCacheBytes, cfg.CacheUnlimited = 0, false
+	cfg.VideoBudgetBytes, cfg.CacheUnlimited = 0, false
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

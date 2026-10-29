@@ -29,8 +29,8 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited = false
-	cfg.MaxCacheBytes = 0
-	cfg.AggressiveCacheReclamation = "off"
+	cfg.VideoBudgetBytes = 0
+	cfg.AggressiveBlockReclamation = "off"
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		resolutions.Add(1)
 		return "", fmt.Errorf("unexpected resolution")

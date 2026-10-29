@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261029-01",
+  "hashBasis": "git-blob",
+  "sourceSHA": "fc9f4c3e524f1e83e95ed558a7c5817ef04a3590",
+  "sourceDirty": true,
+  "sourcePatchSHA256": "2d0aef73c1d056d4df23e09700a291da5dd27444af1c6e32a11ad2bf6f210875",
+  "exeSHA256": "1316c38c322787fb8a5af35be142d325bfe40fd5b7ff930accda6b92ba13abff",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261029-01.md",
+      "bytes": 6995,
+      "sha256": "8721420f1f13efb01c5a2f56d8a2929c523dc29353b009841fa3f7c8b8fb61db",
+      "source": "Operator report and scoped interpretation",
+      "sanitization": "Relative event time, anonymous process labels, public song IDs and content hashes; no user/room identity, private paths, signed URLs, credentials or raw hosts."
+    },
+    {
+      "path": "docs/evidence/live-20261029-01/comparison.json",
+      "bytes": 33692,
+      "sha256": "fb6eade00f99ea4c532089f1cd91ee4f46140ad48ee9027add1f800f61666c17",
+      "source": "Allowlisted product/game events, observations and measured file hashes",
+      "sanitization": "Relative event time, anonymous process labels, public song IDs and content hashes; no user/room identity, private paths, signed URLs, credentials or raw hosts."
+    },
+    {
+      "path": "docs/evidence/live-20261029-01/session.json",
+      "bytes": 2780,
+      "sha256": "051cdd6c5818c05004fe339d06680934490821e82362f6188786dcd6be00b03b",
+      "source": "Allowlisted product/game events, observations and measured file hashes",
+      "sanitization": "Relative event time, anonymous process labels, public song IDs and content hashes; no user/room identity, private paths, signed URLs, credentials or raw hosts."
+    }
+  ]
+}

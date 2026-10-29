@@ -12,7 +12,7 @@ import (
 
 func TestBatchLeavesQueueRunning(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	requested := make(chan struct{})
@@ -61,7 +61,7 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				c := testConsole(t)
-				if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+				if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 					t.Fatal(err)
 				}
 				requested, release := make(chan struct{}), make(chan struct{})

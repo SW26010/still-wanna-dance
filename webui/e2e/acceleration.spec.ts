@@ -36,7 +36,7 @@ test('acceleration status distinguishes connection from service without enabling
 });
 
 for(const restore of [true,false])test(`exit uses the active restore policy (${restore}) without a separate hosts request`,async({page},info)=>{
-  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};api.state.activeSettings.restoreHostsOnExit=restore;api.state.settings.restoreHostsOnExit=!restore;
+  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};api.state.activeSettings.restoreHostsOnStopOrExit=restore;api.state.settings.restoreHostsOnStopOrExit=!restore;
   await page.setViewportSize({width:restore?1280:320,height:900});await page.goto('/');
   const exit=page.getByRole('button',{name:'退出程序',exact:true}),tip=page.getByRole('tooltip');
   await exit.hover();await expect(tip).toContainText('所有服务和后台任务将停止。');
@@ -135,8 +135,8 @@ for(const error of ['hosts 助手连接已中断，请重新打开应用后修�
 
 for(const restore of [true,false])for(const queue of [true,false])test(`stop and resume follow active policies (${restore}, ${queue})`,async({page},info)=>{
   const api=await mockAPI(page);
-  Object.assign(api.state.activeSettings,{restoreHostsOnExit:restore,queueWithGateway:queue});
-  Object.assign(api.state.settings,{restoreHostsOnExit:!restore,queueWithGateway:!queue});
+  Object.assign(api.state.activeSettings,{restoreHostsOnStopOrExit:restore,queueWithGateway:queue});
+  Object.assign(api.state.settings,{restoreHostsOnStopOrExit:!restore,queueWithGateway:!queue});
   await page.setViewportSize({width:restore?1280:320,height:900});await page.goto('/');
   const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
   await expect(browserHint).toHaveCount(0);

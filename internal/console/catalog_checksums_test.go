@@ -256,7 +256,7 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 	c.checksumURL, c.client = origin.URL+"/catalog", client
 	c.settings.UpstreamMode = "direct"
 	c.batch = Batch{Running: true, ScanOnly: true}
-	err = c.refreshLocalCatalog(context.Background(), engine)
+	err = c.refreshLocalCatalog(context.Background(), engine.Store)
 	if err == nil {
 		t.Fatal("expected malformed redirect error")
 	}

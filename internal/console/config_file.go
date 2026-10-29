@@ -13,6 +13,36 @@ import (
 
 const configSchemaVersion = apppaths.ConfigVersion
 
+// Callers receive typed settings without decoding JSON or interpreting protected
+// payloads. Loading never prepares resources or rewrites the file.
+type loadedConfig struct {
+	Settings            Settings
+	VRCXImportDismissed bool
+	Exists              bool
+}
+
+func loadConfigFile(path string) (loadedConfig, error) {
+	data, fields, err := readConfigFile(path)
+	if err != nil {
+		return loadedConfig{}, err
+	}
+	loaded := loadedConfig{Settings: defaultSettings(), Exists: data != nil}
+	if data != nil {
+		if err := json.Unmarshal(data, &loaded.Settings); err != nil {
+			return loaded, fmt.Errorf("读取程序配置：%w", err)
+		}
+		loadProxySecret(fields, &loaded.Settings)
+		loadProxyNodes(fields, &loaded.Settings)
+		if raw := fields["vrcxImportDismissed"]; raw != nil {
+			if err := json.Unmarshal(raw, &loaded.VRCXImportDismissed); err != nil {
+				return loaded, fmt.Errorf("读取程序配置 vrcxImportDismissed：%w", err)
+			}
+		}
+	}
+	loaded.Settings, err = resolveConfigSettings(loaded.Settings, path)
+	return loaded, err
+}
+
 // ReadLogLevel bootstraps logging before Console construction can emit events.
 // The entrypoint holds the config lease; use the same envelope validation and
 // JSON field matching as the full settings load, without opening any resources.
@@ -30,15 +60,6 @@ func ReadLogLevel(path string) (applog.Level, error) {
 		}
 	}
 	return applog.ParseLevel(settings.LogLevel)
-}
-
-// This controls automatic browser opening for a new console process. Explicit
-// tray/open and second-instance activation remain available independently.
-// Missing or invalid consent must expose the existing confirmation flow.
-func (c *Console) OpenWebUIOnLaunch() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return !c.terms.valid() || c.settings.AutoOpenWebUI
 }
 
 // The disk document is separate from the editable settings API. The latter
@@ -82,66 +103,89 @@ func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {
 	return data, fields, nil
 }
 
-// Caller serializes writes with lifecycleMu (or owns an unpublished Console).
-// Re-read the disk envelope so a future file is never overwritten and unknown
-// fields from this format version survive ordinary settings saves.
-func (c *Console) writeConfigFile(s Settings) error {
-	_, fields, err := readConfigFile(c.configPath)
+// Both full settings saves and non-editable preferences use this transaction.
+// The caller holds the configuration lease and serializes the entire update
+// with lifecycleMu (or owns an unpublished Console). Atomic replacement alone
+// does not serialize read/modify/write operations.
+func updateConfigFile(path string, update func(fields map[string]json.RawMessage, exists bool) error) error {
+	_, fields, err := readConfigFile(path)
 	if err != nil {
 		return err
 	}
-	if fields == nil {
+	exists := fields != nil
+	if !exists {
 		fields = make(map[string]json.RawMessage)
 	}
-	secret, err := storedProxySecret(s)
+	if err := update(fields, exists); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(fields, "", "  ")
 	if err != nil {
 		return err
 	}
-	nodes, err := storedProxyNodes(s)
-	if err != nil {
-		return err
-	}
-	stored := c.storedSettings(s)
-	stored.SOCKS5Password = ""
-	data, err := json.Marshal(stored)
-	if err != nil {
-		return err
-	}
-	var settings map[string]json.RawMessage
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return err
-	}
-	// encoding/json accepts case-insensitive struct field names. Remove those
-	// aliases as well, or they could override a canonical value on the next read.
-	// The password is the only omitempty field and may be absent when cleared.
-	for key := range fields {
-		if strings.EqualFold(key, "downloadUpstream") || strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
-			delete(fields, key)
-			continue
+	return workfiles.Write(path, data)
+}
+
+// Re-read the disk envelope so a future file is never overwritten and unknown
+// fields from this format version survive ordinary settings saves.
+func saveConfigSettings(path string, s Settings) error {
+	return updateConfigFile(path, func(fields map[string]json.RawMessage, _ bool) error {
+		secret, err := storedProxySecret(s)
+		if err != nil {
+			return err
 		}
-		for name := range settings {
-			if strings.EqualFold(key, name) {
+		nodes, err := storedProxyNodes(s)
+		if err != nil {
+			return err
+		}
+		stored := storedSettings(s, path)
+		stored.SOCKS5Password = ""
+		data, err := json.Marshal(stored)
+		if err != nil {
+			return err
+		}
+		var settings map[string]json.RawMessage
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return err
+		}
+		// encoding/json accepts case-insensitive struct field names. Remove those
+		// aliases as well, or they could override a canonical value on the next read.
+		// The password is the only omitempty field and may be absent when cleared.
+		for key := range fields {
+			if strings.EqualFold(key, "downloadUpstream") || strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
 				delete(fields, key)
-				break
+				continue
+			}
+			for name := range settings {
+				if strings.EqualFold(key, name) {
+					delete(fields, key)
+					break
+				}
 			}
 		}
-	}
-	for name, value := range settings {
-		fields[name] = value
-	}
-	if secret != nil {
-		fields["proxySecret"] = secret
-	}
-	if nodes != nil {
-		fields["proxyNodes"] = nodes
-	}
-	fields["schemaVersion"], err = json.Marshal(configSchemaVersion)
-	if err != nil {
-		return err
-	}
-	data, err = json.MarshalIndent(fields, "", "  ")
-	if err != nil {
-		return err
-	}
-	return workfiles.Write(c.configPath, data)
+		for name, value := range settings {
+			fields[name] = value
+		}
+		if secret != nil {
+			fields["proxySecret"] = secret
+		}
+		if nodes != nil {
+			fields["proxyNodes"] = nodes
+		}
+		fields["schemaVersion"], err = json.Marshal(configSchemaVersion)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func saveConfigVRCXDismissal(path string) error {
+	return updateConfigFile(path, func(fields map[string]json.RawMessage, exists bool) error {
+		if !exists {
+			return os.ErrNotExist
+		}
+		fields["vrcxImportDismissed"] = json.RawMessage("true")
+		return nil
+	})
 }

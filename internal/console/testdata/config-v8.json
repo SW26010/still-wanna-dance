@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 8,
+  "videoStorageMode": "none",
+  "aggressiveBlockReclamation": "auto",
+  "videoBudgetBytes": 0,
+  "requestRetentionDays": 0,
+  "requestRetentionMode": "unlimited",
+  "autoAccelerate": false,
+  "queueWithGateway": false,
+  "downloadConcurrencySoftLimit": 32,
+  "restoreHostsOnStopOrExit": false,
+  "vrchatLogDir": "logs",
+  "upstreamMode": "direct",
+  "futurePreference": {
+    "large": 9007199254740993
+  },
+  "databasePath": "storage/storage.sqlite",
+  "videoDir": "storage/videos"
+}

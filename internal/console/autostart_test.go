@@ -24,7 +24,7 @@ func TestAutoStartSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,7 +51,7 @@ func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
 		for _, queue := range []bool{false, true} {
 			t.Run(fmt.Sprintf("gateway=%v/queue=%v", gateway, queue), func(t *testing.T) {
 				c := testConsole(t)
-				if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+				if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 					t.Fatal(err)
 				}
 				s := c.settings
@@ -75,7 +75,7 @@ func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
 
 func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	occupied, err := net.Listen("tcp4", "127.0.0.1:0")

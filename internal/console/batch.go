@@ -148,7 +148,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	var local cacheproxy.LocalCatalog
 	var release func()
 	if target == nil {
-		refreshErr = c.refreshLocalCatalog(ctx, s)
+		refreshErr = c.refreshLocalCatalog(ctx, s.Store)
 		local, release, err = s.ReadLocalCatalog(ctx)
 	} else {
 		local, release, err = s.ReadDownloadTarget(ctx, *target)

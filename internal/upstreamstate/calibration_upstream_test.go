@@ -3,6 +3,7 @@ package upstreamstate
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,6 +24,65 @@ func (c calibrationCandidates) Candidates(context.Context, string) ([]upstreamre
 }
 func (c calibrationCandidates) Current(string) []upstreamrequest.Candidate { return c }
 func (c calibrationCandidates) Changed() <-chan struct{}                   { return nil }
+
+func TestCalibrationPreparesAfterConnectivityWithMixedDirectCandidates(t *testing.T) {
+	for _, pair := range []struct{ failed, working string }{
+		{"2001:db8::1", "192.0.2.1"},
+		{"192.0.2.1", "2001:db8::1"},
+	} {
+		t.Run("failed_"+pair.failed, func(t *testing.T) {
+			var media, healthy atomic.Int32
+			base, _ := calibrationManyVideos(t, 16, func(r *http.Request) (*http.Response, error) {
+				media.Add(1)
+				return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 0-0/134217728"}}, ContentLength: 1, Body: io.NopCloser(strings.NewReader("x"))}, nil
+			})
+			working := transportFunc(func(r *http.Request) (*http.Response, error) {
+				healthy.Add(1)
+				resp, err := base.RoundTrip(r)
+				if r.URL.Path == "/Api/Songs/play" && resp != nil {
+					resp.Header.Set("Location", strings.ReplaceAll(resp.Header.Get("Location"), "s=16777216", "s=134217728"))
+				}
+				return resp, err
+			})
+			paths := calibrationCandidates{
+				{ID: "unreachable", Mode: "direct", IP: pair.failed, Transport: transportFunc(func(*http.Request) (*http.Response, error) { return nil, io.EOF })},
+				{ID: "working", Mode: "direct", IP: pair.working, Transport: working},
+			}
+			c := calibrationForTest(t, paths)
+			c.limits = NewCalibration(nil).limits
+			m, err := newMonitor(Options{}, c.channel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer m.Close()
+			if err := m.CheckSelected(context.Background(), CheckConnectivity); err != nil {
+				t.Fatal(err)
+			}
+			for _, op := range operations {
+				available := false
+				for _, result := range m.Results(op) {
+					available = available || result.State == "available"
+				}
+				if !available {
+					t.Fatalf("fixture connectivity failed for %s", op)
+				}
+			}
+			mediaBefore, healthyBefore := media.Load(), healthy.Load()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			client, samples, err := c.prepare(ctx, c.channel, c.channel.Snapshot(), "direct")
+			if client != nil {
+				defer client.CloseIdleConnections()
+			}
+			if err != nil {
+				t.Fatalf("connectivity passed but calibration preparation failed: %v; healthy requests=%d", err, healthy.Load()-healthyBefore)
+			}
+			if len(samples) != 16 || media.Load() != mediaBefore {
+				t.Fatalf("wrong reserve or preparation downloaded media: videos=%d media=%d", len(samples), media.Load()-mediaBefore)
+			}
+		})
+	}
+}
 
 func TestCalibrationSelectsOnlyRequestedUpstream(t *testing.T) {
 	var direct, proxy atomic.Int32

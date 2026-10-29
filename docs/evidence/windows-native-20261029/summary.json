@@ -1,0 +1,174 @@
+{
+  "batch": "windows-native-20261029-01",
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "scope": "Windows native UAC/hosts; no VRC acceptance",
+  "baseline": {
+    "kind": "development",
+    "version": "dev-windows-native-20261029-01",
+    "revision": "e42f35bedac0ba840dda4d560a1155246599c81c",
+    "dirty": false,
+    "builtAtUtc": "2026-10-29T10:23:49.789Z",
+    "toolchain": "go1.27.3",
+    "target": "windows/amd64",
+    "exeSHA256": "dadfa1486ba9d771765c2cdc585ef397daebb8d0469eef6904a8c866fa05b7c0",
+    "zipSHA256": "947ddfc704800260286e3995e9ac686655fc3dfe99a06bb8f10ae995e6a9e9ff"
+  },
+  "fixed": {
+    "kind": "development",
+    "version": "dev-windows-native-20261029-02",
+    "revision": "e42f35bedac0ba840dda4d560a1155246599c81c",
+    "dirty": true,
+    "builtAtUtc": "2026-10-29T10:48:23.126Z",
+    "toolchain": "go1.27.3",
+    "target": "windows/amd64",
+    "exeSHA256": "3b49affac9ef72ab35aa062f7e19f68f003c7977100ac8edf4d959d0cfbd4fcc",
+    "patchSHA256": "2761d1ec6b2d02a065aebd024e61e2c13b6f6bd1f227804bb460af661202dedd",
+    "packaged": false
+  },
+  "observedFailure": {
+    "build": "01",
+    "action": "UAC No while preparing restore permission",
+    "actual": "Unexpected error toast; native cancellation code lost by Windows PowerShell Start-Process",
+    "preserved": true
+  },
+  "nativeRetest": {
+    "build": "02",
+    "userPerformedUAC": true,
+    "cancelToastAbsent": true,
+    "warningRetained": true,
+    "buttonsUsable": true,
+    "repairSuccessToastObserved": true,
+    "exitViaWebUI": true
+  },
+  "checks": {
+    "consentGateWas428": true,
+    "onlyExpectedManagedMapping": true,
+    "disabledRestoreRetainedMapping": true,
+    "canceledRepairDidNotChangeHosts": true,
+    "canceledRepairLeftNoHelper": true,
+    "accelerationAfterCancellation": true,
+    "missingPermissionStopReportedFailure": true,
+    "repairOnlyPreparedPermission": true,
+    "repairClearedConnectionError": true,
+    "queueStayedOff": true,
+    "finalHostsRestored": true,
+    "finalProcessesAndPortsReleased": true
+  },
+  "boundaries": [
+    "Development ZIP smoke includes same-package overlay, not final formal distribution or cross-version upgrade.",
+    "Build 02 patch contains only the hosts launcher and its tests; later parallel workspace changes are outside this tested EXE.",
+    "No cross-user, alternate administrator, logoff/shutdown, power-loss, accessibility or game acceptance."
+  ],
+  "evidence": {
+    "location": "local ignored artifacts/windows-native-20261029-01/",
+    "hashBasis": "filesystem",
+    "files": [
+      {
+        "name": "package.log",
+        "bytes": 3001,
+        "sha256": "4cc50ba4e08602b2fc188c930dfe9a44a5403e99aeb4e8ab827930367fe155c7"
+      },
+      {
+        "name": "package-verified.log",
+        "bytes": 2069,
+        "sha256": "26758b45ff560ad8f95bd635d00ffa997261b041b24a7aa7464f0c9deca539ac"
+      },
+      {
+        "name": "portable-smoke.log",
+        "bytes": 409,
+        "sha256": "3e4632cea39cd31c943a6f7c812f7ea7bd9fb9c5d855ea002718e7b68dc84034"
+      },
+      {
+        "name": "build.json",
+        "bytes": 223,
+        "sha256": "93d7d4439b640c09954eaa0dbe9014be5dcbbc40fe7650a1c4b709b8dfa50539"
+      },
+      {
+        "name": "build-02.json",
+        "bytes": 222,
+        "sha256": "f303189d9737cd57e76bf79e8af1df7e1bc6c2f393a6fc4bc26d25f3c87deb8d"
+      },
+      {
+        "name": "build-02.patch",
+        "bytes": 5202,
+        "sha256": "2761d1ec6b2d02a065aebd024e61e2c13b6f6bd1f227804bb460af661202dedd"
+      },
+      {
+        "name": "native-code-red.log",
+        "bytes": 424,
+        "sha256": "9a4ce7781b062a4aa7e92b02534e2ad471e0146f4ef031a9446000b68b4f85a2"
+      },
+      {
+        "name": "native-code-fixed.log",
+        "bytes": 48,
+        "sha256": "23b7f99567757fe886213834412e1acbb9a05657ee9be3048bc629d4f90e6e85"
+      },
+      {
+        "name": "hosts-regression.log",
+        "bytes": 96,
+        "sha256": "c96e9b8daef417863f5358b36edabc66aa65f9435f02e82fa4679fd52f033018"
+      },
+      {
+        "name": "hosts-vet.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "repair-canceled.private.json",
+        "bytes": 46020,
+        "sha256": "cb25eca1671ea8c0b37592ab2beccbdd5833a728df0fed793acd694f7b7dc17c"
+      },
+      {
+        "name": "repair-canceled.png",
+        "bytes": 52275,
+        "sha256": "e0f0743166806e001175aa3415d79384873bc70497c072dfa737c0d480b5ad35"
+      },
+      {
+        "name": "fixed-canceled.private.json",
+        "bytes": 41486,
+        "sha256": "0bbe257cb0a2167d1cd3954a4b6de874f8d3d9992366ad0d119a8ace94c89fe2"
+      },
+      {
+        "name": "fixed-repair-canceled.png",
+        "bytes": 44669,
+        "sha256": "d4185688e78b78b4195780d4ea206841de141d71a5a30a8b3745c256a8489382"
+      },
+      {
+        "name": "fixed-canceled-then-active.private.json",
+        "bytes": 10261,
+        "sha256": "b822fb25940449b5086a67ed418bd7d8dc9567c5b0fea408a236a13e11fe083c"
+      },
+      {
+        "name": "fixed-no-permission-stopped.private.json",
+        "bytes": 10494,
+        "sha256": "23c9dd969d7bb9ed902e4d1bcdd54358906c23f3b4cbf8883f60b80ea2d04b1b"
+      },
+      {
+        "name": "fixed-repaired.private.json",
+        "bytes": 68255,
+        "sha256": "a3f49e26fe3d1612d51093550f0ccde61422c7bba51cd0cee78f19c29d0afd3d"
+      },
+      {
+        "name": "fixed-repaired.png",
+        "bytes": 53273,
+        "sha256": "0c1255efe81f792e79a902dd4218fef75775bbd926d0bc77ddfc3af7e3515bbf"
+      },
+      {
+        "name": "final-cleanup.private.json",
+        "bytes": 354,
+        "sha256": "14e59f3797d56a1fae4b7970609eb5812921112893c9b3fb208d92e5b6846c15"
+      },
+      {
+        "name": "final-exited.png",
+        "bytes": 41194,
+        "sha256": "71e838819c6526d5dd3158f4cc58aa9c606662bf1b8a5865c8c3325535955b14"
+      },
+      {
+        "name": "interactive/SWD/logs/app.log",
+        "bytes": 14262,
+        "sha256": "d099ae1cc9190cf723de735afc431784a7025c2897ef5d9ebab572444613a474"
+      }
+    ]
+  }
+}

@@ -110,13 +110,13 @@ func doProbeRequest(ctx context.Context, client *http.Client, target, byteRange 
 
 // Probes use the same complete-attempt policy as real requests, without a
 // separate HTTP/HTTPS measurement matrix or a background protocol cache.
-func probeProtocols(parent context.Context, client *http.Client, timeout time.Duration, target string, run func(context.Context, *http.Client, string) observation) observation {
+func probeProtocols(parent context.Context, session *upstreamrequest.Session, timeout time.Duration, target string, run func(context.Context, *http.Client, string) observation) observation {
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	started := time.Now()
 	var last observation
-	_, err := upstreamrequest.Fetch(ctx, target, []*http.Client{client}, timeout,
-		func(ctx context.Context, client *http.Client, target string) (observation, error) {
+	err := session.Read(ctx, target, timeout,
+		func(ctx context.Context, client *http.Client, target string) error {
 			offset := time.Since(started)
 			last = run(ctx, client, target)
 			if last.err != nil {
@@ -127,12 +127,12 @@ func probeProtocols(parent context.Context, client *http.Client, timeout time.Du
 				last.latency += offset
 			}
 			if last.state == "available" || last.state == "redirect" {
-				return last, nil
+				return nil
 			}
 			if last.err != nil {
-				return last, last.err
+				return last.err
 			}
-			return last, errors.New(last.state)
+			return errors.New(last.state)
 		})
 	if last.state == "" {
 		last.state, last.err, last.at = errorState(err), err, time.Now()
@@ -192,8 +192,8 @@ func probeCatalogResponse(parent context.Context, client *http.Client, p Policy,
 
 // The diagnostic can select several IDs from this one validated response.
 // Business consumers validate full song metadata before accepting it.
-func probeCatalogData(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
-	o = probeProtocols(parent, client, p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
+func probeCatalogData(parent context.Context, client *http.Client, p Policy, route string, alternatives ...*http.Client) (o observation, id int64, result CatalogResponse) {
+	o = probeProtocols(parent, upstreamrequest.NewSession(append([]*http.Client{client}, alternatives...)), p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
 		current, id, result = probeCatalogDataAt(ctx, client, p, route, target)
 		return current
@@ -289,14 +289,18 @@ func kivaSongSample(body []byte) (int64, string) {
 	}
 	return c.Entries[rand.IntN(len(c.Entries))].ID, c.Revision
 }
-func probePlayback(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample) {
-	o, sample, _ = probePlaybackResponse(parent, client, p, id, r)
+func probePlayback(parent context.Context, client *http.Client, p Policy, id int64, r route, alternatives ...*http.Client) (o observation, sample *videoSample) {
+	o, sample, _ = probePlaybackResponse(parent, client, p, id, r, alternatives...)
 	return
 }
 
-func probePlaybackResponse(parent context.Context, client *http.Client, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
+func probePlaybackResponse(parent context.Context, client *http.Client, p Policy, id int64, r route, alternatives ...*http.Client) (o observation, sample *videoSample, result PlaybackURLResponse) {
+	return probePlaybackSession(parent, upstreamrequest.NewSession(append([]*http.Client{client}, alternatives...)), p, id, r)
+}
+
+func probePlaybackSession(parent context.Context, session *upstreamrequest.Session, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
 	target := entry(PlaybackURL, r.ID) + "&id=" + strconv.FormatInt(id, 10)
-	o = probeProtocols(parent, client, p.RequestTimeout, target, func(ctx context.Context, client *http.Client, target string) observation {
+	o = probeProtocols(parent, session, p.RequestTimeout, target, func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
 		current, sample, result = probePlaybackAt(ctx, client, p, id, r, target)
 		return current
@@ -366,7 +370,7 @@ func probeResourceMode(parent context.Context, client *http.Client, p Policy, id
 		visited[s.url] = true
 		var next string
 		offset := time.Since(started)
-		o = probeProtocols(ctx, client, p.RequestTimeout+p.ResourceTimeout, s.url, func(ctx context.Context, client *http.Client, target string) observation {
+		o = probeProtocols(ctx, upstreamrequest.NewSession([]*http.Client{client}), p.RequestTimeout+p.ResourceTimeout, s.url, func(ctx context.Context, client *http.Client, target string) observation {
 			current := s
 			current.url = target
 			var result observation

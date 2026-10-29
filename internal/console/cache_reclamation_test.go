@@ -13,18 +13,18 @@ func TestCacheReclamationSettingsPersistWithoutChangingRuntime(t *testing.T) {
 	for _, policy := range []string{"on", "off", "auto"} {
 		for _, mode := range []string{"none", "limited", "unlimited"} {
 			next := c.settings
-			next.AggressiveCacheReclamation = policy
-			next.VideoStorageMode, next.MaxCacheBytes = mode, 5<<30
+			next.AggressiveBlockReclamation = policy
+			next.VideoStorageMode, next.VideoBudgetBytes = mode, 5<<30
 			data, _ := json.Marshal(next)
 			r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", bytes.NewReader(data))
 			r.Header.Set("X-SWD-Token", c.token)
 			w := httptest.NewRecorder()
 			c.ServeHTTP(w, r)
-			if w.Code != 200 || c.savedSettings != next || c.settings.AggressiveCacheReclamation != "auto" {
+			if w.Code != 200 || c.savedSettings != next || c.settings.AggressiveBlockReclamation != "auto" {
 				t.Fatalf("save %s/%s: %d %s", policy, mode, w.Code, w.Body.String())
 			}
 			_, fields, err := readConfigFile(c.configPath)
-			if err != nil || string(fields["aggressiveCacheReclamation"]) != `"`+policy+`"` {
+			if err != nil || string(fields["aggressiveBlockReclamation"]) != `"`+policy+`"` {
 				t.Fatal("strategy was not stored explicitly", fields, err)
 			}
 			loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -48,7 +48,7 @@ func TestCacheReclamationRejectsInvalidSettings(t *testing.T) {
 	}
 	for _, policy := range []string{"", "true", "false", "unknown"} {
 		next := c.settings
-		next.AggressiveCacheReclamation = policy
+		next.AggressiveBlockReclamation = policy
 		if err := c.save(next); err == nil {
 			t.Fatalf("accepted policy %q", policy)
 		}

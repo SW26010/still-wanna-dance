@@ -13,8 +13,8 @@ test('removed page aliases use the unknown-route default',async({page})=>{
 test('settings anchors focus after initial reads and within the same page',async({page})=>{
   await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeFocused();
-  await page.evaluate(()=>{location.hash='maxCacheGiB';});
-  await expect(page.locator('#maxCacheGiB')).toBeFocused();
+  await page.evaluate(()=>{location.hash='videoBudgetGiB';});
+  await expect(page.locator('#videoBudgetGiB')).toBeFocused();
   await page.evaluate(()=>{location.hash='recent';});await expect(page.locator('#recent')).toBeFocused();
 });
 

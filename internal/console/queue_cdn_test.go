@@ -9,7 +9,7 @@ import (
 func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
 	c := testConsole(t)
 	c.settings.QueueWithGateway = false
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.start(); err != nil {
@@ -26,7 +26,7 @@ func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
 
 func TestQueueStartsDuringBatch(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	c.batch = Batch{Running: true}
@@ -43,7 +43,7 @@ func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	if err := c.start(); err != nil || !c.queueDesired || c.queue.Running || c.actionErrors["queue"] == "" {
 		t.Fatal("missing failure state")
 	}
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.start(); err != nil {
@@ -56,7 +56,7 @@ func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 
 func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	c.settings.QueueWithGateway = true
@@ -81,7 +81,7 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 	for _, outcome := range []string{"stop", "listener-failure", "activation-rollback"} {
 		t.Run(outcome, func(t *testing.T) {
 			c := testConsole(t)
-			if err := os.MkdirAll(c.settings.LogDir, 0700); err != nil {
+			if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 				t.Fatal(err)
 			}
 			checks := 0

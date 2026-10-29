@@ -55,10 +55,10 @@ func run() (resultErr error) {
 	flag.DurationVar(&cfg.DownloadTimeout, "download-timeout", cfg.DownloadTimeout, "timeout per upstream attempt (headers and body) or local validation/publication phase; excludes retries, scheduling waits and client response transfer")
 	flag.Int64Var(&cfg.MaxFileBytes, "max-file-bytes", cfg.MaxFileBytes, "maximum video size in bytes (s URL parameter)")
 	flag.IntVar(&cfg.MaxLocalValidations, "max-local-validations", cfg.MaxLocalValidations, "maximum concurrent local file validations (does not limit upstream downloads)")
-	flag.Int64Var(&cfg.MaxCacheBytes, "max-cache-bytes", cfg.MaxCacheBytes, "local persistent video storage budget in bytes; 0 disables retention; excludes block cache, temporary files and database")
-	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -max-cache-bytes when true)")
+	flag.Int64Var(&cfg.VideoBudgetBytes, "video-budget-bytes", cfg.VideoBudgetBytes, "local persistent video storage budget in bytes; 0 disables retention; excludes block cache, temporary files and database")
+	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -video-budget-bytes when true)")
 	flag.BoolVar(&cfg.RetainFavorites, "retain-favorites", cfg.RetainFavorites, "allow favorite videos to exceed the storage budget (does not start downloads)")
-	flag.StringVar(&cfg.AggressiveCacheReclamation, "aggressive-cache-reclamation", cfg.AggressiveCacheReclamation, "block cache reclamation: auto (on only with zero video budget), on, off")
+	flag.StringVar(&cfg.AggressiveBlockReclamation, "aggressive-block-reclamation", cfg.AggressiveBlockReclamation, "block cache reclamation: auto (on only with zero video budget), on, off")
 	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 disables retention (summaries are always retained)")
 	flag.BoolVar(&cfg.RequestRetentionUnlimited, "request-retention-unlimited", cfg.RequestRetentionUnlimited, "retain request details indefinitely (mutually exclusive with -request-retention-days when true)")
 	flag.Parse()
@@ -71,14 +71,14 @@ func run() (resultErr error) {
 	limitSet, unlimitedSet := false, false
 	requestDaysSet, requestUnlimitedSet := false, false
 	flag.Visit(func(f *flag.Flag) {
-		limitSet = limitSet || f.Name == "max-cache-bytes"
+		limitSet = limitSet || f.Name == "video-budget-bytes"
 		unlimitedSet = unlimitedSet || f.Name == "cache-unlimited"
 		requestDaysSet = requestDaysSet || f.Name == "request-retention-days"
 		requestUnlimitedSet = requestUnlimitedSet || f.Name == "request-retention-unlimited"
 	})
 	if limitSet {
 		if unlimitedSet && cfg.CacheUnlimited {
-			return fmt.Errorf("-max-cache-bytes cannot be combined with -cache-unlimited=true")
+			return fmt.Errorf("-video-budget-bytes cannot be combined with -cache-unlimited=true")
 		}
 		cfg.CacheUnlimited = false
 	}

@@ -3,13 +3,90 @@ package upstreamstate
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestCalibrationPreparesThroughSlowSecureFailures(t *testing.T) {
+	for _, catalogFallback := range []bool{false, true} {
+		t.Run(map[bool]string{false: "playback_fallback", true: "catalog_and_playback_fallback"}[catalogFallback], func(t *testing.T) {
+			base, _ := calibrationManyVideos(t, 96, func(*http.Request) (*http.Response, error) {
+				t.Error("preparation must not download video bodies")
+				return nil, io.EOF
+			})
+			var paths calibrationCandidates
+			for range 6 {
+				paths = append(paths, upstreamrequest.Candidate{Mode: "direct", Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+					if r.URL.Host != "api.udon.dance" && !strings.HasPrefix(r.URL.Path, "/files/") {
+						return response(http.StatusNotFound, ""), nil
+					}
+					if r.URL.Scheme == "https" && (catalogFallback || r.URL.Path == "/Api/Songs/play") {
+						<-r.Context().Done()
+						return nil, r.Context().Err()
+					}
+					delay := 350 * time.Millisecond
+					if r.URL.Path == "/Api/Songs/list" {
+						delay = 1600 * time.Millisecond
+					}
+					select {
+					case <-time.After(delay):
+					case <-r.Context().Done():
+						return nil, r.Context().Err()
+					}
+					resp, err := base.RoundTrip(r)
+					if resp != nil && r.URL.Path == "/Api/Songs/play" {
+						resp.Header.Set("Location", strings.ReplaceAll(resp.Header.Get("Location"), "s=16777216", "s=33554432"))
+					}
+					if resp != nil && r.URL.Path == "/Api/Songs/list" {
+						resp.Body = &preparationDelayedBody{ReadCloser: resp.Body, ctx: r.Context()}
+					}
+					return resp, err
+				})})
+			}
+			c := calibrationForTest(t, paths)
+			c.limits = NewCalibration(nil).limits
+			synctest.Test(t, func(t *testing.T) {
+				defer c.Close()
+				ctx, cancel := context.WithTimeout(t.Context(), c.limits.prepare)
+				defer cancel()
+				at := time.Now()
+				client, samples, err := c.prepare(ctx, c.channel, c.channel.Snapshot(), "direct")
+				if client != nil {
+					defer client.CloseIdleConnections()
+				}
+				s, _ := c.Snapshot()
+				if err != nil || len(samples) < c.limits.reserveVideos || s.PreparedBytes < c.limits.reserveBytes {
+					t.Fatalf("usable metadata paths exhausted preparation: videos=%d bytes=%d elapsed=%s error=%v", s.PreparedVideos, s.PreparedBytes, time.Since(at), err)
+				}
+			})
+		})
+	}
+}
+
+type preparationDelayedBody struct {
+	io.ReadCloser
+	ctx     context.Context
+	started bool
+}
+
+func (b *preparationDelayedBody) Read(p []byte) (int, error) {
+	if !b.started {
+		b.started = true
+		select {
+		case <-time.After(3400 * time.Millisecond):
+		case <-b.ctx.Done():
+			return 0, b.ctx.Err()
+		}
+	}
+	return b.ReadCloser.Read(p)
+}
 
 func TestCalibrationRejectsInsufficientReserveBeforeDownloading(t *testing.T) {
 	for _, tc := range []struct {

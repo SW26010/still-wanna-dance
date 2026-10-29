@@ -50,13 +50,13 @@ test('settings preserve all three storage choices and the entered budget across 
   await expect(input).toHaveValue('0');
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
   await expect(page.getByRole('button', {name:'重启并应用'})).toBeEnabled();
-  expect(api.state.settings).toMatchObject({videoStorageMode:'none',maxCacheBytes:40*1073741824});
+  expect(api.state.settings).toMatchObject({videoStorageMode:'none',videoBudgetBytes:40*1073741824});
   expect(api.state.activeSettings.videoStorageMode).toBe('unlimited');
   expect(api.calls.find(c=>c.path==='settings')?.body).not.toHaveProperty('cacheUnlimited');
   await page.reload();
   await expect(none).toBeChecked();
   await expect(input).toHaveValue('0');
-  await page.locator('#maxCacheGiB').screenshot({path:info.outputPath('settings-none.png'),animations:'disabled'});
+  await page.locator('#videoBudgetGiB').screenshot({path:info.outputPath('settings-none.png'),animations:'disabled'});
   await limited.check();
   await expect(input).toHaveValue('40');
   await input.fill('');
@@ -76,7 +76,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
   await saveSettings(page,'待重启');
-  expect(api.state.settings).toMatchObject({videoStorageMode:'limited',maxCacheBytes:12.5*1073741824});
+  expect(api.state.settings).toMatchObject({videoStorageMode:'limited',videoBudgetBytes:12.5*1073741824});
   await page.reload();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
@@ -86,7 +86,7 @@ test('settings preserve all three storage choices and the entered budget across 
   await expect(input).toHaveValue('12.5');
   await unlimited.check();
   await saveSettings(page,'待重启');
-  expect(api.state.settings).toMatchObject({videoStorageMode:'unlimited',maxCacheBytes:12.5*1073741824});
+  expect(api.state.settings).toMatchObject({videoStorageMode:'unlimited',videoBudgetBytes:12.5*1073741824});
   await page.reload();
   await expect(unlimited).toBeChecked();
 });
@@ -104,7 +104,7 @@ test('no retention overrides the remembered budget while favorites can still be 
     const notice=page.locator('#'+id+' .fui-MessageBar');
     await expect(notice).toContainText('当前存储预算为“不保留”');
     await expect(notice).toContainText('收藏视频仍可保留');
-    await expect(notice.getByRole('link',{name:'存储设置',exact:true})).toHaveAttribute('href','#maxCacheGiB');
+    await expect(notice.getByRole('link',{name:'存储设置',exact:true})).toHaveAttribute('href','#videoBudgetGiB');
   }
   await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频块需求',exact:true})).toBeVisible();
 });
@@ -120,7 +120,7 @@ for(const width of [390,1280])test(`empty storage keeps actions and settings lin
     await expect(notice).not.toContainText('收藏视频仍可保留');
     await panel.scrollIntoViewIfNeeded();await page.screenshot({path:`../artifacts/library-storage-notice/${id}-${width}.png`,animations:'disabled'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await notice.getByRole('link',{name:'存储设置',exact:true}).click();await expect(page.locator('#maxCacheGiB')).toBeFocused();
+    await notice.getByRole('link',{name:'存储设置',exact:true}).click();await expect(page.locator('#videoBudgetGiB')).toBeFocused();
     await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
     await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeInViewport();
     await navigate(page,'曲库');
@@ -147,5 +147,5 @@ test('settings reject invalid budgets and inactive choices recover from an inval
   await input.fill('-1');
   await page.getByRole('radio',{name:'不保留',exact:true}).check();
   await saveSettings(page,'待重启');
-  expect(api.state.settings).toMatchObject({videoStorageMode:'none',maxCacheBytes:0});
+  expect(api.state.settings).toMatchObject({videoStorageMode:'none',videoBudgetBytes:0});
 });

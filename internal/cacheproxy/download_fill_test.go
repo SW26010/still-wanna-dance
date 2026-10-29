@@ -46,7 +46,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 		}
 		fmt.Fprint(w, payload)
 	}, func(cfg *Config) {
-		cfg.CacheUnlimited, cfg.MaxCacheBytes = false, int64(len(payload))
+		cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, int64(len(payload))
 	})
 	// The current aliases rank this resource first. Retry must preserve this
 	// resource's budget after the first candidate was admitted and then failed.

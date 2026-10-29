@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,7 +19,6 @@ import (
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
-	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/branding"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
@@ -32,41 +30,6 @@ import (
 
 //go:embed assets/storage-benefit.svg
 var assets embed.FS
-
-type Settings struct {
-	nodeSnapshot                string
-	nodeSecret                  string
-	nodeSecretError             string
-	nodeImportID                string // transient request only; cleared before publish
-	proxySecret                 string
-	proxySecretError            string
-	ThroughputIntervalMinutes   int    `json:"throughputIntervalMinutes"`
-	QueueWithGateway            bool   `json:"queueWithGateway"`
-	RequestRetentionDays        int    `json:"requestRetentionDays"`
-	RequestRetentionMode        string `json:"requestRetentionMode"`
-	AutoAccelerate              bool   `json:"autoAccelerate"`
-	AutoOpenWebUI               bool   `json:"autoOpenWebUI"`
-	Theme                       string `json:"theme"`
-	LogLevel                    string `json:"logLevel"`
-	RestoreHostsOnExit          bool   `json:"restoreHostsOnExit"`
-	PrepareAheadSeconds         int    `json:"prepareAheadSeconds"`
-	DownloadSoftLimit           int    `json:"downloadSoftLimit"`
-	DownloadGrowIntervalMS      int    `json:"downloadGrowIntervalMS"`
-	LocalProtectionGraceSeconds int    `json:"localProtectionGraceSeconds"`
-	UpstreamMode                string `json:"upstreamMode"`
-	ProxyBackend                string `json:"proxyBackend"`
-	SOCKS5Address               string `json:"socks5Address"`
-	SOCKS5Username              string `json:"socks5Username"`
-	SOCKS5Password              string `json:"socks5Password,omitempty"`
-	MaxCacheBytes               int64  `json:"maxCacheBytes"`
-	VideoStorageMode            string `json:"videoStorageMode"`
-	RetainFavorites             bool   `json:"retainFavorites"`
-	AggressiveCacheReclamation  string `json:"aggressiveCacheReclamation"`
-	DatabasePath                string `json:"databasePath"`
-	VideoDir                    string `json:"videoDir"`
-	LogDir                      string `json:"logDir"`
-	ManualLogDir                bool   `json:"manualLogDir"`
-}
 
 type Console struct {
 	store                  *cacheproxy.Store
@@ -182,34 +145,16 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
-	c.settings = Settings{
-		RequestRetentionMode: "unlimited",
-		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnExit: true,
-		VideoStorageMode: "none", MaxCacheBytes: 0, RetainFavorites: true,
-		AggressiveCacheReclamation: "auto",
-		DownloadSoftLimit:          cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
-		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
-	}
 	c.lifecycle = newApplicationLifecycle()
 	c.dns = dns
-	data, fields, err := readConfigFile(configPath)
+	loaded, err := loadConfigFile(configPath)
 	if err != nil {
 		return nil, err
 	}
-	c.videoImportSuggestion = data == nil
-	if data != nil {
-		if err := json.Unmarshal(data, &c.settings); err != nil {
-			return nil, fmt.Errorf("读取程序配置：%w", err)
-		}
-		loadProxySecret(fields, &c.settings)
-		loadProxyNodes(fields, &c.settings)
-		if raw := fields["vrcxImportDismissed"]; raw != nil {
-			if err := json.Unmarshal(raw, &c.vrcxImportDismissed); err != nil {
-				return nil, fmt.Errorf("读取程序配置 vrcxImportDismissed：%w", err)
-			}
-		}
-	}
-	c.settings, err = c.resolveSettings(c.settings)
+	c.videoImportSuggestion = !loaded.Exists
+	c.vrcxImportDismissed = loaded.VRCXImportDismissed
+	c.settings = loaded.Settings
+	err = c.validateResourcePaths(c.settings)
 	c.savedSettings = c.settings
 	c.loadedNodeCount = len(nodeDocument(c.settings.nodeSnapshot).Nodes)
 	c.savedNodeCount = c.loadedNodeCount
@@ -226,8 +171,8 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		} else {
 			c.store, c.storeOpenError = cacheproxy.OpenStore(libraryPaths(c.settings).DatabasePath)
 		}
-		if data == nil || unconfigured && c.store != nil {
-			err = c.writeConfigFile(c.settings)
+		if !loaded.Exists || unconfigured && c.store != nil {
+			err = saveConfigSettings(c.configPath, c.settings)
 		}
 		c.savedSettings = c.settings
 	}
@@ -246,210 +191,6 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		c.dns.Close()
 	}
 	return c, err
-}
-
-// Relative paths belong to the configuration, independent of the launch directory.
-func (c *Console) resolveSettings(s Settings) (Settings, error) {
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
-		*p = strings.TrimSpace(*p)
-		if *p != "" && !filepath.IsAbs(*p) {
-			*p = filepath.Join(filepath.Dir(c.configPath), *p)
-		}
-	}
-	s, err := absoluteSettings(s)
-	if err == nil {
-		err = c.validateResourcePaths(s)
-	}
-	return s, err
-}
-
-// Keep directories inside the portable folder movable; external stores stay absolute.
-func (c *Console) storedSettings(s Settings) Settings {
-	if !s.ManualLogDir {
-		s.LogDir = ""
-	}
-	base := filepath.Dir(c.configPath)
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.LogDir} {
-		if pathContains(base, *p) {
-			if rel, err := filepath.Rel(base, *p); err == nil {
-				*p = rel
-			}
-		}
-	}
-	return s
-}
-
-func absoluteSettings(s Settings) (Settings, error) {
-	level, err := applog.ParseLevel(s.LogLevel)
-	if err != nil {
-		return s, err
-	}
-	s.LogLevel = level.String()
-	if s.Theme == "" {
-		s.Theme = "system"
-	}
-	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
-		return s, errors.New("主题必须为 system、light 或 dark")
-	}
-	if s.ThroughputIntervalMinutes == 0 {
-		s.ThroughputIntervalMinutes = 20
-	}
-	if s.ThroughputIntervalMinutes < 1 || s.ThroughputIntervalMinutes > 1440 {
-		return s, errors.New("自动吞吐检测间隔必须为 1～1440 分钟")
-	}
-	if s.UpstreamMode == "" {
-		s.UpstreamMode = "direct"
-	}
-	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" && s.UpstreamMode != "auto" {
-		return s, errors.New("上游连接必须是 direct、proxy 或 auto")
-	}
-	if s.ProxyBackend == "" {
-		s.ProxyBackend = "external-socks5"
-	}
-	if s.ProxyBackend != "external-socks5" && s.ProxyBackend != "mihomo" {
-		return s, errors.New("代理后端必须是 external-socks5 或 mihomo")
-	}
-	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
-	if s.UpstreamMode != "direct" && s.ProxyBackend == "external-socks5" {
-		if err := upstreamnet.ValidateSOCKS5Address(s.SOCKS5Address); err != nil {
-			return s, err
-		}
-		if err := upstreamnet.ValidateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
-			return s, err
-		}
-	}
-	if s.PrepareAheadSeconds == 0 {
-		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
-	}
-	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
-		return s, errors.New("提前准备时间 M 必须为 100～16000 秒")
-	}
-	if s.DownloadSoftLimit < 1 || s.DownloadSoftLimit > cacheproxy.MaxDownloadSoftLimit {
-		return s, errors.New("下载并发上限（软）必须为 1～64")
-	}
-	if s.DownloadGrowIntervalMS < 0 || s.DownloadGrowIntervalMS > int(cacheproxy.MaxDownloadGrowInterval/time.Millisecond) {
-		return s, errors.New("并发增长间隔必须为 0～2000 毫秒")
-	}
-	if s.LocalProtectionGraceSeconds < 0 || s.LocalProtectionGraceSeconds > int(cacheproxy.MaxLocalProtectionGrace/time.Second) {
-		return s, errors.New("本地延续保护时长必须为 0～10000 秒")
-	}
-	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
-		return s, errors.New("请求明细保留天数必须为 0～36500")
-	}
-	if s.RequestRetentionMode != "none" && s.RequestRetentionMode != "limited" && s.RequestRetentionMode != "unlimited" {
-		return s, errors.New("请求明细保留选项必须为 none、limited 或 unlimited")
-	}
-	if s.RequestRetentionMode == "limited" && s.RequestRetentionDays == 0 {
-		return s, errors.New("选择「保留指定天数」时，请求明细保留天数必须大于 0")
-	}
-	if s.MaxCacheBytes < 0 {
-		return s, errors.New("视频存储预算不能为负数")
-	}
-	if s.VideoStorageMode != "none" && s.VideoStorageMode != "limited" && s.VideoStorageMode != "unlimited" {
-		return s, errors.New("视频保留选项必须为 none、limited 或 unlimited")
-	}
-	if s.VideoStorageMode == "limited" && s.MaxCacheBytes == 0 {
-		return s, errors.New("选择「限制为」时，视频存储预算必须大于 0")
-	}
-	if s.AggressiveCacheReclamation != "auto" && s.AggressiveCacheReclamation != "on" && s.AggressiveCacheReclamation != "off" {
-		return s, errors.New("激进的缓存回收策略必须为 auto、on 或 off")
-	}
-	if !s.ManualLogDir {
-		s.LogDir = defaultLogDir()
-	} else if strings.TrimSpace(s.LogDir) == "" {
-		return s, errors.New("请填写手动指定的 VRChat 日志目录")
-	}
-	var logErr error
-	s.LogDir, logErr = filepath.Abs(s.LogDir)
-	if logErr != nil {
-		return s, logErr
-	}
-	for _, path := range []*string{&s.DatabasePath, &s.VideoDir} {
-		*path = strings.TrimSpace(*path)
-		if *path != "" {
-			var err error
-			*path, err = filepath.Abs(*path)
-			if err != nil {
-				return s, err
-			}
-		}
-	}
-	return s, nil
-}
-
-func pathContains(parent, child string) bool {
-	rel, err := filepath.Rel(parent, child)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
-}
-
-func (c *Console) save(s Settings) error {
-	return c.saveSettings(s, false, false)
-}
-
-// An omitted password in the settings API preserves the stored secret. Merge
-// under the lifecycle lock so concurrent saves cannot restore stale secrets.
-func (c *Console) saveSettings(s Settings, preservePassword, confirmVideoPolicy bool) error {
-	c.lifecycleMu.Lock()
-	defer c.lifecycleMu.Unlock()
-	return c.saveSettingsLocked(s, preservePassword, confirmVideoPolicy)
-}
-
-func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoPolicy bool) error {
-	c.mu.Lock()
-	if c.closing {
-		c.mu.Unlock()
-		return errors.New("程序正在退出")
-	}
-	oldSettings := c.savedSettings
-	c.mu.Unlock()
-	// Ordinary forms omit the independently saved theme, so a stale form cannot
-	// overwrite a newer appearance choice from another page or browser.
-	if s.Theme == "" {
-		s.Theme = oldSettings.Theme
-	}
-	if preservePassword {
-		s.SOCKS5Password = oldSettings.SOCKS5Password
-		s.proxySecret = oldSettings.proxySecret
-		s.proxySecretError = oldSettings.proxySecretError
-	} else {
-		s.proxySecret = ""
-		s.proxySecretError = ""
-	}
-	var err error
-	s, err = c.mergeProxyNodes(s, oldSettings)
-	if err != nil {
-		return err
-	}
-	importID := s.nodeImportID
-	s.nodeImportID = ""
-	s, err = c.resolveSettings(s)
-	if err != nil {
-		return err
-	}
-	if err = validateProxyNodeSelection(s); err != nil {
-		return err
-	}
-	if err := c.prepareLibrarySelection(s, oldSettings, confirmVideoPolicy); err != nil {
-		return err
-	}
-	if s.RestoreHostsOnExit && !oldSettings.RestoreHostsOnExit {
-		if err = c.hosts.prepareRestore(); err != nil {
-			return fmt.Errorf("未保存设置：无法准备退出时恢复游戏直连的权限：%w", err)
-		}
-	}
-	if err = c.writeConfigFile(s); err != nil {
-		return err
-	}
-	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)
-	c.mu.Lock()
-	c.savedSettings = s
-	c.settings.RestoreHostsOnExit = s.RestoreHostsOnExit
-	c.settings.Theme = s.Theme
-	c.savedNodeCount = nodeCount
-	delete(c.proxyImports, importID)
-	c.mu.Unlock()
-	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.LogDir)
-	return nil
 }
 
 // AutoStart attempts acceleration once per process, after valid terms acceptance.
@@ -659,7 +400,7 @@ func (c *Console) Close() error {
 	cancel()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
-	restore := c.settings.RestoreHostsOnExit
+	restore := c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	hostsErr := c.hosts.close(restore)
 	c.lifecycleMu.Unlock()
@@ -1021,22 +762,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			err = c.saveTheme(input.Theme)
 		}
 	case "/api/settings":
-		var input struct {
-			Settings
-			ProxyImportID      string  `json:"proxyImportID"`
-			ConfirmVideoPolicy bool    `json:"confirmVideoPolicy"`
-			Password           *string `json:"socks5Password"`
-		}
-		input.DownloadSoftLimit = cacheproxy.VideoRequestSoftLimit
-		input.RestoreHostsOnExit = true
-		input.RetainFavorites = true
-		input.DownloadGrowIntervalMS = int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond)
-		input.LocalProtectionGraceSeconds = int(cacheproxy.DefaultLocalProtectionGrace / time.Second)
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			if input.Password != nil {
-				input.Settings.SOCKS5Password = *input.Password
-			}
-			input.Settings.nodeImportID = input.ProxyImportID
+		var input settingsRequest
+		if input, err = decodeSettingsRequest(r.Body); err == nil {
 			err = c.saveSettings(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
 		}
 	case "/api/batch/start":

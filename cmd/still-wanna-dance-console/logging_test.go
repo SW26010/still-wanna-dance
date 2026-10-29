@@ -42,7 +42,7 @@ func TestApplicationCleansBlocksBeforeStartupFailure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			contents := `{"schemaVersion":7,"logLevel":"info"}`
+			contents := `{"schemaVersion":8,"logLevel":"info"}`
 			if failure == "invalid_config" {
 				contents = `{`
 			}
@@ -107,7 +107,7 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 	for _, level := range []string{"info", "warn", "error", "debug", "off", "invalid"} {
 		t.Run(level, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "config.json")
-			if err := os.WriteFile(config, []byte(`{"schemaVersion":7,"logLevel":"`+level+`"}`), 0600); err != nil {
+			if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"logLevel":"`+level+`"}`), 0600); err != nil {
 				t.Fatal(err)
 			}
 			workPath := startupWorkForTest(t, config)
@@ -159,7 +159,7 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				}
 				// A blocked log directory must not stop a subsequent Off startup.
 				other := filepath.Join(t.TempDir(), "config.json")
-				if err := os.WriteFile(other, []byte(`{"schemaVersion":7,"logLevel":"off"}`), 0600); err != nil {
+				if err := os.WriteFile(other, []byte(`{"schemaVersion":8,"logLevel":"off"}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				blocked := filepath.Dir(apppaths.ForConfig(other).Log)

@@ -24,7 +24,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 
 func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 	t.Helper()
-	s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, AggressiveCacheReclamation: "auto", LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
+	s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, AggressiveBlockReclamation: "auto", LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
 	t.Cleanup(s.scheduler.Close)
 	t.Cleanup(func() {
 		s.mu.Lock()

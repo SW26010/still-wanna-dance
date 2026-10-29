@@ -14,8 +14,66 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
+
+// A successful fallback needs time for the complete response, not merely a
+// final request slot after every secure path has consumed the shared deadline.
+func TestFetchCompletesFallbackAfterSecureTimeout(t *testing.T) {
+	for _, count := range []int{1, 6} {
+		t.Run(fmt.Sprintf("candidates_%d", count), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var calls []string
+				var clients []*http.Client
+				for i := range count {
+					clients = append(clients, &http.Client{Transport: attemptTransport(func(r *http.Request) (*http.Response, error) {
+						calls = append(calls, fmt.Sprintf("%s/%d", r.URL.Scheme, i))
+						if r.URL.Scheme == "https" {
+							<-r.Context().Done()
+							return nil, r.Context().Err()
+						}
+						select {
+						case <-time.After(time.Second):
+						case <-r.Context().Done():
+							return nil, r.Context().Err()
+						}
+						return &http.Response{StatusCode: 200, Header: make(http.Header), Body: &delayedAttemptBody{ctx: r.Context(), delay: 3 * time.Second}, Request: r}, nil
+					})})
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
+				value, err := Fetch(ctx, "https://example.com/list", clients, 10*time.Second, readAttempt)
+				if err != nil || value != "valid" {
+					t.Fatalf("usable fallback could not finish: calls=%v value=%q error=%v", calls, value, err)
+				}
+				if !slices.Equal(calls, []string{"https/0", "http/0"}) {
+					t.Fatalf("did not finish the preferred candidate: %v", calls)
+				}
+			})
+		})
+	}
+}
+
+type delayedAttemptBody struct {
+	ctx   context.Context
+	delay time.Duration
+	read  bool
+}
+
+func (b *delayedAttemptBody) Read(p []byte) (int, error) {
+	if b.read {
+		return 0, io.EOF
+	}
+	select {
+	case <-time.After(b.delay):
+		b.read = true
+		return copy(p, "valid"), nil
+	case <-b.ctx.Done():
+		return 0, b.ctx.Err()
+	}
+}
+func (b *delayedAttemptBody) Close() error { return nil }
 
 func readAttempt(ctx context.Context, client *http.Client, target string) (string, error) {
 	r, _ := http.NewRequestWithContext(ctx, "GET", target, nil)
@@ -121,10 +179,10 @@ func TestFetchKeepsCandidateOrderAndSharedBudget(t *testing.T) {
 		}
 		_, err := Fetch(context.Background(), "https://example.com/list", clients, time.Second, readAttempt)
 		if winner == 1 {
-			if err != nil || !slices.Equal(calls, []string{"https/0", "https/1"}) {
+			if err != nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/1"}) {
 				t.Fatal(calls, err)
 			}
-		} else if err == nil || !slices.Equal(calls, []string{"https/0", "https/1", "https/2", "https/3", "https/4", "http/0"}) {
+		} else if err == nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/1", "http/1", "https/2", "http/2"}) {
 			t.Fatal(calls, err)
 		}
 	}
@@ -190,7 +248,7 @@ func TestUpgradeConsumesAttemptBudgetAndStopsPlaintextLoop(t *testing.T) {
 		})})
 	}
 	_, err := Fetch(context.Background(), "https://example.com/list", clients, time.Second, readAttempt)
-	if err == nil || !slices.Equal(calls, []string{"https/0", "https/1", "https/2", "http/0", "https/0"}) {
+	if err == nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/0", "https/1", "https/2"}) {
 		t.Fatal(calls, err)
 	}
 }

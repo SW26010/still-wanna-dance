@@ -227,9 +227,9 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 		c := testConsole(t)
 		h, launches := fixtureHostsController(t, hostsBaseline)
 		c.hosts = h
-		c.settings.RestoreHostsOnExit = restore
+		c.settings.RestoreHostsOnStopOrExit = restore
 		// An unsaved synthetic snapshot must not change the committed active policy.
-		c.savedSettings.RestoreHostsOnExit = !restore
+		c.savedSettings.RestoreHostsOnStopOrExit = !restore
 		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
@@ -243,9 +243,9 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 }
 
 func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
-	for _, field := range []string{"", `,"restoreHostsOnExit":null`, `,"restoreHostsOnExit":true`, `,"restoreHostsOnExit":false`} {
+	for _, field := range []string{"", `,"restoreHostsOnStopOrExit":null`, `,"restoreHostsOnStopOrExit":true`, `,"restoreHostsOnStopOrExit":false`} {
 		config := filepath.Join(t.TempDir(), "settings.json")
-		if err := os.WriteFile(config, []byte(`{"schemaVersion":7`+field+`}`), 0600); err != nil {
+		if err := os.WriteFile(config, []byte(`{"schemaVersion":8`+field+`}`), 0600); err != nil {
 			t.Fatal(err)
 		}
 		c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:18081")
@@ -254,15 +254,15 @@ func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 		}
 		c.hosts, _ = fixtureHostsController(t, hostsBaseline)
 		want := !strings.Contains(field, "false")
-		if c.settings.RestoreHostsOnExit != want {
+		if c.settings.RestoreHostsOnStopOrExit != want {
 			t.Fatal("wrong default", field)
 		}
 		next := c.savedSettings
-		next.RestoreHostsOnExit = !want
+		next.RestoreHostsOnStopOrExit = !want
 		if err := c.save(next); err != nil {
 			t.Fatal(err)
 		}
-		if c.settings.RestoreHostsOnExit == want {
+		if c.settings.RestoreHostsOnStopOrExit == want {
 			t.Fatal("save did not change live exit policy")
 		}
 		if err := c.Close(); err != nil {
@@ -272,7 +272,7 @@ func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.settings.RestoreHostsOnExit == want {
+		if c.settings.RestoreHostsOnStopOrExit == want {
 			t.Fatal("saved policy was not loaded")
 		}
 		c.Close()
@@ -285,17 +285,17 @@ func TestRestoreHostsSettingsAPIDefaultAndExplicitFalse(t *testing.T) {
 		data, _ := json.Marshal(c.settings)
 		var input map[string]any
 		json.Unmarshal(data, &input)
-		delete(input, "restoreHostsOnExit")
+		delete(input, "restoreHostsOnStopOrExit")
 		if include {
-			input["restoreHostsOnExit"] = false
+			input["restoreHostsOnStopOrExit"] = false
 		}
 		data, _ = json.Marshal(input)
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(string(data)))
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
-		if w.Code != 200 || c.savedSettings.RestoreHostsOnExit == include || c.settings.RestoreHostsOnExit == include {
-			t.Fatal(w.Code, w.Body.String(), c.savedSettings.RestoreHostsOnExit)
+		if w.Code != 200 || c.savedSettings.RestoreHostsOnStopOrExit == include || c.settings.RestoreHostsOnStopOrExit == include {
+			t.Fatal(w.Code, w.Body.String(), c.savedSettings.RestoreHostsOnStopOrExit)
 		}
 	}
 }
@@ -337,7 +337,7 @@ func TestAccelerationReusesExistingConnectionWithoutPreparingRestore(t *testing.
 		owned, _ := transformHosts(hostsBaseline, "enable")
 		h, launches := fixtureHostsController(t, owned)
 		c.hosts = h
-		c.settings.RestoreHostsOnExit = restore
+		c.settings.RestoreHostsOnStopOrExit = restore
 		c.settings.AutoAccelerate = true
 		c.settings.QueueWithGateway = false
 		c.savedSettings = c.settings

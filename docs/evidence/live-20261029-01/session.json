@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261029-01",
+  "build": {
+    "kind": "development",
+    "version": "dev-live-20261029-01",
+    "revision": "fc9f4c3e524f1e83e95ed558a7c5817ef04a3590",
+    "dirty": true,
+    "builtAtUtc": "2026-10-29T11:00:32.186Z",
+    "toolchain": "go1.27.3",
+    "target": "windows/amd64"
+  },
+  "exeSHA256": "1316c38c322787fb8a5af35be142d325bfe40fd5b7ff930accda6b92ba13abff",
+  "sourcePatchSHA256": "2d0aef73c1d056d4df23e09700a291da5dd27444af1c6e32a11ad2bf6f210875",
+  "sourcePatchIncludes": [
+    "two hosts-session Go files",
+    "four prior Windows validation documents"
+  ],
+  "windows": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26300",
+    "BuildNumber": "26300"
+  },
+  "vrchatBuild": "2026.4.1-1936-1e4e8bc3ce-Release",
+  "world": "WannaDance; exact world build not captured",
+  "role": "operator-controlled preview",
+  "publishedFiles": [
+    {
+      "round": "A",
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "size": 52379700,
+      "md5": "53d94ec04f90f47b81113b85785a0e77",
+      "matchesName": true
+    },
+    {
+      "round": "B",
+      "resource": "28711962048bed664c98f27e1d9d5842",
+      "size": 32867177,
+      "md5": "28711962048bed664c98f27e1d9d5842",
+      "matchesName": true
+    },
+    {
+      "round": "B",
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "size": 40548476,
+      "md5": "8f26d29704140a431dea0c1374f2eeba",
+      "matchesName": true
+    }
+  ],
+  "cancellations": [
+    "B foreground completed its final 47,775,796-byte Range response, then the remaining full-file task lost active demand; no complete published foreground file.",
+    "Third background target 8771 canceled at the predeclared 75-second overall deadline; not counted as a download success."
+  ],
+  "setupIssues": [
+    "Invalid test-only storage enum budget corrected to limited before playback.",
+    "Missing test database initialized through product API; startup-fixed store required restart.",
+    "Missing empty video directory created. A failed activation rollback briefly reported hosts in use; next activation succeeded.",
+    "Initial invalid-config error-dialog process was explicitly stopped at cleanup.",
+    "Continuous status, block SSE and game capture retained. The app-tail copy stayed empty; complete unrotated product logs were preserved separately and used for analysis."
+  ],
+  "cleanup": {
+    "hostsByteIdentical": true,
+    "noSWDProcesses": true,
+    "noListeners80_443_19089": true,
+    "noCaptureProcesses": true,
+    "gameProcessLeftRunning": true,
+    "initialErrorDialogClosed": true
+  },
+  "privateRawLocation": "artifacts/acceptance-evidence/LIVE-20261029-01/",
+  "rawRetention": "Ignored local evidence retained; no private game/hosts contents exported."
+}

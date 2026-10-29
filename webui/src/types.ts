@@ -79,6 +79,6 @@ export const accelerationLabel = (s: Status) => s.running && s.hosts.ready ? '�
 export function exitConnectionMessage(s?: Status): string {
   if (!s) return '退出按当前设置处理游戏连接，不再请求管理员权限。';
   if (!s.activeSettings.restoreHostsOnExit) return '退出后保留游戏接入。下次玩游戏前请启动 SWD，不再使用时，请先保存「停止加速或退出时恢复游戏直连」为开启，再退出。';
-  if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '已有游戏接入尚未准备自动恢复，请先在接入诊断中修复游戏连接；直接退出会保留接入。';
+  if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '尚未取得恢复权限，可在游戏连接状态中点击「修复」；直接退出会保留接入。';
   return '退出时自动恢复本程序的游戏接入，不再请求管理员权限。';
 }

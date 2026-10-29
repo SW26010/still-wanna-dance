@@ -110,17 +110,30 @@ func elevateHostsHelper(ctx context.Context, pipe string) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	// Pipe names contain only a fixed prefix and a generated hexadecimal nonce.
-	// Windows PowerShell otherwise emits localized errors in the active code page.
-	// Return only the exception message, not its source excerpt and command stack.
-	script := "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ErrorActionPreference = 'Stop'; try { $p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") +
-		"' -ArgumentList '-hosts-session', '" + pipe + "', '-hosts-parent', '" + strconv.Itoa(os.Getpid()) +
-		"' -Verb RunAs -WindowStyle Hidden -PassThru; $p.Id } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
+	script := hostsElevationScript(exe, pipe, os.Getpid())
 	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.CombinedOutput()
+	return hostsElevationResult(out, err)
+}
+
+func hostsElevationScript(exe, pipe string, parent int) string {
+	// Pipe names contain only a fixed prefix and a generated hexadecimal nonce.
+	// Preserve only the native cancellation code; all other localized failures
+	// retain their message and must remain visible to the user.
+	return "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ErrorActionPreference = 'Stop'; try { $p = Start-Process -FilePath '" + strings.ReplaceAll(exe, "'", "''") +
+		"' -ArgumentList '-hosts-session', '" + pipe + "', '-hosts-parent', '" + strconv.Itoa(parent) +
+		"' -Verb RunAs -WindowStyle Hidden -PassThru; $p.Id } catch { $e = $_.Exception; while ($null -ne $e) { if ($e -is [System.ComponentModel.Win32Exception] -and $e.NativeErrorCode -eq " + strconv.Itoa(int(windows.ERROR_CANCELLED)) +
+		") { exit " + strconv.Itoa(int(windows.ERROR_CANCELLED)) + " }; $e = $e.InnerException }; [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
+}
+
+func hostsElevationResult(out []byte, err error) (uint32, error) {
 	if err != nil {
-		return 0, fmt.Errorf("hosts 授权未完成（可能取消了 UAC）：%s %w", strings.TrimSpace(string(out)), err)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == int(windows.ERROR_CANCELLED) {
+			return 0, errHostsAuthorizationCanceled
+		}
+		return 0, fmt.Errorf("hosts 授权未完成：%s %w", strings.TrimSpace(string(out)), err)
 	}
 	pid, err := strconv.ParseUint(strings.TrimSpace(string(out)), 10, 32)
 	if err != nil || pid == 0 {

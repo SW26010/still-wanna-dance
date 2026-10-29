@@ -56,9 +56,10 @@ export function RecordDetails({title,children}:PropsWithChildren<{title:string}>
   return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
-export function StatusBadge({label,color,children,description}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string}>) {
+export function StatusBadge({label,color,children,description,action}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string;action?:{label:string;onClick:()=>void;disabled?:boolean}}>) {
   const Icon=statusIcons[color];
   const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true" tabIndex={description?0:undefined}>{label&&<>{label}：</>}{children}</Badge>;
+  if(action)return <Popover openOnHover size="small" positioning={{strategy:'fixed',overflowBoundaryPadding:16}}><PopoverTrigger>{badge}</PopoverTrigger><PopoverSurface aria-label={`${label}说明`}><span>{description} </span><Link as="button" disabled={action.disabled} disabledFocusable={action.disabled} onClick={action.onClick}>{action.label}</Link></PopoverSurface></Popover>;
   return description?<Tooltip content={description} relationship="description">{badge}</Tooltip>:badge;
 }
 export function TableRegion({children,label}:PropsWithChildren<{label:string}>) {

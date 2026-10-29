@@ -2,14 +2,45 @@ package console
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
 	winio "github.com/tailscale/go-winio"
 )
+
+func TestHostsElevationClassifiesOnlyNativeCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		name, launch     string
+		canceled, failed bool
+	}{
+		{"success", "[pscustomobject]@{Id=42}", false, false},
+		{"canceled", "throw [System.ComponentModel.Win32Exception]::new(1223, 'fixture canceled')", true, true},
+		{"wrapped cancellation", "throw [System.InvalidOperationException]::new('fixture wrapper', [System.ComponentModel.Win32Exception]::new(1223, 'fixture canceled'))", true, true},
+		{"access denied", "throw [System.ComponentModel.Win32Exception]::new(5, 'fixture denied')", false, true},
+		{"ambiguous message", "throw '可能取消了 UAC'", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Replace Start-Process inside PowerShell: execute the real error
+			// classifier, but never launch an elevated process or a UAC prompt.
+			script := "function Start-Process { " + tc.launch + " }; " + hostsElevationScript("fixture.exe", hostsPipePrefix+"01234567890123456789012345678901", os.Getpid())
+			cmd := exec.CommandContext(t.Context(), "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			out, processErr := cmd.CombinedOutput()
+			pid, err := hostsElevationResult(out, processErr)
+			if (err != nil) != tc.failed || errors.Is(err, errHostsAuthorizationCanceled) != tc.canceled || !tc.failed && pid != 42 {
+				t.Fatalf("pid=%d err=%v output=%q", pid, err, out)
+			}
+		})
+	}
+	if _, err := hostsElevationResult(nil, context.Canceled); errors.Is(err, errHostsAuthorizationCanceled) {
+		t.Fatal("application shutdown mistaken for UAC cancellation")
+	}
+}
 
 func TestHostsSessionChildProcess(t *testing.T) {
 	pipe := os.Getenv("SWD_TEST_HOSTS_PIPE")

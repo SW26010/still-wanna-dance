@@ -74,3 +74,27 @@
 - `go test -tags=no_easytier ./cmd/... ./internal/...` 产品包回归通过，包含真实子进程／命名管道检查；相关包 `go vet`、Linux 交叉构建通过。Windows 命令均经 `scripts/with-test-temp.ps1`；完整日志分别为同目录 `go-tests.log`、`go-vet.log`、`linux-build.log`，专项结果为 `hosts-targeted-verified.log`。
 
 过程失败保留：首轮新增代码有安全信息标志类型编译错误；修正后发现 `os.CreateTemp` 的句柄不含 WRITE_DAC，在沙箱外也拒绝设置 DACL。改为在暂存句柄仍阻止文件替换时按名称设置安全描述符，专项复验通过；初次日志为 `hosts-targeted.log`，未将这次实现错误归咎于沙箱。沙箱内另有已知权限及原子替换限制。浏览器专项、非 Windows 的权限运行测试按环境跳过；Linux 仅验证构建。本轮没有触碰系统 hosts、请求真实 UAC、测试真实断电或启动游戏，也不据隔离测试声称这些场景已通过。
+
+## 2026-10-29：已有映射的恢复权限由用户主动准备
+
+现行行为见 [hosts 契约](../console.md#hosts)，本节替代上文将“已有正确 SWD 映射必须在加速前取得恢复权限”视为要求的部分。启动、自动及手动加速直接复用正确映射；黄色游戏连接浮层提供蓝色“修复”，单独准备恢复能力。缺少映射、冲突保护、设置由关闭改为开启时的授权及停止／退出策略保持原有范围。
+
+- Go 定向回归通过：`Hosts|Acceleration|Activation|AutoStart|AutoAcceleration|Desktop|ExitPolicy|Management|Terms`，覆盖无授权启动和自动／手动加速、取消及助手预检失败后继续加速、主动重试复用助手、准备不改 hosts／网关／检测窗口、正常退出恢复，以及入口 Token／Origin／Host／条款门禁。`go vet -tags=no_easytier ./internal/console ./internal/desktop` 通过。
+- Edge 加速组最终 13/13 通过；授权通知、设置与通用操作回归另 19 项通过。新增检查覆盖 320px 深色／1280px 浅色、鼠标移入浮层点击修复、取消后保留黄色提示、键盘打开与 Escape 焦点恢复、成功后清除恢复提醒及停止提示。截图已检查。
+- `TestHostsRestorePermissionBrowser` 使用真实 Console HTTP、真实 Edge、私有 hosts 文件及非提权测试助手完成“取消修复 → 开启加速 → 主动修复 → 退出恢复”。授权尝试两次、助手仅成功启动一次，修复不改 hosts，退出只移除本程序条目。既有 `TestHostsPolicyBrowser` 两种保存策略、重开配置、停止／开始循环及退出联调通过。390px 联调截图已检查。
+- 前端 build/check 与差异检查通过，嵌入产物已重建。原始日志和截图位于忽略目录 `artifacts/hosts-permission/`，最终主要结果为 `go-targeted-final.log`、`browser-acceleration-final.log`、`go-browser-live-final.log` 及 `live/`。
+
+过程失败保留：沙箱内 Go 条款夹具发生已知 `renameat ... The handle is invalid`，浏览器在打开页面前失败、退出阶段停滞后终止；同一隔离流程在沙箱外可执行。首轮曾扩展无助手退出的错误返回，影响原有首启测试，已撤回这项超出本次范围的修改。浮层初次用例误按 dialog 查找标准非模态 group；进一步发现修复按钮禁用时失焦，改用有条件的 `disabledFocusable`，并区分鼠标悬停与键盘打开的焦点恢复。新联调首次因退出过渡期两个同文 Toast 的严格定位失败，改为核对后台未连接状态与 Go 退出请求，复验通过；上述失败日志均保留。
+
+未修改系统 hosts，未请求真实 Windows UAC，未启动 VRC。取消与失败由隔离助手注入；不将这些检查当作真实 UAC、系统注销／关机或断电验证，本次不新增 VRC 待验事项。
+
+### 同日复核：修复成功清理旧权限错误，其他失败保留反馈
+
+新增回归先确认两处问题：缺权限导致停止失败后，取得权限仍保留旧 `connectionError`；助手断连的修复失败被页面静默。修复后仅按内部来源清除已解决的权限错误，检测窗口、历史操作错误及其他组件故障均保留。PowerShell 根据原生 `ERROR_CANCELLED`（含内部异常链）识别取消，经 API 的 `uac_canceled` 错误码传给前端；其他失败保留原有说明，不根据“可能取消”等文案猜测。
+
+- Go 定向回归及上述较大范围回归复跑通过。新增检查覆盖停止失败后修复、取消不清除旧错误、其他接入错误和组件故障不被清除，以及成功、原生取消、包装异常中的取消、访问被拒绝和含“取消”字样的普通错误。PowerShell 使用实际分类脚本并替换 `Start-Process`，没有运行真正的提权命令。
+- Edge 加速组现为 15/15 通过，确认取消不重复报错、助手断连的重启指引及含“可能取消”的非取消故障仍显示。
+- 真实 Console HTTP 与 Edge 联调扩展为“取消修复 → 开始加速 → 缺权限停止失败 → 修复成功清除黄色提示 → 再次加速 → 退出恢复”；修复成功时网关保持停止，既有 hosts 保持不变。390px 修复前后截图已检查。
+- 前端 build/check、Go vet 和差异检查通过，嵌入产物已更新。原始证据仍在 `artifacts/hosts-permission/`：`review-error-clear-red.log`、`review-feedback-red.log` 为修复前失败，`review-targeted.log`、`review-browser.log`、`review-go-regression-final.log`、`review-live.log` 与 `review-live/` 为修复后结果。
+
+较大范围回归首轮出现一次 `TestHostsSessionReuseAndExitPolicy/persist` 私有文件替换 `Access is denied`，保留在 `review-go-regression.log`；该用例单独连续 10 次及相关回归复跑均通过，原因尚未确定，未通过重试逻辑掩盖错误。上述未执行真实 UAC／系统 hosts／游戏验证的边界仍适用。

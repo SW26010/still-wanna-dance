@@ -87,7 +87,7 @@ func TestAccelerationStopRestoreFailureStillStopsGateway(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !missing {
-				if err := h.change("enable", true); err != nil {
+				if err := h.prepareRestore(); err != nil {
 					t.Fatal(err)
 				}
 				owned = strings.ReplaceAll(owned, "127.0.0.1 api", "192.0.2.1 api")

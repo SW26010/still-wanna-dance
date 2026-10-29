@@ -10,6 +10,51 @@ import (
 	"time"
 )
 
+func TestHostsRestorePermissionBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_HOSTS_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_HOSTS_BROWSER_EVIDENCE for real Console browser integration")
+	}
+	c := testConsole(t)
+	owned, _ := transformHosts(hostsBaseline, "enable")
+	h, launches := fixtureHostsController(t, owned)
+	c.hosts = h
+	c.settings.QueueWithGateway = false
+	c.savedSettings = c.settings
+	launch, attempts := h.launch, 0
+	h.launch = func(ctx context.Context) (hostsConnection, error) {
+		attempts++
+		if attempts == 1 {
+			return nil, errHostsAuthorizationCanceled
+		}
+		return launch(ctx)
+	}
+	c.AutoStart()
+	ui := httptest.NewUnstartedServer(c)
+	c.address = ui.Listener.Addr().String()
+	ui.Start()
+	defer ui.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "hosts-restore-live.mjs"), ui.URL, evidence)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("browser: %v\n%s", err, output)
+	}
+	t.Log(string(output))
+	if attempts != 2 || *launches != 1 || !h.prepared.Load() || readHostsFixture(t, h.path) != owned {
+		t.Fatal("repair changed hosts or startup/acceleration requested authorization", attempts, *launches)
+	}
+	select {
+	case <-c.ShutdownRequested():
+	default:
+		t.Fatal("browser did not request exit")
+	}
+	if err := c.Close(); err != nil || readHostsFixture(t, h.path) != hostsBaseline || *launches != 1 {
+		t.Fatal("exit did not reuse restored permission", err)
+	}
+}
+
 func TestHostsPolicyBrowser(t *testing.T) {
 	evidence := os.Getenv("SWD_HOSTS_BROWSER_EVIDENCE")
 	if evidence == "" {

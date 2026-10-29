@@ -35,7 +35,7 @@
 
 后台程序、游戏连接、视频服务、房间队列统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
 
-容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；独立网络页使用页内链接，无第二层标签。设置字段直接显示，保存操作固定在表单顶部。短说明使用 Tooltip，记录补充信息使用非模态 Popover；不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
+容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；独立网络页使用页内链接，无第二层标签。设置字段直接显示，保存操作固定在表单顶部。短说明使用 Tooltip，记录补充信息及包含“修复”操作的游戏连接说明使用非模态 Popover；修复浮层支持悬停、点击和键盘，使用蓝色 Link 按钮，授权处理中禁用但保留焦点。不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
 
 设置与统计列通过 CSS Grid `auto-fit` 按实际容器宽度换行，容纳侧栏及嵌套区域；操作栏不另加边框或固定提示高度。表单默认使用 Field 的上方标签布局，避免窄容器挤压标签。曲库搜索／筛选和历史时间筛选使用原生 `orientation="horizontal"`，将标签放到对应输入框左侧，仅在这些区域按标签内容分配列宽，避免默认比例占宽挤压输入框；宽屏同行，窄屏按字段自然换行，其他字段不覆盖组件内部网格。时间筛选使用 Field 的原生 `validationMessage`，错误随内容自然展开，不用绝对定位或空白占位保持结果坐标。轮询中的已有结果仍保持稳定。CardHeader 的 action 保留简短操作，批量控件放入内容区，避免挤压窄屏标题。组件依据为官方 [Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/)、[Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/) 与 [Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage/) 指南。
 

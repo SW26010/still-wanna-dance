@@ -1003,6 +1003,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
 	case "/api/activation/disable":
 		err = c.disableAcceleration()
+	case "/api/hosts/prepare":
+		err = c.prepareHostsRestore()
 	case "/api/settings/theme":
 		var input struct {
 			Theme string `json:"theme"`
@@ -1058,7 +1060,11 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
-		writeJSON(w, map[string]string{"error": err.Error()})
+		failure := map[string]string{"error": err.Error()}
+		if errors.Is(err, errHostsAuthorizationCanceled) {
+			failure["code"] = "uac_canceled"
+		}
+		writeJSON(w, failure)
 		return
 	}
 	slog.Info("console_action_completed", "action", r.URL.Path)

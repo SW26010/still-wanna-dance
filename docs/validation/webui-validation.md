@@ -1164,3 +1164,9 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过**，包含右下角位置、正文无占位、两种关闭入口、错误重试及跳转；1280px 浅色与 390px 深色截图已检查。真实 Console／SQLite／Edge 的刷新、新标签页及重新打开联调再次通过，前端构建、`check` 与差异格式检查通过。
 
 本轮证据位于 `artifacts/video-import-toast/`。`browser.log`、`browser-final.log` 保留原测试端口被占用的失败；只读核对发现现有服务器资源哈希不同，未复用或停止该进程，使用源码夹具的临时副本和独立端口完成测试，结果为 `browser-isolated.log`。`live.log` 保留将可访问名称误当作 `aria-label` 属性的定位失败，改为按角色和可访问名称定位后，`live-final.log` 通过。最终截图为 `notice-1280.png`、`notice-390.png`，真实服务回执在 `live/`；hosts 规则和后端逻辑未改，未修改系统 hosts、提交或推送。
+
+### 同日修订：VRCX 通知等待用户处理
+
+「检测到 VRCX 数据库」复用通知组件的持久显示选项，取消原 7 秒超时，等待用户点击「前往曲库」或关闭；进入曲库后撤去通知、同标签页刷新不重复及页内导入建议规则沿用原行为。原超时用例已更新：浏览器虚拟时钟推进 12 秒后提示仍显示，切到历史页仍保留，关闭并返回加速页不重复。VRCX 与视频导入提示的 Edge 回归 **30/30 通过**，前端构建、`check`、差异格式检查及桌面构建通过。此处替代此前关于 VRCX Toast 自动超时的描述，其他普通通知保持原超时规则。
+
+证据在 `artifacts/vrcx-toast-persistent/` 的 `browser.log`、`build.log`、`build-info.json`；本轮只调整前端显示期限，未重跑未受影响的后端和真实 Console 联调。新测试 EXE 为 `artifacts/startup-notices-20261029/SWD.exe`，版本 `dev-startup-notices-20261029`，只执行 `-build-info` 核对身份，没有创建测试配置或启动应用服务。未修改系统 hosts、提交或推送。

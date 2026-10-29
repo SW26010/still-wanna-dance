@@ -63,6 +63,41 @@ test('catalog refresh tracks completion then stops and retains the last successf
   await expect(page.getByText('曲库读取失败，请刷新重试。',{exact:true})).toBeVisible();
   expect(await checkTime(page,'检查本地视频')).toBe(lastTime);
   await expect(local).toContainText('检查失败');
+  await expect(page.locator('#video-import, #batch').getByText('本地视频：已用 未知 / 不限制',{exact:true})).toHaveCount(2);
+});
+
+test('import progress refreshes one shared storage snapshot without polling unchanged work or hidden pages',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.import={id:1,running:true,imported:0,checked:0,total:20,phase:'正在校验并导入'};
+  await page.clock.install();await page.goto('/#/library');
+  const summaries=page.locator('#video-import, #batch').getByText(/^本地视频：已用 /);
+  const local=page.getByRole('group',{name:'本地视频',exact:true});
+  const reads=()=>api.calls.filter(c=>c.path==='library').length;
+  await expect(summaries).toHaveText(['本地视频：已用 2.000 GiB / 不限制','本地视频：已用 2.000 GiB / 不限制']);
+  expect(reads()).toBe(1);
+  api.files.push({...api.files[0],key:'key3',songs:[{id:'3',title:'新导入'}]});
+  api.state.import.imported=3;api.state.import.checked=4;
+  await expectWithClock(page,()=>local.textContent()).toContain('3 个');
+  await expect(summaries).toHaveText(['本地视频：已用 3.000 GiB / 不限制','本地视频：已用 3.000 GiB / 不限制']);
+  expect(reads()).toBe(2);
+  api.state.import.checked=5;api.state.import.skipped=2;
+  await expectWithClock(page,()=>page.locator('#video-import').textContent()).toContain('5/20 个视频');
+  await page.clock.fastForward(31000);expect(reads()).toBe(2);
+  // A new import can already have the same success count at its first observation.
+  api.state.import.id=2;api.files.pop();
+  await expectWithClock(page,()=>local.textContent()).toContain('2 个');expect(reads()).toBe(3);
+  await navigate(page,'关于');
+  api.files.pop();api.state.import.imported=4;api.state.import.checked=6;
+  await page.clock.fastForward(11000);expect(reads()).toBe(3);
+  await navigate(page,'曲库');
+  await expect(summaries).toHaveText(['本地视频：已用 1.000 GiB / 不限制','本地视频：已用 1.000 GiB / 不限制']);
+  const returned=reads();
+  api.files.pop();api.state.import.running=false;
+  await expectWithClock(page,()=>local.textContent()).toContain('0 个');
+  await expect(summaries).toHaveText(['本地视频：已用 0.000 GiB / 不限制','本地视频：已用 0.000 GiB / 不限制']);
+  expect(reads()).toBe(returned+1);
+  await page.clock.fastForward(31000);expect(reads()).toBe(returned+1);
+  expect(api.calls.some(c=>c.path==='inventory/scan')).toBe(false);
 });
 
 test('summary refresh icons have hover and keyboard labels at desktop and narrow widths',async({page},info)=>{
@@ -150,6 +185,8 @@ test('video directory failures preserve the last successful check time until rec
   await page.clock.install({time:new Date('2026-10-28T08:00:00Z')});await page.goto('/#/library');
   const local=page.getByRole('group',{name:'本地视频',exact:true});
   await expect(local).toContainText('2 个');
+  const summaries=page.locator('#video-import, #batch').getByText(/^本地视频：已用 /);
+  await expect(summaries).toHaveText(['本地视频：已用 2.000 GiB / 不限制','本地视频：已用 2.000 GiB / 不限制']);
   const lastTime=await checkTime(page,'检查本地视频');
   expect(lastTime).not.toContain('—');
   videoError='视频盘不可用';
@@ -158,6 +195,7 @@ test('video directory failures preserve the last successful check time until rec
   await expect(local).toContainText('检查失败');
   expect(await checkTime(page,'检查本地视频')).toBe(lastTime);
   await expect(local).not.toContainText('2 个');
+  await expect(summaries).toHaveText(['本地视频：已用 未知 / 不限制','本地视频：已用 未知 / 不限制']);
   await navigate(page,'关于');await navigate(page,'曲库');
   await expect(local).toContainText('检查失败');
   expect(await checkTime(page,'检查本地视频')).toBe(lastTime);
@@ -166,6 +204,7 @@ test('video directory failures preserve the last successful check time until rec
   await local.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await expect(local).toContainText('2 个');
   await expect(local).not.toContainText('检查失败');
+  await expect(summaries).toHaveText(['本地视频：已用 2.000 GiB / 不限制','本地视频：已用 2.000 GiB / 不限制']);
   expect(await checkTime(page,'检查本地视频')).not.toBe(lastTime);
 });
 

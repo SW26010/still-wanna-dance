@@ -71,7 +71,8 @@ test('settings preserve all three storage choices and the entered budget across 
   await limited.check();
   await expect(input).toHaveValue('12.5');
   await navigate(page,'曲库');
-  await expect(page.locator('#video-import, #batch').getByText(/当前存储预算为“不保留”/)).toHaveCount(0);
+  await expect(page.locator('#video-import, #batch').getByText('本地视频：已用 2.000 GiB / 不限制',{exact:true})).toHaveCount(2);
+  await expect(page.locator('#video-import, #batch').locator('.fui-MessageBar')).toHaveCount(0);
   await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
   await expect(limited).toBeChecked();
   await expect(input).toHaveValue('12.5');
@@ -101,30 +102,57 @@ test('no retention overrides the remembered budget while favorites can still be 
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'检查缺失视频',exact:true})).toBeEnabled();
   for(const id of ['video-import','batch']){
-    const notice=page.locator('#'+id+' .fui-MessageBar');
-    await expect(notice).toContainText('当前存储预算为“不保留”');
+    const panel=page.locator('#'+id),notice=panel.locator('.fui-MessageBar');
+    await expect(panel).toContainText('本地视频：已用 2.000 GiB / 不保留普通视频');
     await expect(notice).toContainText('收藏视频仍可保留');
-    await expect(notice.getByRole('link',{name:'存储设置',exact:true})).toHaveAttribute('href','#videoBudgetGiB');
+    await expect(panel.getByRole('link',{name:'前往设置',exact:true})).toHaveAttribute('href','#videoBudgetGiB');
+    await expect(notice.getByRole('link')).toHaveCount(0);
   }
   await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频块需求',exact:true})).toBeVisible();
 });
 
-for(const width of [390,1280])test(`empty storage keeps actions and settings links available (${width})`,async({page})=>{
+for(const width of [320,390,1280])test(`empty storage keeps actions and settings links available (${width})`,async({page},info)=>{
   const api=await mockAPI(page);api.files.splice(0);api.state.activeSettings.videoStorageMode='none';api.state.settings.videoStorageMode='none';
   api.state.activeSettings.retainFavorites=false;
-  await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light'});
+  await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none'});
   await page.goto('/#/library');await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),notice=panel.locator('.fui-MessageBar');
+    await expect(panel).toContainText('本地视频：已用 0.000 GiB / 不保留普通视频');
     await expect(notice).toContainText('保存后重启生效');
     await expect(notice).not.toContainText('收藏视频仍可保留');
-    await panel.scrollIntoViewIfNeeded();await page.screenshot({path:`../artifacts/library-storage-notice/${id}-${width}.png`,animations:'disabled'});
+    await panel.scrollIntoViewIfNeeded();await panel.screenshot({path:info.outputPath(`${id}-${width}.png`),animations:'disabled'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await notice.getByRole('link',{name:'存储设置',exact:true}).click();await expect(page.locator('#videoBudgetGiB')).toBeFocused();
+    await panel.getByRole('link',{name:'前往设置',exact:true}).click();await expect(page.locator('#videoBudgetGiB')).toBeFocused();
     await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
     await expect(page.getByRole('radio',{name:'不保留',exact:true})).toBeInViewport();
     await navigate(page,'曲库');
   }
+  expect(api.calls.some(c=>['settings','import/start','batch/start'].includes(c.path))).toBe(false);
+});
+
+test('storage summaries use the active budget, allow over-budget actions and explain their shared snapshot',async({page},info)=>{
+  const api=await mockAPI(page);
+  api.state.activeSettings.videoStorageMode='limited';api.state.activeSettings.videoBudgetBytes=1073741824;
+  api.state.settings.videoStorageMode='limited';api.state.settings.videoBudgetBytes=40*1073741824;
+  await page.goto('/#/library');
+  for(const id of ['video-import','batch']){
+    const panel=page.locator('#'+id),summary=panel.getByText('本地视频：已用 2.000 GiB / 预算 1.000 GiB',{exact:true});
+    await expect(summary).toBeVisible();await expect(panel.locator('.fui-MessageBar')).toHaveCount(0);
+    await summary.focus();await expect(page.getByRole('tooltip')).toContainText('同一资源只计一次');
+    await expect(page.getByRole('tooltip')).toContainText('不含临时文件和数据库');
+    await expect(page.getByRole('tooltip')).toContainText('最后检查时间：');
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    for(const width of [1280,390]){
+      await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light'});
+      await panel.screenshot({path:info.outputPath(`${id}-limited-${width}.png`),animations:'disabled'});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+  }
+  await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
+  await choosePath(page,'外部目录','C:\\Fixture-Videos');
+  await expect(page.getByRole('button',{name:'扫描并导入',exact:true})).toBeEnabled();
+  expect(api.calls.filter(c=>c.path==='library')).toHaveLength(1);
   expect(api.calls.some(c=>['settings','import/start','batch/start'].includes(c.path))).toBe(false);
 });
 

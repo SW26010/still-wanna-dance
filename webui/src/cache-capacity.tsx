@@ -1,10 +1,16 @@
-import { Field, Input, Link, Radio, RadioGroup } from '@fluentui/react-components';
-import type { Settings } from './types';
+import { Field, Input, Link, Radio, RadioGroup, Tooltip } from '@fluentui/react-components';
+import { date, gib, type Settings } from './types';
 import { Feedback, Hint } from './ui';
 
-export function StorageBudgetNotice({settings}: {settings:Pick<Settings,'videoStorageMode'|'retainFavorites'>}) {
-  if(settings.videoStorageMode!=='none')return null;
-  return <Feedback>当前存储预算为“不保留”。如需保留普通视频，请前往<Link href="#videoBudgetGiB">存储设置</Link>调整，保存后重启生效。{settings.retainFavorites&&'已开启优先保留收藏视频，收藏视频仍可保留。'}</Feedback>;
+export function StorageBudgetNotice({settings,usedBytes,checkedAt}: {settings:Pick<Settings,'videoStorageMode'|'videoBudgetBytes'|'retainFavorites'>;usedBytes?:number;checkedAt?:number}) {
+  const budget=settings.videoStorageMode==='none'?'不保留普通视频':settings.videoStorageMode==='unlimited'?'不限制':`预算 ${gib(settings.videoBudgetBytes)}`;
+  return <div className="content-stack">
+    <div className="inline secondary"><Tooltip relationship="description" content={<>
+      <p>仅统计已保存的完整视频，同一资源只计一次；不含临时文件和数据库，不代表磁盘实际占用。收藏和使用中的视频可能使占用超过预算。</p>
+      <p>{usedBytes===undefined?'占用尚未取得，可在曲库概览检查本地视频。':`最后检查时间：${date(checkedAt)}`}</p>
+    </>}><span tabIndex={0}>本地视频：已用 {usedBytes===undefined?'未知':gib(usedBytes)} / {budget}</span></Tooltip><Link href="#videoBudgetGiB">前往设置</Link></div>
+    {settings.videoStorageMode==='none'&&<Feedback>如需保留普通视频，请调整设置，保存后重启生效。{settings.retainFavorites&&'已开启优先保留收藏视频，收藏视频仍可保留。'}</Feedback>}
+  </div>;
 }
 
 export type CapacityDraft = Pick<Settings, 'videoStorageMode' | 'aggressiveBlockReclamation'> & { videoBudgetGiB: string };

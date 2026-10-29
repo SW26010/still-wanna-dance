@@ -5,7 +5,7 @@ import { decode, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
-import { CacheCapacityFields, CacheReclamationFields, StorageBudgetNotice, capacityPayload, type CapacityDraft } from './cache-capacity';
+import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields } from './storage-directory';
 import { DirectoryField } from './path-picker';
 import { RequestRetentionFields } from './request-retention';
@@ -169,12 +169,12 @@ export function SettingsPage({section='application',children}: {section?:Setting
   return children?children(form,d):form;
 }
 
-export function ImportPanel() {
+export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {
   const app = useApp(), s = app.status.data!, job = s.import;
   const [source, setSource] = useState(''), [cleanup, setCleanup] = useState(false);
   const [selecting, setSelecting] = useState(false);
   useEffect(() => setCleanup(false), [job.id]);
-  return <Panel id="video-import" title="导入视频"><StorageBudgetNotice settings={s.activeSettings}/>
+  return <Panel id="video-import" title="导入视频">{storageBudget}
     <p>离线扫描子文件夹，校验并导入已知资源中缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
     <p>导入到当前完整视频目录：{s.activeSettings.videoDir}</p>
     <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>

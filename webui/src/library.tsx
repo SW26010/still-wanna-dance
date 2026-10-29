@@ -8,6 +8,7 @@ import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort}
 import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {InventoryPanel,useCacheActions} from './cache';
+import {StorageBudgetNotice} from './cache-capacity';
 import {BatchPanel} from './home-library';
 import {ImportPanel} from './settings';
 import {VRCXImport,useVRCX} from './vrcx';
@@ -50,13 +51,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
   const changeSort=(sort:TableSort)=>{setOffset(0);setQuery(q=>({...q,...sort}));};
-  const previousTasks=useRef({batch:s.batch.running,import:s.import.running,downloads:downloads.data?.tasks});
+  const previousTasks=useRef({batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported,downloads:downloads.data?.tasks});
   useEffect(()=>{
     const tasks=downloads.data?.tasks;
     const downloadEnded=tasks&&previousTasks.current.downloads?.some(previous=>!tasks.some(task=>task.id===previous.id));
-    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running||downloadEnded))page.refresh();
-    previousTasks.current={batch:s.batch.running,import:s.import.running,downloads:visible?tasks:undefined};
-  },[s.batch.running,s.import.running,downloads.data,visible,page.refresh]);
+    const imported=!!s.import.imported&&(previousTasks.current.importID!==s.import.id||previousTasks.current.imported!==s.import.imported);
+    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running||imported||downloadEnded))page.refresh();
+    previousTasks.current={batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported,downloads:visible?tasks:undefined};
+  },[s.batch.running,s.import.running,s.import.id,s.import.imported,downloads.data,visible,page.refresh]);
   useLayoutEffect(()=>{
     const section=['vrcx-import','video-import','batch'].includes(anchor);
     if(!visible||(requestedView===undefined&&!section))return;
@@ -88,6 +90,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <Tooltip content="定位文件" relationship="label"><Button size="small" appearance="subtle" icon={<FolderOpenRegular/>} aria-label="定位文件" disabled={disabled||!r.local.known} onClick={()=>void actions.operate('open',[r.local!])}/></Tooltip>
     <Tooltip content="删除本地视频" relationship="label"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>;
   const previewAction=(target:PreviewSelection,unavailableReason='')=><Tooltip content={unavailableReason||'预览视频，不计入历史和热度。'} relationship="description"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<PlayRegular/>} aria-label="预览" disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}/></Tooltip>;
+  const storageBudget=<StorageBudgetNotice settings={s.activeSettings} usedBytes={page.error||page.data?.videoError?undefined:page.data?.totalBytes} checkedAt={page.loadedAt}/>;
   return <div className="page-stack">
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
@@ -143,7 +146,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       </div>
     </section>
     <VRCXImport model={history}/>
-    <ImportPanel/>
-    <BatchPanel/>
+    <ImportPanel storageBudget={storageBudget}/>
+    <BatchPanel storageBudget={storageBudget}/>
   </div>;
 }

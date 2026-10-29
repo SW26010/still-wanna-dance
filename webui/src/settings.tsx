@@ -8,6 +8,7 @@ import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, StorageBudgetNotice, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields } from './storage-directory';
 import { DirectoryField } from './path-picker';
+import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
@@ -175,11 +176,12 @@ export function ImportPanel() {
   const [selecting, setSelecting] = useState(false);
   useEffect(() => setCleanup(false), [job.id,job.running]);
   return <Panel id="video-import" title="导入视频"><StorageBudgetNotice settings={s.activeSettings}/>
-    <p>离线扫描子文件夹，校验并导入已知资源中缺少的视频。同盘优先使用硬链接，导入后请勿修改源视频。</p>
+    <p>离线扫描子文件夹，校验并导入已知资源中缺少的视频。导入后请勿修改源视频。</p>
     <p className="wrap">本次导入到完整视频目录：{job.videoDir || s.activeSettings.videoDir}</p>
     <p>支持暂停和重启后继续，未完成文件从头处理。清单固定，新增文件留到下一批，变化的源文件跳过。</p>
     <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
-      <DirectoryField purpose="import-directory" label="外部目录" value={job.source || source} disabled={app.unavailable || !!job.present || !!job.running} onChange={setSource} onPending={setSelecting}/>
+      <DirectoryField purpose="import-directory" label="外部目录" value={job.source || source} disabled={app.unavailable || !!job.present || !!job.running} onChange={setSource} onPending={setSelecting}
+        labelSuffix={<ImportSpaceHint source={job.source || source} videoDir={job.videoDir || s.activeSettings.videoDir} unavailable={app.unavailable}/>}/>
       <div className="actions">
         {!job.present && <Button type="submit" disabled={app.unavailable || job.running || selecting || !source.trim()}>扫描并导入</Button>}
         {job.running && <Button disabled={app.unavailable || job.phase==='正在暂停'} onClick={()=>void app.action('import/pause',{id:job.id})}>暂停</Button>}

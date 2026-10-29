@@ -31,3 +31,15 @@ func fileLinkCount(f *os.File) (uint64, error) {
 	}
 	return uint64(stat.Nlink), nil
 }
+
+func fileVolumeID(f *os.File) (uint64, error) {
+	info, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("volume identity is unavailable")
+	}
+	return uint64(stat.Dev), nil
+}

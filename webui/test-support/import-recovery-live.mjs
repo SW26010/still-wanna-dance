@@ -13,6 +13,7 @@ try {
   const panel=page.locator('#video-import');
   await expect(panel.getByRole('textbox',{name:'外部目录',exact:true})).not.toHaveValue('');
   await expect(panel.getByRole('textbox',{name:'外部目录',exact:true})).toBeDisabled();
+  await expect(panel.getByText('预计不额外占用视频空间',{exact:true})).toBeVisible();
   if(phase==='resume') {
     await expect(panel.getByRole('status')).toContainText('导入已暂停');
     await page.reload();

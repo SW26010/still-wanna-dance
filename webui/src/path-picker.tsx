@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Field, Input } from '@fluentui/react-components';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Button, Field, Input, type LabelProps, type SlotRenderFunction } from '@fluentui/react-components';
 import { request } from './api';
 import { Feedback } from './ui';
 
@@ -33,11 +33,12 @@ export function usePathPicker(onPending?: (pending: boolean) => void) {
 }
 
 // Keep the selected path readable/copyable; all edits go through the OS dialog.
-export function PathField({label, value, defaultValue = '', isDefault = samePath(value, defaultValue), hint, disabled, onChoose, onReset}: {
-  label: string; value: string; defaultValue?: string; isDefault?: boolean; hint?: string; disabled: boolean;
+export function PathField({label, labelSuffix, value, defaultValue = '', isDefault = samePath(value, defaultValue), hint, disabled, onChoose, onReset}: {
+  label: string; labelSuffix?: ReactNode; value: string; defaultValue?: string; isDefault?: boolean; hint?: string; disabled: boolean;
   onChoose: () => void; onReset: () => void;
 }) {
-  return <Field label={label} hint={hint}><div className="path-field" data-default={isDefault}>
+  const renderLabel: SlotRenderFunction<LabelProps> = (Label, props) => <div className="inline" style={{alignItems:'baseline'}}><Label {...props}>{label}</Label>{labelSuffix}</div>;
+  return <Field label={labelSuffix ? {children: renderLabel} : label} hint={hint}><div className="path-field" data-default={isDefault}>
     <Input readOnly disabled={disabled} value={value || defaultValue} placeholder="点击选择…" aria-haspopup="dialog"
       onClick={() => { if (!disabled) onChoose(); }}
       onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!disabled && !event.repeat) onChoose(); } }}/>
@@ -50,13 +51,13 @@ function samePath(value: string, defaultValue: string) {
   return !value || normalize(value) === normalize(defaultValue);
 }
 
-export function DirectoryField({purpose, label, value, defaultValue = '', isDefault, hint, disabled, onChange, onReset, onPending}: {
+export function DirectoryField({purpose, label, labelSuffix, value, defaultValue = '', isDefault, hint, disabled, onChange, onReset, onPending}: {
   purpose: 'video-directory' | 'import-directory' | 'log-directory'; label: string; value: string; defaultValue?: string; isDefault?: boolean;
-  hint?: string; disabled: boolean; onChange: (path: string) => void; onReset?: () => void; onPending?: (pending: boolean) => void;
+  labelSuffix?: ReactNode; hint?: string; disabled: boolean; onChange: (path: string) => void; onReset?: () => void; onPending?: (pending: boolean) => void;
 }) {
   const picker = usePathPicker(onPending);
   return <>
-    <PathField label={label} value={value} defaultValue={defaultValue} isDefault={isDefault} hint={hint} disabled={disabled || picker.pending}
+    <PathField label={label} labelSuffix={labelSuffix} value={value} defaultValue={defaultValue} isDefault={isDefault} hint={hint} disabled={disabled || picker.pending}
       onChoose={() => void picker.choose(purpose, value || defaultValue, onChange)} onReset={onReset || (() => onChange(defaultValue))}/>
     <Feedback error>{picker.error}</Feedback>
   </>;

@@ -21,3 +21,14 @@ func fileLinkCount(f *os.File) (uint64, error) {
 	}
 	return uint64(info.NumberOfLinks), nil
 }
+
+func fileVolumeID(f *os.File) (uint64, error) {
+	var info syscall.ByHandleFileInformation
+	if err := syscall.GetFileInformationByHandle(syscall.Handle(f.Fd()), &info); err != nil {
+		return 0, err
+	}
+	if info.VolumeSerialNumber == 0 {
+		return 0, fmt.Errorf("volume identity is unavailable")
+	}
+	return uint64(info.VolumeSerialNumber), nil
+}

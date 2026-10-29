@@ -265,7 +265,7 @@ func TestSOCKS5SettingsValidation(t *testing.T) {
 			t.Errorf("%s: %v", address, err)
 		}
 	}
-	for _, mode := range []string{"unknown", "socks5"} {
+	for _, mode := range []string{"unknown", "socks5", "auto"} {
 		s.UpstreamMode = mode
 		if _, err := normalizeSettings(s); err == nil {
 			t.Errorf("accepted unsupported mode %q", mode)

@@ -80,9 +80,9 @@ func TestMultiProxyMembershipAndValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer p.Close()
-	cs, ready, err := p.CandidatesWithReadiness(context.Background(), "https://example.com")
-	if len(cs) != 0 || !ready.Proxy || err != nil {
-		t.Fatal(cs, ready, err)
+	cs, err := p.Candidates(context.Background(), "https://example.com")
+	if len(cs) != 0 || err != nil {
+		t.Fatal(cs, err)
 	}
 	old, _ := NewMultiPool("socks5", nil, []Proxy{a, b})
 	defer old.Close()

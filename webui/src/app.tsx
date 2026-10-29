@@ -56,6 +56,15 @@ export function App() {
     if (!Object.hasOwn(anchors,anchor)) window.scrollTo({top:0,left:0,behavior:'instant'});
   }, [page,anchor,accepted]);
   const s = model.status.data;
+  const [proxyNotice,setProxyNotice]=useState(false);
+  useEffect(()=>{
+    if(!accepted||page!=='home'||!s?.proxyModeMigrated)return;
+    try {
+      if(sessionStorage.getItem('swd-proxy-mode-migrated')===bootstrap.token)return;
+      sessionStorage.setItem('swd-proxy-mode-migrated',bootstrap.token);
+    }catch{ /* The mounted notification also deduplicates status updates. */ }
+    setProxyNotice(true);
+  },[accepted,page,s?.proxyModeMigrated]);
   const {setPreference}=useThemePreference();
   // Reconcile every snapshot, even if a delayed save changed only local appearance.
   useEffect(()=>{if(s)setPreference(s.activeSettings.theme);},[s,setPreference]);
@@ -71,6 +80,7 @@ export function App() {
   const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>数据库或视频存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
+    {proxyNotice&&<Notification message="上游连接已改为代理" body="自动选择模式已移除，原代理配置已保留。可在设置中切换为直连。" action={{href:'#network-proxy',label:'网络设置'}}/>}
     <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID}/>
     {accepted&&<VideoImportSuggestion/>}
     {!s&&accepted&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}

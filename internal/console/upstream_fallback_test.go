@@ -38,67 +38,10 @@ func (d *coldCandidateDNS) Addresses(ctx context.Context, host string) ([]upstre
 	return d.CurrentAddresses(host), nil
 }
 
-func TestColdAutoBusinessKeepsDirectPath(t *testing.T) {
-	for _, operation := range []string{"catalog", "playback"} {
-		t.Run(operation, func(t *testing.T) {
-			c := testConsole(t)
-			var requests atomic.Int32
-			const playback = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
-			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests.Add(1)
-				if operation == "catalog" {
-					writeTestMD5Catalog(w, map[int]string{42: "video"})
-				} else {
-					http.Redirect(w, r, playback, http.StatusFound)
-				}
-			}))
-			defer origin.Close()
-			proxy, err := net.Listen("tcp", "127.0.0.1:0")
-			if err != nil {
-				t.Fatal(err)
-			}
-			proxyAddress := proxy.Addr().String()
-			proxy.Close() // The configured proxy is unreachable; the origin is healthy.
-			dns := &coldCandidateDNS{fixtureDNS: testDNS(c), answers: []string{"127.0.0.1"}}
-			c.dns = dns
-			s := c.settings
-			s.UpstreamMode, s.ProxyBackend, s.SOCKS5Address = "auto", "external-socks5", proxyAddress
-			_, client, err := c.networkFor(s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			c.client.Transport.(interface{ Retire() }).Retire()
-			c.client, c.settings = client, s
-			c.apiBase = strings.Replace(origin.URL, "127.0.0.1", "catalog.invalid", 1)
-			c.checksumURL = c.apiBase + "/catalog"
-			current := client.Transport.(upstreamrequest.Candidates).Current(c.checksumURL)
-			if len(current) != 1 || current[0].Mode != "socks5" || dns.queries.Load() != 0 || c.monitor != nil {
-				t.Fatal("fixture is not cold Auto with only a proxy candidate")
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			if operation == "catalog" {
-				catalog, err := c.fetchCatalogSnapshot(ctx)
-				if err != nil || len(catalog.Songs) != 1 {
-					t.Fatalf("songs=%d err=%v", len(catalog.Songs), err)
-				}
-			} else {
-				target, err := c.resolveSongURL(ctx, 42)
-				if err != nil || target != playback {
-					t.Fatalf("target=%q err=%v", target, err)
-				}
-			}
-			if requests.Load() != 1 || dns.queries.Load() != 1 {
-				t.Fatalf("direct requests=%d DNS queries=%d", requests.Load(), dns.queries.Load())
-			}
-		})
-	}
-}
-
 func TestUnmeasuredOperationClientsRespectModes(t *testing.T) {
 	for _, cache := range []string{"cold", "warm"} {
 		t.Run(cache, func(t *testing.T) {
-			for _, mode := range []string{"direct", "proxy", "auto"} {
+			for _, mode := range []string{"direct", "proxy"} {
 				t.Run(mode, func(t *testing.T) {
 					c := testConsole(t)
 					dns := &coldCandidateDNS{fixtureDNS: testDNS(c), answers: []string{"192.0.2.1", "2001:db8::1", "192.0.2.2", "2001:db8::2", "192.0.2.3", "2001:db8::3"}}
@@ -133,9 +76,6 @@ func TestUnmeasuredOperationClientsRespectModes(t *testing.T) {
 					wantDirect, wantProxy := 6, 0
 					if mode == "proxy" {
 						wantDirect, wantProxy = 0, 1
-					}
-					if mode == "auto" {
-						wantDirect, wantProxy = 5, 1
 					}
 					if direct != wantDirect || proxy != wantProxy || len(clients) > upstreamrequest.MaxOperationCandidates {
 						t.Fatalf("mode=%s direct=%d proxy=%d", mode, direct, proxy)
@@ -220,5 +160,56 @@ func TestColdCatalogFallsBackAfterTLSFailure(t *testing.T) {
 	// The first ranked path exhausts HTTPS and its qualified HTTP fallback.
 	if err != nil || len(catalog.Songs) != 1 || first.Load() != 2 || second.Load() != 1 {
 		t.Fatalf("songs=%d first=%d second=%d err=%v", len(catalog.Songs), first.Load(), second.Load(), err)
+	}
+}
+
+func TestColdDirectBusinessDiscoversPath(t *testing.T) {
+	for _, operation := range []string{"catalog", "playback"} {
+		t.Run(operation, func(t *testing.T) {
+			c := testConsole(t)
+			var requests atomic.Int32
+			const playback = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if operation == "catalog" {
+					writeTestMD5Catalog(w, map[int]string{42: "video"})
+				} else {
+					http.Redirect(w, r, playback, http.StatusFound)
+				}
+			}))
+			defer origin.Close()
+			dns := &coldCandidateDNS{fixtureDNS: testDNS(c), answers: []string{"127.0.0.1"}}
+			c.dns = dns
+			s := c.settings
+			s.UpstreamMode = "direct"
+			_, client, err := c.networkFor(s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.client.Transport.(interface{ Retire() }).Retire()
+			c.client, c.settings = client, s
+			c.apiBase = strings.Replace(origin.URL, "127.0.0.1", "catalog.invalid", 1)
+			c.checksumURL = c.apiBase + "/catalog"
+			current := client.Transport.(upstreamrequest.Candidates).Current(c.checksumURL)
+			if len(current) != 0 || dns.queries.Load() != 0 || c.monitor != nil {
+				t.Fatal("fixture is not cold direct")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if operation == "catalog" {
+				catalog, err := c.fetchCatalogSnapshot(ctx)
+				if err != nil || len(catalog.Songs) != 1 {
+					t.Fatalf("songs=%d err=%v", len(catalog.Songs), err)
+				}
+			} else {
+				target, err := c.resolveSongURL(ctx, 42)
+				if err != nil || target != playback {
+					t.Fatalf("target=%q err=%v", target, err)
+				}
+			}
+			if requests.Load() != 1 || dns.queries.Load() != 1 {
+				t.Fatalf("direct requests=%d DNS queries=%d", requests.Load(), dns.queries.Load())
+			}
+		})
 	}
 }

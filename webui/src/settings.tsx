@@ -63,7 +63,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
   const locked = disabled || pending;
   return <div className="form-grid">
     <Field label="上游连接"><Select disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({upstreamMode: v.value})}>
-      <option value="direct">直连（内置 DNS）</option><option value="proxy">强制代理</option><option value="auto">自动选择直连或代理</option></Select></Field>
+      <option value="direct">直连（内置 DNS）</option><option value="proxy">代理</option></Select></Field>
 
     {d.upstreamMode && d.upstreamMode !== 'direct' && <>
       <Field label="代理后端"><Select disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></Field>

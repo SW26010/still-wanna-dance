@@ -34,18 +34,13 @@ type Candidate struct {
 // ranks and selects paths before the download layer snapshots this bounded list.
 const MaxOperationCandidates = 6
 
-// Candidates may populate cold DNS state. Current and Changed never perform I/O.
+// Candidates may populate cold DNS state. A discovery error may accompany still
+// valid cached candidates; it must not authorize pruning undiscovered history.
+// Current and Changed never perform I/O.
 type Candidates interface {
 	Candidates(context.Context, string) ([]Candidate, error)
 	Current(string) []Candidate
 	Changed() <-chan struct{}
-}
-
-// Readiness describes authoritative membership, not mere path availability.
-// A disabled mode is ready too: its candidate set is deliberately empty.
-type CandidateReadiness struct{ Direct, Proxy bool }
-type CandidateDiscovery interface {
-	CandidatesWithReadiness(context.Context, string) ([]Candidate, CandidateReadiness, error)
 }
 
 // ProxyMembership separates configured identities from the executable subset.
@@ -90,7 +85,7 @@ func NewDirectPool(dns DNSPool, dial DialFunc) (*Pool, error) {
 }
 
 func NewPool(mode string, dns DNSPool, proxy DialFunc, persistentProxyID ...string) (*Pool, error) {
-	if mode != "direct" && mode != "socks5" && mode != "auto" {
+	if mode != "direct" && mode != "socks5" {
 		return nil, errors.New("invalid channel mode")
 	}
 	if mode != "socks5" && dns == nil || mode != "direct" && proxy == nil {
@@ -123,7 +118,7 @@ func NewMultiPool(mode string, dns DNSPool, proxies []Proxy) (*Pool, error) {
 }
 
 func newPool(mode string, dns DNSPool, proxies []Proxy) (*Pool, error) {
-	if mode != "direct" && mode != "socks5" && mode != "auto" {
+	if mode != "direct" && mode != "socks5" {
 		return nil, errors.New("invalid channel mode")
 	}
 	if mode != "socks5" && dns == nil {
@@ -156,26 +151,15 @@ func targetHost(target string) string {
 	return strings.ToLower(u.Hostname())
 }
 func (p *Pool) Candidates(ctx context.Context, target string) ([]Candidate, error) {
-	cs, _, err := p.CandidatesWithReadiness(ctx, target)
-	return cs, err
-}
-
-func (p *Pool) CandidatesWithReadiness(ctx context.Context, target string) ([]Candidate, CandidateReadiness, error) {
 	host := targetHost(target)
 	if host == "" {
-		return nil, CandidateReadiness{}, errors.New("invalid channel target")
+		return nil, errors.New("invalid channel target")
 	}
-	ready := CandidateReadiness{Direct: p.mode == "socks5", Proxy: true}
 	var err error
-	if p.mode != "socks5" {
+	if p.mode == "direct" {
 		_, err = p.dns.Addresses(ctx, host)
-		ready.Direct = err == nil && ctx.Err() == nil
 	}
-	cs := p.Current(target)
-	if len(cs) > 0 {
-		return cs, ready, nil
-	}
-	return nil, ready, err
+	return p.Current(target), err
 }
 func (p *Pool) Changed() <-chan struct{} {
 	if p.mode == "socks5" {

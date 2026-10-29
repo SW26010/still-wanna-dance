@@ -35,6 +35,7 @@ export interface Health {
 export interface Status {
   vrcxImportAvailable: boolean;
   videoImportSuggested: boolean;
+  proxyModeMigrated?: boolean;
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;

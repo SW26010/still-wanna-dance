@@ -70,14 +70,15 @@ func TestMihomoActiveLimitMembershipIdentityAndRetirement(t *testing.T) {
 	}
 	directSettings := s
 	directSettings.UpstreamMode = "direct"
-	_, smaller, err := c.mihomoNetworkFor(directSettings, 2)
+	_, smaller, err := c.networkFor(directSettings)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer smaller.Transport.(*mihomoTransport).Retire()
-	other, _ := smaller.Transport.(*mihomoTransport).KnownProxyIDs()
+	defer smaller.Transport.(*upstreamrequest.Transport).Retire()
+	other, _ := smaller.Transport.(*upstreamrequest.Transport).KnownProxyIDs()
+	slices.Sort(other)
 	if !slices.Equal(known, other) {
-		t.Fatal("K changed identities")
+		t.Fatal("direct mode lost saved proxy identities")
 	}
 	if got := c.retainedProxyNodes(s, "external"); got == nil {
 		t.Fatal("backend switch lost imported membership")
@@ -108,19 +109,19 @@ func TestMihomoActiveLimitMembershipIdentityAndRetirement(t *testing.T) {
 	}
 }
 
-func TestMihomoMissingNodesForcedFailureAndAutoDirect(t *testing.T) {
+func TestMihomoMissingNodesRespectsMode(t *testing.T) {
 	c := testConsole(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "direct") }))
 	defer server.Close()
-	for _, mode := range []string{"proxy", "auto"} {
+	for _, mode := range []string{"proxy", "direct"} {
 		s := c.settings
 		s.UpstreamMode, s.ProxyBackend, s.nodeSecretError = mode, "mihomo", unavailableProxyNodes
 		_, client, err := c.networkFor(s)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer client.Transport.(*mihomoTransport).Retire()
-		if _, ready := client.Transport.(*mihomoTransport).KnownProxyIDs(); ready {
+		defer client.Transport.(interface{ Retire() }).Retire()
+		if _, ready := client.Transport.(upstreamrequest.ProxyMembership).KnownProxyIDs(); ready {
 			t.Fatal("unreadable store authoritative")
 		}
 		response, err := client.Get(server.URL)
@@ -138,43 +139,6 @@ func TestMihomoMissingNodesForcedFailureAndAutoDirect(t *testing.T) {
 	}
 }
 
-func TestMihomoColdAutoUsesDirectWithoutMonitorOrDNSCache(t *testing.T) {
-	if !consoleMihomoProcess(t) {
-		return
-	}
-	c := testConsole(t)
-	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target, http.StatusFound) }))
-	defer server.Close()
-	s := runtimeNodeSettings(t, c, 1)
-	s.UpstreamMode = "auto"
-	_, client, err := c.networkFor(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.client.Transport.(interface{ Retire() }).Retire()
-	c.client, c.settings, c.apiBase = client, s, server.URL
-	clients := c.operationClients(context.Background(), upstreamstate.PlaybackURL, upstreamstate.Constraints{Entry: server.URL})
-	if len(clients) != 2 {
-		t.Fatalf("missing cold direct path: %d clients", len(clients))
-	}
-	if len(c.dns.CurrentAddresses("127.0.0.1")) != 0 {
-		t.Fatal("selection unexpectedly populated DNS")
-	}
-	if _, pinned := clients[0].Transport.(interface{ ChannelID() string }); pinned {
-		t.Fatal("unresolved direct path claims a pinned channel")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if got, err := c.resolveSongURL(ctx, 42); err != nil || got != target {
-		t.Fatalf("cold auto failed: %s %v", got, err)
-	}
-	client.Transport.(*mihomoTransport).Retire()
-	if _, err := clients[0].Get(server.URL); !errors.Is(err, net.ErrClosed) {
-		t.Fatal("retired direct fallback allowed a request", err)
-	}
-}
-
 func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
 	const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
 	var directCalls atomic.Int32
@@ -185,88 +149,76 @@ func TestMihomoBusinessFallbackReachesFifthProxy(t *testing.T) {
 	defer direct.Close()
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target, http.StatusFound) }))
 	defer proxy.Close()
-	for _, mode := range []string{"proxy", "cold-auto", "warm-auto"} {
-		t.Run(mode, func(t *testing.T) {
-			if !consoleMihomoProcess(t) {
-				return
+	if !consoleMihomoProcess(t) {
+		return
+	}
+	c := testConsole(t)
+	s := runtimeNodeSettings(t, c, 5)
+	_, client, err := c.networkFor(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := client.Transport.(*mihomoTransport)
+	// Controlled fixed dialers isolate the business selection/HTTP retry
+	// contract; protocol interoperability has its own loopback fixtures.
+	calls := make([]int, 5)
+	var exits []upstreamrequest.Proxy
+	for i, id := range tr.known {
+		exits = append(exits, upstreamrequest.Proxy{ID: id, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			calls[i]++
+			if i < 4 {
+				return nil, errors.New("fixture offline")
 			}
-			c := testConsole(t)
-			s := runtimeNodeSettings(t, c, 5)
-			if mode != "proxy" {
-				s.UpstreamMode = "auto"
-			}
-			_, client, err := c.networkFor(s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			tr := client.Transport.(*mihomoTransport)
-			// Controlled fixed dialers isolate the business selection/HTTP retry
-			// contract; protocol interoperability has its own loopback fixtures.
-			calls := make([]int, 5)
-			var exits []upstreamrequest.Proxy
-			for i, id := range tr.known {
-				exits = append(exits, upstreamrequest.Proxy{ID: id, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-					calls[i]++
-					if i < 4 {
-						return nil, errors.New("fixture offline")
-					}
-					return (&net.Dialer{}).DialContext(ctx, network, strings.TrimPrefix(proxy.URL, "http://"))
-				}})
-			}
-			tr.Pool.Close()
-			tr.Pool, err = upstreamrequest.NewMultiPool(channelMode(s.UpstreamMode), c.dns, exits)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if mode == "warm-auto" {
-				testDNS(c).seed("127.0.0.1", "127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6")
-			}
-			c.client.Transport.(interface{ Retire() }).Retire()
-			c.client, c.settings, c.apiBase = client, s, direct.URL
-			selections := c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: direct.URL})
-			want := 6
-			if mode == "proxy" {
-				want = 5
-			}
-			if len(selections) != want {
-				t.Fatalf("candidate budget: got %d want %d", len(selections), want)
-			}
-			before := directCalls.Load()
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			if got, err := c.resolveSongURL(ctx, 42); err != nil || got != target {
-				t.Fatalf("fifth proxy omitted: calls=%v error=%v", calls, err)
-			}
-			if !slices.Equal(calls, []int{1, 1, 1, 1, 1}) {
-				t.Fatalf("wrong fixed attempts: %v", calls)
-			}
-			if mode == "proxy" && directCalls.Load() != before || mode != "proxy" && directCalls.Load() != before+1 {
-				t.Fatal("wrong direct eligibility")
-			}
-		})
+			return (&net.Dialer{}).DialContext(ctx, network, strings.TrimPrefix(proxy.URL, "http://"))
+		}})
+	}
+	tr.Pool.Close()
+	tr.Pool, err = upstreamrequest.NewMultiPool(channelMode(s.UpstreamMode), c.dns, exits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.client.Transport.(interface{ Retire() }).Retire()
+	c.client, c.settings, c.apiBase = client, s, direct.URL
+	selections := c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: direct.URL})
+	want := 5
+	if len(selections) != want {
+		t.Fatalf("candidate budget: got %d want %d", len(selections), want)
+	}
+	before := directCalls.Load()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if got, err := c.resolveSongURL(ctx, 42); err != nil || got != target {
+		t.Fatalf("fifth proxy omitted: calls=%v error=%v", calls, err)
+	}
+	if !slices.Equal(calls, []int{1, 1, 1, 1, 1}) {
+		t.Fatalf("wrong fixed attempts: %v", calls)
+	}
+	if directCalls.Load() != before {
+		t.Fatal("wrong direct eligibility")
 	}
 }
 
 func TestMihomoCorruptKeyPreservedWithFreshIdentity(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
 	c := testConsole(t)
 	if err := os.WriteFile(c.files().ChannelKey, []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	s := runtimeNodeSettings(t, c, 1)
-	s.UpstreamMode = "direct" // Identity/membership do not require another core.
-	var last string
-	for range 2 {
-		_, client, err := c.networkFor(s)
-		if err != nil {
-			t.Fatal(err)
-		}
-		tr := client.Transport.(*mihomoTransport)
-		ids, ready := tr.KnownProxyIDs()
-		if ready || tr.identityWarning == "" || len(ids) != 1 || last != "" && ids[0] != last {
-			t.Fatal("instance identity changed or missing warning")
-		}
-		last = ids[0]
-		tr.Retire()
+	_, client, err := c.networkFor(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := client.Transport.(*mihomoTransport)
+	defer tr.Retire()
+	ids, ready := tr.KnownProxyIDs()
+	if ready || tr.identityWarning == "" || len(ids) != 1 {
+		t.Fatal("corrupt identity claimed durable history or omitted warning")
+	}
+	if again, _ := tr.KnownProxyIDs(); !slices.Equal(ids, again) {
+		t.Fatal("instance identity changed")
 	}
 	b, _ := os.ReadFile(c.files().ChannelKey)
 	if string(b) != "broken" {

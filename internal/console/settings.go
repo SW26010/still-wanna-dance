@@ -136,8 +136,8 @@ func normalizeSettings(s Settings) (Settings, error) {
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
-	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" && s.UpstreamMode != "auto" {
-		return s, errors.New("上游连接必须是 direct、proxy 或 auto")
+	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" {
+		return s, errors.New("上游连接必须是 direct 或 proxy")
 	}
 	if s.ProxyBackend == "" {
 		s.ProxyBackend = "external-socks5"

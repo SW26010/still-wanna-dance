@@ -18,7 +18,6 @@ func TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor(t *testing.T) {
 	for _, scenario := range []string{"fallback", "all-fail", "parent-canceled"} {
 		t.Run(scenario, func(t *testing.T) {
 			c := testConsole(t)
-			c.settings.UpstreamMode = "auto"
 			const target = "https://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=12"
 			business := false
 			attempts := 0

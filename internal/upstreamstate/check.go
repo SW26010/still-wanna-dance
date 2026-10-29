@@ -40,21 +40,14 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 		wg.Wait()
 	}
 	var preparedMu sync.Mutex
-	prepared := make(map[string]upstreamrequest.CandidateReadiness)
+	prepared := make(map[string]bool)
 	prepare := func(target string) []upstreamrequest.Candidate {
 		qctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
 		defer cancel()
-		if discovery, ok := provider.(upstreamrequest.CandidateDiscovery); ok {
-			cs, ready, _ := discovery.CandidatesWithReadiness(qctx, target)
-			preparedMu.Lock()
-			prepared[target] = ready
-			preparedMu.Unlock()
-			return cs
-		}
 		cs, err := provider.Candidates(qctx, target)
 		ready := err == nil && qctx.Err() == nil
 		preparedMu.Lock()
-		prepared[target] = upstreamrequest.CandidateReadiness{Direct: ready, Proxy: ready}
+		prepared[target] = ready
 		preparedMu.Unlock()
 		return cs
 	}
@@ -193,8 +186,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 			}
 		}
 		// Restored samples need not have any entry in history. Only prune
-		// authoritative mode-specific sets: DNS failure preserves direct
-		// history even when proxy fallback succeeds. Unqueried routes wait.
+		// confirmed candidate sets. Failed discovery and unqueried routes wait.
 		if ctx.Err() == nil {
 			m.pruneThroughputLocked(valid, prepared, provider)
 		}

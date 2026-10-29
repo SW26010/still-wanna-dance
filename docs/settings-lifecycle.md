@@ -8,7 +8,7 @@ WebUI 草稿从后端完整的已保存快照初始化，只转换输入文本�
 
 `settings_save.go` 保留应用保存流程：在 `lifecycleMu` 下合并最近保存的主题、凭据和节点草稿，检查及准备变更的资源位置与所需权限，写入成功后才更新内存快照。主题和 VRCX 选择同样经过该生命周期锁；原子替换不代替整个读改写过程的串行。业务继续接收当前生效参数。文件缺失字段采用启动默认值，设置请求则保留原有缺省语义：仅指定的可选字段补默认，主题和密码省略时保留已保存值，必需模式字段缺失仍报错；两种入口不共用整份默认请求。此职责整理保持配置 v8 与现有保存、重启行为。
 
-当前配置版本为 8，统一使用 `vrchatLogDir`、`videoBudgetBytes`、`aggressiveBlockReclamation`、`downloadConcurrencySoftLimit` 和 `restoreHostsOnStopOrExit`。此次发布前整理不迁移旧配置、不读取旧名称别名；旧版本拒绝打开且保留原文件。数据库及其他状态格式不因字段调整改变，版本边界见[存储契约](storage.md#持久化格式与语义)。
+当前配置版本为 8，统一使用 `vrchatLogDir`、`videoBudgetBytes`、`aggressiveBlockReclamation`、`downloadConcurrencySoftLimit` 和 `restoreHostsOnStopOrExit`。此次发布前整理不迁移旧配置、不读取旧名称别名；旧版本拒绝打开且保留原文件。当前 v8 配置中已停用的 `upstreamMode=auto` 是一个明确例外：读取时转换为 `proxy`，启动校验通过后仅原子写回该字段，保留代理凭据、节点及其他字段，不增加格式版本。设置请求只接受 direct/proxy。迁移当次运行首次进入首页时弹出简短通知，同一浏览器标签刷新不重复；迁移已落盘，后续启动不再通知。写回失败则启动报错，不宣称迁移成功。数据库及其他状态格式不因字段调整改变，版本边界见[存储契约](storage.md#持久化格式与语义)。
 
 `vrchatLogDir` 表示用户指定的 VRChat 日志输入目录，缺失、null、空串或仅空白表示自动识别；非空路径相对配置文件解析，实例内路径落盘为相对路径。`settings` / `activeSettings` 在自动模式下始终保留空串，读取日志时才解析当前用户的默认目录；`defaultLogDir` 仅向界面提供默认路径展示，不回写配置。指定和恢复默认均保存后重启生效，不再单独保存手动模式布尔值。
 

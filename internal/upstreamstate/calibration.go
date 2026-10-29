@@ -239,7 +239,7 @@ func calibrationClients(ctx context.Context, source upstreamrequest.Snapshot, ta
 		return nil, errors.New("channel_unavailable")
 	}
 	cs, err := source.Candidates.Candidates(ctx, target)
-	if err != nil {
+	if err != nil && len(cs) == 0 {
 		return nil, errors.New("channel_unavailable")
 	}
 	var clients []*http.Client

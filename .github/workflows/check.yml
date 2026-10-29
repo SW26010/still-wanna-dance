@@ -151,6 +151,7 @@ jobs:
               if (fs.readFileSync(file + '.sha256', 'utf8').trim() !== `${asset.sha256}  ${asset.name}`) throw Error(`Wrong checksum file: ${asset.name}`);
             }
             try {
+              await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
               const { data } = await github.rest.repos.getCommit({ ...context.repo, ref: `refs/tags/${tag}` });
               if (data.sha !== manifest.revision) throw Error('Existing tag points to another commit');
             } catch (error) { if (error.status !== 404) throw error; }

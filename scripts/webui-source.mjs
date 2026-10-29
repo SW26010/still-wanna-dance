@@ -4,12 +4,16 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {checkWebUI} from './check-webui.mjs';
 
-function pnpm(args,cwd) {
-  const options={cwd,encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024,env:{...process.env,CI:'true',SWD_PNPM_ARGS:JSON.stringify(args)}};
+function pnpm(args,cwd,env={}) {
+  const options={cwd,encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024,env:{...process.env,...env,CI:'true',SWD_PNPM_ARGS:JSON.stringify(args)}};
   // Arguments are JSON data, never interpolated into shell source.
-  return process.platform==='win32'
-    ? execFileSync('pwsh',['-NoProfile','-Command','$items = @($env:SWD_PNPM_ARGS | ConvertFrom-Json); & pnpm @items; exit $LASTEXITCODE'],options)
-    : execFileSync('pnpm',args,options);
+  try {
+    return process.platform==='win32'
+      ? execFileSync('pwsh',['-NoProfile','-Command','$items = @($env:SWD_PNPM_ARGS | ConvertFrom-Json); & pnpm @items; exit $LASTEXITCODE'],options)
+      : execFileSync('pnpm',args,options);
+  } catch(error) {
+    throw new Error(`pnpm ${args[0]} failed:\n${error.stdout||''}${error.stderr||''}`,{cause:error});
+  }
 }
 function checkManager(source) {
   const packageManager=JSON.parse(fs.readFileSync(path.join(source,'webui/package.json'),'utf8')).packageManager;
@@ -23,8 +27,12 @@ export function collectFrontend(source,bundle,work) {
   fs.mkdirSync(staging);
   for(const name of ['package.json','pnpm-lock.yaml','pnpm-workspace.yaml'])fs.copyFileSync(path.join(source,'webui',name),path.join(staging,name));
   // Fetch can create a virtual store in staging; only the portable CAS is shipped.
-  const store=path.join(bundle,'frontend-store');
-  pnpm(['fetch','--ignore-scripts','--store-dir',store],staging);
+  const store=path.join(bundle,'frontend-store'),cache=path.join(work,'frontend-registry-cache');
+  // The trust check also collects full metadata for every locked package. The
+  // default age check can use online attestations that are unavailable offline.
+  pnpm(['fetch','--ignore-scripts','--trust-policy','no-downgrade','--store-dir',store],staging,{pnpm_config_cache_dir:cache});
+  // Ship metadata inputs, never the machine-local cached policy verdict.
+  fs.cpSync(path.join(cache,'v11'),path.join(store,'registry-cache/v11'),{recursive:true});
   cleanFrontendStore(store);
   return {packageManager,store:'frontend-store'};
 }
@@ -42,7 +50,7 @@ export function rebuildFrontend(source,bundle,work) {
   fs.cpSync(source,checkout,{recursive:true});
   const store=path.join(work,'frontend-store');
   fs.cpSync(path.join(bundle,'frontend-store'),store,{recursive:true,filter:p=>path.relative(path.join(bundle,'frontend-store'),p).split(path.sep).join('/')!=='v11/projects'});
-  pnpm(['install','--offline','--frozen-lockfile','--ignore-scripts','--store-dir',store],path.join(checkout,'webui'));
+  pnpm(['install','--offline','--frozen-lockfile','--ignore-scripts','--store-dir',store],path.join(checkout,'webui'),{pnpm_config_cache_dir:path.join(store,'registry-cache')});
   // Regenerate in isolation and byte-compare assets/notices; never trust just a manifest.
   pnpm(['check'],path.join(checkout,'webui'));
 }

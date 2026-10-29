@@ -2,6 +2,41 @@
 
 本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
+## 2026-10-30 Beta 候选与自动发布
+
+`dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。
+
+首次使用旧 `v0.0.0-ci-validation.20261029` 作覆盖起点时，其首次配置为 v7，被当前 v8 检查拒绝；没有增加旧配置迁移或放宽断言。改用同提交的 `ci-22` 后，ZIP 覆盖冒烟通过，真实 EXE 的三布局持久化检查均报 `upgrade changed storage.sqlite`。
+
+定向复现用同一对 EXE 保留合成 SQLite 前后快照：仅 `catalog_state` 从 0 行变为 1 行、`media` 从 0 变为 10,446 行、`songs` 与 `song_media` 各从 0 变为 10,471 行，其余表未变化。通用 `newConsoleWithWorkForTest` 有意省略发行预置曲库，而真实 `New` 在启动时写入预置数据；升级夹具冻结的是未完成产品初始化的数据库。现在在冻结哈希前调用同一 `ApplyBundledMediaSeed`，仍逐文件检查数据库、配置、凭据回执、快照、媒体与未知文件，不忽略数据库或改成较弱断言。
+
+同一对 `ci-22` / Beta 实际 EXE 重跑完整 ZIP 覆盖与持久化检查，默认存储、外置库、自定义配置 **3/3 通过**。诊断代码已移除，失败、合成快照及修复后结果保留在忽略目录 `artifacts/release-v1.0.0-beta.1/` 的 `upgrade.log`、`upgrade-diagnostic/` 和 `upgrade-fixed.log`；没有产品行为修改。
+
+本轮将完整检查、候选覆盖验证、正式打包、Release 草稿附件上传及公开回下载校验接入 `check`，现行用法见[打包说明](../packaging.md)。最终公开交付以发布分支的新提交及该工作流的 `release` job 成功为准；上述本地候选和旧提交 CI 不代替新工作流的运行结果。
+
+首次自动发布运行 [check #23](https://github.com/SW26010/still-wanna-dance/actions/runs/40921482572)在两平台浏览器/Node 检查通过后主动取消：核对真实 GitHub API 时发现，commit 查询对不存在的 tag 返回 422，原发布预检只接受 404。现改为先用 Git ref 接口判断 tag 是否存在，再核对已有 tag 的提交；没有放宽提交身份检查，也没有将该取消运行记为完整通过。
+
+[check #24](https://github.com/SW26010/still-wanna-dance/actions/runs/40924202627)在 `152be7451c63a75047ec825c9760f0da8645082f` 完成两平台检查、正式打包、源码重建和三布局覆盖升级，但独立发布 job 的公开下载重建失败，工作流已将 Release 恢复为草稿。此运行不能计为发布成功；该运行结束时 tag 指向该提交，五个原始附件和 Actions 日志已保存，后续清理与成功发布见下文。
+
+用该运行的实际源码附件复现：包内容存储可复用全部 149 个安装包，但清空 pnpm 元数据缓存后，169 条锁文件供应链校验报 `ERR_PNPM_NO_OFFLINE_META`。构建 job 的热缓存掩盖了缺失材料。仅复制默认 fetch 的缓存仍失败，因为在线校验可能使用未保留的发布时间证明。修复通过独立缓存和 pnpm `no-downgrade` 检查收集完整元数据，归档元数据输入而非校验结果，并在重建时明确使用包内缓存；同时保留 pnpm 原始错误输出。
+
+修复验证：缺失元数据回归先失败后通过，全部 Node 工具测试 **47/47** 通过，actionlint 通过；实际附件源码调用修复后的收集与重建入口，通过全新缓存离线安装、类型检查及前端产物字节比较。另一次仅复制元数据、不复制 `lockfile-verified.jsonl` 的独立安装，重新校验 **169 条**供应链记录、复用 **149 包**且下载 **0 包**。证据位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-24-evidence/` 的 `offline-isolation-01.log`、`metadata-regression-before.log`、`metadata-regression-after.log`、`trust-metadata-offline-native.log`、`frontend-fixed-repro.log` 和 `tool-tests-after.log`。这些证明修复后的前端离线路径，不代表修复版已完成远程正式发布。
+
+### v1.0.0-beta.1 公开交付完成
+
+经用户确认，清理本次失败草稿、五个附件及旧 tag，并从非 main 分支 `codex/release-v1.0.0-beta.1` 的修复提交 `ad0559c4b79e36c73069be02dc166dccf677b50c` 重新运行 [check #25](https://github.com/SW26010/still-wanna-dance/actions/runs/40935226917)。2026-10-30 03:28（北京时间），Windows、Linux 与独立 release job 全部成功；[v1.0.0-beta.1](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.1) 为公开 Pre-release，tag 指向该修复提交，未修改 main。失败附件继续保留于本地 `ci-24-evidence/delivery/` 及原 Actions 产物，不将失败运行改写为成功。
+
+两平台各 **345 项浏览器测试通过**；Windows 工具回归 **47/47**，Linux **39 通过、8 项 Windows 专属测试跳过**，无失败。Go 测试、vet、编译与 Linux race/gofmt 通过。最终正式包完成源码独立重建、单包冒烟，以及 `ci-25` → Beta 的默认存储、外置库、自定义配置 **3/3** 覆盖升级，持久化数据检查通过。
+
+Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后发布。全新 release runner 使用无凭据公共 URL 下载 Portable 与源码包，验证哈希、源码/EXE 身份并独立重建；最终输出 `verified=true`，提交为 `ad0559c4b79e36c73069be02dc166dccf677b50c`，发行 EXE SHA256 为 `dc23a009a4de7c2b7eb51183e892041e1c7e0a67c88321b48d411325862a6cd4`。公开发行清单与两份 SHA256 文件也已下载核对。未手动上传本机附件；仍不承诺 EXE 逐字节可复现。
+
+| 正式附件 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Windows amd64 Portable ZIP | 20,895,382 | `b3b1d52c11d9a18c8d55682e8d226366f964ecc825a4bf4967fe9e8b6871b20c` |
+| 完整对应源码 tar.gz | 399,162,469 | `c14aa69cb1fbd07b5a575f8005fd368920e9500f8dcf03faca564e859e92374d` |
+
+本次回执与原始日志位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-25-evidence/`：`windows.log`、`linux.log`、`release.log`、`published-release.json`、`public-rebuild-result.json` 及 `logs/portable-upgrade/e8c6c4cd4d2b4e81b5d13fa1da618756/persisted-data.log`。本节证明该版本的公开交付，不替代实机台账中不同范围的历史结果。
+
 ## 2026-10-26 发布前核对
 
 核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。

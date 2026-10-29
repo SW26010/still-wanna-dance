@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
-import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs, desktopBuildFlags, goEnv } from './release-source.mjs';
+import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs, desktopBuildFlags, goEnv, filesUnder, sha256 } from './release-source.mjs';
 import { checkBuildMetadata } from './build-info.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -81,6 +81,35 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
   writeJSON(manifestFile, original);
   fs.writeFileSync(path.join(bundle, 'source/unlisted.go'), 'package main');
   assert.throws(() => verifyBundle(bundle), /unmanifested/);
+}));
+
+test('frontend source bundle requires registry metadata for cold-cache policy verification', () => withTemp(temp => {
+  const root = fixture(temp);
+  const result = createSource({ root, tag: 'v0.0.0-test', outputDir: path.join(temp, 'out') });
+  const bundle = extractSource(result.archive, path.join(temp, 'extracted'));
+  const manifest = readJSON(path.join(bundle, 'source-manifest.json'));
+  for (const [name, content] of Object.entries({
+    'source/webui/package.json': JSON.stringify({ packageManager: 'pnpm@11.25.0' }),
+    'source/webui/build-manifest.json': '{}', 'source/webui/pnpm-lock.yaml': 'lockfileVersion: 9',
+    'source/webui/build.mjs': '', 'source/webui/src/main.tsx': '',
+    'frontend-store/v11/files/package': 'package content',
+  })) {
+    const file = path.join(bundle, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content);
+  }
+  manifest.frontend = { packageManager: 'pnpm@11.25.0', store: 'frontend-store' };
+  const saveManifest = () => {
+    manifest.files = filesUnder(bundle).filter(p => p !== 'source-manifest.json').map(p => ({ path: p, bytes: fs.statSync(path.join(bundle, p)).size, sha256: sha256(path.join(bundle, p)) }));
+    writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
+  };
+  saveManifest();
+  assert.throws(() => verifyBundle(bundle), /registry metadata/);
+  const metadata = path.join(bundle, 'frontend-store/registry-cache/v11/metadata-full/registry.npmjs.org/fixture.jsonl');
+  fs.mkdirSync(path.dirname(metadata), { recursive: true }); fs.writeFileSync(metadata, '{}\n');
+  saveManifest();
+  assert.doesNotThrow(() => verifyBundle(bundle));
+  fs.writeFileSync(path.join(bundle, 'frontend-store/registry-cache/lockfile-verified.jsonl'), '{}\n');
+  saveManifest();
+  assert.throws(() => verifyBundle(bundle), /cached policy verdicts/);
 }));
 
 test('unused graph modules need metadata only, even when their ZIP is unavailable', { timeout: 180000 }, () => withTemp(temp => {

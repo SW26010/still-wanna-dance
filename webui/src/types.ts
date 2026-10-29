@@ -62,7 +62,7 @@ export interface LibraryPage {storageID:string;databaseID:string;videoError?:str
 export interface ResponseSources {downloadBytes:number;cacheBytes:number;localBytes:number}
 export interface RequestRecord {
 	sources?:ResponseSources|null;
-  songID?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
+  songID?:string; songTitle?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;
   cache: string; outcome: string;
 }

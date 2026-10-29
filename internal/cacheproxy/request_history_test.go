@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 			t.Fatal("unbounded page")
 		}
 		for _, r := range page.Requests {
-			if seen[r.ID] || r.SongID != "42" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
+			if seen[r.ID] || r.SongID != "42" || r.SongTitle != "new mapping" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
 				t.Fatalf("changed/duplicated history: %+v", r)
 			}
 			seen[r.ID] = true
@@ -62,6 +63,61 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{From: 1100, To: 1101, Limit: 50})
 	if err != nil || len(page.Requests) != 3 {
 		t.Fatal("time boundaries", page, err)
+	}
+}
+
+func TestHistoryNamesFollowRecordedSongIDAndCurrentCatalog(t *testing.T) {
+	s, cfg := setup(t, nil)
+	key := strings.Repeat("a", 32)
+	if err := s.usage.write([]usageEvent{
+		{at: 1004, songID: "42", key: key, method: "GET"},
+		{at: 1003, songID: "43", key: key, method: "GET"},
+		{at: 1002, songID: "404", key: key, method: "GET"},
+		{at: 1001, key: key, method: "GET"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'旧名称'),(43,NULL),(99,'仅资源关联');
+INSERT INTO media(md5) VALUES(?); INSERT INTO song_media VALUES(99,?)`, key, key); err != nil {
+		t.Fatal(err)
+	}
+	q := RequestQuery{Limit: 3}
+	before, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
+	if err != nil || len(before.Requests) != 3 || !before.HasMore {
+		t.Fatalf("first page: %+v, %v", before, err)
+	}
+	for i, id := range []string{"42", "43", "404"} {
+		wantTitle := ""
+		if i == 0 {
+			wantTitle = "旧名称"
+		}
+		if r := before.Requests[i]; r.SongID != id || r.SongTitle != wantTitle || r.Resource != key {
+			t.Fatalf("recorded identity or current name: %+v", r)
+		}
+	}
+	if _, err := s.usage.db.Exec("UPDATE songs SET name='新名称' WHERE id=42"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
+	if err != nil || len(after.Requests) != 3 || after.NextCursor != before.NextCursor || !after.HasMore {
+		t.Fatalf("renaming changed pagination: %+v, %v", after, err)
+	}
+	for i, r := range after.Requests {
+		previous := before.Requests[i]
+		if i == 0 {
+			previous.SongTitle = "新名称"
+		}
+		if !reflect.DeepEqual(r, previous) {
+			t.Fatalf("renaming changed request facts: got %+v, want %+v", r, previous)
+		}
+	}
+	q.Cursor = before.NextCursor
+	last, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
+	if err != nil || len(last.Requests) != 1 || last.HasMore {
+		t.Fatalf("last page: %+v, %v", last, err)
+	}
+	if r := last.Requests[0]; r.SongID != "" || r.SongTitle != "" || r.Resource != key {
+		t.Fatalf("inferred request identity from resource: %+v", r)
 	}
 }
 
@@ -254,6 +310,10 @@ func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
 
 func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 	s, cfg := setup(t, nil)
+	// Name ordering deliberately disagrees with numeric song ID ordering.
+	if _, err := s.usage.db.Exec("INSERT INTO songs(id,name) VALUES(10,'A'),(2,'Z')"); err != nil {
+		t.Fatal(err)
+	}
 	keys := []string{strings.Repeat("b", 32), strings.Repeat("a", 32), ""}
 	songs := []string{"10", "2", ""}
 	var events []usageEvent

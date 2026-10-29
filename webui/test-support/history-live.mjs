@@ -19,9 +19,11 @@ try {
   expect(sources.localBytes).toBeGreaterThan(0);
   const firstPage=await (await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
   expect(firstPage.requests.every(r=>r.bytes===4&&r.sources.localBytes===blockBytes)).toBe(true);
+  expect(firstPage.requests.every(r=>r.songID==='42'&&r.songTitle==='new current mapping'&&r.resource===key)).toBe(true);
   await expect(page.getByRole('region',{name:'响应来源统计'})).toContainText('本地视频');
   const history=page.getByRole('table',{name:'请求历史列表'});
   await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
+  await expect(history.getByText('new current mapping',{exact:true})).toHaveCount(50);
   await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});

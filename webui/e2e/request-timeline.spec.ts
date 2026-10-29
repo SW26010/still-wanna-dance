@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
 
-const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,cache:'MISS',outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
+const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,cache:'MISS',outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`response sources use frozen bytes and fit ${width}px ${scheme}`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
@@ -163,7 +163,8 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
 
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`timeline fits ${width}px ${scheme} and preserves unknown facts`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
-  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[record(1),record(2),{...record(3),completedAt:null,resource:'',outcome:'aborted'}],hasMore:false,nextCursor:''}}));
+  const title='星河 · 很长的歌曲名称 / '.repeat(15);
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),songTitle:title},record(2),{...record(3),completedAt:null,resource:'',outcome:'aborted'},{...record(4),songID:'404'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   await expect(page.getByText('暂无数据',{exact:true})).toHaveCount(2);
   await expect(page.getByText('结束：未知',{exact:true})).toBeVisible();
@@ -173,6 +174,21 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   const labelBox=await outcome.boundingBox(),httpBox=await resultCell.getByText('HTTP 206',{exact:true}).boundingBox();
   expect(httpBox!.y).toBeGreaterThanOrEqual(labelBox!.y+labelBox!.height-1);
   const table=page.getByRole('table',{name:'请求历史列表',exact:true});
+  await expect(table.getByRole('columnheader')).toHaveCount(7);
+  const songCell=table.locator('tbody tr').first().getByRole('cell').nth(1),songName=songCell.getByText(title,{exact:true});
+  await expect(songName).toBeVisible();
+  expect(await songName.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
+  const songBox=await songName.boundingBox(),idBox=await songCell.getByRole('link',{name:'ID 42',exact:true}).boundingBox();
+  expect(idBox!.y).toBeGreaterThanOrEqual(songBox!.y+songBox!.height-1);
+  await expect(songCell.getByRole('link')).toHaveAttribute('href','#/library?song=42');
+  await expect(table.locator('tbody tr').nth(1).getByRole('cell').nth(1)).toHaveText('未知');
+  await expect(table.locator('tbody tr').nth(3).getByRole('cell').nth(1)).toContainText('未知名称');
+  await expect(table.getByRole('link',{name:'ID 404',exact:true})).toBeVisible();
+  const songHeader=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
+  await songHeader.focus();
+  await expect(songHeader).toHaveAccessibleDescription('按请求时记录的歌曲 ID 排序；名称来自当前曲库，完整名称可在详情中查看。');
+  await expect(page.getByRole('tooltip')).toContainText('名称来自当前曲库');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
   for(const [label,description] of [['交付','已写出字节'],['来源','当前请求等过缺块']] as const){
     const target=table.getByRole('columnheader',{name:label,exact:true}).getByText(label,{exact:true});
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
@@ -185,6 +201,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(table.getByRole('button',{name:/交付比例说明|请求来源说明/})).toHaveCount(0);
   await page.getByLabel('历史查询结果',{exact:true}).screenshot({path:info.outputPath('history-table.png'),animations:'disabled'});
   await page.getByRole('button',{name:'请求 1 的明细',exact:true}).click();
+  await expect(page.getByLabel('请求 1 的明细',{exact:true}).getByText(title,{exact:true})).toBeVisible();
   await expect(page.getByLabel('请求 1 的明细',{exact:true}).getByText('10 ms · Blocking',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('timeline.png'),fullPage:true,animations:'disabled'});

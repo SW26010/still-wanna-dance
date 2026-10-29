@@ -68,7 +68,7 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 	}
 	next := c.savedSettings
 	next.AutoOpenWebUI = false
-	if err := c.saveSettings(next, true, false); err != nil {
+	if err := c.saveSettings(next, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	if !c.OpenWebUIOnLaunch() || c.savedSettings.AutoOpenWebUI {

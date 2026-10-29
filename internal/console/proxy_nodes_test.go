@@ -90,7 +90,7 @@ func TestUnavailableProxyNodesPreserveEnvelope(t *testing.T) {
 	if loaded.settings.nodeSecretError == "" {
 		t.Fatal("unreadable nodes treated as empty")
 	}
-	if err := loaded.saveSettings(loaded.savedSettings, true, false); err != nil {
+	if err := loaded.saveSettings(loaded.savedSettings, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	_, after, _ := readConfigFile(c.configPath)

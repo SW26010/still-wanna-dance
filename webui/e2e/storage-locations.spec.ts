@@ -67,7 +67,7 @@ test('existing videos require a reviewable policy decision and cancellation pres
   await save.click();
   await dialog.getByRole('button',{name:'确认并保存',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
-  expect(api.calls.find(c=>c.path==='settings')?.body).toMatchObject({confirmVideoPolicy:true,videoStorageMode:'none'});
+  expect(api.calls.find(c=>c.path==='settings')?.body).toMatchObject({confirmVideoPolicy:{databasePath:'D:\\Library\\other.sqlite',videoDir:api.state.settings.videoDir,videoStorageMode:'none',videoBudgetBytes:api.state.settings.videoBudgetBytes,retainFavorites:true},videoStorageMode:'none'});
   expect(api.state.settings).not.toHaveProperty('confirmVideoPolicy');
 });
 

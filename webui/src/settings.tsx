@@ -121,15 +121,19 @@ export function SettingsPage({section='application',children}: {section?:Setting
     if (!dirty || disabled || d.proxyImportText.trim()) return;
     setPending(true); setLocationError('');
     try {
-      let confirmed = false;
+      const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(d);
+      const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => value !== saved[key as keyof typeof saved]));
+      let confirmed: Pick<Settings,'databasePath'|'videoDir'|'videoStorageMode'|'videoBudgetBytes'|'retainFavorites'> | undefined;
       if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
         const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir});
         if (check.confirmVideoPolicy) {
-          confirmed = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
-          if (!confirmed) return;
+          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
+          if (!accepted) return;
+          const {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites} = values;
+          confirmed = {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites};
         }
       }
-      if (await app.action('settings', {...settingsPayload(d),confirmVideoPolicy:confirmed})) setAwaitingRevision(app.revision + 1);
+      if (await app.action('settings', {...patch,confirmVideoPolicy:confirmed})) setAwaitingRevision(app.revision + 1);
     } catch (e) { setLocationError(String(e)); }
     finally { setPending(false); }
   }

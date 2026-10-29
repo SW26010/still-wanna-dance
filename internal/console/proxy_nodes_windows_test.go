@@ -16,7 +16,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 	s := c.savedSettings
 	s.nodeImportID = r.ID
-	if err := c.saveSettings(s, true, false); err != nil {
+	if err := c.saveSettings(s, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	if c.settings == c.savedSettings || c.settings.nodeSnapshot != "" || c.savedSettings.nodeImportID != "" {
@@ -61,7 +61,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	fields["schemaVersion"] = json.RawMessage(`999`)
 	b, _ = json.Marshal(fields)
 	os.WriteFile(c.configPath, b, 0600)
-	if c.saveSettings(s, true, false) == nil || c.savedSettings != old {
+	if c.saveSettings(s, true, nil) == nil || c.savedSettings != old {
 		t.Fatal("failed save published replacement")
 	}
 	after, _ := os.ReadFile(c.configPath)

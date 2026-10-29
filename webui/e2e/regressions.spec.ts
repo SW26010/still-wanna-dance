@@ -25,7 +25,8 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   await expect(ahead).toHaveValue('120');await retention.fill('4');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.calls.filter(c=>c.path==='settings').length).toBe(2);
-  expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toMatchObject({prepareAheadSeconds:120,downloadGrowIntervalMS:4});
+  expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toEqual({downloadGrowIntervalMS:4});
+  expect(api.state.settings).toMatchObject({prepareAheadSeconds:120,downloadGrowIntervalMS:4});
 });
 
 test('acceleration waits for UAC and reports a timed out result as unconfirmed',async({page})=>{

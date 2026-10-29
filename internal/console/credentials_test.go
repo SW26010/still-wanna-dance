@@ -36,7 +36,7 @@ func TestUnsupportedProxyEnvelopeStaysUnavailableAndPreserved(t *testing.T) {
 				conn.Close()
 				t.Fatal("unavailable proxy allowed traffic")
 			}
-			if err := loaded.saveSettings(loaded.savedSettings, true, false); err != nil {
+			if err := loaded.saveSettings(loaded.savedSettings, true, nil); err != nil {
 				t.Fatal(err)
 			}
 			_, saved, err := readConfigFile(c.configPath)

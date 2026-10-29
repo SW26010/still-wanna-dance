@@ -48,11 +48,13 @@ test('tab drafts survive and saves merge only the submitted section',async({page
   await page.getByLabel('启动程序时自动打开 WebUI',{exact:true}).uncheck();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='settings').length).toBe(1);
+  expect(calls.filter(c=>c.path==='settings')[0].body).toEqual({autoOpenWebUI:false});
   expect(state.settings.autoOpenWebUI).toBe(false);expect(state.settings.prepareAheadSeconds).toBe(500);
   await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('900');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='settings').length).toBe(2);
+  expect(calls.filter(c=>c.path==='settings')[1].body).toEqual({prepareAheadSeconds:900});
   expect(state.settings.autoOpenWebUI).toBe(false);expect(state.settings.prepareAheadSeconds).toBe(900);
 });
 

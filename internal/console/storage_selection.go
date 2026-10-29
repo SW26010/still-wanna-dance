@@ -127,12 +127,30 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 	return false, nil
 }
 
-func (c *Console) prepareLibrarySelection(s, old Settings, confirmed bool) error {
+// Acknowledgement belongs to the exact selection shown in the dialog, not to
+// whichever settings happen to be saved when the user finishes reviewing it.
+type videoPolicyConfirmation struct {
+	DatabasePath     string `json:"databasePath"`
+	VideoDir         string `json:"videoDir"`
+	VideoStorageMode string `json:"videoStorageMode"`
+	VideoBudgetBytes int64  `json:"videoBudgetBytes"`
+	RetainFavorites  bool   `json:"retainFavorites"`
+}
+
+func (v videoPolicyConfirmation) matches(s Settings) bool {
+	return sameResourcePath(v.DatabasePath, s.DatabasePath) && sameResourcePath(v.VideoDir, s.VideoDir) &&
+		v.VideoStorageMode == s.VideoStorageMode && v.VideoBudgetBytes == s.VideoBudgetBytes && v.RetainFavorites == s.RetainFavorites
+}
+
+func (c *Console) prepareLibrarySelection(s, old Settings, confirmed *videoPolicyConfirmation) error {
+	if confirmed != nil && !confirmed.matches(s) {
+		return errors.New("目录或视频保留策略已变化，请重新确认后保存。")
+	}
 	required, err := c.inspectLibrarySelection(s, old)
 	if err != nil {
 		return err
 	}
-	if required && !confirmed {
+	if required && confirmed == nil {
 		return errors.New("请先确认此视频目录将按当前数据库的收藏与视频保留策略管理，再保存设置")
 	}
 	if s.VideoDir != "" && !sameResourcePath(s.VideoDir, old.VideoDir) {

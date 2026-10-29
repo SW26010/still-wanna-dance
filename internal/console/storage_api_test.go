@@ -164,7 +164,8 @@ func TestExistingVideosRequirePolicyConfirmationBeforeChangingDatabase(t *testin
 	if after, _ := os.ReadFile(c.configPath); !bytes.Equal(before, after) {
 		t.Fatal("unconfirmed choice changed configuration")
 	}
-	if err := c.saveSettings(next, false, true); err != nil {
+	confirmed := &videoPolicyConfirmation{next.DatabasePath, next.VideoDir, next.VideoStorageMode, next.VideoBudgetBytes, next.RetainFavorites}
+	if err := c.saveSettings(next, false, confirmed); err != nil {
 		t.Fatal(err)
 	}
 	if c.service != nil {
@@ -199,6 +200,83 @@ func TestUnavailableVideoDoesNotPreventUnrelatedSaveOrRecreateRoot(t *testing.T)
 	}
 	if _, err := os.Stat(next.VideoDir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
+	for _, field := range []string{"databasePath", "videoDir", "videoStorageMode", "videoBudgetBytes", "retainFavorites", "missing", "boolean"} {
+		t.Run(field, func(t *testing.T) {
+			c := testConsole(t)
+			initial := c.savedSettings
+			initial.VideoStorageMode, initial.VideoBudgetBytes = "limited", 1024
+			if err := c.save(initial); err != nil {
+				t.Fatal(err)
+			}
+			target := t.TempDir()
+			video := filepath.Join(target, strings.Repeat("b", 32)+".mp4")
+			if err := os.WriteFile(video, []byte("existing video"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			confirmed := videoPolicyConfirmation{initial.DatabasePath, target, initial.VideoStorageMode, initial.VideoBudgetBytes, initial.RetainFavorites}
+			patch := map[string]any{"videoDir": target, "confirmVideoPolicy": confirmed}
+			concurrent := map[string]any{}
+			switch field {
+			case "databasePath":
+				path := filepath.Join(t.TempDir(), "other.sqlite")
+				store, err := cacheproxy.CreateStore(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := store.Close(); err != nil {
+					t.Fatal(err)
+				}
+				concurrent[field] = path
+			case "videoDir":
+				// A changed request path cannot reuse acknowledgement of target.
+				patch[field] = t.TempDir()
+			case "videoStorageMode":
+				concurrent[field] = "none"
+			case "videoBudgetBytes":
+				concurrent[field] = 2048
+			case "retainFavorites":
+				concurrent[field] = false
+			case "missing":
+				delete(patch, "confirmVideoPolicy")
+			case "boolean":
+				patch["confirmVideoPolicy"] = true
+			}
+			post := func(body map[string]any) *httptest.ResponseRecorder {
+				t.Helper()
+				data, err := json.Marshal(body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", bytes.NewReader(data))
+				r.Header.Set("X-SWD-Token", c.token)
+				w := httptest.NewRecorder()
+				c.ServeHTTP(w, r)
+				return w
+			}
+			if len(concurrent) != 0 {
+				if w := post(concurrent); w.Code != 200 {
+					t.Fatal(w.Code, w.Body.String())
+				}
+			}
+			saved := c.savedSettings
+			before, err := os.ReadFile(c.configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if w := post(patch); w.Code != 400 {
+				t.Fatal("accepted an unbound or stale confirmation", w.Code, w.Body.String())
+			}
+			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.savedSettings != saved {
+				t.Fatal("rejected confirmation changed saved settings", err)
+			}
+			if data, err := os.ReadFile(video); err != nil || string(data) != "existing video" || c.service != nil {
+				t.Fatal("rejected confirmation started management or changed a video", err)
+			}
+		})
 	}
 }
 

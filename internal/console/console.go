@@ -762,9 +762,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			err = c.saveTheme(input.Theme)
 		}
 	case "/api/settings":
-		var input settingsRequest
-		if input, err = decodeSettingsRequest(r.Body); err == nil {
-			err = c.saveSettings(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
+		// Read the bounded request before taking the settings lifecycle lock.
+		var input json.RawMessage
+		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+			err = c.saveSettingsPatch(input)
 		}
 	case "/api/batch/start":
 		err = c.startBatch()

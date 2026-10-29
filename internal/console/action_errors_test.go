@@ -19,7 +19,7 @@ func TestActionErrorsAreScopedAndClearOnRetry(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w.Code
 	}
-	if post(`{"storageDir":""}`) != 400 {
+	if post(`{"videoStorageMode":"invalid"}`) != 400 {
 		t.Fatal("expected invalid settings failure")
 	}
 	w := httptest.NewRecorder()

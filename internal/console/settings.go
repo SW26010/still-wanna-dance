@@ -3,7 +3,6 @@ package console
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -61,27 +60,19 @@ func defaultSettings() Settings {
 	}
 }
 
-// The settings form is a replacement request with a few optional fields.
-// File defaults and request omission semantics are deliberately distinct:
-// absent theme/password retain saved values; required modes stay empty so
-// validation rejects incomplete forms instead of silently resetting them.
+// Settings requests update only submitted fields. Decode over the latest saved
+// settings under the lifecycle lock; omitted/null scalars retain their values,
+// while explicit false, zero and empty strings still reach normal validation.
 type settingsRequest struct {
 	Settings
-	ProxyImportID      string  `json:"proxyImportID"`
-	ConfirmVideoPolicy bool    `json:"confirmVideoPolicy"`
-	Password           *string `json:"socks5Password"`
+	ProxyImportID      string                   `json:"proxyImportID"`
+	ConfirmVideoPolicy *videoPolicyConfirmation `json:"confirmVideoPolicy"`
+	Password           *string                  `json:"socks5Password"`
 }
 
-func decodeSettingsRequest(r io.Reader) (settingsRequest, error) {
-	defaults := defaultSettings()
-	input := settingsRequest{Settings: Settings{
-		DownloadConcurrencySoftLimit: defaults.DownloadConcurrencySoftLimit,
-		RestoreHostsOnStopOrExit:     defaults.RestoreHostsOnStopOrExit,
-		RetainFavorites:              defaults.RetainFavorites,
-		DownloadGrowIntervalMS:       defaults.DownloadGrowIntervalMS,
-		LocalProtectionGraceSeconds:  defaults.LocalProtectionGraceSeconds,
-	}}
-	if err := json.NewDecoder(r).Decode(&input); err != nil {
+func decodeSettingsRequest(data []byte, saved Settings) (settingsRequest, error) {
+	input := settingsRequest{Settings: saved}
+	if err := json.Unmarshal(data, &input); err != nil {
 		return input, err
 	}
 	if input.Password != nil {

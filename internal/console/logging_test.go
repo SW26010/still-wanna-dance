@@ -23,7 +23,7 @@ func TestActionLoggingDoesNotLogPollingOrToken(t *testing.T) {
 	if output.Len() != 0 {
 		t.Fatal("polling logged", output.String())
 	}
-	r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"storageDir":""}`))
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"videoStorageMode":"invalid"}`))
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r)

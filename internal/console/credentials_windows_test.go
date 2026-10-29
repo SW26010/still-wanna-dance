@@ -61,7 +61,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	}
 	next := broken.savedSettings
 	next.PrepareAheadSeconds++
-	if err := broken.saveSettings(next, true, false); err != nil {
+	if err := broken.saveSettings(next, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(path)
@@ -73,7 +73,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 		t.Fatal("lost invalid ciphertext")
 	}
 	next.SOCKS5Password = "replacement-secret"
-	if err := broken.saveSettings(next, false, false); err != nil {
+	if err := broken.saveSettings(next, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	repaired, err := newConsoleWithWorkForTest(t, path, c.address)

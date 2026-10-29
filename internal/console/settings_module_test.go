@@ -50,6 +50,11 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 			if err := c.saveTheme("dark"); err != nil {
 				t.Fatal(err)
 			}
+			saved := c.savedSettings
+			saved.DownloadConcurrencySoftLimit, saved.DownloadGrowIntervalMS = 23, 600
+			if err := c.save(saved); err != nil {
+				t.Fatal(err)
+			}
 			active := c.settings
 			fields := map[string]any{
 				"requestRetentionMode": "unlimited", "videoStorageMode": "none", "aggressiveBlockReclamation": "auto",
@@ -65,6 +70,7 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 				fields["downloadGrowIntervalMS"], fields["localProtectionGraceSeconds"] = 0, 0
 				fields["restoreHostsOnStopOrExit"], fields["retainFavorites"] = false, false
 				fields["autoOpenWebUI"], fields["queueWithGateway"] = true, true
+				fields["vrchatLogDir"] = ""
 			}
 			body, err := json.Marshal(fields)
 			if err != nil {
@@ -77,32 +83,31 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 			if w.Code != 200 {
 				t.Fatal(w.Code, w.Body.String())
 			}
-			want := active
-			want.AutoOpenWebUI, want.QueueWithGateway = false, false
-			want.VRChatLogDir = "" // an omitted path selects automatic detection
+			want := saved
 			if variant == "explicit" {
 				want.DownloadConcurrencySoftLimit = 32
 				want.DownloadGrowIntervalMS, want.LocalProtectionGraceSeconds = 0, 0
 				want.RestoreHostsOnStopOrExit, want.RetainFavorites = false, false
 				want.AutoOpenWebUI, want.QueueWithGateway = true, true
+				want.VRChatLogDir = "" // explicitly clearing the path selects automatic detection
 			}
 			active.RestoreHostsOnStopOrExit = want.RestoreHostsOnStopOrExit
 			if c.savedSettings != want || c.settings != active {
-				t.Fatal("request defaults or save/apply semantics changed")
+				t.Fatal("partial request lost saved settings or applied staged values")
 			}
 			before, err := os.ReadFile(c.configPath)
 			if err != nil {
 				t.Fatal(err)
 			}
-			r = httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{}`))
+			r = httptest.NewRequest("POST", "http://"+c.address+"/api/settings", strings.NewReader(`{"videoStorageMode":""}`))
 			r.Header.Set("X-SWD-Token", c.token)
 			w = httptest.NewRecorder()
 			c.ServeHTTP(w, r)
 			if w.Code != 400 {
-				t.Fatal("incomplete form accepted", w.Code)
+				t.Fatal("invalid partial settings accepted", w.Code)
 			}
 			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(after, before) || c.savedSettings != want {
-				t.Fatal("incomplete request changed settings", err)
+				t.Fatal("invalid request changed settings", err)
 			}
 		})
 	}
@@ -127,17 +132,22 @@ func TestConcurrentConfigurationUpdatesPreserveIndependentChoices(t *testing.T) 
 	c = restartTestConsole(t, c)
 	active, next := c.settings, c.savedSettings
 	next.PrepareAheadSeconds++
-	next.Theme = "" // ordinary forms retain the most recently saved theme
-	start, results := make(chan struct{}), make(chan error, 3)
+	patch, err := json.Marshal(map[string]int{"prepareAheadSeconds": next.PrepareAheadSeconds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	next.LogLevel = "warn"
+	start, results := make(chan struct{}), make(chan error, 4)
 	for _, update := range []func() error{
-		func() error { return c.saveSettings(next, true, false) },
+		func() error { return c.saveSettingsPatch(patch) },
+		func() error { return c.saveSettingsPatch([]byte(`{"logLevel":"warn"}`)) },
 		func() error { return c.saveTheme("dark") },
 		c.dismissVRCXSuggestion,
 	} {
 		go func() { <-start; results <- update() }()
 	}
 	close(start)
-	for range 3 {
+	for range 4 {
 		if err := <-results; err != nil {
 			t.Error(err)
 		}

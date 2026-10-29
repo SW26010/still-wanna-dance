@@ -16,18 +16,31 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 }
 
 func (c *Console) save(s Settings) error {
-	return c.saveSettings(s, false, false)
+	return c.saveSettings(s, false, nil)
+}
+
+func (c *Console) saveSettingsPatch(data []byte) error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
+	c.mu.Lock()
+	saved := c.savedSettings
+	c.mu.Unlock()
+	input, err := decodeSettingsRequest(data, saved)
+	if err != nil {
+		return err
+	}
+	return c.saveSettingsLocked(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
 }
 
 // An omitted password in the settings API preserves the stored secret. Merge
 // under the lifecycle lock so concurrent saves cannot restore stale secrets.
-func (c *Console) saveSettings(s Settings, preservePassword, confirmVideoPolicy bool) error {
+func (c *Console) saveSettings(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	return c.saveSettingsLocked(s, preservePassword, confirmVideoPolicy)
 }
 
-func (c *Console) saveSettingsLocked(s Settings, preservePassword, confirmVideoPolicy bool) error {
+func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()

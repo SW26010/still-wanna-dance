@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
 )
 
@@ -28,6 +30,23 @@ func TestMain(m *testing.M) {
 func TestApplicationRestartReleasesConfigAndKeepsAddress(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "configuration with spaces.json")
+	// Prepare a real installed configuration before timing process transitions.
+	// Cold seed initialization is covered by TestProductionBootstrapSeedsMediaWithoutCatalogOrEngine.
+	work, err := cacheproxy.OpenWorkDirectory(startupWorkForTest(t, config), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer work.Close()
+	initial, err := console.New(config, "127.0.0.1:0", work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := initial.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := work.Close(); err != nil {
+		t.Fatal(err)
+	}
 	outputPath := filepath.Join(root, "output.log")
 	output, err := os.Create(outputPath)
 	if err != nil {

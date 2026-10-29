@@ -11,7 +11,7 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
       await page.goto(route);
       await expect(page.locator('#root > .fui-FluentProvider')).toBeVisible();
       await expect(page.locator('.brand-logo')).toBeVisible();
-      expect(await page.locator('.brand-logo').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+      await expect.poll(() => page.locator('.brand-logo').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.keyboard.press('Tab'); await expect(page.getByRole('link', { name: '跳到主要内容' })).toBeFocused();
       await page.keyboard.press('Enter'); await expect(page.locator('#main')).toBeFocused();

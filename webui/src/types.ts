@@ -12,7 +12,7 @@ export interface Settings {
 export interface Job {
 	 target?: {songID?:string;resource?:string};
   running?: boolean; scanOnly?: boolean; phase?: string; error?: string; total?: number; checked?: number;
-  hits?: number; downloaded?: number; missing?: number; reused?: number; failed?: number; skipped?: number; current?: string;
+  hits?: number; downloaded?: number; missing?: number; unresolved?: number; reused?: number; failed?: number; skipped?: number; current?: string;
   updated?: string; budgetReached?: boolean; catalogWarning?: string; catalog?: {revision?:string}; failures?: { id: number; name: string; error: string }[];
 }
 export interface ImportJob extends Job {
@@ -46,7 +46,7 @@ export interface Status {
   defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health;
 }
 export interface Inventory {
-  updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; scanning?: boolean; error?: string;
+  updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; unresolvedSongs?: number; scanning?: boolean; error?: string;
   catalogRevision?: string; catalog?: {checkedAt?: string; revision?: string; error?: string; message?: string};
 }
 export interface Song { id: string; title?: string }

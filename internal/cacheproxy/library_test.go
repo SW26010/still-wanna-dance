@@ -26,21 +26,21 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	// Neither a partial spool nor an invalid file becomes a complete video.
 	writeTestFile(t, filepath.Join(cfg.VideoDir, "unfinished.part"), "ignored")
 	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources"})
-	if err != nil || page.Total != 3 || len(page.Resources) != 3 || page.FileCount != 2 || page.TotalBytes != 12 {
+	if err != nil || page.Total != 4 || len(page.Resources) != 4 || page.FileCount != 2 || page.TotalBytes != 12 {
 		t.Fatal(page, err)
 	}
 	r := page.Resources[shared]
 	if r.SongCount != 2 || r.Local == nil || r.Local.Stamp == "" || *r.Size != 6 || r.Duration != nil {
 		t.Fatal(r)
 	}
-	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] != nil {
+	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] == nil || page.Resources[hidden].Local != nil {
 		t.Fatal(page)
 	}
 	if _, err := s.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
 		t.Fatal(err)
 	}
 	recent, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Sort: "recent"})
-	if err != nil || len(recent.Keys) != 3 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Keys[2] != missing || recent.Resources[orphan].Local.LastRequest != 200 {
+	if err != nil || len(recent.Keys) != 4 || recent.Keys[0] != orphan || recent.Keys[1] != shared || recent.Resources[orphan].Local.LastRequest != 200 {
 		t.Fatal(recent, err)
 	}
 	songs, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Search: "Singer"})
@@ -51,7 +51,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 		t.Fatal("shared file has inconsistent deletion identity")
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Filter: "missing"})
-	if err != nil || page.Total != 1 || page.Keys[0] != missing {
+	if err != nil || page.Total != 2 || !slices.Contains(page.Keys, missing) || !slices.Contains(page.Keys, hidden) {
 		t.Fatal(page, err)
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
@@ -63,7 +63,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 		t.Fatal(removed, err)
 	}
 	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
-	if err != nil || page.Total != 0 || page.FileCount != 1 || page.TotalBytes != 6 {
+	if err != nil || page.Total != 1 || page.Resources[orphan].Local != nil || page.FileCount != 1 || page.TotalBytes != 6 {
 		t.Fatal(page, err)
 	}
 	var count int

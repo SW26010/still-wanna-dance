@@ -44,8 +44,8 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 	}{
 		{"prefer_catalog", []int{1, 2}, "2", "2"},
 		{"fallback_catalog", []int{1, 2}, "1", "2,1"},
-		{"fallback_retained", []int{1}, "99", "1,99"},
-		{"all_fail", []int{1, 2}, "", "2,1,99"},
+		{"retained_not_a_target", []int{1}, "99", "1"},
+		{"all_fail", []int{1, 2}, "", "2,1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -114,11 +114,11 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 				t.Fatalf("resolution order=%s want=%s", got, tc.want)
 			}
 			b := c.batch
-			total := len(tc.current) + 1
+			total := len(tc.current)
 			if b.Total != total || b.Checked != total {
 				t.Fatalf("%+v", b)
 			}
-			if tc.working == "" {
+			if tc.working == "" || tc.working == "99" {
 				if b.Failed != total || len(b.Failures) != total || b.Downloaded != 0 || downloads.Load() != 0 {
 					t.Fatalf("batch=%+v downloads=%d", b, downloads.Load())
 				}
@@ -191,16 +191,16 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	if c.batch.Total != 3 || c.batch.Hits != 2 || c.batch.Missing != 1 || resolves.Load() != 0 || downloads.Load() != 0 {
 		t.Fatalf("batch=%+v resolves=%d downloads=%d", c.batch, resolves.Load(), downloads.Load())
 	}
-	// A fresh backup adds IDs but preserves existing mappings and omitted IDs.
+	// A fresh backup retains old records but replaces the current task scope.
 	mu.Lock()
 	mapping = map[int]string{2: b, 4: b}
 	mu.Unlock()
 	waitMD5Batch(t, c, false)
-	if c.batch.Total != 4 || c.batch.Hits != 2 || c.batch.Downloaded != 2 || resolves.Load() != 1 || downloads.Load() != 1 {
+	if c.batch.Total != 2 || c.batch.Hits != 1 || c.batch.Downloaded != 1 || resolves.Load() != 1 || downloads.Load() != 1 {
 		t.Fatalf("batch=%+v resolves=%d downloads=%d", c.batch, resolves.Load(), downloads.Load())
 	}
 	waitMD5Batch(t, c, false)
-	if c.batch.Hits != 4 || resolves.Load() != 1 || lists.Load() != 3 {
+	if c.batch.Hits != 2 || resolves.Load() != 1 || lists.Load() != 3 {
 		t.Fatalf("batch=%+v resolves=%d lists=%d", c.batch, resolves.Load(), lists.Load())
 	}
 	// Unchanged mappings with a missing file still need to be filled again.
@@ -208,7 +208,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitMD5Batch(t, c, false)
-	if downloads.Load() != 2 || c.batch.Downloaded != 2 {
+	if downloads.Load() != 2 || c.batch.Downloaded != 1 {
 		t.Fatal(downloads.Load(), c.batch)
 	}
 }

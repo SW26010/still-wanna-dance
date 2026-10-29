@@ -107,7 +107,7 @@ test('completed network checks publish new catalog data without a library timer 
   await expect(page.getByRole('table',{name:'曲库歌曲'})).toContainText('网络检测同步的新歌名');
   await expect.poll(()=>reads).toBe(2);
   await page.getByText('曲库覆盖率',{exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toHaveText('清单版本：20261028080000');
+  await expect(page.getByRole('tooltip')).toHaveText('统计清单版本：20261016000000');
   await page.keyboard.press('Escape');
   const completedReads=api.calls.filter(c=>c.path==='library').length;
   await page.clock.fastForward(31000);

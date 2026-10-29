@@ -4,7 +4,6 @@ import (
 	"context"
 	"sort"
 	"strconv"
-	"time"
 
 	initialpriority "still-wanna-dance/data/initial-priority"
 )
@@ -45,17 +44,6 @@ type ResourcePriority struct {
 	LastDemand int64
 }
 
-// EffectiveResourcePriorities is shared by batch ordering and eviction.
-// References are a caller-owned current-mapping snapshot; each song is counted once.
-func (s *Store) EffectiveResourcePriorities(ctx context.Context, refs map[string]string) (result map[string]ResourcePriority, resultErr error) {
-	if !s.beginRequest() {
-		return nil, context.Canceled
-	}
-	defer s.wg.Done()
-	defer func() { resultErr = s.storageError(resultErr) }()
-	s.usage.flush()
-	return s.resourcePriorities(ctx, refs, time.Now().UnixMilli())
-}
 func (s *Store) resourcePriorities(ctx context.Context, refs map[string]string, now int64) (map[string]ResourcePriority, error) {
 	ids := make([]int64, 0, len(refs))
 	for id := range refs {

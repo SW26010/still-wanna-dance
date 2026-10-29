@@ -103,7 +103,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 	}
 	defer release()
 	r = snapshot.Files
-	if len(r.References) != 4 || len(r.Missing[b]) != 1 {
+	if len(r.References) != 2 || len(r.Missing) != 0 || !r.Complete {
 		t.Fatalf("%+v", r)
 	}
 	if err := syncTestCatalog(s, ctx, map[string]string{"5": "invalid"}); err == nil {

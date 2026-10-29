@@ -37,7 +37,7 @@ Range 与顺序 200 共用完整块文件存储；仅完整块写入并关闭后
 
 ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命中本地时立即返回，同时后台对照上游 URL 的 MD5；后台检查不替换文件、不打断播放。缺少映射或文件时解析 URL 并冷加载。URL 播放直接取查询参数 e 的 MD5 查本地，缺失时用该 URL 冷加载。
 
-独立的 CheckReferencedFiles 函数把映射中的 MD5 去重，一次枚举目录后返回存在集合和缺失 MD5 及其歌曲 ID。忽略孤儿资源，不检查视频大小或内容。上层使用快照，不重复逐项检查。引擎的 ReadLocalCatalog 入口同时获取清单状态、歌曲与引用快照，在任务期间保护引用资源，任务结束释放；每次新任务重新检查，不缓存跨任务结果。外部文件删除仍可能导致实际播放打开失败。
+独立的 CheckReferencedFiles 函数把映射中的 MD5 去重，一次枚举目录后返回存在集合和缺失 MD5 及其歌曲 ID。忽略孤儿资源，不检查视频大小或内容。ReadLocalCatalog 只读取当前成员，缺映射歌曲单列待识别；单项目标读取不受成员限制。入口同时获取清单状态、歌曲与引用快照，在任务期间保护已知资源，任务结束释放；每次新任务重新检查，不缓存跨任务结果。外部文件删除仍可能导致实际播放打开失败。
 
 | 表 | 内容 |
 | --- | --- |
@@ -60,7 +60,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 运行期上游监测也复用该入口：每次自动或手动探测播放 API 成功后，直接保存本轮所选歌曲的 URL 和大小，并按同一规则更新当前关联，无需再次查询 API。单候选和多候选通道均覆盖，API 键统一为无查询参数的地址，节点保存实际请求值 cf，已有历史 nya 记录保留但不用于当前下载；排序使用探测请求自身的起止时间，不以回调落库时间刷新旧响应。资源采样失败不撤销已取得的 API 证据和补缺关联；写库失败保留本地存储故障，不改变 API 健康判断。只刷新当轮实际探测到的歌曲，不追加整库批量请求，签名地址不进入状态接口。
 
-探测样本优先从 `song_media` 关联的缺项歌曲中选择：`media.byte_size` 为 NULL/非正数，或同 API 的 cf 节点缺少当前 MD5 的非空、未标失败 URL。不同内容的旧地址不算补齐；地址只是超过 24 小时仍算已有元数据，不将全库重新变为缺项，实际播放继续执行原有时效/校验规则。候选复用视频保留与批量补齐的资源评分，按分数及同分歌曲编号从高到低补；共享资源的全部关联都参与评分，包括已补齐的歌曲。每批复用原请求探测一首，未补齐的失败项本遍先跳过、下一遍重试；齐备后恢复普通抽样。仅更新 URL/大小和当前关联，不推断其他歌曲字段、不下载完整视频、不产生需求分数，也不新增数据库字段。
+探测样本从所有歌曲的缺项候选中选择，不要求已有 MD5：缺映射、`media.byte_size` 为 NULL/非正数，或同 API 的 cf 节点缺少当前 MD5 的非空、未标失败 URL。不同内容的旧地址不算补齐；地址只是超过 24 小时仍算已有元数据，不将全库重新变为缺项，实际播放继续执行原有时效/校验规则。按歌曲自身有效分数及同分歌曲编号从高到低补，不累加共享资源的其他歌曲分数。每批复用原请求探测一首，未补齐的失败项本遍先跳过、下一遍重试；齐备后恢复普通抽样。仅更新 URL/大小和当前关联，不推断其他歌曲字段、不下载完整视频、不产生需求分数，也不新增数据库字段。
 
 仅接受查询发起时间严格更新的 URL 观察；较旧或同刻的观察不修改 URL、资源元数据或歌曲关联。事务内任一写入失败则全部回滚，并沿用本地存储错误处理。查询排序跨同一歌曲的全部 API/节点；新的有效观察可覆盖已有 `song_media`，无论来自清单还是较早 API。读取缓存不重新进入观察写入。URL 观察不产生播放统计；关联和资源属性已知不代表文件已下载或完成校验。
 
@@ -68,7 +68,7 @@ ID 播放先检查屏蔽状态并在命中时返回 403；准入后的播放命�
 
 清单通过 Udon 和两个同级备选进入共同同步入口。较新完整候选更新歌曲资料、当前成员和水位；同版本优先 Udon，同级或同源冲突保留现状。较旧备选仍可补资源和映射空缺，不降低歌曲水位。歌曲摘要 v2 不包含 MD5，完整规范以[曲库设计](song-catalog-design.md#清单同步与增改不删)为准。获取失败保留已接受资料。
 
-补齐每次获取清单并补充资料，只为缺失 MD5 解析和下载。同内容多歌曲只安排一个任务；映射没变但文件已被淘汰仍会补齐。解析结果与目标 MD5 不一致时报告失败，不把其他内容当作完成。
+全量补齐每次获取清单并补充资料，只处理当前成员；已知相同 MD5 共用任务，无映射歌曲分别按 ID 解析。映射没变但文件已被淘汰仍会补齐。指定目标不受成员限制；已固定 MD5 与解析结果不一致时报告失败，不把其他内容当作完成。
 
 资源分数是当前关联歌曲分数之和，孤儿资源为零分。映射改变不立即删除旧文件；容量超限时按分数淘汰，活动请求、下载的必要引用及统一块保护保持有效。有限需求进入本地保护提前窗口后保护数据，最后一份块需求结束后按配置延续（默认 300 秒，0 表示不延续）；任一块受保护则完整文件不可删除，不另设队列专属文件保护。淘汰只删除文件，保留关联和统计。文件发布与数据库提交不是跨资源原子事务，已发布的 MD5 文件即使没有元数据也可命中。
 
@@ -113,7 +113,7 @@ CREATE TABLE song_preferences (
 
 ## Portable 文件契约与生命周期
 
-本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=7`，媒体 SQLite 为上述版本 7。旧测试配置版本 1～6 不兼容、不迁移，不应手工改版本号继续使用。
+本节是应用落盘位置和备份范围的统一清单。路径由 `internal/apppaths` 解析；软件版本变化不改变文件名。当前配置格式为 `schemaVersion=7`，媒体 SQLite 为上述版本 8。旧测试配置版本 1～6 不兼容、不迁移，不应手工改版本号继续使用。
 
 ### 交付与按需生成
 
@@ -189,7 +189,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
 | `R/data/state/channel.key` 损坏、`R/data/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份。测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
 
-库存和任务快照使用 `schemaVersion=2`，分别保存 `databasePath`、`videoDir` 与 `result`。配置目录内的位置保存为相对路径，读取以 B 为基准，便携整包移动仍可匹配；数据库或视频位置任一变化都不加载旧结果。缺失、损坏及旧／不支持格式跳过，不迁移或新建历史。每种仅保留最近一份，恢复只显示带时间的过去结果，不恢复任务、文件选择或删除授权。写入失败保留已完成的本次内存结果并提示未保存，磁盘上次结果保持不变。设置、密钥和状态仍归配置实例，不进入媒体 SQLite。
+库存和任务快照使用 `schemaVersion=3`，分别保存 `databasePath`、`videoDir` 与 `result`。配置目录内的位置保存为相对路径，读取以 B 为基准，便携整包移动仍可匹配；数据库或视频位置任一变化都不加载旧结果。缺失、损坏及旧／不支持格式跳过，不迁移或新建历史。每种仅保留最近一份，恢复只显示带时间的过去结果，不恢复任务、文件选择或删除授权。写入失败保留已完成的本次内存结果并提示未保存，磁盘上次结果保持不变。设置、密钥和状态仍归配置实例，不进入媒体 SQLite。
 
 ### Portable 外部状态
 
@@ -217,7 +217,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 ## 持久化格式与语义
 
-版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **8**、配置 **7**、库存/批量/尝试快照 **2**、吞吐快照 **2**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v8.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v8.sqlite`；旧 v2～v7 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
+版本号不随软件版本递增，也不为了称作“v1”而重用试验期编号。开发期最早冻结基线是 SQLite **2**、配置 **3**；当前首发候选基线采用 SQLite **8**、配置 **7**、库存/批量/尝试快照 **3**、吞吐快照 **2**，不迁移旧格式。当前 SQLite 的完整 DDL 固定在 `internal/cacheproxy/schema/storage-v8.sql`，有效二进制样本在 `internal/cacheproxy/testdata/storage-v8.sqlite`；旧 v2～v7 DDL 与样本保留用于拒绝及不改写回归；JSON 样本在 console、upstreamstate 的 testdata 中。今后改变契约必须保留旧样本、明确新版本和升级决策，不能重新生成旧样本来消除回归失败。
 
 ### SQLite 字段清单
 
@@ -264,8 +264,8 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |
 | channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
 | data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移，重新采样。它不是网络当前健康真相 |
-| data/state/inventory.json | schemaVersion=2、databasePath、videoDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
-| data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 2 和数据库／视频组合归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
+| data/state/inventory.json | schemaVersion=3、databasePath、videoDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/unresolvedSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
+| data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
 
 条款凭据按保存顺序从旧到新排列，启动时反向逐条检查，找到当前用户能解密且用途、条款版本、正文摘要及时间有效的第一条即停止。单槽格式错误、损坏、无法解密或条款过时只跳过该槽，不影响其他槽；没有匹配项才要求重新确认。整个封套格式错误、空列表、超过 8 条或超过 64 KiB 均不授予同意；读取不改写文件。允许系统时钟回拨，确认时间不决定槽位顺序，也不证明身份。

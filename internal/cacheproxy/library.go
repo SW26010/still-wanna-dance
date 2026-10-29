@@ -53,10 +53,10 @@ type LibraryPage struct {
 
 type libraryCandidate struct {
 	LibraryResource
-	saved, match bool
-	title        string
-	score        float64
-	lastRequest  int64
+	saved, match, known bool
+	title               string
+	score               float64
+	lastRequest         int64
 }
 
 // ReadLibraryPage reads current metadata and complete-file directory entries.
@@ -131,6 +131,31 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 	}
 	var songs []LibrarySong
 	if db != nil {
+		// The resource view includes accumulated identities even after their
+		// last song changed mapping, or when supplied by a media-only seed.
+		mediaRows, err := db.QueryContext(ctx, "SELECT md5,byte_size FROM media")
+		if err != nil {
+			return page, err
+		}
+		for mediaRows.Next() {
+			var key string
+			var size sql.NullInt64
+			if err := mediaRows.Scan(&key, &size); err != nil {
+				mediaRows.Close()
+				return page, err
+			}
+			r := resource(key)
+			r.known = true
+			if !r.saved && size.Valid && size.Int64 > 0 {
+				bytes := size.Int64
+				r.Size = &bytes
+			}
+		}
+		err = mediaRows.Err()
+		mediaRows.Close()
+		if err != nil {
+			return page, err
+		}
 		rows, err := db.QueryContext(ctx, `SELECT s.id, substr(COALESCE(s.name,''),1,300),
  substr(COALESCE(s.artist,''),1,300),substr(COALESCE(s.dancer,''),1,300),substr(COALESCE(s.groupName,''),1,300),
  COALESCE(p.policy,'normal'),COALESCE(m.md5,''),v.byte_size,
@@ -273,7 +298,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 			if err := materialize(r.Key); err != nil {
 				return page, err
 			}
-			if r.SongCount == 0 && r.Local == nil {
+			if !r.known && r.SongCount == 0 && r.Local == nil {
 				delete(page.Resources, r.Key)
 				page.Total--
 				continue

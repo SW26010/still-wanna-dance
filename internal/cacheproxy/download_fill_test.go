@@ -28,7 +28,7 @@ func fillTestCatalog(t *testing.T, s *Server, songs []CatalogSong) LocalCatalog 
 }
 
 func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
-	const firstID, otherID, retainedID = 9000001, 9000003, 9000004
+	const firstID, otherID, retainedID = 9000004, 9000003, 9000001
 	budgetStop := make(chan struct{})
 	var retry atomic.Bool
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
@@ -48,14 +48,15 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	}, func(cfg *Config) {
 		cfg.CacheUnlimited, cfg.MaxCacheBytes = false, int64(len(payload))
 	})
-	// The retained alias ranks this resource first, but the current catalog
-	// candidate must resolve first. Retry must preserve this resource's budget.
+	// The current aliases rank this resource first. Retry must preserve this
+	// resource's budget after the first candidate was admitted and then failed.
 	if err := s.SyncCatalog(t.Context(), Catalog{Revision: "20261027000000", Source: "test", Songs: []CatalogSong{{ID: retainedID, MD5: videoKey(payload)}}}); err != nil {
 		t.Fatal(err)
 	}
 	local := fillTestCatalog(t, s, []CatalogSong{
 		{ID: firstID, MD5: videoKey(payload)},
 		{ID: otherID, MD5: videoKey("another resource")},
+		{ID: retainedID, MD5: videoKey(payload)},
 	})
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()

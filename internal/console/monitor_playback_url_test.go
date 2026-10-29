@@ -144,7 +144,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	}
 }
 
-func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
+func TestMonitorMetadataBackfillFollowsSongOrderIncludingUdonOnlySong(t *testing.T) {
 	c := testConsole(t)
 	keys := map[int64]string{1981: strings.Repeat("a", 32), 5404: strings.Repeat("b", 32)}
 	var mu sync.Mutex
@@ -198,7 +198,7 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 		}
 	}
 	assertRequests(1981, 10)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404}) {
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
 	requested = nil
@@ -206,14 +206,17 @@ func TestMonitorMetadataBackfillFollowsRetentionOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRequests(5404, 12)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
-		t.Fatal("metadata still incomplete", pending)
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
+		t.Fatal("Udon-only song was not scheduled", pending)
 	}
 	requested = nil
 	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
 		t.Fatal(err)
 	}
 	assertRequests(42, 14)
+	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
+		t.Fatal("metadata still incomplete", pending)
+	}
 }
 
 func TestMonitorMetadataCandidatesDoNotOpenOrReviveStorage(t *testing.T) {

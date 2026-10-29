@@ -36,7 +36,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	if err != nil || !strings.Contains(string(fields["futurePreference"]), "9007199254740993") {
 		t.Fatal("unknown integer changed", err)
 	}
-	b, err = os.ReadFile("testdata/inventory-v2.json")
+	b, err = os.ReadFile("testdata/inventory-v3.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := readSnapshot[Inventory](c, "inventory")
-	if err != nil || v.Updated.UnixNano() != 1791716220123456789 || v.Catalog.Revision != "20261011105700" {
+	if err != nil || v.Updated.UnixNano() != 1791716220123456789 || v.Catalog.Revision != "20261011105700" || v.TotalSongs != 3 || v.UnresolvedSongs != 1 {
 		t.Fatal(v, err)
 	}
 	v.Updated = v.Updated.In(time.FixedZone("east", 8*3600))

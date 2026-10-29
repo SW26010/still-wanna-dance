@@ -63,6 +63,8 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 
 Web UI 的 `app.js` 是离线构建所需的生成产物。重建后按构建清单核对字节数和 SHA256，为新版本追加精确例外，保留历史版本的登记。历史改写后重新检查整个范围，不能只更新最终产物的哈希。
 
+`data/media-seed/media-seed.json` 是离线启动所需的产品资源快照，按精确字节数和 SHA256 登记。只包含 MD5、可选大小、歌曲映射及脱敏来源摘要；生成与版本规则见[快照说明](../data/media-seed/README.md)。用户数据库、URL、统计及偏好不得随快照入库。
+
 产品图标例外仅允许 `internal/branding/logo.ico`、`internal/branding/logo-light.ico` 和 `internal/branding/logo_windows_amd64.syso`，仍拒绝其他图片、证据、压缩包和程序文件。同目录 `logo.svg` 是两种主题共用的矢量源，默认浅色、带独立的深色 media 样式；配色与主题选择规则见 [Fluent UI](fluent-ui-migration.md#页面排版)。安装开发依赖 `sharp@0.35.5` 后运行 `node scripts/generate-logo.mjs`，生成深／浅两套 16–256 像素的九档 ICO 并输出字节数及 SHA256；生成器明确选择 media 样式，不依赖构建机器主题。`--check` 只校验 ICO 重建结果，不写文件。随后运行 `go generate ./internal/branding`，由固定版本 `github.com/akavel/rsrc@v0.10.2` 将 `logo.ico` 封装为 Windows amd64 图标资源，不附加 manifest 或执行代码。更新例外记录后审查图案与哈希。正常 Go 构建直接嵌入已登记文件，无需运行生成器。重新生成可能受 SVG 渲染库版本影响，不能只改策略哈希而跳过图案核对。
 
 验证范围按[现行机制](live-acceptance-process.md)判断；文件归类本身不产生新的实机验收要求。

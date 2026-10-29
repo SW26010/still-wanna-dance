@@ -72,14 +72,14 @@ type LocalCatalog struct {
 	Files   ReferenceCheck
 }
 
-// ReadLocalCatalog copies watermarks and mappings under the mapping lock, then
+// ReadLocalCatalog copies current members, watermarks and mappings under the mapping lock, then
 // pins those exact resources until release. Callers must not sync this partial
 // projection back as a remote catalog.
 func (s *Server) ReadLocalCatalog(ctx context.Context) (LocalCatalog, func(), error) {
 	return s.readLocalCatalog(ctx, nil)
 }
 
-// DownloadTarget identifies one current song or one currently associated resource.
+// DownloadTarget identifies any known song or any currently associated resource.
 // A song without a known resource may be resolved by the normal download path.
 type DownloadTarget struct {
 	SongID   string `json:"songID,omitempty"`
@@ -106,7 +106,7 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
  LEFT JOIN song_media m ON m.song_id=s.id LEFT JOIN catalog_members c ON c.song_id=s.id`
 		var args []any
 		if target == nil {
-			query += " WHERE m.md5 IS NOT NULL"
+			query += " WHERE c.song_id IS NOT NULL"
 		} else {
 			query += " WHERE (?<>'' AND s.id=?) OR (?<>'' AND m.md5=?)"
 			args = []any{target.SongID, target.SongID, target.Resource, target.Resource}
@@ -151,10 +151,11 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 		result.Files, err = CheckReferencedFiles(ctx, s.cfg.videosDir(), refs)
 		// Unresolved songs still use the same job/resolve/download mechanism,
 		// but must not be presented to the complete-file checker as a fake MD5.
-		if err == nil && target != nil {
+		if err == nil {
 			for _, song := range result.Songs {
 				if song.MD5 == "" {
 					result.Files.References[strconv.FormatInt(song.ID, 10)] = ""
+					result.Files.Complete = false
 				}
 			}
 		}

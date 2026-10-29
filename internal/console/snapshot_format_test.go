@@ -21,7 +21,7 @@ func TestSnapshotContractIndependentOfSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatal(err)
 	}
-	if len(fields) != 4 || string(fields["schemaVersion"]) != "2" {
+	if len(fields) != 4 || string(fields["schemaVersion"]) != "3" {
 		t.Fatal(string(data))
 	}
 	var saved savedSnapshot[int]
@@ -51,7 +51,7 @@ func TestSnapshotContractIndependentOfSettings(t *testing.T) {
 		}
 		fields[field] = original
 	}
-	for _, version := range []string{"0", "1", "999"} {
+	for _, version := range []string{"0", "1", "2", "999"} {
 		fields["schemaVersion"] = json.RawMessage(version)
 		data, _ = json.Marshal(fields)
 		if err := os.WriteFile(path, data, 0600); err != nil {

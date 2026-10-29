@@ -22,7 +22,6 @@ type ImportStatus struct {
 	Failed           int    `json:"failed"`
 	Deleted          int    `json:"deleted"`
 	CleanupAvailable bool   `json:"cleanupAvailable"`
-	CatalogWarning   string `json:"catalogWarning"`
 	Error            string `json:"error"`
 }
 

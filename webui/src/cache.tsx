@@ -71,8 +71,10 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
         {(readError||videoError)&&<Text block size={200} role="status">检查失败</Text>}
       </div>
       <div role="group" aria-label="曲库覆盖率">
-        <div className="inline"><Tooltip content={'清单版本：'+(v?.catalog?.revision||'未知')} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
+        <div className="inline"><Tooltip content={'统计清单版本：'+(v?.catalogRevision||'未知')} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
         <Text block size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>
+        {known&&<Text block size={200}>已覆盖 {v.coveredSongs} / 当前清单 {v.totalSongs} 首</Text>}
+        {known&&!!v.unresolvedSongs&&<Text block size={200}>资源待识别 {v.unresolvedSongs} 首</Text>}
       </div>
       <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.maxCacheBytes)}</Text></div>
     </div>

@@ -11,7 +11,7 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-const snapshotSchemaVersion = 2
+const snapshotSchemaVersion = 3
 
 type savedSnapshot[T any] struct {
 	SchemaVersion int    `json:"schemaVersion"`

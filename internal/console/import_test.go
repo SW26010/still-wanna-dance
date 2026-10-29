@@ -132,7 +132,7 @@ func TestImportUsesAllKnownMediaWithoutNetworkOrMapping(t *testing.T) {
 		if attempt == 1 {
 			wantImported, wantSkipped = 0, 4
 		}
-		if state.Running || state.Checked != 4 || state.Imported != wantImported || state.Skipped != wantSkipped || state.Failed != 0 || state.Error != "" || state.CatalogWarning != "" {
+		if state.Running || state.Checked != 4 || state.Imported != wantImported || state.Skipped != wantSkipped || state.Failed != 0 || state.Error != "" {
 			t.Fatal(state)
 		}
 	}

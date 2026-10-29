@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type DownloadFillFailure struct {
@@ -21,6 +22,7 @@ type DownloadFillFailure struct {
 type DownloadFillResult struct {
 	Total, Checked, Hits, Downloaded, Failed, Skipped int
 	Missing, Reused, CatalogHits                      int
+	Unresolved                                        int
 	BudgetReached                                     bool
 	CurrentSongID                                     string
 	Failures                                          []DownloadFillFailure
@@ -50,18 +52,41 @@ type fillResource struct {
 	score float64
 }
 
-func (s *Server) fillResources(ctx context.Context, references map[string]string) ([]*fillResource, error) {
-	priorities, err := s.EffectiveResourcePriorities(ctx, references)
+func (s *Server) fillResources(ctx context.Context, references map[string]string) (result []*fillResource, resultErr error) {
+	if !s.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
+	priorities, err := s.retentionPriorities(ctx)
 	if err != nil {
 		return nil, err
 	}
 	grouped := map[string]*fillResource{}
+	var unresolved []int64
 	for id, key := range references {
-		if grouped[key] == nil {
-			// Retained mappings still contribute to shared-resource priority.
-			grouped[key] = &fillResource{md5: key, score: priorities[key].Score}
+		if key == "" {
+			n, _ := strconv.ParseInt(id, 10, 64)
+			unresolved = append(unresolved, n)
 		}
-		grouped[key].ids = append(grouped[key].ids, id)
+	}
+	songPriorities, err := s.songPriorities(ctx, unresolved, time.Now().UnixMilli())
+	if err != nil {
+		return nil, err
+	}
+	for id, key := range references {
+		groupKey, score := key, priorities[key].Score
+		if key == "" {
+			// Unknown resources share no identity; resolve each song separately.
+			groupKey = "song:" + id
+			n, _ := strconv.ParseInt(id, 10, 64)
+			score = songPriorities[n]
+		}
+		if grouped[groupKey] == nil {
+			// Retained mappings still contribute to shared-resource priority.
+			grouped[groupKey] = &fillResource{md5: key, score: score}
+		}
+		grouped[groupKey].ids = append(grouped[groupKey].ids, id)
 	}
 	newer := func(a, b string) bool {
 		x, _ := strconv.ParseInt(a, 10, 64)
@@ -182,6 +207,8 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 				result.Hits += len(ids)
 				result.Reused += len(ids)
 				result.CatalogHits += len(ids)
+			case f.scanOnly && job.md5 == "":
+				result.Unresolved += len(ids)
 			case f.scanOnly:
 				result.Missing += len(ids)
 			case source == "HIT":

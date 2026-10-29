@@ -780,6 +780,13 @@
       "bytes": 1757906,
       "sha256": "81f9c2bdb3c75491fb5c9d3f55504ab7f3efe01d9a0704ecbf8e64555114ace3",
       "reason": "URL-free bundled media identities, known sizes and song mappings. Reproducible with scripts/build-media-seed.go from saved public catalogs and a sanitized read-only local projection; see data/media-seed/README.md."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1198831,
+      "sha256": "85e03dae6bea9e6d811cc90a0cd86eb87b6236e50da280e2a488fe6ec411d601",
+      "reason": "Production WebUI generated and verified by webui/build.mjs. Current-catalog coverage with unresolved-song counts, snapshot revision tooltip, and offline known-media import."
     }
   ]
 }

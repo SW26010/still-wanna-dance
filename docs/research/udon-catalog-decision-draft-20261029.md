@@ -118,3 +118,5 @@ HTTP/HTTPS 选型、预置 URL、完整集合建模及额外后台任务不纳�
 验证：保留的真实 Udon/Kiva 同版样本各 10,470 首，共同摘要均为 `sha256-v2:fd8ff86ab5f4952eed60175f6ee117d3e2caa101b0f1aad5ca8eade718e1cfea`。受影响的 cacheproxy、console、upstreamstate 三包执行完整回归；发现并修正主键改名后的测试 SQL，以及仍期待清单覆盖 MD5、Udon 仅供采样的旧断言。所有失败项定向复验通过，三个包 go vet 通过。初次沙箱中的 Console 夹具仍出现 Windows 原子重命名限制；宿主环境使用相同临时目录包装器完成复验。失败和复验日志保存在忽略目录 `artifacts/udon-implementation-20261029/`，没有使用用户日常库或启动 VRC。
 
 后续提交继续完成：预置 media/song_media 与快照版本及生成工具；按 media 准入导入；当前成员范围的补齐和覆盖率、资源待识别显示；按歌曲分数的监测补资料。本文目标中的这些部分尚不能视为当前实现。
+
+第一组本地提交：`96ae96aa`。提交后产物检查发现基线已有的 `app.js` 缺少精确例外登记（1,198,746 字节，SHA256 `befb5723d8fcfefc2d6285ca823cd6c95ff663ae9f5c47d1199a0b7c44d59ddc`）。它未在曲库改造中改变；核对 Git blob、构建清单及 `pnpm --dir webui check` 一致后单独补登记，不重建或修改界面。v8 二进制夹具的精确登记通过检查。

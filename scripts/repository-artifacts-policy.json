@@ -766,6 +766,13 @@
       "bytes": 102400,
       "sha256": "a65f2b161ef3bf407e9a89e24346177d3867e1289e2a797beb7d6fc72b17877e",
       "reason": "Frozen SQLite v8 fixture for the Udon song schema and shared metadata digest v2; covers all 14 tables, backup, transaction rehearsal, current-format reopening and preservation. Prior v2-v7 fixtures remain unchanged for rejection tests."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1198746,
+      "sha256": "befb5723d8fcfefc2d6285ca823cd6c95ff663ae9f5c47d1199a0b7c44d59ddc",
+      "reason": "Register the existing baseline WebUI bundle, unchanged by the Udon storage commit. Exact Git blob bytes match webui/build-manifest.json and pnpm --dir webui check; this restores the omitted artifact-policy registration without rebuilding or changing UI behavior."
     }
   ]
 }

@@ -1,11 +1,21 @@
 name: check
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Version to publish from the selected ref (empty = checks only)'
+        type: string
+        default: ''
   push:
     tags:
       - 'v[0-9]*'
 permissions:
   contents: read
+concurrency:
+  group: check-${{ inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+env:
+  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 jobs:
   test:
     env:
@@ -18,6 +28,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare version tag for packaging
+        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
+          git show-ref --verify --quiet "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -eq 0) {
+            $tagCommit = git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
+            if ($tagCommit -cne (git rev-parse HEAD)) { throw 'Release tag points to a different commit' }
+          } else {
+            git tag $env:RELEASE_TAG HEAD
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare release tag' }
+          }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -48,15 +73,18 @@ jobs:
         run: go test -tags=no_easytier -race ./...
       - if: runner.os == 'Linux'
         run: test -z "$(gofmt -l cmd internal)"
-      - if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/')
+      - name: Build upgrade candidate
+        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
         shell: pwsh
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: ./scripts/package-portable.ps1 -ReleaseTag $env:RELEASE_TAG
-      - if: runner.os == 'Windows' && !startsWith(github.ref, 'refs/tags/')
+        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -OutputDir artifacts/upgrade-baseline
+      - name: Build and verify release with candidate overlay upgrade
+        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
+        shell: pwsh
+        run: ./scripts/package-portable.ps1 -ReleaseTag $env:RELEASE_TAG -PreviousZip artifacts/upgrade-baseline/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
+      - if: runner.os == 'Windows' && env.RELEASE_TAG == ''
         shell: pwsh
         run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }}
-      - if: runner.os == 'Windows' && !startsWith(github.ref, 'refs/tags/')
+      - if: runner.os == 'Windows' && env.RELEASE_TAG == ''
         shell: pwsh
         run: ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
       - if: runner.os == 'Windows'
@@ -70,3 +98,112 @@ jobs:
             artifacts/*-release.json
             artifacts/*-release-notes.md
           if-no-files-found: error
+      - name: Retain packaging diagnostics
+        if: runner.os == 'Windows' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-validation-logs
+          path: |
+            artifacts/portable-smoke/**/*.log
+            artifacts/portable-upgrade/**/*.log
+          if-no-files-found: ignore
+
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: webui/package.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: still-wanna-dance-windows-amd64-portable
+          path: artifacts
+      - name: Check release identity and existing destination
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url');
+            const path = require('node:path');
+            const fs = require('node:fs');
+            const { checkReleaseManifest, releaseNames } = await import(pathToFileURL(path.resolve('scripts/release.mjs')));
+            const { sha256 } = await import(pathToFileURL(path.resolve('scripts/release-source.mjs')));
+            const tag = process.env.RELEASE_TAG;
+            const names = releaseNames(tag);
+            const manifest = checkReleaseManifest(JSON.parse(fs.readFileSync(path.join('artifacts', names.manifest), 'utf8')));
+            if (manifest.tag !== tag || manifest.revision !== context.sha || manifest.repository !== `${context.repo.owner}/${context.repo.repo}`) throw Error('Release does not match this workflow commit');
+            for (const asset of manifest.assets) {
+              const file = path.join('artifacts', asset.name);
+              if (fs.statSync(file).size !== asset.bytes || sha256(file) !== asset.sha256) throw Error(`Corrupt artifact: ${asset.name}`);
+              if (fs.readFileSync(file + '.sha256', 'utf8').trim() !== `${asset.sha256}  ${asset.name}`) throw Error(`Wrong checksum file: ${asset.name}`);
+            }
+            try {
+              await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+              const { data } = await github.rest.repos.getCommit({ ...context.repo, ref: `refs/tags/${tag}` });
+              if (data.sha !== manifest.revision) throw Error('Existing tag points to another commit');
+            } catch (error) { if (error.status !== 404) throw error; }
+            const releases = await github.paginate(github.rest.repos.listReleases, { ...context.repo, per_page: 100 });
+            if (releases.some(release => release.tag_name === tag && !release.draft)) throw Error('Refusing to overwrite a published release');
+      - name: Upload complete delivery to draft
+        id: draft
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-release-notes.md
+          draft: true
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          make_latest: 'false'
+          overwrite_files: false
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-windows-amd64-portable.zip
+            artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-windows-amd64-portable.zip.sha256
+            artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-corresponding-source.tar.gz
+            artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-corresponding-source.tar.gz.sha256
+            artifacts/still-wanna-dance-${{ env.RELEASE_TAG }}-release.json
+      - name: Publish and verify public delivery
+        uses: actions/github-script@v9
+        env:
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        with:
+          script: |
+            const path = require('node:path');
+            const fs = require('node:fs');
+            const { pathToFileURL } = require('node:url');
+            const { sha256 } = await import(pathToFileURL(path.resolve('scripts/release-source.mjs')));
+            const { releaseNames } = await import(pathToFileURL(path.resolve('scripts/release.mjs')));
+            const names = releaseNames(process.env.RELEASE_TAG);
+            const release_id = Number(process.env.RELEASE_ID);
+            const { data: release } = await github.rest.repos.getRelease({ ...context.repo, release_id });
+            const expected = [names.portable, names.portable + '.sha256', names.source, names.source + '.sha256', names.manifest];
+            if (!release.draft || release.tag_name !== process.env.RELEASE_TAG || release.assets.length !== expected.length) throw Error('Unexpected draft delivery');
+            for (const name of expected) {
+              const asset = release.assets.find(asset => asset.name === name);
+              const file = path.join('artifacts', name);
+              if (!asset || asset.state !== 'uploaded' || asset.size !== fs.statSync(file).size || asset.digest !== `sha256:${sha256(file)}`) throw Error(`Uploaded asset mismatch: ${name}`);
+            }
+            let publishedRelease;
+            try {
+              ({ data: publishedRelease } = await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, prerelease: process.env.RELEASE_TAG.includes('-'), make_latest: 'false' }));
+              await exec.exec('pwsh', ['-NoProfile', '-File', 'scripts/with-test-temp.ps1', 'node', 'scripts/release.mjs', 'verify-published', '--manifest', path.join('artifacts', names.manifest)]);
+            } catch (error) {
+              // Stop exposing an unverified delivery. Never report it as successful.
+              await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: true });
+              throw error;
+            }
+            await core.summary.addHeading('Release verified').addLink(process.env.RELEASE_TAG, publishedRelease.html_url).write();

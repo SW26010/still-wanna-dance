@@ -66,7 +66,13 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 `-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意；首次启动会自动准备默认数据库和视频目录，但不导入或下载媒体。有内容的持久化数据另由下面的集成检查覆盖，不能用首次空库的覆盖结果代替。
 
-Windows CI 在 tag 上运行正式流程，并上传 ZIP、源码、校验、发行清单及 Release notes；手动选择分支时生成明确的 ci 开发包。[完整 `check` 工作流](../.github/workflows/check.yml)只在手动选择 `check` → `Run workflow` 或推送 `v[0-9]*` tag 时运行，普通分支 push/PR 不自动运行。它覆盖 Windows/Linux 的前端一致性、浏览器、Node 与 Go 测试、vet/build，以及 Linux race/gofmt；单独的 `repository-artifacts` 通过只证明仓库产物策略检查。脚本和 CI 不发布 GitHub Release。
+[完整 `check` 工作流](../.github/workflows/check.yml)在手动运行或推送 `v[0-9]*` tag 时执行，普通分支 push/PR 不自动运行。它覆盖 Windows/Linux 的前端一致性、浏览器、Node 与 Go 测试、vet/build，以及 Linux race/gofmt；单独的 `repository-artifacts` 通过只证明仓库产物策略检查。
+
+自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.0.0-beta.1`）。留空只检查并生成 ci 开发包；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
+
+发布运行先生成同一提交的 ci 候选包，再经现有正式入口构建 ZIP、完整源码和校验文件，同时完成源码离线重建、ZIP 冒烟及候选包到正式包的覆盖升级。该候选用于验证当前布局的覆盖过程，不代表历史配置迁移。两平台检查全部成功后，独立发布 job 才取得 `contents: write`，复用标准 Release action 上传五个正式附件到草稿，并核对 GitHub 返回的大小与 SHA256；临时候选包不进入 Release。
+
+附件完整后自动发布，并执行无凭据公共 URL 的 `verify-published`，包括回下载、身份/哈希核对和源码独立重建。失败时尝试恢复为草稿，工作流明确失败；只有该步骤成功才表示公开交付完成。带 `-beta` 等后缀的版本自动标为 Pre-release；此流程不设置 Latest。已有相同标签的草稿可复用，已有同名附件不覆盖，内容不符即停止。重跑失败的发布 job 会复用本次 Actions 附件；若重新构建导致附件不同，应检查草稿或使用新版本，不能覆盖已公开的交付。整个流程无需从本机手动上传附件，本地打包脚本仍只负责准备与验证。
 
 首次正式发布由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 汇总可靠性与公开交付、[#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总最终 Portable 与覆盖升级结果。#23/#24/#25/#27/#30 已完成的基础实现和证据按适用范围复用；发行前仍须对选定提交完成完整 `check`、正式打包、同布局前一候选包到最终 ZIP 的覆盖升级，以及上述公开下载验证。开发和 Windows 剩余范围以[非 VRC 验证跟进](validation-followups.md)为准，游戏剩余场景以 [VRC 台账](live-acceptance-backlog.md)为准；原 LA-033 的网页门禁与条款展示已转浏览器/集成验证，条款变更后的实际确认和跨用户凭据边界归 Windows 验证。最新交付证据见 [#26 验证记录](validation/issue-26-validation.md)，不以历史包的结果替代最终候选。
 

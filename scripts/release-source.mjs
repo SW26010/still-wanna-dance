@@ -188,6 +188,8 @@ export function verifyBundle(bundle) {
   if(seen.has('source/webui/package.json')) {
     const pkg=readJSON(path.join(bundle,'source/webui/package.json'));
     if(m.frontend?.packageManager!==pkg.packageManager || m.frontend?.store!=='frontend-store' || ![...seen].some(p=>p.startsWith('frontend-store/')))throw Error('Missing locked frontend source store');
+    if(![...seen].some(p=>p.startsWith('frontend-store/registry-cache/v11/metadata-full/')))throw Error('Missing frontend registry metadata for offline policy verification');
+    if(seen.has('frontend-store/registry-cache/lockfile-verified.jsonl'))throw Error('Frontend source must not include cached policy verdicts');
     for(const name of ['build-manifest.json','pnpm-lock.yaml','build.mjs','src/main.tsx'])if(!seen.has('source/webui/'+name))throw Error('Missing frontend build input: '+name);
   }
   const modules = new Set();

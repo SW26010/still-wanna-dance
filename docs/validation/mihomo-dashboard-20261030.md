@@ -81,6 +81,38 @@
 - 定向 race 与真实 Console／Edge 联调通过（`cache-review/regression-fixed-race-browser.log`）；真实界面确认缓存失败提示可见，原版面板在桌面、手机宽度下能选点、刷新与切回自动组。上游更新查询仍被测试主动断网，记录中的相关 `Failed to fetch` 为已知外部查询限制，节点控制通过。
 - 桌面入口、Console、Mihomo 整包回归通过（`cache-review/affected-packages.log`），相关 `go vet` 通过（`cache-review/vet.log`）。前端源码未变，嵌入产物校验通过。新构建为 `cache-review/SWD.exe`，59,417,600 字节，SHA256 `827703bd22b005f4882a2bda4314cc3f349cc26bbaa986a2fea39a3eabe76e66`，114 个实际链接 Go 模块的许可核对通过；未运行或部署此 EXE，未提交或推送。
 
+## 网络页原版面板嵌入（2026-10-30）
+
+网络页现在按当前生效配置选择默认主体：Mihomo 显示原版 zashboard，直连／外部 SOCKS5 保留既有界面。SWD 检测与接入诊断仍由页内链接访问；设置中的面板入口进入网络页，并保留独立打开。外层使用 Fluent v9，标准 iframe 保留上游原版组件与主题，未修改固定 ZIP、增加面板分支或新增持久化配置。只为面板引导页和静态页面允许同源嵌入，其他 Console 响应继续禁止嵌入。
+
+只在网络页的面板视图可见时挂载；切页、进入诊断或浏览器页面隐藏时卸载，返回后重新接入当前实例。核心和节点选择不随界面卸载而关闭。小视口允许页面自然撑高，Flex 分配正常窗口的剩余空间，不使用猜测的页头高度补偿。
+
+证据位于忽略目录 `artifacts/mihomo-dashboard/embedded-network/`：
+
+- **界面和配置生命周期**：相关浏览器回归覆盖草稿／已保存配置不提前切换、原有诊断、导航焦点和布局。首轮 36 项中 35 项通过，一项错误提示同时匹配隐藏设置与当前面板；限定所属区域后通过。新增极矮视口用例与最终 3 项面板用例通过（`browser-fixtures.log`、`browser-fixtures-fixed.log`、`browser-short-fixed.log`）；全部覆盖共 37 个不同用例，没有将重复复核计作新用例。
+- **真实服务与安全边界**：Go 隔离真实 Console、原生 Mihomo 和固定 zashboard 的 race 联调通过，包含 8 个本地夹具节点、缓存不可用时的告警和面板选点、原生选择恢复、自动组切换、过期 token 更新、独立窗口、键盘进入与退出、同源加载及跨源嵌入拒绝（`real-race-verified.log`、`browser-verified/result.json`、`browser-warning-verified/result.json`）。受控触发页面可见性事件后，浏览器实际数据订阅全部关闭；SPA 进入诊断同样验证关闭事件，选择仍由核心保留。后台隐藏使用受控浏览器事件验证，没有以它替代真实系统最小化或休眠验收。
+- **测试观察修正**：早期联调断言同时匹配 Tooltip 和设置正文，随后连接计数包含被拒绝的日志握手；整页刷新还会使 Playwright 1.64.1 清空旧 WebSocket 映射而不补发所有 close 事件。计数现只跟踪当前文档中实际收到数据的连接，hash 导航及 iframe 移除仍必须收到真实关闭事件。键盘进入 iframe 可能恢复此前选中节点的焦点，改为沿原生反向 Tab 顺序验证能返回 SWD。相关失败保留在 `real-race.log`、`real-race-fixed.log`、`real-race-streams.log`，没有为这些观察差异修改产品核心。
+- **布局**：真实浏览器检查 320／390／800／1280 像素宽度、深色与 forced-colors，并检查 640×360、320×180 的小 CSS 视口。初版固定页面高度导致极矮视口下背景不能覆盖溢出内容，`browser-final/dashboard-short.png` 和 `browser-short-layout.log` 保留失败证据；最终使用自然撑高的最小视口高度，定向回归通过。小 CSS 视口覆盖缩放时的布局约束，不等同于真实浏览器缩放、Windows DPI 或屏幕阅读器验收。面板原生的可选外部更新查询仍在测试中主动阻断，相关 `Failed to fetch` 不外推为节点控制失败。
+- **构建**：TypeScript、嵌入资源一致性、Console `go vet` 与 `git diff --check` 通过。最终验证构建为 `embedded-network/SWD.exe`，59,422,208 字节，SHA256 `4a10691f7396d1883e5d4772162e04a32630244d1a7bca3ff1921406f710f072`；114 个实际链接 Go 模块的声明核对通过。没有运行或部署该 EXE，没有提交或推送；之前各阶段构建及失败日志保留原适用范围。
+
+### 审查修正（2026-10-31）
+
+保留旧 `#network` 书签到「当前连接」的落点与焦点，`#/network` 在 Mihomo 模式下继续打开面板；当前连接链接沿用旧锚点，移除本轮曾新增的重复锚点及可变面板 ID。可访问性文档同步限定为已完成的键盘、窄屏和小 CSS 视口检查，不再将其表述为真实浏览器缩放验收。
+
+本轮证据位于 `artifacts/mihomo-dashboard/embedded-review/`：
+
+- 17 项浏览器回归通过（`browser.log`）。新增用例使用简化 iframe 夹具，覆盖 Mihomo 模式下旧书签直达、刷新、两种落点间的前进／后退。既有当前连接、诊断与面板生命周期回归通过。
+- 隔离真实 Console、Mihomo 与原版 zashboard 的定向 race 联调通过（`real-race.log`、`browser-real/result.json`），确认当前连接导航关闭面板订阅，回到面板后可继续操作。此前缓存异常与系统显示设置的验证边界不变。
+- 前端类型与嵌入资源一致性检查通过。首次打包受沙箱写入限制，原日志保留在 `webui-build.log`；相同构建在获准写入后通过（`webui-build-unrestricted.log`）。更新的桌面验证构建为 `embedded-review/SWD.exe`，59,421,696 字节，SHA256 `da0a9e0ad8a23c874ca4b6baa4aa3e2b2e2fe31d401132366040d4c766a6232d`；114 个实际链接 Go 模块的许可声明核对通过。未运行或部署此 EXE，未提交或推送。
+
+### 嵌入面板的浏览器历史（2026-10-31）
+
+在隔离 Console、Mihomo 与 Edge 中，从设置的网络标签打开原版 zashboard。修正前两次复现后退仍停在 `#/network`。路由记录显示 iframe 回到 `#/setup`，该页又自动进入 `#/proxies`。固定版的 setup 登录使用 `router.push`，每次返回都会再创建历史项。证据位于 `artifacts/mihomo-dashboard/embedded-history/` 的 `before.log` 和 `before-trace.log`，路由记录仅保留路径和不含查询参数的片段。
+
+引导页选好当前受管后端后直接替换到代理页。真实 Edge 通过 `goBack()` 和 `goForward()` 在正常启动（8 个本地节点）与选择缓存不可用（3 个本地节点）时各往返两轮。每次后退一次即回到原设置标签 `#network-proxy` 并卸载 iframe，前进一次即重新显示 `SWD` 代理组。过期 token 刷新时沿用原 UUID，其他后端保留，已有列表为无效 JSON 时显示提示并保留原值。定向 race 联调通过，见 `real-race.log`、`browser-final/result.json` 和 `browser-warning/result.json`。
+
+Console `go vet`、嵌入资源校验和桌面构建通过。验证程序 `embedded-history/SWD.exe` 为 59,419,648 字节，SHA256 `d725fd03f5d173303b3700ba6b4cf8ff8cc827e5280191f2c0d6ed9a721381da`，114 个实际链接 Go 模块的许可声明核对通过。
+
 ## 未覆盖范围
 
 没有使用私人订阅、公网代理或游戏，不能据本地夹具推断线路速度、可用性或 VRC 播放体验。本次不新增机械式 VRC 台账项；已有实机规则继续有效。

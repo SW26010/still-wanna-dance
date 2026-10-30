@@ -26,6 +26,6 @@ export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabS
     <div hidden={!settingsVisible}><Settings anchor={anchor} onTabSelect={onTabSelect} networkForm={<div id="network-proxy" tabIndex={-1}>
       {form}<Link href="#network-tests" onClick={()=>setUpstream(draft.upstreamMode==='direct'?'direct':'proxy')}>检测此连接配置</Link>
     </div>}/></div>
-    <div hidden={!networkVisible}><Network visible={networkVisible} proxy={{proxyBackend,socks5Address,socks5Username,socks5Password}} upstream={upstream} onUpstreamChange={setUpstream}/></div>
+    <div className="network-page" hidden={!networkVisible}><Network visible={networkVisible} anchor={anchor} proxy={{proxyBackend,socks5Address,socks5Username,socks5Password}} upstream={upstream} onUpstreamChange={setUpstream}/></div>
   </>;}}</SettingsPage>;
 }

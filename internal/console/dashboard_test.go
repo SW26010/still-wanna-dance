@@ -74,8 +74,18 @@ func TestMihomoDashboardAndConsent(t *testing.T) {
 		t.Fatal("cross origin control")
 	}
 	for _, p := range []string{"/proxy/", "/proxy/ui/", "/proxy/ui/THIRD_PARTY_NOTICES.md"} {
-		if w := request("GET", p, "", ""); w.Code != 200 {
+		w := request("GET", p, "", "")
+		if w.Code != 200 {
 			t.Fatal(p, w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'self'") {
+			t.Fatal("dashboard must allow only same-origin embedding", p, w.Header())
+		}
+	}
+	for _, p := range []string{"/", "/api/mihomo/version"} {
+		w := request("GET", p, c.token, "")
+		if w.Code != 200 || !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+			t.Fatal("other Console responses must still forbid embedding", p, w.Code, w.Header())
 		}
 	}
 	ui := httptest.NewUnstartedServer(c)

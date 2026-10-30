@@ -1,6 +1,8 @@
 # Fluent UI React v9
 
-全部 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 embed 提供编译后的资源，运行时不依赖 Node、CDN 或外部网络。
+SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 embed 提供编译后的资源，运行时不依赖 Node、CDN 或外部网络。
+
+网络页的原版 zashboard 是独立的第三方面板：SWD 外壳、导航、加载／错误反馈和容器布局继续使用 Fluent v9，面板通过标准同源 iframe 承载，内部保留上游组件、主题和布局。它不属于 Fluent 控件，不注入样式或为统一外观维护面板分支。加载及职责边界以 [Mihomo 与 zashboard](mihomo-dashboard.md#监测与界面) 为准。
 
 ## 实现边界
 
@@ -30,6 +32,8 @@
 常规侧栏按导航内容自然占高，仅限制最大高度以适应视口；不以整屏高度撑开页头下方的区域。长页面保留浏览器滚动和侧栏 sticky 定位。
 
 六个主页面共用页头与标题容器；应用内的关于页面同样保留后台状态。根滚动容器使用标准 [`scrollbar-gutter: stable`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scrollbar-gutter)，使长短页面切换时可用宽度一致；短页面不强制显示滚动条或产生额外滚动范围。
+
+嵌入面板模式使用 Flex 将页头、导航之后的实际可用视口空间分配给 iframe，由面板负责内部滚动；不按猜测的页头高度写固定补偿值。小视口保留最低可操作高度，空间不足时允许外层正常滚动，确保导航和面板操作可达。自有控件使用 Fluent 间距和颜色 token，面板不另套 Card、Dialog 或第二层标签。
 
 后台状态与退出按钮按内容宽度排列，间距使用 Fluent spacing token，空间不足时自然换行；不为状态预留固定宽度。
 

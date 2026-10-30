@@ -54,7 +54,7 @@ export function NetworkMonitor() {
   const minutes = (h.policy?.throughputInterval || 20*60*1e9)/(60*1e9);
   const schedule=[['最近完成',h.finished],['下次检测',h.nextCheck]].filter(([,at])=>dated(at)).map(([label,at])=>`${label}：${date(at)}`).join(' · ');
   const waits: Record<string,string> = {closed:'监测已关闭',business_busy:'业务正在加载视频，自动测速已暂停',running:'正在依次测量资源通道',preparing:'正在获取歌曲及资源地址',other_manual_check:'等待当前手动检测结束',not_scheduled:'自动调度尚未启动',cooldown:`等待 ${minutes} 分钟间隔到期`,due:'已到期，等待调度',waiting_sample:'等待有效歌曲及资源地址',persistence_error:'保存测速记录失败，自动测速已延期',local_capacity:'本地连接额度已满，本次未取得新样本',runtime_retired:'代理运行时已退出，本次未取得新样本',channel_unavailable:'通道已失效，本次未取得新样本',canceled:'本次测速已取消，保留此前样本'};
-  return <Panel id="network" title="当前连接" action={<div className="inline">{s.proxyNodes?.dashboard && <Button as="a" href="/proxy/" target="_blank" rel="noopener noreferrer">打开代理面板</Button>}<Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking?'检测中…':'检查当前连接'}</Button></div>}>
+  return <Panel id="network" title="当前连接" action={<Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking?'检测中…':'检查当前连接'}</Button>}>
     {h.throughputStatus === 'proxy_managed' && <p className="secondary">检查当前代理出口的业务连通性；节点选择与故障切换由代理管理，下载速度可手动测量。</p>}
     <p role="status">{h.closed?'网络检测已关闭':h.checking?'正在检测…':results.length?healthImpact(h):''}</p>
     {schedule&&<span className="secondary">{schedule}</span>}

@@ -1,6 +1,6 @@
 # Web UI 可访问性与浏览器验收
 
-当前实现为 `webui/src` 的 Fluent UI React v9 标准组件。参考 [Fluent accessibility](https://fluent2.microsoft.design/accessibility)、[WCAG 2.2](https://www.w3.org/TR/WCAG22/) 和 [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/)，目标为 WCAG 2.2 AA；已有测试不构成完整符合性认证。
+SWD 自有界面为 `webui/src` 的 Fluent UI React v9 标准组件，原版 zashboard 的承载边界见 [Fluent 约定](fluent-ui-migration.md)。参考 [Fluent accessibility](https://fluent2.microsoft.design/accessibility)、[WCAG 2.2](https://www.w3.org/TR/WCAG22/) 和 [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/)，目标为 WCAG 2.2 AA；已有测试不构成完整符合性认证。
 
 ## 当前约定
 
@@ -12,6 +12,7 @@
 - 列表更新（包括需求视图事件更新）移除当前行且焦点掉到 body 时回到所属区域；仍存在的请求分组复用身份，保留展开和焦点，不抢走列表外焦点。
 - 首页需求面板随页面／面板可见性自动暂停，冻结需求视图、状态计数、下载速度、块缓存大小及块需求时间轴，不提供手动暂停复选框；历史列表按[事件更新规则](webui-design.md#历史查询范围)随页面可见性订阅，翻页或重新查询后迟到响应不能覆盖新结果；保存设置后等待新状态同步才解锁，避免旧值覆盖前次保存。
 - 主题跟随系统，支持 reduced-motion、可换行操作区和长路径。普通文档语义、fieldset/legend 与页面间距使用 HTML/CSS，不模拟通用控件。
+- 网络页 iframe 使用 `title="Mihomo 代理面板"`，已验证键盘进入与退出，以及窄屏和小 CSS 视口下操作可达；真实浏览器缩放、Windows DPI 与屏幕阅读器尚未验证，范围见[面板嵌入验证记录](validation/mihomo-dashboard-20261030.md#网络页原版面板嵌入2026-10-30)。面板保留自身主题和交互，不因外层使用 Fluent 就宣称内部符合全部可访问性要求。隐藏页面会卸载面板；若焦点原在面板中，返回时聚焦承载区域，避免丢失到正文外或主动抢走其他控件的焦点。依据为 [W3C iframe 标题](https://www.w3.org/WAI/WCAG22/Techniques/html/H64) 与[无键盘陷阱](https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html)。
 - 块时间轴的 Canvas 提供可访问名称和键盘入口；左右键选块、Home/End 到首尾、加减缩放、Escape 关闭详情。选择结果通过文字状态播报，属性与来源是普通 DOM；重叠块有具名切换按钮。状态同时使用文字、填充、斜纹和边框。reduced-motion 下不持续平移动画，事件和用户操作仍更新画面；暗色及 forced-colors 使用对应画布颜色。
 - 时间轴展开箭头使用标准 Fluent Button 和 Tooltip，悬浮与聚焦均提供提示，可通过 Enter／Space 切换，具备可访问名称、aria-expanded 和 aria-controls。「块显示大小」Slider 与「分层显示」Switch 均有明确名称；方块配色标识视频，不单独承载状态。需求视图使用列表语义及虚拟行的位置／总数，行内 Canvas 的名称区分需求块数与视频总块数（或总数未知）；左右键、Home/End 和 Enter 在实际有需求的块之间选择，跳过空档，关闭详情回到原选择入口。行标题后以文字百分比说明需求就绪进度；属性播报包含视频及从 1 开始的块号。保护期块半透明，选中轮廓和详情文字保持清晰。forced-colors 下让系统颜色优先，通过视频标题与状态形态辨识，不强行保留彩色区分。
 

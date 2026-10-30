@@ -1,5 +1,7 @@
 # 完整运行时 B/C 有限对照
 
+> 历史工具：2026-10-30 起生产端已改为单一策略组出口，旧 NewMultiPool／固定节点接口已删除。复跑本报告需使用报告记录的旧提交；当前行为和验证见 [Mihomo 与 zashboard](../../docs/mihomo-dashboard.md)。
+
 后续定向验证见[报告](../../docs/validation/issue-14-directed-validation.md)。Hysteria2 使用上游服务端响应门闩及流额度限制，区分非等待式热 OpenStream 与延迟协议响应。仅回环，不使用私人订阅。固定 Go 1.25.0，在本目录用 `CGO_ENABLED=0`、`GOTOOLCHAIN=local` 执行：
 
 ```powershell

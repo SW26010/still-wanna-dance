@@ -1,0 +1,14 @@
+{
+  "version": "v3.30.0",
+  "revision": "bf4f00bb8d905f8a78f627af7cf84457c4db53c4",
+  "assetURL": "https://github.com/Zephyruso/zashboard/releases/download/v3.30.0/dist-no-fonts.zip",
+  "assetSHA256": "ec794e7c4daf4c839ecbc0a1292fdaf7bc7a6e3e4a4ce284db2b32379145c278",
+  "sourceURL": "https://api.github.com/repos/Zephyruso/zashboard/zipball/bf4f00bb8d905f8a78f627af7cf84457c4db53c4",
+  "sourceSHA256": "21078a51b05413c7dca5f689b400b889f063645c2f59c64376beb335e4afcb35",
+  "sourcePrefix": "Zephyruso-zashboard-bf4f00b",
+  "rebuildPackageManager": "pnpm@11.25.0",
+  "trustPolicyExclude": [
+    "semver@6.3.1",
+    "@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1"
+  ]
+}

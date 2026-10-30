@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-10-30",
+  "purpose": "Evidence for two exact-version pnpm trust-policy exceptions in the fixed zashboard v3.30.0 dependency collection; not a general package security certification.",
+  "dashboard": {
+    "version": "3.30.0",
+    "commit": "bf4f00bb8d905f8a78f627af7cf84457c4db53c4",
+    "lockfile": "https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/pnpm-lock.yaml"
+  },
+  "pnpm": {
+    "version": "11.25.0",
+    "commit": "6d90c71efdffbc909b499490b64c66badc720327",
+    "trustCheckSource": "https://github.com/pnpm/pnpm/blob/6d90c71efdffbc909b499490b64c66badc720327/pnpm11/resolving/npm-resolver/src/trustChecks.ts"
+  },
+  "metadataCacheRoot": "artifacts/mihomo-dashboard/source-validation/collect/dashboard-registry-cache/v11/metadata-full/registry.npmjs.org",
+  "registrySignaturesCryptographicallyVerified": false,
+  "tarballsRetained": false,
+  "entries": [
+    {
+      "name": "semver",
+      "version": "6.3.1",
+      "publishedAt": "2023-07-10T22:38:41.428Z",
+      "registryMetadata": "https://registry.npmjs.org/semver",
+      "tarball": "https://registry.npmjs.org/semver/-/semver-6.3.1.tgz",
+      "tarballBytes": 19093,
+      "integrity": "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==",
+      "sha1": "556d2ef8689146e46dcea4bfdd095f3434dffcb4",
+      "tarballDigestMatchesRegistryAndLock": true,
+      "gitHead": "b717044e57bd132c7e5aa50e9af9a03f10d4655a",
+      "repository": "https://github.com/npm/node-semver",
+      "commitVerification": "unsigned",
+      "publisher": "lukekarrys",
+      "registrySignatureKeyId": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+      "hasProvenance": false,
+      "earlierProvenanceVersions": [
+        "7.5.1",
+        "7.5.2",
+        "7.5.3",
+        "7.5.4"
+      ],
+      "installedFileComparison": {
+        "matchedByteForByte": 6,
+        "mismatched": 0,
+        "extra": 0
+      },
+      "installLifecycleScripts": []
+    },
+    {
+      "name": "@trickfilm400/rollup-plugin-off-main-thread",
+      "version": "3.0.0-pre1",
+      "publishedAt": "2025-12-02T16:21:14.510Z",
+      "registryMetadata": "https://registry.npmjs.org/@trickfilm400%2Frollup-plugin-off-main-thread",
+      "tarball": "https://registry.npmjs.org/@trickfilm400/rollup-plugin-off-main-thread/-/rollup-plugin-off-main-thread-3.0.0-pre1.tgz",
+      "tarballBytes": 23319,
+      "integrity": "sha512-/67zpWDBLV+oYAEL682s1ktXL0HgqX76f6gaVGkGnVZlBbm1zd0v4Bz8MFF2GGhoX9rvfq3KSQHubFHwa6w6/Q==",
+      "sha1": "1ffeab04d8972063de4ad1a948b3e550e11dc745",
+      "tarballDigestMatchesRegistryAndLock": true,
+      "gitHead": "96840a1acad0756e000abc70bcd2234f65dc7fb1",
+      "repository": "https://github.com/Trickfilm400/rollup-plugin-off-main-thread",
+      "commitVerification": "GitHub API reports verified=true, reason=valid",
+      "publisher": "trickfilm400",
+      "registrySignatureKeyId": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+      "hasProvenance": false,
+      "earlierProvenanceVersions": [
+        "2.4.3",
+        "2.5.0"
+      ],
+      "installedFileComparison": {
+        "filesInPackage": 159,
+        "matchedAfterCRLFtoLF": 86,
+        "mismatchedSourceFiles": 0,
+        "extraTestFixtureBuildOutputs": 73,
+        "extraInstalledBinShimsExcluded": 6,
+        "normalization": "Only CRLF to LF; source package files are not byte-identical before this normalization."
+      },
+      "installLifecycleScripts": []
+    }
+  ]
+}

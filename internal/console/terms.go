@@ -3,6 +3,7 @@ package console
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,8 +13,11 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/workfiles"
 )
+
+var errTermsStartup = errors.New("terms saved but startup failed")
 
 type termsReceipt struct {
 	Version    string    `json:"version"`
@@ -161,7 +165,25 @@ func (c *Console) acceptTerms() error {
 	c.terms = receipt
 	c.termsNeedsConfirmation = false
 	c.cancelTermsExitLocked()
-	return c.startMonitorLocked()
+	if c.client != nil {
+		if proxy, ok := c.client.Transport.(*mihomoTransport); ok && proxy.core == nil && c.loadedNodeCount > 0 {
+			dial, client, err := c.networkFor(c.settings)
+			if err != nil {
+				proxy.startupError = "代理启动失败，请检查节点和日志，修复后重启程序"
+				c.termsStartupFailed = true
+				return fmt.Errorf("%w: %v", errTermsStartup, err)
+			}
+			c.upstreamDial, c.client = dial, client
+			c.requestRevision = upstreamrequest.Default.Publish(client.Transport.(upstreamrequest.Candidates))
+			proxy.Retire()
+		}
+	}
+	if err := c.startMonitorLocked(); err != nil {
+		c.termsStartupFailed = true
+		return fmt.Errorf("%w: %v", errTermsStartup, err)
+	}
+	c.termsStartupFailed = false
+	return nil
 }
 
 // Called with mu held; Stop alone cannot invalidate a callback waiting for mu.
@@ -271,6 +293,11 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		if err := c.acceptTerms(); err != nil {
+			if errors.Is(err, errTermsStartup) {
+				slog.Error("terms_startup_failed", "error", err)
+				writeJSON(w, map[string]any{"ok": true, "warning": "条款已保存，但代理或网络监测启动失败；请检查设置和日志，修复后重启程序。"})
+				return true
+			}
 			slog.Error("terms_accept_failed", "error", err)
 			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true

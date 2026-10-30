@@ -154,7 +154,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				if ctx.Err() != nil {
 					break
 				}
-				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample), c)
+				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample, c.Mode != "socks5"), c)
 			}
 		}
 	}
@@ -188,7 +188,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 		// Restored samples need not have any entry in history. Only prune
 		// confirmed candidate sets. Failed discovery and unqueried routes wait.
 		if ctx.Err() == nil {
-			m.pruneThroughputLocked(valid, prepared, provider)
+			m.pruneThroughputLocked(valid, prepared)
 		}
 	}
 }

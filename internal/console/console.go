@@ -47,6 +47,7 @@ type Console struct {
 	lifecycle              *applicationLifecycle
 	terms                  termsReceipt // protected by mu; separate from editable settings
 	termsNeedsConfirmation bool         // an existing record could not be verified for this user/version
+	termsStartupFailed     bool         // protected by mu; consent was saved but startup did not complete
 	termsProtection        dataProtection
 	termsPageID            string
 	termsExitTimer         *time.Timer
@@ -215,7 +216,7 @@ func (c *Console) AutoStart() {
 // Also called after explicit consent; repeated acceptance never retries startup.
 func (c *Console) autoStart() {
 	c.mu.Lock()
-	if !c.autoStartPending || !c.terms.valid() {
+	if !c.autoStartPending || !c.terms.valid() || c.termsStartupFailed {
 		c.mu.Unlock()
 		return
 	}
@@ -491,6 +492,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if c.serveTerms(w, r) {
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/proxy/") || r.URL.Path == "/api/mihomo" || strings.HasPrefix(r.URL.Path, "/api/mihomo/") {
+		c.serveDashboard(w, r)
 		return
 	}
 	if r.URL.Path == "/media/preview" {

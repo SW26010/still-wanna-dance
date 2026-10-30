@@ -2,10 +2,13 @@ package console
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/upstreamstate"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -271,6 +274,130 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		}
 		assertCurrentTermsAccepted(t, stale, false)
 		stale.Close()
+	}
+}
+
+func TestConsentSavedWhenMihomoCannotStart(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
+	c := testConsole(t)
+	if err := os.Remove(c.files().Terms); err != nil {
+		t.Fatal(err)
+	}
+	c.terms = termsReceipt{}
+	s := runtimeNodeSettings(t, c, 1)
+	s.nodeSnapshot = `{"version":2,"nodes":[{"type":"unsupported","server":"127.0.0.1","port":1}]}`
+	dial, client, err := c.networkFor(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.client.Transport.(interface{ Retire() }).Retire()
+	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount, c.savedNodeCount = s, s, client, dial, 1, 1
+	c.monitorRequested = true
+	c.AutoStart()
+	if evidence := os.Getenv("SWD_CONSENT_FAILURE_BROWSER_EVIDENCE"); evidence != "" {
+		ui := httptest.NewUnstartedServer(c)
+		c.address = ui.Listener.Addr().String()
+		ui.Start()
+		defer ui.Close()
+		cmd := exec.CommandContext(t.Context(), "node", filepath.Join("..", "..", "webui", "test-support", "terms-startup-failure.mjs"), ui.URL, evidence)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("browser: %v\n%s", err, output)
+		} else {
+			t.Log(string(output))
+		}
+	} else {
+		body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
+		r := httptest.NewRequest("POST", "http://"+c.address+"/api/terms/accept", strings.NewReader(string(body)))
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		var response struct {
+			OK      bool   `json:"ok"`
+			Warning string `json:"warning"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil || w.Code != 200 || !response.OK || !strings.Contains(response.Warning, "条款已保存") || !strings.Contains(response.Warning, "重启") {
+			t.Fatalf("accepted consent must distinguish startup failure: status=%d body=%s", w.Code, w.Body.String())
+		}
+	}
+	if !c.termsAccepted() || !c.autoStartPending || c.monitor != nil {
+		t.Fatal("consent or deferred startup state incorrect")
+	}
+	c.autoStart()
+	if !c.autoStartPending || c.httpServer != nil {
+		t.Fatal("deferred automatic startup proceeded after the consent startup failure")
+	}
+	c.mu.Lock()
+	loadErr := c.loadTerms()
+	persisted := c.terms.valid()
+	status := c.proxyNodesStatusLocked()
+	c.mu.Unlock()
+	if loadErr != nil || !persisted {
+		t.Fatal("consent was not durably saved", loadErr)
+	}
+	if !strings.Contains(status.ActiveError, "重启") {
+		t.Fatal("startup failure missing from subsequent status", status)
+	}
+}
+
+func TestAutoStartAfterFailedConsentStartup(t *testing.T) {
+	if !consoleMihomoProcess(t) {
+		return
+	}
+	c := testConsole(t)
+	if err := os.Remove(c.files().Terms); err != nil {
+		t.Fatal(err)
+	}
+	c.terms = termsReceipt{}
+	s := runtimeNodeSettings(t, c, 1)
+	s.AutoAccelerate = true
+	s.nodeSnapshot = `{"version":2,"nodes":[{"type":"unsupported","server":"127.0.0.1","port":1}]}`
+	dial, client, err := c.networkFor(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.client.Transport.(interface{ Retire() }).Retire()
+	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount = s, s, client, dial, 1
+	c.monitorRequested = true
+	if err := c.acceptTerms(); !errors.Is(err, errTermsStartup) {
+		t.Fatalf("expected startup failure after saving consent, got %v", err)
+	}
+	// The listener can accept consent before the entry point's AutoStart goroutine runs.
+	c.AutoStart()
+	if !c.termsAccepted() || !c.autoStartPending || c.httpServer != nil || c.monitor != nil {
+		t.Fatal("automatic startup proceeded after the consent startup failure")
+	}
+}
+
+func TestConsentSavedWhenMonitorCannotStart(t *testing.T) {
+	c := testConsole(t)
+	if err := os.Remove(c.files().Terms); err != nil {
+		t.Fatal(err)
+	}
+	c.terms = termsReceipt{}
+	c.settings.AutoAccelerate = true
+	monitor, err := c.newUpstreamMonitor(upstreamstate.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	monitor.Close()
+	c.monitor, c.monitorRequested = monitor, true
+	body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
+	r := httptest.NewRequest("POST", "http://"+c.address+"/api/terms/accept", strings.NewReader(string(body)))
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	var response struct {
+		OK      bool   `json:"ok"`
+		Warning string `json:"warning"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil || w.Code != 200 || !response.OK || !strings.Contains(response.Warning, "条款已保存") || !strings.Contains(response.Warning, "重启") {
+		t.Fatalf("accepted consent must distinguish monitor startup failure: status=%d body=%s", w.Code, w.Body.String())
+	}
+	c.AutoStart()
+	if !c.termsAccepted() || !c.autoStartPending || c.httpServer != nil {
+		t.Fatal("monitor startup failure lost consent or allowed automatic acceleration")
 	}
 }
 

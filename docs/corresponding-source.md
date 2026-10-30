@@ -16,7 +16,7 @@ node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 
 完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交、选定路径和哈希：只从 modernc SQLite 固定 Git 提交导出 `vendor_libsqlite3/` 三个文件及 `LICENSE`，另保留对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这两个档案，不再重复交付整个 modernc SQLite 仓库。导出关闭 Git 换行转换，避免 Windows/Linux 生成不同归档。Go 模块 ZIP 内已有 Makefile、生成代码和条件参数；修改 SQLite 原稿时结合补充的生成辅助程序参考这些命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
-Mihomo 已接入桌面节点导入及多出口运行时；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。
+Mihomo 已接入桌面节点导入及单一策略组出口；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。
 
 产物 `still-wanna-dance-v1.2.3-corresponding-source.tar.gz` 解压为：
 
@@ -52,3 +52,11 @@ node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuil
 pnpm v11 的 `projects/` 仅保存构建机项目链接，归档前清除；包内容与索引保留。离线安装在临时存储副本执行，避免向原源码包写入新的项目链接。此清理有 junction 目标保留测试，实际清理后的存储已完成离线安装和重建比对。
 
 前端收集使用独立注册表缓存，并在 `fetch` 时启用 pnpm 的 `no-downgrade` 信任检查，收集每个锁定包的完整注册表元数据。默认发布时间检查可能借助在线证明服务，单独 `fetch` 留下的缓存不足以离线校验。`frontend-store/registry-cache/v11/` 随源码清单交付，只保存元数据输入，不包含构建机的 `lockfile-verified.jsonl` 校验结果缓存。每次离线重建明确使用包内缓存副本，重新执行供应链检查，避免构建机热缓存掩盖缺失材料；不关闭发布时间、完整性或信任检查。
+
+## zashboard 静态面板
+
+源码包另含 dashboard/source（完整固定上游源码）与 dashboard/store（冻结锁的完整 npm 包及注册表元数据）。收集时仅在临时 fetch 副本声明 Windows/Linux/macOS 的 x64/arm64（Linux glibc 和 musl），不修改随包保存的上游源码或锁。版本、源码/发行包摘要和重建 pnpm 版本由 internal/dashboard/release.json 固定；scripts/dashboard-source.mjs 在收集、清单验证及离线重建中执行检查。安装禁用生命周期脚本，保留 no-downgrade；两项精确旧版本的 provenance 例外依据见 [核对记录](licenses/zashboard/dependency-trust.md)，不放宽其他包。
+
+上游 `package.json` 声明 pnpm 11.20.0，而本发行的 `rebuildPackageManager` 固定为 11.25.0。收集与重建先检查实际 pnpm 版本，并显式让 pnpm 不按上游声明下载或切换版本；使用 Corepack 时也禁用项目版本切换和工具下载，要求事先安装所需版本。该设置对收集、离线安装及构建的子进程均生效，不依赖宿主封装器或热缓存。上游源码和锁文件保持原样。
+
+原版 no-fonts ZIP 随源码保留用于 Go 嵌入，离线重建另行运行固定源码的 Vite 构建，确认 index、service worker 和资源声明存在。不同 Node/打包器环境可能产生不同 chunk 字节，因此不声称与官方 ZIP 逐字节相同。字体是独立许可的原样资源，保留成品、来源、哈希及许可，不声称复现上游的字体子集生成链。更新面板时重新运行 scripts/dashboard-notices.mjs，并审阅运行模块、PWA/CSS、预打包内联代码与字体/纹理声明。

@@ -941,6 +941,34 @@
       "bytes": 1201063,
       "sha256": "1fa20aa93616af2662264f53829145c9a39d3aa6370834f31f543468f7cdd9af",
       "reason": "Historical production WebUI from 08d5a8fb: feat(webui): show temporary block cache size. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/dashboard/assets/zashboard.zip",
+      "kind": "embedded-dashboard",
+      "bytes": 2894440,
+      "sha256": "ec794e7c4daf4c839ecbc0a1292fdaf7bc7a6e3e4a4ce284db2b32379145c278",
+      "reason": "Unmodified zashboard v3.30.0 no-fonts release embedded for offline UI. Reviewed source identity and notices: internal/dashboard/release.json; complete source/store delivery: scripts/dashboard-source.mjs."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1211661,
+      "sha256": "d5ea68ffa49d013fc755ba641bf9a2568c0c1c56c0d08f17719ca903eb5c9dd8",
+      "reason": "Generated Fluent UI bundle for managed Mihomo dashboard entries and proxy-mode cleanup; matches webui/build-manifest.json."
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.txt",
+      "kind": "large-text",
+      "bytes": 724627,
+      "sha256": "4e14074fd7d8863612890a949356ee0a9e8989cf91c2015bd0c63b3028470b89",
+      "reason": "Reviewed original license texts, adding fixed ajg/form and google/pprof dependency notices for the native controller."
+    },
+    {
+      "path": "internal/console/assets/webui/third-party-notices.txt",
+      "kind": "large-text",
+      "bytes": 724627,
+      "sha256": "4e14074fd7d8863612890a949356ee0a9e8989cf91c2015bd0c63b3028470b89",
+      "reason": "Offline WebUI copy of the reviewed program notices, including native controller dependencies."
     }
   ]
 }

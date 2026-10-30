@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "containerPackage": "vuedraggable@4.1.0",
+  "publishedGitHead": "1bdd34523ed2c266578ae4eeb0c3104375d36943",
+  "metadataSource": "https://registry.npmjs.org/vuedraggable/4.1.0",
+  "packageLockSource": "https://github.com/SortableJS/vue.draggable.next/blob/1bdd34523ed2c266578ae4eeb0c3104375d36943/package-lock.json",
+  "packageLockGitBlob": "3f00d9bc088950b188a25f2fbb9a1a16f2017ec7",
+  "yarnLockSource": "https://github.com/SortableJS/vue.draggable.next/blob/1bdd34523ed2c266578ae4eeb0c3104375d36943/yarn.lock",
+  "yarnLockGitBlob": "37366c4369df457794bf4d37986b8f1ae3e11b7f",
+  "evidencePath": "dist/vuedraggable.umd.min.js.map",
+  "evidenceFields": [
+    "sources",
+    "sourcesContent"
+  ],
+  "entries": [
+    {
+      "name": "core-js",
+      "version": "3.6.5",
+      "versionEvidence": "Embedded sourcesContent core-js/internals/shared.js explicitly reports 3.6.5; package-lock agrees.",
+      "licenseSource": "https://github.com/zloirock/core-js/blob/v3.6.5/LICENSE",
+      "license": "MIT",
+      "file": "core-js-3.6.5-MIT.txt",
+      "size": 1064,
+      "sha256": "4003e24135fde907d7069bb73aad64092cfe662b26914296f2f7f1e16e1f15a6",
+      "gitBlob": "9c4e4e17e9bd76a80bb882cb783bfb6b50c10970"
+    },
+    {
+      "name": "@soda/get-current-script",
+      "version": "1.0.2",
+      "versionEvidence": "Both upstream package-lock.json and yarn.lock select 1.0.2; the embedded module matches its index.js.",
+      "licenseSource": "https://github.com/haoqunjiang/get-current-script/blob/79e86ee8ef8db24209f95750a88634e311d0a08b/LICENSE",
+      "license": "MIT",
+      "file": "get-current-script-1.0.2-MIT.txt",
+      "size": 1111,
+      "sha256": "13f476241a33b84de299d2ec3acc92c883171dc8da8fc70f3bc84d4331d3c3ba",
+      "gitBlob": "17c3d17d43f2fbfaf705f68a0e665415456ea09d"
+    },
+    {
+      "name": "@babel/runtime",
+      "version": null,
+      "packageLockCandidate": "7.12.0",
+      "yarnLockCandidates": [
+        "7.11.2",
+        "7.14.5"
+      ],
+      "versionEvidence": "Runtime helper sources are embedded. The two upstream lockfiles differ; the exact generating package version is not uniquely established. The saved MIT text is from the package-lock candidate's fixed tag.",
+      "licenseSource": "https://github.com/babel/babel/blob/v7.12.0/LICENSE",
+      "license": "MIT",
+      "file": "babel-runtime-MIT.txt",
+      "size": 1106,
+      "sha256": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76",
+      "gitBlob": "f31575ec773bb199aeb7c0d0f1612cfe1c7038f1"
+    },
+    {
+      "name": "@vue/cli-service runtime fragments",
+      "version": null,
+      "packageLockCandidate": "4.5.7",
+      "yarnLockCandidates": [
+        "4.5.13"
+      ],
+      "versionEvidence": "setPublicPath.js and entry-lib.js are included in sourcesContent and the runtime wrapper is present in the UMD. The two upstream lockfiles differ; only the delivered runtime fragments are in scope, not the CLI toolchain.",
+      "licenseSource": "https://github.com/vuejs/vue-cli/blob/v4.5.7/LICENSE",
+      "license": "MIT",
+      "file": "vue-cli-runtime-MIT.txt",
+      "size": 1091,
+      "sha256": "225c881a16d4be4f364e1e4a11e7c7697c67c02d51bb9cbfcce68f0decbe68b8",
+      "gitBlob": "4e467aa91f232b47969ae232744e8f1a0066d36c"
+    }
+  ]
+}

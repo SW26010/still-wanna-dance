@@ -30,6 +30,8 @@ if (!$info[0].EndsWith(": $goVersion")) { throw 'Executable and selected Go tool
 $builder = [Text.StringBuilder]::new($notices.TrimEnd())
 $webNotices = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/licenses/WEBUI-NOTICES.txt'
 [void]$builder.AppendLine().AppendLine().AppendLine([IO.File]::ReadAllText($webNotices).TrimEnd())
+$dashboardNotices = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/licenses/ZASHBOARD-NOTICES.txt'
+[void]$builder.AppendLine().AppendLine().AppendLine([IO.File]::ReadAllText($dashboardNotices).TrimEnd())
 [void]$builder.AppendLine().AppendLine().AppendLine("Go runtime and standard library: $goVersion")
 $files = @((Get-Item -LiteralPath (Join-Path $goRoot 'LICENSE')))
 # Include bundled library notices conservatively; not all are linked on every platform.

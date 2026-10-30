@@ -11,7 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Import limits are independent of the active-node policy. No raw input,
+// Import limits bound the saved configuration and native runtime. No raw input,
 // display names, endpoints, or upstream parser errors belong in diagnostics.
 const MaxImportBytes = 2 << 20
 const MaxImportNodes = 2048
@@ -98,6 +98,10 @@ func Import(data []byte) (ImportResult, error) {
 				seen[string(canonical)] = true
 				item.Status = "accepted"
 				result.Accepted++
+				// Names are private display data, not connection identity.
+				if name, ok := input["name"].(string); ok && len(name) <= 256 && !strings.ContainsAny(name, "\x00\r\n") {
+					p["name"] = strings.TrimSpace(name)
+				}
 				result.Nodes = append(result.Nodes, p)
 			}
 		}

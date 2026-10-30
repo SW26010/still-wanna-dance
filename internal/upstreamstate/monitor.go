@@ -218,7 +218,7 @@ func (m *Monitor) Snapshot() Status {
 		s.Results = append(s.Results, m.resultsLocked(op, now)...)
 	}
 	s.LastThroughputAttempt = m.lastThroughput
-	if !m.lastThroughput.IsZero() {
+	if !m.proxyModeLocked() && !m.lastThroughput.IsZero() {
 		s.NextThroughput = m.lastThroughput.Add(m.policy.ThroughputInterval)
 	}
 	s.ThroughputSaveFailed = m.throughputSaveFailed

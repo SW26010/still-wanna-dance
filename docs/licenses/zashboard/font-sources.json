@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "dashboard": {
+    "repository": "https://github.com/Zephyruso/zashboard",
+    "version": "v3.30.0",
+    "commit": "bf4f00bb8d905f8a78f627af7cf84457c4db53c4"
+  },
+  "fonts": [
+    {
+      "name": "Noto Color Emoji Flags",
+      "embeddedVersion": "2.047",
+      "copyright": "Copyright 2022 Google Inc.",
+      "dashboardSourcePath": "src/assets/fonts/NotoColorEmoji-flagsonly.ttf",
+      "sourceAndDistSHA256": "bccb829e97ca446771231993cf5bff3449974851201c497be6d6d52e906aae7b",
+      "sourceBytes": 913564,
+      "dashboardBlob": "6e1642ecc7de48d5da75506ce5295a53c1812e8c",
+      "license": "OFL-1.1",
+      "licenseFile": "noto-emoji-OFL-1.1.txt",
+      "licenseSource": "https://github.com/googlefonts/noto-emoji/blob/6c211821b8442ab3683a502f9a79b2034293fced/fonts/LICENSE",
+      "licenseGitBlob": "d952d62c065f3f35fb83a173496e90b21525aef3",
+      "licenseSHA256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "originEvidence": "The embedded name table cites noto-emoji:20240827:6c211821b8442ab3683a502f9a79b2034293fced. This is metadata evidence, not a byte-for-byte source match: fonts/NotoColorEmoji-flagsonly.ttf at that commit has blob f40a13bfd116391bbd1a637131eb52a476d8e6cf and size 912352.",
+      "transformRecipeIncludedByDashboard": false
+    },
+    {
+      "name": "Twemoji Mozilla flags",
+      "embeddedVersion": "0.7.0",
+      "embeddedBuildDate": "2022-10-28",
+      "copyright": "Copyright 2016-2018, Mozilla Foundation (code); visual artwork from the Twemoji project.",
+      "dashboardSourcePath": "src/assets/fonts/TwemojiMozilla-flags.woff2",
+      "sourceAndDistSHA256": "c030920068cc493d59cc8c21ff29000b7a3676c40414cba7e7a5780d02f41cbf",
+      "sourceBytes": 78308,
+      "dashboardBlob": "b87c4ce0f71489db054b99a7a2f7a2c8a6ba526d",
+      "licenses": {
+        "code": "Apache-2.0",
+        "visualDesign": "CC-BY-4.0"
+      },
+      "upstreamVersion": "v0.7.0",
+      "upstreamCommit": "c0460fdb2654dee584e75c4913bfa9fd2f873338",
+      "licenseFile": "twemoji-mozilla-LICENSE.md",
+      "licenseSource": "https://github.com/mozilla/twemoji-colr/blob/c0460fdb2654dee584e75c4913bfa9fd2f873338/LICENSE.md",
+      "licenseGitBlob": "ac3b52df2c724bad674a0ed62fedeb0d2813da48",
+      "licenseSHA256": "64419edc28e9163204c3be73f835a8dfc34cd6c9b8f7d067bb685f119f839a99",
+      "originEvidence": "Embedded name table identifies Twemoji Mozilla 0.7.0. Upstream builds a full TTF; the dashboard supplies a flags-only WOFF2. The exact subsetting/compression recipe was not found in the dashboard source.",
+      "transformRecipeIncludedByDashboard": false
+    }
+  ]
+}

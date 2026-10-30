@@ -9,7 +9,7 @@ import {cleanFrontendStore} from './webui-source.mjs';
 test('freshness rejects changed, added, removed source and modified output; accepts Git CRLF checkout',()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'swd-webui-'));
   try {
-    const files=['LICENSE','THIRD-PARTY-NOTICES.txt','webui/src/main.tsx','webui/build.mjs','webui/package.json','webui/pnpm-lock.yaml','webui/pnpm-workspace.yaml','webui/tsconfig.json','docs/licenses/fluentui-system-icons-LICENSE','scripts/check-webui.mjs',...webuiOutputs];
+    const files=['LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','webui/src/main.tsx','webui/build.mjs','webui/package.json','webui/pnpm-lock.yaml','webui/pnpm-workspace.yaml','webui/tsconfig.json','docs/licenses/fluentui-system-icons-LICENSE','scripts/check-webui.mjs',...webuiOutputs];
     for(const name of files){fs.mkdirSync(path.dirname(path.join(temp,name)),{recursive:true});fs.writeFileSync(path.join(temp,name),'original\n');}
     fs.writeFileSync(path.join(temp,'webui/build-manifest.json'),JSON.stringify(webuiManifest(temp)));
     checkWebUI(temp);

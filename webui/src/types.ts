@@ -44,7 +44,7 @@ export interface Status {
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
   traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
-  proxyNodes?: {saved?: number; loaded?: number; active?: number; error?: string; activeError?: string};
+  proxyNodes?: {saved?: number; loaded?: number; dashboard?: boolean; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
   defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health;
 }

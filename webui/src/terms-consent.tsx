@@ -23,8 +23,8 @@ export function TermsConsent({onAccepted}:{onAccepted:()=>void}) {
     if(!terms||lock.current)return;
     lock.current=true;setBusy(true);setError('');
     try {
-      await request('terms/accept',{version:terms.version,sha256:terms.sha256,agree:true,contentRights:true});
-      if(mounted.current)onAccepted();
+      const result=await request<{warning?:string}>('terms/accept',{version:terms.version,sha256:terms.sha256,agree:true,contentRights:true});
+      if(mounted.current){if(result.warning)app.setMessage(result.warning,undefined,true);onAccepted();}
     } catch(e) {if(mounted.current)setError('条款确认未保存：'+String(e));}
     finally {lock.current=false;if(mounted.current)setBusy(false);}
   }

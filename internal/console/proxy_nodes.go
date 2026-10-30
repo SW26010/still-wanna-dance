@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"maps"
 	"time"
 
 	"still-wanna-dance/internal/proxyengine/mihomo"
@@ -38,7 +39,7 @@ type proxyImportResult struct {
 type proxyNodeStatus struct {
 	Saved       int    `json:"saved"`
 	Loaded      int    `json:"loaded"`
-	Active      int    `json:"active"`
+	Dashboard   bool   `json:"dashboard"`
 	Error       string `json:"error,omitempty"`
 	ActiveError string `json:"activeError,omitempty"`
 }
@@ -99,6 +100,8 @@ func storedProxyNodes(s Settings) (json.RawMessage, error) {
 }
 
 func nodeIdentity(key []byte, p map[string]any) string {
+	p = maps.Clone(p)
+	delete(p, "name")
 	data, _ := json.Marshal(p)
 	defer clear(data)
 	mac := hmac.New(sha256.New, key)
@@ -175,9 +178,18 @@ func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
 	status := proxyNodeStatus{Saved: c.savedNodeCount, Loaded: c.loadedNodeCount, Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
 	if c.client != nil {
 		if tr, ok := c.client.Transport.(*mihomoTransport); ok {
-			status.Active = len(tr.proxies)
+			status.Dashboard = tr.core != nil
 			if status.ActiveError == "" {
-				status.ActiveError = tr.identityWarning
+				status.ActiveError = tr.startupError
+				if status.ActiveError == "" {
+					status.ActiveError = tr.identityWarning
+				}
+			}
+			if tr.core != nil && !tr.core.SelectionCacheAvailable() {
+				if status.ActiveError != "" {
+					status.ActiveError += "；"
+				}
+				status.ActiveError += "选择缓存不可用；代理仍可使用，本次的节点选择不会保存，请检查数据目录后重启"
 			}
 		}
 	}

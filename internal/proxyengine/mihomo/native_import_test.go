@@ -21,8 +21,8 @@ func TestNativeImportFormatsAndPreview(t *testing.T) {
 		if err != nil || r.Accepted != 1 {
 			t.Fatalf("native import: %+v %v", r.Items, err)
 		}
-		if _, exists := r.Nodes[0]["name"]; exists {
-			t.Fatal("name retained")
+		if name, ok := r.Nodes[0]["name"].(string); !ok || name == "" {
+			t.Fatal("dashboard label missing from protected node data")
 		}
 		public, _ := json.Marshal(r)
 		if strings.Contains(string(public), "private") || strings.Contains(string(public), "127.0.0.1") {

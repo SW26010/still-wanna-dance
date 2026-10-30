@@ -187,8 +187,8 @@ func TestProxyImportNamesAndOrderingPreserveIdentity(t *testing.T) {
 		id := nodeIdentity(key, nodeDocument(s.nodeSnapshot).Nodes[0])
 		if i == 0 {
 			snapshot, identity = s.nodeSnapshot, id
-		} else if s.nodeSnapshot != snapshot || id != identity {
-			t.Fatal("display name changed snapshot or stable identity")
+		} else if s.nodeSnapshot == snapshot || id != identity {
+			t.Fatal("display name was lost or changed connection identity")
 		}
 		s.ProxyBackend, s.UpstreamMode = "mihomo", "direct"
 		_, client, err := c.networkFor(s)
@@ -200,9 +200,5 @@ func TestProxyImportNamesAndOrderingPreserveIdentity(t *testing.T) {
 			t.Fatal("direct mode initialized a proxy runtime")
 		}
 		defer tr.Retire()
-		known, ready := tr.KnownProxyIDs()
-		if !ready || len(known) != 1 {
-			t.Fatal("duplicate membership or activated direct-only runtime")
-		}
 	}
 }

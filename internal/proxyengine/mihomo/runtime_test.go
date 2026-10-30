@@ -2,12 +2,14 @@ package mihomo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,7 +19,6 @@ import (
 
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/hub/executor"
-	"github.com/metacubex/mihomo/tunnel"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -38,7 +39,7 @@ func runtimeProcess(t *testing.T) bool {
 	return false
 }
 
-func TestRuntimeFixedProtocolsAndGlobalBoundary(t *testing.T) {
+func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {
 	if !runtimeProcess(t) {
 		return
 	}
@@ -61,22 +62,16 @@ func TestRuntimeFixedProtocolsAndGlobalBoundary(t *testing.T) {
 	if g.Port != 0 || g.SocksPort != 0 || g.MixedPort != 0 || g.RedirPort != 0 || g.TProxyPort != 0 || g.Tun.Enable {
 		t.Fatal("inbound or TUN enabled")
 	}
-	pool, err := upstreamrequest.NewMultiPool("socks5", nil, r.Proxies())
+	pool, err := upstreamrequest.NewPool("socks5", nil, r.DialContext)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer pool.Close()
-	// Rebinding the global name map must not move an already captured exit.
-	rebound := maps.Clone(tunnel.Proxies())
-	for i := range configs {
-		rebound[fmt.Sprintf("swd-%d", i)] = rebound["REJECT"]
-	}
-	tunnel.UpdateProxies(rebound, tunnel.Providers())
-	for _, c := range pool.Current("http://business.invalid/") {
-		for range 3 {
-			if err := httpThrough(c.Transport, "/", time.Second); err != nil {
-				t.Fatal("fixed native exit", c.ID, err)
-			}
+	for _, name := range runtimeProxyNames(t, r)[1:] {
+		selectRuntimeProxy(t, r, name)
+		pool.CloseIdleConnections()
+		if err := httpThrough(pool.Current("http://business.invalid/")[0].Transport, "/", time.Second); err != nil {
+			t.Fatal("selected native exit", name, err)
 		}
 	}
 	cs := pool.Current("http://business.invalid/")
@@ -106,10 +101,8 @@ func TestRuntimeFixedProtocolsAndGlobalBoundary(t *testing.T) {
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range r.Proxies() {
-		if _, err := p.Dial(context.Background(), "tcp", "business.invalid:80"); err != upstreamrequest.ErrRetired {
-			t.Fatal(err)
-		}
+	if _, err := r.DialContext(context.Background(), "tcp", "business.invalid:80"); err != upstreamrequest.ErrRetired {
+		t.Fatal(err)
 	}
 	if _, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
 		t.Fatal("restarted global runtime")
@@ -134,7 +127,7 @@ func TestRuntimeSoak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	pool, err := upstreamrequest.NewMultiPool("socks5", nil, r.Proxies())
+	pool, err := upstreamrequest.NewPool("socks5", nil, r.DialContext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +165,7 @@ func TestRuntimeSoak(t *testing.T) {
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
-	for _, a := range r.admissions {
+	for _, a := range []*admission{r.admission} {
 		a.mu.Lock()
 		occupied, workers := a.occupied, a.workers
 		a.mu.Unlock()
@@ -194,7 +187,7 @@ func TestRuntimeBadCredentialsNeverReachBusiness(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	tr := &http.Transport{DialContext: r.Proxies()[0].Dial}
+	tr := &http.Transport{DialContext: r.DialContext}
 	defer tr.CloseIdleConnections()
 	if err := httpThrough(tr, "/", time.Second); err == nil {
 		t.Fatal("wrong credentials bypassed fixed exit")
@@ -233,5 +226,29 @@ func TestRuntimeCloseBudgetIncludesNativeClose(t *testing.T) {
 	close(blocker.release)
 	if err := r.Close(); err != nil {
 		t.Fatal("cleanup did not finish", err)
+	}
+}
+
+func runtimeProxyNames(t *testing.T, r *Runtime) []string {
+	t.Helper()
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/proxies/"+ProxyGroup, nil))
+	var data struct {
+		All []string `json:"all"`
+	}
+	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &data) != nil {
+		t.Fatal("group unavailable", w.Code, w.Body.String())
+	}
+	return data.All
+}
+func selectRuntimeProxy(t *testing.T, r *Runtime, name string) {
+	t.Helper()
+	data, _ := json.Marshal(map[string]string{"name": name})
+	req := httptest.NewRequest("PUT", "/proxies/"+ProxyGroup, strings.NewReader(string(data)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatal("selection failed", w.Code, w.Body.String())
 	}
 }

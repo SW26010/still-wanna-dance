@@ -13,7 +13,7 @@ import (
 
 // One slot covers a native dial, its delivered stream, AND eventual Close.
 // No queue: a native call ignoring cancellation keeps its slot until it exits.
-// Each exit owns a separate budget so a broken exit cannot starve its siblings.
+// The single managed endpoint owns one bounded connection budget.
 type admission struct {
 	mu                       sync.Mutex
 	ctx                      context.Context

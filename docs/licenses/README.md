@@ -4,7 +4,7 @@
 
 2026-10-14 Windows race 回归复现 SQLite 查询取消后文件句柄残留，驱动由 `v1.39.1` 更新到包含[上游修复 !81](https://gitlab.com/cznic/sqlite/-/merge_requests/81)的 `v1.40.1`（`d33e568298f6d0da40718843d3562d716f7c4f1b`）。完整模块差异仅为驱动修复、可选 pre-update hook 和测试/作者记录，SQLite 3.50.4 生成引擎、依赖图及原 LICENSE 哈希不变；新增 `convert.go` 来源于 Go database/sql，其版权和 BSD 许可补入第三方声明。生成器归档仍按同一路径从新提交导出，SHA256 更新为 `d6b2789d5b21d17c1878f2ad2056bfec1f56ede34f57791b53b5fb34daa95e25`；SQLite C 原始源码归档不变。以下历史版本和失败证据保留。
 
-`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：114 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：116 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
 
 2026-10-27 退出通知直接使用模块图中已锁定的 `github.com/coder/websocket v1.8.12`，不升级版本。已核对模块 ZIP 的根 ISC `LICENSE.txt`、Go／汇编源码及生成标记，补入原许可全文、模块 h1 和许可文件哈希。没有额外内嵌二进制；`stringer.go` 标明的生成命令和枚举源码位于同一模块中。当前 EXE 的依赖声明检查通过；本次未执行发行打包或离线源码重建。
 
@@ -36,3 +36,9 @@ sing-tun ZIP 含四架构 Wintun DLL，Windows amd64 构建会嵌入对应文件
 - 2026-10-13 补查确认官方 Mihomo `v1.19.32` 已提供 `no_easytier` 构建标签（`adapter/outbound/easytier_stub.go`）。桌面及后续 #14 集成统一使用该标签，排除 SWD 当前不支持的 EasyTier；无需为此等待其 WASM 源码，也无需修改、替换或 Fork Mihomo。若未来改为分发 EasyTier，需另行核对相应 Rust 源码、非系统依赖、protobuf 原稿与构建脚本；不强求特定 Git SHA 或逐字节相同的重建产物。保留此前来源证据，未向上游发送消息。
 
 最初验证的“整个模块图 ZIP”包仅为本地实验，尚未发布；后续正式实现改为实际编译源码 + 全图元数据，避免把未使用的预编译构件当作普通源码附件顺带分发。新增依赖/嵌入构件仍需复核首选修改形式，而不是仅登记哈希。
+
+## 2026-10-30：原生控制器与 zashboard
+
+控制器使已固定的 google/pprof 和 ajg/form 成为桌面入口依赖：逐项核对原文和源码版权，分别为 Apache-2.0（保留模块内补充声明）与 BSD-3-Clause，原文及模块身份加入总清单。没有升级 Mihomo 或其它现有模块。
+
+zashboard v3.30.0 根许可 MIT；实际应用、worker/PWA 和 CSS 辅助包共 63 项保守登记在 zashboard-packages.json，总声明 ZASHBOARD-NOTICES.txt 同时进入 WebUI 和 Portable 许可合并。ECharts 附带 d3 BSD 全文与 NOTICE；DOMPurify 选择 Apache-2.0 选项；预打包 vuedraggable 内联源码和两项旗帜字体的额外声明见 [补充来源](zashboard/README.md)。原 public/THIRD_PARTY_NOTICES.md 的地球纹理 CC BY 4.0 署名完整保留，未下载或再分发可选 DB-IP 数据库。完整源码交付及重建边界见 [对应源码](../corresponding-source.md#zashboard-静态面板)。

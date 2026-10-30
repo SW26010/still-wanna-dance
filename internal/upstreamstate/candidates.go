@@ -127,7 +127,7 @@ func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 	var eligible []Result
 	for i := range results {
 		r := &results[i]
-		if !recommendable(*r) || !q.matches(*r) {
+		if r.Mode == "socks5" || !recommendable(*r) || !q.matches(*r) {
 			continue
 		}
 		eligible = append(eligible, *r)
@@ -167,7 +167,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 		}
 		var available []Result
 		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
-			if recommendable(r) {
+			if r.Mode != "socks5" && recommendable(r) {
 				available = append(available, r)
 			}
 		}

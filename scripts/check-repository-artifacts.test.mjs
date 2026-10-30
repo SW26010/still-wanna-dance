@@ -8,6 +8,14 @@ import path from 'node:path';
 import { classify, check } from './check-repository-artifacts.mjs';
 
 const policy = { maxBytes: 1024, warnBytes: 512, exceptions: [] };
+test('embedded dashboard exception binds the reviewed archive path, hash and size', () => {
+  const file='internal/dashboard/assets/zashboard.zip',bytes=Buffer.from([80,75,0,1]);
+  const exception={path:file,kind:'embedded-dashboard',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+  const allowed={...policy,exceptions:[exception]};
+  assert.deepEqual(classify(file,bytes,allowed),{});
+  assert.ok(classify(file,Buffer.concat([bytes,Buffer.from('changed')]),allowed).error);
+  assert.ok(classify('other.zip',bytes,{...policy,exceptions:[{...exception,path:'other.zip'}]}).error);
+});
 test('content, path and hash jointly enforce fixture exceptions', () => {
   const bytes = Buffer.from('SQLite\0fixture');
   const allowed = { ...policy, exceptions: [{ path: 'fixture.sqlite', kind: 'binary-fixture', sha256: createHash('sha256').update(bytes).digest('hex') }] };

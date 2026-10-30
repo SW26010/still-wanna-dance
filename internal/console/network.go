@@ -22,7 +22,7 @@ type directResolver interface {
 
 func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error) {
 	if s.UpstreamMode == "proxy" && s.ProxyBackend == "mihomo" {
-		return c.mihomoNetworkFor(s, defaultActiveProxyLimit)
+		return c.mihomoNetworkFor(s)
 	}
 	dial := upstreamDialFunc(c.dns.DialContext)
 	var proxyDial upstreamrequest.DialFunc
@@ -54,7 +54,7 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 	}
 	client := &http.Client{
 		Timeout: 30 * time.Second,
-		Transport: &upstreamrequest.Transport{Pool: pool, RetainedProxies: c.retainedProxyNodes(s, proxyID), RoundTripper: &http.Transport{
+		Transport: &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
 			DialContext: dial, ResponseHeaderTimeout: 20 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
 		}},

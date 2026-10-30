@@ -83,7 +83,8 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
         <div className="inline secondary">支持 YAML、URI 与 Base64 列表<Hint label="节点格式说明">最多 2 MiB / 2048 条，仅导入节点配置；不导入代理组、链式代理或系统网络选项，不自动更新订阅。</Hint></div>
         <div className="actions"><Button disabled={locked || !d.proxyImportText.trim()} onClick={() => void inspect()}>检查并导入到草稿</Button><Button disabled={locked || (!d.proxyImportID && !d.proxyImportText)} onClick={() => { void releaseImport(d.proxyImportID); update({proxyImportID:'',proxyImportText:'',proxyReport:undefined}); }}>清除本次导入草稿</Button></div>
         {d.proxyReport && <><p>本次接受 {d.proxyReport.accepted} 个，重复跳过 {d.proxyReport.skipped} 个，失败 {d.proxyReport.failed} 个。{d.proxyReport.id ? '草稿 2 小时有效。' : '没有有效节点，不会替换已有节点库。请修改内容或清除本次草稿。'}</p><RecordDetails title="逐条导入结果"><ul>{d.proxyReport.items.map(row => <li key={row.index}>第 {row.index} 条 · {row.protocol} · {({accepted:'接受',skipped:'跳过',failed:'失败'}[row.status] || row.status)} {row.reason}</li>)}</ul></RecordDetails></>}
-        <span className="secondary">已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个 · 活跃 {status.proxyNodes?.active || 0} 个</span>
+        <span className="secondary">已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
+        {status.proxyNodes?.dashboard && <><Button as="a" href="/proxy/" target="_blank" rel="noopener noreferrer">打开代理面板</Button><Caption1 as="p" className="hint">面板整组测速可能并发连接组内所有节点，节点较多时可能产生连接高峰。</Caption1></>}
       </>}
     </>}
     <Feedback error>{error}</Feedback>
@@ -158,7 +159,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Field label="程序日志级别" hint="保存后重启生效。Debug 用于详细排障；关闭不会删除已有日志。"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
-      {numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
+      {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
 </>}
       {section==='downloads'&&<><Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
 

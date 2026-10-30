@@ -172,9 +172,9 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | EXE、licenses、README、构建信息 | 由交付包拥有；升级仅覆盖这些路径 | 可从相应构建重新取得，许可随分发保留 |
 | `C` | 主设置；首次成功打开和保存设置时写入 | 建议备份，可重新配置；代理密码和节点快照为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/data/state/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 可重建；缺失则重新确认，不是身份或内容授权证明 |
-| `R/data/state/channel.key` | 32 字节密钥，供通道身份使用；仅缺失时生成。损坏时通道可用临时身份 | 可选保留；缺失重建会改变外部 SOCKS5 与 Mihomo 节点稳定身份、旧样本关联 |
+| `R/data/state/channel.key` | 32 字节密钥，供通道身份使用；仅缺失时生成。损坏时通道可用临时身份 | 可选保留；缺失重建会改变通道身份及 Mihomo 节点名称摘要，原生选择可能需要重选 |
 | `R/data/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
-| `R/data/state/mihomo/` | B2 核心拥有的工作目录；只有实际启用内嵌代理时创建，不写原始订阅或明文节点配置，关闭 profile 持久化和自动 geo 更新 | 派生状态，不是节点备份；节点仍只在主配置的 DPAPI 快照中 |
+| `R/data/state/mihomo/` | 核心拥有的工作目录；启用内嵌代理且确认条款后创建，不写原始订阅或明文节点配置。`cache.db` 按原生规则保存组名和所选名称，异常时允许原生重建该文件；启动时打不开则提示并继续运行。完整边界见 [Mihomo 选择缓存](mihomo-dashboard.md#配置和运行)；自动 geo 更新关闭 | 可重建的选择状态，不是节点备份或异常材料保全文件；名称可能含地址，连接参数和凭据仍在主配置的 DPAPI 快照中；同目录其他未知文件不在清理范围内 |
 | `R/data/state/video-import.json` | 一批视频导入的固定清单、结果及成功回执；每项处理后原子保存，失败停止后续处理 | 缺失时可新建任务，旧清理回执不可重建；重启只恢复待继续状态，详见[视频导入与恢复](video-import.md) |
 | `R/data/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
 | `R/data/state/batch-last-success.json`、`batch-last-attempt.json` | 成功批量任务摘要、最近尝试摘要 | 可重新运行；不是断点续传记录，丢失的历史摘要不可恢复 |
@@ -261,10 +261,10 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | --- | --- |
 | config.json / 自定义配置 | schemaVersion=8；字段见 Settings：databasePath 数据库文件、videoDir 完整视频目录（首次自动准备默认位置，自定义位置保存后重启），vrchatLogDir（VRChat 日志输入目录，空值自动识别，非空指定目录）、autoAccelerate（默认 false，启用且有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnStopOrExit（默认 true，保存即用于停止加速和本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionMode（none/limited/unlimited，默认 unlimited；[请求明细保留规则](cache-retention.md#请求明细保留期)）、requestRetentionDays（0～36500；limited 要求正数；none 的有效期限为 0，不保留明细；unlimited 独立表示永久保留，天数只记住输入）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveBlockReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、videoBudgetBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadConcurrencySoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、upstreamMode（空→direct，direct/proxy；v8 旧 auto 按[配置生命周期](settings-lifecycle.md)转为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（请求明细永久保留），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
-| config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，保存数与运行活跃 K 无关。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名不入快照；状态仅含数量及固定诊断 |
+| config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，全部已加载节点交给核心。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名保存在受保护快照中；SWD 状态仅含数量及固定诊断，详情由同源代理面板展示 |
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |
 | channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
-| data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法域名通道和稳定代理身份、正字节/时长且非未来样本。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移，重新采样。它不是网络当前健康真相 |
+| data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法的直连通道、正字节/时长且非未来样本；代理样本不再恢复或保存。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移。它不是网络当前健康真相 |
 | data/state/inventory.json | schemaVersion=3、databasePath、videoDir、result；result 为 Inventory：catalog（revision/checkedAt/message/error）、coverageKnown/coveredSongs/unresolvedSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：catalog/catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
@@ -276,7 +276,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 通道身份的 HMAC 输入为：
 
 - 外部 SOCKS5：JSON 数组 `["socks5-channel-v1",address,username,password]`，输出 `stable-v1-` 加十六进制摘要。
-- Mihomo 节点：`swd-mihomo-node-v2` 加 NUL 字节，再加原生连接参数的 JSON，输出同样的 `stable-v1-` 摘要。展示名、导入顺序和活跃上限 K 不参与身份；连接参数或凭据变化会改变身份。不强求跨格式/省略默认值等价合并；v1 身份域保留为历史，不迁移、不重置 channel.key。
+- Mihomo 节点：`swd-mihomo-node-v2` 加 NUL 字节，再加原生连接参数的 JSON，输出同样的 `stable-v1-` 摘要。展示名和导入顺序不参与连接身份；连接参数或凭据变化会改变身份。不强求跨格式/省略默认值等价合并；v1 身份域保留为历史，不迁移、不重置 channel.key。
 
 DPAPI CurrentUser 不使用路径作为额外熵，不请求 UAC。同用户覆盖/移动可用；另一用户或普通独立机器可能不可用，但域用户漫游可能保留能力，**不是绝对设备绑定**。非 Windows 无明文替代方案：保存密码或节点快照明确失败，已有封套显示不可用。代理模式的不可用凭据使代理拨号失败，不隐式改用直连。节点连接参数及凭据已由整份快照保护；未来增加令牌、私钥、带认证订阅 URL 同样必须保护，不落盘原始导入副本。
 

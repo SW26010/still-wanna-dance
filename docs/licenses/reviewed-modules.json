@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-28",
-  "noticesSHA256": "a781c09901fceae05ff75a162ab1736c68f86d943be3684201cadf289521ea44",
+  "reviewedAt": "2026-10-30",
+  "noticesSHA256": "4e14074fd7d8863612890a949356ee0a9e8989cf91c2015bd0c63b3028470b89",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -1414,6 +1414,36 @@
         {
           "path": "LICENSE",
           "sha256": "c6fe05491a60ae13bcd223088d2705e36dede24e5587226231d2459ada5c4822"
+        }
+      ]
+    },
+    {
+      "path": "github.com/google/pprof",
+      "version": "v0.0.0-20250317173921-a4b03ec1a45e",
+      "sum": "h1:ijClszYn+mADRFY17kjQEVQ1XRhq2/JR1M3sGqeJoxs=",
+      "licenseFiles": [
+        {
+          "path": "AUTHORS",
+          "sha256": "8a196dfd9252ad9cb0670365e680d6b19560c688776fa76f0203854ae2c0e29c"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "third_party/svgpan/LICENSE",
+          "sha256": "154c946c17de61ca71d28e13673d76a5798e6e25995a7397fbae157afc8f62b4"
+        }
+      ]
+    },
+    {
+      "path": "github.com/ajg/form",
+      "version": "v1.7.1",
+      "sum": "h1:OsnBDzTkrWdrxvEnO68I72ZVGJGNaMwPhoAm0V+llgc=",
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "a66b5c17a29c5b28713fc55662593eb22fab1332d0060bdae5ff8c890e821c67"
         }
       ]
     }

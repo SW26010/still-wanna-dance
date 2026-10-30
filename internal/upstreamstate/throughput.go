@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 	"still-wanna-dance/internal/workfiles"
 )
@@ -31,10 +30,22 @@ type throughputState struct {
 }
 
 func (m *Monitor) scheduleThroughputLocked() {
+	if m.proxyModeLocked() {
+		return
+	}
 	due := m.lastThroughput.Add(m.policy.ThroughputInterval)
 	if !m.lastThroughput.IsZero() && time.Now().Before(due) && due.Before(m.nextCheck) {
 		m.nextCheck = due
 	}
+}
+
+func (m *Monitor) proxyModeLocked() bool {
+	p := m.channel.Snapshot().Candidates
+	if p == nil {
+		return false
+	}
+	cs := p.Current(entry(Catalog, "api"))
+	return len(cs) > 0 && cs[0].Mode == "socks5"
 }
 
 // Restore the cooldown and historical samples only after decoding succeeds.
@@ -131,10 +142,9 @@ func restorableThroughputKey(key string) bool {
 	if len(parts) < 3 || parts[0] != string(Resource) || !videometa.ValidHost(parts[1]) || parts[2] == "" {
 		return false
 	}
-	if parts[2] == "socks5" {
-		return len(parts) == 5 && upstreamrequest.PersistentProxyID(parts[4])
-	}
-	return true
+	// Proxy endpoints may switch nodes outside SWD. Historical node throughput
+	// cannot describe their current egress; only direct path samples persist.
+	return parts[2] != "socks5"
 }
 
 func (m *Monitor) persistThroughputResult() {
@@ -149,17 +159,7 @@ func (m *Monitor) persistThroughputResult() {
 }
 
 // Called with m.mu held after candidate discovery, independently of history.
-func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[string]bool, provider upstreamrequest.Candidates) {
-	var known map[string]bool
-	authoritative := true
-	if membership, ok := provider.(upstreamrequest.ProxyMembership); ok {
-		var ids []string
-		ids, authoritative = membership.KnownProxyIDs()
-		known = make(map[string]bool, len(ids))
-		for _, id := range ids {
-			known[id] = true
-		}
-	}
+func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[string]bool) {
 	changed := false
 	for key := range m.throughput {
 		parts := strings.SplitN(key, "/", 3)
@@ -167,12 +167,6 @@ func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[stri
 			continue
 		}
 		canPrune := prepared[entry(Resource, parts[1])]
-		if len(parts) == 3 && strings.HasPrefix(parts[2], "socks5/") {
-			identity := strings.Split(parts[2], "/")
-			if !authoritative || len(identity) == 3 && known[identity[2]] {
-				continue
-			}
-		}
 		if !canPrune {
 			continue
 		}
@@ -187,6 +181,9 @@ func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[stri
 func (m *Monitor) throughputStatus(s Status, now time.Time) string {
 	if s.Closed {
 		return "closed"
+	}
+	if m.proxyModeLocked() && !s.Manual {
+		return "proxy_managed"
 	}
 	if s.ResourcesPaused {
 		return "business_busy"

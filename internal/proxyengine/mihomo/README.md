@@ -1,58 +1,49 @@
-# Fixed exits from the complete Mihomo runtime
+# Managed Mihomo endpoint
 
-This package owns SWD's single embedded B2 runtime. The root module pins official
-Mihomo v1.19.32; desktop builds use the no_easytier tag, with no fork or replacement.
-The old A adapter, custom DNS/dialer bridges and protocol rewrites have been removed.
-Historical experiments and their evidence remain in the repository.
+The root module pins official Mihomo v1.19.32, with no_easytier and no fork.
+Console owns node import, protected configuration and process lifecycle. Runtime
+exposes one dialer through the native SWD selector, defaulting to a native
+fallback group containing all imported nodes. zashboard operates the selector,
+health checks and connections. SWD never ranks or selects individual nodes.
 
-Import accepts native YAML node lists, URIs and Base64 subscriptions, bounded to
-2 MiB / 2048 entries. It never fetches a subscription or executes a full imported
-configuration. Normalize uses upstream validation after a cross-protocol
-capability gate. Groups, chains, file access, plugins, interfaces/routing marks,
-overlay stacks and smux wrappers are rejected. Ordinary stream options retain
-native semantics; there is no per-protocol field whitelist. Audited constructors
-do not dial or alter core globals; temporary AnyTLS workers are closed immediately.
-Re-audit these guarantees when upgrading Mihomo.
+The [canonical design](../../../docs/mihomo-dashboard.md) defines configuration,
+consent, control API authority, selection persistence and shutdown. Import stays
+bounded to 2 MiB / 2048 entries and validates native stream capabilities without
+executing imported groups, rules, listeners, files, plugins or system networking.
+Node names stay in protected data; public import diagnostics never contain them.
 
-Names are removed, host/port syntax is normalized, and credentials/defaults are
-preserved. Equivalent encodings may conservatively have different identities.
-Console owns keyed identities and DPAPI version=2 snapshots; old snapshots require
-explicit reimport. Native logrus output is permanently discarded before parsing;
-only fixed application diagnostics may be exposed. Never subscribe to the raw
-native log event stream.
+Runtime installs controlled ParseWithBytes → ApplyConfig once per process.
+Core-owned certificate-validated DoH does not read system hosts. SWD's direct DNS
+and standard library resolver/transport remain independent. No plaintext core
+configuration file is created. A private native controller is authenticated and
+accessed through SWD's limited same-origin reverse proxy. Raw core logs are not
+exposed; native logrus output is permanently discarded before import parsing.
 
-NewRuntime installs a controlled ParseWithBytes → ApplyConfig configuration once
-per process, in an absolute application-owned directory. It disables proxy
-listeners, controllers, TUN, sniffing, NTP and automatic geo updates. Core-owned,
-certificate-validated literal-IP DoH does not read system hosts; SWD's direct DNS
-and standard library resolver/transport remain independent. The original node
-data is never written as a core config file.
+The pinned native selector and statistics memory cache contain data races.
+selector.go synchronizes the native selector; the automatic fallback never
+exposes manual pinning. memory.go streams the native process memory query without
+mutating the shared cache. These compatibility guards retain native selection,
+fallback and tracking; reassess them when upgrading Mihomo.
 
-Runtime.Proxies returns existing upstreamrequest.Proxy values for NewMultiPool.
-Each dialer captures a fixed native object through proxydialer.New(proxy, true),
-so rebinding a name cannot redirect that exit. Console activates at most five
-saved nodes; external SOCKS5 remains available. Changes apply after application
-restart, never by reinitializing core globals.
+Mihomo saves and restores selections by their displayed names. Unnamed nodes get
+a generic ordinal rather than an endpoint; imported names may themselves contain
+addresses. A transient identity turns off selection record reads/writes to
+preserve selections in a valid cache; native cache initialization still runs.
+The known cache.db is disposable and may be rebuilt by Mihomo. If it cannot be
+opened, the proxy and manual selection remain usable in memory; Console reports
+that selections cannot be saved. No plaintext native connection configuration
+is created. The canonical design defines the exact cache ownership boundary.
 
-Each node owns 32 nonqueued admission slots. A slot covers native dialing, a
-delivered connection and its actual Close completion. Canceled native calls or
-blocked cleanup retain their slots, so abandoned work stays bounded and cannot
-starve sibling nodes. The default dial deadline is ten seconds. Returned streams
-follow net.Dialer ownership: callers close them and control subsequent I/O.
+The endpoint owns 160 nonqueued admission slots and a ten-second dial deadline.
+Slots cover native calls, delivered connections and actual Close completion.
+Retirement rejects new work, cancels pending calls and uses one three-second
+budget for connections, adapters, providers, controller and cache closure. A
+failed or retired core requires application restart. Close its HTTP pools first.
 
-Retirement rejects new work immediately and cancels pending dials. Close initiates
-connection/adapter/provider cleanup and waits at most three seconds for the whole
-runtime to drain. Timeout is reported; it does not assert that native globals were
-unloaded. A failed or retired runtime cannot restart in the same process.
-Close the HTTP pool before its Runtime. Local capacity/retirement/caller cancellation
-are separate Monitor diagnostics; genuine timeouts still affect node health.
-
-Tests use independent processes for complete-core initialization, with no singleton
-reset hook. Five local protocol servers (including VMess/WS) exercise fixed exits, concurrency, warm
-cancellation, wrong credentials and retirement. Admission tests cover uncooperative
-native calls and blocking Close. Run go test -tags=no_easytier on this package.
-Set SWD_B2_SOAK=1 to enable TestRuntimeSoak, a 60-second paced workload.
-
-See [B2 development validation](../../../docs/validation/issue-14-b2-integration.md) for exact
-tested revisions and limitations, and [license/source review](../../../docs/licenses/README.md)
-for distribution inputs. Loopback checks do not replace real-game acceptance.
+Tests initialize complete cores in separate processes. Five real local protocol
+servers cover protocol support, concurrency, cancellation and wrong credentials.
+Distinct local exits cover manual selection, preserving pooled connections,
+native fallback, traffic tracking and persisted selection after process restart.
+Run go test -tags=no_easytier on this package; SWD_B2_SOAK=1 retains the optional
+60-second workload. These tests do not claim public proxy performance or VRC
+playback acceptance.

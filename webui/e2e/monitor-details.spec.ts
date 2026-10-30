@@ -32,14 +32,24 @@ test('network details preserve sample evidence and distinguish failures from mis
 });
 
 test('unmeasured network offers direct checks and shows new samples without expanding a section',async({page},info)=>{
-  const {state,calls}=await mockAPI(page);await page.clock.install();await page.goto('/#network');
+  const {state,calls}=await mockAPI(page);await page.clock.install({time:new Date('2026-10-30T00:00:00Z')});await page.goto('/#network');
   const panel=page.locator('#network');
   await expect(panel.getByText('未检测',{exact:true})).toHaveCount(3);
   await expect(panel).not.toContainText('暂无检测结果');await expect(panel).not.toContainText('最近完成：—');
+  // Finish the action-triggered refresh before publishing the later sample.
+  const actionRefresh=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/status');
   await panel.getByRole('button',{name:'检测视频列表',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='upstream/check/catalog').length).toBe(1);
+  await (await actionRefresh).finished();
+  await expect(page.getByText('网络检测已开始，请查看检测结果。')).toBeVisible();
+  // Pin a future virtual time relative to install, avoiding a wall-clock race
+  // between reading Date.now() in the page and issuing pauseAt from Node.
+  await page.clock.pauseAt(new Date('2026-10-30T00:01:00Z'));
   state.upstreamMonitor={results:[{operation:'catalog',route:'api',entry:'catalog.example',mode:'direct',state:'available',estimatedLatencyMS:12.5}]};
-  await page.clock.fastForward(2500);
+  const reads=calls.filter(c=>c.path==='status').length;
+  // Drive the real five-second polling cycle and wait for its request; a
+  // shorter clock jump races the action-triggered refresh and real time.
+  await expect.poll(async()=>{await page.clock.fastForward(5000);return calls.filter(c=>c.path==='status').length;}).toBeGreaterThan(reads);
   await expect(panel.getByRole('table',{name:'线路检测：catalog',exact:true})).toContainText('12.5 ms');
   await expect(panel.getByText('未检测',{exact:true})).toHaveCount(2);
   await panel.screenshot({path:info.outputPath('network-partial-results.png'),animations:'disabled'});

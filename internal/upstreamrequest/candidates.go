@@ -43,26 +43,16 @@ type Candidates interface {
 	Changed() <-chan struct{}
 }
 
-// ProxyMembership separates configured identities from the executable subset.
-// False means the node store is unavailable, not an authoritative empty store.
-type ProxyMembership interface {
-	KnownProxyIDs() ([]string, bool)
-}
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
-// Proxy is a fixed egress. ID describes its connection configuration, never
-// its display name or temporary listener port. Dial must not switch egresses.
-type Proxy struct {
-	ID   string
-	Dial DialFunc
-}
-
-// Pool owns pinned transports, not DNS. A new Pool represents a network config.
+// Pool owns fixed-IP direct transports or a single managed proxy endpoint,
+// not DNS. A new Pool represents a network configuration.
 type Pool struct {
 	mu         sync.Mutex
 	mode       string
 	dns        DNSPool
-	proxies    []Proxy
+	proxy      DialFunc
+	proxyID    string
 	directDial DialFunc
 	transports map[string]*http.Transport
 	closed     bool
@@ -77,7 +67,7 @@ func NewDirectPool(dns DNSPool, dial DialFunc) (*Pool, error) {
 	if dial == nil {
 		return nil, errors.New("missing direct dialer")
 	}
-	p, err := newPool("direct", dns, nil)
+	p, err := NewPool("direct", dns, nil)
 	if err == nil {
 		p.directDial = dial
 	}
@@ -98,40 +88,7 @@ func NewPool(mode string, dns DNSPool, proxy DialFunc, persistentProxyID ...stri
 		}
 		id = persistentProxyID[0]
 	}
-	var proxies []Proxy
-	if mode != "direct" {
-		proxies = []Proxy{{ID: id, Dial: proxy}}
-	}
-	return newPool(mode, dns, proxies)
-}
-
-// NewMultiPool creates an immutable generation of fixed proxy exits. An empty
-// set is valid (including forced proxy mode) and never enables implicit direct.
-// Publish a replacement pool before retiring the previous generation.
-func NewMultiPool(mode string, dns DNSPool, proxies []Proxy) (*Pool, error) {
-	for _, proxy := range proxies {
-		if !PersistentProxyID(proxy.ID) {
-			return nil, errors.New("invalid persistent proxy identity")
-		}
-	}
-	return newPool(mode, dns, proxies)
-}
-
-func newPool(mode string, dns DNSPool, proxies []Proxy) (*Pool, error) {
-	if mode != "direct" && mode != "socks5" {
-		return nil, errors.New("invalid channel mode")
-	}
-	if mode != "socks5" && dns == nil {
-		return nil, errors.New("missing channel DNS")
-	}
-	seen := make(map[string]bool)
-	for _, proxy := range proxies {
-		if proxy.Dial == nil || seen[proxy.ID] {
-			return nil, errors.New("invalid or duplicate proxy exit")
-		}
-		seen[proxy.ID] = true
-	}
-	return &Pool{mode: mode, dns: dns, proxies: slices.Clone(proxies), transports: make(map[string]*http.Transport)}, nil
+	return &Pool{mode: mode, dns: dns, proxy: proxy, proxyID: id, transports: make(map[string]*http.Transport)}, nil
 }
 
 // PersistentProxyID identifies a versioned, keyed configuration fingerprint.
@@ -197,9 +154,7 @@ func (p *Pool) Current(target string) []Candidate {
 		}
 	}
 	if p.mode != "direct" {
-		for _, proxy := range p.proxies {
-			cs = append(cs, Candidate{ID: "socks5/" + host + "/" + proxy.ID, Host: host, Mode: "socks5"})
-		}
+		cs = append(cs, Candidate{ID: "socks5/" + host + "/" + p.proxyID, Host: host, Mode: "socks5"})
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -217,13 +172,6 @@ func (p *Pool) Current(target string) []Candidate {
 		c := cs[i]
 		tr := p.transports[c.ID]
 		if tr == nil {
-			var proxyDial DialFunc
-			for _, proxy := range p.proxies {
-				if c.ID == "socks5/"+host+"/"+proxy.ID {
-					proxyDial = proxy.Dial
-					break
-				}
-			}
 			tr = &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 				h, port, err := net.SplitHostPort(address)
 				if err != nil || !strings.EqualFold(h, c.Host) {
@@ -233,7 +181,7 @@ func (p *Pool) Current(target string) []Candidate {
 					return nil, err
 				}
 				if c.Mode == "socks5" {
-					return proxyDial(ctx, network, address)
+					return p.proxy(ctx, network, address)
 				}
 				if p.directDial != nil {
 					return p.directDial(ctx, network, net.JoinHostPort(c.IP, port))
@@ -318,18 +266,6 @@ func (p *Pool) Close() {
 type Transport struct {
 	http.RoundTripper
 	*Pool
-	RetainedProxies ProxyMembership
-}
-
-func (t *Transport) KnownProxyIDs() ([]string, bool) {
-	if t.RetainedProxies != nil {
-		return t.RetainedProxies.KnownProxyIDs()
-	}
-	var ids []string
-	for _, proxy := range t.Pool.proxies {
-		ids = append(ids, proxy.ID)
-	}
-	return ids, true
 }
 
 func (t *Transport) CloseIdleConnections() {

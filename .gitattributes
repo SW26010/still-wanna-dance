@@ -4,5 +4,6 @@
 experiments export-ignore
 docs/evidence export-ignore
 
-# Frozen compatibility fixture; all other binary artifacts are external assets.
+# Fixed compatibility fixture and reviewed offline product dashboard.
 internal/cacheproxy/testdata/storage-v2.sqlite binary
+internal/dashboard/assets/zashboard.zip binary

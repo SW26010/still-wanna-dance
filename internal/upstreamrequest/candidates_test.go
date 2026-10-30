@@ -46,7 +46,7 @@ func TestPoolsRejectRetiredAutoMode(t *testing.T) {
 	if _, err := NewPool("auto", d, nil); err == nil {
 		t.Fatal("single pool accepted auto")
 	}
-	if _, err := NewMultiPool("auto", d, nil); err == nil {
+	if _, err := NewPool("auto", d, nil); err == nil {
 		t.Fatal("multi pool accepted auto")
 	}
 }

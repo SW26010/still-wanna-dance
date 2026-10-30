@@ -14,7 +14,7 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestProxySampleRestoreRequiresStableMatchingIdentity(t *testing.T) {
+func TestProxyEndpointDoesNotRestoreOrRankNodeSamples(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "throughput.json")
 	at := time.Now().Add(-time.Minute)
 	a := "stable-v1-" + strings.Repeat("a", 64)
@@ -48,12 +48,14 @@ func TestProxySampleRestoreRequiresStableMatchingIdentity(t *testing.T) {
 		candidate := pool.Current("https://play.udon.dance")[0]
 		recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: candidate.ID, state: "available", at: time.Now(), latency: time.Millisecond, songID: 73})
 		r := m.Results(Resource)[0]
-		if id == a {
-			if r.LastThroughput == nil || r.ThroughputSongID != 42 || r.EstimatedSpeedBPS == nil {
-				t.Fatal("same proxy lost restored sample", r)
-			}
-		} else if r.LastThroughput != nil || r.EstimatedSpeedBPS != nil {
-			t.Fatal("different proxy inherited sample after light check", r)
+		if r.LastThroughput != nil || r.EstimatedSpeedBPS != nil || len(m.throughput) != 0 {
+			t.Fatal("proxy inherited fixed-node throughput", r)
+		}
+		if len(m.Selections(Resource, Constraints{})) != 0 {
+			t.Fatal("SWD ranked the managed proxy endpoint")
+		}
+		if status := m.Snapshot(); status.ThroughputStatus != "proxy_managed" || !status.NextThroughput.IsZero() {
+			t.Fatal("proxy still schedules automatic throughput", status.ThroughputStatus, status.NextThroughput)
 		}
 		if !m.lastThroughput.Equal(at) {
 			t.Fatal("migration reset cooldown")

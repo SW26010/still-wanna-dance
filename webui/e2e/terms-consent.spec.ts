@@ -32,6 +32,19 @@ test('failed consent remains modal and retries without enabling business reads',
   await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeVisible();
 });
 
+test('saved consent reports startup failure and allows repair',async({page})=>{
+  const api=await mockAPI(page);api.terms.accepted=false;
+  await page.route('**/api/terms/accept',async route=>{
+    api.terms.accepted=true;
+    await route.fulfill({json:{ok:true,warning:'条款已保存，但代理或网络监测启动失败；请检查设置和日志，修复后重启程序。'}});
+  });
+  await page.goto('/?gate=1');const dialog=page.getByRole('alertdialog');
+  await dialog.getByRole('button',{name:'同意完整条款'}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.fui-ToastTitle').filter({hasText:'条款已保存，但代理或网络监测启动失败；请检查设置和日志，修复后重启程序。'})).toBeVisible();
+  await expect.poll(()=>api.calls.filter(c=>c.path==='status').length).toBeGreaterThan(0);
+});
+
 test('unavailable terms can be retried and declining exits without accepting',async({page})=>{
   const api=await mockAPI(page);api.terms.accepted=false;let fail=true;
   await page.route('**/api/terms/current',r=>fail?r.fulfill({status:503,body:'暂不可读'}):r.fulfill({json:api.terms}));

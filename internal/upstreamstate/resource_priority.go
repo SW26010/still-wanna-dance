@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client, p Policy, id int64, sample videoSample) observation {
+func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client, p Policy, id int64, sample videoSample, automaticThroughput bool) observation {
 	m.mu.Lock()
 	manual := m.batchManual
 	kind := m.batchKind
@@ -25,7 +25,7 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 			return observation{op: Resource, route: sample.host, state: "canceled"}
 		}
 		if firstAttempt {
-			throughput = m.claimThroughput(false)
+			throughput = automaticThroughput && m.claimThroughput(false)
 			firstAttempt = false
 		}
 		o := probeResourceMode(probeCtx, client, p, id, sample, throughput)

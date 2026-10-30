@@ -24,7 +24,7 @@ for(const width of [1700,1280,800,390])test(`navigation and page origin stay ali
     expect({x:position.heading.x,y:position.heading.y}).toEqual({x:positions[0].heading.x,y:positions[0].heading.y});
   }
   if(width>=1280){
-    await navigate(page,'历史');await expect(page.getByText('该时间范围内暂无请求记录。',{exact:true})).toBeVisible();
+    await navigate(page,'历史');await expect(page.getByText('当前筛选条件下暂无请求记录。',{exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollHeight)).toBeLessThanOrEqual(900);
   }
 });

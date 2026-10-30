@@ -37,6 +37,14 @@ func (c *Console) serveRequestHistoryEvents(w http.ResponseWriter, r *http.Reque
 
 func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	q := cacheproxy.RequestQuery{Limit: 50, Cursor: r.URL.Query().Get("cursor"), Sort: r.URL.Query().Get("sort"), Direction: r.URL.Query().Get("direction")}
+	if raw := r.URL.Query().Get("hideAdjacentCanceled"); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			http.Error(w, "invalid history filter", http.StatusBadRequest)
+			return
+		}
+		q.HideAdjacentCanceled = value
+	}
 	for _, field := range []struct {
 		name  string
 		value *int64

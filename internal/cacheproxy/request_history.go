@@ -15,10 +15,11 @@ import (
 // From is inclusive and To exclusive, both in Unix milliseconds.
 // Sorting uses immutable arrival identity; completion updates cannot move a row.
 type RequestQuery struct {
-	From, To        int64
-	Cursor          string
-	Sort, Direction string
-	Limit           int
+	From, To             int64
+	Cursor               string
+	Sort, Direction      string
+	Limit                int
+	HideAdjacentCanceled bool
 }
 
 type requestCursor struct {
@@ -136,6 +137,21 @@ func (q RequestQuery) window(getOnly bool) (string, []any) {
 	var args []any
 	if getOnly {
 		conditions = append(conditions, "method='GET'")
+	}
+	if getOnly && q.HideAdjacentCanceled {
+		// Match the next GET by arrival order before applying range, sort or
+		// pagination. Only completed video responses can hide a canceled row;
+		// an intervening cancellation, failure or different resource breaks it.
+		conditions = append(conditions, `NOT (outcome='canceled' AND resource_md5 IS NOT NULL AND COALESCE((
+ SELECT next.outcome='completed' AND next.status IN (200,206)
+   AND next.resource_md5=request_events.resource_md5
+   AND (next.song_id IS NULL OR request_events.song_id IS NULL OR next.song_id=request_events.song_id)
+ FROM request_events AS next INDEXED BY request_events_time
+ WHERE next.method='GET'
+   AND (next.requested_at,next.event_id)>(request_events.requested_at,request_events.event_id)
+   AND next.requested_at<=request_events.requested_at+1000
+ ORDER BY next.requested_at,next.event_id LIMIT 1
+),0))`)
 	}
 	if q.From > 0 {
 		conditions = append(conditions, "requested_at>=?")

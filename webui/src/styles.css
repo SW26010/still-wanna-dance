@@ -227,9 +227,11 @@ form.actions { align-items: flex-end; }
 .history-summary { column-gap: var(--spacingHorizontalL); }
 .history-summary-heading { flex-wrap: nowrap; }
 .history-filter { display: flex; align-items: flex-end; flex-wrap: wrap; }
+.history-actions { flex: 1 1 auto; }
+.history-option { margin-inline-start: auto; }
 .history-range { display: flex; flex-wrap: wrap; align-items: start; max-width: 100%; gap: var(--spacingHorizontalL); }
 .history-filter .fui-Field, .history-filter .fui-Input { min-width: 0; max-width: 100%; }
-.history-filter .fui-Input { width: 14rem; }
+.history-filter .fui-Input { width: 12rem; }
 .history-filter .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
 .empty-state { padding: var(--spacingVerticalL); color: var(--colorNeutralForeground3); }
 .fui-PopoverSurface { max-width: min(440px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; }

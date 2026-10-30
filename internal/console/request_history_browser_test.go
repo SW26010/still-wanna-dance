@@ -85,8 +85,22 @@ func TestRequestHistoryBrowser(t *testing.T) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		response := httptest.NewRecorder()
-		writer.ServeHTTP(response, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=84", nil))
+		count, songID := 1, "84"
+		if r.URL.Query().Get("pair") == "true" {
+			count, songID = 2, "85"
+		}
+		var response *httptest.ResponseRecorder
+		for i := 0; i < count; i++ {
+			response = httptest.NewRecorder()
+			request := httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id="+songID, nil)
+			if count == 2 && i == 0 {
+				ctx, cancel := context.WithCancel(request.Context())
+				writer.ServeHTTP(&historyCanceledWriter{response, cancel}, request.WithContext(ctx))
+				cancel()
+			} else {
+				writer.ServeHTTP(response, request)
+			}
+		}
 		if err := writer.Close(); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -107,4 +121,14 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	if c.service != nil || c.httpServer != nil {
 		t.Fatal("read-only history started engine or gateway")
 	}
+}
+
+type historyCanceledWriter struct {
+	*httptest.ResponseRecorder
+	cancel context.CancelFunc
+}
+
+func (w *historyCanceledWriter) Write(p []byte) (int, error) {
+	w.cancel()
+	return w.ResponseRecorder.Write(p)
 }

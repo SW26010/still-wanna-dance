@@ -4,6 +4,36 @@ import {navigate} from './navigation';
 
 const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,cache:'MISS',outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
+test('adjacent cancellation filter defaults on, resets pagination, and stays only in the page session',async({page})=>{
+  const api=await mockAPI(page),queries:URLSearchParams[]=[];
+  const explanation='同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。';
+  await page.route('**/api/history?*',route=>{
+    const q=new URL(route.request().url()).searchParams;queries.push(q);
+    const requests=q.get('cursor')?[record(3)]:q.get('hideAdjacentCanceled')==='true'?[{...record(2),outcome:'completed',status:206}]:[record(1),{...record(2),outcome:'completed',status:206}];
+    return route.fulfill({json:{storageID:'fixture',requests,hasMore:!q.get('cursor'),nextCursor:q.get('cursor')?'':'next'}});
+  });
+  await page.goto('/#/timeline');
+  const option=page.getByRole('checkbox',{name:'隐藏相邻中断请求',exact:true});
+  const canceled=page.getByRole('button',{name:'请求 1 的明细',exact:true});
+  await expect(option).toBeChecked();await expect(canceled).toHaveCount(0);
+  await page.getByText('隐藏相邻中断请求',{exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText(explanation);
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  await option.focus();await expect(page.getByRole('tooltip')).toHaveText(explanation);
+  await expect(option).toHaveAccessibleDescription(explanation);
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.getByRole('button',{name:'下一页历史',exact:true}).click();
+  await expect(page.getByText('第 2 页 · 1 条',{exact:true})).toBeVisible();
+  await option.focus();await page.keyboard.press('Space');
+  await expect(option).not.toBeChecked();await expect(option).toBeFocused();
+  await expect(canceled).toBeVisible();await expect(page.getByText('第 1 页 · 2 条 · 自动刷新',{exact:true})).toBeVisible();
+  expect(queries.at(-1)?.get('cursor')).toBe('');expect(queries.at(-1)?.get('hideAdjacentCanceled')).toBe('false');
+  await navigate(page,'设置');await navigate(page,'历史');
+  await expect(option).not.toBeChecked();await expect(canceled).toBeVisible();
+  await page.reload();await expect(option).toBeChecked();await expect(canceled).toHaveCount(0);
+  expect(api.calls.filter(c=>c.path.startsWith('settings'))).toHaveLength(0);
+});
+
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`response sources use frozen bytes and fit ${width}px ${scheme}`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
   const sources={downloadBytes:1048576,cacheBytes:2097152,localBytes:1048576};
@@ -38,7 +68,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   await page.route('**/api/history?*',async route=>{reads++;const refresh=reads>1;if(refresh)await pending;await route.fulfill({json:{storageID:'fixture',requests:refresh?[...requests,record(3)]:requests,hasMore:false,nextCursor:''}});});
   await page.route('**/api/latency',async route=>{latencyReads++;if(latencyReads>1)await pending;await route.fallback();});
   await page.goto('/#/timeline');
-  const result=populated?page.getByRole('link',{name:'ID 42',exact:true}):page.getByText('该时间范围内暂无请求记录。',{exact:true});
+  const result=populated?page.getByRole('link',{name:'ID 42',exact:true}):page.getByText('当前筛选条件下暂无请求记录。',{exact:true});
   await expect(result).toBeVisible();
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),position=await table.boundingBox();
   await expect(page.getByRole('button',{name:'刷新首正文统计',exact:true})).toBeEnabled();
@@ -130,7 +160,7 @@ test('history can retry a rejected event connection without promising automatic 
   await expect(page.getByRole('listitem').getByText('历史更新连接不可用，请重新查询。',{exact:true})).toBeVisible();
   await expect(page.getByRole('progressbar',{name:'正在读取历史'})).toHaveCount(0);
   fail=false;await page.getByRole('button',{name:'查询历史',exact:true}).click();
-  await expect(page.getByText('该时间范围内暂无请求记录。',{exact:true})).toBeVisible();
+  await expect(page.getByText('当前筛选条件下暂无请求记录。',{exact:true})).toBeVisible();
   await expect(page.getByRole('listitem').getByText('历史更新连接不可用，请重新查询。',{exact:true})).toHaveCount(0);
 });
 

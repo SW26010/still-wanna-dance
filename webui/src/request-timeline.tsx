@@ -1,5 +1,5 @@
-import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Button,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,Tooltip,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
+import {useCallback,useEffect,useLayoutEffect,useRef,useState,type Ref} from 'react';
+import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Text,Tooltip,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
 import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
@@ -45,11 +45,12 @@ export function RequestTimeline({visible}:{visible:boolean}) {
   const [range,setRange]=useState<Range>(()=>({from:localDate(Date.now()-24*3600000),to:''}));
   const [applied,setApplied]=useState(range),[cursors,setCursors]=useState(['']),[error,setError]=useState(''),[queryRevision,setQueryRevision]=useState(0);
   const [sort,setSort]=useState<TableSort>({sort:'time',direction:'descending'});
+  const [hideAdjacentCanceled,setHideAdjacentCanceled]=useState(true);
   const sortFocus=useRef(false);
   const previousStorage=useRef(storage);
   useEffect(()=>{if(previousStorage.current!==storage){previousStorage.current=storage;setCursors(['']);}},[storage]);
   const latency=useResource<Latency>('latency',visible&&!app.stopped,app.revision,30000);
-  const query=new URLSearchParams({...sort,limit:'50',cursor:cursors.at(-1)!});
+  const query=new URLSearchParams({...sort,limit:'50',cursor:cursors.at(-1)!,hideAdjacentCanceled:String(hideAdjacentCanceled)});
   for(const key of ['from','to'] as const){const value=milliseconds(applied[key]);if(value!==undefined)query.set(key,String(value));}
   return <div className="page-stack">
     <ResponseSourceSummary key={storage} visible={visible}/>
@@ -64,7 +65,8 @@ export function RequestTimeline({visible}:{visible:boolean}) {
       <div className="history-range">
       <Field label="开始" orientation="horizontal"><Input type="datetime-local" value={range.from} onChange={(_,v)=>{setRange({...range,from:v.value});setError('');}}/></Field>
       <Field label="结束" orientation="horizontal" validationState={error?'error':'none'} validationMessage={error||undefined}><Input type="datetime-local" value={range.to} onChange={(_,v)=>{setRange({...range,to:v.value});setError('');}}/></Field>
-      </div><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
+      </div><div className="inline history-actions"><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
+      <Tooltip positioning="above" content="同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} className="history-option" ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="隐藏相邻中断请求" checked={hideAdjacentCanceled} onChange={(_,v)=>{sortFocus.current=false;setHideAdjacentCanceled(!!v.checked);setCursors(['']);setQueryRevision(0);}}/>}</Tooltip></div>
     </form>
     <HistoryPage focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.sort==='time'&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
   </section></div>;
@@ -105,7 +107,7 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
         <TableCell><RecordDetails title={`请求 ${r.id} 的明细`}><dl className="detail-grid">{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource||'未知'}</dd><dt>按块折算字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails></TableCell>
       </TableRow>)}</TableBody>
     </RecordTable>
-    {!history.error&&history.data?.requests.length===0&&<p className="empty-state">该时间范围内暂无请求记录。</p>}
+    {!history.error&&history.data?.requests.length===0&&<p className="empty-state">当前筛选条件下暂无请求记录。</p>}
     <TablePagination label="历史" disabled={disabled||!!history.error} canPrevious={pageNumber>1} canNext={!!history.data?.hasMore&&!!history.data.nextCursor}
       previous={previous} next={()=>next(history.data!.nextCursor)}
       summary={history.error?'历史读取失败，请重新查询。':!history.data?'正在读取历史…':`第 ${pageNumber} 页 · ${history.data.requests.length} 条${live&&!connectionError?' · 自动刷新':''}`}/>

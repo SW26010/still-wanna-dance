@@ -55,6 +55,26 @@ try {
   expect(committed.requests[0].songID).toBe('84');
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
+  const option=page.getByRole('checkbox',{name:'隐藏相邻中断请求',exact:true});
+  await expect(option).toBeChecked();
+  const pairUpdated=page.waitForResponse(async r=>r.url().includes('/api/history?')&&r.ok()&&(await r.json()).requests.some(record=>record.songID==='85'&&record.outcome==='completed'));
+  expect((await page.request.post(baseURL+'/__fixture/request?pair=true')).ok()).toBe(true);
+  const filtered=await(await pairUpdated).json();
+  expect(filtered.requests.filter(r=>r.songID==='85').map(r=>r.outcome)).toEqual(['completed']);
+  await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(1);
+  await option.uncheck();
+  await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(2);
+  const raw=await(await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
+  const pair=raw.requests.filter(r=>r.songID==='85');
+  expect(pair.map(r=>r.outcome)).toEqual(['completed','canceled']);
+  expect(pair[0].at-pair[1].at).toBeLessThanOrEqual(1000);
+  await page.setViewportSize({width:1280,height:900});await page.emulateMedia({colorScheme:'light'});
+  await page.screenshot({path:join(output,'history-unfiltered.png'),fullPage:false});
+  await page.reload();await expect(option).toBeChecked();
+  await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(1);
+  await page.getByText('隐藏相邻中断请求',{exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。');
+  await page.screenshot({path:join(output,'history-filtered-tooltip.png'),fullPage:false});
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({records:602,lastPage:13,resource:key,latency,sources,eventInsertedSong:'84',errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({records:604,lastPageBeforePair:13,resource:key,latency,sources,eventInsertedSong:'84',adjacentPair:pair,errors},null,2));
 } finally {await browser.close();}

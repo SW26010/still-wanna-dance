@@ -885,6 +885,62 @@
       "bytes": 1200856,
       "sha256": "7f83d7d68a1346695ce1cb88c6b7fae19c29ede48c4297f094f4850cd921c1d0",
       "reason": "Production WebUI generated and verified by webui/build.mjs. Remove the automatic direct/proxy mode and show a homepage notification when an existing configuration migrates to proxy. Exact Git blob bytes match webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1206526,
+      "sha256": "703798415d0f1e45370b5e49ded56049155c9eb6b80bc6f2f6bd7ce59302c850",
+      "reason": "Historical production WebUI from b5ff061f: feat(import): show volume-based space estimates before importing. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1203335,
+      "sha256": "ff0b1c8f60f0d612f295abc4b2493a071e72da0d505595af81d23f8dc3d9f9fb",
+      "reason": "Historical production WebUI from a0e2bf50: chore(webui): enforce unused declaration checks. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1203360,
+      "sha256": "34bc5009d367957b78e324da86e06c7a2b33db6fb74626f056b67f3d2bcd88c4",
+      "reason": "Historical production WebUI from fc2be297: fix(settings): preserve concurrent edits and bind policy confirmation. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1203785,
+      "sha256": "680b53fd440ec8a7739846b15563a90b9e07aa8e232dd8e32961be3700b468dd",
+      "reason": "Historical production WebUI from ceee6a0e: feat(import): persist video import progress and support resume. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1203100,
+      "sha256": "c2c1305673691ac71474f065d1fd049b7d780cdf3a749932e71e905ed9f980d9",
+      "reason": "Historical production WebUI from a1e71f21: feat(webui): show storage summaries in import and download panels. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1202036,
+      "sha256": "65c57ede4c23222130f1faf319cd518d7838f1fd7b4cebcff54a21842d3cc161",
+      "reason": "Historical production WebUI from f98df1c0: feat(webui): add GitHub link to about build card. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1201658,
+      "sha256": "5643302d4b2512da45da9932273486dae9fa8c146fa8344159ea1f19bea8635e",
+      "reason": "Historical production WebUI from 6c4a0032: feat(webui): show song names in request history. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1201063,
+      "sha256": "1fa20aa93616af2662264f53829145c9a39d3aa6370834f31f543468f7cdd9af",
+      "reason": "Historical production WebUI from 08d5a8fb: feat(webui): show temporary block cache size. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
     }
   ]
 }

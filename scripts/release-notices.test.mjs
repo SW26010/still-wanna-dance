@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { checkNotices, validateNotices } from './release-notices.mjs';
 import { readJSON } from './release-source.mjs';
 
-test('notice gates reject removed text, unreviewed modules/checksums, and allow accepted go-lzo', () => {
+test('notice gates reject removed text and unreviewed module identities, including go-lzo', () => {
   const mod = { path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', sum: 'h1:fixture', licenseFiles: [{ path: 'LICENSE.gpl' }] };
   const text = `Module: ${mod.path} ${mod.version}\nGPL text\n`;
   const review = { schemaVersion: 1, noticesSHA256: crypto.createHash('sha256').update(text).digest('hex'), modules: [mod] };

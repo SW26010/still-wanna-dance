@@ -31,15 +31,16 @@ The usage/content notice is not an additional condition on GPL rights. Recipient
 retain the rights to run, study, modify, distribute and commercially use the
 software under its applicable licenses, including changing the supplied UI.
 
-## Accepted upstream risk
+## Upstream license clarification
 
-On 2026-10-12 the maintainer explicitly accepted the unresolved version-option
-declaration of `github.com/rasky/go-lzo` at
-`v0.0.0-20200203143853-96a758eda86e` as a **non-blocking risk**. This is a risk
-decision, not proof of GPLv3 compatibility or a grant of rights by an upstream
-author. Its presence alone does not prevent a release. Continue using official
-Mihomo; no fork, engine replacement or wait for an author response is required.
+The go-lzo author clarified **GPL-2.0-or-later** in
+[issue #15](https://github.com/rasky/go-lzo/issues/15) and
+[commit ad21c35](https://github.com/rasky/go-lzo/commit/ad21c35a111113348567708a4db74f998be1a4c3).
+That commit directly follows our pinned `96a758eda86e` version and changes only
+the README license wording, with no implementation change. This resolves the
+previous GPL version-option question and permits choosing GPLv3.
 
-If an actual GPLv2-only conflict is later confirmed, stop distribution of affected
-builds, assess earlier distribution and pursue an upstream correction. Required
-licenses, notices, corresponding source and version checks remain release gates.
+SWD records the clarification in the [license audit](docs/issue-30-license-audit.md)
+and preserves the pinned module's original license text. Earlier release
+artifacts retain their historical risk records; new releases no longer list
+this resolved question as an accepted risk.

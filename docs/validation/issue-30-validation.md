@@ -1,5 +1,9 @@
 # Issue #30 开发验证
 
+2026-10-30 许可结论更正：下文 go-lzo「未决／已接受风险」是历史审计记录，已由[上游 GPL-2.0-or-later 澄清](../issue-30-license-audit.md#go-lzo版本选项已由上游澄清)替代。原验证结果与产物记录按当时范围保留。
+
+本轮发行工具回归 **49/49** 通过，覆盖新发行空风险列表、旧发行准确风险记录的兼容读取，以及未登记或被修改记录的拒绝；前端资源一致性与 `git diff --check` 通过。发布说明改为中文下载、运行和文档入口，日志保留于忽略目录 `artifacts/release-notes-20261030/tool-tests.log`。本轮仅更正文案和发行元数据规则，未重新编译或替换已发布附件。
+
 ## 许可声明与条款（2026-10-12）
 
 - `go test ./internal/legal ./internal/console -run 'TestExplicitVersionRequired|TestTerms' -count=1 -timeout=120s`：通过。首次受限沙箱因 Windows 用户/路径访问返回 Access denied；在正常用户权限、临时配置下重跑通过，没有忽略失败或运行游戏。

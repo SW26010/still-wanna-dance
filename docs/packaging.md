@@ -34,7 +34,7 @@ SWD/
 
 正式包同时生成独立的 `*-corresponding-source.tar.gz` 及 SHA256、`*-release.json` 和可用作 Release 正文的 `*-release-notes.md`。完整源码不放进 Portable。`licenses/SOURCE.txt` 给出该 tag 的准确源码附件 URL、提交、校验及构建入口；`SOURCE.json` 将 EXE 哈希与源码哈希绑定，发行清单再绑定 ZIP/源码资产哈希和实际 EXE 模块。详见[完整对应源码](corresponding-source.md)。
 
-正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 固定版本的[已接受风险](issue-30-license-audit.md)保留在产物记录中，不作为失败条件。Mihomo 已接入桌面，实际覆盖版本见[开发验证记录](validation/issue-14-validation.md)；原 LA-034/035/036 已按[验证机制](live-acceptance-process.md)分流为开发、浏览器和 Windows 环境检查，只有实际播放器接入兼容性留在 LA-025。发行链验证不能替代这些不同范围的证据。
+正式流程用最终源码附件进行全新缓存、仅包内 file GOPROXY 的独立重建，比较实际二进制模块；再运行真实 ZIP 的 Portable 隔离验证，全部成功才复制到输出目录。缺少 notices、源码、构建脚本、错误 tag/commit、dirty 或版本/哈希不符均失败。`go-lzo` 版本选项已由上游澄清，依据见[许可审计](issue-30-license-audit.md)；新发行的 `acceptedRisks` 为空，旧发行的准确历史记录仍可验证。Mihomo 已接入桌面，实际覆盖版本见[开发验证记录](validation/issue-14-validation.md)；原 LA-034/035/036 已按[验证机制](live-acceptance-process.md)分流为开发、浏览器和 Windows 环境检查，只有实际播放器接入兼容性留在 LA-025。发行链验证不能替代这些不同范围的证据。
 
 已有产物可再次独立验证：
 
@@ -42,7 +42,7 @@ SWD/
 node scripts/release.mjs verify --manifest artifacts/still-wanna-dance-v1.2.3-release.json
 ```
 
-官方默认在同一 GitHub Release 同时上传 Portable、对应源码、两个校验文件与发行清单，并将生成的 Release notes 中源码入口置于二进制下载旁。发布后、对外宣布前，从无凭据公共 URL 检查实际附件：
+官方默认在同一 GitHub Release 同时上传 Portable、对应源码、两个校验文件与发行清单，并将生成的 Release notes 中源码入口置于二进制下载旁。发布正文面向使用者，提供下载、解压运行说明和简短许可入口；源码重建、再分发及审计细节通过文档链接提供。版本更新摘要和实际影响使用的已知问题可补充在正文，内部验证过程和已解决疑点不作为常驻风险提示。发布后、对外宣布前，从无凭据公共 URL 检查实际附件：
 
 ```powershell
 node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance-v1.2.3-release.json

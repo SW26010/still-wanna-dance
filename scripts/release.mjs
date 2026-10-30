@@ -11,11 +11,31 @@ import { checkBuildMetadata } from './build-info.mjs';
 
 export const assetURL = (tag, name) => `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
 export const releaseNames = tag => ({ portable: `still-wanna-dance-${tag}-windows-amd64-portable.zip`, source: `still-wanna-dance-${tag}-corresponding-source.tar.gz`, manifest: `still-wanna-dance-${tag}-release.json`, notes: `still-wanna-dance-${tag}-release-notes.md` });
-export const acceptedRisk = { module: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', status: 'accepted-nonblocking', acceptedOn: '2026-10-12', evidence: 'source/docs/issue-30-license-audit.md' };
+// Retained only to verify existing artifacts; new releases have no accepted go-lzo risk.
+const legacyAcceptedRisk = { module: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', status: 'accepted-nonblocking', acceptedOn: '2026-10-12', evidence: 'source/docs/issue-30-license-audit.md' };
+export function renderReleaseNotes({ tag, revision, assets }) {
+  const portable = assets.find(asset => asset.kind === 'portable');
+  const source = assets.find(asset => asset.kind === 'source');
+  const docs = `https://github.com/${repository}/blob/${revision}`;
+  return `SWD ${tag}
+
+- [下载 Windows 64 位便携版](${portable.url}) · [SHA256 校验文件](${portable.url}.sha256)
+- [完整对应源码](${source.url}) · [SHA256 校验文件](${source.url}.sha256)
+
+解压便携版后，运行 \`SWD/SWD.exe\` 即可。
+
+自行构建请使用上面的完整对应源码附件，具体步骤见[构建说明](${docs}/docs/corresponding-source.md)。
+
+本版本按 GPLv3 分发，历史 MIT 和第三方许可保留于包内 \`licenses/\`。详见[许可与再分发说明](${docs}/LICENSING.md)。
+
+构建提交：[${revision.slice(0, 7)}](https://github.com/${repository}/commit/${revision})
+`;
+}
+
 const moduleIdentity = modules => JSON.stringify([...modules].map(m => [m.path, m.version, m.sum]).sort((a, b) => a[0].localeCompare(b[0])));
 
 export function checkReleaseManifest(m) {
-  if (m.schemaVersion !== 1 || m.kind !== 'formal' || m.repository !== repository || !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(m.tag) || !/^[a-f0-9]{40}$/.test(m.revision) || m.target !== 'windows/amd64' || !/^go\d+\.\d+/.test(m.toolchain) || JSON.stringify(m.acceptedRisks) !== JSON.stringify([acceptedRisk])) throw Error('Invalid formal release identity');
+  if (m.schemaVersion !== 1 || m.kind !== 'formal' || m.repository !== repository || !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(m.tag) || !/^[a-f0-9]{40}$/.test(m.revision) || m.target !== 'windows/amd64' || !/^go\d+\.\d+/.test(m.toolchain) || (JSON.stringify(m.acceptedRisks) !== '[]' && JSON.stringify(m.acceptedRisks) !== JSON.stringify([legacyAcceptedRisk]))) throw Error('Invalid formal release identity');
   const names = releaseNames(m.tag);
   if (!Array.isArray(m.assets) || m.assets.length !== 2) throw Error('Both Portable and corresponding source are required');
   if (!/^[a-f0-9]{64}$/.test(m.executableSHA256) || !Array.isArray(m.modules) || m.independentRebuild?.verified !== true || m.independentRebuild?.bitReproducible !== false || !/^[a-f0-9]{64}$/.test(m.independentRebuild?.executableSHA256)) throw Error('Missing independent build evidence');
@@ -26,14 +46,14 @@ export function checkReleaseManifest(m) {
   return m;
 }
 
-export function checkDelivery(folder, manifest, sourceAsset, sourceRoot) {
+export function checkDelivery(folder, manifest, sourceAsset, sourceRoot, acceptedRisks = []) {
   const info = executableInfo(path.join(folder, 'SWD.exe'));
   checkExecutable(info, manifest);
   validateNotices(sourceRoot, info.modules);
   const expected = readJSON(fileURLToPath(new URL('./portable-files.json', import.meta.url))).sort();
   if (JSON.stringify(filesUnder(folder)) !== JSON.stringify(expected)) throw Error('Unexpected Portable layout or missing legal/source files');
   const record = readJSON(path.join(folder, 'licenses/SOURCE.json'));
-  if (record.kind !== 'formal' || record.tag !== manifest.tag || record.revision !== manifest.revision || record.sourceSHA256 !== sourceAsset.sha256 || record.sourceURL !== assetURL(manifest.tag, sourceAsset.name) || record.executableSHA256 !== sha256(path.join(folder, 'SWD.exe')) || JSON.stringify(record.acceptedRisks) !== JSON.stringify([acceptedRisk])) throw Error('Portable/source identity mismatch');
+  if (record.kind !== 'formal' || record.tag !== manifest.tag || record.revision !== manifest.revision || record.sourceSHA256 !== sourceAsset.sha256 || record.sourceURL !== assetURL(manifest.tag, sourceAsset.name) || record.executableSHA256 !== sha256(path.join(folder, 'SWD.exe')) || JSON.stringify(record.acceptedRisks) !== JSON.stringify(acceptedRisks)) throw Error('Portable/source identity mismatch');
   // Windows packaging/verification also exercises the runtime diagnostic, before any app startup.
   // Other hosts still inspect real EXE VCS/module settings above, without executing foreign code.
   if (process.platform === 'win32') {
@@ -82,7 +102,7 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     for (const name of ['LICENSE', 'LICENSE-MIT', 'LICENSING.md']) fs.copyFileSync(path.join(checkout, name), path.join(licenses, name));
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/package-notices.ps1'), '-Executable', path.join(folder, 'SWD.exe'), '-Output', path.join(licenses, 'THIRD-PARTY-NOTICES.txt')], checkout, goEnv());
     const sourceAsset = { kind: 'source', name: names.source, sha256: source.sha256, bytes: fs.statSync(source.archive).size, url: assetURL(tag, names.source) };
-    const record = { schemaVersion: 1, kind: 'formal', tag, revision, sourceURL: sourceAsset.url, sourceSHA256: source.sha256, executableSHA256: sha256(path.join(folder, 'SWD.exe')), acceptedRisks: [acceptedRisk] };
+    const record = { schemaVersion: 1, kind: 'formal', tag, revision, sourceURL: sourceAsset.url, sourceSHA256: source.sha256, executableSHA256: sha256(path.join(folder, 'SWD.exe')), acceptedRisks: [] };
     writeJSON(path.join(licenses, 'SOURCE.json'), record);
     fs.writeFileSync(path.join(licenses, 'SOURCE.txt'), `Complete Corresponding Source / 完整对应源码\nVersion: ${tag}\nCommit: ${revision}\nDownload: ${sourceAsset.url}\nSHA256: ${source.sha256}\n\nDownload the source asset from the same official GitHub Release as this ZIP.\nThe automatic GitHub Source code ZIP/TAR is not a substitute. Extract the\nsource asset and follow BUILD.txt (recorded Go toolchain, Node.js 22+, pinned pnpm, tar).\nMirrors must retain notices and provide this matching source with equivalent\naccess. For offline redistribution supply the matching source archive too;\na network-only link is not an offline source-delivery plan. See LICENSING.md.\n`);
     const info = checkDelivery(folder, source.manifest, sourceAsset, path.join(bundle, 'source'));
@@ -97,10 +117,10 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     if (previousZip) run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable-upgrade.ps1'), '-PreviousZip', previousZip, '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-upgrade')], checkout);
     const portableAsset = { kind: 'portable', name: names.portable, sha256: sha256(zip), bytes: fs.statSync(zip).size, url: assetURL(tag, names.portable) };
     fs.writeFileSync(zip + '.sha256', `${portableAsset.sha256}  ${names.portable}\n`);
-    const manifest = { schemaVersion: 1, kind: 'formal', repository, tag, revision, target: source.manifest.target, toolchain: source.manifest.toolchain, executableSHA256: record.executableSHA256, modules: info.modules, acceptedRisks: [acceptedRisk], independentRebuild: { verified: true, executableSHA256: built.executableSHA256, bitReproducible: false }, assets: [portableAsset, sourceAsset] };
+    const manifest = { schemaVersion: 1, kind: 'formal', repository, tag, revision, target: source.manifest.target, toolchain: source.manifest.toolchain, executableSHA256: record.executableSHA256, modules: info.modules, acceptedRisks: [], independentRebuild: { verified: true, executableSHA256: built.executableSHA256, bitReproducible: false }, assets: [portableAsset, sourceAsset] };
     checkReleaseManifest(manifest);
     writeJSON(path.join(results, names.manifest), manifest);
-    fs.writeFileSync(path.join(results, names.notes), `SWD ${tag}\n\nCommit: ${revision}\n\n- [Windows Portable](${portableAsset.url}) — SHA256 \`${portableAsset.sha256}\`\n- [Complete Corresponding Source](${sourceAsset.url}) — SHA256 \`${sourceAsset.sha256}\`\n\nGPLv3 distribution; historical MIT and third-party terms remain in licenses/.\nSource includes complete fixed module ZIPs and build instructions. Independent\nrebuild was checked with fresh caches and file-only GOPROXY; identical EXE bytes\nare not promised. GitHub's automatic source archives are insufficient.\n\nThe unresolved go-lzo version-option risk is accepted and non-blocking, not a\nfinding of compatibility. See the included license audit for evidence.\n\nThe Portable and source archives, checksums and release manifest are delivered\ntogether. Mirrors/offline redistributors must preserve notices and equivalent\naccess to matching source.\n`);
+    fs.writeFileSync(path.join(results, names.notes), renderReleaseNotes(manifest));
     if (cleanRevision(root, tag) !== revision || cleanRevision(checkout, tag) !== revision) throw Error('Release inputs changed during packaging');
     fs.mkdirSync(outputDir, { recursive: true });
     for (const name of outputs) fs.copyFileSync(path.join(results, name), path.join(outputDir, name), fs.constants.COPYFILE_EXCL);
@@ -121,7 +141,7 @@ export function verifyRelease({ manifest, directory }) {
     if (source.tag !== manifest.tag || source.revision !== manifest.revision || source.toolchain !== manifest.toolchain) throw Error('Release/source version mismatch');
     extractArchive(path.join(directory, manifest.assets.find(a => a.kind === 'portable').name), path.join(temp, 'portable'), 'SWD');
     const folder = path.join(temp, 'portable/SWD');
-    const info = checkDelivery(folder, source, sourceAsset, path.join(bundle, 'source'));
+    const info = checkDelivery(folder, source, sourceAsset, path.join(bundle, 'source'), manifest.acceptedRisks);
     if (sha256(path.join(folder, 'SWD.exe')) !== manifest.executableSHA256 || moduleIdentity(info.modules) !== moduleIdentity(manifest.modules)) throw Error('Release/binary identity mismatch');
     const built = rebuild({ bundle, output: path.join(temp, 'rebuilt.exe') }); compareRebuild(info, built);
     return { tag: manifest.tag, revision: manifest.revision, verified: true, executableSHA256: manifest.executableSHA256 };

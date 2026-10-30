@@ -29,7 +29,7 @@
     {
       "module": "github.com/easytier/easytier/easytier-go",
       "version": "v0.0.0-20260910071355-3d0c9c3ca5e2",
-      "blocked": "Desktop builds exclude EasyTier using upstream no_easytier. Enabling its WASM requires reviewed corresponding Rust source, dependencies and build scripts; provenance currently records unresolved commit 63519db2b5f2a6a1b9b7f20905f036dab54eb829. A verified corresponding source tree may establish provenance without that Git SHA. This is source delivery, not the accepted go-lzo license risk.",
+      "blocked": "Desktop builds exclude EasyTier using upstream no_easytier. Enabling its WASM requires reviewed corresponding Rust source, dependencies and build scripts; provenance currently records unresolved commit 63519db2b5f2a6a1b9b7f20905f036dab54eb829. A verified corresponding source tree may establish provenance without that Git SHA.",
       "inputs": []
     },
     {

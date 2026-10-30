@@ -142,7 +142,7 @@ test('unused graph modules need metadata only, even when their ZIP is unavailabl
   }
 }));
 
-test('binary identity rejects wrong revision, dirty state and unrecorded module versions; accepted go-lzo is allowed', () => {
+test('binary identity rejects wrong revision, dirty state and unrecorded module versions; reviewed go-lzo is allowed', () => {
   const mod = { path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e', sum: 'h1:fixture', sourceIncluded: true };
   const manifest = { revision: 'a'.repeat(40), toolchain: 'go1.25.0', modules: [mod] };
   const info = { entry: 'still-wanna-dance/cmd/still-wanna-dance-console', toolchain: 'go1.25.0', modules: [mod], settings: { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', '-trimpath': 'true', '-tags': 'no_easytier', 'vcs.revision': manifest.revision, 'vcs.modified': 'false' } };
@@ -154,7 +154,7 @@ test('binary identity rejects wrong revision, dirty state and unrecorded module 
   assert.throws(() => checkExecutable(info, { ...manifest, modules: [{ ...mod, sourceIncluded: false }] }), /dependency differs/);
 });
 
-test('embedded artifacts need their original source; accepted go-lzo uncertainty is independent', () => {
+test('embedded artifacts need supplemental source; go-lzo is covered by its module source', () => {
   const policy = readJSON(path.join(here, '../docs/licenses/source-inputs.json'));
   assert.deepEqual(supplementalInputs(policy, [{ path: 'github.com/rasky/go-lzo', version: 'v0.0.0-20200203143853-96a758eda86e' }]), []);
   assert.throws(() => supplementalInputs(policy, [{ path: 'github.com/easytier/easytier/easytier-go', version: 'v0.0.0-20260910071355-3d0c9c3ca5e2' }]), /Incomplete corresponding source/);

@@ -6,9 +6,17 @@
 
 选定官方 Mihomo `v1.19.32`：模块 `LICENSE` 与仓库保存的 `internal/proxyengine/mihomo/LICENSE.mihomo` 为 GPLv3 全文，README 声明 GPL-3.0。按 v3 使用；没有把 GPL 正文附录的示范文字认作该项目对后续版本的明确授权，也不将所有子依赖都标作 GPLv3-only。
 
-## go-lzo：已接受的非阻断风险
+## go-lzo：版本选项已由上游澄清
 
-维护者于 2026-10-12 明确接受固定 `github.com/rasky/go-lzo v0.0.0-20200203143853-96a758eda86e` 尚未澄清的授权选项，不因它进入 EXE 或未得到作者回复而阻塞 SWD GPLv3 正式发布。该决定覆盖这一已知疑点，不是绕过其他 GPLv3 交付义务、未登记依赖版本或 replacement 的通用豁免。若日后确认 GPLv2-only 冲突，停止分发受影响构建、评估既有风险并推动上游修复。
+2026-10-30 核实：[上游 issue #15](https://github.com/rasky/go-lzo/issues/15) 已由作者于 2026-10-13 00:47（北京时间）回复「Done」并关闭。[澄清提交 `ad21c35a111113348567708a4db74f998be1a4c3`](https://github.com/rasky/go-lzo/commit/ad21c35a111113348567708a4db74f998be1a4c3) 的直接父提交正是 SWD 固定的 `96a758eda86e0ca29bc2638000fdb0ff0a6d96d8`；唯一改动是 README 将 `GPLv2` 明确为 `GPL-2.0-or-later`，没有代码变化。作者回复见[原评论](https://github.com/rasky/go-lzo/issues/15#issuecomment-6128639788)。
+
+该澄清解决了当前固定实现的许可版本选项问题；GPL-2.0-or-later 允许选择 GPLv3，依据见 [GNU 兼容性说明](https://www.gnu.org/licenses/gpl-faq.en.html#v2v3Compatibility)。固定依赖版本、模块 ZIP 和原 LICENSE.gpl 保留，上游澄清作为补充授权依据随本文进入对应源码。新发行不再生成 go-lzo 的「已接受风险」记录。
+
+此前审计漏纳了该回复，因而 Beta 1、Beta 2 的发布说明和产物元数据仍沿用过时结论。2026-10-30 更正现行说明与生成器；已发布附件保持原始字节和校验值，其历史记录不代表当前仍存在该疑点。新验证器兼容读取原有准确记录，以便继续核验旧发行。
+
+### 历史判断与原始证据（已由上述澄清替代）
+
+2026-10-12 的原审计将固定 `github.com/rasky/go-lzo v0.0.0-20200203143853-96a758eda86e` 记为授权选项尚待澄清，维护者当时接受其为非阻断风险。以下保留当时依据，不作为现行未决风险。
 
 - [固定提交 README](https://github.com/rasky/go-lzo/blob/96a758eda86e0ca29bc2638000fdb0ff0a6d96d8/README.md)称直接移植原始 C 源并沿用相同许可，简写为 GPLv2。
 - [f01714f](https://github.com/rasky/go-lzo/commit/f01714f222ab986062f9f90d046821604ecae3ba) 删除初始 MIT 文本，改放 GPLv2 全文；至固定提交此许可文件未变。初始 MIT 不能替代当前固定版本的许可判断。
@@ -16,7 +24,7 @@
 - [LZO 官方](https://www.oberhumer.com/opensource/lzo/)声明 GPLv2+。已下载核对官方 2.08（2014）和 2.10（2017）的 `src/lzo1x_d.ch`，文件头均允许 v2 或后续版本；未确认 Go 移植使用的精确原始 C 版本。
 - 2.08 源包 SHA256：`ac1b3e4dee46febe9fd28737eb7f5692d3232ef1a01da10444394c3d47536614`；2.10：`c0f892943208266f9b6543b3ae308fab6284c5c90e627931446fb49b4221a072`。
 
-上述资料支持保留授权链记录，但没有把不确定性解释成已证明兼容，也没有认定已发生 GPLv2-only 冲突。不提前 Fork 或替换内核。
+当时没有认定已经发生 GPLv2-only 冲突；版本选项问题现以上方作者澄清为准。
 
 ## 已做构建核查（不是实机验收）
 

@@ -16,7 +16,7 @@ node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 
 完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交、选定路径和哈希：只从 modernc SQLite 固定 Git 提交导出 `vendor_libsqlite3/` 三个文件及 `LICENSE`，另保留对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这两个档案，不再重复交付整个 modernc SQLite 仓库。导出关闭 Git 换行转换，避免 Windows/Linux 生成不同归档。Go 模块 ZIP 内已有 Makefile、生成代码和条件参数；修改 SQLite 原稿时结合补充的生成辅助程序参考这些命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
-Mihomo 已接入桌面节点导入及多出口运行时；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。这不改变 go-lzo 已接受的非阻断风险。
+Mihomo 已接入桌面节点导入及多出口运行时；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。
 
 产物 `still-wanna-dance-v1.2.3-corresponding-source.tar.gz` 解压为：
 
@@ -39,7 +39,7 @@ node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuil
 
 重建使用全新模块/编译缓存，`GOPROXY=file:...` 且没有联网 fallback，禁止自动下载工具链、工作区覆盖和隐式 Go 构建参数；以 Windows amd64、CGO=0 和生产参数构建。没有 `.git`，因此显式关闭 VCS 自动标记，并由共用构建参数注入清单版本和提交；程序明确显示为「对应源码重建」，构建时间取本次重建时间。重建后核对模块版本、校验和、工具链与目标，确认输入没有被修改。若缺少依赖、必要输入或校验失败则停止。与原 EXE 比较时允许 VCS 标记及构建时间等差异，不要求 EXE SHA256 相同。
 
-许可证风险处理见[许可审计](issue-30-license-audit.md)。`go-lzo` 的固定版本即使进入 EXE，也只保留已接受风险及证据，不自动阻止发布；缺少源码、声明或对应关系仍会失败。
+许可证依据见[许可审计](issue-30-license-audit.md)。上游已明确 `go-lzo` 为 GPL-2.0-or-later，澄清记录与固定模块原文一同保留在对应源码中；缺少源码、声明或对应关系仍会失败。
 
 源码生成和独立重建属于交付工具验证，不改变应用运行行为，无需新增实机台账项。原 LA-033 已按[验证机制](live-acceptance-process.md)分流：网页门禁与条款展示用浏览器/集成验证，条款变更后的实际重新确认及跨用户凭据边界见[非 VRC 验证跟进](validation-followups.md#确实依赖-windows-环境的部分)。
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const git = (args, cwd, input) => execFileSync('git', args, { cwd, input, maxBuffer: 256 * 1024 * 1024, windowsHide: true });
+const git = (args, cwd, input, maxBuffer = 256 * 1024 * 1024) => execFileSync('git', args, { cwd, input, maxBuffer, windowsHide: true });
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
 export function classify(file, bytes, policy) {
@@ -45,18 +45,38 @@ export function check({ cwd = root, policy, base, head = 'HEAD' }) {
     if (type === 'blob') add(oid, name);
   }
   const ids = [...paths.keys()];
-  const stream = git(['cat-file', '--batch'], cwd, ids.join('\n') + '\n');
-  let offset = 0; const errors = [], warnings = [];
-  for (const oid of ids) {
-    const end = stream.indexOf(10, offset);
-    const [actual, type, size] = stream.subarray(offset, end).toString().split(' ');
-    if (actual !== oid || type !== 'blob') throw Error('Unexpected Git batch response');
-    const bytes = stream.subarray(end + 1, end + 1 + Number(size)); offset = end + 2 + Number(size);
-    for (const file of paths.get(oid)) {
-      const result = classify(file, bytes, policy);
-      if (result.error) errors.push({ path: file, blob: oid, bytes: bytes.length, reason: result.error });
-      if (result.warning) warnings.push({ path: file, blob: oid, bytes: bytes.length, reason: result.warning });
+  const errors = [], warnings = [];
+  let batch = [], batchBytes = 0;
+  const inspectBatch = () => {
+    if (!batch.length) return;
+    const stream = git(['cat-file', '--batch'], cwd, batch.join('\n') + '\n', batchBytes);
+    let offset = 0;
+    for (const oid of batch) {
+      const end = stream.indexOf(10, offset);
+      const [actual, type, size] = stream.subarray(offset, end).toString().split(' ');
+      if (actual !== oid || type !== 'blob') throw Error('Unexpected Git batch response');
+      const bytes = stream.subarray(end + 1, end + 1 + Number(size)); offset = end + 2 + Number(size);
+      for (const file of paths.get(oid)) {
+        const result = classify(file, bytes, policy);
+        if (result.error) errors.push({ path: file, blob: oid, bytes: bytes.length, reason: result.error });
+        if (result.warning) warnings.push({ path: file, blob: oid, bytes: bytes.length, reason: result.warning });
+      }
     }
+    batch = []; batchBytes = 0;
+  };
+  // Bound each read by bytes, not blob count: history grows with every generated
+  // bundle. A single larger blob gets its own batch and is still classified.
+  if (ids.length) {
+    const headers = git(['cat-file', '--batch-check'], cwd, ids.join('\n') + '\n').toString().trim().split('\n');
+    if (headers.length !== ids.length) throw Error('Unexpected Git batch metadata');
+    for (const [index, header] of headers.entries()) {
+      const [oid, type, size] = header.split(' ');
+      if (oid !== ids[index] || type !== 'blob' || !Number.isSafeInteger(Number(size)) || Number(size) < 0) throw Error('Unexpected Git batch metadata');
+      const responseBytes = Buffer.byteLength(header) + Number(size) + 2;
+      if (batchBytes + responseBytes > 16 * 1024 * 1024) inspectBatch();
+      batch.push(oid); batchBytes += responseBytes;
+    }
+    inspectBatch();
   }
   return { base, head: git(['rev-parse', head], cwd).toString().trim(), blobs: ids.length, errors, warnings };
 }

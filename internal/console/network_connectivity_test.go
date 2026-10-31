@@ -71,9 +71,6 @@ func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 			break
 		}
 	}
-	if err := c.controlNetworkCalibration(false); err == nil {
-		t.Fatal("overlapping throughput accepted")
-	}
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}

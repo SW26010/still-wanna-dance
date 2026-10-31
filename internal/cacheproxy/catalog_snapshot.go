@@ -54,6 +54,30 @@ func (s *Store) CatalogStatus(ctx context.Context) (resultValue CatalogStatus, r
 	return s.catalogStatus(ctx)
 }
 
+// KnownSongIDs returns accumulated song identities, including placeholders and
+// songs omitted by newer catalogs. It does not inspect media files or metadata.
+func (s *Store) KnownSongIDs(ctx context.Context) (resultValue []int64, resultErr error) {
+	if !s.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
+	rows, err := s.db.QueryContext(ctx, "SELECT id FROM songs ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *Store) RecordCatalogError(ctx context.Context, err error) (resultErr error) {
 	if !s.beginRequest() {
 		return context.Canceled

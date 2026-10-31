@@ -14,12 +14,24 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
+func seedCalibrationSong(t *testing.T, c *Console) {
+	t.Helper()
+	if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{
+		Source: cacheproxy.UdonCatalogURL, Revision: "20261031000000",
+		Songs: []cacheproxy.CatalogSong{{ID: 42}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
 	c := testConsole(t)
+	seedCalibrationSong(t, c)
 	stubNetworkDiagnostics(t, c)
 	accepted := c.terms
 	request := func(method, path, token, origin string) int {
@@ -51,16 +63,8 @@ func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
 		t.Fatalf("event origin: %d", code)
 	}
 	beforeSettings, beforeClient := c.settings, c.client
-	c.networkDiagnostics.connectivity.Running = true
-	if err := c.controlNetworkCalibration(false); err == nil {
-		t.Fatal("overlapped connectivity check")
-	}
-	c.networkDiagnostics.connectivity.Running = false
 	if code := request("POST", start, c.token, ""); code != 200 {
 		t.Fatalf("start: %d", code)
-	}
-	if err := c.controlNetworkConnectivity(false); err == nil {
-		t.Fatal("overlapped calibration")
 	}
 	if code := request("POST", "/api/network/calibration/cancel", c.token, ""); code != 200 {
 		t.Fatalf("cancel: %d", code)
@@ -73,6 +77,7 @@ func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
 
 func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 	c := testConsole(t)
+	seedCalibrationSong(t, c)
 	const user, password = "fixture-user", "fixture-private-password"
 	connected := make(chan string, 4)
 	disconnected := make(chan struct{}, 4)
@@ -132,6 +137,7 @@ func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 
 func TestNetworkCalibrationEventReconnectAndShutdown(t *testing.T) {
 	c := testConsole(t)
+	seedCalibrationSong(t, c)
 	started := stubNetworkDiagnostics(t, c)
 	server := httptest.NewServer(c)
 	defer server.Close()

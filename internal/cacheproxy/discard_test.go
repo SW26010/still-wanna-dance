@@ -10,10 +10,56 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
 )
+
+func TestDiscardLoaderWaitsForCapacityAndDrains(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{}, 2)
+		loader, err := NewDiscardLoader(DiscardConfig{Transport: resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			started <- struct{}{}
+			<-r.Context().Done()
+			return nil, r.Context().Err()
+		})})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer loader.Close()
+		loader.SetSoftLimit(1)
+		first, cancelFirst := context.WithCancel(t.Context())
+		defer cancelFirst()
+		second, cancelSecond := context.WithCancel(t.Context())
+		defer cancelSecond()
+		finished := make(chan error, 2)
+		go func() {
+			finished <- loader.Load(first, "http://play.udon.dance/files/1/1-video.mp4?e=11111111111111111111111111111111&s=2147483648")
+		}()
+		<-started
+		go func() {
+			finished <- loader.Load(second, "http://play.udon.dance/files/1/2-video.mp4?e=22222222222222222222222222222222&s=2147483648")
+		}()
+		synctest.Wait()
+		select {
+		case err := <-finished:
+			t.Fatal("capacity waiter ended before source release", err)
+		case <-started:
+			t.Fatal("capacity waiter bypassed admission")
+		default:
+		}
+		cancelFirst()
+		<-started
+		cancelSecond()
+		loader.Close()
+		for range 2 {
+			if err := <-finished; err == nil {
+				t.Fatal("canceled load succeeded")
+			}
+		}
+	})
+}
 
 type discardTestReader struct {
 	t         *testing.T

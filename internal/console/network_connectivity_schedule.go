@@ -20,8 +20,7 @@ func (c *Console) startAutomaticConnectivityLocked() error {
 	return nil
 }
 
-// Completion of either trigger sets the next deadline. An overdue timer waits
-// on calibration events instead of canceling a manual speed test or polling.
+// Completion of either connectivity trigger sets the next deadline.
 func (c *Console) scheduleConnectivityLocked(delay time.Duration) {
 	n := c.networkDiagnostics
 	if n.connectivityTimer != nil {
@@ -30,21 +29,11 @@ func (c *Console) scheduleConnectivityLocked(delay time.Duration) {
 	due := time.Now().Add(delay)
 	n.connectivity.NextCheck = due
 	n.connectivityTimer = time.AfterFunc(delay, func() {
-		for {
-			c.mu.Lock()
-			if c.closing || n.connectivity.Closed || n.connectivity.Running || !n.connectivity.NextCheck.Equal(due) {
-				c.mu.Unlock()
-				return
-			}
-			speed, changed := n.calibration.Snapshot()
-			if speed.Running {
-				c.mu.Unlock()
-				<-changed
-				continue
-			}
-			c.startConnectivityLocked(n.connectivityRetry > 0)
-			c.mu.Unlock()
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		if c.closing || n.connectivity.Closed || n.connectivity.Running || !n.connectivity.NextCheck.Equal(due) {
 			return
 		}
+		c.startConnectivityLocked(n.connectivityRetry > 0)
 	})
 }

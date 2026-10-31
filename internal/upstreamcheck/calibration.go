@@ -2,10 +2,8 @@ package upstreamcheck
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
-	"math/rand/v2"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -13,25 +11,21 @@ import (
 
 	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/playbacksource"
 )
-
-// Isolated calibration keeps the default engine geometry as its baseline.
-const calibrationBlock = cacheproxy.DefaultBlockSize
 
 const (
 	calibrationMaxVideos      = 128
-	calibrationMaxLoads       = 8
 	calibrationPrepareWorkers = 4
-	// Leave ample headroom under the scheduler's normal metadata capacity.
-	calibrationQueuedBytes = 2 << 30
 )
 
 // Calibration is an opt-in, isolated diagnostic. It does not start the regular
-// monitor, publish recommendations, or change business storage/settings. Media
-// loading uses ordinary resource demands with a streaming discard sink.
+// monitor or publish recommendations. Business callbacks select candidates and
+// reuse URL observations; media uses ordinary demands with a discard sink.
 type Calibration struct {
 	mu      sync.Mutex
 	client  *http.Client
+	options CalibrationOptions
 	state   CalibrationStatus
 	saved   *CalibrationResult
 	changed chan struct{}
@@ -119,8 +113,34 @@ type CalibrationStatus struct {
 	Samples             []CalibrationSample `json:"samples"`
 }
 
-func NewCalibration(client *http.Client, upstream string) *Calibration {
-	return &Calibration{client: client, changed: make(chan struct{}),
+// CalibrationCandidates contains read-only local observations. URLs follow the
+// Store's validity and source policy; SongIDs supply local fallbacks for the
+// shared business selector.
+type CalibrationCandidates struct {
+	URLs    []cacheproxy.SongURL
+	SongIDs []int64
+}
+
+// The application supplies existing business and access policies. Calibration
+// only bounds preparation and observes downloads; it never selects channels.
+type CalibrationOptions struct {
+	Candidates         func(context.Context) CalibrationCandidates
+	SelectSong         func(context.Context, int64, map[int64]bool) int64
+	Playback           func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)
+	OnPlaybackURL      func(context.Context, PlaybackURLResponse)
+	OnFailedURL        func(context.Context, cacheproxy.SongURL)
+	ResourceTransports func(string) []http.RoundTripper
+}
+
+type calibrationVideo struct {
+	videoSample
+	observation cacheproxy.SongURL
+}
+
+// Candidates supplies fresh observations per run. Saved URLs precede live
+// resolution of known songs. Catalog discovery belongs to library synchronization.
+func NewCalibration(client *http.Client, upstream string, options CalibrationOptions) *Calibration {
+	return &Calibration{client: client, options: options, changed: make(chan struct{}),
 		state: CalibrationStatus{Phase: "idle", Upstream: upstream, Samples: []CalibrationSample{}},
 		limits: calibrationLimits{duration: 20 * time.Second, interval: time.Second, bytes: 1 << 30,
 			warmup: time.Second, window: 3 * time.Second, prepare: 30 * time.Second,
@@ -207,53 +227,50 @@ func (c *Calibration) Close() {
 
 var errCalibrationPreparationInsufficient = errors.New("preparation_insufficient")
 
-func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample, error) {
-	p := DefaultPolicy()
-	p.RequestTimeout = 10 * time.Second
-	var samples []videoSample
+func (c *Calibration) prepare(ctx context.Context) (*http.Client, []calibrationVideo, error) {
+	var local CalibrationCandidates
+	if c.options.Candidates != nil && ctx.Err() == nil {
+		local = c.options.Candidates(ctx)
+	}
+	var samples []calibrationVideo
 	var preparedBytes int64
 	ready := func() bool { return len(samples) >= c.limits.reserveVideos && preparedBytes >= c.limits.reserveBytes }
 	seenIDs, seenVideos := make(map[int64]bool), make(map[string]bool)
-	for _, routeID := range routeIDs(Catalog) {
+	accept := func(observation cacheproxy.SongURL) bool {
+		sample, err := parseSample(observation.URL)
+		if err != nil || seenVideos[sample.checksum] {
+			return false
+		}
+		seenVideos[sample.checksum] = true
+		samples = append(samples, calibrationVideo{sample, observation})
+		preparedBytes += sample.size
+		c.mu.Lock()
+		c.state.PreparedVideos, c.state.PreparedBytes = len(samples), preparedBytes
+		c.state.PreparationProgress = min(100, 100*len(samples)/c.limits.reserveVideos, int(100*preparedBytes/c.limits.reserveBytes))
+		c.publishLocked()
+		c.mu.Unlock()
+		return ready() || len(samples) == calibrationMaxVideos
+	}
+	for _, saved := range local.URLs {
 		if ctx.Err() != nil || ready() || len(samples) == calibrationMaxVideos {
 			break
 		}
-		o, id, catalog := probeCatalogData(ctx, []*http.Client{c.client}, p, routeID)
-		if o.state != "available" || id == 0 {
+		if saved.SongID <= 0 || seenIDs[saved.SongID] {
 			continue
 		}
-		ids := calibrationSongIDs(catalog)
-		if len(ids) == 0 {
-			ids = []int64{id}
+		if _, err := parseSample(saved.URL); err != nil {
+			continue
 		}
-		rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
-		pending := make([]int64, 0, 2*calibrationMaxVideos)
-		for _, id := range ids {
-			if seenIDs[id] {
-				continue
-			}
-			seenIDs[id] = true
-			pending = append(pending, id)
-			if len(pending) == cap(pending) {
-				break
-			}
-		}
-		prepareCalibrationSamples(ctx, []*http.Client{c.client}, p, pending, func(sample videoSample) bool {
-			if sample.size < 16*calibrationBlock || seenVideos[sample.checksum] {
-				return false
-			}
-			seenVideos[sample.checksum] = true
-			samples = append(samples, sample)
-			preparedBytes += sample.size
-			c.mu.Lock()
-			c.state.PreparedVideos, c.state.PreparedBytes = len(samples), preparedBytes
-			c.state.PreparationProgress = min(100, 100*len(samples)/c.limits.reserveVideos, int(100*preparedBytes/c.limits.reserveBytes))
-			c.publishLocked()
-			c.mu.Unlock()
-			return ready() || len(samples) == calibrationMaxVideos
-		})
+		seenIDs[saved.SongID] = true
+		accept(saved)
 	}
-	if !ready() || ctx.Err() != nil {
+	if ctx.Err() == nil && !ready() && len(samples) < calibrationMaxVideos && c.options.Playback != nil {
+		c.prepareSamples(ctx, local.SongIDs, seenIDs, accept)
+	}
+	// The reserve is a preparation target, not a prerequisite for measurement.
+	// A preparation deadline still leaves received samples available; the run's
+	// parent context separately controls user cancellation and shutdown.
+	if len(samples) == 0 || errors.Is(ctx.Err(), context.Canceled) {
 		return nil, nil, errCalibrationPreparationInsufficient
 	}
 	return c.client, samples, nil
@@ -261,28 +278,49 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample,
 
 // Resolve metadata only, with bounded parallelism. Cancel and join every probe
 // before returning, so preparation cannot contaminate download CPU samples.
-func prepareCalibrationSamples(parent context.Context, clients []*http.Client, p Policy, ids []int64, accept func(videoSample) bool) {
+func (c *Calibration) prepareSamples(parent context.Context, ids []int64, seen map[int64]bool, accept func(cacheproxy.SongURL) bool) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	jobs := make(chan int64, len(ids))
-	for _, id := range ids {
-		jobs <- id
+	var selectMu sync.Mutex
+	next := func() int64 {
+		selectMu.Lock()
+		defer selectMu.Unlock()
+		for len(ids) > 0 && (ids[0] <= 0 || seen[ids[0]]) {
+			ids = ids[1:]
+		}
+		if len(ids) == 0 || ctx.Err() != nil {
+			return 0
+		}
+		id := ids[0]
+		if c.options.SelectSong != nil {
+			id = c.options.SelectSong(ctx, id, seen)
+		}
+		if id <= 0 || seen[id] || ctx.Err() != nil {
+			return 0
+		}
+		seen[id] = true
+		return id
 	}
-	close(jobs)
-	results := make(chan videoSample, calibrationPrepareWorkers)
+	results := make(chan cacheproxy.SongURL, calibrationPrepareWorkers)
 	var wg sync.WaitGroup
 	for range min(calibrationPrepareWorkers, len(ids)) {
 		wg.Go(func() {
-			for id := range jobs {
-				if ctx.Err() != nil {
+			for {
+				id := next()
+				if id == 0 {
 					return
 				}
-				_, sample, _ := probePlaybackPaths(ctx, clients, p, id, playbackRoutes[0])
+				_, sample, response := c.options.Playback(ctx, id, playbackRoutes[0])
+				if response.URL != "" && c.options.OnPlaybackURL != nil && parent.Err() == nil {
+					// Meeting the reserve may cancel sibling probes. Preserve responses
+					// already received, but still honor the run's deadline/cancellation.
+					c.options.OnPlaybackURL(parent, response)
+				}
 				if sample == nil {
 					continue
 				}
 				select {
-				case results <- *sample:
+				case results <- response.SongURL():
 				case <-ctx.Done():
 					return
 				}
@@ -295,46 +333,6 @@ func prepareCalibrationSamples(parent context.Context, clients []*http.Client, p
 			cancel()
 		}
 	}
-}
-
-// This response has already passed its route's catalog validation. Video URLs
-// and metadata still go through the normal resolver before any download.
-func calibrationSongIDs(c CatalogResponse) []int64 {
-	type song struct {
-		ID int64 `json:"id"`
-	}
-	var data struct {
-		Groups struct {
-			Contents []struct {
-				Songs []song `json:"songInfos"`
-			} `json:"contents"`
-		} `json:"groups"`
-		Data struct {
-			Groups []struct {
-				Songs []song `json:"entries"`
-			} `json:"groups"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(c.Body, &data) != nil {
-		return nil
-	}
-	var ids []int64
-	seen := make(map[int64]bool)
-	add := func(songs []song) {
-		for _, s := range songs {
-			if s.ID > 0 && !seen[s.ID] {
-				seen[s.ID] = true
-				ids = append(ids, s.ID)
-			}
-		}
-	}
-	for _, group := range data.Groups.Contents {
-		add(group.Songs)
-	}
-	for _, group := range data.Data.Groups {
-		add(group.Songs)
-	}
-	return ids
 }
 
 func (c *Calibration) run(ctx context.Context, done chan struct{}) {
@@ -384,7 +382,7 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 	reason = c.download(ctx, client, samples)
 }
 
-func (c *Calibration) download(parent context.Context, client *http.Client, samples []videoSample) (reason string) {
+func (c *Calibration) download(parent context.Context, client *http.Client, samples []calibrationVideo) (reason string) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	started := time.Now()
@@ -435,7 +433,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	// Only the ordinary admission ceiling and the output sink differ. Window,
 	// ranges, retries and the natural growth cadence remain with the loader.
 	var byteLimit atomic.Bool
-	cfg := cacheproxy.DiscardConfig{Transport: client.Transport}
+	cfg := cacheproxy.DiscardConfig{Transport: client.Transport, ResourceTransports: c.options.ResourceTransports}
 	cfg.ObserveBytes = func(n int64) {
 		if c.bytes.Add(n) >= c.limits.bytes {
 			byteLimit.Store(true)
@@ -499,24 +497,13 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	deadline := time.NewTimer(c.limits.duration)
 	defer deadline.Stop()
 	type loadResult struct {
-		bytes int64
-		err   error
+		observation cacheproxy.SongURL
+		err         error
 	}
-	finished := make(chan loadResult, calibrationMaxLoads)
-	next, activeLoads := 0, 0
-	var queuedBytes int64
-	fill := func() {
-		for activeLoads < calibrationMaxLoads && next < len(samples) && ctx.Err() == nil {
-			bytes := (samples[next].size + calibrationBlock - 1) / calibrationBlock * calibrationBlock
-			if queuedBytes+bytes > calibrationQueuedBytes {
-				break
-			}
-			target := samples[next].url
-			next++
-			activeLoads++
-			queuedBytes += bytes
-			go func() { finished <- loadResult{bytes, engine.Load(ctx, target)} }()
-		}
+	finished := make(chan loadResult, len(samples))
+	activeLoads := len(samples)
+	for _, sample := range samples {
+		go func() { finished <- loadResult{sample.observation, engine.Load(ctx, sample.url)} }()
 	}
 	defer func() {
 		captureCPU() // Freeze before draining canceled bodies and other cleanup.
@@ -528,7 +515,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 		}
 		capture()
 	}()
-	fill()
+	var lastFailure error
 	released := false
 	for {
 		select {
@@ -549,7 +536,6 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			}
 		case result := <-finished:
 			activeLoads--
-			queuedBytes -= result.bytes
 			if parent.Err() != nil {
 				return "canceled"
 			}
@@ -559,23 +545,24 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			if byteLimit.Load() {
 				return "byte_limit"
 			}
-			if result.err == nil {
-				fill()
-				if activeLoads == 0 {
-					c.mu.Lock()
-					complete := speeds.stage == "complete"
-					c.mu.Unlock()
-					if complete {
-						return "measurement_complete"
-					}
-					return "samples_exhausted"
+			if result.err != nil {
+				lastFailure = result.err
+				c.mu.Lock()
+				c.state.Failures++
+				c.publishLocked()
+				c.mu.Unlock()
+				// Canceled work and local upstream availability do not invalidate
+				// an address. Ordinary failures use the shared URL store.
+				if !localObservation(errorState(result.err)) && c.options.OnFailedURL != nil {
+					c.options.OnFailedURL(parent, result.observation)
 				}
-				continue
 			}
-			c.mu.Lock()
-			c.state.Failures++
-			c.mu.Unlock()
-			return errorState(result.err)
+			if activeLoads == 0 {
+				if lastFailure != nil {
+					return errorState(lastFailure)
+				}
+				return "samples_exhausted"
+			}
 		case <-ctx.Done():
 			if parent.Err() == nil && measured.Load() {
 				return "measurement_complete"

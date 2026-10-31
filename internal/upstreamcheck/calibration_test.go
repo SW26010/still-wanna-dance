@@ -15,9 +15,22 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/playbacksource"
 )
 
+const calibrationBlock = cacheproxy.DefaultBlockSize
+
 const calibrationFixture = "https://play.udon.dance/files/123/42-abc.mp4?e=58f06dd588d8ffb3beb46ada6309436b&s=33554432&secret=private-test-token"
+
+func newTestCalibration(client *http.Client, upstream string, candidates func(context.Context) CalibrationCandidates, observe func(context.Context, PlaybackURLResponse)) *Calibration {
+	return NewCalibration(client, upstream, CalibrationOptions{Candidates: candidates, OnPlaybackURL: observe,
+		Playback: func(ctx context.Context, id int64, route playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
+			return ProbePlayback(ctx, []*http.Client{client}, DefaultPolicy(), id, route)
+		},
+	})
+}
 
 func calibrationTransport(resource func(*http.Request) (*http.Response, error)) http.RoundTripper {
 	return transportFunc(func(r *http.Request) (*http.Response, error) {
@@ -37,13 +50,21 @@ func calibrationTransport(resource func(*http.Request) (*http.Response, error)) 
 	})
 }
 
-func calibrationForTest(t *testing.T, transport http.RoundTripper) *Calibration {
+func calibrationForTest(t *testing.T, transport http.RoundTripper, songCount ...int) *Calibration {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("TMP", root)
 	t.Setenv("TEMP", root)
 	t.Setenv("TMPDIR", root)
-	c := NewCalibration(requestClient(transport), "direct")
+	count := 1
+	if len(songCount) != 0 {
+		count = songCount[0]
+	}
+	ids := make([]int64, count)
+	for i := range ids {
+		ids[i] = int64(i + 1)
+	}
+	c := newTestCalibration(requestClient(transport), "direct", func(context.Context) CalibrationCandidates { return CalibrationCandidates{SongIDs: ids} }, nil)
 	// Download-focused fixtures intentionally contain one short video. Tests
 	// of production preparation restore the real reserve requirements below.
 	c.limits.reserveVideos, c.limits.reserveBytes = 1, 16<<20
@@ -415,7 +436,7 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 			resp.Body = &pacedCalibrationBody{ctx: r.Context(), remaining: resp.ContentLength, active: &active}
 			return resp, nil
 		}
-	}))
+	}), 9)
 	c.limits.warmup, c.limits.window, c.limits.interval = 50*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
 	c.limits.reserveVideos, c.limits.reserveBytes = 8, 256<<20
 	if err := c.Start(); err != nil {
@@ -433,8 +454,8 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	}
 	mu.Lock()
 
-	if len(videos) < 3 || catalogs.Load() != 1 {
-		t.Fatalf("did not replenish videos from one catalog: videos=%d catalogs=%d", len(videos), catalogs.Load())
+	if len(videos) < 3 || catalogs.Load() != 0 {
+		t.Fatalf("did not replenish known videos without catalog requests: videos=%d catalogs=%d", len(videos), catalogs.Load())
 	}
 	for _, n := range ranges {
 		if n != 1 {
@@ -501,7 +522,7 @@ func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
 		t.Error("preparation downloaded media")
 		return nil, context.Canceled
 	})
-	c := calibrationForTest(t, transport)
+	c := calibrationForTest(t, transport, 160)
 	c.limits.reserveVideos, c.limits.reserveBytes = 16, 2<<30
 	client, samples, err := c.prepare(context.Background())
 	if err != nil {
@@ -517,8 +538,8 @@ func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
 		seen[sample.checksum] = true
 		size += sample.size
 	}
-	if len(samples) != calibrationMaxVideos || size < 2*c.limits.bytes || catalogs.Load() != 1 {
-		t.Fatalf("reserve too small or catalog repeated: count=%d size=%d catalogs=%d", len(samples), size, catalogs.Load())
+	if len(samples) != calibrationMaxVideos || size < 2*c.limits.bytes || catalogs.Load() != 0 {
+		t.Fatalf("reserve too small or catalog requested: count=%d size=%d catalogs=%d", len(samples), size, catalogs.Load())
 	}
 }
 
@@ -535,7 +556,7 @@ func TestCalibrationReplenishesMoreThanInitiallyLoadedVideos(t *testing.T) {
 			Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/16777216", start, end)}},
 			Body:   io.NopCloser(io.LimitReader(zeroCalibrationReader{}, end-start+1))}, nil
 	})
-	c := calibrationForTest(t, transport)
+	c := calibrationForTest(t, transport, 12)
 	c.limits.window = time.Minute // Exhaust a deliberately short fixture pool before a valid speed.
 	c.limits.reserveVideos, c.limits.reserveBytes = 12, 192<<20
 	if err := c.Start(); err != nil {

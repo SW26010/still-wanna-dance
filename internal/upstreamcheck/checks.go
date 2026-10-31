@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -38,6 +39,12 @@ type PlaybackURLResponse struct {
 	URL, API, Node             string
 	QueryStartedAt, ObservedAt time.Time
 }
+
+func (r PlaybackURLResponse) SongURL() cacheproxy.SongURL {
+	return cacheproxy.SongURL{SongID: r.SongID, URL: r.URL, API: r.API, Node: r.Node,
+		QueryStartedAt: r.QueryStartedAt, ObservedAt: r.ObservedAt}
+}
+
 type Sample struct {
 	URL, Host, Checksum string
 	Size                int64

@@ -2,7 +2,6 @@ package console
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"slices"
 	"time"
@@ -89,7 +88,7 @@ func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
 func (c *Console) controlNetworkConnectivity(cancel bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	test, err := c.networkCalibrationLocked()
+	_, err := c.networkCalibrationLocked()
 	if err != nil {
 		return err
 	}
@@ -101,9 +100,6 @@ func (c *Console) controlNetworkConnectivity(cancel bool) error {
 			c.publishNetworkConnectivityLocked()
 		}
 		return nil
-	}
-	if s, _ := test.Snapshot(); s.Running {
-		return errors.New("请先停止当前测速")
 	}
 	if n.connectivity.Running {
 		c.publishNetworkConnectivityLocked()

@@ -140,7 +140,14 @@ func (s *Store) ResourceURLs(ctx context.Context, key, node string, limit int) (
 	return s.songURLs(ctx, "md5", key, observationNodes(node), limit)
 }
 
-// column is an internal SQL identifier, never caller-supplied input.
+// RecentSongURLs returns usable observations across songs under the current
+// playback-source policy, newest first. It does not probe URLs or inspect files.
+func (s *Store) RecentSongURLs(ctx context.Context) ([]SongURL, error) {
+	return s.songURLs(ctx, "", nil, playbacksource.Nodes(), -1)
+}
+
+// column is an internal SQL identifier, never caller-supplied input. Empty
+// column selects observations across songs without changing validity rules.
 func (s *Store) songURLs(ctx context.Context, column string, value any, nodes []string, limit int) (resultValue []SongURL, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
@@ -149,10 +156,13 @@ func (s *Store) songURLs(ctx context.Context, column string, value any, nodes []
 	defer func() { resultErr = s.storageError(resultErr) }()
 	now := time.Now()
 	filter, args := songURLNodeFilter(nodes)
-	args = append([]any{value}, args...)
+	if column != "" {
+		filter = " AND " + column + "=?" + filter
+		args = append([]any{value}, args...)
+	}
 	args = append(args, now.Add(-24*time.Hour).UnixNano(), now.UnixNano(), limit)
 	rows, err := s.usage.db.QueryContext(ctx, `SELECT song_id,url,md5,byte_size,api,node,query_started_at,observed_at
- FROM song_urls WHERE `+column+`=? AND failed_at=0`+filter+` AND observed_at>=? AND observed_at<=?
+ FROM song_urls WHERE failed_at=0`+filter+` AND observed_at>=? AND observed_at<=?
  ORDER BY query_started_at DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err

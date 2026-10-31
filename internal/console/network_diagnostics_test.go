@@ -4,9 +4,54 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"testing/synctest"
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestNetworkDiagnosticsRunAndCancelIndependently(t *testing.T) {
+	for _, first := range []string{"connectivity", "calibration"} {
+		for _, canceled := range []string{"connectivity", "calibration"} {
+			t.Run(first+"_then_cancel_"+canceled, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					c := automaticTestConsole(t)
+					seedCalibrationSong(t, c)
+					started := stubNetworkDiagnostics(t, c)
+					controls := map[string]func(bool) error{"connectivity": c.controlNetworkConnectivity, "calibration": c.controlNetworkCalibration}
+					second := "calibration"
+					if first == second {
+						second = "connectivity"
+					}
+					for _, kind := range []string{first, second} {
+						if err := controls[kind](false); err != nil {
+							t.Fatalf("%s could not start alongside %s: %v", kind, first, err)
+						}
+						<-started // Both must reach real, independently canceled requests.
+					}
+					synctest.Wait()
+					speed, _ := c.networkDiagnostics.calibration.Snapshot()
+					if !speed.Running || !connectivitySnapshot(c).Running {
+						t.Fatal("starting one diagnostic stopped the other")
+					}
+					if err := controls[canceled](true); err != nil {
+						t.Fatal(err)
+					}
+					synctest.Wait()
+					speed, _ = c.networkDiagnostics.calibration.Snapshot()
+					if speed.Running != (canceled != "calibration") || connectivitySnapshot(c).Running != (canceled != "connectivity") {
+						t.Fatal("canceling one diagnostic affected the other")
+					}
+					c.BeginShutdown()
+					synctest.Wait()
+					speed, _ = c.networkDiagnostics.calibration.Snapshot()
+					if speed.Running || connectivitySnapshot(c).Running {
+						t.Fatal("shutdown did not drain both diagnostics")
+					}
+				})
+			})
+		}
+	}
+}
 
 func TestDiagnosticsBorrowActiveProxyWithoutChannels(t *testing.T) {
 	c := testConsole(t)

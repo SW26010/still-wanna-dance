@@ -80,3 +80,13 @@ func (c *Console) operationClients(ctx context.Context, op upstreamstate.Operati
 	}
 	return clients
 }
+
+// The download engine owns range retries; all callers supply the same measured
+// preferences and current fallbacks for each resource address.
+func (c *Console) resourceTransports(target string) []http.RoundTripper {
+	var transports []http.RoundTripper
+	for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
+		transports = append(transports, selection.Channel.Transport)
+	}
+	return transports
+}

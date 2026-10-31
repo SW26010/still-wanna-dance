@@ -18,9 +18,10 @@ import (
 type DiscardLoader struct{ s *Server }
 
 type DiscardConfig struct {
-	Transport    http.RoundTripper
-	ObserveBytes func(int64)
-	Observe      func(blocksched.Event)
+	Transport          http.RoundTripper
+	ResourceTransports func(string) []http.RoundTripper
+	ObserveBytes       func(int64)
+	Observe            func(blocksched.Event)
 }
 
 func NewDiscardLoader(cfg DiscardConfig) (*DiscardLoader, error) {
@@ -30,6 +31,7 @@ func NewDiscardLoader(cfg DiscardConfig) (*DiscardLoader, error) {
 	c := DefaultConfig()
 	c.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	c.ObserveDownloadBytes, c.ObserveBlockSchedule = cfg.ObserveBytes, cfg.Observe
+	c.ResourceTransports = cfg.ResourceTransports
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{cfg: c, ctx: ctx, cancel: cancel, requests: new(requestActivity),
 		capacityChanged: make(chan struct{}),
@@ -45,8 +47,8 @@ func (d *DiscardLoader) SetSoftLimit(limit int) bool {
 	return d.s.scheduler.SetSoftLimit(limit)
 }
 
-// Load registers one ordinary, nonblocking resource demand. Callers may supply
-// several distinct resources to this loader; they share one concurrency ceiling.
+// Load admits one ordinary resource preparation, waiting for metadata capacity
+// with the same lifetime as Prefetch. Resources share one concurrency ceiling.
 func (d *DiscardLoader) Load(ctx context.Context, target string) error {
 	s := d.s
 	if !s.beginRequest() {
@@ -65,11 +67,12 @@ func (d *DiscardLoader) Load(ctx context.Context, target string) error {
 	if err != nil {
 		return err
 	}
-	_, release, err := s.addDemand(ctx, v, false)
+	_, release, err := s.addPreparation(ctx, v)
 	if err != nil {
 		return err
 	}
 	defer release()
+	preparationAdmitted(ctx)
 	now := time.Now()
 	f := &flight{discard: true, log: s.cfg.Logger, streaming: make(chan struct{}),
 		progress: &downloadProgress{log: s.cfg.Logger, start: now, changed: now, lastByte: now, observeBytes: s.observeDownloadBytes}}

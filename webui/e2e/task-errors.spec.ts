@@ -29,15 +29,15 @@ test('manual library download leaves the running queue alone',async({page})=>{
   await expect(page.getByRole('status',{name:'房间队列',exact:true})).toHaveText('房间队列：监控中');
 });
 
-test('sample preparation explains online requirements and belongs to the active connection',async({page},info)=>{
+test('sample preparation points to library and connectivity without fetching a catalog',async({page},info)=>{
   const api=await mockAPI(page);
   Object.assign(api.diagnostics.calibration,{run:1,phase:'failed',reason:'preparation_insufficient'});
   await api.emit('calibration');
   await page.setViewportSize({width:390,height:844});
   await page.goto('/#/network');
-  const error=page.getByText(/在线测速样本不足/);
+  const error=page.getByText(/可用测速样本不足/);
   await expect(error).toBeVisible();
-  await expect(error).toContainText('检查连通性后重试');
+  await expect(error).toContainText('检查曲库与连通性后重试');
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveAttribute('aria-expanded','false');
   await expect(page.getByRole('navigation',{name:'页面导航',exact:true})).toBeHidden();
@@ -47,6 +47,7 @@ test('sample preparation explains online requirements and belongs to the active 
   await page.getByRole('button',{name:'开始下载速度测试',exact:true}).click();
   await expect(error).toBeHidden();
   expect(api.calls.filter(c=>c.path==='network/calibration/start')).toHaveLength(1);
+  expect(api.calls.some(c=>c.path==='batch/scan')).toBe(false);
 });
 
 for(const cached of [true,false])test(`local scan distinguishes online catalog failure and retries (${cached})`,async({page},info)=>{

@@ -57,6 +57,11 @@ func TestSongAndResourceURLsShareValidityRules(t *testing.T) {
 			}
 		}
 	}
+	recent, err := s.RecentSongURLs(ctx)
+	eligible, eligibleErr := s.SongURLs(ctx, 42, "cf")
+	if err != nil || eligibleErr != nil || !reflect.DeepEqual(recent, eligible) {
+		t.Fatal("cross-song observations changed validity or source policy", err, eligibleErr)
+	}
 	// More recent evidence for another resource cannot consume the fixed-MD5 budget.
 	other := SongURL{SongID: 43, API: "https://api.udon.dance/other-resource", Node: "cf", URL: "https://play.udon.dance/files/1/43-video.mp4?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=12", QueryStartedAt: now.Add(10 * time.Second), ObservedAt: now.Add(10 * time.Second)}
 	if err := s.ObserveSongURL(ctx, other); err != nil {

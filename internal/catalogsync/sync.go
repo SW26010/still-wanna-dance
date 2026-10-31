@@ -45,6 +45,12 @@ func (s *Sync) Close() {
 // SelectSong traverses current missing metadata in business priority order.
 // The traversal belongs to this business scope, including manual diagnostics.
 func (s *Sync) SelectSong(ctx context.Context, fallback int64) int64 {
+	return s.SelectSongExcept(ctx, fallback, nil)
+}
+
+// SelectSongExcept shares the traversal while excluding songs already held or
+// attempted by this caller. Exclusion does not count as a metadata attempt.
+func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded map[int64]bool) int64 {
 	if ctx.Err() != nil {
 		return 0
 	}
@@ -68,12 +74,16 @@ func (s *Sync) SelectSong(ctx context.Context, fallback int64) int64 {
 		if id <= 0 {
 			continue
 		}
+		if s.attempted[id] {
+			attempted[id] = true
+		}
+		if excluded[id] {
+			continue
+		}
 		if first == 0 {
 			first = id
 		}
-		if s.attempted[id] {
-			attempted[id] = true
-		} else if selected == 0 {
+		if !s.attempted[id] && selected == 0 {
 			selected = id
 		}
 	}
@@ -83,6 +93,9 @@ func (s *Sync) SelectSong(ctx context.Context, fallback int64) int64 {
 	}
 	s.attempted = attempted
 	if selected == 0 {
+		if excluded[fallback] {
+			return 0
+		}
 		return fallback
 	}
 	s.attempted[selected] = true

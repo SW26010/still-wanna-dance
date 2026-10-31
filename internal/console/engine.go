@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamstate"
 )
 
 var errConsoleClosing = errors.New("程序正在退出")
@@ -80,13 +78,7 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg.LocalProtectionGrace = time.Duration(settings.LocalProtectionGraceSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial
 	cfg.ResolvePlayback = c.resolvePlayback
-	cfg.ResourceTransports = func(target string) []http.RoundTripper {
-		var transports []http.RoundTripper
-		for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
-			transports = append(transports, selection.Channel.Transport)
-		}
-		return transports
-	}
+	cfg.ResourceTransports = c.resourceTransports
 	var s *cacheproxy.Server
 	var release func()
 	if key != "" {

@@ -2,6 +2,52 @@ import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
+for(const first of ['连通性检测','下载速度测试'])test(`diagnostics run and cancel independently when ${first} starts first`,async({page},info)=>{
+  await mockAPI(page);
+  await page.goto('/#network-tests');
+  const second=first==='连通性检测'?'下载速度测试':'连通性检测';
+  await page.getByRole('button',{name:'开始'+first,exact:true}).click();
+  await expect(page.getByRole('button',{name:'开始'+second,exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'开始'+second,exact:true}).click();
+  for(const kind of [first,second])await expect(page.getByRole('button',{name:'停止并放弃'+kind,exact:true})).toBeEnabled();
+  const hint=page.getByText('当前有其他网络请求，测速结果可能受影响。',{exact:true});
+  await expect(hint).toBeVisible();
+  await page.screenshot({path:info.outputPath('independent-diagnostics.png'),fullPage:true,animations:'disabled'});
+  await page.getByRole('button',{name:'停止并放弃'+first,exact:true}).click();
+  await expect(page.getByRole('button',{name:'开始'+first,exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'停止并放弃'+second,exact:true})).toBeEnabled();
+  if(first==='连通性检测')await expect(hint).toHaveCount(0);
+  await page.getByRole('button',{name:'停止并放弃'+second,exact:true}).click();
+  await expect(page.getByRole('button',{name:'开始'+second,exact:true})).toBeEnabled();
+  await expect(hint).toHaveCount(0);
+});
+
+test('speed test hints follow actual downloads and GETs without blocking calibration',async({page},info)=>{
+  const api=await mockAPI(page);
+  api.state.running=true;api.state.batch={running:true};
+  let downloads={tasks:[] as object[],gets:{total:0}};
+  await page.route('**/api/downloads',route=>route.fulfill({json:downloads}));
+  await page.goto('/#network-tests');
+  const hint=page.getByText('当前有其他网络请求，测速结果可能受影响。',{exact:true});
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
+  await expect(hint).toHaveCount(0);
+  await page.getByRole('button',{name:'开始下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
+  await expect(hint).toHaveCount(0);
+  downloads={tasks:[{id:1}],gets:{total:0}};
+  await expect(hint).toBeVisible({timeout:10000});
+  await page.getByRole('button',{name:'停止并放弃下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
+  downloads={tasks:[],gets:{total:1}};
+  await page.setViewportSize({width:390,height:844});await page.reload();
+  await expect(hint).toBeVisible();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('calibration-other-activity.png'),fullPage:true,animations:'disabled'});
+  downloads={tasks:[],gets:{total:0}};
+  await expect(hint).toHaveCount(0,{timeout:10000});
+});
+
 test('automatic connectivity pushes results without a click and catalog retries keep row times',async({page})=>{
   const api=await mockAPI(page);
   Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:'external-socks5'});
@@ -20,7 +66,7 @@ test('automatic connectivity pushes results without a click and catalog retries 
   await expect(page.getByText('正在建立歌曲清单，暂时自动重试清单检测。',{exact:true})).toBeVisible();
   Object.assign(api.diagnostics.connectivity,{run:3,revision:4,running:true,phase:'running'});await api.emit('connectivity');
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
-  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
   await page.getByRole('button',{name:'停止并放弃连通性检测'}).click();
   await expect(page.getByRole('button',{name:'开始连通性检测'})).toBeEnabled();
   await expect(page.locator('.diagnostic-rows time').nth(1)).toHaveAttribute('datetime',first);

@@ -243,9 +243,10 @@ func TestAutomaticConnectivityCatalogRecoveryReturnsToNormalPeriod(t *testing.T)
 	})
 }
 
-func TestAutomaticConnectivityWaitsForSpeedAndSharesCancellation(t *testing.T) {
+func TestAutomaticConnectivityRunsAlongsideSpeedAndSharesManualRound(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := automaticTestConsole(t)
+		seedCalibrationSong(t, c)
 		stubNetworkDiagnostics(t, c) // Requests block until canceled.
 		if err := c.controlNetworkCalibration(false); err != nil {
 			t.Fatal(err)
@@ -255,16 +256,10 @@ func TestAutomaticConnectivityWaitsForSpeedAndSharesCancellation(t *testing.T) {
 			t.Fatal(err)
 		}
 		synctest.Wait()
-		if connectivitySnapshot(c).Run != 0 {
-			t.Fatal("automatic check interrupted a speed test")
-		}
-		if err := c.controlNetworkCalibration(true); err != nil {
-			t.Fatal(err)
-		}
-		synctest.Wait()
 		first := connectivitySnapshot(c)
-		if !first.Running || first.Run != 1 {
-			t.Fatal("automatic check did not resume after speed test", first)
+		speed, _ := c.networkDiagnostics.calibration.Snapshot()
+		if !first.Running || first.Run != 1 || !speed.Running {
+			t.Fatal("automatic check did not run alongside the speed test", first, speed.Running)
 		}
 		if err := c.controlNetworkConnectivity(false); err != nil {
 			t.Fatal("manual entry did not join automatic round", err)
@@ -279,6 +274,10 @@ func TestAutomaticConnectivityWaitsForSpeedAndSharesCancellation(t *testing.T) {
 		state := connectivitySnapshot(c)
 		if state.Running || state.Phase != "canceled" || !state.Finished.IsZero() || state.NextCheck.Sub(time.Now()) != 5*time.Minute {
 			t.Fatal("cancel did not discard only the current round", state)
+		}
+		speed, _ = c.networkDiagnostics.calibration.Snapshot()
+		if !speed.Running {
+			t.Fatal("canceling connectivity stopped the speed test")
 		}
 		c.BeginShutdown()
 	})

@@ -51,7 +51,7 @@ func TestCalibrationUsesActiveClientAcrossResourceHosts(t *testing.T) {
 		}
 		return resp, err
 	})}
-	c := calibrationForTest(t, client)
+	c := calibrationForTest(t, client, 8)
 	c.limits.reserveVideos, c.limits.reserveBytes = 8, 256<<20
 	c.limits.warmup, c.limits.window, c.limits.interval = 50*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
 	if err := c.Start(); err != nil {

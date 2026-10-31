@@ -70,6 +70,7 @@ const (
 	wmTimer         = 0x113
 	wmTray          = 0x8001
 	wmFinished      = 0x8002
+	wmShutdown      = 0x8003
 	wmSettingChange = 0x1a
 	wmThemeChanged  = 0x31a
 )
@@ -140,7 +141,8 @@ func Run(ctx context.Context, o Options) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			user32.NewProc("PostMessageW").Call(hwnd, wmClose, 0, 0)
+			// Owner cancellation may follow an error, not an explicit exit.
+			user32.NewProc("PostMessageW").Call(hwnd, wmShutdown, 0, 0)
 		case <-t.finished:
 		}
 	}()
@@ -316,6 +318,9 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 		}
 		return 0
 	case wmClose:
+		t.quit(true)
+		return 0
+	case wmShutdown:
 		t.quit(false)
 		return 0
 	case wmFinished:

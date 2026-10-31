@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -213,15 +212,55 @@ func TestLiveTrayLifecycle(t *testing.T) {
 	if os.Getenv("SWD_TRAY_CHECK") != "1" {
 		t.Skip("opt-in interactive Windows shell test")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	var closes atomic.Int32
-	err := Run(ctx, Options{URL: "http://127.0.0.1:" + strconv.Itoa(18081), State: func() State { return State{} }, Command: func(int) error { return nil }, Shutdown: func() { closes.Add(1) }})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if closes.Load() != 1 {
-		t.Fatalf("cleanup ran %d times", closes.Load())
+	for _, tc := range []struct {
+		name     string
+		explicit bool
+	}{
+		{"owner cancellation", false},
+		{"window close", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			var requested, closes atomic.Int32
+			triggered := false
+			err := Run(ctx, Options{
+				State: func() State {
+					// The first state read follows window creation. Queue the close
+					// before entering the real message loop, without a timing delay.
+					if !triggered {
+						triggered = true
+						if tc.explicit {
+							class := wide(fmt.Sprintf("SWD.Tray.%d", os.Getpid()))
+							hwnd, _, _ := user32.NewProc("FindWindowW").Call(uintptr(unsafe.Pointer(class)), 0)
+							if hwnd == 0 {
+								t.Error("tray window unavailable")
+								cancel()
+							} else if ok, _, err := user32.NewProc("PostMessageW").Call(hwnd, wmClose, 0, 0); ok == 0 {
+								t.Errorf("post window close: %v", err)
+								cancel()
+							}
+						} else {
+							cancel()
+						}
+					}
+					return State{}
+				},
+				RequestExit: func() { requested.Add(1) },
+				Shutdown: func() {
+					if (requested.Load() == 1) != tc.explicit {
+						t.Error("cleanup did not observe the correct exit intent")
+					}
+					closes.Add(1)
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if closes.Load() != 1 {
+				t.Fatalf("cleanup ran %d times", closes.Load())
+			}
+		})
 	}
 }
 
@@ -401,31 +440,37 @@ func TestCanceledLogoffKeepsTrayAlive(t *testing.T) {
 }
 
 func TestTrayExitPublishesIntentBeforeCleanup(t *testing.T) {
-	for _, explicit := range []bool{false, true} {
-		var requested, cleaned atomic.Int32
-		tt := &tray{shutdownDone: make(chan struct{}), options: Options{
-			RequestExit: func() { requested.Add(1) },
-			Shutdown: func() {
-				if (requested.Load() == 1) != explicit {
-					t.Error("cleanup did not observe the correct exit intent")
-				}
-				cleaned.Add(1)
-			},
-		}}
-		if explicit {
-			tt.command(Exit)
-			tt.command(Exit)
-		} else {
-			tt.dispatch(0, wmClose, 0, 0)
-		}
-		select {
-		case <-tt.shutdownDone:
-		case <-time.After(time.Second):
-			t.Fatal("tray cleanup did not finish")
-		}
-		if cleaned.Load() != 1 {
-			t.Fatal("cleanup repeated")
-		}
+	for _, tc := range []struct {
+		name     string
+		explicit bool
+		close    func(*tray)
+	}{
+		{"tray command", true, func(tt *tray) { tt.command(Exit) }},
+		{"window close", true, func(tt *tray) { tt.dispatch(0, wmClose, 0, 0) }},
+		{"owner cancellation", false, func(tt *tray) { tt.dispatch(0, wmShutdown, 0, 0) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requested, cleaned atomic.Int32
+			tt := &tray{shutdownDone: make(chan struct{}), options: Options{
+				RequestExit: func() { requested.Add(1) },
+				Shutdown: func() {
+					if (requested.Load() == 1) != tc.explicit {
+						t.Error("cleanup did not observe the correct exit intent")
+					}
+					cleaned.Add(1)
+				},
+			}}
+			tc.close(tt)
+			tc.close(tt)
+			select {
+			case <-tt.shutdownDone:
+			case <-time.After(time.Second):
+				t.Fatal("tray cleanup did not finish")
+			}
+			if cleaned.Load() != 1 {
+				t.Fatal("cleanup repeated")
+			}
+		})
 	}
 }
 

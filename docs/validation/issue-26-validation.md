@@ -76,6 +76,16 @@
 
 证据保留于 `artifacts/release-v1.0.0-beta.3/` 的 `linux-attempt6.log`、`windows-attempt6.log`、`beta3-attempt6-webui-failure.zip`、`library-idle-gate-red.log`、`library-idle-gate-green.log` 和 `library-ready-fixed.log`。失败附件 SHA256 为 `6d4344f8cdeb0adb304e03ba212f0ad347174012d0ac71c0c76cf5a8e8a7b984`；该轮失败不能记为完整交付成功。
 
+### 第七轮 CI：Windows Unicode 源码归档
+
+[check #33](https://github.com/SW26010/still-wanna-dance/actions/runs/41217289403) 在 `f5025447081d932a24d9de536e1482385f5fc100` 上通过两平台各 369 项浏览器、Windows 58 项工具、Linux 48 项工具（10 项 Windows 专属跳过）、Go 测试/vet/编译及 Linux race。Windows 的候选包与正式干净检出检查通过，但收集 zashboard 源码时，系统 `tar` 对两个中文文件名报 `Archive entry has empty or unreadable filename`。该轮没有创建 Release。
+
+固定 zashboard ZIP 的 SHA256 仍为 `21078a51b05413c7dca5f689b400b889f063645c2f59c64376beb335e4afcb35`，其两条中文路径均标记为 UTF-8。用超出本机代码页的 emoji 文件名构造最小 ZIP，原入口稳定复现相同错误；上游也记录了 [Windows libarchive 3.8.6–3.8.9 的 Unicode 回归](https://github.com/libarchive/libarchive/issues/3063)。扩展到完整归档往返后，系统 tar 在创建含该名称的 tar.gz 时崩溃；Git 自带 GNU tar 能保留文件，但列举输出仍转义 emoji，因此未采用依赖文本解码的方案。
+
+Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `ZipFile`、`TarFile` 和 `TarReader`。TAR 名称和类型以 JSON 交给原路径规则检查；路径穿越、绝对路径、反斜杠、控制字符、备用流、错误前缀、重复条目及软硬链接均在落盘前拒绝。没有裁剪上游文件、修改原归档或弱化哈希检查；其它平台继续使用 tar。新增 Unicode 往返和九种非法条目回归通过，实际固定 ZIP 的 **334 个文件**在解包、tar.gz 创建和再次解包后逐个名称与 SHA256 相同；全部发布工具 **60/60** 通过。
+
+证据位于 `artifacts/release-v1.0.0-beta.3/`：`linux-check33.log`、`windows-attempt7.log`、`dashboard-tar-unicode-red.log`、`dashboard-extract-red.log`、`dashboard-dotnet-roundtrip.log`、`archive-safety-final.log`、`dashboard-actual-roundtrip.log` 和 `tools-archive-fixed.log`。中间探针的系统 tar 崩溃、GNU tar 文本转义拒绝，以及 PAX 夹具先被标准库拒绝的日志也保留；最终非法路径夹具改用有效 USTAR 条目直接覆盖应用预检。真实完整产品的最终打包与公开回下载仍须以后续最终提交为准。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

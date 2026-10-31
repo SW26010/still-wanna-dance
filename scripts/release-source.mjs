@@ -19,6 +19,13 @@ export const desktopBuildFlags = identity => [...productionFlags.slice(0, -1), p
 export function run(command, args, cwd, env = {}) {
   return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
 }
+function windowsArchive(action,archive,directory) {
+  return run('pwsh',['-NoProfile','-File',fileURLToPath(new URL('./archive-source.ps1',import.meta.url)),'-Action',action,'-Archive',path.resolve(archive),...(directory?['-Directory',path.resolve(directory)]:[])]);
+}
+export function createArchive(directory,archive) {
+  if(process.platform==='win32')windowsArchive('create',archive,directory);
+  else run('tar',['-czf',archive,'-C',path.dirname(directory),path.basename(directory)],undefined,{TAR_OPTIONS:''});
+}
 export function goEnv(extra = {}) {
   return { GOOS: 'windows', GOARCH: 'amd64', GOAMD64: 'v1', CGO_ENABLED: '0', GOFLAGS: '', GOEXPERIMENT: '', GO111MODULE: 'on', GOWORK: 'off', GOTOOLCHAIN: 'local', GOENV: 'off', ...extra };
 }
@@ -105,7 +112,8 @@ export function createSource({ root, tag, outputDir }) {
     const source = path.join(bundle, 'source'); fs.mkdirSync(source);
     const snapshot = path.join(temp, 'snapshot.tar');
     run('git', ['archive', '--format=tar', '--output', snapshot, revision], root);
-    run('tar', ['-xf', snapshot, '-C', source], root, { TAR_OPTIONS: '' });
+    if(process.platform==='win32')windowsArchive('extract',snapshot,source);
+    else run('tar', ['-xf', snapshot, '-C', source], root, { TAR_OPTIONS: '' });
     const frontend = collectFrontend(source, bundle, temp);
     const dashboard = collectDashboard(source, bundle, temp);
     const env = goEnv();
@@ -163,14 +171,14 @@ export function createSource({ root, tag, outputDir }) {
     const currentSum = run('git', ['show', `${revision}:go.sum`], root);
     if (fs.readFileSync(path.join(source, 'go.mod'), 'utf8') !== currentMod || fs.readFileSync(path.join(source, 'go.sum'), 'utf8') !== currentSum) throw Error('Module download changed source go.mod/go.sum');
     const toolchain = run('go', ['env', 'GOVERSION'], source, env).trim();
-    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+, the pnpm version in source/webui/package.json,\nand tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, locked npm packages in frontend-store,\noriginal notices, generated inputs and scripts. Reviewed Go dependency patches\nare recorded separately in source-manifest.json; see source/patches/README.md.\nThe frontend is rebuilt offline\nwith pnpm and its assets/notices are byte-checked before the Go build.\nThe separate dashboard/ tree contains the pinned zashboard source and npm store.\nIts no-fonts application is rebuilt offline; upstream archive bytes are preserved\nand no byte-identical frontend/font regeneration is claimed.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
+    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+, the pnpm version in source/webui/package.json,\nand PowerShell 7.3+ on Windows or tar on other systems (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, locked npm packages in frontend-store,\noriginal notices, generated inputs and scripts. Reviewed Go dependency patches\nare recorded separately in source-manifest.json; see source/patches/README.md.\nThe frontend is rebuilt offline\nwith pnpm and its assets/notices are byte-checked before the Go build.\nThe separate dashboard/ tree contains the pinned zashboard source and npm store.\nIts no-fonts application is rebuilt offline; upstream archive bytes are preserved\nand no byte-identical frontend/font regeneration is claimed.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
     const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, goPatches: patchManifest(source, modules), supplementalInputs: extras, frontend, dashboard,
       files: filesUnder(bundle).map(p => ({ path: p, bytes: fs.statSync(safePath(bundle, p)).size, sha256: sha256(safePath(bundle, p)) })) };
     writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
     verifyBundle(bundle);
     if (cleanRevision(root, tag) !== revision) throw Error('Source changed during packaging');
     const partial = path.join(temp, name);
-    run('tar', ['-czf', partial, '-C', temp, 'SWD-source'], root, { TAR_OPTIONS: '' });
+    createArchive(bundle,partial);
     fs.copyFileSync(partial, archive, fs.constants.COPYFILE_EXCL);
     const hash = sha256(archive); fs.writeFileSync(archive + '.sha256', `${hash}  ${name}\n`);
     return { archive, sha256: hash, manifest };
@@ -227,9 +235,11 @@ export function extractSource(archive, dest) {
 }
 
 export function extractArchive(archive, dest, prefix) {
-  // Reject traversal, links and non-regular entries before invoking standard tar.
-  const names = run('tar', ['-tf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
-  const modes = run('tar', ['-tvf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
+  // Reject traversal, links and non-regular entries before extraction. Windows
+  // reads Unicode names as structured data, avoiding code-page conversions.
+  const entries=process.platform==='win32'?JSON.parse(windowsArchive('list',archive)):null;
+  const names = entries?entries.map(entry=>entry.name):run('tar', ['-tf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
+  const modes = entries?entries.map(entry=>entry.type==='Directory'?'d':['RegularFile','V7RegularFile'].includes(entry.type)?'-':'!'):run('tar', ['-tvf', path.resolve(archive)], undefined, { TAR_OPTIONS: '' }).trim().split(/\r?\n/);
   const seen = new Set();
   for (const name of names) {
     const p = name.replace(/\/$/, ''); safePath(dest, p);
@@ -239,7 +249,8 @@ export function extractArchive(archive, dest, prefix) {
   if (modes.length !== names.length || modes.some(line => !/^[-d]/.test(line))) throw Error('Source archive contains links or special entries');
   if (fs.existsSync(dest)) throw Error('Extraction destination must be new');
   fs.mkdirSync(dest, { recursive: true });
-  run('tar', ['-xf', path.resolve(archive), '-C', dest], undefined, { TAR_OPTIONS: '' });
+  if(process.platform==='win32')windowsArchive('extract',archive,dest);
+  else run('tar', ['-xf', path.resolve(archive), '-C', dest], undefined, { TAR_OPTIONS: '' });
 }
 
 export function executableInfo(executable) {

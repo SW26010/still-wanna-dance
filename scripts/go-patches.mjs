@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +22,7 @@ export function patchManifest(root, modules) {
 }
 
 export function readPatchedModule(module, fields) {
-  const match = fields[1]?.match(/^\.\/artifacts\/go-patches\/build-[A-Za-z0-9]+\/mihomo-anytls-([a-f0-9]{64})$/);
+  const match = fields[1]?.match(/^(?:\.\.?\/|\/|[A-Za-z]:\/)(?:.*\/)?swd-go-[A-Za-z0-9]{6}\/([a-f0-9]{64})$/);
   if (!module || module.path !== mihomoPatch.module || module.version !== mihomoPatch.version || module.sum || module.patchSHA256 || fields[2] !== '(devel)' || !match) throw Error('Replacement modules are not approved');
   module.patchSHA256 = match[1];
 }
@@ -43,11 +44,13 @@ export function runGo(args, root = process.cwd(), extraEnv = {}, options = {}) {
   const replacement = path.resolve(root, mihomoPatch.replacement);
   if (!fs.statSync(replacement).isFile()) throw Error('Missing reviewed Mihomo stream replacement');
   const hash = crypto.createHash('sha256').update(fs.readFileSync(replacement)).digest('hex');
-  const base = path.resolve(root, 'artifacts/go-patches');
+  // Keep the copy outside nested release/source checkouts: Windows cannot start
+  // vet.exe with a package working directory longer than MAX_PATH.
+  const base = path.resolve(os.tmpdir());
   fs.mkdirSync(base, { recursive: true });
-  const temp = fs.mkdtempSync(path.join(base, 'build-'));
+  const temp = fs.mkdtempSync(path.join(base, 'swd-go-'));
   try {
-    const patched = path.join(temp, `mihomo-anytls-${hash}`);
+    const patched = path.join(temp, hash);
     fs.cpSync(module.Dir, patched, { recursive: true });
     // Module-cache directories can be read-only. Only this private copy changes.
     const writableDirectories = dir => {
@@ -58,15 +61,16 @@ export function runGo(args, root = process.cwd(), extraEnv = {}, options = {}) {
     const target = path.join(patched, mihomoPatch.source);
     fs.chmodSync(target, 0o644); fs.copyFileSync(replacement, target);
     const modfile = path.join(temp, 'patched.mod');
-    const relative = './' + path.relative(root, patched).replaceAll('\\', '/');
-    fs.writeFileSync(modfile, fs.readFileSync(path.join(root, 'go.mod'), 'utf8') + `\nreplace ${mihomoPatch.module} ${mihomoPatch.version} => ${relative}\n`);
+    const relative = path.relative(root, patched);
+    const modulePath = (path.isAbsolute(relative) ? relative : './' + relative).replaceAll('\\', '/');
+    fs.writeFileSync(modfile, fs.readFileSync(path.join(root, 'go.mod'), 'utf8') + `\nreplace ${mihomoPatch.module} ${mihomoPatch.version} => ${JSON.stringify(modulePath)}\n`);
     fs.copyFileSync(path.join(root, 'go.sum'), path.join(temp, 'patched.sum'));
     // Inherited by fixture Go builds too. Original go.mod/go.sum and module
     // caches stay intact; the binary explicitly records the patched dependency.
     env.GOFLAGS = `${env.GOFLAGS ?? ''} "-modfile=${modfile.replaceAll('\\', '/')}"`.trim();
     return invoke(args, options);
   } finally {
-    if (path.dirname(temp) !== base || !path.basename(temp).startsWith('build-')) throw Error('Unsafe Go patch cleanup path');
+    if (path.dirname(temp) !== base || !path.basename(temp).startsWith('swd-go-')) throw Error('Unsafe Go patch cleanup path');
     fs.rmSync(temp, { recursive: true, force: true });
   }
 }

@@ -34,6 +34,14 @@
 
 本地发布工具 **55/55**、actionlint、实际桌面构建、实际 EXE 的补丁身份及 **114 个**依赖许可校验通过；原模块文件 SHA256 未变化。第二轮远端日志、Windows trace 附件、受控失败、overlay 拒绝和成功复核分别保留在 `artifacts/release-v1.0.0-beta.3/` 的 `*-attempt2.log`、`beta3-attempt2-webui-failure.zip`、`monitor-announcement-*.log`、`desktop-race-*.log`、`anytls-*.log`、`affected-race-patched.log` 和 `tools-patched.log`。这些是本地修复证据，最终公开交付结果另记。
 
+### 第三轮 CI 的 Windows 深路径修复
+
+[check #29](https://github.com/SW26010/still-wanna-dance/actions/runs/41194848967) 在 `2fc5061edf0a910030157cd3fd20333975769ec0` 上完成两平台各 369 项浏览器回归、Go 测试、vet 和编译；Linux 完整 race 与格式检查通过。Windows 候选包生成成功，但正式流程的嵌套干净检出中，五个较深的 Mihomo 包无法启动 `vet.exe`，报告 `The directory name is invalid`。发布 job 跳过，该轮没有创建公开 tag 或 Release。
+
+本机新增真实依赖 vet 回归，将检出根目录延长到 136 字符，原实现稳定复现相同失败。补丁副本原先位于检出目录内，叠加 SHA256 目录名和依赖包路径后超出 Windows 子进程工作目录限制；改为进程临时目录下的独占 `swd-go-*`，与正式检出/源码解包目录并列，并保留完整补丁哈希。替换路径按 Go 字符串格式引用，二进制元数据按制表符解析，支持含空格的目录。补丁内容、原模块校验和、隔离与清理边界保持原规则。
+
+同一深目录回归修复后通过；源码交付相关 12 项及全部 Node 工具 **56/56** 通过。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-attempt3.log`、`linux-attempt3.log`、`patch-path-red.log`、`patch-path-green.log`、`tools-path-fixed.log`。这些结果不替代完整本地正式打包及最终远端公开交付。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

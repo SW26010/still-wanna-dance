@@ -1,12 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { mihomoPatch, patchManifest, readPatchedModule } from './go-patches.mjs';
+import { mihomoPatch, patchManifest, readPatchedModule, runGo } from './go-patches.mjs';
 import { checkExecutable } from './release-source.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const original = { path: mihomoPatch.module, version: mihomoPatch.version, sum: mihomoPatch.originalSum, sourceIncluded: true };
+
+test('patched dependency vet works from a nested Windows release checkout', { skip: process.platform !== 'win32' }, () => {
+  const base = path.resolve(os.tmpdir());
+  const temp = fs.mkdtempSync(path.join(base, 'swd-path-'));
+  try {
+    // Formal packaging and public-source verification both nest their checkout.
+    // The old dependency copy made vet.exe's working directory exceed MAX_PATH.
+    const checkout = path.join(temp, 'checkout'.padEnd(Math.max(8, 136 - temp.length - 1), 'x'));
+    fs.mkdirSync(path.join(checkout, 'patches'), { recursive: true });
+    for (const file of ['go.mod', 'go.sum', mihomoPatch.replacement]) fs.copyFileSync(path.join(root, file), path.join(checkout, file));
+    assert.doesNotThrow(() => runGo(['vet', '-tags=no_easytier', mihomoPatch.module + '/transport/shadowsocks/shadowstream'], checkout));
+  } finally {
+    if (path.dirname(temp) !== base || !path.basename(temp).startsWith('swd-path-')) throw Error('Unsafe test cleanup path');
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
 test('patch source identity requires the reviewed upstream version and checksum', () => {
   const [patch] = patchManifest(root, [original]);
@@ -17,13 +35,18 @@ test('patch source identity requires the reviewed upstream version and checksum'
 
 test('binary provenance accepts only the reviewed replacement shape without inventing a module sum', () => {
   const [patch] = patchManifest(root, [original]);
-  const fields = ['=>', `./artifacts/go-patches/build-123abc/mihomo-anytls-${patch.sha256}`, '(devel)'];
+  const fields = ['=>', `./artifacts/tmp/swd-go-123abc/${patch.sha256}`, '(devel)'];
   const module = { ...original, sum: null };
   readPatchedModule(module, fields);
   assert.equal(module.sum, null);
   assert.equal(module.patchSHA256, patch.sha256);
+  for (const prefix of ['./', './../../', '../temporary directory/', '/tmp/', 'C:/Users/Build User/Temp/']) {
+    const fromTemp = { ...original, sum: null };
+    readPatchedModule(fromTemp, ['=>', `${prefix}swd-go-123abc/${patch.sha256}`, '(devel)']);
+    assert.equal(fromTemp.patchSHA256, patch.sha256);
+  }
   for (const alternate of [undefined, { ...original }, { ...module }, { ...original, path: 'example.org/other', sum: null }]) assert.throws(() => readPatchedModule(alternate, fields), /not approved/);
-  for (const target of ['../arbitrary', './artifacts/go-patches/build-123abc/mihomo-anytls-not-a-hash', 'example.org/fork']) assert.throws(() => readPatchedModule({ ...original, sum: null }, ['=>', target, '(devel)']), /not approved/);
+  for (const target of ['../arbitrary', './artifacts/tmp/swd-go-123abc/not-a-hash', 'example.org/fork']) assert.throws(() => readPatchedModule({ ...original, sum: null }, ['=>', target, '(devel)']), /not approved/);
 });
 
 test('delivery rejects a missing or different binary patch and an unpatched binary', () => {

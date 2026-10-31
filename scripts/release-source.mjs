@@ -248,7 +248,7 @@ export function executableInfo(executable) {
   let entry, toolchain;
   for (const [i, line] of text.split(/\r?\n/).entries()) {
     if (i === 0) toolchain = line.slice(line.lastIndexOf(': ') + 2);
-    const fields = line.trim().split(/\s+/);
+    const fields = line.trim().split('\t');
     if (fields[0] === '=>') readPatchedModule(modules.at(-1), fields);
     if (fields[0] === 'path') entry = fields[1];
     if (fields[0] === 'dep') modules.push({ path: fields[1], version: fields[2], sum: fields[3] ?? null });

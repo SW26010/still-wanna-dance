@@ -23,9 +23,16 @@ test('patch preparation needs only its pinned module in a fresh offline cache', 
   const env = goEnv({ GOPROXY: pathToFileURL(proxy).href, GOSUMDB: 'off', GOPRIVATE: '', GONOPROXY: 'none', GONOSUMDB: 'none', GOMODCACHE: path.join(temp, 'modules') });
   // Listing "all" fetches unrelated graph inputs before the requested command;
   // production source archives deliberately include only selected versions.
-  const selected = JSON.parse(runGo(['list', '-mod=readonly', '-m', '-json', mihomoPatch.module], checkout, env));
-  assert.equal(selected.Version, mihomoPatch.version);
-  assert.equal(path.posix.basename(selected.Replace.Path), patchManifest(root, [original])[0].sha256);
+  try {
+    const selected = JSON.parse(runGo(['list', '-mod=readonly', '-m', '-json', mihomoPatch.module], checkout, env));
+    assert.equal(selected.Version, mihomoPatch.version);
+    assert.equal(path.posix.basename(selected.Replace.Path), patchManifest(root, [original])[0].sha256);
+  } finally {
+    // Go's extracted module directories are read-only on Unix. Its cleaner
+    // handles those permissions; restrict it to this test's private cache.
+    assert.equal(path.dirname(path.resolve(env.GOMODCACHE)), path.resolve(temp));
+    execFileSync('go', ['clean', '-modcache'], { cwd: checkout, env: { ...process.env, ...env }, windowsHide: true });
+  }
 }));
 
 test('patched dependency vet works from a nested Windows release checkout', { skip: process.platform !== 'win32' }, () => {

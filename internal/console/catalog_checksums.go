@@ -7,11 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"sort"
 	"time"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -19,57 +19,31 @@ import (
 // Fetching only feeds synchronization. Business operations read the database
 // after this attempt, including when the remote endpoint is unavailable.
 func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Store) error {
-	candidate, err := c.fetchCatalogSnapshot(ctx)
-	var syncFailures []error
-	if err == nil {
-		err = store.SyncCatalog(ctx, candidate)
-		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
-			syncFailures = append(syncFailures, err)
+	sources := []string{c.checksumURL}
+	if cacheproxy.IsUdonCatalog(c.checksumURL) {
+		for _, route := range catalogmeta.SourceIDs()[1:] {
+			sources = append(sources, catalogmeta.SourceURL(route))
 		}
 	}
-	if c.checksumURL == cacheproxy.UdonCatalogURL {
-		missing, checkErr := store.CatalogNeedsMappings(ctx)
-		if checkErr != nil {
-			return checkErr
+	var failures []error
+	for _, source := range sources {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		if err != nil || missing {
-			var backups []cacheproxy.Catalog
-			var failures []error
-			if errors.Is(err, cacheproxy.ErrLocalStorage) {
-				return err
-			}
-			for _, source := range []string{cacheproxy.KivaCatalogURL, cacheproxy.WannaCatalogURL} {
-				backup, fetchErr := c.fetchCatalogSource(ctx, source)
-				if fetchErr != nil {
-					failures = append(failures, fetchErr)
-					slog.Warn("catalog_backup_failed", "source", source, "error", fetchErr)
-					continue
-				}
-				backups = append(backups, backup)
-			}
-			sort.SliceStable(backups, func(i, j int) bool { return backups[i].Revision > backups[j].Revision })
-			usable := err == nil || errors.Is(err, cacheproxy.ErrCatalogOlder)
-			for _, backup := range backups {
-				syncErr := store.SyncCatalog(ctx, backup)
-				if syncErr == nil || errors.Is(syncErr, cacheproxy.ErrCatalogOlder) {
-					usable = true
-				} else {
-					failures = append(failures, syncErr)
-					syncFailures = append(syncFailures, syncErr)
-				}
-			}
-			if usable {
-				// Optional fetch failures do not invalidate usable metadata, but
-				// failed local synchronization must remain visible to the caller.
-				err = errors.Join(syncFailures...)
-			} else {
-				err = errors.Join(append([]error{err}, failures...)...)
-			}
+		candidate, err := c.fetchCatalogSource(ctx, source)
+		if err == nil {
+			err = store.SyncCatalog(ctx, candidate)
 		}
+		if err == nil || errors.Is(err, cacheproxy.ErrCatalogOlder) {
+			return nil
+		}
+		if errors.Is(err, cacheproxy.ErrLocalStorage) {
+			return err
+		}
+		failures = append(failures, err)
+		slog.Warn("catalog_source_failed", "source", source, "error", err)
 	}
-	if errors.Is(err, cacheproxy.ErrCatalogOlder) {
-		return nil
-	}
+	err := errors.Join(failures...)
 	if err != nil && ctx.Err() == nil {
 		if saveErr := store.RecordCatalogError(ctx, err); saveErr != nil {
 			return fmt.Errorf("%v；无法保存检查结果：%w", err, saveErr)

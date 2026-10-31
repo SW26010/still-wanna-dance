@@ -168,7 +168,7 @@ func (m *Monitor) routeIDsLocked(op Operation) []string {
 
 func routeIDs(op Operation) []string {
 	if op == Catalog {
-		return catalogmeta.SourceIDs()
+		return []string{"api"}
 	}
 	if op == PlaybackURL {
 		ids := make([]string, len(playbackRoutes))

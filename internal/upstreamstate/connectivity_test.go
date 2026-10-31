@@ -15,10 +15,10 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 			var calls atomic.Int32
 			var m *Monitor
 			var f *candidateFixture
-			wantRequests, wantCatalogs, wantURLs := 5, 3, 1
+			wantRequests, wantCatalogs, wantURLs := 3, 1, 1
 			if mode == "candidates" {
 				m, f = candidateMonitor(t)
-				wantRequests, wantCatalogs, wantURLs = 10, 6, 2
+				wantRequests, wantCatalogs, wantURLs = 6, 2, 2
 			} else {
 				m = testMonitor(t, func(r *http.Request) (*http.Response, error) {
 					calls.Add(1)
@@ -45,7 +45,7 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 				m.Snapshot()
 				phases = append(phases, p.Operation)
 			}
-			// A second run must check all catalogs even with a cached song sample.
+			// A second run must check the primary catalog even with a cached song sample.
 			for round := 1; round <= 2; round++ {
 				phases = nil
 				if err := m.CheckSelected(context.Background(), CheckConnectivity); err != nil {

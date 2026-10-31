@@ -1,156 +1,131 @@
 package console
 
 import (
-	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"net/http"
+	"slices"
+	"still-wanna-dance/internal/cacheproxy"
 	"strings"
 	"testing"
-
-	"still-wanna-dance/internal/cacheproxy"
 )
 
-func TestRefreshPreservesCatalogWriteFailures(t *testing.T) {
-	for _, failedSource := range []string{"udon", "kiva", "wanna"} {
+func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
+	for _, failedSource := range []string{"api.udon.dance", "x.kiva.moe", "wanna.kiva.moe"} {
 		t.Run(failedSource, func(t *testing.T) {
 			c := testConsole(t)
-			cfg := fixtureCacheConfig()
-			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
-			engine, err := cacheproxy.New(cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer engine.Close()
+			c.settings.UpstreamMode = "proxy"
 			db, err := sql.Open("sqlite", c.settings.DatabasePath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer db.Close()
-			keys := map[string]string{"kiva": strings.Repeat("a", 32), "wanna": strings.Repeat("b", 32)}
-			trigger := "CREATE TRIGGER reject_catalog_write BEFORE INSERT ON media WHEN NEW.md5='" + keys[failedSource] + "' BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"
-			if failedSource == "udon" {
-				trigger = "CREATE TRIGGER reject_catalog_write BEFORE INSERT ON songs WHEN NEW.id=2 BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"
-			}
-			if _, err := db.Exec(trigger); err != nil {
+			if _, err := db.Exec("CREATE TRIGGER reject_catalog_write BEFORE INSERT ON songs BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
 				t.Fatal(err)
 			}
 			c.checksumURL = cacheproxy.UdonCatalogURL
-			c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
-				body := monitorNames("20261003000000", "udon").Body
-				switch r.URL.Host {
-				case "api.udon.dance":
-				case "x.kiva.moe":
-					body = monitorFull("kiva", "20261002000000", "kiva", keys["kiva"]).Body
-				case "wanna.kiva.moe":
-					body = monitorFull("wanna", "20261001000000", "wanna", keys["wanna"]).Body
-				default:
-					t.Errorf("unexpected host %s", r.URL.Host)
+			accepted := false
+			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+				if accepted {
+					t.Error("storage failure caused another network request", r.URL)
 				}
-				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
-			})
-			err = c.refreshLocalCatalog(t.Context(), engine.Store)
-			if err == nil || !strings.Contains(err.Error(), "catalog write rejected") {
-				t.Fatalf("catalog write failure hidden: %v", err)
+				code, body := 503, []byte("")
+				if r.URL.Host == failedSource {
+					accepted, code = true, 200
+					body = monitorNames("20261003000000", "udon").Body
+					if failedSource != "api.udon.dance" {
+						body = monitorFull("kiva", "20261003000000", "backup", strings.Repeat("a", 32)).Body
+					}
+				}
+				return &http.Response{StatusCode: code, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
+			})}
+			err = c.refreshLocalCatalog(t.Context(), c.store)
+			if !accepted || !errors.Is(err, cacheproxy.ErrLocalStorage) || !strings.Contains(err.Error(), "catalog write rejected") {
+				t.Fatal(err)
 			}
-			status, err := c.store.CatalogStatus(t.Context())
-			wantRevision := "20261003000000"
-			if failedSource == "udon" {
-				wantRevision = "20261002000000"
-			}
-			if err != nil || status.Revision != wantRevision || !strings.Contains(status.Error, "catalog write rejected") {
-				t.Fatal(status, err)
-			}
-			var mapping string
-			wantMapping := keys["kiva"]
-			if failedSource == "kiva" {
-				wantMapping = keys["wanna"]
-			}
-			if err := db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapping); err != nil || mapping != wantMapping {
-				t.Fatal("successful backup was lost or failed transaction leaked", mapping, err)
+			var count int
+			if err := db.QueryRow("SELECT COUNT(*) FROM songs").Scan(&count); err != nil || count != 0 {
+				t.Fatal("failed transaction leaked", count, err)
 			}
 		})
 	}
 }
 
-func TestRefreshUdonAndEqualBackupParticipation(t *testing.T) {
-	for _, scenario := range []string{"old-backups", "newer-wanna", "udon-failed", "backups-failed"} {
+func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
+	for _, scenario := range []string{"healthy-udon", "invalid-udon", "udon-failed", "kiva-failed", "all-failed"} {
 		t.Run(scenario, func(t *testing.T) {
 			c := testConsole(t)
-			cfg := fixtureCacheConfig()
-			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
-			engine, err := cacheproxy.New(cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer engine.Close()
+			c.settings.UpstreamMode = "proxy"
 			c.checksumURL = cacheproxy.UdonCatalogURL
-			calls := map[string]int{}
-			c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
-				calls[r.URL.Host]++
-				body := monitorNames("20261003000000", "udon").Body
-				code := 200
+			if scenario == "all-failed" {
+				catalog, err := cacheproxy.ParseCatalog(monitorNames("20261001000000", "local").Body, cacheproxy.UdonCatalogURL)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := c.store.SyncCatalog(t.Context(), catalog); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var calls []string
+			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+				calls = append(calls, r.URL.Host)
+				code, scheme := 200, "https"
+				body := monitorFull("kiva", "20261004000000", "backup", strings.Repeat("a", 32)).Body
 				switch r.URL.Host {
 				case "api.udon.dance":
-					if scenario == "udon-failed" {
+					scheme, body = "http", monitorNames("20261003000000", "udon").Body
+					if scenario == "invalid-udon" {
+						body = []byte("{}")
+					} else if scenario != "healthy-udon" {
 						code = 503
 					}
 				case "x.kiva.moe":
-					body = monitorFull("kiva", "20261002000000", "backup", strings.Repeat("a", 32)).Body
-					if scenario == "backups-failed" {
+					if scenario == "kiva-failed" || scenario == "all-failed" {
 						code = 503
 					}
 				case "wanna.kiva.moe":
-					revision := "20261001000000"
-					if scenario == "newer-wanna" {
-						revision = "20261004000000"
-					}
-					body = monitorFull("wanna", revision, "wanna", strings.Repeat("b", 32)).Body
-					if scenario == "backups-failed" {
+					if scenario == "all-failed" {
 						code = 503
 					}
 				default:
-					t.Errorf("unexpected host %s", r.URL.Host)
+					t.Fatal(r.URL)
+				}
+				if r.URL.Scheme != scheme {
+					t.Fatal("wrong source protocol", r.URL)
 				}
 				return &http.Response{StatusCode: code, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
-			})
-			if err := c.refreshLocalCatalog(context.Background(), engine.Store); err != nil {
+			})}
+			err := c.refreshLocalCatalog(t.Context(), c.store)
+			if (err != nil) != (scenario == "all-failed") {
 				t.Fatal(err)
 			}
-			for _, host := range []string{"api.udon.dance", "x.kiva.moe", "wanna.kiva.moe"} {
-				if calls[host] == 0 {
-					t.Fatal("source skipped", host, calls)
-				}
+			wantCalls, wantRevision := []string{"api.udon.dance"}, "20261003000000"
+			if scenario != "healthy-udon" {
+				wantCalls = append(wantCalls, "x.kiva.moe")
+				wantRevision = "20261004000000"
 			}
-			status, err := c.store.CatalogStatus(context.Background())
+			if scenario == "kiva-failed" || scenario == "all-failed" {
+				wantCalls = append(wantCalls, "wanna.kiva.moe")
+			}
+			if scenario == "all-failed" {
+				wantRevision = "20261001000000"
+			}
+			status, err := c.store.CatalogStatus(t.Context())
+			if err != nil || !slices.Equal(calls, wantCalls) || status.Revision != wantRevision {
+				t.Fatal(calls, status, err)
+			}
+			db, err := sql.Open("sqlite", c.settings.DatabasePath)
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := "20261003000000"
-			if scenario == "newer-wanna" {
-				want = "20261004000000"
+			defer db.Close()
+			var mappings int
+			if err := db.QueryRow("SELECT COUNT(*) FROM song_media").Scan(&mappings); err != nil {
+				t.Fatal(err)
 			}
-			if scenario == "udon-failed" {
-				want = "20261002000000"
-			}
-			if status.Revision != want {
-				t.Fatal(status, want)
-			}
-			// The failure of optional sources never blocks accepted Udon metadata.
-			target, release, err := engine.ReadDownloadTarget(context.Background(), cacheproxy.DownloadTarget{SongID: "1"})
-			defer release()
-			if err != nil || len(target.Songs) != 1 {
-				t.Fatal(target, err)
-			}
-			wantMD5 := strings.Repeat("a", 32)
-			if scenario == "newer-wanna" {
-				wantMD5 = strings.Repeat("b", 32)
-			}
-			if scenario == "backups-failed" {
-				wantMD5 = ""
-			}
-			if target.Songs[0].MD5 != wantMD5 {
-				t.Fatal(target.Songs[0].MD5, wantMD5)
+			if (mappings > 0) != (scenario != "healthy-udon" && scenario != "all-failed") {
+				t.Fatal("healthy Udon should not request backup mappings; fallback must retain them", mappings)
 			}
 		})
 	}

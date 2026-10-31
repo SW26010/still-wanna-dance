@@ -110,7 +110,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		return fixture(r)
 	})
 	initial := m.Snapshot()
-	if len(initial.Results) != 4 {
+	if len(initial.Results) != 2 {
 		t.Fatal(initial)
 	}
 	for _, r := range initial.Results {
@@ -122,7 +122,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := m.Snapshot()
-	if len(snapshot.Results) != 5 {
+	if len(snapshot.Results) != 3 {
 		t.Fatal(snapshot)
 	}
 	for _, r := range snapshot.Results {
@@ -149,11 +149,11 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 		m.Snapshot()
 		m.Results(Resource)
 	}
-	if calls.Load() != 5 {
+	if calls.Load() != 3 {
 		t.Fatal("read triggered I/O", calls.Load())
 	}
 	snapshot.Results[0].Entry = "changed"
-	*snapshot.Results[4].EstimatedSpeedBPS = -1
+	*snapshot.Results[2].EstimatedSpeedBPS = -1
 	resources := m.Results(Resource)
 	resources[0].Route = "changed"
 	*resources[0].EstimatedLatencyMS = -1

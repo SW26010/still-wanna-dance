@@ -13,8 +13,6 @@ func TestOperationAndRouteIsolation(t *testing.T) {
 	m.mu.Lock()
 	for _, o := range []observation{
 		{op: Catalog, route: "api", state: "available", at: now, duration: time.Second, bytes: 100},
-		{op: Catalog, route: "kiva", state: "available", at: now, duration: time.Second, bytes: 120},
-		{op: Catalog, route: "wanna", state: "available", at: now, duration: time.Second, bytes: 120},
 		{op: PlaybackURL, route: "cf", state: "available", at: now, duration: 10 * time.Millisecond, songID: 42},
 		{op: Resource, route: "play.udon.dance", state: "upstream_error", http: 503, stage: "headers", at: now, songID: 42},
 		{op: Resource, route: "nya.xin.moe", state: "available", at: now, duration: time.Second, bytes: 65536, songID: 42},
@@ -96,7 +94,7 @@ func TestBoundedHistoryAndLateResults(t *testing.T) {
 	if r := resultFor(t, m, PlaybackURL, "cf"); r.Samples != 1 || r.SampleSongID != 43 || *r.ProbeDurationMS != 80 {
 		t.Fatal(r)
 	}
-	if r := resultFor(t, m, Catalog, "kiva"); r.State != "unknown" {
+	if r := resultFor(t, m, Catalog, "api"); r.State != "unknown" {
 		t.Fatal("history leaked across routes", r)
 	}
 }
@@ -104,33 +102,37 @@ func TestBoundedHistoryAndLateResults(t *testing.T) {
 func TestResultsIndependentOfReadsAndCompletionOrder(t *testing.T) {
 	now := time.Now()
 	var expected []Result
-	for _, first := range []string{"api", "kiva"} {
+	for _, first := range []string{"play.udon.dance", "nya.xin.moe"} {
 		for _, read := range []bool{false, true} {
 			m := testMonitor(t, func(*http.Request) (*http.Response, error) { t.Fatal("read triggered I/O"); return nil, nil })
-			second := "kiva"
-			if first == "kiva" {
-				second = "api"
+			second := "nya.xin.moe"
+			if first == "nya.xin.moe" {
+				second = "play.udon.dance"
+			}
+			m.resourceSources = map[string]observation{
+				"fixture/play.udon.dance": {resourceHost: "play.udon.dance", at: now},
+				"fixture/nya.xin.moe":     {resourceHost: "nya.xin.moe", at: now},
 			}
 			for i, route := range []string{first, second} {
 				d := 100 * time.Millisecond
-				if route == "kiva" {
+				if route == "nya.xin.moe" {
 					d = 95 * time.Millisecond
 				}
 				m.mu.Lock()
-				recordFixture(m, observation{op: Catalog, route: route, state: "available", duration: d, latency: d, at: now, songID: 42})
+				recordFixture(m, observation{op: Resource, route: route, state: "available", duration: d, latency: d, at: now, songID: 42})
 				m.mu.Unlock()
 				if i == 0 && read {
 					for range 10 {
-						m.Results(Catalog)
+						m.Results(Resource)
 						m.Snapshot()
 					}
-					if r := resultFor(t, m, Catalog, second); r.State != "unknown" || r.Entry == "" {
+					if r := resultFor(t, m, Resource, second); r.State != "unknown" || r.Entry == "" {
 						t.Fatal("missing pending route", r)
 					}
 				}
 			}
-			got := m.Results(Catalog)
-			if len(got) != 3 || got[0].Route != "api" || got[1].Route != "kiva" || *got[0].ProbeDurationMS != 100 || *got[1].ProbeDurationMS != 95 {
+			got := m.Results(Resource)
+			if len(got) != 2 || got[0].Route != "play.udon.dance" || got[1].Route != "nya.xin.moe" || *got[0].ProbeDurationMS != 100 || *got[1].ProbeDurationMS != 95 {
 				t.Fatal(got)
 			}
 			if expected == nil {

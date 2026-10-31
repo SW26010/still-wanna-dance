@@ -10,7 +10,9 @@ import (
 
 // Direct Monitor responses may feed the independent business synchronization.
 func (c *Console) newUpstreamMonitor(o upstreamstate.Options) (*upstreamstate.Monitor, error) {
-	o.OnCatalog = c.syncCatalogs
+	o.OnCatalog = func(ctx context.Context, responses []upstreamstate.CatalogResponse) {
+		c.syncCatalogs(ctx, responses)
+	}
 	o.OnPlaybackURL = c.syncPlaybackURL
 	o.Resources = c.resources
 	return upstreamstate.NewMonitor(o)

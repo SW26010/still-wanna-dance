@@ -1,5 +1,7 @@
 # 上游模块收敛验证
 
+本日后续实施已将协议固定并改为按需备用清单，见[后续验证](fixed-upstream-protocol-20261031.md)；本文涉及三清单必测、协议回退和 Session 的描述仅适用于当时阶段。
+
 日期：2026-10-31。现行规则见[上游请求、检测与直连通道](../upstream-channels.md)、[曲库设计](../song-catalog-design.md)及[资源域名规则](../resource-domains.md)。本批使用 Windows、Go 1.27.3、pnpm 11.25.0 和 Edge；原始日志、截图及构建产物位于忽略目录 `artifacts/upstream-refactor/`。
 
 本文按实施阶段保留结果。前几节的“独立曲库周期请求／仅手动连通性检测”及构建身份属于当时实现，已由“自动与手动统一检测”一节替代；历史失败和证据不改写。

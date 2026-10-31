@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -59,4 +60,22 @@ func (s *Server) StorageError() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return errors.Join(s.storageFailure, s.Store.Error())
+}
+
+func (s *Store) metadataWriteError(ctx context.Context, err error) error {
+	// Cancellation may roll back the transaction before Commit checks its state.
+	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	// Input validation has already succeeded before this boundary. Preserve the
+	// existing terminal failure contract for an unexpected transaction failure,
+	// including a constraint/trigger failure that invalidates this write.
+	if !isLocalStorageError(err) {
+		return err
+	}
+	if !errors.Is(err, ErrLocalStorage) {
+		err = fmt.Errorf("%w: %w", ErrLocalStorage, err)
+	}
+	s.retainFailure(err)
+	return err
 }

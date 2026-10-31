@@ -44,7 +44,11 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 		return context.Canceled
 	}
 	defer s.wg.Done()
-	defer func() { resultErr = s.storageError(resultErr) }()
+	defer func() {
+		if !errors.Is(resultErr, ErrCatalogOlder) && !errors.Is(resultErr, ErrCatalogConflict) {
+			resultErr = s.metadataWriteError(ctx, resultErr)
+		}
+	}()
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
@@ -204,19 +208,6 @@ func (s *Store) observeCatalogVersion(c Catalog) {
 		}
 		s.log.Warn("catalog_backup_newer_than_udon", "source", backup.source, "revision", backup.revision, "observed_at", backup.at, "udon_revision", udon.revision, "udon_observed_at", udon.at)
 	}
-}
-
-// CatalogNeedsMappings only asks about current members. Historical placeholders
-// do not force backup retrieval on every explicit refresh.
-func (s *Store) CatalogNeedsMappings(ctx context.Context) (missing bool, resultErr error) {
-	if !s.beginRequest() {
-		return false, context.Canceled
-	}
-	defer s.wg.Done()
-	defer func() { resultErr = s.storageError(resultErr) }()
-	resultErr = s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM catalog_members c
- LEFT JOIN song_media m ON m.song_id=c.song_id WHERE m.md5 IS NULL)`).Scan(&missing)
-	return
 }
 
 func commitCatalogCheck(ctx context.Context, tx *sql.Tx, message string) error {

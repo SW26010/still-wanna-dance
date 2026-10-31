@@ -14,7 +14,7 @@ import (
 )
 
 // Reuse probe bodies; parsing happens outside storage lifecycle locks.
-func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.CatalogResponse) {
+func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.CatalogResponse) (usable bool, resultErr error) {
 	type candidate struct {
 		full             *cacheproxy.Catalog
 		revision, source string
@@ -75,7 +75,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	c.mu.Unlock()
 	if err != nil {
 		slog.Warn("catalog_sync_sync_failed", "error", err)
-		return
+		return false, err
 	}
 	for _, v := range candidates {
 		if ctx.Err() != nil {
@@ -84,7 +84,12 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		err = store.SyncCatalog(ctx, *v.full)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
 			slog.Warn("catalog_sync_sync_failed", "source", v.source, "revision", v.revision, "error", err)
+			if errors.Is(err, cacheproxy.ErrLocalStorage) {
+				return false, err
+			}
 			failures = append(failures, fmt.Errorf("%s: %w", v.source, err))
+		} else {
+			usable = true
 		}
 	}
 	// Record after the entire round so a later duplicate or older mirror cannot
@@ -92,9 +97,11 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	if len(failures) > 0 && ctx.Err() == nil {
 		if err := store.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
 			slog.Warn("catalog_sync_status_failed", "error", err)
+			return usable, err
 		}
 	}
-	if ctx.Err() == nil {
+	if usable && ctx.Err() == nil {
 		c.catalogDataUpdated()
 	}
+	return usable, ctx.Err()
 }

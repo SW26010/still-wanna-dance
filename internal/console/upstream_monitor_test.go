@@ -137,7 +137,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
-	if !s.Scheduled || len(s.Results) != 10 || calls.Load() != 15 {
+	if !s.Scheduled || len(s.Results) != 6 || calls.Load() != 9 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {
@@ -158,7 +158,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if len(status.Monitor.Results) != 10 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
+	if len(status.Monitor.Results) != 6 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
 		t.Fatal("status not a pure canonical snapshot", w.Body.String())
 	}
 	if err := c.requestMonitorCheck(); err == nil {

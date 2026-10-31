@@ -12,10 +12,10 @@ func TestCatalogDeliveryReusesAllProbeResponses(t *testing.T) {
 			var m *Monitor
 			var requests int
 			var f *candidateFixture
-			want, wantRequests := 3, 3
+			want, wantRequests := 1, 1
 			if mode == "candidates" {
 				m, f = candidateMonitor(t)
-				want, wantRequests = 6, 6
+				want, wantRequests = 2, 2
 			} else {
 				m = testMonitor(t, func(r *http.Request) (*http.Response, error) { requests++; return fixture(r) })
 			}

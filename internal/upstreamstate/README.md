@@ -12,17 +12,15 @@
 
 ## 检查对象
 
-歌曲清单的入口 ID、URL 和顺序取自 [catalogmeta](../catalogmeta/sources.go)，候选发现与实际探测使用同一份定义。播放入口清单取自 [playbacksource](../playbacksource/source.go)，与业务解析和持久化地址筛选共享来源规则。Monitor 保留自己的计时、健康分类和结果交付，不承担业务缓存、下载或查询生命周期。
+Monitor 的歌曲清单检查只使用 [catalogmeta](../catalogmeta/sources.go) 定义的 Udon 入口（api），候选发现与实际探测使用同一份定义。Kiva、WannaInfo 的完整清单兜底由 Console 通过普通请求路径按需尝试，不进入 Monitor 的定期检查、健康或推荐，触发规则见[上游检测与测速](../../docs/upstream-channels.md#上游检测与测速)。播放入口清单取自 [playbacksource](../playbacksource/source.go)，与业务解析和持久化地址筛选共享来源规则。Monitor 保留自己的计时、健康分类和结果交付，不承担业务缓存、下载或查询生命周期。
 
 | 操作 | 入口 | 检查内容 |
 | --- | --- | --- |
 | Catalog / api | api.udon.dance/Api/Songs/list | 完整 JSON、有效歌曲 ID；正文交给 Console 完整校验，参与歌曲资料、当前成员及共享水位更新 |
-| Catalog / kiva | x.kiva.moe/api/v2/wanna/songs | 业务状态码、清单版本、正数歌曲 ID、合法且无冲突的 MD5 |
-| Catalog / wanna | wanna.kiva.moe/api/wannaInfo | 同上，独立清单入口 |
 | PlaybackURL | 播放 API 的 node=cf | 重定向、目标主机和资源元数据 |
 | Resource | API 当前返回的域名集合 | 实际解析出的资源 URL，连续 Range 下载，3 秒、16 MiB 或整首结束，先到即停 |
 
-Catalog 标识为 api、kiva、wanna；PlaybackURL 标识为 cf（固定 node=cf，不查询或回退 node=nya）；Resource 标识直接使用返回 URL 的域名，不预设域名名单或数量。接口节点与资源域名没有固定对应关系。每个接口/通道的新结果替换旧结果，样本到期或对应候选退休后移出集合；空集合不生成资源候选。域名与 IP 地理位置只描述观测，不推断 HKG/CF 身份。详见[资源域名规则](../../docs/resource-domains.md)。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。三个清单入口每轮独立检测各自全部候选，按各自响应格式校验，失败不影响其他入口。每轮从有效列表的去重正数歌曲 ID 中均匀随机采样；优先用本轮 Udon 样本，无有效样本时依次用 Kiva、WannaInfo；三个列表均失败可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。每轮按返回域名合并资源样本；同一域名即使由多个接口或 API 通道返回，也仅检测一次该域名的每个资源通道。没有取得某域名的合法 URL 时不改写其它域名的 URL 来补测，也不把 API 的失败归到该域名。同一域名的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
+Catalog 标识为 api；PlaybackURL 标识为 cf（固定 node=cf，不查询或回退 node=nya）；Resource 标识直接使用返回 URL 的域名，不预设域名名单或数量。接口节点与资源域名没有固定对应关系。每个接口/通道的新结果替换旧结果，样本到期或对应候选退休后移出集合；空集合不生成资源候选。域名与 IP 地理位置只描述观测，不推断 HKG/CF 身份。详见[资源域名规则](../../docs/resource-domains.md)。Entry 标识服务，资源 Entry 不是任意歌曲的播放 URL。每轮检测 Udon 清单的全部候选，从有效列表的去重正数歌曲 ID 中均匀随机采样；无有效样本时可在 SampleLifetime 内复用旧 ID，首次没有样本时不猜测视频地址。每轮按返回域名合并资源样本；同一域名即使由多个接口或 API 通道返回，也仅检测一次该域名的每个资源通道。没有取得某域名的合法 URL 时不改写其它域名的 URL 来补测，也不把 API 的失败归到该域名。同一域名的所有资源候选共用本轮解析出的一个合法样本，不把不同 IP 返回的不同视频混作吞吐比较。
 
 歌曲样本不保证全部歌曲或完整下载可用。业务仍须校验实际资源版本、响应及完整内容。
 
@@ -31,7 +29,7 @@ Catalog 标识为 api、kiva、wanna；PlaybackURL 标识为 cf（固定 node=cf
 ## 接口
 
 - NewMonitor(Options)：只构造，不发请求。
-- Options.OnCatalog：交付成功的 Udon、Kiva、WannaInfo 清单及来源，在 Monitor 锁外复用正文而不增加请求，取消或已退休网络配置的批次不交付。Console 完整解析候选，按版本从新到旧、同版 Udon 优先同步，仅使用 `songs` 水位；存储失败单独记录，不改变探测结果或测速耗时。
+- Options.OnCatalog：交付成功的 Udon 清单及来源，在 Monitor 锁外复用正文而不增加请求，取消或已退休网络配置的批次不交付。Console 完整解析候选，按版本从新到旧同步，仅使用 `songs` 水位；存储失败单独记录，不改变探测结果或测速耗时。
 - Options.OnPlaybackURL：候选探测在播放 API 返回有效地址后、资源采样前交付完整 URL、请求歌曲 ID、无查询参数的 API、实际节点值 cf 及原请求起止时间。自动与手动检测复用同一回调，节点/通道间可并发调用，均在 Monitor 锁外；取消或已退休批次不交付，Close 取消并等待回调。Console 复用 `ObserveSongURL` 在同一事务保存地址、资源大小和当前歌曲映射，按同一歌曲跨节点的查询发起时间拒绝迟到观察，不增加解析或下载请求；存储失败单独记录，不算作上游故障，也不计入探测耗时。每轮只更新所选歌曲，不在单轮遍历全库；完整签名 URL 不进入状态快照。网络页连通性检测直接调用同一业务清单及播放地址同步入口，写入当前生效存储库；未应用的存储目录草稿不提前生效。
 - Options.OnProgress：在锁外交付检测阶段、本轮 Started 及当前观测，Operation 为空表示本轮结束；同轮串行调用，取消或退休批次不再交付。进度中没有清单正文或签名 URL，展示层只汇总结果，不自行发起探测。该接口只属于直连观察者，通用手动诊断不订阅 Monitor。
 - Options.PlaybackSongCandidates：仅保留独立直连实验的固定样本覆盖入口，取第一个合法 ID；生产曲库补齐不注册该回调，公平遍历与存储读取完全归 `catalogsync`。
@@ -55,7 +53,7 @@ if ok {
 
 ## 结果与推荐
 
-CatalogTime 保留上游响应原始 time 字符串（Udon 顶层 time，其余两个入口 data.time），与 ObservedAt 区分；缺失时为空，不伪造时间。WebUI 按清单分别显示，并保留不同候选的时间差异。
+CatalogTime 保留 Udon 清单响应的顶层 time 原始字符串，与 ObservedAt 区分；缺失时为空，不伪造时间，保留不同候选的时间差异。
 
 结果包含 Operation、Route、Entry、ChannelID、Mode、IP、Scheme、State、Reason、Stage、HTTP、ObservedAt、ValidUntil、Samples、SampleSongID。Scheme 是实际执行协议，Entry 继续标识服务。无有效估计时数值为 nil，不是零耗时。
 

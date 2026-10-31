@@ -31,7 +31,7 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				t.Fatal(err)
 			}
 			var rejected, catalogs, playback, resources atomic.Int32
-			good := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/Api/Songs/play":
 					playback.Add(1)
@@ -57,16 +57,9 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				}
 			}))
 			defer good.Close()
-			plainGood := httptest.NewServer(good.Config.Handler)
-			defer plainGood.Close()
 			healthy := good.Client().Transport.(*http.Transport).Clone()
-			healthy.TLSClientConfig.ServerName = good.Certificate().DNSNames[0]
-			healthy.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-				target := good.Listener.Addr().String()
-				if _, port, _ := net.SplitHostPort(address); port == "80" {
-					target = plainGood.Listener.Addr().String()
-				}
-				return (&net.Dialer{}).DialContext(ctx, network, target)
+			healthy.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, good.Listener.Addr().String())
 			}
 			defer healthy.CloseIdleConnections()
 			failed := healthy.Clone()
@@ -92,7 +85,7 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 					return (&net.Dialer{}).DialContext(ctx, network, bad.Addr().String())
 				}
 			} else {
-				bad := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					rejected.Add(1)
 					if failure == "http_status" {
 						w.WriteHeader(http.StatusServiceUnavailable)
@@ -104,14 +97,8 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 					}
 				}))
 				defer bad.Close()
-				plainBad := httptest.NewServer(bad.Config.Handler)
-				defer plainBad.Close()
-				failed.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-					target := bad.Listener.Addr().String()
-					if _, port, _ := net.SplitHostPort(address); port == "80" {
-						target = plainBad.Listener.Addr().String()
-					}
-					return (&net.Dialer{}).DialContext(ctx, network, target)
+				failed.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+					return (&net.Dialer{}).DialContext(ctx, network, bad.Listener.Addr().String())
 				}
 			}
 			c.client.Transport = &coldBusinessChannels{RoundTripper: failed, channels: []upstreamrequest.Candidate{
@@ -131,8 +118,8 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				t.Fatalf("missing metadata was not stored: urls=%v err=%v", urls, err)
 			}
 			status, err := c.store.CatalogStatus(ctx)
-			wantRejected := int32(5)
-			if err != nil || status.Revision != "20261031000000" || catalogs.Load() != 3 || playback.Load() != 1 || rejected.Load() != wantRejected {
+			wantRejected := int32(3)
+			if err != nil || status.Revision != "20261031000000" || catalogs.Load() != 1 || playback.Load() != 1 || rejected.Load() != wantRejected {
 				t.Fatalf("catalog=%+v err=%v catalog requests=%d playback=%d rejected=%d", status, err, catalogs.Load(), playback.Load(), rejected.Load())
 			}
 			if resources.Load() != 1 {

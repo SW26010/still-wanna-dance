@@ -253,13 +253,19 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 		t.Fatal(state)
 	}
 	for _, row := range state.Results {
+		if row.Operation == upstreamcheck.Catalog && row.Entry != "api" {
+			if row.State != "skipped" {
+				t.Fatal(row)
+			}
+			continue
+		}
 		if row.State != "available" || row.LatencyMS == nil {
 			t.Fatal("missing successful summary", row)
 		}
 	}
-	// Three lists, the CF playback entry, one deduplicated resource host. Storage
+	// One list, the CF playback entry, one deduplicated resource host. Storage
 	// initialization must not fetch any of those responses a second time.
-	if requests.Load() != 5 {
+	if requests.Load() != 3 {
 		t.Fatal("unexpected upstream request count", requests.Load())
 	}
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
@@ -329,7 +335,7 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 	stubNetworkDiagnostics(t, c)
 	entered := make(chan struct{})
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Host == "wanna.kiva.moe" {
+		if r.URL.Host == "api.udon.dance" {
 			close(entered)
 			<-r.Context().Done()
 			return nil, r.Context().Err()

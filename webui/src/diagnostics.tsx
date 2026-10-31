@@ -113,7 +113,7 @@ export function Diagnostics({visible}: {visible:boolean}) {
       <div><span role="status">{connectivity.intent==='start'?'正在启动…':discard?c?.running?'正在停止…':'已放弃本次检测':''}</span></div>
       <div className="diagnostic-rows">{shown.map(row=><p key={row.operation+'/'+(row.entry||'')}>
         {row.state==='checking'&&<Spinner size="tiny"/>}{names[row.operation]}{row.entry?' · '+(entries[row.entry]||row.entry):''}：
-        {({available:'可连接',failed:'连接失败',skipped:'未检测（缺少有效样本）',checking:'检测中'}[row.state||'']||(c?.running&&!discard?'等待检测':'尚未检测'))}
+        {({available:'可连接',failed:'连接失败',skipped:row.operation==='catalog'?'未使用（已有可用清单）':'未检测（缺少有效样本）',checking:'检测中'}[row.state||'']||(c?.running&&!discard?'等待检测':'尚未检测'))}
         {row.reason&&reasons[row.reason]?' · '+reasons[row.reason]:''}{valid(row.latencyMS)&&(' · 响应时间 '+Math.round(row.latencyMS)+' ms')}{row.scheme?' · '+row.scheme.toUpperCase():''}
         {dated(row.observedAt)&&<Caption1 block className="secondary">检测时间：<time dateTime={row.observedAt}>{date(row.observedAt)}</time></Caption1>}
       </p>)}</div>

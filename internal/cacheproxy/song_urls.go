@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"net/url"
@@ -68,7 +67,7 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 		return err
 	}
 	// Roll back/release the database transaction before retaining a storage fault.
-	defer func() { resultErr = s.songURLStorageError(ctx, resultErr) }()
+	defer func() { resultErr = s.metadataWriteError(ctx, resultErr) }()
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
 	s.mappingMu.Lock()
@@ -127,24 +126,6 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 	}
 	s.changed(false)
 	return nil
-}
-
-func (s *Store) songURLStorageError(ctx context.Context, err error) error {
-	// Cancellation may roll back the transaction before Commit checks its state.
-	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
-		err = ctx.Err()
-	}
-	// Input validation has already succeeded before this boundary. Preserve the
-	// existing terminal failure contract for an unexpected transaction failure,
-	// including a constraint/trigger failure that invalidates this write.
-	if !isLocalStorageError(err) {
-		return err
-	}
-	if !errors.Is(err, ErrLocalStorage) {
-		err = fmt.Errorf("%w: %w", ErrLocalStorage, err)
-	}
-	s.retainFailure(err)
-	return err
 }
 
 // SongURLs returns recent usable observations without probing them. Empty node

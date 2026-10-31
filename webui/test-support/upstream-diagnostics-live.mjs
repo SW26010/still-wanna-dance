@@ -20,6 +20,7 @@ try {
   expect(started.request().postDataJSON()).toEqual({});
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   await expect(page.locator('.diagnostic-rows p')).toHaveCount(5);
+  await expect(page.getByText('未使用（已有可用清单）',{exact:false})).toHaveCount(2);
   await expect(page.locator('.diagnostic-rows')).not.toContainText('连接失败');
   await expect(page.locator('.diagnostic-rows')).toContainText('响应时间');
   await expect(page.locator('.diagnostic-rows')).not.toContainText('估计');

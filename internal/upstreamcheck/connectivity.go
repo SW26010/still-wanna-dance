@@ -18,7 +18,9 @@ type ConnectivityAccess struct {
 // ConnectivityBusiness consumes the same responses that produced observations.
 // Selection and persistence are business decisions, not network health signals.
 type ConnectivityBusiness struct {
-	OnCatalog     func(context.Context, []CatalogResponse)
+	// OnCatalog reports acceptance separately from a local execution failure.
+	// Rejected content permits a backup; storage/cancellation errors stop the run.
+	OnCatalog     func(context.Context, []CatalogResponse) (bool, error)
 	SelectSong    func(context.Context, int64) int64
 	OnPlaybackURL func(context.Context, PlaybackURLResponse)
 }
@@ -27,27 +29,29 @@ type ConnectivityBusiness struct {
 // Initialization retries check catalogs only and publish no other observations.
 func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business ConnectivityBusiness, catalogOnly bool, publish func(Result)) {
 	checking := func(op Operation, route string) { publish(Result{Operation: op, Route: route, State: "checking"}) }
-	var responses []CatalogResponse
 	var sampleSong int64
+	accepted := false
 	for _, route := range catalogmeta.SourceIDs() {
 		if ctx.Err() != nil {
 			return
+		}
+		if accepted {
+			publish(Result{Operation: Catalog, Route: route, State: "skipped"})
+			continue
 		}
 		checking(Catalog, route)
 		result, id, response := access.Catalog(ctx, route)
 		publish(result)
 		if len(response.Body) > 0 {
-			responses = append(responses, response)
+			var err error
+			accepted, err = business.OnCatalog(ctx, []CatalogResponse{response})
+			if err != nil {
+				return
+			}
+			if accepted {
+				sampleSong = id
+			}
 		}
-		if sampleSong == 0 && id > 0 {
-			sampleSong = id
-		}
-	}
-	if ctx.Err() != nil {
-		return
-	}
-	if len(responses) > 0 {
-		business.OnCatalog(ctx, responses)
 	}
 	if catalogOnly || ctx.Err() != nil {
 		return

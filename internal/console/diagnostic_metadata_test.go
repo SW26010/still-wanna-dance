@@ -33,8 +33,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 				header := make(http.Header)
 				switch r.URL.Path {
 				case "/Api/Songs/list":
-					// Deliberately different from local candidates: this must only
-					// be used after the database has no missing metadata.
+					// Invalid primary content must not supply the ordinary sample.
 					body = `{"groups":{"contents":[{"songInfos":[{"id":99}]}]}}`
 					mu.Lock()
 					lists++
@@ -84,7 +83,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 			before := upstreamrequest.Default.Snapshot()
 			// The completed middle ID leaves the set. Canceling the low ID keeps
 			// the pass position, then the next pass retries high before low.
-			for round, want := range []int64{high, middle, low, high, low, high, high, 99} {
+			for round, want := range []int64{high, middle, low, high, low, high, high, 0} {
 				mu.Lock()
 				blocked, requested = round == 2, nil
 				recoverHigh = round >= 6
@@ -114,7 +113,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 					t.Fatalf("round %d requests: %v", round, ids)
 				}
 				for _, id := range ids {
-					if id != want {
+					if want != 0 && id != want || want == 0 && !slices.Contains([]int64{low, middle, high}, id) {
 						t.Fatalf("round %d requested %v, want %d", round, ids, want)
 					}
 				}
@@ -123,7 +122,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 				}
 			}
 			pending := c.metadataSongCandidates(context.Background())
-			if len(pending) != 0 || lists != 24 || resources != 4 {
+			if len(pending) != 0 || lists != 16 || resources != 4 {
 				t.Fatalf("pending=%v lists=%d resources=%d", pending, lists, resources)
 			}
 			for _, id := range []int64{low, middle, high} {

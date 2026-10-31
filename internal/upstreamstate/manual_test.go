@@ -109,7 +109,7 @@ func TestSelectedChecksScopeAndBusinessPriority(t *testing.T) {
 					t.Fatal(err)
 				}
 				if kind == CheckCatalog {
-					if catalogs.Load() != 3*multiplier || playbacks.Load() != 0 {
+					if catalogs.Load() != multiplier || playbacks.Load() != 0 {
 						t.Fatal("wrong catalog scope")
 					}
 				} else if catalogs.Load() != 0 || playbacks.Load() != multiplier {

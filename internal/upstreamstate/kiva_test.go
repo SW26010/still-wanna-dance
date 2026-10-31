@@ -7,34 +7,28 @@ import (
 	"testing"
 )
 
-func TestCatalogSourcesFailIndependently(t *testing.T) {
-	for _, failed := range []string{"api.udon.dance", "x.kiva.moe", "wanna.kiva.moe"} {
-		t.Run(failed, func(t *testing.T) {
-			m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
-				if r.URL.Host == failed && r.URL.Path != "/Api/Songs/play" {
-					return response(503, ""), nil
-				}
-				return fixture(r)
-			})
-			if err := m.Check(context.Background()); err != nil {
-				t.Fatal(err)
+func TestMonitorChecksOnlyUdonCatalog(t *testing.T) {
+	for _, failed := range []bool{false, true} {
+		m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
+			if r.URL.Host == "x.kiva.moe" || r.URL.Host == "wanna.kiva.moe" {
+				t.Fatal("optional catalog requested by optimization", r.URL)
 			}
-			for _, route := range routeIDs(Catalog) {
-				r := resultFor(t, m, Catalog, route)
-				want := "available"
-				if strings.Contains(r.Entry, failed) {
-					want = "unavailable"
-				}
-				if r.State != want {
-					t.Fatalf("%+v", r)
-				}
+			if failed && r.URL.Path == "/Api/Songs/list" {
+				return response(503, ""), nil
 			}
-			for _, r := range m.Results(Resource) {
-				if r.State != "available" || r.SampleSongID != 42 {
-					t.Fatalf("healthy catalog did not seed video probes: %+v", r)
-				}
-			}
+			return fixture(r)
 		})
+		if err := m.CheckSelected(context.Background(), CheckCatalog); err != nil {
+			t.Fatal(err)
+		}
+		rows := m.Results(Catalog)
+		want := "available"
+		if failed {
+			want = "unavailable"
+		}
+		if len(rows) != 1 || rows[0].Route != "api" || rows[0].State != want {
+			t.Fatal(rows)
+		}
 	}
 }
 
@@ -55,6 +49,9 @@ func TestCatalogResponseTimeIsIndependentOfObservationTime(t *testing.T) {
 			if o.state != "available" || id != 42 || o.catalogTime != tc.want || o.at.IsZero() {
 				t.Fatal(o, id)
 			}
+			if tc.route != "api" {
+				return
+			}
 			m := testMonitor(t, transportFunc(fixture))
 			m.mu.Lock()
 			recordFixture(m, o)
@@ -72,25 +69,5 @@ func TestCatalogResponseTimeIsIndependentOfObservationTime(t *testing.T) {
 				t.Fatal(r)
 			}
 		})
-	}
-}
-
-func TestWannaInfoCanSeedResourcesWhenOtherCatalogsFail(t *testing.T) {
-	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
-		if r.URL.Path == "/Api/Songs/list" || r.URL.Host == "x.kiva.moe" {
-			return response(503, ""), nil
-		}
-		return fixture(r)
-	})
-	if err := m.Check(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if r := resultFor(t, m, Catalog, "wanna"); r.State != "available" || r.CatalogTime != "20261005000000" {
-		t.Fatal(r)
-	}
-	for _, r := range m.Results(Resource) {
-		if r.State != "available" || r.SampleSongID != 42 {
-			t.Fatal(r)
-		}
 	}
 }

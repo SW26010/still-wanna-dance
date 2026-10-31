@@ -230,7 +230,7 @@ func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
 	if !errors.Is(commitErr, sql.ErrTxDone) {
 		t.Fatalf("did not reproduce rollback before Commit: %v", commitErr)
 	}
-	if err := s.songURLStorageError(ctx, commitErr); !errors.Is(err, context.Canceled) || s.StorageError() != nil {
+	if err := s.metadataWriteError(ctx, commitErr); !errors.Is(err, context.Canceled) || s.StorageError() != nil {
 		t.Fatalf("cancellation poisoned storage: returned=%v retained=%v", err, s.StorageError())
 	}
 	var count int
@@ -268,7 +268,7 @@ func TestSongURLTransactionErrorClassification(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := new(Store)
-			got := s.songURLStorageError(tc.ctx, tc.err)
+			got := s.metadataWriteError(tc.ctx, tc.err)
 			if !errors.Is(got, tc.want) || (s.Error() != nil) != tc.storage || errors.Is(got, ErrLocalStorage) != tc.storage {
 				t.Fatalf("returned=%v retained=%v, want=%v storage=%v", got, s.Error(), tc.want, tc.storage)
 			}

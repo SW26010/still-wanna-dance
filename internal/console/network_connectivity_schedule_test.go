@@ -101,6 +101,12 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 			t.Fatal("manual round did not publish/reset the shared schedule", manual)
 		}
 		for _, row := range manual.Results {
+			if row.Operation == upstreamcheck.Catalog && row.Entry != "api" {
+				if row.State != "skipped" || row.LatencyMS != nil || !row.ObservedAt.IsZero() {
+					t.Fatal(row)
+				}
+				continue
+			}
 			if row.State != "available" || row.LatencyMS == nil || row.ObservedAt.Before(first.Finished) {
 				t.Fatal("manual completion did not publish current observations", row)
 			}
@@ -112,7 +118,7 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 		}
 		time.Sleep(2 * time.Minute)
 		synctest.Wait()
-		if !slices.Equal(requested(), []int64{900002, 900001, 900002}) || catalogs.Load() != 9 || resources.Load() != 1 {
+		if !slices.Equal(requested(), []int64{900002, 900001, 900002}) || catalogs.Load() != 3 || resources.Load() != 1 {
 			t.Fatal("triggers did not share one traversal/response", requested(), catalogs.Load(), resources.Load())
 		}
 		if pending := c.metadataSongCandidates(t.Context()); !slices.Equal(pending, []int64{900002}) {
@@ -132,7 +138,7 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 	})
 }
 
-func TestAutomaticConnectivityBackoffKeepsUncheckedObservations(t *testing.T) {
+func TestAutomaticConnectivityStopsOnStorageFailureAndBacksOff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := automaticTestConsole(t)
 		db, err := sql.Open("sqlite", c.settings.DatabasePath)
@@ -158,6 +164,12 @@ func TestAutomaticConnectivityBackoffKeepsUncheckedObservations(t *testing.T) {
 		synctest.Wait()
 		first := connectivitySnapshot(c)
 		for _, row := range first.Results {
+			if row.Entry != "api" {
+				if !row.ObservedAt.IsZero() {
+					t.Fatal(row)
+				}
+				continue
+			}
 			if row.State != "available" || row.LatencyMS == nil || row.ObservedAt.IsZero() {
 				t.Fatal("storage failure changed a network result", row)
 			}
@@ -178,11 +190,11 @@ func TestAutomaticConnectivityBackoffKeepsUncheckedObservations(t *testing.T) {
 			}
 			time.Sleep(time.Nanosecond)
 			synctest.Wait()
-			if catalogs.Load() != before+3 || playback.Load() != 1 {
+			if catalogs.Load() != before+1 || playback.Load() != 0 {
 				t.Fatal("initialization retry checked non-catalog entries", catalogs.Load(), playback.Load())
 			}
 			for i, row := range connectivitySnapshot(c).Results {
-				if row.Operation == upstreamcheck.Catalog {
+				if row.Operation == upstreamcheck.Catalog && row.Entry == "api" {
 					if !row.ObservedAt.After(state.Finished) {
 						t.Fatal("catalog result not refreshed", row)
 					}

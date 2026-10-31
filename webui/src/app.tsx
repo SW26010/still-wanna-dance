@@ -15,7 +15,7 @@ import { VRCXProvider } from './vrcx';
 
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
 type Page = keyof typeof pages;
-const anchors:Record<string,Page>={activation:'home',service:'network',queue:'home',overview:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'network','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnStopOrExit:'settings',prepareAheadSeconds:'settings',videoBudgetGiB:'settings','storage-settings':'settings','video-import':'library','vrcx-import':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
+const anchors:Record<string,Page>={activation:'home',service:'home',queue:'home',overview:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'home','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnStopOrExit:'settings',prepareAheadSeconds:'settings',videoBudgetGiB:'settings','storage-settings':'settings','video-import':'library','vrcx-import':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
 export function route(hash: string): Page {
   const key = hash.replace(/^#\/?/,'').split('?')[0];
   return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
@@ -72,7 +72,7 @@ export function App() {
     const fromTab=tabAnchor.current===anchor;tabAnchor.current=null;
     if(fromTab)return;
     if((s || documentPage) && Object.hasOwn(anchors,anchor)){
-      const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor);target?.focus();target?.scrollIntoView();
+      const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor==='service'||anchor==='network-access'?'activation':anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
   const fault=s?.storageError||model.status.error;

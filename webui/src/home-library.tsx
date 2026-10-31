@@ -21,6 +21,7 @@ export function Home({visible}: {visible:boolean}) {
   const connectionPhase=uncertain?'待确认':s.hosts.conflict?'接入冲突':connectionError?(s.hosts.ready?'需检查':'接入失败'):needsExitPreparation?'需检查':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入';
   const portError=s.running?'':[!s.portOK&&`HTTP 80 端口${portState(s.portOK,s.portOwner)}`,!s.httpsPortOK&&`HTTPS 443 端口${portState(s.httpsPortOK,s.httpsPortOwner)}`].filter(Boolean).join('；');
   const serviceError=s.cdnError||portError;
+  const serviceReason=[s.cdnError,`HTTP 80 端口${s.running?'：正在监听':portState(s.portOK,s.portOwner)}`,`HTTPS 443 端口${s.running?'：正在转发':portState(s.httpsPortOK,s.httpsPortOwner)}`].filter(Boolean).join('；');
   const queueFailed=!!q.desired&&!q.running&&!!s.actionErrors?.queue;
   const queueError=q.running?[q.logError,q.error].filter(Boolean).join('；'):queueFailed?s.actionErrors?.queue:'';
   const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'日志目录可读取，尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'房间队列监控未运行。');
@@ -28,13 +29,13 @@ export function Home({visible}: {visible:boolean}) {
   const stopping=a.phase==='stopping';
   const stopHint=s.activeSettings.restoreHostsOnStopOrExit?needsExitPreparation?'停止视频服务及队列预加载；尚未取得恢复权限，将保留游戏接入。':'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
   return <div className="page-stack">
-    <Card id="activation" size="small" className="acceleration-card">
+    <Card id="activation" size="small" className="acceleration-card" tabIndex={-1}>
       <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip></div>
       <div className="toolbar condition-strip">
         <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||activationPermissionHint} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
-        <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceError||undefined} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>
+        <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceReason} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>
         <StatusBadge label="房间队列" description={uncertain?unknownReason:queueReason} color={uncertain?'informative':queueFailed?'danger':queueError?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge>
       </div>
       <div className="toolbar home-result" role="status"><span className="secondary"><Link href="#recent">最近请求</Link>：{requests.error?'暂时无法读取':recent?`${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'暂无记录'}</span>
@@ -42,14 +43,6 @@ export function Home({visible}: {visible:boolean}) {
     </Card>
     <BlockTimeline visible={visible}/>
   </div>;
-}
-export function AccessSettings() {
-  const app=useApp(), s=app.status.data!, a=s.activation || {}, received=dated(a.firstRequest), ready=s.running&&s.hosts.ready;
-  return <Panel id="service" title="游戏接入" action={<Tooltip content={activationPermissionHint} relationship="description"><Button disabled={app.unavailable} onClick={()=>void app.action('activation/enable')}>{ready?'重新检测视频请求':'修复并开启加速'}</Button></Tooltip>}>
-    <div className="settings-columns"><div><p>HTTP · 80：{s.running?'正在监听':portState(s.portOK,s.portOwner)}</p><p>HTTPS · 443：{s.running?'正在转发':portState(s.httpsPortOK,s.httpsPortOwner)}</p></div><div><p>游戏接入：{s.hosts.message}</p><span className="secondary">HTTP 复用本地视频；HTTPS 加密转发。</span>{dated(a.started)&&<p>检测开始：{date(a.started)}{received&&` · 首个请求：${date(a.firstRequest)}`}</p>}</div></div>
-    <Feedback error>{s.cdnError||s.actionErrors?.activation}</Feedback>
-  </Panel>;
-
 }
 export function BatchPanel({storageBudget}: {storageBudget:ReactNode}) {
   const app=useApp(), s=app.status.data!, b=s.batch, saved=s.lastBatch;

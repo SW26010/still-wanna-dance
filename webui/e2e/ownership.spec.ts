@@ -71,7 +71,7 @@ test('diagnostics use the active configuration while preserving the unsaved prox
   await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).not.toBeVisible();
-  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).not.toBeVisible();
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).not.toBeVisible();
   await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
@@ -82,14 +82,14 @@ test('diagnostics use the active configuration while preserving the unsaved prox
   const call=api.calls.find(c=>c.path==='network/connectivity/start');
   expect(call?.body).toEqual({});
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
-  await page.getByRole('link',{name:'网络设置',exact:true}).click();
+  await navigateSettings(page,'网络');
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('textbox',{name:'SOCKS5 地址',exact:true})).toHaveValue('127.0.0.1:7891');
   await navigate(page,'网络');
-  await page.getByRole('link',{name:'接入诊断',exact:true}).click();
-  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'游戏接入',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('navigation',{name:'网络功能',exact:true})).toHaveCount(0);
   await navigate(page,'加速');
-  await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeVisible();
 });
 
 test('normal startup stays on acceleration even after a manual wizard was left active',async({page})=>{

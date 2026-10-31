@@ -24,6 +24,6 @@ export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabS
     <div hidden={!settingsVisible}><Settings anchor={anchor} onTabSelect={onTabSelect} networkForm={<div id="network-proxy" tabIndex={-1}>
       {form}<Link href="#network-tests">检测当前连接</Link>
     </div>}/></div>
-    <div className="network-page" hidden={!networkVisible}><Network visible={networkVisible} anchor={anchor}/></div>
+    <div hidden={!networkVisible}><Network visible={networkVisible}/></div>
   </>;}}</SettingsPage>;
 }

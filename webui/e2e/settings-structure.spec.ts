@@ -25,7 +25,7 @@ test('six primary pages and section links reach their current owners',async({pag
   await mockAPI(page);await page.goto('/#/settings');
   await expect(page.getByRole('navigation',{name:'页面导航'}).getByRole('link')).toHaveText(['加速','历史','曲库','网络','设置','关于']);
   for(const name of ['常规','存储','预加载与下载','网络'])await expect(page.getByRole('tablist',{name:'设置分类'}).getByRole('tab',{name,exact:true})).toBeVisible();
-  for(const [hash,title,field] of [['#storage-settings','设置','优先保留收藏视频'],['#prepareAheadSeconds','设置','提前准备时间（秒）'],['#service','网络',''],['#/library?view=resources','曲库',''],['#queue','加速',''],['#recent','历史','']]){
+  for(const [hash,title,field] of [['#storage-settings','设置','优先保留收藏视频'],['#prepareAheadSeconds','设置','提前准备时间（秒）'],['#service','加速',''],['#/library?view=resources','曲库',''],['#queue','加速',''],['#recent','历史','']]){
     await page.evaluate(hash=>{location.hash=hash;},hash);
     await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
     if(field)await expect(page.getByLabel(field)).toBeVisible();

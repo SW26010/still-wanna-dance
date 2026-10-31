@@ -40,10 +40,14 @@ try {
   const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
   await page.getByRole('tab',{name:'网络',exact:true}).click();
   if(warning)await expect(page.getByText(warning,{exact:true})).toBeVisible();
-  await expect(page.getByRole('link',{name:'打开代理面板',exact:true})).toHaveAttribute('href','#/network');
-  await expect(page.getByRole('tabpanel',{name:'网络',exact:true}).getByText('面板整组测速可能并发连接组内所有节点，节点较多时可能产生连接高峰。')).toBeVisible();
+  await expect(page.getByRole('link',{name:'打开代理面板',exact:true})).toHaveCount(0);
   const settingsURL=page.url();
-  await page.getByRole('link',{name:'打开代理面板',exact:true}).click();
+  await page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name:'网络',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'下载速度测试',exact:true})).toBeVisible();
+  await page.getByRole('heading',{name:'代理面板',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toContainText('面板整组测速可能并发连接组内所有节点');
+  await page.keyboard.press('Escape');
   const group=async()=>{const r=await page.request.get(base+'/api/mihomo/proxies/SWD',{headers:{Authorization:'Bearer '+token}});expect(r.ok()).toBe(true);return r.json();};
   await expect.poll(()=>page.evaluate(()=>localStorage.getItem('config/automatic-disconnection'))).toBe('false');
   await expect(managedGroup).toBeVisible();
@@ -97,12 +101,15 @@ try {
   let reverseTabs=0;
   while(await page.evaluate(()=>document.activeElement?.tagName==='IFRAME')&&reverseTabs<100){await page.keyboard.press('Shift+Tab');reverseTabs++;}
   expect(await page.evaluate(()=>document.activeElement?.tagName)).not.toBe('IFRAME');
-  await page.getByRole('link',{name:'连通性与测速',exact:true}).click();
+  await page.getByRole('button',{name:'开始连通性检测',exact:true}).scrollIntoViewIfNeeded();
+  await expect(managedGroup).toBeVisible();
+  await page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name:'设置',exact:true}).click();
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect.poll(()=>[...activeStreams].map(ws=>new URL(ws.url()).pathname)).toEqual([]);
+  await page.getByRole('tab',{name:'网络',exact:true}).click();
+  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
   await expect(page.locator('#network-tests')).toBeFocused();
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeVisible();
-  await page.getByRole('link',{name:'代理面板',exact:true}).click();
   await expect(managedGroup).toBeVisible();
   await expect.poll(()=>activeStreams.size).toBeGreaterThanOrEqual(3);
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
@@ -151,7 +158,7 @@ try {
     await page.emulateMedia({colorScheme:layout.colorScheme,forcedColors:layout.forcedColors,reducedMotion:'reduce'});
     await expect(managedGroup).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
-    await page.getByRole('link',{name:'网络设置',exact:true}).scrollIntoViewIfNeeded();
+    await page.getByRole('button',{name:'开始连通性检测',exact:true}).scrollIntoViewIfNeeded();
     await page.locator('iframe').scrollIntoViewIfNeeded();
     const box=await page.locator('iframe').boundingBox();expect(box.width).toBeLessThanOrEqual(layout.width);expect(box.height).toBeGreaterThanOrEqual(320);
     await page.screenshot({path:join(output,`dashboard-${layout.name}.png`),fullPage:true,animations:'disabled'});

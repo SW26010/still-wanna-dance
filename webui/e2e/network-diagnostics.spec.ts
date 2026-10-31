@@ -120,8 +120,6 @@ for(const backend of ['external-socks5','mihomo'] as const)test(`diagnostics use
   await expect(times).toHaveCount(2);
   const previousTimes=await times.allTextContents();
   await navigate(page,'加速');await navigate(page,'网络');
-  // Mihomo opens its dashboard by default; diagnostics remain a separate view.
-  await page.getByRole('link',{name:'连通性与测速',exact:true}).click();
   await expect(page.getByText('歌曲列表 · Udon：可连接 · 响应时间 42 ms · HTTP',{exact:true})).toBeVisible();
   await expect(page.getByText('歌曲列表 · Kiva：连接失败 · 请求超时',{exact:true})).toBeVisible();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();

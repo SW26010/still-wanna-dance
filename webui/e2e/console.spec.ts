@@ -8,8 +8,8 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await expect(m).toHaveAccessibleDescription(/约 125 MB 临时缓存（按 2 Mbps）/);
   await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/约 .* MB/);
   await m.fill('100'); await expect(m).toHaveAccessibleDescription(/约 25 MB 临时缓存/);
-  await navigate(page,'网络');await page.getByRole('link',{name:'接入诊断',exact:true}).click();
-  await page.getByRole('button',{name:'修复并开启加速',exact:true}).click();
+  await navigate(page,'加速');
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toBeVisible();
   await navigateSettings(page,'预加载与下载'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();

@@ -17,7 +17,7 @@ test('failed acceleration reports rollback failure and the resulting real state'
   await page.getByRole('status',{name:'游戏连接',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('未能撤销本次游戏接入');
   await page.getByRole('status',{name:'视频服务',exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toHaveText('视频网关启动失败');
+  await expect(page.getByRole('tooltip')).toContainText('视频网关启动失败');
   await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
 });
@@ -50,7 +50,7 @@ for(const restore of [true,false])test(`exit uses the active restore policy (${r
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['exit']);
 });
 
-test('automatic gateway startup stays untested until request detection is started explicitly',async({page})=>{
+test('opening the network page does not restart acceleration or request detection',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
   await page.route('**/api/requests?*',route=>route.fulfill({json:{requests:[{at:new Date().toISOString(),status:200,outcome:'completed'}]}}));
   await page.goto('/');
@@ -60,21 +60,10 @@ test('automatic gateway startup stays untested until request detection is starte
   await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='activation/enable')).toBe(false);
   await navigate(page,'网络');
-  await page.getByRole('button',{name:'重新检测视频请求',exact:true}).click();
-  await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
+  await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toHaveCount(0);
   await expect(page.getByText('等待游戏请求，请在游戏中点歌',{exact:true})).toHaveCount(0);
-  expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
-});
-
-test('request observation details remain in connection diagnostics',async({page})=>{
-  const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
-  api.state.activation={phase:'waiting',started:new Date().toISOString(),firstRequest:new Date().toISOString()};
-  await page.goto('/');
-  await expect(page.getByText('可关闭浏览器，减少资源占用',{exact:true})).toBeVisible();
-  await expect(page.getByText('已收到游戏请求',{exact:true})).toHaveCount(0);
-  await expect(page.getByText(/尚未收到游戏请求/)).toHaveCount(0);
-  await navigate(page,'网络');
-  await expect(page.locator('#service').getByText(/检测开始：.*首个请求：/)).toBeVisible();
+  expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path))).toEqual([]);
 });
 
 for(const width of [320,1280])test(`existing connection accelerates without permission and repairs from its status (${width})`,async({page},info)=>{
@@ -116,7 +105,7 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='hosts/prepare')).toHaveLength(1);
   await navigate(page,'网络');
-  await expect(page.getByRole('button',{name:'重新检测视频请求',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   expect(api.calls.filter(c=>c.path==='activation/enable')).toHaveLength(1);
 });
 

@@ -184,16 +184,9 @@ form.actions { align-items: flex-end; }
 
 /* Page layout only; controls retain Fluent's size, appearance and focus behavior. */
 .page-stack { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--spacingVerticalXL); min-width: 0; }
-/* The embedded application owns its scrolling. Flex allocates the actual
-   remaining viewport space without estimating header or navigation heights. */
-.shell:has(.network-page:not([hidden]) .network-dashboard) { min-height: 100dvh; display: flex; flex-direction: column; }
-.shell:has(.network-page:not([hidden]) .network-dashboard) > header { flex-shrink: 0; }
-.shell:has(.network-page:not([hidden]) .network-dashboard) > .navigation-layout { flex: 1; min-height: 0; align-items: stretch; }
-.shell:has(.network-page:not([hidden]) .network-dashboard) .navigation-sidebar { align-self: flex-start; }
-.shell:has(.network-page:not([hidden]) .network-dashboard) :is(.page-content, main, .network-page, .network-dashboard) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.network-dashboard > .toolbar { flex-shrink: 0; }
-.proxy-dashboard { display: flex; flex-direction: column; gap: var(--spacingVerticalM); flex: 1; min-height: 20rem; outline: none; }
-.dashboard-frame { position: relative; flex: 1; min-height: 20rem; }
+/* Diagnostics and the embedded application share the page's normal flow. */
+.proxy-dashboard { display: flex; flex-direction: column; gap: var(--spacingVerticalM); min-width: 0; outline: none; }
+.dashboard-frame { position: relative; min-height: max(20rem,70dvh); }
 .dashboard-frame > iframe { display: block; width: 100%; height: 100%; position: absolute; inset: 0; border: 0; background: var(--colorNeutralBackground1); }
 .dashboard-frame > iframe:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: -2px; }
 .dashboard-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--colorNeutralBackground1); }

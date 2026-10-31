@@ -20,13 +20,18 @@ test('settings anchors focus after initial reads and within the same page',async
 
 test('network routes and section links open diagnostics while proxy links open settings',async({page})=>{
   const api=await mockAPI(page);
-  for(const hash of ['#/network','#network','#network-tests','#network-access','#service']){
+  for(const hash of ['#/network','#network','#network-tests']){
     await page.goto('/'+hash);
     await expect(page.getByRole('heading',{level:1,name:'网络',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeVisible();
     if(!hash.startsWith('#/'))await expect(page.locator(hash)).toBeFocused();
     await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
+  }
+  for(const hash of ['#service','#network-access']){
+    await page.goto('/'+hash);
+    await expect(page.getByRole('heading',{level:1,name:'加速',exact:true})).toBeVisible();
+    await expect(page.locator('#activation')).toBeFocused();
   }
   for(const hash of ['#network-proxy','#proxy-settings']){
     await page.goto('/'+hash);

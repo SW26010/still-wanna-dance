@@ -21,6 +21,13 @@ for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,
   expect(new Set(styles.map(style=>JSON.stringify(style))).size).toBe(1);expect(styles[0].background).not.toBe(styles[0].color);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('runtime-states.png'),fullPage:true,animations:'disabled'});
+  const service=badge(page,'视频服务'),tip=page.getByRole('tooltip');
+  await service.hover();await expect(tip).toContainText('HTTP 80 端口：正在监听；HTTPS 443 端口：正在转发');
+  await expect(service).toHaveAccessibleDescription(/HTTP 80.*HTTPS 443/);
+  await page.screenshot({path:info.outputPath('service-ports.png'),animations:'disabled'});
+  await page.keyboard.press('Escape');await expect(tip).toBeHidden();
+  await page.mouse.move(0,0);await service.focus();await expect(tip).toContainText('HTTPS 443');
+  await page.keyboard.press('Escape');await expect(tip).toBeHidden();
 });
 
 test('failed polling invalidates running badges and recovery restores them',async({page})=>{
@@ -30,6 +37,10 @@ test('failed polling invalidates running badges and recovery restores them',asyn
   await page.route('**/api/status',route=>route.fulfill({status:503,json:{error:'offline'}}));await page.clock.fastForward(5100);
   await expect(badge(page,'后台程序')).toHaveText('后台程序：更新失败');
   for(const label of labels.slice(1))await expect(badge(page,label)).toHaveText(label+'：待确认');
+  await badge(page,'视频服务').focus();
+  await expect(page.getByRole('tooltip')).toContainText('当前无法确认程序状态');
+  await expect(page.getByRole('tooltip')).not.toContainText('正在监听');
+  await page.keyboard.press('Escape');
   expect(await background(badge(page,'游戏连接'))).not.toBe(green);expect(await background(badge(page,'后台程序'))).not.toBe(green);
   await page.unroute('**/api/status');await page.clock.fastForward(5100);await healthy(page);
   await page.getByRole('button',{name:'退出程序',exact:true}).click();
@@ -42,6 +53,9 @@ test('conflicts, inactive services and startup have distinct semantic colors',as
   await page.clock.install();await page.goto('/#/home');
   await expect(badge(page,'后台程序')).toHaveText('后台程序：已连接');await expect(badge(page,'游戏连接')).toHaveText('游戏连接：接入冲突');
   await expect(badge(page,'视频服务')).toHaveText('视频服务：未运行');
+  await badge(page,'视频服务').focus();
+  await expect(page.getByRole('tooltip')).toContainText('HTTP 80 端口可用；HTTPS 443 端口可用');
+  await page.keyboard.press('Escape');
   await expect(badge(page,'房间队列')).toHaveText('房间队列：未就绪');
   const colors=await Promise.all(labels.map(label=>background(badge(page,label))));expect(new Set(colors).size).toBe(4);
   await page.screenshot({path:info.outputPath('mixed-states.png'),fullPage:true,animations:'disabled'});
@@ -69,6 +83,7 @@ test('a rejected action does not misreport the backend connection',async({page})
 const failures:{name:string;state:Partial<Status>;label:string;text:string;reason:string}[]=[
   {name:'UAC refusal',state:{activation:{phase:'failed',error:'游戏接入失败：管理员授权已取消',connectionError:'游戏接入失败：管理员授权已取消'}},label:'游戏连接',text:'接入失败',reason:'管理员授权已取消'},
   {name:'occupied port',state:{portOK:false,portOwner:{name:'fixture-player',pid:1234}},label:'视频服务',text:'异常',reason:'HTTP 80 端口被 fixture-player（PID 1234）占用'},
+  {name:'reserved HTTPS port',state:{httpsPortOK:false},label:'视频服务',text:'异常',reason:'HTTPS 443 端口不可用或被系统保留'},
   {name:'queue startup failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:false},actionErrors:{queue:'无法读取 VRChat 日志目录：目录不存在'}},label:'房间队列',text:'启动失败',reason:'无法读取 VRChat 日志目录：目录不存在'},
   {name:'log read failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:true,file:'output_log.txt',logError:'日志读取失败：访问被拒绝'}},label:'房间队列',text:'需检查',reason:'日志读取失败：访问被拒绝'},
 ];

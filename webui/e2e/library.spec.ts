@@ -303,7 +303,13 @@ test('idle library preserves deletion confirmations without polling',async({page
   const {resources,calls,queries}=await libraryFixture(page);
   await page.clock.install();
   await page.goto('/#/library');
+  const resourceResponse=page.waitForResponse(response=>{
+    const url=new URL(response.url());
+    return url.pathname==='/api/library'&&url.searchParams.get('view')==='resources';
+  });
   await page.getByRole('tab',{name:'按资源'}).click();
+  await resourceResponse;
+  await expect(page.getByRole('table',{name:'曲库资源'})).toHaveAttribute('aria-busy','false');
   let count=queries.length;
   resources[key].local!.lastRequest=Date.now();
   await page.clock.fastForward(11000);

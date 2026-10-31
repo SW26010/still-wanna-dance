@@ -68,6 +68,14 @@
 
 回归现在在 `finally` 中调用 Go 自带的 `clean -modcache`，先确认显式 `GOMODCACHE` 是该测试临时目录的直接子目录，避免触及共享缓存；没有放宽断言或跳过 Linux。已核对固定 Go 1.27.3 的清理实现会恢复模块目录权限。Windows 相关 **5/5** 通过；本机没有已安装的 WSL/Linux 环境，Unix 结果仍须以后续完整 CI 为准。原始 Linux 日志及本地复核分别保留为 `linux-attempt5.log` 和 `private-cache-cleanup-fixed.log`。
 
+### 第六轮 CI 的曲库空闲测试同步
+
+[check #32](https://github.com/SW26010/still-wanna-dance/actions/runs/41215301470) 的 Linux 全部检查通过：369 项浏览器、48 项工具（10 项 Windows 专属跳过）、Go 测试/vet/编译、完整 race 和格式检查；上一轮私有模块缓存清理问题已在 Linux 验证。Windows 浏览器 368 通过、1 失败，后续打包与 release 跳过，未发布。
+
+失败 trace 只出现一次歌曲查询和一次资源查询；切换视图的资源请求在测试记录查询数之后、推进 11 秒时才到达。用请求门固定该顺序，在本机复现同一“预期 1、实际 2”的失败，排除额外空闲轮询。测试现在等待资源视图响应及表格加载完成后记录基准；原两次 11 秒无新查询、删除确认与提交内容断言全部保留。保持同一受控窗口重复 10 次通过，移除诊断探针后曲库及刷新相关 **55/55**、前端类型与嵌入产物一致性检查通过。相邻删除确认用例已等待可用按钮和对话框，没有同类提前计数问题；生产代码未变。
+
+证据保留于 `artifacts/release-v1.0.0-beta.3/` 的 `linux-attempt6.log`、`windows-attempt6.log`、`beta3-attempt6-webui-failure.zip`、`library-idle-gate-red.log`、`library-idle-gate-green.log` 和 `library-ready-fixed.log`。失败附件 SHA256 为 `6d4344f8cdeb0adb304e03ba212f0ad347174012d0ac71c0c76cf5a8e8a7b984`；该轮失败不能记为完整交付成功。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

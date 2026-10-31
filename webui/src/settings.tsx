@@ -67,13 +67,13 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
       <option value="direct">直连（内置 DNS）</option><option value="proxy">代理</option></Select></Field>
 
     {d.upstreamMode && d.upstreamMode !== 'direct' && <>
+      <span className="secondary">代理用于 SWD 的上游请求及接入 SWD 的 HTTPS 转发</span>
       <Field label="代理后端"><Select disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></Field>
       {d.proxyBackend !== 'mihomo' ? <>
         <Field label="SOCKS5 地址" required hint="代理软件的主机:端口。"><Input disabled={locked} required value={d.socks5Address} onChange={(_, v) => update({socks5Address: v.value})} placeholder="127.0.0.1:7891" autoComplete="off" /></Field>
         <Field label="SOCKS5 用户名（可选）" ><Input disabled={locked} value={d.socks5Username} onChange={(_, v) => update({socks5Username: v.value})} autoComplete="off" /></Field>
         <Field label="SOCKS5 密码" hint="留空保留已有密码；清空用户名可移除认证。"><Input type="password" disabled={locked} value={d.socks5Password || ''} onChange={(_, v) => update({socks5Password: v.value})} autoComplete="new-password" /></Field>
         <Feedback error>{status.socks5CredentialError}</Feedback>
-        <span className="secondary">代理仅用于 SWD 下载；游戏 HTTPS 转发仍直连。</span>
       </> : <>
         <p>粘贴代理节点或选择文件，检查后再保存。</p>
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>

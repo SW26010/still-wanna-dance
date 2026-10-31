@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
-const tempRoot = path.resolve(scripts, '../artifacts/tmp');
+const tempRoot = path.resolve(process.env.SWD_TEST_TEMP_ROOT || path.join(scripts, '../artifacts/tmp'));
 const windows = { skip: process.platform !== 'win32' };
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
 function powershell(source) {

@@ -60,6 +60,8 @@
 
 原始证据：`artifacts/release-v1.0.0-beta.3/local-formal-fixed.log`、`nested-temp-red.log`、`nested-temp-green.log`、`nested-upgrade-fixed.log`、`tools-nested-fixed.log`；失败升级的完整日志和实际 EXE 保留于 `artifacts/portable-upgrade/dab3d9c3a78d427f923e7e37947f4aec/`。本节不声称本地产物已经公开。
 
+启动 [check #30](https://github.com/SW26010/still-wanna-dance/actions/runs/41213518252) 后，追加实际嵌套检出的完整工具套件检查，发现三项旧测试仍按脚本自身目录计算临时根。本机复现 **55 通过、3 失败**，主动取消该轮 CI，未等待其后续打包，未创建 Release。测试现在按同一继承契约确定预期根，保留目录隔离、环境恢复及清理断言；相同嵌套检出中的全部 **58/58** 通过。失败与成功日志分别为 `nested-tools-red.log`、`nested-tools-green.log`；这次只修正测试预期，没有再次改动产品或包装器行为。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

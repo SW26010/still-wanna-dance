@@ -32,7 +32,7 @@ export const dashboardArchitectures='\nsupportedArchitectures:\n  os: [win32, li
 export function extractDashboardArchive(archive,unpack) {
   // Windows bsdtar can reject UTF-8 ZIP names outside the system code page.
   // .NET decodes the ZIP's Unicode flag without that lossy conversion.
-  if(process.platform==='win32')execFileSync('pwsh',['-NoProfile','-File',fileURLToPath(new URL('./extract-zip.ps1',import.meta.url)),'-Archive',archive,'-Destination',unpack],{windowsHide:true});
+  if(process.platform==='win32')execFileSync('pwsh',['-NoProfile','-File',fileURLToPath(new URL('./archive-source.ps1',import.meta.url)),'-Action','extract','-Archive',archive,'-Directory',unpack],{windowsHide:true});
   else execFileSync('tar',['-xf',archive,'-C',unpack],{windowsHide:true,env:{...process.env,TAR_OPTIONS:''}});
 }
 export function collectDashboard(source,bundle,work) {

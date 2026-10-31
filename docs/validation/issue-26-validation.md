@@ -86,6 +86,23 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 证据位于 `artifacts/release-v1.0.0-beta.3/`：`linux-check33.log`、`windows-attempt7.log`、`dashboard-tar-unicode-red.log`、`dashboard-extract-red.log`、`dashboard-dotnet-roundtrip.log`、`archive-safety-final.log`、`dashboard-actual-roundtrip.log` 和 `tools-archive-fixed.log`。中间探针的系统 tar 崩溃、GNU tar 文本转义拒绝，以及 PAX 夹具先被标准库拒绝的日志也保留；最终非法路径夹具改用有效 USTAR 条目直接覆盖应用预检。真实完整产品的最终打包与公开回下载仍须以后续最终提交为准。
 
+### 2026-11-01 本机完整交付预检
+
+`af72f0529fe0fef9bf50baa5f40dd6a3b44d6ea8` 的本机正式流程一次完成，退出码为 0：干净检出检查、完整源码生成/解包、正式 EXE 构建及许可/补丁身份校验、全新缓存的前端/zashboard/Go 重建、实际 ZIP 单包与覆盖冒烟，以及默认存储、外置库、自定义配置 **3/3** 持久化升级全部通过。升级起点继续为已保留的 `ci-beta3-local-1`，不外推为历史配置迁移或公开 Beta 2 的升级结果。独立 Python `tarfile` 读取器另逐项校验新源码归档的 **89,658 个文件**，名称、字节数与 SHA256 均匹配清单。
+
+| 本地正式候选 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Portable ZIP | 24,268,968 | `094a6078985f46ff21655b4d3e297f04eca679c4f5f6becf60fc20f495b13144` |
+| 完整对应源码 tar.gz | 820,201,041 | `0043c55d1997785d7e6d205903aa557223373c3ff45549bb45da59d16b3e451d` |
+
+正式 EXE SHA256 为 `6f39a43b1d2e187b7ea5e28f44fdc4ce29e38637096ac84585d2fc6b78cdfb28`，独立重建 EXE 为 `7ae8ca1b9616053b1c6a6d6e29f428e05d303eb2b436bf4805fd1ab46e0b3e2b`。附件与清单位于忽略目录 `artifacts/release-v1.0.0-beta.3/local-formal-unicode/`，全流程日志为 `local-formal-unicode.log`，独立读取记录为 `source-independent-reader.log`；三布局升级证据位于 `artifacts/portable-upgrade/1c8538b422b54d9abd18a0b962bef633/`。
+
+同时审查构建与公开下载后的全部解包调用，发现共用 `extractArchive` 也接收 Portable ZIP。此前新增的 Windows 读取器仅处理 TAR，这个关联缺口已在本机固定为失败用例，未启动远端发布碰运气。现在同一标准库入口识别 ZIP/TAR/gzip；ZIP 名称及 Unix 类型属性也接受原路径/链接预检，删除单独的 ZIP 解包脚本。Unicode 完整往返覆盖上游源码 ZIP、Portable ZIP 和源码 tar.gz；10 种 TAR、9 种 ZIP 非法条目均在落盘前拒绝，真实候选 ZIP 的 EXE 哈希不变，全部工具 **61/61** 通过。失败及复核日志分别为 `public-zip-entry-red.log`、`archive-unified-staged.log`、`archive-real-portable.log` 和 `tools-unified-archive.log`。
+
+同一对真实正式附件随后通过与 `verify-published` 共用的 `verifyRelease` 入口：资产哈希、源码/EXE 绑定、ZIP 解包及另一轮全新缓存的前端/zashboard/Go 重建全部通过，退出码 0，返回 `verified=true`，提交与 EXE 哈希保持上述值。完整日志为 `local-delivery-verify.log`。这次复核使用收口后的统一归档入口；附件本身仍准确标识 `af72f052`，不将后续入口修复冒充该附件已包含的源码。
+
+本节仍是本地证据，不声称附件已经公开；最终发布须重新构建最终提交，并通过公开下载验证。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

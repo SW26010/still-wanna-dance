@@ -17,8 +17,26 @@ if ($Action -eq 'create') {
 } else {
     $file = [IO.File]::OpenRead($Archive)
     try {
-        $gzipHeader = $file.ReadByte() -eq 0x1f -and $file.ReadByte() -eq 0x8b
+        $header = [byte[]]::new(4)
+        $null = $file.Read($header, 0, $header.Length)
         $file.Position = 0
+        if ([BitConverter]::ToUInt32($header, 0) -in @(0x04034b50, 0x06054b50, 0x08074b50)) {
+            if ($Action -eq 'extract') {
+                [IO.Compression.ZipFile]::ExtractToDirectory($Archive, $Directory)
+            } else {
+                $zip = [IO.Compression.ZipArchive]::new($file, [IO.Compression.ZipArchiveMode]::Read, $true)
+                try {
+                    $entries = foreach ($entry in $zip.Entries) {
+                        $mode = ($entry.ExternalAttributes -shr 16) -band 0xf000
+                        $type = if ($mode -eq 0xa000) { 'SymbolicLink' } elseif ($mode -notin @(0, 0x8000, 0x4000)) { 'Special' } elseif ($entry.FullName.EndsWith('/')) { 'Directory' } else { 'RegularFile' }
+                        @{name = $entry.FullName; type = $type}
+                    }
+                    ConvertTo-Json -InputObject @($entries) -Compress
+                } finally { $zip.Dispose() }
+            }
+            return
+        }
+        $gzipHeader = $header[0] -eq 0x1f -and $header[1] -eq 0x8b
         $stream = if ($gzipHeader) { [IO.Compression.GZipStream]::new($file, [IO.Compression.CompressionMode]::Decompress, $true) } else { $file }
         try {
             if ($Action -eq 'extract') {

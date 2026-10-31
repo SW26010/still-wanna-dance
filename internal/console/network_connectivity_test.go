@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/upstreamcheck"
@@ -207,124 +208,126 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 }
 
 func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
-	c := testConsole(t)
-	stubNetworkDiagnostics(t, c)
-	c.settings.UpstreamMode = "proxy"
-	var requests atomic.Int32
-	const md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		body := ""
-		status := http.StatusOK
-		header := make(http.Header)
-		switch r.URL.Path {
-		case "/Api/Songs/list":
-			body = string(monitorNames("20261016000000", "canonical Udon metadata").Body)
-			// Use one ID so the chosen playback sample is deterministic.
-			body = strings.ReplaceAll(body, `,{"id":2,"name":"new song"}`, "")
-		case "/api/v2/wanna/songs":
-			body = string(monitorFull("kiva", "20261016000000", "initialized by monitor", md5).Body)
-		case "/api/wannaInfo":
-			body = string(monitorFull("wanna", "20261015000000", "older mirror", md5).Body)
-		case "/Api/Songs/play":
-			status = http.StatusFound
-			header.Set("Location", "https://play.udon.dance/files/1/42-video.mp4?e="+md5+"&s=1234")
-		default:
-			if r.Header.Get("Range") != "bytes=0-0" {
-				t.Error("unexpected download", r.URL.Path, r.Header.Get("Range"))
+	synctest.Test(t, func(t *testing.T) {
+		c := automaticTestConsole(t)
+		stubNetworkDiagnostics(t, c)
+		c.settings.UpstreamMode = "proxy"
+		var requests atomic.Int32
+		const md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
+			requests.Add(1)
+			body := ""
+			status := http.StatusOK
+			header := make(http.Header)
+			switch r.URL.Path {
+			case "/Api/Songs/list":
+				body = string(monitorNames("20261016000000", "canonical Udon metadata").Body)
+				// Use one ID so the chosen playback sample is deterministic.
+				body = strings.ReplaceAll(body, `,{"id":2,"name":"new song"}`, "")
+			case "/api/v2/wanna/songs":
+				body = string(monitorFull("kiva", "20261016000000", "initialized by monitor", md5).Body)
+			case "/api/wannaInfo":
+				body = string(monitorFull("wanna", "20261015000000", "older mirror", md5).Body)
+			case "/Api/Songs/play":
+				status = http.StatusFound
+				header.Set("Location", "https://play.udon.dance/files/1/42-video.mp4?e="+md5+"&s=1234")
+			default:
+				if r.Header.Get("Range") != "bytes=0-0" {
+					t.Error("unexpected download", r.URL.Path, r.Header.Get("Range"))
+				}
+				status, body = http.StatusPartialContent, "x"
+				header.Set("Content-Range", "bytes 0-0/1234")
 			}
-			status, body = http.StatusPartialContent, "x"
-			header.Set("Content-Range", "bytes 0-0/1234")
+			return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+		})
+		before, settings := upstreamrequest.Default.Snapshot(), c.settings
+		if err := c.StartUpstreamServices(); err != nil {
+			t.Fatal(err)
 		}
-		return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+		synctest.Wait()
+		c.mu.Lock()
+		state := c.networkDiagnostics.connectivity
+		c.mu.Unlock()
+		if state.Phase != "completed" || len(state.Results) != 5 || len(state.LastResult.Results) != 5 {
+			t.Fatal(state)
+		}
+		for _, row := range state.Results {
+			if row.Operation == upstreamcheck.Catalog && row.Entry != "api" {
+				if row.State != "skipped" {
+					t.Fatal(row)
+				}
+				continue
+			}
+			if row.State != "available" || row.LatencyMS == nil {
+				t.Fatal("missing successful summary", row)
+			}
+		}
+		// One list, the CF playback entry, one deduplicated resource host. Storage
+		// initialization must not fetch any of those responses a second time.
+		if requests.Load() != 3 {
+			t.Fatal("unexpected upstream request count", requests.Load())
+		}
+		db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+		var name, checksum string
+		var size int64
+		if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media ON song_media.song_id=songs.id JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "canonical Udon metadata" || checksum != md5 || size != 1234 {
+			t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
+		}
+		for _, node := range []string{"cf"} {
+			urls, err := c.store.SongURLs(context.Background(), 1, node)
+			if err != nil || len(urls) != 1 {
+				t.Fatalf("playback metadata %s: %v %v", node, urls, err)
+			}
+		}
+		for _, dir := range []string{"videos", "tmp"} {
+			files, err := os.ReadDir(filepath.Join(testStorageRoot(c.settings), dir))
+			if err != nil && !os.IsNotExist(err) || len(files) != 0 {
+				t.Fatal("connectivity retained video data", dir, files, err)
+			}
+		}
+		if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
+			t.Fatal("diagnostic changed business routing")
+		}
+		if state.Finished.IsZero() || !state.LastResult.Finished.Equal(state.Finished) || state.NextCheck.Sub(state.Finished) != 5*time.Minute || c.monitor != nil {
+			t.Fatal("missing test timestamp or diagnostics started Monitor")
+		}
+		if evidence := os.Getenv("SWD_UPSTREAM_BROWSER_EVIDENCE"); evidence != "" {
+			ui := httptest.NewUnstartedServer(c)
+			c.address = ui.Listener.Addr().String()
+			ui.Start()
+			defer ui.Close()
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "upstream-diagnostics-live.mjs"), ui.URL, evidence)
+			if output, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("browser: %v\n%s", err, output)
+			}
+		}
+		// A new failed run replaces success with current observations. Neither old
+		// latency nor successful rows may survive, even without usable new samples.
+		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+		})}
+		if err := c.controlNetworkConnectivity(false); err != nil {
+			t.Fatal(err)
+		}
+		<-c.networkDiagnostics.connectivityDone
+		c.mu.Lock()
+		failed := c.networkDiagnostics.connectivity
+		c.mu.Unlock()
+		if failed.Run <= state.Run || failed.Finished.Before(state.Finished) || failed.LastResult.Finished.IsZero() {
+			t.Fatal("failed run lost test time", failed)
+		}
+		for _, row := range failed.Results {
+			if row.State == "available" {
+				t.Fatal("previous success leaked into fresh test", row)
+			}
+		}
 	})
-	before, settings := upstreamrequest.Default.Snapshot(), c.settings
-	if err := c.StartUpstreamServices(); err != nil {
-		t.Fatal(err)
-	}
-	waitCatalogSync(t, c)
-	c.mu.Lock()
-	state := c.networkDiagnostics.connectivity
-	c.mu.Unlock()
-	if state.Phase != "completed" || len(state.Results) != 5 || len(state.LastResult.Results) != 5 {
-		t.Fatal(state)
-	}
-	for _, row := range state.Results {
-		if row.Operation == upstreamcheck.Catalog && row.Entry != "api" {
-			if row.State != "skipped" {
-				t.Fatal(row)
-			}
-			continue
-		}
-		if row.State != "available" || row.LatencyMS == nil {
-			t.Fatal("missing successful summary", row)
-		}
-	}
-	// One list, the CF playback entry, one deduplicated resource host. Storage
-	// initialization must not fetch any of those responses a second time.
-	if requests.Load() != 3 {
-		t.Fatal("unexpected upstream request count", requests.Load())
-	}
-	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	var name, checksum string
-	var size int64
-	if err := db.QueryRow("SELECT name,md5,byte_size FROM songs JOIN song_media ON song_media.song_id=songs.id JOIN media USING(md5) WHERE song_id=1").Scan(&name, &checksum, &size); err != nil || name != "canonical Udon metadata" || checksum != md5 || size != 1234 {
-		t.Fatalf("initial metadata %q %q %d: %v", name, checksum, size, err)
-	}
-	for _, node := range []string{"cf"} {
-		urls, err := c.store.SongURLs(context.Background(), 1, node)
-		if err != nil || len(urls) != 1 {
-			t.Fatalf("playback metadata %s: %v %v", node, urls, err)
-		}
-	}
-	for _, dir := range []string{"videos", "tmp"} {
-		files, err := os.ReadDir(filepath.Join(testStorageRoot(c.settings), dir))
-		if err != nil && !os.IsNotExist(err) || len(files) != 0 {
-			t.Fatal("connectivity retained video data", dir, files, err)
-		}
-	}
-	if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
-		t.Fatal("diagnostic changed business routing")
-	}
-	if state.Finished.IsZero() || !state.LastResult.Finished.Equal(state.Finished) || state.NextCheck.Sub(state.Finished) != 5*time.Minute || c.monitor != nil {
-		t.Fatal("missing test timestamp or diagnostics started Monitor")
-	}
-	if evidence := os.Getenv("SWD_UPSTREAM_BROWSER_EVIDENCE"); evidence != "" {
-		ui := httptest.NewUnstartedServer(c)
-		c.address = ui.Listener.Addr().String()
-		ui.Start()
-		defer ui.Close()
-		ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "upstream-diagnostics-live.mjs"), ui.URL, evidence)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("browser: %v\n%s", err, output)
-		}
-	}
-	// A new failed run replaces success with current observations. Neither old
-	// latency nor successful rows may survive, even without usable new samples.
-	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
-	})}
-	if err := c.controlNetworkConnectivity(false); err != nil {
-		t.Fatal(err)
-	}
-	<-c.networkDiagnostics.connectivityDone
-	c.mu.Lock()
-	failed := c.networkDiagnostics.connectivity
-	c.mu.Unlock()
-	if failed.Run <= state.Run || failed.Finished.Before(state.Finished) || failed.LastResult.Finished.IsZero() {
-		t.Fatal("failed run lost test time", failed)
-	}
-	for _, row := range failed.Results {
-		if row.State == "available" {
-			t.Fatal("previous success leaked into fresh test", row)
-		}
-	}
 }
 
 func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) {

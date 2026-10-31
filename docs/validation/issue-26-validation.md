@@ -14,6 +14,14 @@
 
 这些结果仅证明发布前修复与本机预检；最终交付仍以该分支的完整 `check`、候选到正式包覆盖升级，以及独立 release job 的公开回下载与冷缓存重建结果为准。
 
+### 首轮 CI 暴露的真实时钟断言
+
+发布前修复提交 `fb109c6786409a616d642bc6883e891dae1ae1d8` 的[产物检查](https://github.com/SW26010/still-wanna-dance/actions/runs/41190551073)通过，完整扫描 6,433 blobs、零错误。随后 [check #27](https://github.com/SW26010/still-wanna-dance/actions/runs/41190632666) 的 Linux Go 测试在 `TestCatalogInitializationFailureSchedulesRetryAfterConsent` 和 `TestNetworkConnectivityReusesResponsesToInitializeStorage` 失败；第一项得到 `5.00000039s`，却要求与 5 秒完全相等。该轮不能记为发布成功。
+
+两项测试使用真实时钟，完成时刻和调度截止由两次 `time.Now()` 取得；同锁下状态已经完成，但取时之间仍经过时间。Windows 原测试重复 100 次通过；在两次取时之间临时加入 1 毫秒间隔后，两项同样失败，排除了仅靠重跑恢复绿灯的处理。精确周期已有 `network_connectivity_schedule_test.go` 的虚拟时间依据；现在这两项也复用 `synctest.Test`、`synctest.Wait` 和 `automaticTestConsole` 的通道隔离，保留原 5 秒/5 分钟等值断言及全部数据检查，不修改生产调度或增大容差。
+
+修复后的两项及相关自动调度回归重复 100 次通过，完整 console 包通过。验证断言保留时，等待型探针在虚拟时钟的锁内阻塞，已停止该隔离测试；改用不阻塞的 1 毫秒完成时刻偏移，两项仍按预期失败，移除探针后再次通过。所有生产文件已恢复原字节，诊断探针不入库。首轮远端日志、探针失败/中断和修复结果保存在同一忽略目录的 `linux-attempt1.log`、`console-clock-*.log` 与 `console-full-fixed.log`，不覆盖历史失败。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

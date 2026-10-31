@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
@@ -121,34 +122,39 @@ func TestCatalogInitializationVideoFailureDoesNotRetryCatalog(t *testing.T) {
 }
 
 func TestCatalogInitializationFailureSchedulesRetryAfterConsent(t *testing.T) {
-	c := testConsole(t)
-	c.terms = termsReceipt{}
-	var calls atomic.Int32
-	c.settings.UpstreamMode = "proxy"
-	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
-		calls.Add(1)
-		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+	synctest.Test(t, func(t *testing.T) {
+		c := automaticTestConsole(t)
+		c.terms = termsReceipt{}
+		var calls atomic.Int32
+		c.settings.UpstreamMode = "proxy"
+		c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
+			calls.Add(1)
+			return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+		})
+		if err := c.StartUpstreamServices(); err != nil {
+			t.Fatal(err)
+		}
+		if c.monitor != nil || calls.Load() != 0 {
+			t.Fatal("initialization bypassed consent")
+		}
+		if err := c.acceptTerms(); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		c.mu.Lock()
+		s := c.catalogSyncSnapshotLocked()
+		c.mu.Unlock()
+		if !s.Initializing || s.NextCheck.Sub(s.Finished) != 5*time.Second {
+			t.Fatal("first failure did not schedule initialization retry", s.Initializing, s.NextCheck.Sub(s.Finished))
+		}
+		c.Close()
+		c.mu.Lock()
+		s = c.catalogSyncSnapshotLocked()
+		c.mu.Unlock()
+		if s.Initializing || !s.NextCheck.IsZero() {
+			t.Fatal("shutdown left initialization active")
+		}
 	})
-	if err := c.StartUpstreamServices(); err != nil {
-		t.Fatal(err)
-	}
-	if c.monitor != nil || calls.Load() != 0 {
-		t.Fatal("initialization bypassed consent")
-	}
-	if err := c.acceptTerms(); err != nil {
-		t.Fatal(err)
-	}
-	s := waitCatalogSync(t, c)
-	if !s.Initializing || s.NextCheck.Sub(s.Finished) != 5*time.Second {
-		t.Fatal("first failure did not schedule initialization retry", s.Initializing, s.NextCheck.Sub(s.Finished))
-	}
-	c.Close()
-	c.mu.Lock()
-	s = c.catalogSyncSnapshotLocked()
-	c.mu.Unlock()
-	if s.Initializing || !s.NextCheck.IsZero() {
-		t.Fatal("shutdown left initialization active")
-	}
 }
 
 func waitCatalogSync(t *testing.T, c *Console) catalogSyncStatus {

@@ -33,9 +33,12 @@ export function runGo(args, root = process.cwd(), extraEnv = {}, options = {}) {
     cwd: root, env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true, ...overrides,
   });
   if (/(?:^|\s|["'])-(?:overlay|modfile)(?:=|\s)/.test(env.GOFLAGS ?? '') || args.some(a => /^-(overlay|modfile)(=|$)/.test(a))) throw Error('Use only the reviewed repository Go patch inputs');
-  const selected = invoke(['list', '-mod=readonly', '-m', '-f', `{{if eq .Path "${mihomoPatch.module}"}}{{.Version}}{{if .Replace}} replacement{{end}}{{end}}`, 'all']).trim();
   // Small source-delivery fixtures have no Mihomo dependency.
-  if (!selected) return invoke(args, options);
+  const modfileInfo = JSON.parse(invoke(['mod', 'edit', '-json']));
+  if (!modfileInfo.Require?.some(m => m.Path === mihomoPatch.module)) return invoke(args, options);
+  // Query only the dependency we patch. "all" loads unrelated historical graph
+  // metadata that a production-only offline source bundle does not need.
+  const selected = invoke(['list', '-mod=readonly', '-m', '-f', '{{.Version}}{{if .Replace}} replacement{{end}}', mihomoPatch.module]).trim();
   if (selected !== mihomoPatch.version) throw Error('Mihomo version/replacement changed; review the stream patch before building');
   const module = JSON.parse(invoke(['mod', 'download', '-json', `${mihomoPatch.module}@${selected}`]));
   if (module.Error || !module.Dir || module.Sum !== mihomoPatch.originalSum) throw Error('Pinned Mihomo source is unavailable or its checksum changed');

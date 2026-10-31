@@ -42,6 +42,14 @@
 
 同一深目录回归修复后通过；源码交付相关 12 项及全部 Node 工具 **56/56** 通过。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-attempt3.log`、`linux-attempt3.log`、`patch-path-red.log`、`patch-path-green.log`、`tools-path-fixed.log`。这些结果不替代完整本地正式打包及最终远端公开交付。
 
+### 本地完整流程的冷缓存查询修复
+
+`9bdddb0f842df5a990de75c0cba34eccc5ce06fc` 的本地候选 ZIP、114 个依赖许可校验及正式干净检出检查通过，约 812 MB 的完整源码归档生成并校验通过；正式 EXE 的冷缓存编译准备阶段随后失败。补丁入口的 `go list -m all` 加载整个模块图，索取未选中的 `github.com/stretchr/testify@v1.8.1.mod`。现行源码包只交付选定版本元数据和实际编译模块的 ZIP；这次入口新增的全图读取超出了生产构建需求，该次完整流程不记为成功。
+
+新增回归使用真实 Mihomo ZIP、全新模块缓存和仅含该模块的文件代理，原入口会读取无关模块而失败。修复先只读解析 `go.mod`，仅对实际需要补丁的模块查询所选版本/替换，再维持原始模块、源文件和补丁哈希检查。相同回归通过；使用与正式源码包相同的 **225 个选定版本、114 个完整 ZIP** 构造隔离代理，真实桌面入口在全新模块/编译缓存、仅本地 `GOPROXY` 下编译成功，EXE 的 114 个依赖及补丁身份通过。全部 Node 工具 **57/57** 通过。
+
+证据位于 `artifacts/release-v1.0.0-beta.3/`：`local-candidate.log`、失败的 `local-formal.log`、`patch-offline-red.log`、`patch-offline-green.log`、`offline-product-green.log` 和 `tools-offline-fixed.log`。诊断脚本首轮遗漏重建身份的 revision，在编译前被既有校验拒绝；补齐当前提交后才取得上述实际编译结果，该首轮日志也保留。实际完整正式包与公开交付仍须按最终提交复核。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

@@ -3,12 +3,30 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { mihomoPatch, patchManifest, readPatchedModule, runGo } from './go-patches.mjs';
-import { checkExecutable } from './release-source.mjs';
+import { checkExecutable, goEnv, withTemp } from './release-source.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const original = { path: mihomoPatch.module, version: mihomoPatch.version, sum: mihomoPatch.originalSum, sourceIncluded: true };
+
+test('patch preparation needs only its pinned module in a fresh offline cache', () => withTemp(temp => {
+  const module = JSON.parse(execFileSync('go', ['mod', 'download', '-json', `${mihomoPatch.module}@${mihomoPatch.version}`], { cwd: root, env: { ...process.env, ...goEnv() }, encoding: 'utf8', windowsHide: true }));
+  const checkout = path.join(temp, 'checkout'), proxy = path.join(temp, 'proxy');
+  fs.mkdirSync(path.join(checkout, 'patches'), { recursive: true });
+  for (const file of ['go.mod', 'go.sum', mihomoPatch.replacement]) fs.copyFileSync(path.join(root, file), path.join(checkout, file));
+  const target = path.join(proxy, mihomoPatch.module, '@v', mihomoPatch.version);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  for (const [suffix, file] of [['.mod', module.GoMod], ['.info', module.Info], ['.zip', module.Zip]]) fs.copyFileSync(file, target + suffix);
+  const env = goEnv({ GOPROXY: pathToFileURL(proxy).href, GOSUMDB: 'off', GOPRIVATE: '', GONOPROXY: 'none', GONOSUMDB: 'none', GOMODCACHE: path.join(temp, 'modules') });
+  // Listing "all" fetches unrelated graph inputs before the requested command;
+  // production source archives deliberately include only selected versions.
+  const selected = JSON.parse(runGo(['list', '-mod=readonly', '-m', '-json', mihomoPatch.module], checkout, env));
+  assert.equal(selected.Version, mihomoPatch.version);
+  assert.equal(path.posix.basename(selected.Replace.Path), patchManifest(root, [original])[0].sha256);
+}));
 
 test('patched dependency vet works from a nested Windows release checkout', { skip: process.platform !== 'win32' }, () => {
   const base = path.resolve(os.tmpdir());

@@ -969,6 +969,62 @@
       "bytes": 724627,
       "sha256": "4e14074fd7d8863612890a949356ee0a9e8989cf91c2015bd0c63b3028470b89",
       "reason": "Offline WebUI copy of the reviewed program notices, including native controller dependencies."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1210162,
+      "sha256": "14aa8bff2130df9b9e51c28247890248f15da3127763da87828657793c159e2e",
+      "reason": "Historical production WebUI from 498d2544: feat(webui): hide adjacent canceled history requests by default. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1213995,
+      "sha256": "fb09943dcf2412642e91f4fb15d7b342a69acebd232c74771acecfa7eab64a34",
+      "reason": "Historical production WebUI from 9056d4a3: feat(webui): embed Mihomo dashboard in network page. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1214207,
+      "sha256": "7bf6915c33849b8de5e8fbb173b085f994b2fa9baaed1c20dd1c3d98735a3c1d",
+      "reason": "Historical production WebUI from 558c6107: refactor(upstream): separate direct monitoring and unify connectivity checks. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1214300,
+      "sha256": "de1f97d6c2fd78553c4c2ccc55c3e70eebc8230586f019cf5ac8400ede014c23",
+      "reason": "Historical production WebUI from fedf4650: refactor(catalog): fetch backup catalogs only when needed. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1214711,
+      "sha256": "ac3e17a63df43267ca1b2dce632582cef4a7f691103f94ef5175650c21cf4a65",
+      "reason": "Historical production WebUI from 46d5345a: feat(desktop): add opt-in exit with VRChat. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1214847,
+      "sha256": "dfa5419e85e8ad6b6bce20d071a7e03b82d524ce12555824a84e5b0fbc07bd26",
+      "reason": "Historical production WebUI from 46bd4960: fix(webui): correct proxy and HTTPS forwarding descriptions. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1215086,
+      "sha256": "94af3f4bbbfceaca8b3869d3b57a6c0d5cebb2617ee8f7082ace72665691c215",
+      "reason": "Historical production WebUI from f35435e7: refactor(calibration): reuse local metadata and shared upstream access. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1213090,
+      "sha256": "8dd1ee74fa23916e4a4dd5cd7f9835b51b76c83c5e5a22e8511044c939c945cf",
+      "reason": "Historical production WebUI from 9cc27069: refactor(webui): simplify network layout and service status hints. Exact Git blob SHA256 matches that commit's webui/build-manifest.json; register the omitted artifact without changing the bundle."
     }
   ]
 }

@@ -1,70 +1,82 @@
 package console
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestDiagnosticDirectScopeDoesNotReplaceBusinessProxy(t *testing.T) {
+func TestDiagnosticsBorrowActiveProxyWithoutChannels(t *testing.T) {
 	c := testConsole(t)
 	c.settings.UpstreamMode = "proxy"
 	c.settings.SOCKS5Address = "127.0.0.1:9"
-	c.savedSettings = c.settings
-	_, proxyClient, err := c.networkFor(c.settings)
+	c.savedSettings.UpstreamMode = "direct" // saved configuration is intentionally different
+	_, client, err := c.networkFor(c.settings)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer proxyClient.Transport.(interface{ Retire() }).Retire()
 	c.client.CloseIdleConnections()
-	c.client.Transport.(interface{ Retire() }).Retire()
-	c.client = proxyClient
-	c.requestRevision = upstreamrequest.Default.Publish(proxyClient.Transport.(upstreamrequest.Candidates))
+	c.client = client
+	if _, ok := client.Transport.(upstreamrequest.Candidates); ok {
+		t.Fatal("proxy exposes direct candidate interface")
+	}
 	before := upstreamrequest.Default.Snapshot()
-	n, err := c.newNetworkDiagnostics()
+	c.mu.Lock()
+	test, err := c.networkCalibrationLocked()
+	c.mu.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer n.close()
-	if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision {
-		t.Fatal("diagnostic changed business channel")
+	state, _ := test.Snapshot()
+	if state.Upstream != "proxy" || state.Running || c.monitor != nil {
+		t.Fatal(state)
 	}
-	if n.channel == upstreamrequest.Default || c.client != proxyClient || c.settings.UpstreamMode != "proxy" || c.savedSettings.UpstreamMode != "proxy" {
-		t.Fatal("diagnostic changed proxy settings")
-	}
-	for _, candidate := range before.Candidates.Current("https://api.udon.dance") {
-		if candidate.Mode != "socks5" {
-			t.Fatal("business has direct fallback")
-		}
-	}
-	// Cold direct DNS is not queried by constructing a scope or reading status.
-	if len(n.channel.Snapshot().Candidates.Current("https://api.udon.dance")) != 0 {
-		t.Fatal("unexpected cold direct candidate")
+	if after := upstreamrequest.Default.Snapshot(); after.Revision != before.Revision || after.Candidates != before.Candidates {
+		t.Fatal("diagnostics published channels")
 	}
 	if testDNS(c).queries.Load() != 0 {
-		t.Fatal("scope construction queried DNS")
+		t.Fatal("proxy diagnostic queried direct DNS")
 	}
 }
 
-// Isolated transport: never contacts an upstream, even on consent API tests.
 func stubNetworkDiagnostics(t *testing.T, c *Console) <-chan struct{} {
 	t.Helper()
 	started := make(chan struct{}, 16)
-	transport := catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.client.CloseIdleConnections()
+	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
 		select {
 		case started <- struct{}{}:
 		default:
 		}
 		<-r.Context().Done()
 		return nil, r.Context().Err()
-	})
-	channel := upstreamrequest.NewChannel()
-	revision := channel.Publish(transport)
-	monitor, err := c.newDiagnosticMonitor(channel)
+	})}
+	c.networkDiagnostics = &networkDiagnostics{}
+	return started
+}
+
+func activateTestProxy(t *testing.T, c *Console, address, user, password string) {
+	t.Helper()
+	c.settings.UpstreamMode, c.settings.ProxyBackend = "proxy", "external-socks5"
+	c.settings.SOCKS5Address, c.settings.SOCKS5Username, c.settings.SOCKS5Password = address, user, password
+	c.client.CloseIdleConnections()
+	dial, client, err := c.networkFor(c.settings)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.networkDiagnostics = &networkDiagnostics{monitor: monitor, channel: channel, revision: revision, client: &http.Client{Transport: transport}}
-	return started
+	c.upstreamDial, c.client = dial, client
 }
+
+// Business can still use its active transport when every direct candidate API
+// rejects access. This also checks cold requests do not discover proxy channels.
+type noCandidatesTransport struct{ http.RoundTripper }
+
+func (noCandidatesTransport) Candidates(context.Context, string) ([]upstreamrequest.Candidate, error) {
+	panic("proxy discovered channels")
+}
+func (noCandidatesTransport) Current(string) []upstreamrequest.Candidate {
+	panic("proxy read channels")
+}
+func (noCandidatesTransport) Changed() <-chan struct{} { panic("proxy subscribed to channels") }

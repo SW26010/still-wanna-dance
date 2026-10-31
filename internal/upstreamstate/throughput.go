@@ -30,22 +30,10 @@ type throughputState struct {
 }
 
 func (m *Monitor) scheduleThroughputLocked() {
-	if m.proxyModeLocked() {
-		return
-	}
 	due := m.lastThroughput.Add(m.policy.ThroughputInterval)
 	if !m.lastThroughput.IsZero() && time.Now().Before(due) && due.Before(m.nextCheck) {
 		m.nextCheck = due
 	}
-}
-
-func (m *Monitor) proxyModeLocked() bool {
-	p := m.channel.Snapshot().Candidates
-	if p == nil {
-		return false
-	}
-	cs := p.Current(entry(Catalog, "api"))
-	return len(cs) > 0 && cs[0].Mode == "socks5"
 }
 
 // Restore the cooldown and historical samples only after decoding succeeds.
@@ -181,9 +169,6 @@ func (m *Monitor) pruneThroughputLocked(valid map[string]bool, prepared map[stri
 func (m *Monitor) throughputStatus(s Status, now time.Time) string {
 	if s.Closed {
 		return "closed"
-	}
-	if m.proxyModeLocked() && !s.Manual {
-		return "proxy_managed"
 	}
 	if s.ResourcesPaused {
 		return "business_busy"

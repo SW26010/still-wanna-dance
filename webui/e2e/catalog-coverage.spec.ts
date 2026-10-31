@@ -98,7 +98,7 @@ for(const width of [1280,390,320])test(`catalog initialization keeps positions a
   await expect(coverage).toContainText('66.7%');
   const before=await layout();
   inventory={coverageKnown:false,totalSongs:0,coveredSongs:0,catalog:{}};
-  api.state.upstreamMonitor={catalogInitializing:true,checking:true,results:[]};
+  api.state.catalogSync={initializing:true,checking:true};
   await page.reload();
   await expect(coverage).toContainText('—');
   await expect(coverage).not.toContainText('正在获取');
@@ -120,14 +120,14 @@ for(const width of [1280,390,320])test(`catalog initialization keeps positions a
   await expect(icon).toHaveCSS('animation-name','none');
   await expect(update).toHaveAttribute('aria-busy','true');
   await page.emulateMedia({reducedMotion:'no-preference'});
-  api.state.upstreamMonitor={catalogInitializing:true,checking:false,finished:'2026-10-29T01:00:00Z',nextCheck:'2026-10-29T01:00:05Z',results:[{operation:'catalog',route:'api',mode:'direct',entry:'https://api.udon.dance/Api/Songs/list',state:'unavailable',reason:'timeout'}]};
+  api.state.catalogSync={initializing:true,checking:false,finished:'2026-10-29T01:00:00Z',nextCheck:'2026-10-29T01:00:05Z',error:'尚未取得可用的完整歌曲清单'};
   await expect(update).toHaveAttribute('aria-busy','false',{timeout:10000});
   await expect(update).toBeEnabled();
   await expect(icon).toHaveCSS('animation-name','none');
   await expect(coverage).toContainText('—');
   await expect(coverage).not.toContainText('等待重试');
   await warning.focus();
-  await expect(tooltip).toContainText('请求超时');
+  await expect(tooltip).toContainText('尚未取得可用的完整歌曲清单');
   await expect(tooltip).toContainText('程序会自动重试');
   await expect(tooltip).toContainText('下次尝试');
   await page.keyboard.press('Escape');
@@ -135,7 +135,7 @@ for(const width of [1280,390,320])test(`catalog initialization keeps positions a
   expect(await layout()).toEqual(before);
   await summary.screenshot({path:info.outputPath('retry.png'),animations:'disabled'});
   inventory=complete;
-  api.state.upstreamMonitor={catalogInitializing:false,checking:false,finished:'2026-10-29T01:00:06Z',results:[]};
+  api.state.catalogSync={initializing:false,checking:false,finished:'2026-10-29T01:00:06Z',updated:'2026-10-29T01:00:06Z'};
   await expect(coverage).toContainText('66.7%',{timeout:10000});
   await expect(warning).toHaveCount(0);
   expect(await layout()).toEqual(before);

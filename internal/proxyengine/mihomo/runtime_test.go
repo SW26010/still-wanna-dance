@@ -19,6 +19,7 @@ import (
 
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/hub/executor"
+
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -62,42 +63,39 @@ func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {
 	if g.Port != 0 || g.SocksPort != 0 || g.MixedPort != 0 || g.RedirPort != 0 || g.TProxyPort != 0 || g.Tun.Enable {
 		t.Fatal("inbound or TUN enabled")
 	}
-	pool, err := upstreamrequest.NewPool("socks5", nil, r.DialContext)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pool.Close()
+	pool := &http.Transport{DialContext: r.DialContext}
+	defer pool.CloseIdleConnections()
 	for _, name := range runtimeProxyNames(t, r)[1:] {
 		selectRuntimeProxy(t, r, name)
 		pool.CloseIdleConnections()
-		if err := httpThrough(pool.Current("http://business.invalid/")[0].Transport, "/", time.Second); err != nil {
+		if err := httpThrough(pool, "/", time.Second); err != nil {
 			t.Fatal("selected native exit", name, err)
 		}
 	}
-	cs := pool.Current("http://business.invalid/")
+	cs := []http.RoundTripper{pool}
 	var work sync.WaitGroup
 	for i := range 40 {
 		work.Add(1)
 		go func() {
 			defer work.Done()
-			if err := httpThrough(cs[i%len(cs)].Transport, "/", 3*time.Second); err != nil {
+			if err := httpThrough(cs[i%len(cs)], "/", 3*time.Second); err != nil {
 				t.Error(err)
 			}
 		}()
 	}
 	work.Wait()
 	for _, c := range cs {
-		if err := httpThrough(c.Transport, "/stall", 30*time.Millisecond); !errors.Is(err, context.DeadlineExceeded) {
+		if err := httpThrough(c, "/stall", 30*time.Millisecond); !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatal("warm cancel", err)
 		}
-		if err := httpThrough(c.Transport, "/", time.Second); err != nil {
+		if err := httpThrough(c, "/", time.Second); err != nil {
 			t.Fatal("recovery", err)
 		}
 	}
 	if _, err := Normalize(map[string]any{"type": "ss", "server": "127.0.0.1", "port": 1234, "cipher": "aes-128-gcm", "password": "fixture"}); err != nil {
 		t.Fatal("preview with active core", err)
 	}
-	pool.Close()
+	pool.CloseIdleConnections()
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -127,14 +125,11 @@ func TestRuntimeSoak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	pool, err := upstreamrequest.NewPool("socks5", nil, r.DialContext)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pool.Close()
+	pool := &http.Transport{DialContext: r.DialContext}
+	defer pool.CloseIdleConnections()
 	until := time.Now().Add(60 * time.Second)
 	var work sync.WaitGroup
-	for _, c := range pool.Current("http://business.invalid/") {
+	for _, c := range []http.RoundTripper{pool} {
 		for range 2 {
 			work.Add(1)
 			go func() {
@@ -144,13 +139,13 @@ func TestRuntimeSoak(t *testing.T) {
 					// Bound TCP churn below Windows' ephemeral-port range. This
 					// checks sustained reuse/cancellation, not host port exhaustion.
 					time.Sleep(20 * time.Millisecond)
-					if err := httpThrough(c.Transport, "/", 2*time.Second); err != nil {
-						t.Error("soak request", c.ID, "after", requests, err)
+					if err := httpThrough(c, "/", 2*time.Second); err != nil {
+						t.Error("soak request", "after", requests, err)
 						return
 					}
 					requests++
 					if requests%10 == 0 {
-						if err := httpThrough(c.Transport, "/stall", 20*time.Millisecond); !errors.Is(err, context.DeadlineExceeded) {
+						if err := httpThrough(c, "/stall", 20*time.Millisecond); !errors.Is(err, context.DeadlineExceeded) {
 							t.Error("soak cancel", err)
 							return
 						}
@@ -161,7 +156,7 @@ func TestRuntimeSoak(t *testing.T) {
 		}
 	}
 	work.Wait()
-	pool.Close()
+	pool.CloseIdleConnections()
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}

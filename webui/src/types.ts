@@ -28,7 +28,6 @@ export interface HealthResult {
   lastThroughput?: {bytes: number; durationNs: number; songID: number; observedAt: string};
 }
 export interface Health {
-  catalogInitializing?: boolean;
   closed?: boolean; checking?: boolean; manual?: boolean; checkKind?: string; resourcesPaused?: boolean;
   results?: HealthResult[]; finished?: string; nextCheck?: string; nextThroughput?: string;
   throughputStatus?: string; throughputSaveFailed?: boolean; policy?: { throughputInterval?: number };
@@ -46,7 +45,7 @@ export interface Status {
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; dashboard?: boolean; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
-  defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health;
+  defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health; catalogSync?: {initializing:boolean;checking:boolean;finished?:string;updated?:string;nextCheck?:string;error?:string};
 }
 export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; unresolvedSongs?: number; scanning?: boolean; error?: string;

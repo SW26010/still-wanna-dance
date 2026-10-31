@@ -15,10 +15,12 @@ test('network follows the active backend, preserves diagnostics and releases the
   await expect(page.frameLocator('iframe').getByRole('button',{name:'节点夹具'})).toBeVisible();
   await expect(page.getByRole('button',{name:'检查当前连接'})).toHaveCount(0);
   expect(api.calls.some(c=>c.path.startsWith('network/'))).toBe(false);
-  await page.getByRole('link',{name:'当前连接',exact:true}).click();
+  await expect(page.getByRole('link',{name:'当前连接',exact:true})).toHaveCount(0);
+  await page.getByRole('link',{name:'连通性与测速',exact:true}).click();
   await expect(frame).toHaveCount(0);
-  await expect(page.locator('#network')).toBeFocused();
-  await expect(page.getByRole('button',{name:'检查当前连接'})).toBeVisible();
+  await expect(page.locator('#network-tests')).toBeFocused();
+  await expect(page.getByRole('button',{name:'开始连通性检测'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'检查当前连接'})).toHaveCount(0);
   await page.getByRole('link',{name:'接入诊断',exact:true}).click();
   await expect(page.locator('#service')).toBeFocused();
   await expect(page.getByRole('button',{name:'修复并开启加速'})).toBeVisible();
@@ -47,7 +49,8 @@ test('legacy current-connection bookmarks remain distinct from the dashboard rou
   const connections=page.locator('#network'),frame=page.locator('iframe');
   await page.goto('/#network');
   await expect(connections).toBeFocused();
-  await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeVisible();
   await expect(frame).toHaveCount(0);
   await page.reload();
   await expect(connections).toBeFocused();

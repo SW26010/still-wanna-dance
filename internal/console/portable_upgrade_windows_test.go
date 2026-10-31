@@ -81,7 +81,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			if err := c.acceptTerms(); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := c.proxyIdentity(s); err != nil {
+			if _, err := testNodeIdentity(c); err != nil {
 				t.Fatal(err)
 			}
 			finished := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)

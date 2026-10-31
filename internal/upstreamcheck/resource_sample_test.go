@@ -1,4 +1,4 @@
-package upstreamstate
+package upstreamcheck
 
 import (
 	"context"
@@ -97,13 +97,6 @@ func TestResourceThroughputExcludesConnectionTime(t *testing.T) {
 		if o.state != "available" || o.transferDuration != 2*time.Second || o.duration != 5*time.Second || o.bytes != 16<<20 {
 			t.Fatalf("%+v", o)
 		}
-		m := testMonitor(t, transportFunc(fixture))
-		m.mu.Lock()
-		recordFixture(m, o)
-		m.mu.Unlock()
-		r := resultFor(t, m, Resource, "play.udon.dance")
-		if r.EstimatedSpeedBPS == nil || *r.EstimatedSpeedBPS != 8<<20 || r.TransferDurationMS == nil || *r.TransferDurationMS != 2000 {
-			t.Fatalf("%+v", r)
-		}
+
 	})
 }

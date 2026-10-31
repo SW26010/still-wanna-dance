@@ -5,54 +5,38 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"time"
 
-	"still-wanna-dance/internal/upstreamstate"
+	"still-wanna-dance/internal/upstreamcheck"
 )
 
+type networkConnectivityRecord struct {
+	Finished time.Time                   `json:"finished"`
+	Results  []networkConnectivityResult `json:"results"`
+}
 type networkConnectivityStatus struct {
-	LastValid map[string][]networkConnectivityResult `json:"lastValid"`
-	Revision  uint64                                 `json:"revision"`
-	Run       uint64                                 `json:"run"`
-	Upstream  string                                 `json:"upstream"`
-	Running   bool                                   `json:"running"`
-	Closed    bool                                   `json:"closed"`
-	Phase     string                                 `json:"phase"`
-	Results   []networkConnectivityResult            `json:"results"`
+	LastResult   *networkConnectivityRecord  `json:"lastResult,omitempty"`
+	Finished     time.Time                   `json:"finished"`
+	NextCheck    time.Time                   `json:"nextCheck"`
+	Initializing bool                        `json:"initializing"`
+	Revision     uint64                      `json:"revision"`
+	Run          uint64                      `json:"run"`
+	Upstream     string                      `json:"upstream"`
+	Running      bool                        `json:"running"`
+	Closed       bool                        `json:"closed"`
+	Phase        string                      `json:"phase"`
+	Results      []networkConnectivityResult `json:"results"`
 }
-
-// The network page presents one summary per operation; Monitor owns all probes.
-// LatencyMS is the lowest estimated first-byte latency among available results,
-// including Monitor's recent successful samples, not this run's elapsed time.
 type networkConnectivityResult struct {
-	Operation upstreamstate.Operation `json:"operation"`
-	State     string                  `json:"state"`
-	Reason    string                  `json:"reason,omitempty"`
-	LatencyMS *float64                `json:"latencyMS"`
+	Operation  upstreamcheck.Operation `json:"operation"`
+	Entry      string                  `json:"entry"`
+	State      string                  `json:"state"`
+	Reason     string                  `json:"reason,omitempty"`
+	Scheme     string                  `json:"scheme,omitempty"`
+	LatencyMS  *float64                `json:"latencyMS"`
+	ObservedAt time.Time               `json:"observedAt"`
 }
 
-var connectivityOperations = []upstreamstate.Operation{upstreamstate.Catalog, upstreamstate.PlaybackURL, upstreamstate.Resource}
-
-func summarizeConnectivity(op upstreamstate.Operation, results []upstreamstate.Result) networkConnectivityResult {
-	row := networkConnectivityResult{Operation: op, State: "failed", Reason: "no_channel"}
-	for _, r := range results {
-		if r.Operation != op {
-			continue
-		}
-		if r.State == "available" {
-			if row.State != "available" || (r.EstimatedLatencyMS != nil && (row.LatencyMS == nil || *r.EstimatedLatencyMS < *row.LatencyMS)) {
-				row.State, row.Reason, row.LatencyMS = "available", "", r.EstimatedLatencyMS
-			}
-		} else if row.State != "available" && r.State != "unknown" {
-			row.Reason = r.Reason
-			if row.Reason == "" {
-				row.Reason = r.State
-			}
-		}
-	}
-	return row
-}
-
-// c.mu protects both the snapshot and its notification channel.
 func (c *Console) publishNetworkConnectivityLocked() {
 	n := c.networkDiagnostics
 	n.connectivity.Revision++
@@ -62,54 +46,47 @@ func (c *Console) publishNetworkConnectivityLocked() {
 	n.connectivityChanged = make(chan struct{})
 }
 
-func (c *Console) updateNetworkConnectivity(ctx context.Context, progress upstreamstate.CheckProgress) {
+func (c *Console) connectivityRow(ctx context.Context, row networkConnectivityResult) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	n := c.networkDiagnostics
-	if n == nil || !n.connectivity.Running || n.connectivity.Closed || ctx.Err() != nil || n.connectivity.Phase == "canceling" {
+	if ctx.Err() != nil || n.connectivity.Closed {
 		return
 	}
-	complete := progress.Operation == ""
-	if !complete {
-		n.connectivityPhase = slices.Index(connectivityOperations, progress.Operation)
-	}
-	// Only routes observed in this run contribute to its connectivity status.
-	// Their latency estimates still include Monitor's recent successful samples.
-	results := make([]upstreamstate.Result, 0, len(progress.Results))
-	for _, result := range progress.Results {
-		if !result.ObservedAt.Before(progress.Started) {
-			results = append(results, result)
-		}
-	}
-	var rows []networkConnectivityResult
-	for i, op := range connectivityOperations {
-		if i > n.connectivityPhase {
-			if complete {
-				rows = append(rows, networkConnectivityResult{Operation: op, State: "skipped", Reason: "no_sample"})
-			}
-			continue
-		}
-		row := summarizeConnectivity(op, results)
-		if i == n.connectivityPhase && !complete {
-			row = networkConnectivityResult{Operation: op, State: "checking"}
-		}
+	rows := slices.Clone(n.connectivity.Results)
+	i := slices.IndexFunc(rows, func(r networkConnectivityResult) bool { return r.Operation == row.Operation && r.Entry == row.Entry })
+	if i < 0 {
 		rows = append(rows, row)
+	} else {
+		rows[i] = row
 	}
 	n.connectivity.Results = rows
 	c.publishNetworkConnectivityLocked()
 }
 
-func (c *Console) controlNetworkConnectivity(cancel bool, input networkCalibrationRequest) error {
-	if input.Upstream == "" {
-		input.Upstream = "direct"
+func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
+	row := networkConnectivityResult{Operation: r.Operation, Entry: r.Route, State: "failed", Reason: r.State, Scheme: r.Scheme}
+	if r.State == "available" {
+		row.State = "available"
+		row.Reason = ""
+	} else if r.State == "checking" || r.State == "skipped" {
+		row.State = r.State
+		row.Reason = ""
 	}
-	if input.Upstream != "direct" && input.Upstream != "proxy" {
-		return errors.New("未知检测上游")
+	if r.State != "checking" && r.State != "skipped" {
+		row.ObservedAt = r.ObservedAt
+		if row.ObservedAt.IsZero() {
+			row.ObservedAt = time.Now()
+		}
 	}
-	settings, err := c.diagnosticProxy(cancel, input)
-	if err != nil {
-		return err
+	if r.Responded {
+		ms := float64(r.Latency) / float64(time.Millisecond)
+		row.LatencyMS = &ms
 	}
+	return row
+}
+
+func (c *Console) controlNetworkConnectivity(cancel bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	test, err := c.networkCalibrationLocked()
@@ -119,62 +96,80 @@ func (c *Console) controlNetworkConnectivity(cancel bool, input networkCalibrati
 	n := c.networkDiagnostics
 	if cancel {
 		if n.connectivity.Running {
-			n.connectivity.Phase, n.connectivity.Results = "canceling", nil
+			n.connectivity.Phase = "canceling"
 			n.connectivityCancel()
 			c.publishNetworkConnectivityLocked()
 		}
 		return nil
 	}
 	if s, _ := test.Snapshot(); s.Running {
-		return errors.New("请先停止当前检测")
+		return errors.New("请先停止当前测速")
 	}
 	if n.connectivity.Running {
-		return errors.New("连通性检测正在运行")
+		c.publishNetworkConnectivityLocked()
+		return nil // Both triggers join the same round; never queue duplicate work.
 	}
-	monitor, err := c.networkConnectivityMonitorLocked(input.Upstream, settings)
-	if err != nil {
-		return err
-	}
-	client := n.client
-	if input.Upstream == "proxy" {
-		client = n.proxy.client
+	c.startConnectivityLocked(false)
+	return nil
+}
+
+// Caller holds c.mu. All triggers share progress, publication and cancellation.
+func (c *Console) startConnectivityLocked(catalogOnly bool) {
+	n := c.networkDiagnostics
+	if n.connectivityTimer != nil {
+		n.connectivityTimer.Stop()
 	}
 	ctx, stop := context.WithCancel(context.Background())
-	n.connectivityPhase = 0
 	n.connectivityCancel = stop
-	n.connectivity = networkConnectivityStatus{LastValid: n.connectivity.LastValid, Revision: n.connectivity.Revision, Run: n.connectivity.Run + 1, Upstream: input.Upstream, Running: true, Phase: "running"}
+	previous := n.connectivity
+	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: c.settings.UpstreamMode, Running: true, Phase: "running", Initializing: previous.Initializing}
+	if catalogOnly && previous.LastResult != nil {
+		n.connectivity.Results = slices.Clone(previous.LastResult.Results)
+	}
 	c.publishNetworkConnectivityLocked()
 	done := make(chan struct{})
 	n.connectivityDone = done
+	client, metadata := c.client, c.metadataLocked()
 	go func() {
 		defer close(done)
-		// The reserved batch drains on cancellation while the monitor keeps
-		// its song traversal for the next manual run on this network scope.
-		err := monitor.CheckSelected(ctx, upstreamstate.CheckConnectivity)
-		// http.Transport can keep an unused dial/handshake after the request
-		// returns. Drain those connections without retiring this reusable pool.
-		client.CloseIdleConnections()
+		defer stop()
+		ready := c.catalogReady(ctx)
 		c.mu.Lock()
-		n.connectivity.Running, n.connectivity.Phase = false, "completed"
-		if err != nil {
-			n.connectivity.Phase = "failed"
-		}
-		if ctx.Err() != nil {
-			n.connectivity.Phase, n.connectivity.Results = "canceled", nil
-		}
-		if n.connectivity.Phase == "completed" && len(n.connectivity.Results) == 3 {
-			saved := make(map[string][]networkConnectivityResult, len(n.connectivity.LastValid)+1)
-			for key, rows := range n.connectivity.LastValid {
-				saved[key] = rows
-			}
-			saved[input.Upstream] = slices.Clone(n.connectivity.Results)
-			n.connectivity.LastValid = saved
-		}
-		stop()
+		n.connectivity.Initializing = !ready
 		c.publishNetworkConnectivityLocked()
 		c.mu.Unlock()
+		upstreamcheck.CheckConnectivity(ctx, c.connectivityAccess(), upstreamcheck.ConnectivityBusiness{
+			OnCatalog: c.syncCatalogs, SelectSong: metadata.SelectSong, OnPlaybackURL: c.syncPlaybackURL,
+		}, catalogOnly, func(r upstreamcheck.Result) { c.connectivityRow(ctx, connectivityResult(r)) })
+		if ctx.Err() == nil {
+			ready = c.catalogReady(ctx)
+		}
+		// Cancel unused dials retained by net/http after request cancellation.
+		client.CloseIdleConnections()
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		n.connectivity.Running = false
+		delay := 5 * time.Minute
+		if ctx.Err() != nil {
+			n.connectivity.Phase = "canceled"
+			n.connectivity.Results = nil
+		} else {
+			n.connectivity.Phase = "completed"
+			n.connectivity.Finished = time.Now()
+			n.connectivity.Initializing = !ready
+			n.connectivity.LastResult = &networkConnectivityRecord{Finished: n.connectivity.Finished, Results: slices.Clone(n.connectivity.Results)}
+			if ready {
+				n.connectivityRetry = 0
+			} else {
+				n.connectivityRetry = min(max(5*time.Second, 2*n.connectivityRetry), time.Minute)
+				delay = n.connectivityRetry
+			}
+		}
+		if n.connectivityAuto && !n.connectivity.Closed {
+			c.scheduleConnectivityLocked(delay)
+		}
+		c.publishNetworkConnectivityLocked()
 	}()
-	return nil
 }
 
 func (c *Console) serveNetworkConnectivityEvents(w http.ResponseWriter, r *http.Request) {

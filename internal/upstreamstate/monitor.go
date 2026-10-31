@@ -13,32 +13,27 @@ import (
 
 type Options struct {
 	// Channel selects an application-owned observation scope. Nil uses Default.
-	// Diagnostics can supply a private channel without publishing probe transports
-	// or recommendations to business consumers. The owner closes its transports.
-	Channel *upstreamrequest.Channel
+	// Isolated direct-path experiments may supply their own channel.
+	// The owner closes its transports.
+	Channel   *upstreamrequest.Channel
+	Resources *upstreamrequest.Resources
+	// Optional sample override retained for direct-path experiments. Business
+	// metadata traversal belongs to catalogsync and never calls this hook.
+	PlaybackSongCandidates func(context.Context) []int64
 	// OnCatalog receives successful responses once per batch, outside monitor locks.
 	// It must respect cancellation; Close waits for it to return.
 	OnCatalog func(context.Context, []CatalogResponse)
-	// CatalogReady verifies that the consumer has accepted a complete catalog.
-	// When supplied, automatic checks retry initialization with bounded backoff
-	// until it returns true. It runs outside monitor locks and must honor context.
-	CatalogReady func(context.Context) bool
 	// OnPlaybackURL receives each valid API response outside monitor locks,
 	// before resource probing. Calls may overlap across nodes/channels; the
 	// consumer must respect cancellation. Close waits for callbacks to return.
 	OnPlaybackURL func(context.Context, PlaybackURLResponse)
 	// OnProgress receives phase boundaries and completed results outside locks.
 	// Calls within a batch are sequential; Close cancels and waits for callbacks.
-	OnProgress func(context.Context, CheckProgress)
-	// PlaybackSongCandidates returns incomplete songs in business priority order.
-	// Called once per playback batch after catalog delivery, outside monitor locks.
-	// Nil/empty retains the normal catalog sample. Close cancels/waits for it.
-	PlaybackSongCandidates func(context.Context) []int64
-	Policy                 Policy
-	ThroughputStatePath    string
+	OnProgress          func(context.Context, CheckProgress)
+	Policy              Policy
+	ThroughputStatePath string
 }
 type Status struct {
-	CatalogInitializing   bool      `json:"catalogInitializing"`
 	LastThroughputAttempt time.Time `json:"lastThroughputAttempt"`
 	NextThroughput        time.Time `json:"nextThroughput"`
 	ThroughputStatus      string    `json:"throughputStatus"`
@@ -59,16 +54,13 @@ type Status struct {
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	playbackSongCandidates func(context.Context) []int64
+	resources              *upstreamrequest.Resources
 	diagnostics            map[string]observation
 	resourceSources        map[string]observation
 	onCatalog              func(context.Context, []CatalogResponse)
-	catalogReady           func(context.Context) bool
-	catalogInitializing    bool
-	catalogRetryDelay      time.Duration
 	onPlaybackURL          func(context.Context, PlaybackURLResponse)
 	onProgress             func(context.Context, CheckProgress)
-	playbackSongCandidates func(context.Context) []int64
-	playbackSongsAttempted map[int64]bool
 	throughputSaveFailed   bool
 	batchKind              CheckKind
 	batchCtx               context.Context
@@ -106,7 +98,7 @@ func NewMonitor(o Options) (*Monitor, error) {
 	return newMonitor(o, channel)
 }
 
-// Both business and scoped diagnostics use the same measurement implementation.
+// Direct monitoring and isolated path experiments use the same implementation.
 func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	p := normalized(o.Policy)
 	if err := validatePolicy(p); err != nil {
@@ -115,13 +107,15 @@ func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
 	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
+	m.resources = o.Resources
+	if m.resources == nil {
+		m.resources = channel.Resources
+	}
 	m.loadThroughputTime()
+	m.playbackSongCandidates = o.PlaybackSongCandidates
 	m.onCatalog = o.OnCatalog
-	m.catalogReady = o.CatalogReady
-	m.catalogInitializing = o.CatalogReady != nil
 	m.onPlaybackURL = o.OnPlaybackURL
 	m.onProgress = o.OnProgress
-	m.playbackSongCandidates = o.PlaybackSongCandidates
 	return m, nil
 }
 
@@ -133,7 +127,6 @@ func requestClient(t http.RoundTripper) *http.Client {
 func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 	s := m.channel.Snapshot()
 	if s.Revision != m.revision {
-		m.playbackSongsAttempted = nil
 		m.diagnostics = nil
 		m.revision = s.Revision
 		if s.Candidates != nil {
@@ -200,25 +193,24 @@ func (m *Monitor) Snapshot() Status {
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
 	s := Status{
-		CatalogInitializing: m.catalogInitializing && !m.closed,
-		Manual:              m.manualDone != nil || (m.active != nil && m.batchManual),
-		CheckKind:           m.batchKind,
-		ResourcesPaused:     m.channel.ResourceBusy() && (m.active == nil || !m.batchManual),
-		Checking:            m.active != nil,
-		Scheduled:           m.scheduler != nil && !m.closed,
-		Closed:              m.closed,
-		Started:             m.started,
-		Finished:            m.finished,
-		NextCheck:           m.nextCheck,
-		Policy:              m.policy,
-		Results:             make([]Result, 0, len(operations)),
+		Manual:          m.manualDone != nil || (m.active != nil && m.batchManual),
+		CheckKind:       m.batchKind,
+		ResourcesPaused: m.resources.ResourceBusy() && (m.active == nil || !m.batchManual),
+		Checking:        m.active != nil,
+		Scheduled:       m.scheduler != nil && !m.closed,
+		Closed:          m.closed,
+		Started:         m.started,
+		Finished:        m.finished,
+		NextCheck:       m.nextCheck,
+		Policy:          m.policy,
+		Results:         make([]Result, 0, len(operations)),
 	}
 	now := time.Now()
 	for _, op := range operations {
 		s.Results = append(s.Results, m.resultsLocked(op, now)...)
 	}
 	s.LastThroughputAttempt = m.lastThroughput
-	if !m.proxyModeLocked() && !m.lastThroughput.IsZero() {
+	if !m.lastThroughput.IsZero() {
 		s.NextThroughput = m.lastThroughput.Add(m.policy.ThroughputInterval)
 	}
 	s.ThroughputSaveFailed = m.throughputSaveFailed
@@ -340,9 +332,6 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 			}
 			m.batchRevision = source.Revision
 			m.batchManual = manual
-			if !manual && kind == "" && m.catalogRetryDelay > 0 {
-				kind = CheckCatalog
-			}
 			m.batchKind = kind
 			m.batchCtx, m.batchCancel = context.WithCancel(m.ctx)
 			m.batchThroughput = nil
@@ -431,33 +420,12 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
 				}
-				if m.catalogInitializing {
-					if kind.includes(Catalog) {
-						m.catalogRetryDelay = min(max(5*time.Second, 2*m.catalogRetryDelay), time.Minute)
-					}
-					m.nextCheck = m.finished.Add(max(5*time.Second, m.catalogRetryDelay))
-				}
 			}
 		}
 		close(done)
 	}()
 	p := m.policy
 	defer m.publishProgress(ctx, "")
-	m.checkCatalogReady(ctx)
 	m.publishProgress(ctx, Catalog)
 	m.checkRoutes(ctx, p, source, record)
-	m.checkCatalogReady(ctx)
-}
-
-func (m *Monitor) checkCatalogReady(ctx context.Context) {
-	m.mu.Lock()
-	pending := m.catalogInitializing
-	m.mu.Unlock()
-	if !pending || ctx.Err() != nil || !m.catalogReady(ctx) || ctx.Err() != nil {
-		return
-	}
-	m.mu.Lock()
-	m.catalogInitializing = false
-	m.catalogRetryDelay = 0
-	m.mu.Unlock()
 }

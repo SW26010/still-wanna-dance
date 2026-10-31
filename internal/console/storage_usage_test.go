@@ -76,9 +76,9 @@ func TestStorageEntryPointsRejectLostLibrary(t *testing.T) {
 				case "gateway":
 					err = c.start()
 				case "monitor_catalog":
-					c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "song", strings.Repeat("a", 32))})
+					c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "song", strings.Repeat("a", 32))})
 				case "monitor_playback":
-					c.syncMonitorPlaybackURL(context.Background(), upstreamstate.PlaybackURLResponse{
+					c.syncPlaybackURL(context.Background(), upstreamstate.PlaybackURLResponse{
 						SongID: 1, URL: "https://play.udon.dance/files/1/1-test.mp4?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=1",
 						API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: time.Now().Add(-time.Second), ObservedAt: time.Now(),
 					})

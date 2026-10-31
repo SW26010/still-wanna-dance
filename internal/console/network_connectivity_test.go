@@ -10,14 +10,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
-	"still-wanna-dance/internal/upstreamstate"
 )
 
 func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
@@ -54,7 +55,7 @@ func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 		t.Fatal("subscription made upstream request")
 	default:
 	}
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -70,10 +71,10 @@ func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 			break
 		}
 	}
-	if err := c.controlNetworkCalibration(false, networkCalibrationRequest{}); err == nil {
+	if err := c.controlNetworkCalibration(false); err == nil {
 		t.Fatal("overlapping throughput accepted")
 	}
-	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
 	for s := read(); ; s = read() {
@@ -123,7 +124,7 @@ func TestNetworkConnectivityConsentOriginAndToken(t *testing.T) {
 	}
 }
 
-func TestNetworkConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) {
+func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 	c := testConsole(t)
 	connected, closed := make(chan struct{}, 1), make(chan struct{}, 1)
 	address := socksPeerWithAuth(t, "fixture", "secret", func(conn net.Conn, target string) {
@@ -132,18 +133,17 @@ func TestNetworkConnectivityUsesUnsavedSOCKS5AndCancelsConnection(t *testing.T) 
 		_, _ = io.Copy(io.Discard, conn)
 		closed <- struct{}{}
 	})
+	activateTestProxy(t, c, address, "fixture", "secret")
 	before, settings, business := c.client, c.settings, upstreamrequest.Default.Snapshot().Revision
-	password := "secret"
-	input := networkCalibrationRequest{Upstream: "proxy", Proxy: &diagnosticProxyDraft{ProxyBackend: "external-socks5", SOCKS5Address: address, SOCKS5User: "fixture", Password: &password}}
-	if err := c.controlNetworkConnectivity(false, input); err != nil {
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
 	select {
 	case <-connected:
 	case <-time.After(3 * time.Second):
-		t.Fatal("draft proxy not used")
+		t.Fatal("active proxy not used")
 	}
-	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -174,47 +174,48 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	stubNetworkDiagnostics(t, c)
 	started := make(chan struct{}, 1)
 	// A failed connectivity conclusion is still a valid completed check.
-	c.networkDiagnostics.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 	})
-	c.networkDiagnostics.channel.Publish(c.networkDiagnostics.client.Transport.(upstreamrequest.Candidates))
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
 	<-c.networkDiagnostics.connectivityDone
 	c.mu.Lock()
-	previous := c.networkDiagnostics.connectivity.LastValid["direct"]
+	previous := c.networkDiagnostics.connectivity.LastResult.Results
+	previousTime := c.networkDiagnostics.connectivity.LastResult.Finished
 	c.mu.Unlock()
-	if len(previous) != 3 || previous[0].State != "failed" {
+	if len(previous) != 5 || previous[0].State != "failed" || previousTime.IsZero() {
 		t.Fatal("complete result not retained", previous)
 	}
-	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		started <- struct{}{}
 		<-r.Context().Done()
 		return nil, r.Context().Err()
-	}))
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
+	})
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
 	<-started
-	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
 	<-c.networkDiagnostics.connectivityDone
 	c.mu.Lock()
 	result := c.networkDiagnostics.connectivity
 	c.mu.Unlock()
-	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastValid["direct"]) != 3 || result.LastValid["direct"][0].State != "failed" {
+	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastResult.Results) != 5 || result.LastResult.Results[0].State != "failed" || !result.LastResult.Finished.Equal(previousTime) {
 		t.Fatal("cancel lost completed results", result)
 	}
 }
 
-func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing.T) {
+func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 	c := testConsole(t)
 	stubNetworkDiagnostics(t, c)
+	c.settings.UpstreamMode = "proxy"
 	var requests atomic.Int32
 	const md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		requests.Add(1)
 		body := ""
 		status := http.StatusOK
@@ -239,20 +240,16 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 			header.Set("Content-Range", "bytes 0-0/1234")
 		}
 		return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
-	}))
+	})
 	before, settings := upstreamrequest.Default.Snapshot(), c.settings
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case <-c.networkDiagnostics.connectivityDone:
-	case <-time.After(5 * time.Second):
-		t.Fatal("connectivity did not complete")
-	}
+	waitCatalogSync(t, c)
 	c.mu.Lock()
 	state := c.networkDiagnostics.connectivity
 	c.mu.Unlock()
-	if state.Phase != "completed" || len(state.Results) != 3 || len(state.LastValid["direct"]) != 3 {
+	if state.Phase != "completed" || len(state.Results) != 5 || len(state.LastResult.Results) != 5 {
 		t.Fatal(state)
 	}
 	for _, row := range state.Results {
@@ -290,13 +287,48 @@ func TestNetworkConnectivityReusesMonitorResponsesToInitializeStorage(t *testing
 	if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
 		t.Fatal("diagnostic changed business routing")
 	}
+	if state.Finished.IsZero() || !state.LastResult.Finished.Equal(state.Finished) || state.NextCheck.Sub(state.Finished) != 5*time.Minute || c.monitor != nil {
+		t.Fatal("missing test timestamp or diagnostics started Monitor")
+	}
+	if evidence := os.Getenv("SWD_UPSTREAM_BROWSER_EVIDENCE"); evidence != "" {
+		ui := httptest.NewUnstartedServer(c)
+		c.address = ui.Listener.Addr().String()
+		ui.Start()
+		defer ui.Close()
+		ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "upstream-diagnostics-live.mjs"), ui.URL, evidence)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("browser: %v\n%s", err, output)
+		}
+	}
+	// A new failed run replaces success with current observations. Neither old
+	// latency nor successful rows may survive, even without usable new samples.
+	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+	})}
+	if err := c.controlNetworkConnectivity(false); err != nil {
+		t.Fatal(err)
+	}
+	<-c.networkDiagnostics.connectivityDone
+	c.mu.Lock()
+	failed := c.networkDiagnostics.connectivity
+	c.mu.Unlock()
+	if failed.Run <= state.Run || failed.Finished.Before(state.Finished) || failed.LastResult.Finished.IsZero() {
+		t.Fatal("failed run lost test time", failed)
+	}
+	for _, row := range failed.Results {
+		if row.State == "available" {
+			t.Fatal("previous success leaked into fresh test", row)
+		}
+	}
 }
 
 func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T) {
 	c := testConsole(t)
 	stubNetworkDiagnostics(t, c)
 	entered := make(chan struct{})
-	c.networkDiagnostics.channel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Host == "wanna.kiva.moe" {
 			close(entered)
 			<-r.Context().Done()
@@ -304,8 +336,8 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 		}
 		body := monitorFull("kiva", "20261016000000", "must not be delivered", strings.Repeat("a", 32)).Body
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body)))}, nil
-	}))
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err != nil {
+	})
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -313,7 +345,7 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 	case <-time.After(time.Second):
 		t.Fatal("catalog not requested")
 	}
-	if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
 	<-c.networkDiagnostics.connectivityDone
@@ -322,15 +354,11 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 	}
 }
 
-func TestNetworkConnectivitySummaryAcceptsAnyAvailableCandidate(t *testing.T) {
-	ms := 12.0
-	rows := []upstreamstate.Result{
-		{Operation: upstreamstate.Catalog, State: "failed", Reason: "http_error"},
-		{Operation: upstreamstate.Catalog, State: "available", EstimatedLatencyMS: &ms},
-		{Operation: upstreamstate.Catalog, State: "failed", Reason: "timeout"},
-	}
-	row := summarizeConnectivity(upstreamstate.Catalog, rows)
-	if row.State != "available" || row.Reason != "" || row.LatencyMS == nil || *row.LatencyMS != ms {
-		t.Fatal(row)
+func TestNetworkConnectivityReportsCurrentMeasurement(t *testing.T) {
+	for _, delay := range []time.Duration{10 * time.Millisecond, 80 * time.Millisecond} {
+		row := connectivityResult(upstreamcheck.Result{Operation: upstreamcheck.Catalog, Route: "api", State: "available", Responded: true, Latency: delay, Scheme: "https"})
+		if row.LatencyMS == nil || *row.LatencyMS != float64(delay/time.Millisecond) || row.Entry != "api" || row.Scheme != "https" {
+			t.Fatal(row)
+		}
 	}
 }

@@ -32,7 +32,7 @@ func TestLocalProtectionSettingsControlEngineAfterRestart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		observeTestResources(t)
+		observeTestResources(t, c.resources)
 		ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 		defer cancel()
 		if _, err := c.service.ImportVideo(ctx, source, map[string]bool{key: true}); err != nil {

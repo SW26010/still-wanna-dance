@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestCatalogInitializationPublishesFirstCoverage(t *testing.T) {
@@ -30,17 +29,18 @@ func TestCatalogInitializationPublishesFirstCoverage(t *testing.T) {
 		catalogCalls.Add(1)
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
 	})
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{transport})
-	if err := c.StartUpstreamMonitor(); err != nil {
+	c.client.Transport = noCandidatesTransport{transport}
+	c.settings.UpstreamMode = "proxy"
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
-	waitMonitor(t, c)
+	waitCatalogSync(t, c)
 	v := waitInventory(t, c)
 	if !v.CoverageKnown || v.TotalSongs != 1 || v.CoveredSongs != 0 || v.Updated.IsZero() {
 		t.Fatalf("first successful automatic catalog did not publish coverage: %+v", v)
 	}
-	if catalogCalls.Load() != 6 || c.service != nil {
-		t.Fatalf("initial coverage fetched again or started engine: calls=%d engine=%v", catalogCalls.Load(), c.service != nil)
+	if catalogCalls.Load() != 3 || c.service != nil || c.monitor != nil || testDNS(c).queries.Load() != 0 {
+		t.Fatalf("catalog initialization escaped its scope: calls=%d engine=%v monitor=%v DNS=%d", catalogCalls.Load(), c.service != nil, c.monitor != nil, testDNS(c).queries.Load())
 	}
 }
 
@@ -124,11 +124,12 @@ func TestCatalogInitializationFailureSchedulesRetryAfterConsent(t *testing.T) {
 	c := testConsole(t)
 	c.terms = termsReceipt{}
 	var calls atomic.Int32
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{catalogTransport(func(*http.Request) (*http.Response, error) {
+	c.settings.UpstreamMode = "proxy"
+	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
 		calls.Add(1)
 		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
-	})})
-	if err := c.StartUpstreamMonitor(); err != nil {
+	})
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
 	if c.monitor != nil || calls.Load() != 0 {
@@ -137,12 +138,31 @@ func TestCatalogInitializationFailureSchedulesRetryAfterConsent(t *testing.T) {
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
-	s := waitMonitor(t, c)
-	if !s.CatalogInitializing || s.NextCheck.Sub(s.Finished) != 5*time.Second {
-		t.Fatal("first failure did not schedule initialization retry", s.CatalogInitializing, s.NextCheck.Sub(s.Finished))
+	s := waitCatalogSync(t, c)
+	if !s.Initializing || s.NextCheck.Sub(s.Finished) != 5*time.Second {
+		t.Fatal("first failure did not schedule initialization retry", s.Initializing, s.NextCheck.Sub(s.Finished))
 	}
 	c.Close()
-	if c.monitor.Snapshot().CatalogInitializing {
+	c.mu.Lock()
+	s = c.catalogSyncSnapshotLocked()
+	c.mu.Unlock()
+	if s.Initializing || !s.NextCheck.IsZero() {
 		t.Fatal("shutdown left initialization active")
 	}
+}
+
+func waitCatalogSync(t *testing.T, c *Console) catalogSyncStatus {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		c.mu.Lock()
+		s := c.catalogSyncSnapshotLocked()
+		c.mu.Unlock()
+		if !s.Checking && !s.Finished.IsZero() {
+			return s
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("catalog sync did not finish")
+	return catalogSyncStatus{}
 }

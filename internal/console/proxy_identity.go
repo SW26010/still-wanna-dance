@@ -1,11 +1,7 @@
 package console
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -37,29 +33,6 @@ func (c *Console) channelIdentityKey() ([]byte, bool, error) {
 		_, id.err = rand.Read(id.key)
 	})
 	return slices.Clone(id.key), id.persistent, id.err
-}
-
-// Keep the random HMAC key separate from public channel IDs and sample files.
-// Changing endpoint or either credential changes the identity; rebuilding a
-// pool or restarting with the same configuration does not.
-func (c *Console) proxyIdentity(s Settings) (string, error) {
-	key, persistent, err := c.channelIdentityKey()
-	if err != nil {
-		return "", err
-	}
-	defer clear(key)
-	if !persistent {
-		// An empty identity makes the pool use a process-local ID, which cannot
-		// claim persisted samples. Persistence must not prevent proxy use.
-		return "", nil
-	}
-	data, err := json.Marshal([]string{"socks5-channel-v1", s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password})
-	if err != nil {
-		return "", err
-	}
-	mac := hmac.New(sha256.New, key)
-	mac.Write(data)
-	return "stable-v1-" + hex.EncodeToString(mac.Sum(nil)), nil
 }
 
 func loadProxyIdentityKey(path string) ([]byte, error) {

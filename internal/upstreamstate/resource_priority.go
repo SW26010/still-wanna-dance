@@ -20,7 +20,7 @@ func (m *Monitor) probeResourceWhenIdle(ctx context.Context, client *http.Client
 	var throughput bool
 	firstAttempt := true
 	for {
-		probeCtx, finish, err := m.channel.ResourceProbe(ctx)
+		probeCtx, finish, err := m.resources.ResourceProbe(ctx)
 		if err != nil {
 			return observation{op: Resource, route: sample.host, state: "canceled"}
 		}

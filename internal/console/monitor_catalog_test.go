@@ -28,7 +28,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	old := monitorFull("wanna", "20261001000000", "old", a)
 	newer := monitorFull("kiva", "20261002000000", "full", b)
 	// Newer Udon metadata wins while both older backups can fill resource holes.
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "latest name"), old, newer, newer})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorNames("20261003000000", "latest name"), old, newer, newer})
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -54,17 +54,17 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 	}
 	assert()
 	// A same-source metadata conflict and older backups cannot undo accepted data.
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{old, monitorNames("20261003000000", "conflict"), monitorFull("wanna", "20261002000000", "full", a)})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{old, monitorNames("20261003000000", "conflict"), monitorFull("wanna", "20261002000000", "full", a)})
 	assert()
 	// Fully invalid newer data must not advance any watermark.
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261004000000", "invalid", "bad")})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261004000000", "invalid", "bad")})
 	assert()
 }
 
 func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "original", strings.Repeat("a", 32))})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261001000000", "original", strings.Repeat("a", 32))})
 	oldRoot := testStorageRoot(c.settings)
 	next := c.settings
 	setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "replacement"))
@@ -79,7 +79,7 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "replacement", strings.Repeat("b", 32))})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "replacement", strings.Repeat("b", 32))})
 	for root, want := range map[string]string{oldRoot: "original", testStorageRoot(c.settings): "replacement"} {
 		db, err := sql.Open("sqlite", filepath.Join(root, "storage.sqlite"))
 		if err != nil {
@@ -103,7 +103,7 @@ func TestMonitorCatalogCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 		} else {
 			cancel()
 		}
-		c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "name", strings.Repeat("a", 32))})
+		c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "name", strings.Repeat("a", 32))})
 		cancel()
 		if c.service != nil {
 			t.Fatal("opened storage for canceled/closing update")
@@ -114,7 +114,7 @@ func TestMonitorCatalogCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 
 func TestMonitorUdonUpdatesStoreWithoutStartingEngine(t *testing.T) {
 	c := testConsole(t)
-	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorNames("20990101000000", "canonical")})
+	c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorNames("20990101000000", "canonical")})
 	if c.service != nil {
 		t.Fatal("Udon opened database")
 	}
@@ -127,24 +127,24 @@ func TestMonitorCatalogFailureStatus(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
 	good := monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{good})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{good})
 	before := c.localInventory().Catalog
 	conflict := monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{conflict})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{conflict})
 	after := c.localInventory().Catalog
 	if after.Error == "" || after.Revision != before.Revision || !after.CheckedAt.Equal(before.CheckedAt) {
 		t.Fatal(before, after)
 	}
 	old := monitorFull("wanna", "20261001000000", "old", strings.Repeat("a", 32))
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{conflict, old})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{conflict, old})
 	if c.localInventory().Catalog.Error == "" {
 		t.Fatal("old mirror hid conflict")
 	}
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{good})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{good})
 	if c.localInventory().Catalog.Error != "" {
 		t.Fatal("successful retry did not clear error")
 	}
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "bad", "invalid")})
+	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "bad", "invalid")})
 	if c.localInventory().Catalog.Error == "" {
 		t.Fatal("validation error not recorded")
 	}
@@ -155,8 +155,8 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
-	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))})
-	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))})
+	c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))})
+	c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))})
 	want := c.localInventory().Catalog
 	if err := c.save(c.settings); err != nil {
 		t.Fatal(err)

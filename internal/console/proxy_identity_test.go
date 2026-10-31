@@ -72,123 +72,40 @@ func TestChannelIdentityFailedPreparationRemainsTemporaryUntilRestart(t *testing
 	}
 }
 
-func TestProxyIdentityCorruptionDoesNotPreventNetwork(t *testing.T) {
-	for _, data := range []string{"", "short", strings.Repeat("x", 33), "directory", "blocked-parent"} {
-		t.Run(data, func(t *testing.T) {
-			c := testConsole(t)
-			s := Settings{UpstreamMode: "proxy", SOCKS5Address: "127.0.0.1:1080"}
-			oldID, err := c.proxyIdentity(s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			path := c.files().ChannelKey
-			if err := os.Remove(path); err != nil {
-				t.Fatal(err)
-			}
-			switch data {
-			case "directory":
-				err = os.Mkdir(path, 0700)
-			case "blocked-parent":
-				err = os.WriteFile(path, []byte("parent"), 0600)
-				c.configPath = filepath.Join(path, "config.json")
-			default:
-				err = os.WriteFile(path, []byte(data), 0600)
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			// Corruption is discovered by a new instance. Existing consumers
-			// retain the identity already prepared for their lifetime.
-			c = &Console{configPath: c.configPath, dns: c.dns}
-			_, client, err := c.networkFor(s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			pool := client.Transport.(*upstreamrequest.Transport).Pool
-			defer pool.Close()
-			var id string
-			for _, candidate := range pool.Current("https://play.udon.dance") {
-				if candidate.Mode == "socks5" {
-					id = candidate.ID
-				}
-			}
-			if id == "" || strings.HasSuffix(id, oldID) {
-				t.Fatal("proxy missing or retained old identity", id)
-			}
-			if data == "directory" || data == "blocked-parent" {
-				if strings.Contains(id, "stable-v1-") {
-					t.Fatal("unpersisted identity can claim samples", id)
-				}
-				return
-			}
-			key, err := os.ReadFile(path)
-			if err != nil || string(key) != data {
-				t.Fatal("corrupt key changed", err)
-			}
-			restored, err := (&Console{configPath: c.configPath}).proxyIdentity(s)
-			if err != nil || restored != "" || strings.Contains(id, "stable-v1-") {
-				t.Fatal("corrupt identity claimed persistent samples", err)
-			}
-			backups, err := filepath.Glob(path + ".corrupt-*")
-			if err != nil || len(backups) != 0 {
-				t.Fatalf("unexpected backup: %v, %v", backups, err)
-			}
-		})
-	}
+// File-layout checks exercise the identity still used by native Mihomo nodes.
+func testNodeIdentity(c *Console) (string, error) {
+	key, _, err := c.channelIdentityKey()
+	defer clear(key)
+	return nodeIdentity(key, map[string]any{"type": "ss", "server": "localhost", "port": float64(1080), "cipher": "aes-128-gcm", "password": "fixture"}), err
 }
 
-func TestProxyIdentityStableAcrossPoolsAndConfigurationSensitive(t *testing.T) {
+func TestExternalProxyDoesNotReadOrCreateChannelIdentity(t *testing.T) {
 	c := testConsole(t)
-	base := Settings{UpstreamMode: "proxy", SOCKS5Address: "127.0.0.1:1080", SOCKS5Username: "private-user", SOCKS5Password: "private-password"}
-	identity := func(owner *Console, s Settings) string {
-		t.Helper()
-		_, client, err := owner.networkFor(s)
+	path := c.files().ChannelKey
+	s := Settings{UpstreamMode: "proxy", SOCKS5Address: "127.0.0.1:1080"}
+	for _, corrupt := range []bool{false, true} {
+		if corrupt {
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("broken"), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, client, err := c.networkFor(s)
 		if err != nil {
 			t.Fatal(err)
 		}
-		pool := client.Transport.(*upstreamrequest.Transport).Pool
-		defer pool.Close()
-		cs := pool.Current("https://play.udon.dance")
-		for _, candidate := range cs {
-			if candidate.Mode == "socks5" {
-				return candidate.ID
-			}
+		client.CloseIdleConnections()
+		if _, ok := client.Transport.(upstreamrequest.Candidates); ok {
+			t.Fatal("proxy exposes direct channel candidates")
 		}
-		t.Fatal("missing SOCKS5 channel")
-		return ""
-	}
-	first := identity(c, base)
-	for _, field := range []string{"address", "username", "password"} {
-		changed := base
-		switch field {
-		case "address":
-			changed.SOCKS5Address = "127.0.0.1:1081"
-		case "username":
-			changed.SOCKS5Username = "another-user"
-		case "password":
-			changed.SOCKS5Password = "another-password"
+		key, err := os.ReadFile(path)
+		if !corrupt && !os.IsNotExist(err) {
+			t.Fatal("proxy created channel identity", err)
 		}
-		if identity(c, changed) == first {
-			t.Fatal("config change retained identity", field)
+		if corrupt && (err != nil || string(key) != "broken") {
+			t.Fatal("proxy changed identity file", err)
 		}
-	}
-	// A fresh owner reads the same on-disk key, regardless of pool sequence.
-	restarted := &Console{configPath: c.configPath, dns: c.dns}
-	if identity(restarted, base) != first {
-		t.Fatal("same proxy changed identity on restart")
-	}
-	for _, secret := range []string{base.SOCKS5Address, base.SOCKS5Username, base.SOCKS5Password} {
-		if strings.Contains(first, secret) {
-			t.Fatal("channel ID exposed configuration")
-		}
-	}
-	if err := os.Remove(c.files().ChannelKey); err != nil {
-		t.Fatal(err)
-	}
-	if identity(restarted, base) != first {
-		t.Fatal("running instance changed its prepared identity")
-	}
-	if identity(&Console{configPath: c.configPath, dns: c.dns}, base) == first {
-		t.Fatal("lost identity key reused old samples")
 	}
 }

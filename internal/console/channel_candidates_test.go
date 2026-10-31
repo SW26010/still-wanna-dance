@@ -1,7 +1,6 @@
 package console
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -30,9 +29,11 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	if _, err := direct[0].Transport.RoundTrip(r); !errors.Is(err, upstreamrequest.ErrUnavailable) {
 		t.Fatal("old candidate survived config replacement", err)
 	}
-	proxy, err := upstreamrequest.Default.Snapshot().Candidates.Candidates(context.Background(), "https://never-resolve.invalid")
-	if err != nil || len(proxy) != 1 || proxy[0].Mode != "socks5" {
-		t.Fatal(proxy, err)
+	if upstreamrequest.Default.Snapshot().Candidates != nil {
+		t.Fatal("proxy published a direct candidate provider")
+	}
+	if _, ok := c.client.Transport.(upstreamrequest.Candidates); ok {
+		t.Fatal("proxy exposes candidate selection")
 	}
 	if testDNS(c).queries.Load() != 0 {
 		t.Fatal("forced SOCKS5 invoked local DNS")

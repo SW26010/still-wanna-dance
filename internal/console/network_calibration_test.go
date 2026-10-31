@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
-	"still-wanna-dance/internal/upstreamstate"
 )
 
 func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
@@ -52,14 +52,14 @@ func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
 	}
 	beforeSettings, beforeClient := c.settings, c.client
 	c.networkDiagnostics.connectivity.Running = true
-	if err := c.controlNetworkCalibration(false, networkCalibrationRequest{}); err == nil {
-		t.Fatal("overlapped direct diagnostic")
+	if err := c.controlNetworkCalibration(false); err == nil {
+		t.Fatal("overlapped connectivity check")
 	}
 	c.networkDiagnostics.connectivity.Running = false
 	if code := request("POST", start, c.token, ""); code != 200 {
 		t.Fatalf("start: %d", code)
 	}
-	if err := c.controlNetworkConnectivity(false, networkCalibrationRequest{}); err == nil {
+	if err := c.controlNetworkConnectivity(false); err == nil {
 		t.Fatal("overlapped calibration")
 	}
 	if code := request("POST", "/api/network/calibration/cancel", c.token, ""); code != 200 {
@@ -71,7 +71,7 @@ func TestNetworkCalibrationConsentAuthAndIsolation(t *testing.T) {
 	}
 }
 
-func TestNetworkCalibrationSOCKS5DraftAndCancellation(t *testing.T) {
+func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 	c := testConsole(t)
 	const user, password = "fixture-user", "fixture-private-password"
 	connected := make(chan string, 4)
@@ -82,15 +82,11 @@ func TestNetworkCalibrationSOCKS5DraftAndCancellation(t *testing.T) {
 		_, _ = io.Copy(io.Discard, conn)
 		disconnected <- struct{}{}
 	})
-	// Empty password in the form retains the saved credential, while the
-	// unsaved endpoint is used for this test only.
-	c.savedSettings.SOCKS5Username, c.savedSettings.SOCKS5Password = user, password
+	activateTestProxy(t, c, address, user, password)
 	before, _ := os.ReadFile(c.configPath)
 	saved, active, client := c.savedSettings, c.settings, c.client
 	business := upstreamrequest.Default.Snapshot()
-	input := networkCalibrationRequest{Upstream: "proxy", Proxy: &diagnosticProxyDraft{
-		ProxyBackend: "external-socks5", SOCKS5Address: address, SOCKS5User: user}}
-	body, _ := json.Marshal(input)
+	body := []byte("{}")
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/network/calibration/start", bytes.NewReader(body))
 	r.Header.Set("X-SWD-Token", c.token)
 	w := httptest.NewRecorder()
@@ -104,20 +100,17 @@ func TestNetworkCalibrationSOCKS5DraftAndCancellation(t *testing.T) {
 			t.Fatalf("unexpected remote DNS target: %s", target)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("draft SOCKS5 was not used")
+		t.Fatal("active SOCKS5 was not used")
 	}
 	test := c.networkDiagnostics.calibration
 	state, _ := test.Snapshot()
 	if state.Upstream != "proxy" || !state.Running || state.Run != 1 {
 		t.Fatalf("incorrect upstream event: %+v", state)
 	}
-	if err := c.controlNetworkCalibration(false, input); err != nil {
+	if err := c.controlNetworkCalibration(false); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.controlNetworkCalibration(false, networkCalibrationRequest{}); err == nil {
-		t.Fatal("changed upstream during active run")
-	}
-	if err := c.controlNetworkCalibration(true, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkCalibration(true); err != nil {
 		t.Fatal(err)
 	}
 	test.Close()
@@ -134,22 +127,6 @@ func TestNetworkCalibrationSOCKS5DraftAndCancellation(t *testing.T) {
 	after, _ := os.ReadFile(c.configPath)
 	if !bytes.Equal(before, after) || saved != c.savedSettings || active != c.settings || client != c.client || upstreamrequest.Default.Snapshot().Revision != business.Revision || testDNS(c).queries.Load() != 0 {
 		t.Fatal("test changed business configuration/channel or queried direct DNS")
-	}
-}
-
-func TestNetworkCalibrationRejectsInvalidProxyBeforeStarting(t *testing.T) {
-	c := testConsole(t)
-	for _, input := range []networkCalibrationRequest{
-		{Upstream: "auto"}, {Upstream: "proxy"},
-		{Upstream: "proxy", Proxy: &diagnosticProxyDraft{ProxyBackend: "mihomo"}},
-		{Upstream: "proxy", Proxy: &diagnosticProxyDraft{SOCKS5Address: "invalid"}},
-	} {
-		if err := c.controlNetworkCalibration(false, input); err == nil {
-			t.Fatal("invalid proxy accepted")
-		}
-		if c.networkDiagnostics != nil {
-			t.Fatal("invalid proxy constructed diagnostic")
-		}
 	}
 }
 
@@ -173,11 +150,11 @@ func TestNetworkCalibrationEventReconnectAndShutdown(t *testing.T) {
 		}
 		return resp, bufio.NewScanner(resp.Body)
 	}
-	read := func(scan *bufio.Scanner) upstreamstate.CalibrationStatus {
+	read := func(scan *bufio.Scanner) upstreamcheck.CalibrationStatus {
 		for scan.Scan() {
 			line := scan.Text()
 			if strings.HasPrefix(line, "data: ") {
-				var state upstreamstate.CalibrationStatus
+				var state upstreamcheck.CalibrationStatus
 				if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &state); err != nil {
 					t.Fatal(err)
 				}
@@ -185,7 +162,7 @@ func TestNetworkCalibrationEventReconnectAndShutdown(t *testing.T) {
 			}
 		}
 		t.Fatalf("stream ended before event: %v", scan.Err())
-		return upstreamstate.CalibrationStatus{}
+		return upstreamcheck.CalibrationStatus{}
 	}
 	resp, scan := open()
 	defer resp.Body.Close()
@@ -197,7 +174,7 @@ func TestNetworkCalibrationEventReconnectAndShutdown(t *testing.T) {
 		t.Fatal("read performed network request")
 	default:
 	}
-	if err := c.controlNetworkCalibration(false, networkCalibrationRequest{}); err != nil {
+	if err := c.controlNetworkCalibration(false); err != nil {
 		t.Fatal(err)
 	}
 	s := read(scan)

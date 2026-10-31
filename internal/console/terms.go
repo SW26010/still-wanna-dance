@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/legal"
-	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/workfiles"
 )
 
@@ -174,11 +173,10 @@ func (c *Console) acceptTerms() error {
 				return fmt.Errorf("%w: %v", errTermsStartup, err)
 			}
 			c.upstreamDial, c.client = dial, client
-			c.requestRevision = upstreamrequest.Default.Publish(client.Transport.(upstreamrequest.Candidates))
 			proxy.Retire()
 		}
 	}
-	if err := c.startMonitorLocked(); err != nil {
+	if err := c.startUpstreamServicesLocked(); err != nil {
 		c.termsStartupFailed = true
 		return fmt.Errorf("%w: %v", errTermsStartup, err)
 	}

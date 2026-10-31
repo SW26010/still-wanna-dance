@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -58,8 +57,8 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg := cacheproxy.DefaultConfig()
 	cfg.Work = c.work
 	cfg.BeginVideoRequest = c.beginVideoRequest
-	cfg.BeginResourceLoad = upstreamrequest.Default.BeginResourceLoad
-	cfg.IsResourceHost = upstreamrequest.Default.IsResourceDomain
+	cfg.BeginResourceLoad = c.resources.BeginResourceLoad
+	cfg.IsResourceHost = c.resources.IsResourceDomain
 	cfg.Logger = slog.Default().With("component", "cache")
 	cfg.Store = store
 	cfg.VideoDir = libraryPaths(settings).VideoDir

@@ -51,7 +51,7 @@ func TestFirstRunLibraryAvailableWithoutAcceleration(t *testing.T) {
 			// The real monitor callback and ordinary library actions share the
 			// default database before any engine or playback listener exists.
 			call("GET", "/api/songs", "")
-			c.syncMonitorCatalogs(t.Context(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261026000000", "first song", strings.Repeat("a", 32))})
+			c.syncCatalogs(t.Context(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261026000000", "first song", strings.Repeat("a", 32))})
 			call("POST", "/api/songs", fmt.Sprintf(`{"storageID":%q,"id":"42","policy":"favorite"}`, cacheproxy.DatabaseID(c.settings.DatabasePath)))
 			var page cacheproxy.SongPage
 			if err := json.Unmarshal(call("GET", "/api/songs?policy=favorite", "").Body.Bytes(), &page); err != nil || page.Total != 1 {

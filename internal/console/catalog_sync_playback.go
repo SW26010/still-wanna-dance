@@ -3,13 +3,16 @@ package console
 import (
 	"context"
 	"log/slog"
+	"strconv"
+	"time"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamstate"
+	"still-wanna-dance/internal/upstreamcheck"
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func (c *Console) monitorPlaybackSongCandidates(ctx context.Context) []int64 {
+func (c *Console) metadataSongCandidates(ctx context.Context) []int64 {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -22,13 +25,13 @@ func (c *Console) monitorPlaybackSongCandidates(ctx context.Context) []int64 {
 	}
 	ids, err := store.SongMetadataCandidates(ctx, c.apiBase+"/Api/Songs/play")
 	if err != nil && ctx.Err() == nil {
-		slog.Warn("monitor_song_metadata_candidates_failed", "error", applog.SafeError(err))
+		slog.Warn("metadata_sync_metadata_candidates_failed", "error", applog.SafeError(err))
 	}
 	return ids
 }
 
-// Reuse the successful probe response without resolving or loading the song.
-func (c *Console) syncMonitorPlaybackURL(ctx context.Context, response upstreamstate.PlaybackURLResponse) {
+// Reuse the successful upstream response without resolving or loading the song.
+func (c *Console) syncPlaybackURL(ctx context.Context, response upstreamcheck.PlaybackURLResponse) {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -38,6 +41,7 @@ func (c *Console) syncMonitorPlaybackURL(ctx context.Context, response upstreams
 	}
 	store, err := c.businessStore()
 	c.mu.Unlock()
+	c.resources.ObserveResourceSourcesAtRevision(c.resources.Revision(), "metadata/"+response.Node+"/"+strconv.FormatInt(response.SongID, 10), []upstreamrequest.ResourceSource{{API: response.API, Node: response.Node, SongID: response.SongID, ResourceURL: response.URL, ObservedAt: response.ObservedAt}}, 10*time.Minute)
 	if err == nil {
 		err = store.ObserveSongURL(ctx, cacheproxy.SongURL{
 			SongID: response.SongID, URL: response.URL, API: response.API, Node: response.Node,
@@ -46,6 +50,9 @@ func (c *Console) syncMonitorPlaybackURL(ctx context.Context, response upstreams
 	}
 	if err != nil && ctx.Err() == nil {
 		// A local persistence failure does not change the API's health result.
-		slog.Warn("monitor_song_url_sync_failed", "song_id", response.SongID, "node", response.Node, "error", applog.SafeError(err))
+		slog.Warn("metadata_sync_url_sync_failed", "song_id", response.SongID, "node", response.Node, "error", applog.SafeError(err))
+	}
+	if err == nil && ctx.Err() == nil {
+		c.catalogDataUpdated()
 	}
 }

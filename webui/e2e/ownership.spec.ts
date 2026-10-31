@@ -64,7 +64,7 @@ for(const width of [390,1280])test(`sidebar matches tasks and auxiliary pages ($
   await page.screenshot({path:info.outputPath('navigation-help.png'),fullPage:true,animations:'disabled'});
 });
 
-test('proxy configuration and checks share the same unsaved draft without saving it',async({page})=>{
+test('diagnostics use the active configuration while preserving the unsaved proxy draft',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#network-proxy');
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
@@ -72,14 +72,15 @@ test('proxy configuration and checks share the same unsaved draft without saving
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).not.toBeVisible();
   await expect(page.getByRole('button',{name:'修复并开启加速',exact:true})).not.toBeVisible();
-  await page.getByRole('link',{name:'检测此连接配置',exact:true}).click();
+  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).not.toBeVisible();
-  await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveValue('proxy');
+  await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveCount(0);
+  await expect(page.getByText('检测上游：直连',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
   const call=api.calls.find(c=>c.path==='network/connectivity/start');
-  expect(call?.body).toMatchObject({upstream:'proxy',proxy:{socks5Address:'127.0.0.1:7891'}});
+  expect(call?.body).toEqual({});
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
   await page.getByRole('link',{name:'网络设置',exact:true}).click();
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();

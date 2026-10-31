@@ -1,4 +1,4 @@
-package upstreamstate
+package upstreamcheck
 
 import (
 	"testing"

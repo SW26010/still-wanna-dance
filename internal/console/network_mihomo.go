@@ -11,12 +11,11 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/proxyengine/mihomo"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 // SWD sees one proxy endpoint; Mihomo alone owns the underlying node choice.
 type mihomoTransport struct {
-	*upstreamrequest.Transport
+	*http.Transport
 	core            *mihomo.Runtime
 	identityWarning string
 	startupError    string
@@ -25,7 +24,7 @@ type mihomoTransport struct {
 
 func (t *mihomoTransport) Retire() {
 	t.once.Do(func() {
-		t.Transport.Retire()
+		t.Transport.CloseIdleConnections()
 		if t.core != nil {
 			if err := t.core.Close(); err != nil {
 				slog.Warn("mihomo_runtime_drain_incomplete")
@@ -60,15 +59,8 @@ func (c *Console) mihomoNetworkFor(s Settings) (upstreamDialFunc, *http.Client, 
 		}
 		dial = t.core.DialContext
 	}
-	pool, err := upstreamrequest.NewPool("socks5", nil, upstreamrequest.DialFunc(dial))
-	if err != nil {
-		if t.core != nil {
-			_ = t.core.Close()
-		}
-		return nil, nil, err
-	}
-	t.Transport = &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
+	t.Transport = &http.Transport{
 		DialContext: dial, ResponseHeaderTimeout: 20 * time.Second, TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
-	}}
+	}
 	return dial, &http.Client{Timeout: 30 * time.Second, Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }

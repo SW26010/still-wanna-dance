@@ -24,11 +24,9 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 	if s.UpstreamMode == "proxy" && s.ProxyBackend == "mihomo" {
 		return c.mihomoNetworkFor(s)
 	}
-	dial := upstreamDialFunc(c.dns.DialContext)
+	var dial upstreamDialFunc
 	var proxyDial upstreamrequest.DialFunc
-	var proxyID string
-	mode := channelMode(s.UpstreamMode)
-	if mode == "socks5" {
+	if s.UpstreamMode == "proxy" {
 		var err error
 		if s.proxySecretError != "" {
 			proxyDial = func(context.Context, string, string) (net.Conn, error) {
@@ -40,36 +38,30 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 		if err != nil {
 			return nil, nil, err
 		}
-		if s.proxySecretError == "" {
-			proxyID, err = c.proxyIdentity(s)
+		dial = upstreamDialFunc(proxyDial)
+	} else {
+		if c.dns == nil {
+			c.dns = upstreamnet.NewResolver(nil)
 		}
+		dial = c.dns.DialContext
+	}
+	var transport http.RoundTripper = &http.Transport{
+		DialContext: dial, ResponseHeaderTimeout: 20 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
+	}
+	if s.UpstreamMode != "proxy" {
+		pool, err := upstreamrequest.NewPool(c.dns)
 		if err != nil {
 			return nil, nil, err
 		}
-		dial = upstreamDialFunc(proxyDial)
-	}
-	pool, err := upstreamrequest.NewPool(mode, c.dns, proxyDial, proxyID)
-	if err != nil {
-		return nil, nil, err
+		transport = &upstreamrequest.Transport{Pool: pool, RoundTripper: transport}
 	}
 	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &upstreamrequest.Transport{Pool: pool, RoundTripper: &http.Transport{
-			DialContext: dial, ResponseHeaderTimeout: 20 * time.Second,
-			TLSHandshakeTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second,
-		}},
+		Timeout:       30 * time.Second,
+		Transport:     transport,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	return dial, client, nil
-}
-
-// Persisted channel keys retain their existing prefix independently of UI
-// policy names and the implementation used by each fixed outbound.
-func channelMode(mode string) string {
-	if mode == "proxy" {
-		return "socks5"
-	}
-	return mode
 }
 
 // The client belongs to this Console's active configuration. Saving settings

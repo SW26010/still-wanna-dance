@@ -11,14 +11,14 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"still-wanna-dance/internal/upstreamnet"
-	"still-wanna-dance/internal/upstreamrequest"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 // A real SOCKS5 wire peer: asserts that destinations arrive as domain names,
@@ -393,7 +393,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelayDialPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	c.client.Transport.(*upstreamrequest.Transport).RoundTripper.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
+	c.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
 	check := func(client *http.Client, target string) {
 		t.Helper()
 		resp, err := client.Get(target)
@@ -410,15 +410,15 @@ func TestConsoleSOCKS5APIAndHTTPSRelayDialPaths(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}, DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		// Exercise the exact dial path supplied to the game relay against a
-		// controlled ephemeral endpoint. A proxy dial would hit socksPeer above.
-		return c.https.dial(ctx, network, backend.Listener.Addr().String())
+		// controlled ephemeral endpoint. Both routes must use socksPeer above.
+		return c.https.dial(ctx, network, address)
 	}}
 	defer transport.CloseIdleConnections()
-	observeTestResources(t)
+	observeTestResources(t, c.resources)
 	check(&http.Client{Transport: transport, Timeout: 3 * time.Second}, "https://nya.xin.moe/test")
-	if calls.Load() != 1 {
+	if calls.Load() != 2 {
 		t.Fatalf("got %d proxy connections", calls.Load())
 	}
 }
@@ -455,7 +455,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := fmt.Sprintf("http://play.udon.dance/files/1/2-video.mp4?e=%x&s=4", md5.Sum([]byte("test")))
-	observeTestResources(t)
+	observeTestResources(t, c.resources)
 	w := httptest.NewRecorder()
 	c.service.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
 	if w.Code < 400 {

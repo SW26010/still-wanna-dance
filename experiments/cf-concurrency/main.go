@@ -53,7 +53,7 @@ func (d pinnedDNS) CurrentAddresses(host string) []upstreamrequest.Address {
 func (pinnedDNS) DNSChanged() <-chan struct{} { return nil }
 
 func clientFor(t target) (*http.Client, func(), error) {
-	p, err := upstreamrequest.NewPool("direct", pinnedDNS{t.Host, t.IP}, nil)
+	p, err := upstreamrequest.NewPool(pinnedDNS{t.Host, t.IP})
 	if err != nil {
 		return nil, nil, err
 	}

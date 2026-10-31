@@ -11,23 +11,21 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 // Only the hosts managed by Still Wanna Dance are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
-// The console always supplies its controlled direct DNS/dial path, independent
-// of the proxy strategy used by the application's own HTTP/HTTPS requests.
-func httpsOrigin(name string) string {
+// The console supplies the same active upstream dialer as its HTTP requests.
+func httpsOrigin(name string, isResource func(string) bool) string {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
-	if name == "api.udon.dance" || upstreamrequest.Default.IsResourceDomain(name) {
+	if name == "api.udon.dance" || isResource != nil && isResource(name) {
 		return net.JoinHostPort(name, "443")
 	}
 	return ""
 }
 
 type httpsRelay struct {
+	isResourceHost    func(string) bool
 	beginResourceLoad func() func()
 	listener          net.Listener
 	dial              func(context.Context, string, string) (net.Conn, error)
@@ -125,7 +123,7 @@ func (p *httpsRelay) forward(client net.Conn) error {
 	if err != nil {
 		return err
 	}
-	origin := httpsOrigin(name)
+	origin := httpsOrigin(name, p.isResourceHost)
 	if origin == "" {
 		return errors.New("HTTPS SNI is not a managed video domain")
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -54,9 +55,8 @@ func TestMihomoDashboardAndConsent(t *testing.T) {
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
-	cs := c.client.Transport.(upstreamrequest.Candidates).Current("http://business.invalid/")
-	if len(cs) != 1 || cs[0].Mode != "socks5" {
-		t.Fatal("not one logical endpoint", len(cs))
+	if _, ok := c.client.Transport.(upstreamrequest.Candidates); ok {
+		t.Fatal("Mihomo exposes direct channel candidates")
 	}
 	w := request("GET", "/api/mihomo/proxies/SWD", c.token, "")
 	var group struct {

@@ -2,6 +2,7 @@ package upstreamstate
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -402,3 +403,11 @@ func TestCandidateChangeDuringCheckTriggersImmediateFollowup(t *testing.T) {
 		return len(r) == 6 && r[1].State == "available" && !m.Snapshot().Checking
 	})
 }
+
+type slowBody struct{ io.Reader }
+
+func (b slowBody) Read(p []byte) (int, error) {
+	time.Sleep(25 * time.Millisecond)
+	return b.Reader.Read(p)
+}
+func (slowBody) Close() error { return nil }

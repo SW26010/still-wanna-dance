@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
@@ -167,7 +168,7 @@ func (m *Monitor) routeIDsLocked(op Operation) []string {
 
 func routeIDs(op Operation) []string {
 	if op == Catalog {
-		return []string{"api", "kiva", "wanna"}
+		return catalogmeta.SourceIDs()
 	}
 	if op == PlaybackURL {
 		ids := make([]string, len(playbackRoutes))
@@ -180,13 +181,7 @@ func routeIDs(op Operation) []string {
 }
 func entry(op Operation, id string) string {
 	if op == Catalog {
-		if id == "wanna" {
-			return "https://wanna.kiva.moe/api/wannaInfo"
-		}
-		if id == "kiva" {
-			return "https://x.kiva.moe/api/v2/wanna/songs"
-		}
-		return apiBase + "/Api/Songs/list"
+		return catalogmeta.SourceURL(id)
 	}
 	if op == Resource && videometa.ValidHost(id) {
 		return "https://" + id

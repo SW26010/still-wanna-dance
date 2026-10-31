@@ -21,8 +21,8 @@ import (
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/branding"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/catalogsync"
 	"still-wanna-dance/internal/desktop"
-	"still-wanna-dance/internal/upstreamnet"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
@@ -103,9 +103,11 @@ type Console struct {
 	apiBase             string
 	dns                 directResolver
 	upstreamDial        upstreamDialFunc
+	resources           *upstreamrequest.Resources
 	requestRevision     uint64
+	metadata            *catalogsync.Sync
 	monitor             *upstreamstate.Monitor
-	monitorRequested    bool
+	upstreamRequested   bool
 	monitorManual       bool
 	monitorManualAt     time.Time
 	monitorManualDone   chan struct{}
@@ -115,7 +117,7 @@ type Console struct {
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
-	c, err := newConsole(configPath, address, upstreamnet.NewResolver(nil), work)
+	c, err := newConsole(configPath, address, nil, work)
 	if err == nil && c.store != nil {
 		if seedErr := c.store.ApplyBundledMediaSeed(context.Background()); seedErr != nil {
 			return nil, errors.Join(seedErr, c.Close())
@@ -149,6 +151,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
 	c.lifecycle = newApplicationLifecycle()
 	c.dns = dns
+	c.resources = upstreamrequest.NewResources()
 	loaded, err := loadConfigFile(configPath)
 	if err != nil {
 		return nil, err
@@ -185,7 +188,9 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if err == nil {
 		c.loadSnapshots()
 		c.loadImportTask()
-		c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport.(upstreamrequest.Candidates))
+		if c.settings.UpstreamMode == "direct" {
+			c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport.(upstreamrequest.Candidates))
+		}
 	}
 	if err != nil && c.store != nil {
 		c.store.Close()
@@ -195,7 +200,9 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		if tr, ok := c.client.Transport.(interface{ Retire() }); ok {
 			tr.Retire()
 		}
-		c.dns.Close()
+		if c.dns != nil {
+			c.dns.Close()
+		}
 	}
 	return c, err
 }
@@ -266,8 +273,9 @@ func (c *Console) startLocked() (err error) {
 		c.mu.Unlock()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
-	relay := newHTTPSRelay(secure, c.dns.DialContext)
-	relay.beginResourceLoad = upstreamrequest.Default.BeginResourceLoad
+	relay := newHTTPSRelay(secure, c.upstreamDial)
+	relay.beginResourceLoad = c.resources.BeginResourceLoad
+	relay.isResourceHost = c.resources.IsResourceDomain
 	c.videoListener, c.https = l, relay
 	c.mu.Unlock()
 	engine, err := c.ensureEngineLocked()
@@ -370,8 +378,15 @@ func (c *Console) BeginShutdown() {
 	}
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
-	upstreamrequest.Default.Release(c.requestRevision)
+	if c.requestRevision != 0 {
+		upstreamrequest.Default.Release(c.requestRevision)
+	}
+	c.resources.Close()
 	if c.networkDiagnostics != nil {
+		if c.networkDiagnostics.connectivityTimer != nil {
+			c.networkDiagnostics.connectivityTimer.Stop()
+		}
+		c.networkDiagnostics.connectivity.NextCheck = time.Time{}
 		if c.networkDiagnostics.connectivityCancel != nil {
 			c.networkDiagnostics.connectivityCancel()
 		}
@@ -380,7 +395,6 @@ func (c *Console) BeginShutdown() {
 		if c.networkDiagnostics.calibration != nil {
 			c.networkDiagnostics.calibration.Shutdown()
 		}
-		c.networkDiagnostics.channel.Release(c.networkDiagnostics.revision)
 	}
 	if c.batchCancel != nil {
 		c.batchCancel()
@@ -416,6 +430,7 @@ func (c *Console) Close() error {
 		slog.Error("hosts_cleanup_failed", "error", hostsErr)
 	}
 	c.mu.Lock()
+	metadata := c.metadata
 	monitor := c.monitor
 	networkDiagnostics := c.networkDiagnostics
 	monitorManualDone := c.monitorManualDone
@@ -426,6 +441,9 @@ func (c *Console) Close() error {
 	c.inventoryMu.Unlock()
 	err := c.stop()
 	networkDiagnostics.close()
+	if metadata != nil {
+		metadata.Close()
+	}
 	if monitor != nil {
 		monitor.Close()
 	}
@@ -560,6 +578,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			DefaultDatabasePath   string                  `json:"defaultDatabasePath"`
 			DefaultVideoDir       string                  `json:"defaultVideoDir"`
 			PortableDir           string                  `json:"portableDir"`
+			CatalogSync           catalogSyncStatus       `json:"catalogSync"`
 			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
@@ -574,6 +593,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), PortableDir: c.portableDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
+			CatalogSync:     c.catalogSyncSnapshotLocked(),
 		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
@@ -704,19 +724,19 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "/api/network/calibration/start":
-		var input networkCalibrationRequest
+		var input struct{}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			err = c.controlNetworkCalibration(false, input)
+			err = c.controlNetworkCalibration(false)
 		}
 	case "/api/network/calibration/cancel":
-		err = c.controlNetworkCalibration(true, networkCalibrationRequest{})
+		err = c.controlNetworkCalibration(true)
 	case "/api/network/connectivity/start":
-		var input networkCalibrationRequest
+		var input struct{}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			err = c.controlNetworkConnectivity(false, input)
+			err = c.controlNetworkConnectivity(false)
 		}
 	case "/api/network/connectivity/cancel":
-		err = c.controlNetworkConnectivity(true, networkCalibrationRequest{})
+		err = c.controlNetworkConnectivity(true)
 	case "/api/upstream/check":
 		err = c.requestMonitorCheck()
 	case "/api/upstream/check/catalog":

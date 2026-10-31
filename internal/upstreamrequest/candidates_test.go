@@ -1,12 +1,10 @@
 package upstreamrequest
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +28,7 @@ func (d *testDNS) DNSChanged() <-chan struct{}       { return d.changed }
 
 func TestDirectDiscoveryPreservesCachedPathsAndReportsFailure(t *testing.T) {
 	d := &testDNS{addresses: []Address{{"203.0.113.1", time.Now().Add(time.Minute)}}, err: errors.New("DNS unavailable")}
-	p, err := NewPool("direct", d, nil)
+	p, err := NewPool(d)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,13 +39,9 @@ func TestDirectDiscoveryPreservesCachedPathsAndReportsFailure(t *testing.T) {
 	}
 }
 
-func TestPoolsRejectRetiredAutoMode(t *testing.T) {
-	d := &testDNS{}
-	if _, err := NewPool("auto", d, nil); err == nil {
-		t.Fatal("single pool accepted auto")
-	}
-	if _, err := NewPool("auto", d, nil); err == nil {
-		t.Fatal("multi pool accepted auto")
+func TestPoolRequiresDirectDNS(t *testing.T) {
+	if _, err := NewPool(nil); err == nil {
+		t.Fatal("accepted missing DNS")
 	}
 }
 
@@ -76,7 +70,7 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 	target := "http://fixture.example:" + port + "/video"
 	fresh := func(ip string) []Address { return []Address{{ip, time.Now().Add(time.Minute)}} }
 	d := &refreshingTestDNS{refresh: func(context.Context) ([]Address, error) { return fresh("127.0.0.1"), nil }}
-	p, err := NewPool("direct", d, nil)
+	p, err := NewPool(d)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,50 +140,6 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 	}
 }
 
-func TestCandidateModesAndRemoteDNS(t *testing.T) {
-	for _, mode := range []string{"direct", "socks5"} {
-		t.Run(mode, func(t *testing.T) {
-			d := &testDNS{addresses: []Address{{"203.0.113.1", time.Now().Add(time.Minute)}}}
-			var destination string
-			p, err := NewPool(mode, d, func(ctx context.Context, network, address string) (net.Conn, error) {
-				destination = address
-				a, b := net.Pipe()
-				go func() {
-					defer b.Close()
-					_, _ = http.ReadRequest(bufio.NewReader(b))
-					_, _ = io.WriteString(b, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
-				}()
-				return a, nil
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer p.Close()
-			cs, err := p.Candidates(context.Background(), "http://example.com/test")
-			want := 1
-			if err != nil || len(cs) != want {
-				t.Fatal(cs, err)
-			}
-			if mode == "socks5" && d.calls != 0 {
-				t.Fatal("forced proxy queried local DNS")
-			}
-			for _, c := range cs {
-				if c.Mode == "socks5" {
-					r, _ := http.NewRequest("GET", "http://example.com/test", nil)
-					resp, err := c.Transport.RoundTrip(r)
-					if err != nil {
-						t.Fatal(err)
-					}
-					resp.Body.Close()
-					if destination != "example.com:80" {
-						t.Fatal("proxy did not receive domain", destination)
-					}
-				}
-			}
-		})
-	}
-}
-
 func TestPinnedTLSHostExpiryAndConfigRetirement(t *testing.T) {
 	for _, ip := range []string{"127.0.0.1", "::1"} {
 		t.Run(ip, func(t *testing.T) { testPinnedTLSHostExpiryAndConfigRetirement(t, ip) })
@@ -216,7 +166,7 @@ func testPinnedTLSHostExpiryAndConfigRetirement(t *testing.T, ip string) {
 	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
 	target := "https://" + net.JoinHostPort(name, port) + "/test"
 	d := &testDNS{addresses: []Address{{ip, time.Now().Add(time.Minute)}}}
-	p, _ := NewPool("direct", d, nil)
+	p, _ := NewPool(d)
 	defer p.Close()
 	cs, _ := p.Candidates(context.Background(), target)
 	roots := x509.NewCertPool()

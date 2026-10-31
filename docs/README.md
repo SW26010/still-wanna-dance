@@ -29,7 +29,7 @@
 | 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
 | 曲库改造决策 | [Udon 曲库与资源映射决策](research/udon-catalog-decision-draft-20261029.md)保存目标、实施边界及验证；现行规则回到[曲库设计](song-catalog-design.md)，预置维护见[资源快照](../data/media-seed/README.md) |
 | 上游连接观测 | [三个清单入口的连接与更新排查](validation/kiva-connectivity-20261029.md)汇总各窗口、错误阶段和 Udon HTTPS 后续成功；[10 月 28 日 HTTP 批次](research/upstream-http-20261028.md)保留清单、播放与视频片段的原始结论。均为固定条件下的历史观测，不代表永久可用性或协议选型 |
-| 上游协议实施 | [HTTPS 优先与有界 HTTP 回退验证](validation/upstream-protocol-20261029.md)，现行规则见[上游通道](upstream-channels.md#业务请求的协议策略) |
+| 上游职责与协议实施 | [模块收敛验证](validation/upstream-separation-20261031.md)、[HTTPS 优先与有界 HTTP 回退验证](validation/upstream-protocol-20261029.md)，现行规则见[上游请求、检测与直连通道](upstream-channels.md) |
 | Wi-Fi 上游与 IP 优选 | [初始故障窗口](validation/upstream-window-20261029.md)、[连续观察及多路对照](validation/upstream-wifi-windows-20261029.md)、[329 地址单路优选](validation/wifi-ip-selection-20261029.md)：保留失败、中断和独立六轮验证；同 IP 协议对照单列，未接入产品 |
 | [evidence/](evidence/README.md) | 脱敏证据和清单；大附件的下载、校验及保留规则见[证据存储](evidence-storage.md) |
 

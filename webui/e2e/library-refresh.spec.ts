@@ -137,7 +137,7 @@ test('completed network checks publish new catalog data without a library timer 
   await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
   api.files[0].songs[0].title='网络检测同步的新歌名';
   inventory.catalog={revision:'20261028080000',checkedAt:'2026-10-28T08:00:00Z'};
-  api.state.upstreamMonitor={finished:'2026-10-28T08:00:00Z',results:[]};
+  api.state.catalogSync={initializing:false,checking:false,updated:'2026-10-28T08:00:00Z'};
   await expectWithClock(page,()=>page.getByRole('table',{name:'曲库歌曲'}).textContent()).toContain('网络检测同步的新歌名');
   await expect.poll(()=>reads).toBe(2);
   await page.getByText('曲库覆盖率',{exact:true}).hover();

@@ -68,7 +68,7 @@ func TestCustomConfigurationsKeepIndependentStateAfterMove(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		id, err := c.proxyIdentity(Settings{SOCKS5Address: "127.0.0.1:1080"})
+		id, err := testNodeIdentity(c)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,7 +95,7 @@ func TestCustomConfigurationsKeepIndependentStateAfterMove(t *testing.T) {
 		if c.termsAccepted() != (i != 1) {
 			t.Fatal("terms crossed configurations", name)
 		}
-		id, err := c.proxyIdentity(Settings{SOCKS5Address: "127.0.0.1:1080"})
+		id, err := testNodeIdentity(c)
 		if err != nil || id != keys[name] {
 			t.Fatal("identity lost after move", name, err)
 		}

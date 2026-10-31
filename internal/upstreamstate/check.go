@@ -111,7 +111,14 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 	id := m.songID
 	m.mu.Unlock()
 	m.deliverCatalogs(ctx, source.Revision, catalogs)
-	id = m.selectPlaybackSong(ctx, source.Revision, kind, id)
+	if m.playbackSongCandidates != nil && ctx.Err() == nil && kind != CheckCatalog {
+		for _, sample := range m.playbackSongCandidates(ctx) {
+			if sample > 0 {
+				id = sample
+				break
+			}
+		}
+	}
 	if id > 0 && kind != CheckCatalog && ctx.Err() == nil {
 		m.publishProgress(ctx, PlaybackURL)
 		samples := make(chan videoSample)
@@ -154,7 +161,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				if ctx.Err() != nil {
 					break
 				}
-				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample, c.Mode != "socks5"), c)
+				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample, true), c)
 			}
 		}
 	}

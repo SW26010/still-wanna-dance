@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestResolveNodeRedirectStatuses(t *testing.T) {
@@ -21,7 +23,7 @@ func TestResolveNodeRedirectStatuses(t *testing.T) {
 					w.WriteHeader(status)
 				}))
 				defer api.Close()
-				c := &Console{apiBase: api.URL, client: &http.Client{
+				c := &Console{resources: upstreamrequest.NewResources(), apiBase: api.URL, client: &http.Client{
 					CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 				}}
 				got, err := c.resolveSongURL(context.Background(), 1344)

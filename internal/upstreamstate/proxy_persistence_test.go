@@ -1,10 +1,7 @@
 package upstreamstate
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,11 +11,11 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestProxyEndpointDoesNotRestoreOrRankNodeSamples(t *testing.T) {
+func TestDirectMonitorIgnoresObsoleteProxySamples(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "throughput.json")
 	at := time.Now().Add(-time.Minute)
 	a := "stable-v1-" + strings.Repeat("a", 64)
-	b := "stable-v1-" + strings.Repeat("b", 64)
+
 	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 	key := func(id string) string { return "resource/play.udon.dance/socks5/play.udon.dance/" + id }
 	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{key(a): sample, key("1"): sample, key("2"): sample}}
@@ -26,39 +23,12 @@ func TestProxyEndpointDoesNotRestoreOrRankNodeSamples(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{a, b} {
-		pool, err := upstreamrequest.NewPool("socks5", nil, func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("must not dial") }, id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer pool.Close()
-		ch := upstreamrequest.NewChannel()
-		ch.Publish(&upstreamrequest.Transport{Pool: pool})
-		m, err := newMonitor(Options{ThroughputStatePath: path}, ch)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer m.Close()
-		if _, ok := m.throughput[key("1")]; ok {
-			t.Fatal("legacy proxy sample restored")
-		}
-		if _, ok := m.throughput[key("2")]; ok {
-			t.Fatal("legacy reconfigured proxy sample restored")
-		}
-		candidate := pool.Current("https://play.udon.dance")[0]
-		recordFixture(m, observation{op: Resource, route: "play.udon.dance", channel: candidate.ID, state: "available", at: time.Now(), latency: time.Millisecond, songID: 73})
-		r := m.Results(Resource)[0]
-		if r.LastThroughput != nil || r.EstimatedSpeedBPS != nil || len(m.throughput) != 0 {
-			t.Fatal("proxy inherited fixed-node throughput", r)
-		}
-		if len(m.Selections(Resource, Constraints{})) != 0 {
-			t.Fatal("SWD ranked the managed proxy endpoint")
-		}
-		if status := m.Snapshot(); status.ThroughputStatus != "proxy_managed" || !status.NextThroughput.IsZero() {
-			t.Fatal("proxy still schedules automatic throughput", status.ThroughputStatus, status.NextThroughput)
-		}
-		if !m.lastThroughput.Equal(at) {
-			t.Fatal("migration reset cooldown")
-		}
+	m, err := newMonitor(Options{ThroughputStatePath: path}, upstreamrequest.NewChannel())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if len(m.throughput) != 0 || !m.lastThroughput.Equal(at) {
+		t.Fatal("restored obsolete proxy measurements or reset cooldown", m.throughput, m.lastThroughput)
 	}
 }

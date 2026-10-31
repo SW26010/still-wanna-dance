@@ -25,14 +25,14 @@ for(const width of [390,800,1440])test(`settings and network show their controls
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:info.outputPath(tab+'.png'),fullPage:true,animations:'disabled'});
   }
-  await page.getByRole('link',{name:'检测此连接配置',exact:true}).click();
+  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));
   await page.screenshot({path:info.outputPath('network.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('link',{name:'网络设置',exact:true}).click();
   await expect(page.locator('#network-proxy')).toBeFocused();
-  await page.getByRole('link',{name:'检测此连接配置',exact:true}).click();
+  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
   await page.getByRole('link',{name:'接入诊断',exact:true}).click();await expect(page.locator('#service')).toBeFocused();
 });
 for(const width of [390,1280])test(`saving settings does not displace fields at ${width}px`,async({page})=>{

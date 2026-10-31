@@ -1,4 +1,4 @@
-package upstreamstate
+package upstreamcheck
 
 import (
 	"context"
@@ -10,8 +10,6 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
-
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestCalibrationPreparesThroughSlowSecureFailures(t *testing.T) {
@@ -21,43 +19,40 @@ func TestCalibrationPreparesThroughSlowSecureFailures(t *testing.T) {
 				t.Error("preparation must not download video bodies")
 				return nil, io.EOF
 			})
-			var paths calibrationCandidates
-			for range 6 {
-				paths = append(paths, upstreamrequest.Candidate{Mode: "direct", Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
-					if r.URL.Host != "api.udon.dance" && !strings.HasPrefix(r.URL.Path, "/files/") {
-						return response(http.StatusNotFound, ""), nil
-					}
-					if r.URL.Scheme == "https" && (catalogFallback || r.URL.Path == "/Api/Songs/play") {
-						<-r.Context().Done()
-						return nil, r.Context().Err()
-					}
-					delay := 350 * time.Millisecond
-					if r.URL.Path == "/Api/Songs/list" {
-						delay = 1600 * time.Millisecond
-					}
-					select {
-					case <-time.After(delay):
-					case <-r.Context().Done():
-						return nil, r.Context().Err()
-					}
-					resp, err := base.RoundTrip(r)
-					if resp != nil && r.URL.Path == "/Api/Songs/play" {
-						resp.Header.Set("Location", strings.ReplaceAll(resp.Header.Get("Location"), "s=16777216", "s=33554432"))
-					}
-					if resp != nil && r.URL.Path == "/Api/Songs/list" {
-						resp.Body = &preparationDelayedBody{ReadCloser: resp.Body, ctx: r.Context()}
-					}
-					return resp, err
-				})})
-			}
+			paths := transportFunc(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Host != "api.udon.dance" && !strings.HasPrefix(r.URL.Path, "/files/") {
+					return response(http.StatusNotFound, ""), nil
+				}
+				if r.URL.Scheme == "https" && (catalogFallback || r.URL.Path == "/Api/Songs/play") {
+					<-r.Context().Done()
+					return nil, r.Context().Err()
+				}
+				delay := 350 * time.Millisecond
+				if r.URL.Path == "/Api/Songs/list" {
+					delay = 1600 * time.Millisecond
+				}
+				select {
+				case <-time.After(delay):
+				case <-r.Context().Done():
+					return nil, r.Context().Err()
+				}
+				resp, err := base.RoundTrip(r)
+				if resp != nil && r.URL.Path == "/Api/Songs/play" {
+					resp.Header.Set("Location", strings.ReplaceAll(resp.Header.Get("Location"), "s=16777216", "s=33554432"))
+				}
+				if resp != nil && r.URL.Path == "/Api/Songs/list" {
+					resp.Body = &preparationDelayedBody{ReadCloser: resp.Body, ctx: r.Context()}
+				}
+				return resp, err
+			})
 			c := calibrationForTest(t, paths)
-			c.limits = NewCalibration(nil).limits
+			c.limits = NewCalibration(nil, "direct").limits
 			synctest.Test(t, func(t *testing.T) {
 				defer c.Close()
 				ctx, cancel := context.WithTimeout(t.Context(), c.limits.prepare)
 				defer cancel()
 				at := time.Now()
-				client, samples, err := c.prepare(ctx, c.channel, c.channel.Snapshot(), "direct")
+				client, samples, err := c.prepare(ctx)
 				if client != nil {
 					defer client.CloseIdleConnections()
 				}
@@ -113,7 +108,7 @@ func TestCalibrationRejectsInsufficientReserveBeforeDownloading(t *testing.T) {
 				}
 				return resp, err
 			}))
-			defaults := NewCalibration(nil).limits
+			defaults := NewCalibration(nil, "direct").limits
 			c.limits.reserveVideos, c.limits.reserveBytes = defaults.reserveVideos, defaults.reserveBytes
 			if err := c.Start(); err != nil {
 				t.Fatal(err)
@@ -156,7 +151,7 @@ func TestCalibrationPreparationParallelismAndDrain(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		at := time.Now()
-		client, samples, err := c.prepare(ctx, c.channel, c.channel.Snapshot(), "direct")
+		client, samples, err := c.prepare(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +210,7 @@ func TestCalibrationPreparationContinuesPastShortCatalog(t *testing.T) {
 		return base.RoundTrip(r)
 	}))
 	c.limits.reserveVideos, c.limits.reserveBytes = 2, 32<<20
-	client, samples, err := c.prepare(context.Background(), c.channel, c.channel.Snapshot(), "direct")
+	client, samples, err := c.prepare(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

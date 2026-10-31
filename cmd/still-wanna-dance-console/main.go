@@ -215,7 +215,7 @@ func run() (runErr error) {
 		}
 	}
 	done := make(chan error, 1)
-	if err := c.StartUpstreamMonitor(); err != nil {
+	if err := c.StartUpstreamServices(); err != nil {
 		return err
 	}
 	go func() { done <- h.Serve(l); stop() }()

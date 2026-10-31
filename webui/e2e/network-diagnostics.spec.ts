@@ -2,9 +2,33 @@ import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
+test('automatic connectivity pushes results without a click and catalog retries keep row times',async({page})=>{
+  const api=await mockAPI(page);
+  Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:'external-socks5'});
+  const first='2026-10-30T12:00:00Z',retry='2026-10-30T12:00:05Z';
+  const results=[{operation:'catalog',entry:'api',state:'available',latencyMS:42,observedAt:first},{operation:'playback_url',entry:'cf',state:'available',latencyMS:37,observedAt:first}];
+  Object.assign(api.diagnostics.connectivity,{run:1,revision:2,running:false,phase:'completed',finished:first,results,lastResult:{finished:first,results}});
+  await api.emit('connectivity');await page.goto('/#network-tests');
+  await expect(page.getByText('每 5 分钟自动检测，也可手动开始。',{exact:true})).toBeVisible();
+  await expect(page.locator('.diagnostic-rows time')).toHaveCount(2);
+  expect(api.calls.filter(c=>c.path==='network/connectivity/start')).toHaveLength(0);
+  const updated=[{...results[0],observedAt:retry},results[1]];
+  Object.assign(api.diagnostics.connectivity,{run:2,revision:3,initializing:true,finished:retry,results:updated,lastResult:{finished:retry,results:updated}});
+  await api.emit('connectivity');
+  await expect(page.locator('.diagnostic-rows time').nth(0)).toHaveAttribute('datetime',retry);
+  await expect(page.locator('.diagnostic-rows time').nth(1)).toHaveAttribute('datetime',first);
+  await expect(page.getByText('正在建立歌曲清单，暂时自动重试清单检测。',{exact:true})).toBeVisible();
+  Object.assign(api.diagnostics.connectivity,{run:3,revision:4,running:true,phase:'running'});await api.emit('connectivity');
+  await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeDisabled();
+  await page.getByRole('button',{name:'停止并放弃连通性检测'}).click();
+  await expect(page.getByRole('button',{name:'开始连通性检测'})).toBeEnabled();
+  await expect(page.locator('.diagnostic-rows time').nth(1)).toHaveAttribute('datetime',first);
+});
+
 test('manual SSE diagnostics restore saved results when cancellation is confirmed but response is lost',async({page})=>{
   const api=await mockAPI(page);
-  Object.assign(api.diagnostics.calibration,{lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP95Percent:5,cpuP99Percent:16.58,referenceBitrateBPS:2000000}}});
+  Object.assign(api.diagnostics.calibration,{finished:'2026-10-30T12:00:00Z',lastValid:{finished:'2026-10-30T12:00:00Z',singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP95Percent:5,cpuP99Percent:16.58,referenceBitrateBPS:2000000}});
   await api.emit('calibration');
   await page.goto('/#/network');
   await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
@@ -25,36 +49,67 @@ test('manual SSE diagnostics restore saved results when cancellation is confirme
   expect(api.calls.filter(c=>c.path==='network/calibration/start')).toHaveLength(1);
 });
 
-test('diagnostic upstream and completed results survive page changes',async({page})=>{
+for(const backend of ['external-socks5','mihomo'] as const)test(`diagnostics use the active ${backend} and retain results and test times`,async({page},info)=>{
   const api=await mockAPI(page);
-  const directConnection=[{operation:'catalog',state:'available',latencyMS:11}];
-  const proxyConnection=[{operation:'catalog',state:'available',latencyMS:42}];
-  const directSpeed={singleSpeedBPS:250000,fullSpeedBPS:1000000,fullConcurrency:4,referenceBitrateBPS:2000000};
-  const proxySpeed={singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000};
-  await page.goto('/#/network');
-  const upstream=page.getByRole('combobox',{name:'检测上游',exact:true});
-  await expect(upstream).toBeEnabled();await upstream.selectOption('proxy');
+  Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:backend});
+  api.state.restartRequired=true;
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/#network-tests');
+  await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'当前连接',exact:true})).toHaveCount(0);
+  await expect(page.getByText('检测上游：'+(backend==='mihomo'?'Mihomo':'SOCKS5'),{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'开始连通性检测'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
-  Object.assign(api.diagnostics.connectivity,{revision:3,running:false,phase:'completed',results:proxyConnection,lastValid:{direct:directConnection,proxy:proxyConnection}});
+  const results=[{operation:'catalog',entry:'api',state:'available',scheme:'http',latencyMS:42},{operation:'catalog',entry:'kiva',state:'failed',reason:'timeout'}];
+  const finished='2026-10-30T12:00:00Z';
+  Object.assign(api.diagnostics.connectivity,{revision:3,running:false,phase:'completed',finished,results,lastResult:{finished,results}});
   await api.emit('connectivity');
   await page.getByRole('button',{name:'开始下载速度测试'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
-  Object.assign(api.diagnostics.calibration,{revision:3,running:false,phase:'completed',...proxySpeed,lastValid:{direct:directSpeed,proxy:proxySpeed}});
-  await api.emit('calibration');await expect(upstream).toBeEnabled();
+  const speed={finished,singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000};
+  Object.assign(api.diagnostics.calibration,{revision:3,running:false,phase:'completed',...speed,lastValid:speed});
+  await api.emit('calibration');
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+  const times=page.getByText(/^最后测试：/);
+  await expect(times).toHaveCount(2);
+  const previousTimes=await times.allTextContents();
   await navigate(page,'加速');await navigate(page,'网络');
-  await expect(upstream).toHaveValue('proxy');
-  await expect(page.getByText('歌曲列表：可连接 · 估计响应时间 42 ms',{exact:true})).toBeVisible();
+  // Mihomo opens its dashboard by default; diagnostics remain a separate view.
+  await page.getByRole('link',{name:'连通性与测速',exact:true}).click();
+  await expect(page.getByText('歌曲列表 · Udon：可连接 · 响应时间 42 ms · HTTP',{exact:true})).toBeVisible();
+  await expect(page.getByText('歌曲列表 · Kiva：连接失败 · 请求超时',{exact:true})).toBeVisible();
   await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
-  await upstream.selectOption('direct');
-  await navigate(page,'曲库');await navigate(page,'网络');
-  await expect(upstream).toHaveValue('direct');
-  await expect(page.getByText('歌曲列表：可连接 · 估计响应时间 11 ms',{exact:true})).toBeVisible();
-  await expect(page.getByText('8.00 Mbps',{exact:true})).toBeVisible();
-  const starts=api.calls.filter(c=>c.path.startsWith('network/')&&c.path.endsWith('/start'));
-  expect(starts.map(c=>({path:c.path,upstream:c.body.upstream}))).toEqual([
-    {path:'network/connectivity/start',upstream:'proxy'},
-    {path:'network/calibration/start',upstream:'proxy'},
-  ]);
+  await expect(times).toHaveText(previousTimes);
+  await page.getByRole('button',{name:'开始连通性检测'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
+  await page.getByRole('button',{name:'停止并放弃连通性检测'}).click();
+  await expect(times).toHaveText(previousTimes);
+  expect(api.calls.filter(c=>c.path.startsWith('network/')&&c.path.endsWith('/start')).map(c=>c.body)).toEqual([{}, {}, {}]);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('active-proxy-diagnostics.png'),fullPage:true,animations:'disabled'});
+});
+
+for (const hasPrevious of [false,true]) test(`canceled retry retains the failed test time with previous speed ${hasPrevious}`,async({page})=>{
+  const api=await mockAPI(page);
+  Object.assign(api.diagnostics.calibration,{revision:2,phase:'failed',reason:'preparation_insufficient',finished:'2026-10-30T13:00:00Z',lastValid:hasPrevious?{finished:'2026-10-30T12:00:00Z',singleSpeedBPS:500000,fullSpeedBPS:2000000,referenceBitrateBPS:2000000}:undefined});
+  await api.emit('calibration');await page.goto('/#network-tests');
+  const last=page.getByText(/^最后测试：/),saved=page.getByText(/^保留的测速结果：/);
+  await expect(last).toBeVisible();
+  const finished=await last.textContent();
+  let previous:string|null=null;
+  if(hasPrevious){
+    await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+    await expect(saved).toBeVisible();previous=await saved.textContent();
+    expect(finished?.split('：')[1]).not.toBe(previous?.split('：')[1]);
+  } else await expect(saved).toHaveCount(0);
+  await page.getByRole('button',{name:'开始下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'停止并放弃下载速度测试'})).toBeEnabled();
+  await expect(last).toHaveText(finished!);
+  await page.getByRole('button',{name:'停止并放弃下载速度测试'}).click();
+  await expect(page.getByRole('button',{name:'开始下载速度测试'})).toBeEnabled();
+  await expect(last).toHaveText(finished!);
+  if(hasPrevious){
+    await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+    await expect(saved).toHaveText(previous!);
+  } else await expect(saved).toHaveCount(0);
 });

@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func relayListener(t *testing.T) net.Listener {
@@ -32,13 +34,15 @@ func relayListener(t *testing.T) net.Listener {
 
 func runTestRelay(t *testing.T, dial func(context.Context, string, string) (net.Conn, error)) *httpsRelay {
 	t.Helper()
-	observeTestResources(t)
-	return runRelay(t, dial)
+	resources := upstreamrequest.NewResources()
+	observeTestResources(t, resources)
+	return runRelay(t, dial, resources)
 }
 
-func runRelay(t *testing.T, dial func(context.Context, string, string) (net.Conn, error)) *httpsRelay {
+func runRelay(t *testing.T, dial func(context.Context, string, string) (net.Conn, error), resources *upstreamrequest.Resources) *httpsRelay {
 	t.Helper()
 	p := newHTTPSRelay(relayListener(t), dial)
+	p.isResourceHost = resources.IsResourceDomain
 	done := make(chan error, 1)
 	go func() { done <- p.serve() }()
 	t.Cleanup(func() {

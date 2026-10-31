@@ -2,16 +2,13 @@ package upstreamrequest
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -45,20 +42,14 @@ type Candidates interface {
 
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
-// Pool owns fixed-IP direct transports or a single managed proxy endpoint,
-// not DNS. A new Pool represents a network configuration.
+// Pool owns fixed-IP direct transports, not DNS. Proxies use ordinary clients.
 type Pool struct {
 	mu         sync.Mutex
-	mode       string
 	dns        DNSPool
-	proxy      DialFunc
-	proxyID    string
 	directDial DialFunc
 	transports map[string]*http.Transport
 	closed     bool
 }
-
-var poolSequence atomic.Uint64
 
 // NewDirectPool uses the supplied dialer for every pinned direct connection.
 // The pool still owns candidate membership, host checks and connection reuse;
@@ -67,38 +58,18 @@ func NewDirectPool(dns DNSPool, dial DialFunc) (*Pool, error) {
 	if dial == nil {
 		return nil, errors.New("missing direct dialer")
 	}
-	p, err := NewPool("direct", dns, nil)
+	p, err := NewPool(dns)
 	if err == nil {
 		p.directDial = dial
 	}
 	return p, err
 }
 
-func NewPool(mode string, dns DNSPool, proxy DialFunc, persistentProxyID ...string) (*Pool, error) {
-	if mode != "direct" && mode != "socks5" {
-		return nil, errors.New("invalid channel mode")
+func NewPool(dns DNSPool) (*Pool, error) {
+	if dns == nil {
+		return nil, errors.New("missing direct DNS resolver")
 	}
-	if mode != "socks5" && dns == nil || mode != "direct" && proxy == nil {
-		return nil, errors.New("missing channel dependency")
-	}
-	id := strconv.FormatUint(poolSequence.Add(1), 10)
-	if len(persistentProxyID) > 0 && persistentProxyID[0] != "" {
-		if !PersistentProxyID(persistentProxyID[0]) {
-			return nil, errors.New("invalid persistent proxy identity")
-		}
-		id = persistentProxyID[0]
-	}
-	return &Pool{mode: mode, dns: dns, proxy: proxy, proxyID: id, transports: make(map[string]*http.Transport)}, nil
-}
-
-// PersistentProxyID identifies a versioned, keyed configuration fingerprint.
-// Numeric pool sequence identities are never safe to restore across processes.
-func PersistentProxyID(id string) bool {
-	if !strings.HasPrefix(id, "stable-v1-") {
-		return false
-	}
-	b, err := hex.DecodeString(strings.TrimPrefix(id, "stable-v1-"))
-	return err == nil && len(b) == 32
+	return &Pool{dns: dns, transports: make(map[string]*http.Transport)}, nil
 }
 func targetHost(target string) string {
 	u, err := url.Parse(target)
@@ -112,16 +83,10 @@ func (p *Pool) Candidates(ctx context.Context, target string) ([]Candidate, erro
 	if host == "" {
 		return nil, errors.New("invalid channel target")
 	}
-	var err error
-	if p.mode == "direct" {
-		_, err = p.dns.Addresses(ctx, host)
-	}
+	_, err := p.dns.Addresses(ctx, host)
 	return p.Current(target), err
 }
 func (p *Pool) Changed() <-chan struct{} {
-	if p.mode == "socks5" {
-		return nil
-	}
 	return p.dns.DNSChanged()
 }
 func (p *Pool) Current(target string) []Candidate {
@@ -130,7 +95,7 @@ func (p *Pool) Current(target string) []Candidate {
 		return nil
 	}
 	var cs []Candidate
-	if p.mode != "socks5" {
+	{
 		var v4, v6 []Candidate
 		for _, a := range p.dns.CurrentAddresses(host) {
 			if time.Now().Before(a.Expires) {
@@ -152,9 +117,6 @@ func (p *Pool) Current(target string) []Candidate {
 				cs = append(cs, v4[i])
 			}
 		}
-	}
-	if p.mode != "direct" {
-		cs = append(cs, Candidate{ID: "socks5/" + host + "/" + p.proxyID, Host: host, Mode: "socks5"})
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -180,9 +142,6 @@ func (p *Pool) Current(target string) []Candidate {
 				if err := p.ensureUsable(ctx, c); err != nil {
 					return nil, err
 				}
-				if c.Mode == "socks5" {
-					return p.proxy(ctx, network, address)
-				}
 				if p.directDial != nil {
 					return p.directDial(ctx, network, net.JoinHostPort(c.IP, port))
 				}
@@ -200,9 +159,6 @@ func (p *Pool) usable(c Candidate) bool {
 	p.mu.Unlock()
 	if closed {
 		return false
-	}
-	if c.Mode == "socks5" {
-		return true
 	}
 	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool { return a.IP == c.IP && time.Now().Before(a.Expires) })
 }

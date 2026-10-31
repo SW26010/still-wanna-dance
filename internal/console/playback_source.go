@@ -26,7 +26,7 @@ func (c *Console) resolveSongURL(ctx context.Context, id int64) (string, error) 
 			return "", err
 		}
 	}
-	revision := upstreamrequest.Default.Snapshot().Revision
+	revision := c.resources.Revision()
 	resolver := playbacksource.Resolver{
 		BaseURL: c.apiBase, MaxFileBytes: cacheproxy.DefaultConfig().MaxFileBytes,
 		AttemptTimeout: 10 * time.Second,
@@ -38,8 +38,8 @@ func (c *Console) resolveSongURL(ctx context.Context, id int64) (string, error) 
 	if err != nil {
 		return "", applog.SafeError(err)
 	}
-	upstreamrequest.Default.ObserveResourceSourcesAtRevision(revision, "playback/"+address.Node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{
-		API: address.API + "?node=" + address.Node + "&id=" + strconv.FormatInt(id, 10), APIChannelID: address.ChannelID,
+	c.resources.ObserveResourceSourcesAtRevision(revision, "playback/"+address.Node+"/"+strconv.FormatInt(id, 10), []upstreamrequest.ResourceSource{{
+		API:  address.API + "?node=" + address.Node + "&id=" + strconv.FormatInt(id, 10),
 		Node: address.Node, SongID: id, ResourceURL: address.URL, ObservedAt: address.ObservedAt,
 	}}, 10*time.Minute)
 	c.mu.Lock()

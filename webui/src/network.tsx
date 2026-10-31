@@ -34,21 +34,22 @@ function MihomoDashboard() {
   </div>;
 }
 
-export function Network({visible,anchor,proxy,upstream,onUpstreamChange}:{visible:boolean;anchor:string;proxy:unknown;upstream:string;onUpstreamChange:(value:string)=>void}) {
+export function Network({visible,anchor}:{visible:boolean;anchor:string}) {
   const status=useApp().status.data!;
+  const direct=status.activeSettings.upstreamMode==='direct';
   const mihomo=status.activeSettings.upstreamMode==='proxy'&&status.activeSettings.proxyBackend==='mihomo';
   // Preserve the current-connection bookmark (#network) separately from #/network.
   const section=anchor.split('?')[0];
   const dashboard=mihomo&&section!=='network'&&!['network-tests','network-access','service'].includes(section.replace(/^\//,''));
-  return <div className={'page-stack'+(dashboard?' network-dashboard':'')}>
+  return <div id={!direct&&!dashboard?'network':undefined} tabIndex={!direct&&!dashboard?-1:undefined} className={'page-stack'+(dashboard?' network-dashboard':'')}>
     <nav className="toolbar" aria-label="网络功能">
       {mihomo&&<Tooltip content="面板整组测速可能并发连接组内所有节点，节点较多时可能产生连接高峰。" relationship="description"><Link href="#/network" aria-current={dashboard?'page':undefined}>代理面板</Link></Tooltip>}
-      <Link href="#network">当前连接</Link><Link href="#network-tests">连通性与测速</Link><Link href="#service">接入诊断</Link><Link href="#network-proxy">网络设置</Link>
+      {direct&&<Link href="#network">当前连接</Link>}<Link href="#network-tests">连通性与测速</Link><Link href="#service">接入诊断</Link><Link href="#network-proxy">网络设置</Link>
       {dashboard&&status.proxyNodes?.dashboard&&<Link href="/proxy/" target="_blank" rel="noopener noreferrer">独立窗口打开</Link>}
     </nav>
     {dashboard?visible&&<MihomoDashboard/>:<>
-    <NetworkMonitor/>
-    <section id="network-tests" tabIndex={-1}><p className="secondary">SOCKS5 检测使用设置中的当前草稿；内嵌节点需先保存并重启。</p>{visible&&<Diagnostics visible={visible} proxy={proxy} upstream={upstream} onUpstreamChange={onUpstreamChange}/>}</section>
+    {direct&&<NetworkMonitor/>}
+    <section id="network-tests" tabIndex={-1}>{visible&&<Diagnostics visible={visible}/>}</section>
     <div id="network-access" tabIndex={-1}><AccessSettings/></div>
     </>}
   </div>;

@@ -39,8 +39,8 @@ func TestResourceDomainsFollowSourceReplacementExpiryAndChannel(t *testing.T) {
 }
 
 func TestResourceSourcesPreserveActualNodeURLAndIndependentCopies(t *testing.T) {
-	c := NewChannel()
-	revision := c.Snapshot().Revision
+	c := NewResources()
+	revision := c.Revision()
 	target := "http://nya.xin.moe/files/1/2-video.mp4?e=28711962048bed664c98f27e1d9d5842&s=4&token=private"
 	cf := ResourceSource{API: "https://api.udon.dance/Api/Songs/play?node=cf&id=42", Node: "cf", SongID: 42, ResourceURL: target}
 	nya := cf
@@ -69,9 +69,10 @@ func TestResourceSourcesPreserveActualNodeURLAndIndependentCopies(t *testing.T) 
 	if len(c.ResourceSources("")) != 0 {
 		t.Fatal("expired provenance retained")
 	}
-	c.Publish(nil)
+	c.Close()
 	c.ObserveResourceSourcesAtRevision(revision, "late", []ResourceSource{cf}, time.Minute)
+	c.ObserveResourceSourcesAtRevision(c.Revision(), "closed", []ResourceSource{cf}, time.Minute)
 	if len(c.ResourceSources("")) != 0 {
-		t.Fatal("retired API response accepted")
+		t.Fatal("closed registry accepted API response")
 	}
 }

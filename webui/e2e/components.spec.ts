@@ -65,7 +65,7 @@ test('standard gauge distinguishes live samples, missing samples and restored re
   await expect(page.getByText('尚未测速',{exact:true})).toBeVisible();
   await expect(page.locator('.fui-gc__root')).toHaveCount(0);
   Object.assign(api.diagnostics.calibration,{revision:2,run:1,running:true,phase:'running',measurementStage:'single',liveSpeedBPS:375000,
-    lastValid:{direct:{singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000}}});
+    lastValid:{finished:'2026-10-30T12:00:00Z',singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,referenceBitrateBPS:2000000}});
   await api.emit('calibration');
   const live=page.getByRole('group',{name:'当前 1.50 倍，不稳定（测量中）',exact:true});
   await expect(live).toBeVisible();

@@ -1,6 +1,6 @@
-import {useState,type ReactNode} from 'react';
+import {type ReactNode} from 'react';
 import {Link,Tab,TabList} from '@fluentui/react-components';
-import {SettingsPage,settingsPayload,type SettingsSection} from './settings';
+import {SettingsPage,type SettingsSection} from './settings';
 import {Network} from './network';
 
 export function settingsTab(anchor:string):SettingsSection {
@@ -19,13 +19,11 @@ function Settings({anchor,networkForm,onTabSelect}:{anchor:string;networkForm:Re
 }
 
 export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabSelect}:{settingsVisible:boolean;networkVisible:boolean;anchor:string;onTabSelect:(anchor:string)=>void}) {
-  const [upstream,setUpstream]=useState('direct');
-  return <SettingsPage section="network">{(form,draft)=>{
-    const {proxyBackend,socks5Address,socks5Username,socks5Password}=settingsPayload(draft);
+  return <SettingsPage section="network">{(form)=>{
     return <>
     <div hidden={!settingsVisible}><Settings anchor={anchor} onTabSelect={onTabSelect} networkForm={<div id="network-proxy" tabIndex={-1}>
-      {form}<Link href="#network-tests" onClick={()=>setUpstream(draft.upstreamMode==='direct'?'direct':'proxy')}>检测此连接配置</Link>
+      {form}<Link href="#network-tests">检测当前连接</Link>
     </div>}/></div>
-    <div className="network-page" hidden={!networkVisible}><Network visible={networkVisible} anchor={anchor} proxy={{proxyBackend,socks5Address,socks5Username,socks5Password}} upstream={upstream} onUpstreamChange={setUpstream}/></div>
+    <div className="network-page" hidden={!networkVisible}><Network visible={networkVisible} anchor={anchor}/></div>
   </>;}}</SettingsPage>;
 }

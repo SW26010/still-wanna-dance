@@ -29,7 +29,7 @@ test('manual library download leaves the running queue alone',async({page})=>{
   await expect(page.getByRole('status',{name:'房间队列',exact:true})).toHaveText('房间队列：监控中');
 });
 
-test('sample preparation explains online requirements and belongs to the selected connection',async({page},info)=>{
+test('sample preparation explains online requirements and belongs to the active connection',async({page},info)=>{
   const api=await mockAPI(page);
   Object.assign(api.diagnostics.calibration,{run:1,phase:'failed',reason:'preparation_insufficient'});
   await api.emit('calibration');
@@ -42,9 +42,8 @@ test('sample preparation explains online requirements and belongs to the selecte
   await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveAttribute('aria-expanded','false');
   await expect(page.getByRole('navigation',{name:'页面导航',exact:true})).toBeHidden();
   await page.screenshot({path:info.outputPath('sample-error.png'),fullPage:true,animations:'disabled'});
-  const upstream=page.getByRole('combobox',{name:'检测上游',exact:true});
-  await upstream.selectOption('proxy');await expect(error).toBeHidden();
-  await upstream.selectOption('direct');await expect(error).toBeVisible();
+  await expect(page.getByText('检测上游：直连',{exact:true})).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'检测上游',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'开始下载速度测试',exact:true}).click();
   await expect(error).toBeHidden();
   expect(api.calls.filter(c=>c.path==='network/calibration/start')).toHaveLength(1);

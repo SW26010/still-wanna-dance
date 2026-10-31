@@ -1,6 +1,6 @@
 //go:build !windows
 
-package upstreamstate
+package upstreamcheck
 
 import "time"
 

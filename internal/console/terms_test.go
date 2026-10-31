@@ -7,12 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"still-wanna-dance/internal/legal"
-	"still-wanna-dance/internal/upstreamstate"
 	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/upstreamstate"
 )
 
 // Optional export lets the UI fixture preview the exact first-entry HTML from
@@ -294,7 +295,7 @@ func TestConsentSavedWhenMihomoCannotStart(t *testing.T) {
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
 	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount, c.savedNodeCount = s, s, client, dial, 1, 1
-	c.monitorRequested = true
+	c.upstreamRequested = true
 	c.AutoStart()
 	if evidence := os.Getenv("SWD_CONSENT_FAILURE_BROWSER_EVIDENCE"); evidence != "" {
 		ui := httptest.NewUnstartedServer(c)
@@ -359,7 +360,7 @@ func TestAutoStartAfterFailedConsentStartup(t *testing.T) {
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
 	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount = s, s, client, dial, 1
-	c.monitorRequested = true
+	c.upstreamRequested = true
 	if err := c.acceptTerms(); !errors.Is(err, errTermsStartup) {
 		t.Fatalf("expected startup failure after saving consent, got %v", err)
 	}
@@ -372,6 +373,7 @@ func TestAutoStartAfterFailedConsentStartup(t *testing.T) {
 
 func TestConsentSavedWhenMonitorCannotStart(t *testing.T) {
 	c := testConsole(t)
+	stubNetworkDiagnostics(t, c)
 	if err := os.Remove(c.files().Terms); err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +384,7 @@ func TestConsentSavedWhenMonitorCannotStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	monitor.Close()
-	c.monitor, c.monitorRequested = monitor, true
+	c.monitor, c.upstreamRequested = monitor, true
 	body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/terms/accept", strings.NewReader(string(body)))
 	r.Header.Set("X-SWD-Token", c.token)

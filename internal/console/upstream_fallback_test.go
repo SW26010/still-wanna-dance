@@ -59,6 +59,12 @@ func TestUnmeasuredOperationClientsRespectModes(t *testing.T) {
 					c.client.Transport.(interface{ Retire() }).Retire()
 					c.client, c.settings = client, s
 					clients := c.operationClients(context.Background(), upstreamstate.Catalog, upstreamstate.Constraints{Entry: "https://catalog.invalid/list"})
+					if mode == "proxy" {
+						if len(clients) != 1 || clients[0] != client || dns.queries.Load() != 0 {
+							t.Fatal("proxy must use the active client without DNS or candidate selection")
+						}
+						return
+					}
 					var direct, proxy int
 					seen := make(map[string]bool)
 					for _, client := range clients {

@@ -3,10 +3,33 @@ package upstreamrequest
 import (
 	"net/url"
 	"sort"
+	"sync"
 	"time"
 
 	"still-wanna-dance/internal/videometa"
 )
+
+// Resources owns validated resource membership and business transfer activity.
+// Proxy consumers do not need a Channel or a candidate provider.
+type Resources struct {
+	mu              sync.Mutex
+	revision        uint64
+	closed          bool
+	resourceDomains map[string]resourceObservation
+	resources       resourceActivity
+	// Only legacy direct channels filter evidence by pinned route validity.
+	sourceActive func(ResourceSource, time.Time) bool
+}
+
+func NewResources() *Resources        { return &Resources{revision: 1} }
+func (c *Resources) Revision() uint64 { c.mu.Lock(); defer c.mu.Unlock(); return c.revision }
+func (c *Resources) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.closed = true
+	c.revision++
+	c.resourceDomains = nil
+}
 
 // ResourceSource preserves a validated API response before domain aggregation.
 // ResourceURL is available to internal consumers but never serialized into status
@@ -32,18 +55,18 @@ type resourceObservation struct {
 // ObserveResourceDomains is called only after API response validation. Each
 // source replaces its previous set. DNS, client Host and persisted statistics
 // must never create resource membership.
-func (c *Channel) ObserveResourceDomains(source string, hosts []string, lifetime time.Duration) {
-	c.ObserveResourceDomainsAtRevision(c.Snapshot().Revision, source, hosts, lifetime)
+func (c *Resources) ObserveResourceDomains(source string, hosts []string, lifetime time.Duration) {
+	c.ObserveResourceDomainsAtRevision(c.Revision(), source, hosts, lifetime)
 }
 
 // ObserveResourceDomainsAtRevision rejects responses from retired transports.
-func (c *Channel) ObserveResourceDomainsAtRevision(revision uint64, source string, hosts []string, lifetime time.Duration) {
+func (c *Resources) ObserveResourceDomainsAtRevision(revision uint64, source string, hosts []string, lifetime time.Duration) {
 	c.observeResources(revision, source, hosts, nil, lifetime)
 }
 
 // ObserveResourceSourcesAtRevision retains all issuing APIs, even when their
 // returned domains or URLs are identical. Call only after response validation.
-func (c *Channel) ObserveResourceSourcesAtRevision(revision uint64, source string, sources []ResourceSource, lifetime time.Duration) {
+func (c *Resources) ObserveResourceSourcesAtRevision(revision uint64, source string, sources []ResourceSource, lifetime time.Duration) {
 	var hosts []string
 	var valid []ResourceSource
 	for _, item := range sources {
@@ -67,10 +90,10 @@ func (c *Channel) ObserveResourceSourcesAtRevision(revision uint64, source strin
 	c.observeResources(revision, source, hosts, valid, lifetime)
 }
 
-func (c *Channel) observeResources(revision uint64, source string, hosts []string, sources []ResourceSource, lifetime time.Duration) {
+func (c *Resources) observeResources(revision uint64, source string, hosts []string, sources []ResourceSource, lifetime time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.revision != revision {
+	if c.closed || c.revision != revision {
 		return
 	}
 	if c.resourceDomains == nil {
@@ -104,7 +127,7 @@ func (c *Channel) observeResources(revision uint64, source string, hosts []strin
 	c.resourceDomains[source] = resourceObservation{hosts: valid, sources: append([]ResourceSource(nil), sources...), until: time.Now().Add(lifetime)}
 }
 
-func (c *Channel) ResourceDomains() []string {
+func (c *Resources) ResourceDomains() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pruneResourceSourcesLocked(time.Now())
@@ -124,7 +147,7 @@ func (c *Channel) ResourceDomains() []string {
 	return hosts
 }
 
-func (c *Channel) IsResourceDomain(host string) bool {
+func (c *Resources) IsResourceDomain(host string) bool {
 	for _, known := range c.ResourceDomains() {
 		if host == known {
 			return true
@@ -135,7 +158,7 @@ func (c *Channel) IsResourceDomain(host string) bool {
 
 // ResourceSources returns independent values for every live issuing source. An
 // empty domain selects all resources; filter by Node or ResourceURL as needed.
-func (c *Channel) ResourceSources(domain string) []ResourceSource {
+func (c *Resources) ResourceSources(domain string) []ResourceSource {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pruneResourceSourcesLocked(time.Now())
@@ -175,8 +198,7 @@ func ResourceSourceActive(s ResourceSource, provider Candidates, now time.Time) 
 	return false
 }
 
-func (c *Channel) pruneResourceSourcesLocked(now time.Time) {
-	provider := c.candidates
+func (c *Resources) pruneResourceSourcesLocked(now time.Time) {
 	for key, observation := range c.resourceDomains {
 		if !now.Before(observation.until) {
 			delete(c.resourceDomains, key)
@@ -188,7 +210,7 @@ func (c *Channel) pruneResourceSourcesLocked(now time.Time) {
 		var sources []ResourceSource
 		var hosts []string
 		for _, s := range observation.sources {
-			if ResourceSourceActive(s, provider, now) {
+			if now.Before(s.ValidUntil) && (c.sourceActive == nil || c.sourceActive(s, now)) {
 				sources = append(sources, s)
 				hosts = append(hosts, s.Domain)
 			}

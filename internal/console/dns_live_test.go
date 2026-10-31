@@ -52,7 +52,7 @@ func TestLiveDirectDualStack(t *testing.T) {
 				return conn, err
 			}
 			if mode == "relay" {
-				relay := runRelay(t, dial)
+				relay := runRelay(t, dial, c.resources)
 				dial = func(ctx context.Context, network, _ string) (net.Conn, error) {
 					return (&net.Dialer{}).DialContext(ctx, network, relay.listener.Addr().String())
 				}

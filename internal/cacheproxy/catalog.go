@@ -9,13 +9,15 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"still-wanna-dance/internal/catalogmeta"
 )
 
 const songColumns = "id,name,artist,dancer,playerCount,volume,start,end,flip,double_width,skip_random,disable_public,rpe,major,groupName,tag,shader_motion"
 
-const UdonCatalogURL = "https://api.udon.dance/Api/Songs/list"
-const KivaCatalogURL = "https://x.kiva.moe/api/v2/wanna/songs"
-const WannaCatalogURL = "https://wanna.kiva.moe/api/wannaInfo"
+const UdonCatalogURL = catalogmeta.UdonURL
+const KivaCatalogURL = catalogmeta.KivaURL
+const WannaCatalogURL = catalogmeta.WannaURL
 
 // Logical source identity is independent of a protocol fallback.
 func IsUdonCatalog(source string) bool {

@@ -1,4 +1,4 @@
-package upstreamstate
+package upstreamcheck
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,9 +32,9 @@ const (
 // loading uses ordinary resource demands with a streaming discard sink.
 type Calibration struct {
 	mu      sync.Mutex
-	channel *upstreamrequest.Channel
+	client  *http.Client
 	state   CalibrationStatus
-	saved   map[string]CalibrationResult
+	saved   *CalibrationResult
 	changed chan struct{}
 	done    chan struct{}
 	cancel  context.CancelFunc
@@ -64,63 +63,66 @@ type CalibrationSample struct {
 }
 
 // Compact completed observations survive retries within this process. No media
-// or partial run is retained, and direct/proxy results cannot replace each other.
+// or partial run is retained. The client remains fixed for this instance.
 type CalibrationResult struct {
-	Run                 uint64   `json:"run"`
-	Upstream            string   `json:"upstream"`
-	ConcurrencyLimit    int      `json:"concurrencyLimit"`
-	FullConcurrency     int      `json:"fullConcurrency"`
-	SingleSpeedBPS      *float64 `json:"singleSpeedBPS"`
-	FullSpeedBPS        *float64 `json:"fullSpeedBPS"`
-	FullCPUPercent      *float64 `json:"fullCPUPercent"`
-	CPUP95Percent       *float64 `json:"cpuP95Percent"`
-	CPUP99Percent       *float64 `json:"cpuP99Percent"`
-	ReferenceBitrateBPS int64    `json:"referenceBitrateBPS"`
+	Finished            time.Time `json:"finished"`
+	Run                 uint64    `json:"run"`
+	Upstream            string    `json:"upstream"`
+	ConcurrencyLimit    int       `json:"concurrencyLimit"`
+	FullConcurrency     int       `json:"fullConcurrency"`
+	SingleSpeedBPS      *float64  `json:"singleSpeedBPS"`
+	FullSpeedBPS        *float64  `json:"fullSpeedBPS"`
+	FullCPUPercent      *float64  `json:"fullCPUPercent"`
+	CPUP95Percent       *float64  `json:"cpuP95Percent"`
+	CPUP99Percent       *float64  `json:"cpuP99Percent"`
+	ReferenceBitrateBPS int64     `json:"referenceBitrateBPS"`
 }
 
 type CalibrationStatus struct {
-	LastValid           map[string]CalibrationResult `json:"lastValid"`
-	Revision            uint64                       `json:"revision"`
-	Run                 uint64                       `json:"run"`
-	Upstream            string                       `json:"upstream"`
-	Phase               string                       `json:"phase"`
-	MeasurementStage    string                       `json:"measurementStage,omitempty"`
-	Reason              string                       `json:"reason,omitempty"`
-	ResourceHost        string                       `json:"resourceHost,omitempty"`
-	Running             bool                         `json:"running"`
-	Closed              bool                         `json:"closed"`
-	Open                int                          `json:"open"`
-	ConcurrencyLimit    int                          `json:"concurrencyLimit"`
-	FullConcurrency     int                          `json:"fullConcurrency"`
-	PeakOpen            int                          `json:"peakOpen"`
-	Active              int                          `json:"active"`
-	PeakActive          int                          `json:"peakActive"`
-	Bytes               int64                        `json:"bytes"`
-	Completed           int                          `json:"completed"`
-	Failures            int                          `json:"failures"`
-	ElapsedMS           int64                        `json:"elapsedMS"`
-	BlockTimeMS         float64                      `json:"blockTimeMS"`
-	SingleSpeedBPS      *float64                     `json:"singleSpeedBPS"`
-	FullSpeedBPS        *float64                     `json:"fullSpeedBPS"`
-	LiveSingleSpeedBPS  *float64                     `json:"liveSingleSpeedBPS"`
-	LiveFullSpeedBPS    *float64                     `json:"liveFullSpeedBPS"`
-	LiveSpeedBPS        *float64                     `json:"liveSpeedBPS"`
-	FullCPUPercent      *float64                     `json:"fullCPUPercent"`
-	ReferenceBitrateBPS int64                        `json:"referenceBitrateBPS"`
-	CPUPercent          *float64                     `json:"cpuPercent"`
-	CPUP95Percent       *float64                     `json:"cpuP95Percent"`
-	CPUP99Percent       *float64                     `json:"cpuP99Percent"`
-	MaxBytes            int64                        `json:"maxBytes"`
-	MaxDurationMS       int64                        `json:"maxDurationMS"`
-	PreparedVideos      int                          `json:"preparedVideos"`
-	PreparedBytes       int64                        `json:"preparedBytes"`
-	PreparationProgress int                          `json:"preparationProgress"`
-	Samples             []CalibrationSample          `json:"samples"`
+	// Finished is the last non-canceled completion, including failures.
+	Finished            time.Time           `json:"finished"`
+	LastValid           *CalibrationResult  `json:"lastValid"`
+	Revision            uint64              `json:"revision"`
+	Run                 uint64              `json:"run"`
+	Upstream            string              `json:"upstream"`
+	Phase               string              `json:"phase"`
+	MeasurementStage    string              `json:"measurementStage,omitempty"`
+	Reason              string              `json:"reason,omitempty"`
+	ResourceHost        string              `json:"resourceHost,omitempty"`
+	Running             bool                `json:"running"`
+	Closed              bool                `json:"closed"`
+	Open                int                 `json:"open"`
+	ConcurrencyLimit    int                 `json:"concurrencyLimit"`
+	FullConcurrency     int                 `json:"fullConcurrency"`
+	PeakOpen            int                 `json:"peakOpen"`
+	Active              int                 `json:"active"`
+	PeakActive          int                 `json:"peakActive"`
+	Bytes               int64               `json:"bytes"`
+	Completed           int                 `json:"completed"`
+	Failures            int                 `json:"failures"`
+	ElapsedMS           int64               `json:"elapsedMS"`
+	BlockTimeMS         float64             `json:"blockTimeMS"`
+	SingleSpeedBPS      *float64            `json:"singleSpeedBPS"`
+	FullSpeedBPS        *float64            `json:"fullSpeedBPS"`
+	LiveSingleSpeedBPS  *float64            `json:"liveSingleSpeedBPS"`
+	LiveFullSpeedBPS    *float64            `json:"liveFullSpeedBPS"`
+	LiveSpeedBPS        *float64            `json:"liveSpeedBPS"`
+	FullCPUPercent      *float64            `json:"fullCPUPercent"`
+	ReferenceBitrateBPS int64               `json:"referenceBitrateBPS"`
+	CPUPercent          *float64            `json:"cpuPercent"`
+	CPUP95Percent       *float64            `json:"cpuP95Percent"`
+	CPUP99Percent       *float64            `json:"cpuP99Percent"`
+	MaxBytes            int64               `json:"maxBytes"`
+	MaxDurationMS       int64               `json:"maxDurationMS"`
+	PreparedVideos      int                 `json:"preparedVideos"`
+	PreparedBytes       int64               `json:"preparedBytes"`
+	PreparationProgress int                 `json:"preparationProgress"`
+	Samples             []CalibrationSample `json:"samples"`
 }
 
-func NewCalibration(channel *upstreamrequest.Channel) *Calibration {
-	return &Calibration{channel: channel, changed: make(chan struct{}),
-		state: CalibrationStatus{Phase: "idle", Upstream: "direct", Samples: []CalibrationSample{}},
+func NewCalibration(client *http.Client, upstream string) *Calibration {
+	return &Calibration{client: client, changed: make(chan struct{}),
+		state: CalibrationStatus{Phase: "idle", Upstream: upstream, Samples: []CalibrationSample{}},
 		limits: calibrationLimits{duration: 20 * time.Second, interval: time.Second, bytes: 1 << 30,
 			warmup: time.Second, window: 3 * time.Second, prepare: 30 * time.Second,
 			reserveVideos: 16, reserveBytes: 2 << 30}}
@@ -132,9 +134,9 @@ func (c *Calibration) Snapshot() (CalibrationStatus, <-chan struct{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	s := c.state
-	s.LastValid = make(map[string]CalibrationResult, len(c.saved))
-	for key, result := range c.saved {
-		s.LastValid[key] = result
+	if c.saved != nil {
+		saved := *c.saved
+		s.LastValid = &saved
 	}
 	s.ReferenceBitrateBPS = cacheproxy.TypicalBitrate
 	s.Samples = append([]CalibrationSample{}, s.Samples...)
@@ -147,25 +149,10 @@ func (c *Calibration) publishLocked() {
 	c.changed = make(chan struct{})
 }
 
+// Start always measures the client supplied by the application owner.
 func (c *Calibration) Start() error {
-	return c.StartWithUpstream(c.channel, "direct", nil)
-}
-
-// StartWithUpstream owns release even if the run is rejected or already active.
-// A per-run channel lets the console reuse its normal proxy factory without
-// replacing the direct diagnostic or the application's active configuration.
-func (c *Calibration) StartWithUpstream(channel *upstreamrequest.Channel, upstream string, release func()) error {
-	if release == nil {
-		release = func() {}
-	}
-	accepted := false
-	defer func() {
-		if !accepted {
-			release()
-		}
-	}()
-	if channel == nil || (upstream != "direct" && upstream != "proxy") {
-		return errors.New("未知测速上游")
+	if c.client == nil {
+		return errors.New("当前上游尚未就绪")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -173,20 +160,16 @@ func (c *Calibration) StartWithUpstream(channel *upstreamrequest.Channel, upstre
 		return errors.New("测速已关闭")
 	}
 	if c.state.Running {
-		if c.state.Upstream != upstream {
-			return errors.New("请先停止当前测速，再切换上游")
-		}
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel, c.done = cancel, make(chan struct{})
 	c.bytes.Store(0)
-	c.state = CalibrationStatus{Revision: c.state.Revision, Run: c.state.Run + 1,
-		Phase: "preparing", Upstream: upstream, Running: true, Samples: []CalibrationSample{},
+	c.state = CalibrationStatus{Finished: c.state.Finished, Revision: c.state.Revision, Run: c.state.Run + 1,
+		Phase: "preparing", Upstream: c.state.Upstream, Running: true, Samples: []CalibrationSample{},
 		MaxBytes: c.limits.bytes, MaxDurationMS: c.limits.duration.Milliseconds()}
 	c.publishLocked()
-	accepted = true
-	go c.run(ctx, c.done, channel, channel.Snapshot(), upstream, release)
+	go c.run(ctx, c.done)
 	return nil
 }
 
@@ -223,84 +206,21 @@ func (c *Calibration) Close() {
 	}
 }
 
-func calibrationClient(ctx context.Context, source upstreamrequest.Snapshot, target, upstream string) (*http.Client, error) {
-	clients, err := calibrationClients(ctx, source, target, upstream)
-	if err != nil {
-		return nil, err
-	}
-	// Media measurement stays on one candidate for each resource host.
-	return clients[0], nil
-}
-
-// Metadata preparation can try the requested upstream's remaining paths. It
-// shares the normal complete-request and protocol attempt budget in Fetch.
-func calibrationClients(ctx context.Context, source upstreamrequest.Snapshot, target, upstream string) ([]*http.Client, error) {
-	if source.Candidates == nil {
-		return nil, errors.New("channel_unavailable")
-	}
-	cs, err := source.Candidates.Candidates(ctx, target)
-	if err != nil && len(cs) == 0 {
-		return nil, errors.New("channel_unavailable")
-	}
-	var clients []*http.Client
-	for _, candidate := range cs {
-		if candidate.Mode == upstream || (upstream == "proxy" && candidate.Mode == "socks5") {
-			clients = append(clients, requestClient(candidate.Transport))
-			if len(clients) == upstreamrequest.MaxOperationCandidates {
-				break
-			}
-		}
-	}
-	if len(clients) != 0 {
-		return clients, nil
-	}
-	return nil, errors.New("channel_unavailable")
-}
-
 var errCalibrationPreparationInsufficient = errors.New("preparation_insufficient")
 
-// Filled during preparation, then immutable while all videos share one loader
-// and scheduler. Candidate transports are bound to their resource host.
-type calibrationTransports map[string]http.RoundTripper
-
-func (t calibrationTransports) RoundTrip(r *http.Request) (*http.Response, error) {
-	transport := t[strings.ToLower(r.URL.Host)]
-	if transport == nil {
-		return nil, upstreamrequest.ErrUnavailable
-	}
-	return transport.RoundTrip(r)
-}
-
-func (t calibrationTransports) CloseIdleConnections() {
-	for _, transport := range t {
-		if closer, ok := transport.(interface{ CloseIdleConnections() }); ok {
-			closer.CloseIdleConnections()
-		}
-	}
-}
-
-func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Channel, source upstreamrequest.Snapshot, upstream string) (*http.Client, []videoSample, error) {
+func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample, error) {
 	p := DefaultPolicy()
 	p.RequestTimeout = 10 * time.Second
 	var samples []videoSample
 	var preparedBytes int64
-	selected := make(calibrationTransports)
 	ready := func() bool { return len(samples) >= c.limits.reserveVideos && preparedBytes >= c.limits.reserveBytes }
 	seenIDs, seenVideos := make(map[int64]bool), make(map[string]bool)
 	for _, routeID := range routeIDs(Catalog) {
 		if ctx.Err() != nil || ready() || len(samples) == calibrationMaxVideos {
 			break
 		}
-		catalogClients, err := calibrationClients(ctx, source, entry(Catalog, routeID), upstream)
-		if err != nil {
-			continue
-		}
-		o, id, catalog := probeCatalogData(ctx, catalogClients[0], p, routeID, catalogClients[1:]...)
+		o, id, catalog := probeCatalogData(ctx, []*http.Client{c.client}, p, routeID)
 		if o.state != "available" || id == 0 {
-			continue
-		}
-		clients, err := calibrationClients(ctx, source, entry(PlaybackURL, playbackRoutes[0].ID), upstream)
-		if err != nil {
 			continue
 		}
 		ids := calibrationSongIDs(catalog)
@@ -319,17 +239,9 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 				break
 			}
 		}
-		prepareCalibrationSamples(ctx, clients, p, pending, func(sample videoSample) bool {
+		prepareCalibrationSamples(ctx, []*http.Client{c.client}, p, pending, func(sample videoSample) bool {
 			if sample.size < 16*calibrationBlock || seenVideos[sample.checksum] {
 				return false
-			}
-			host := strings.ToLower(sample.host)
-			if selected[host] == nil {
-				client, err := calibrationClient(ctx, source, sample.url, upstream)
-				if err != nil {
-					return false
-				}
-				selected[host] = client.Transport
 			}
 			seenVideos[sample.checksum] = true
 			samples = append(samples, sample)
@@ -343,15 +255,9 @@ func (c *Calibration) prepare(ctx context.Context, channel *upstreamrequest.Chan
 		})
 	}
 	if !ready() || ctx.Err() != nil {
-		selected.CloseIdleConnections()
 		return nil, nil, errCalibrationPreparationInsufficient
 	}
-	hosts := make([]string, 0, len(samples))
-	for _, sample := range samples {
-		hosts = append(hosts, sample.host)
-	}
-	channel.ObserveResourceDomainsAtRevision(source.Revision, "calibration", hosts, time.Minute)
-	return requestClient(selected), samples, nil
+	return c.client, samples, nil
 }
 
 // Resolve metadata only, with bounded parallelism. Cancel and join every probe
@@ -435,22 +341,12 @@ func calibrationSongIDs(c CatalogResponse) []int64 {
 	return ids
 }
 
-func (c *Calibration) run(ctx context.Context, done chan struct{}, channel *upstreamrequest.Channel, source upstreamrequest.Snapshot, upstream string, release func()) {
-	ctx, stop := context.WithCancel(ctx)
-	defer stop()
+func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 	reason := "sample_unavailable"
-	watchDone := make(chan struct{})
-	go func() {
-		select {
-		case <-source.Changed:
-			stop()
-		case <-watchDone:
-		}
-	}()
 	defer func() {
-		close(watchDone)
-		channel.ObserveResourceDomainsAtRevision(source.Revision, "calibration", nil, 0)
-		release()
+		// net/http may keep an unused dial alive after its request is canceled.
+		// Drain idle connections without retiring the shared upstream runtime.
+		c.client.CloseIdleConnections()
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.state.Running, c.state.Active = false, 0
@@ -462,30 +358,27 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}, channel *upst
 			c.state.LiveSingleSpeedBPS, c.state.LiveFullSpeedBPS = nil, nil
 			c.state.LiveSpeedBPS = nil
 			c.state.FullCPUPercent, c.state.CPUPercent, c.state.CPUP95Percent, c.state.CPUP99Percent = nil, nil, nil, nil
-		} else if (reason != "time_limit" && reason != "byte_limit" && reason != "samples_exhausted" && reason != "measurement_complete") || c.state.Bytes == 0 {
-			c.state.Phase = "failed"
+		} else {
+			c.state.Finished = time.Now()
+			if (reason != "time_limit" && reason != "byte_limit" && reason != "samples_exhausted" && reason != "measurement_complete") || c.state.Bytes == 0 {
+				c.state.Phase = "failed"
+			}
 		}
 		if c.state.Phase == "completed" && c.state.SingleSpeedBPS != nil && c.state.FullSpeedBPS != nil {
-			if c.saved == nil {
-				c.saved = make(map[string]CalibrationResult)
-			}
-			c.saved[upstream] = CalibrationResult{Run: c.state.Run, Upstream: upstream, ConcurrencyLimit: c.state.ConcurrencyLimit, FullConcurrency: c.state.FullConcurrency,
+			c.saved = &CalibrationResult{Finished: c.state.Finished, Run: c.state.Run, Upstream: c.state.Upstream, ConcurrencyLimit: c.state.ConcurrencyLimit, FullConcurrency: c.state.FullConcurrency,
 				SingleSpeedBPS: c.state.SingleSpeedBPS, FullSpeedBPS: c.state.FullSpeedBPS, FullCPUPercent: c.state.FullCPUPercent,
 				CPUP95Percent: c.state.CPUP95Percent, CPUP99Percent: c.state.CPUP99Percent, ReferenceBitrateBPS: cacheproxy.TypicalBitrate}
 		}
 		c.cancel()
 		c.publishLocked()
-		slog.Info("network_calibration_finished", "upstream", upstream, "phase", c.state.Phase,
+		slog.Info("network_calibration_finished", "upstream", c.state.Upstream, "phase", c.state.Phase,
 			"reason", c.state.Reason, "prepared_videos", c.state.PreparedVideos,
 			"prepared_bytes", c.state.PreparedBytes, "downloaded_bytes", c.state.Bytes)
 		close(done)
 	}()
 	prep, cancel := context.WithTimeout(ctx, c.limits.prepare)
-	client, samples, err := c.prepare(prep, channel, source, upstream)
+	client, samples, err := c.prepare(prep)
 	cancel()
-	if client != nil {
-		defer client.CloseIdleConnections()
-	}
 	if err != nil || ctx.Err() != nil {
 		if errors.Is(err, errCalibrationPreparationInsufficient) {
 			reason = "preparation_insufficient"

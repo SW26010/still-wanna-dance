@@ -156,7 +156,7 @@ func TestCFResolutionPreservesReturnedDomainAndSource(t *testing.T) {
 		t.Fatal(got, err)
 	}
 	var sources []upstreamrequest.ResourceSource
-	for _, s := range upstreamrequest.Default.ResourceSources("nya.xin.moe") {
+	for _, s := range c.resources.ResourceSources("nya.xin.moe") {
 		if strings.HasPrefix(s.API, api.URL+"/") {
 			sources = append(sources, s)
 		}

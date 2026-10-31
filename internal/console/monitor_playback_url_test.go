@@ -17,13 +17,12 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
-	"still-wanna-dance/internal/upstreamstate"
+	"still-wanna-dance/internal/upstreamcheck"
 )
 
-func monitorPlaybackResponse() upstreamstate.PlaybackURLResponse {
+func monitorPlaybackResponse() upstreamcheck.PlaybackURLResponse {
 	at := time.Now().Add(-time.Minute)
-	return upstreamstate.PlaybackURLResponse{
+	return upstreamcheck.PlaybackURLResponse{
 		SongID: 1, API: "https://api.udon.dance/Api/Songs/play", Node: "cf",
 		URL:            "https://play.udon.dance/files/1/42-video.mp4?e=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&s=1234&token=private",
 		QueryStartedAt: at, ObservedAt: at.Add(time.Second),
@@ -40,19 +39,19 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 		return nil, errors.New("unexpected request")
 	})
 	ctx := context.Background()
-	c.syncMonitorCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261015000000", "original", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")})
+	c.syncCatalogs(ctx, []upstreamcheck.CatalogResponse{monitorFull("kiva", "20261015000000", "original", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")})
 	old := monitorPlaybackResponse()
-	c.syncMonitorPlaybackURL(ctx, old)
+	c.syncPlaybackURL(ctx, old)
 	newer := old
 	newer.QueryStartedAt = old.QueryStartedAt.Add(2 * time.Second)
 	newer.ObservedAt = newer.QueryStartedAt.Add(time.Second)
 	newer.URL = "https://play.udon.dance/files/1/42-new.mp4?e=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&s=5678&token=new"
-	c.syncMonitorPlaybackURL(ctx, newer)
+	c.syncPlaybackURL(ctx, newer)
 	old.ObservedAt = newer.ObservedAt.Add(time.Second) // Earlier request finishes last.
-	c.syncMonitorPlaybackURL(ctx, old)
+	c.syncPlaybackURL(ctx, old)
 	shared := newer
 	shared.SongID = 2
-	c.syncMonitorPlaybackURL(ctx, shared)
+	c.syncPlaybackURL(ctx, shared)
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +100,7 @@ func TestMonitorPlaybackURLCanceledOrClosingDoesNotOpenStorage(t *testing.T) {
 		} else {
 			cancel()
 		}
-		c.syncMonitorPlaybackURL(ctx, monitorPlaybackResponse())
+		c.syncPlaybackURL(ctx, monitorPlaybackResponse())
 		cancel()
 		if c.service != nil {
 			t.Fatal("opened storage for canceled/closing response")
@@ -117,7 +116,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	c := testConsole(t)
 	ctx := context.Background()
 	old := monitorPlaybackResponse()
-	c.syncMonitorPlaybackURL(ctx, old) // Playback-only checks write the application store without a media engine.
+	c.syncPlaybackURL(ctx, old) // Playback-only checks write the application store without a media engine.
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +129,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	newer.QueryStartedAt = old.QueryStartedAt.Add(2 * time.Second)
 	newer.ObservedAt = newer.QueryStartedAt.Add(time.Second)
 	newer.URL = "https://play.udon.dance/files/1/42-new.mp4?e=cccccccccccccccccccccccccccccccc&s=5678"
-	c.syncMonitorPlaybackURL(ctx, newer)
+	c.syncPlaybackURL(ctx, newer)
 	if !errors.Is(c.store.Error(), cacheproxy.ErrLocalStorage) {
 		t.Fatal("monitor persistence did not retain storage fault", c.store.Error())
 	}
@@ -181,57 +180,63 @@ func TestMonitorMetadataBackfillFollowsSongOrderIncludingUdonOnlySong(t *testing
 			resourceCalls++
 			mu.Unlock()
 			resp.StatusCode = http.StatusPartialContent
-			resp.Header.Set("Content-Range", "bytes 0-3/4")
-			resp.Body = io.NopCloser(strings.NewReader("abcd"))
+			resp.Header.Set("Content-Range", "bytes 0-0/4")
+			resp.Body = io.NopCloser(strings.NewReader("a"))
 		}
 		return resp, nil
 	})
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{transport})
-	if err := c.StartUpstreamMonitor(); err != nil {
+	c.client.Transport = transport
+	c.settings.UpstreamMode = "proxy"
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
-	waitMonitor(t, c)
-	assertRequests := func(want int64, wantCalls int) {
+	waitCatalogSync(t, c)
+	if c.monitor != nil {
+		t.Fatal("proxy metadata started monitor")
+	}
+	assertRequests := func(want int64, wantCalls, wantResources int) {
 		t.Helper()
-		if !slices.Equal(requested, []int64{want, want}) || calls != wantCalls || resourceCalls != 2 {
-			t.Fatalf("requested=%v calls=%d resourceCalls=%d, want song=%d total=%d", requested, calls, resourceCalls, want, wantCalls)
+		if !slices.Equal(requested, []int64{want}) || calls != wantCalls || resourceCalls != wantResources {
+			t.Fatalf("requested=%v calls=%d resources=%d", requested, calls, resourceCalls)
 		}
 	}
-	assertRequests(1981, 10)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
+	assertRequests(1981, 5, 1)
+	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
 	requested = nil
-	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	assertRequests(5404, 12)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
+	<-c.networkDiagnostics.connectivityDone
+	assertRequests(5404, 10, 2)
+	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
 		t.Fatal("Udon-only song was not scheduled", pending)
 	}
 	requested = nil
-	if err := c.monitor.CheckSelected(context.Background(), upstreamstate.CheckPlayback); err != nil {
+	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	assertRequests(42, 14)
-	if pending := c.monitorPlaybackSongCandidates(context.Background()); len(pending) != 0 {
+	<-c.networkDiagnostics.connectivityDone
+	assertRequests(42, 15, 3)
+	if pending := c.metadataSongCandidates(context.Background()); len(pending) != 0 {
 		t.Fatal("metadata still incomplete", pending)
 	}
 }
 
 func TestMonitorMetadataCandidatesDoNotOpenOrReviveStorage(t *testing.T) {
 	c := testConsole(t)
-	if got := c.monitorPlaybackSongCandidates(context.Background()); len(got) != 0 || c.service != nil {
+	if got := c.metadataSongCandidates(context.Background()); len(got) != 0 || c.service != nil {
 		t.Fatal("selection initialized an empty library", got)
 	}
-	c.syncMonitorCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261015000000", "song", strings.Repeat("a", 32))})
+	c.syncCatalogs(context.Background(), []upstreamcheck.CatalogResponse{monitorFull("kiva", "20261015000000", "song", strings.Repeat("a", 32))})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if got := c.monitorPlaybackSongCandidates(ctx); len(got) != 0 {
+	if got := c.metadataSongCandidates(ctx); len(got) != 0 {
 		t.Fatal("selection ignored cancellation", got)
 	}
 	c.closing = true
-	got := c.monitorPlaybackSongCandidates(context.Background())
+	got := c.metadataSongCandidates(context.Background())
 	c.closing = false
 	if len(got) != 0 {
 		t.Fatal("selection ignored shutdown", got)

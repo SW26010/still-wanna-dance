@@ -1,10 +1,11 @@
 package console
 
 import (
-	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func initializeTestLibrary(t *testing.T, c *Console) {
@@ -20,11 +21,11 @@ func initializeTestLibrary(t *testing.T, c *Console) {
 	}
 }
 
-func observeTestResources(t *testing.T) {
+func observeTestResources(t *testing.T, resources *upstreamrequest.Resources) {
 	t.Helper()
 	source := "test/" + t.Name()
-	upstreamrequest.Default.ObserveResourceDomains(source, []string{"play.udon.dance", "nya.xin.moe"}, time.Minute)
-	t.Cleanup(func() { upstreamrequest.Default.ObserveResourceDomains(source, nil, 0) })
+	resources.ObserveResourceDomains(source, []string{"play.udon.dance", "nya.xin.moe"}, time.Minute)
+	t.Cleanup(func() { resources.ObserveResourceDomains(source, nil, 0) })
 }
 
 // Explicit test-only resource origins; API nodes do not imply these names.

@@ -21,8 +21,11 @@ func channelAttempt(ctx context.Context, limit time.Duration, remaining int) (co
 
 func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstate.Constraints) []upstreamstate.Selection {
 	c.mu.Lock()
-	m, mode, client := c.monitor, channelMode(c.settings.UpstreamMode), c.client
+	m, mode, client := c.monitor, c.settings.UpstreamMode, c.client
 	c.mu.Unlock()
+	if mode != "direct" {
+		return nil
+	}
 	q.Mode = mode
 	var selections []upstreamstate.Selection
 	if m != nil {
@@ -48,11 +51,16 @@ func (c *Console) operationSelections(op upstreamstate.Operation, q upstreamstat
 
 func (c *Console) operationClients(ctx context.Context, op upstreamstate.Operation, q upstreamstate.Constraints) []*http.Client {
 	base := c.upstreamClient()
+	c.mu.Lock()
+	proxy := c.settings.UpstreamMode == "proxy"
+	c.mu.Unlock()
+	if proxy {
+		return []*http.Client{base}
+	}
 	selections := c.operationSelections(op, q)
 	if len(selections) == 0 {
 		if provider, ok := base.Transport.(upstreamrequest.Candidates); ok {
-			// Only cold direct discovery performs DNS; proxy discovery uses its
-			// configured exits. Discovery shares the caller's operation deadline.
+			// Cold direct discovery shares the caller's operation deadline.
 			current, _ := provider.Candidates(ctx, q.Entry)
 			for _, channel := range current[:min(len(current), upstreamrequest.MaxOperationCandidates)] {
 				selections = append(selections, upstreamstate.Selection{Channel: channel})

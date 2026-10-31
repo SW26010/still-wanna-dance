@@ -18,7 +18,7 @@ type resourceActivity struct {
 
 // BeginResourceLoad gives business traffic priority over resource measurements.
 // Call before dialing; call the idempotent release after closing the response.
-func (c *Channel) BeginResourceLoad() func() {
+func (c *Resources) BeginResourceLoad() func() {
 	a := &c.resources
 	a.mu.Lock()
 	if a.loads == 0 {
@@ -42,7 +42,7 @@ func (c *Channel) BeginResourceLoad() func() {
 	}
 }
 
-func (c *Channel) ResourceBusy() bool {
+func (c *Resources) ResourceBusy() bool {
 	c.resources.mu.Lock()
 	defer c.resources.mu.Unlock()
 	return c.resources.loads > 0
@@ -50,7 +50,7 @@ func (c *Channel) ResourceBusy() bool {
 
 // ResourceProbe waits without polling. Business arrivals cancel its context.
 // Finish unregisters it and reports whether its sample was interrupted.
-func (c *Channel) ResourceProbe(ctx context.Context) (context.Context, func() bool, error) {
+func (c *Resources) ResourceProbe(ctx context.Context) (context.Context, func() bool, error) {
 	a := &c.resources
 	for {
 		a.mu.Lock()

@@ -279,7 +279,7 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 	previous := upstreamrequest.Default
 	upstreamrequest.Default = channel
 	defer func() { upstreamrequest.Default = previous }()
-	c := &Console{apiBase: "https://api.udon.dance", client: client, settings: Settings{UpstreamMode: "direct"}}
+	c := &Console{resources: upstreamrequest.NewResources(), apiBase: "https://api.udon.dance", client: client, settings: Settings{UpstreamMode: "direct"}}
 	var historyTransport http.RoundTripper
 	setupStart, setupBytes := time.Now(), total.Load()
 	setupCtx, setupCancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -600,7 +600,7 @@ func TestCFProductPrefetchIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer engine.Close()
-	c := &Console{apiBase: "https://api.udon.dance", service: engine, settings: Settings{UpstreamMode: "direct"},
+	c := &Console{resources: upstreamrequest.NewResources(), apiBase: "https://api.udon.dance", service: engine, settings: Settings{UpstreamMode: "direct"},
 		client: &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

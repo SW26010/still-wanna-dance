@@ -97,11 +97,11 @@ try {
   let reverseTabs=0;
   while(await page.evaluate(()=>document.activeElement?.tagName==='IFRAME')&&reverseTabs<100){await page.keyboard.press('Shift+Tab');reverseTabs++;}
   expect(await page.evaluate(()=>document.activeElement?.tagName)).not.toBe('IFRAME');
-  await page.getByRole('link',{name:'当前连接',exact:true}).click();
+  await page.getByRole('link',{name:'连通性与测速',exact:true}).click();
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect.poll(()=>[...activeStreams].map(ws=>new URL(ws.url()).pathname)).toEqual([]);
-  await expect(page.locator('#network')).toBeFocused();
-  await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).toBeVisible();
+  await expect(page.locator('#network-tests')).toBeFocused();
+  await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeVisible();
   await page.getByRole('link',{name:'代理面板',exact:true}).click();
   await expect(managedGroup).toBeVisible();
   await expect.poll(()=>activeStreams.size).toBeGreaterThanOrEqual(3);

@@ -1,4 +1,4 @@
-package upstreamstate
+package upstreamcheck
 
 import (
 	"bytes"
@@ -15,8 +15,6 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
-
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 const calibrationFixture = "https://play.udon.dance/files/123/42-abc.mp4?e=58f06dd588d8ffb3beb46ada6309436b&s=33554432&secret=private-test-token"
@@ -45,13 +43,7 @@ func calibrationForTest(t *testing.T, transport http.RoundTripper) *Calibration 
 	t.Setenv("TMP", root)
 	t.Setenv("TEMP", root)
 	t.Setenv("TMPDIR", root)
-	ch := upstreamrequest.NewChannel()
-	provider, ok := transport.(upstreamrequest.Candidates)
-	if !ok {
-		provider = transportFunc(transport.RoundTrip)
-	}
-	ch.Publish(provider)
-	c := NewCalibration(ch)
+	c := NewCalibration(requestClient(transport), "direct")
 	// Download-focused fixtures intentionally contain one short video. Tests
 	// of production preparation restore the real reserve requirements below.
 	c.limits.reserveVideos, c.limits.reserveBytes = 1, 16<<20
@@ -78,6 +70,39 @@ func awaitCalibration(t *testing.T, c *Calibration, accept func(CalibrationStatu
 		case <-changed:
 		case <-timer.C:
 			t.Fatalf("calibration timed out: %+v", s)
+		}
+	}
+}
+
+func TestCalibrationFailureAndCancellationPreserveTestTimes(t *testing.T) {
+	var fail atomic.Bool
+	c := calibrationForTest(t, transportFunc(func(r *http.Request) (*http.Response, error) {
+		if fail.Load() {
+			return response(http.StatusServiceUnavailable, ""), nil
+		}
+		<-r.Context().Done()
+		return nil, r.Context().Err()
+	}))
+	var finished time.Time
+	for _, failure := range []bool{false, true, false} {
+		fail.Store(failure)
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		if !failure {
+			c.Cancel()
+		}
+		s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
+		if failure {
+			if s.Phase != "failed" || s.Finished.IsZero() {
+				t.Fatalf("failure lost its completion time: %+v", s)
+			}
+			finished = s.Finished
+		} else if s.Phase != "canceled" || !s.Finished.Equal(finished) {
+			t.Fatalf("cancellation changed last completion time: got=%v want=%v phase=%s", s.Finished, finished, s.Phase)
+		}
+		if s.LastValid != nil {
+			t.Fatal("failure or cancellation created a valid speed result")
 		}
 	}
 }
@@ -297,7 +322,7 @@ func TestCalibrationTimeLimitAndRetirement(t *testing.T) {
 				t.Fatal(err)
 			}
 			if retire {
-				c.channel.Release(c.channel.Snapshot().Revision)
+				c.Shutdown()
 			}
 			s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
 			if retire && s.Phase != "canceled" || !retire && (s.Phase != "failed" || s.Reason != "time_limit" || requests.Load() != 1) {
@@ -417,8 +442,8 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 		}
 	}
 	mu.Unlock()
-	previous := s.LastValid["direct"]
-	if previous.Run != s.Run || previous.FullSpeedBPS == nil || *previous.FullSpeedBPS != *s.FullSpeedBPS || previous.FullConcurrency != 16 || s.LiveSpeedBPS == nil {
+	previous := s.LastValid
+	if s.Finished.IsZero() || !previous.Finished.Equal(s.Finished) || previous.Run != s.Run || previous.FullSpeedBPS == nil || *previous.FullSpeedBPS != *s.FullSpeedBPS || previous.FullConcurrency != 16 || s.LiveSpeedBPS == nil {
 		t.Fatal("completed measurement not retained")
 	}
 	if s.CPUP95Percent != nil && (previous.CPUP95Percent == nil || *previous.CPUP95Percent != *s.CPUP95Percent) {
@@ -431,14 +456,14 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	}
 	c.Cancel()
 	after := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if after.Phase != "canceled" || after.LastValid["direct"].Run != previous.Run || *after.LastValid["direct"].FullSpeedBPS != *previous.FullSpeedBPS {
+	if after.Phase != "canceled" || !after.Finished.Equal(s.Finished) || after.LastValid.Run != previous.Run || *after.LastValid.FullSpeedBPS != *previous.FullSpeedBPS {
 		t.Fatal("canceled run lost previous measurement")
 	}
-	if previous.CPUP95Percent != nil && (after.LastValid["direct"].CPUP95Percent == nil || *after.LastValid["direct"].CPUP95Percent != *previous.CPUP95Percent) {
+	if previous.CPUP95Percent != nil && (after.LastValid.CPUP95Percent == nil || *after.LastValid.CPUP95Percent != *previous.CPUP95Percent) {
 		t.Fatal("canceled run lost previous CPU P95")
 	}
-	delete(after.LastValid, "direct")
-	if current, _ := c.Snapshot(); current.LastValid["direct"].Run != previous.Run {
+	after.LastValid.Run++
+	if current, _ := c.Snapshot(); current.LastValid.Run != previous.Run {
 		t.Fatal("snapshot aliases retained result map")
 	}
 }
@@ -478,7 +503,7 @@ func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
 	})
 	c := calibrationForTest(t, transport)
 	c.limits.reserveVideos, c.limits.reserveBytes = 16, 2<<30
-	client, samples, err := c.prepare(context.Background(), c.channel, c.channel.Snapshot(), "direct")
+	client, samples, err := c.prepare(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

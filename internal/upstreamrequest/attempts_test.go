@@ -195,7 +195,7 @@ func TestColdCandidatesInterleaveAddressFamilies(t *testing.T) {
 		{IP: "2001:db8::1", Expires: time.Now().Add(time.Minute)},
 		{IP: "2001:db8::2", Expires: time.Now().Add(time.Minute)},
 	}}
-	pool, err := NewPool("direct", dns, nil)
+	pool, err := NewPool(dns)
 	if err != nil {
 		t.Fatal(err)
 	}

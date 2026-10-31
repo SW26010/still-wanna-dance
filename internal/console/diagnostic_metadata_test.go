@@ -13,33 +13,16 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
-	"still-wanna-dance/internal/upstreamstate"
 )
 
-func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T) {
+func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 	// IDs outside the bundled usage priors make equal-score ordering explicit.
 	const low, middle, high int64 = 900001, 900002, 900003
 	for _, upstream := range []string{"direct", "proxy"} {
 		t.Run(upstream, func(t *testing.T) {
 			c := testConsole(t)
 			stubNetworkDiagnostics(t, c)
-			input := networkCalibrationRequest{Upstream: upstream}
-			channel, client, monitor := c.networkDiagnostics.channel, c.networkDiagnostics.client, c.networkDiagnostics.monitor
-			if upstream == "proxy" {
-				input.Proxy = &diagnosticProxyDraft{ProxyBackend: "external-socks5", SOCKS5Address: "127.0.0.1:9"}
-				settings, err := c.diagnosticProxy(false, input)
-				if err != nil {
-					t.Fatal(err)
-				}
-				c.mu.Lock()
-				monitor, err = c.networkConnectivityMonitorLocked(upstream, settings)
-				c.mu.Unlock()
-				if err != nil {
-					t.Fatal(err)
-				}
-				channel, client = c.networkDiagnostics.proxy.channel, c.networkDiagnostics.proxy.client
-				client.Transport.(interface{ Retire() }).Retire()
-			}
+			c.settings.UpstreamMode = upstream
 			var mu sync.Mutex
 			var requested []int64
 			var lists, resources int
@@ -94,8 +77,10 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 				}
 				return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
 			})
-			client.Transport = transport
-			channel.Publish(transport)
+			c.client.Transport = transport
+			if upstream == "proxy" {
+				c.client.Transport = noCandidatesTransport{transport}
+			}
 			before := upstreamrequest.Default.Snapshot()
 			// The completed middle ID leaves the set. Canceling the low ID keeps
 			// the pass position, then the next pass retries high before low.
@@ -104,7 +89,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 				blocked, requested = round == 2, nil
 				recoverHigh = round >= 6
 				mu.Unlock()
-				if err := c.controlNetworkConnectivity(false, input); err != nil {
+				if err := c.controlNetworkConnectivity(false); err != nil {
 					t.Fatal(err)
 				}
 				if round == 2 {
@@ -113,7 +98,7 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 					case <-time.After(time.Second):
 						t.Fatal("playback did not start")
 					}
-					if err := c.controlNetworkConnectivity(true, networkCalibrationRequest{}); err != nil {
+					if err := c.controlNetworkConnectivity(true); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -133,11 +118,11 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 						t.Fatalf("round %d requested %v, want %d", round, ids, want)
 					}
 				}
-				if state := monitor.Snapshot(); state.Closed || state.Checking || state.Scheduled || !state.LastThroughputAttempt.IsZero() {
-					t.Fatal("monitor lost lifecycle or lightweight scope", state)
+				if c.monitor != nil {
+					t.Fatal("manual diagnostics created a monitor")
 				}
 			}
-			pending := c.monitorPlaybackSongCandidates(context.Background())
+			pending := c.metadataSongCandidates(context.Background())
 			if len(pending) != 0 || lists != 24 || resources != 4 {
 				t.Fatalf("pending=%v lists=%d resources=%d", pending, lists, resources)
 			}
@@ -153,44 +138,5 @@ func TestDiagnosticMonitorRetainsTraversalAcrossRunsAndCancellation(t *testing.T
 				t.Fatal("diagnostic changed business routing")
 			}
 		})
-	}
-}
-
-func TestDiagnosticProxyMonitorReusesOnlyMatchingDraft(t *testing.T) {
-	c := testConsole(t)
-	stubNetworkDiagnostics(t, c)
-	direct := c.networkDiagnostics.monitor
-	settings := c.settings
-	settings.UpstreamMode, settings.ProxyBackend = "proxy", "external-socks5"
-	settings.SOCKS5Address = "127.0.0.1:9"
-	settings.SOCKS5Username, settings.SOCKS5Password = "fixture", "secret"
-	selectMonitor := func(s Settings) (*upstreamstate.Monitor, error) {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		return c.networkConnectivityMonitorLocked("proxy", s)
-	}
-	first, err := selectMonitor(settings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if same, err := selectMonitor(settings); err != nil || same != first {
-		t.Fatal("same draft discarded traversal", err)
-	}
-	old := c.networkDiagnostics.proxy
-	settings.SOCKS5Password = "changed"
-	second, err := selectMonitor(settings)
-	if err != nil || second == first || !first.Snapshot().Closed || old.channel.Snapshot().Candidates != nil {
-		t.Fatal("changed credentials reused the old scope", err)
-	}
-	settings.SOCKS5Address = "invalid"
-	if _, err := selectMonitor(settings); err == nil || c.networkDiagnostics.proxy.monitor != second || second.Snapshot().Closed {
-		t.Fatal("failed replacement destroyed the current scope", err)
-	}
-	if c.networkDiagnostics.monitor != direct || direct.Snapshot().Closed || testDNS(c).queries.Load() != 0 {
-		t.Fatal("proxy selection changed direct scope or queried DNS")
-	}
-	c.Close()
-	if !second.Snapshot().Closed || !direct.Snapshot().Closed {
-		t.Fatal("shutdown did not close retained monitors")
 	}
 }

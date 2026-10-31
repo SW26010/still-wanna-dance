@@ -162,8 +162,8 @@ func TestConsoleMihomoProtocolsColdHTTP(t *testing.T) {
 			if err != nil || string(body) != "mihomo-embedded-business-response\n" {
 				t.Fatal("wrong proxy response", err)
 			}
-			if tr, ok := clients[0].Transport.(interface{ ChannelID() string }); !ok || !strings.HasPrefix(tr.ChannelID(), "socks5/") {
-				t.Fatal("cold channel identity unavailable")
+			if clients[0] != c.client || testDNS(c).queries.Load() != 0 {
+				t.Fatal("proxy did not use the active client or queried direct DNS")
 			}
 		})
 	}

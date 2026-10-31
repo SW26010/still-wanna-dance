@@ -73,6 +73,12 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			response.StatusCode = 302
 			response.Header.Set("Location", "https://"+host+"/files/123/42-abc.mp4?e=0123456789abcdef0123456789abcdef&s=131072")
 		default:
+			if r.Header.Get("Range") == "bytes=0-0" {
+				response.StatusCode = 206
+				response.Header.Set("Content-Range", "bytes 0-0/131072")
+				response.Body = io.NopCloser(strings.NewReader("x"))
+				break
+			}
 			if r.Header.Get("Range") != "bytes=0-131071" {
 				t.Error("unbounded resource request")
 			}
@@ -82,8 +88,9 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		}
 		return response, nil
 	})
+	c.client.Transport = transport
 	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{transport})
-	if err := c.StartUpstreamMonitor(); err != nil {
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
 	if c.monitor != nil || calls.Load() != 0 {
@@ -100,10 +107,11 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := c.monitor
-	if err := c.StartUpstreamMonitor(); err != nil || c.monitor != m {
+	if err := c.StartUpstreamServices(); err != nil || c.monitor != m {
 		t.Fatal("not idempotent", err)
 	}
 	s := waitMonitor(t, c)
+	waitCatalogSync(t, c)
 	db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +137,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
-	if !s.Scheduled || len(s.Results) != 10 || calls.Load() != 10 {
+	if !s.Scheduled || len(s.Results) != 10 || calls.Load() != 15 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {
@@ -172,6 +180,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 
 func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 	c := testConsole(t)
+	stubNetworkDiagnostics(t, c)
 	var err error
 	c.monitor, err = c.newUpstreamMonitor(upstreamstate.Options{Policy: upstreamstate.Policy{Interval: 20 * time.Millisecond}})
 	if err != nil {
@@ -186,7 +195,7 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 		<-r.Context().Done()
 		return nil, r.Context().Err()
 	}))
-	if err := c.StartUpstreamMonitor(); err != nil {
+	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
 	select {

@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamstate"
+	"still-wanna-dance/internal/upstreamcheck"
 )
 
 // Reuse probe bodies; parsing happens outside storage lifecycle locks.
-func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreamstate.CatalogResponse) {
+func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.CatalogResponse) {
 	type candidate struct {
 		full             *cacheproxy.Catalog
 		revision, source string
@@ -47,7 +47,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 			v.at, err = cacheproxy.ParseCatalogTime(v.revision)
 		}
 		if err != nil {
-			slog.Warn("monitor_catalog_invalid", "source", response.Source, "error", err)
+			slog.Warn("catalog_sync_invalid", "source", response.Source, "error", err)
 			failures = append(failures, fmt.Errorf("%s: %w", response.Source, err))
 			continue
 		}
@@ -74,7 +74,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 	store, err := c.businessStore()
 	c.mu.Unlock()
 	if err != nil {
-		slog.Warn("monitor_catalog_sync_failed", "error", err)
+		slog.Warn("catalog_sync_sync_failed", "error", err)
 		return
 	}
 	for _, v := range candidates {
@@ -83,7 +83,7 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 		}
 		err = store.SyncCatalog(ctx, *v.full)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
-			slog.Warn("monitor_catalog_sync_failed", "source", v.source, "revision", v.revision, "error", err)
+			slog.Warn("catalog_sync_sync_failed", "source", v.source, "revision", v.revision, "error", err)
 			failures = append(failures, fmt.Errorf("%s: %w", v.source, err))
 		}
 	}
@@ -91,7 +91,10 @@ func (c *Console) syncMonitorCatalogs(ctx context.Context, responses []upstreams
 	// hide a conflict from another candidate in this same round.
 	if len(failures) > 0 && ctx.Err() == nil {
 		if err := store.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
-			slog.Warn("monitor_catalog_status_failed", "error", err)
+			slog.Warn("catalog_sync_status_failed", "error", err)
 		}
+	}
+	if ctx.Err() == nil {
+		c.catalogDataUpdated()
 	}
 }

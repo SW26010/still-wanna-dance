@@ -8,14 +8,17 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestHTTPSVideoActivityExcludesAPITunnel(t *testing.T) {
 	for _, host := range []string{"play.udon.dance", "nya.xin.moe", "api.udon.dance"} {
 		t.Run(host, func(t *testing.T) {
-			observeTestResources(t)
+			resources := upstreamrequest.NewResources()
+			observeTestResources(t, resources)
 			var active, begins atomic.Int32
-			p := &httpsRelay{ctx: context.Background(), beginResourceLoad: func() func() {
+			p := &httpsRelay{ctx: context.Background(), isResourceHost: resources.IsResourceDomain, beginResourceLoad: func() func() {
 				active.Add(1)
 				begins.Add(1)
 				return func() { active.Add(-1) }

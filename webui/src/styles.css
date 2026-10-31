@@ -50,7 +50,7 @@ legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300
 .fui-DialogContent { overflow-wrap: anywhere; }
 .fui-MessageBarBody { min-width: 0; overflow-wrap: anywhere; }
 .metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--spacingHorizontalL); }
-.diagnostic-rows p { display: flex; align-items: center; gap: 4px; }
+.diagnostic-rows .fui-Spinner { display: inline-flex; vertical-align: middle; margin-inline-end: var(--spacingHorizontalXS); }
 footer { margin-top: var(--spacingVerticalXXXL); padding: var(--spacingVerticalL) 0; border-top: 1px solid var(--colorNeutralStroke2); color: var(--colorNeutralForeground2); }
 dt { font-weight: var(--fontWeightSemibold); margin-top: 12px; }
 dd { margin: 4px 0 12px; overflow-wrap: anywhere; }

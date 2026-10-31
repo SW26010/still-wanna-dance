@@ -1,10 +1,10 @@
-// Package upstreamrequest is the application-owned upstream request channel.
-// Network configuration is published here by infrastructure, not by consumers.
+// Package upstreamrequest provides request attempts, resource activity and
+// the legacy direct-IP channel. Proxies use only the shared request mechanisms.
 package upstreamrequest
 
 import (
 	"errors"
-	"sync"
+	"time"
 )
 
 var ErrUnavailable = errors.New("upstream request channel is not ready")
@@ -17,15 +17,16 @@ type Snapshot struct {
 }
 
 type Channel struct {
-	resourceDomains map[string]resourceObservation
-	resources       resourceActivity
-	mu              sync.Mutex
-	candidates      Candidates
-	revision        uint64
-	changed         chan struct{}
+	*Resources
+	candidates Candidates
+	changed    chan struct{}
 }
 
-func NewChannel() *Channel { return &Channel{changed: make(chan struct{})} }
+func NewChannel() *Channel {
+	c := &Channel{Resources: NewResources(), changed: make(chan struct{})}
+	c.sourceActive = func(s ResourceSource, now time.Time) bool { return ResourceSourceActive(s, c.candidates, now) }
+	return c
+}
 func (c *Channel) Snapshot() Snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()

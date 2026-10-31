@@ -4,10 +4,10 @@ import (
 	"context"
 	"net"
 	"os"
-	"still-wanna-dance/internal/upstreamnet"
-	"still-wanna-dance/internal/upstreamrequest"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamnet"
 )
 
 // Opt-in browser acceptance helper; never runs in normal tests or CI. It uses
@@ -24,10 +24,10 @@ func TestHTTPSLiveBrowser(t *testing.T) {
 			t.Logf("API %s: %v", route, err)
 		}
 	}
-	if len(upstreamrequest.Default.ResourceDomains()) == 0 {
+	if len(c.resources.ResourceDomains()) == 0 {
 		t.Fatal("API returned no valid resource domains")
 	}
-	t.Logf("API-confirmed resource domains: %v", upstreamrequest.Default.ResourceDomains())
+	t.Logf("API-confirmed resource domains: %v", c.resources.ResourceDomains())
 	l, err := net.Listen("tcp4", "127.0.0.1:443")
 	if err != nil {
 		t.Fatal(err)
@@ -41,6 +41,7 @@ func TestHTTPSLiveBrowser(t *testing.T) {
 		}
 		return conn, err
 	})
+	p.isResourceHost = c.resources.IsResourceDomain
 	done := make(chan error, 1)
 	go func() { done <- p.serve() }()
 	defer func() { p.close(); <-done }()

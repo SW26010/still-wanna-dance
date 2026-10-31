@@ -96,7 +96,7 @@ func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 	}
 	select {
 	case target := <-connected:
-		if !strings.HasSuffix(target, ":443") {
+		if target != "api.udon.dance:80" {
 			t.Fatalf("unexpected remote DNS target: %s", target)
 		}
 	case <-time.After(3 * time.Second):

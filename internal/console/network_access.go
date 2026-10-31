@@ -6,6 +6,7 @@ import (
 	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamcheck"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -29,7 +30,7 @@ func (c *Console) connectivityAccess() upstreamcheck.ConnectivityAccess {
 		Resource: func(ctx context.Context, id int64, sample upstreamcheck.Sample) upstreamcheck.Result {
 			ctx, cancel := context.WithTimeout(ctx, p.RequestTimeout+p.ResourceTimeout)
 			defer cancel()
-			clients := c.operationClients(ctx, upstreamstate.Resource, upstreamstate.Constraints{Entry: "https://" + sample.Host, Target: sample.URL})
+			clients := c.operationClients(ctx, upstreamstate.Resource, upstreamstate.Constraints{Entry: upstreamrequest.ResourceScheme + "://" + sample.Host, Target: sample.URL})
 			return upstreamcheck.ProbeResourcePaths(ctx, clients, p, id, sample)
 		},
 	}

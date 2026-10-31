@@ -29,8 +29,8 @@ func TestEachResourceAttemptHasAnIndependentTimeout(t *testing.T) {
 				return []http.RoundTripper{
 					resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 						calls++
-						if r.URL.Scheme == "http" {
-							return nil, io.EOF
+						if r.URL.Scheme != "http" {
+							t.Fatal("resource changed protocol", r.URL)
 						}
 						deadline, _ := r.Context().Deadline()
 						if deadline != start.Add(time.Second) {
@@ -66,8 +66,8 @@ func TestEachResourceAttemptHasAnIndependentTimeout(t *testing.T) {
 					t.Fatal("retry could not finish with fresh budget", err, time.Since(start))
 				}
 			}
-			// HTTPS timeout, immediate HTTP failure, then the next HTTPS path.
-			if calls != 3 {
+			// The second HTTP candidate gets a fresh request deadline.
+			if calls != 2 {
 				t.Fatal("wrong attempt count", calls)
 			}
 		})

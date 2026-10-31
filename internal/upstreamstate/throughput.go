@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 	"still-wanna-dance/internal/workfiles"
 )
@@ -66,7 +67,7 @@ func (m *Monitor) loadThroughputTime() {
 		m.lastThroughput = time.Time{}
 	}
 	for key, sample := range state.Samples {
-		if sample.Scheme != "" && sample.Scheme != "http" && sample.Scheme != "https" {
+		if sample.Scheme != upstreamrequest.ResourceScheme {
 			continue
 		}
 		if !restorableThroughputKey(key) {
@@ -76,7 +77,7 @@ func (m *Monitor) loadThroughputTime() {
 			continue
 		}
 		if existing, ok := m.throughput[key]; !ok || sample.ObservedAt.After(existing.at) {
-			m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration, scheme: observedScheme(sample.Scheme)}
+			m.throughput[key] = observation{op: Resource, state: "available", at: sample.ObservedAt, songID: sample.SongID, bytes: sample.Bytes, transferDuration: sample.Duration, scheme: sample.Scheme}
 		}
 	}
 }
@@ -116,7 +117,7 @@ func (m *Monitor) saveThroughputTime() error {
 		if !restorableThroughputKey(key) {
 			continue
 		}
-		state.Samples[key] = ThroughputSample{ObservedAt: o.at.UTC(), SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: observedScheme(o.scheme)}
+		state.Samples[key] = ThroughputSample{ObservedAt: o.at.UTC(), SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: upstreamrequest.ResourceScheme}
 	}
 	b, err := json.Marshal(state)
 	if err != nil {

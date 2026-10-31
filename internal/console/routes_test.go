@@ -71,7 +71,6 @@ func TestConsolePrefetchPrefersCFEvenWhenHKGIsFaster(t *testing.T) {
 	c.apiBase = api.URL
 	c.client.Transport = http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")

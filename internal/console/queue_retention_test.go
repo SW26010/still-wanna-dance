@@ -59,7 +59,6 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 	cfg := fixtureCacheConfig()
 	cfg.Work = c.work
 	cfg.ResolvePlayback = c.resolvePlayback
-	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.VideoBudgetBytes = limit
 	cfg.CacheUnlimited = false

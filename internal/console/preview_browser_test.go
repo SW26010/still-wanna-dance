@@ -42,7 +42,7 @@ func TestPreviewBrowser(t *testing.T) {
 	}))
 	defer origin.Close()
 	cfg := fixtureCacheConfig()
-	cfg.OriginScheme, cfg.CacheUnlimited = "http", true
+	cfg.CacheUnlimited = true
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.BeginVideoRequest = c.beginVideoRequest

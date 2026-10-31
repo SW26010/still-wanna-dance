@@ -39,7 +39,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.OriginScheme, cfg.CacheUnlimited = "http", mode != "budget"
+			cfg.CacheUnlimited = mode != "budget"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.VideoBudgetBytes = 0
 			for host := range cfg.Origins {

@@ -12,7 +12,7 @@ import (
 
 func TestThroughputRejectsLegacyNodeKeys(t *testing.T) {
 	at := time.Now().Add(-time.Hour)
-	old := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 100, Duration: time.Second}
+	old := ThroughputSample{Scheme: "http", ObservedAt: at, SongID: 42, Bytes: 100, Duration: time.Second}
 	newer := old
 	newer.ObservedAt = at.Add(time.Minute)
 	newer.SongID = 73

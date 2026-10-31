@@ -83,7 +83,6 @@ func BenchmarkRangeDownload(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					b.StopTimer()
 					cfg := fixtureConfig()
-					cfg.OriginScheme = "http"
 					prepareFixtureResources(b, &cfg, b.TempDir(), true)
 					cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 					for host := range cfg.Origins {

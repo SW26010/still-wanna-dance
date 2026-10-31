@@ -184,7 +184,7 @@ func entry(op Operation, id string) string {
 		return catalogmeta.SourceURL(id)
 	}
 	if op == Resource && videometa.ValidHost(id) {
-		return "https://" + id
+		return upstreamrequest.ResourceScheme + "://" + id
 	}
 	for _, r := range playbackRoutes {
 		if r.ID == id {
@@ -247,7 +247,7 @@ func (m *Monitor) record(o observation) {
 		if o.at.Before(last.at) {
 			return
 		}
-		if last.state != "available" || o.state != "available" || last.songID != o.songID || observedScheme(last.scheme) != observedScheme(o.scheme) {
+		if last.state != "available" || o.state != "available" || last.songID != o.songID {
 			h = nil
 		}
 	}
@@ -278,13 +278,13 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 			return
 		}
 		if o, ok := m.throughput[key]; ok {
-			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: observedScheme(o.scheme)}
+			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: o.scheme}
 		}
 		if r.State != "available" {
 			return
 		}
 		r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = nil, nil, 0
-		if o, ok := m.throughput[key]; ok && observedScheme(o.scheme) == r.Scheme && now.Before(o.at.Add(m.policy.ThroughputInterval)) {
+		if o, ok := m.throughput[key]; ok && now.Before(o.at.Add(m.policy.ThroughputInterval)) {
 			speed, ms := float64(o.bytes)/o.transferDuration.Seconds(), float64(o.transferDuration)/float64(time.Millisecond)
 			r.EstimatedSpeedBPS, r.TransferDurationMS, r.TransferredBytes = &speed, &ms, o.bytes
 			r.ThroughputObservedAt = o.at
@@ -305,7 +305,7 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 	r.ValidUntil = validUntil(last, m.policy)
 	r.SampleSongID = last.songID
 	r.HTTP = last.http
-	r.Scheme = observedScheme(last.scheme)
+	r.Scheme = last.scheme
 	r.Stage = last.stage
 	r.TransferredBytes = last.bytes
 	if last.transferDuration > 0 {
@@ -350,15 +350,6 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 		r.EstimatedSpeedBPS = &speed
 	}
 	return r
-}
-
-// Before protocol fallback, every persisted sample was HTTPS. Empty values in
-// existing snapshots retain that meaning; new observations record the protocol.
-func observedScheme(scheme string) string {
-	if scheme == "" {
-		return "https"
-	}
-	return scheme
 }
 
 // resultsLocked preserves route definition order, regardless of measurements.

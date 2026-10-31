@@ -18,10 +18,9 @@ import (
 	"time"
 )
 
-// A successful fallback needs time for the complete response, not merely a
-// final request slot after every secure path has consumed the shared deadline.
-func TestFetchCompletesFallbackAfterSecureTimeout(t *testing.T) {
-	for _, count := range []int{1, 6} {
+// A stalled candidate must leave time for the next complete response.
+func TestFetchCompletesNextCandidateAfterHeaderTimeout(t *testing.T) {
+	for _, count := range []int{2, 6} {
 		t.Run(fmt.Sprintf("candidates_%d", count), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				var calls []string
@@ -29,7 +28,7 @@ func TestFetchCompletesFallbackAfterSecureTimeout(t *testing.T) {
 				for i := range count {
 					clients = append(clients, &http.Client{Transport: attemptTransport(func(r *http.Request) (*http.Response, error) {
 						calls = append(calls, fmt.Sprintf("%s/%d", r.URL.Scheme, i))
-						if r.URL.Scheme == "https" {
+						if i == 0 {
 							<-r.Context().Done()
 							return nil, r.Context().Err()
 						}
@@ -43,11 +42,11 @@ func TestFetchCompletesFallbackAfterSecureTimeout(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
-				value, err := Fetch(ctx, "https://example.com/list", clients, 10*time.Second, readAttempt)
+				value, err := Fetch(ctx, "http://example.com/list", clients, 10*time.Second, readAttempt)
 				if err != nil || value != "valid" {
 					t.Fatalf("usable fallback could not finish: calls=%v value=%q error=%v", calls, value, err)
 				}
-				if !slices.Equal(calls, []string{"https/0", "http/0"}) {
+				if !slices.Equal(calls, []string{"http/0", "http/1"}) {
 					t.Fatalf("did not finish the preferred candidate: %v", calls)
 				}
 			})
@@ -92,7 +91,7 @@ func readAttempt(ctx context.Context, client *http.Client, target string) (strin
 	return string(b), err
 }
 
-func TestFetchProtocolPolicyWithRealTLSAndBodies(t *testing.T) {
+func TestFetchHTTPSNeverDowngrades(t *testing.T) {
 	for _, mode := range []string{"https", "disconnect", "truncated", "timeout", "certificate", "status", "invalid"} {
 		t.Run(mode, func(t *testing.T) {
 			var plaintext atomic.Int32
@@ -142,17 +141,13 @@ func TestFetchProtocolPolicyWithRealTLSAndBodies(t *testing.T) {
 				limit = 100 * time.Millisecond
 			}
 			value, err := Fetch(ctx, "https://example.com/list?version=1", []*http.Client{{Transport: tr}}, limit, readAttempt)
-			fallback := mode == "disconnect" || mode == "truncated" || mode == "timeout"
-			if (mode == "https" || fallback) && (err != nil || value != "valid") {
+			if mode == "https" && (err != nil || value != "valid") {
 				t.Fatalf("value=%q err=%v", value, err)
 			}
-			if mode != "https" && !fallback && err == nil {
+			if mode != "https" && err == nil {
 				t.Fatal("accepted failed secure request")
 			}
 			want := int32(0)
-			if fallback {
-				want = 1
-			}
 			if plaintext.Load() != want {
 				t.Fatalf("plaintext requests=%d want=%d", plaintext.Load(), want)
 			}
@@ -179,10 +174,10 @@ func TestFetchKeepsCandidateOrderAndSharedBudget(t *testing.T) {
 		}
 		_, err := Fetch(context.Background(), "https://example.com/list", clients, time.Second, readAttempt)
 		if winner == 1 {
-			if err != nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/1"}) {
+			if err != nil || !slices.Equal(calls, []string{"https/0", "https/1"}) {
 				t.Fatal(calls, err)
 			}
-		} else if err == nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/1", "http/1", "https/2", "http/2"}) {
+		} else if err == nil || !slices.Equal(calls, []string{"https/0", "https/1", "https/2", "https/3", "https/4", "https/5"}) {
 			t.Fatal(calls, err)
 		}
 	}
@@ -235,7 +230,7 @@ func TestCatalogBodyKeepsDeadlineAfterHeaders(t *testing.T) {
 	}
 }
 
-func TestUpgradeConsumesAttemptBudgetAndStopsPlaintextLoop(t *testing.T) {
+func TestFetchHTTPDoesNotFollowHTTPSUpgrade(t *testing.T) {
 	var calls []string
 	var clients []*http.Client
 	for i := range 3 {
@@ -247,8 +242,8 @@ func TestUpgradeConsumesAttemptBudgetAndStopsPlaintextLoop(t *testing.T) {
 			return &http.Response{StatusCode: 301, Header: http.Header{"Location": {"https://example.com/list"}}, Body: http.NoBody, Request: r}, nil
 		})})
 	}
-	_, err := Fetch(context.Background(), "https://example.com/list", clients, time.Second, readAttempt)
-	if err == nil || !slices.Equal(calls, []string{"https/0", "http/0", "https/0", "https/1", "https/2"}) {
+	_, err := Fetch(context.Background(), "http://example.com/list", clients, time.Second, readAttempt)
+	if err == nil || !slices.Equal(calls, []string{"http/0", "http/1", "http/2"}) {
 		t.Fatal(calls, err)
 	}
 }
@@ -264,7 +259,7 @@ func TestFetchDoesNotDowngradeLocalFailures(t *testing.T) {
 	}
 }
 
-func TestEndpointUpgradeDoesNotFollowPlaybackOrLoop(t *testing.T) {
+func TestRedirectsRemainBusinessResponses(t *testing.T) {
 	for _, mode := range []string{"upgrade", "video", "loop"} {
 		var calls []string
 		client := &http.Client{Transport: attemptTransport(func(r *http.Request) (*http.Response, error) {
@@ -282,13 +277,10 @@ func TestEndpointUpgradeDoesNotFollowPlaybackOrLoop(t *testing.T) {
 			return &http.Response{StatusCode: 302, Header: http.Header{"Location": {location}}, Body: http.NoBody, Request: r}, nil
 		})}
 		_, err := Fetch(context.Background(), "http://example.com/play?id=42", []*http.Client{client}, time.Second, readAttempt)
-		if mode == "upgrade" && err != nil {
+		if err == nil {
 			t.Fatal(err)
 		}
-		want := 2
-		if mode == "video" {
-			want = 1
-		}
+		want := 1
 		if len(calls) != want {
 			t.Fatal(calls)
 		}

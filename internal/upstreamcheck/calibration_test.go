@@ -198,7 +198,7 @@ func TestCalibrationDiscardsVideoOnceAndSnapshots(t *testing.T) {
 	ranges := map[string]int{}
 	block := make([]byte, calibrationBlock)
 	c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != calibrationFixture || r.Header.Get("Accept-Encoding") != "identity" {
+		if r.URL.String() != strings.Replace(calibrationFixture, "https://", "http://", 1) || r.Header.Get("Accept-Encoding") != "identity" {
 			t.Error("changed fixed video or encoding")
 		}
 		mu.Lock()

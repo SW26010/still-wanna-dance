@@ -97,27 +97,17 @@ async function check(name, action) {
   }
 }
 async function upstream(id, node) {
-  let target = playbackURL(id, node);
-  for (let hop = 0; hop < 4; hop++) {
-    let res;
-    try { res = await request(target, { timeout: 20000 }); }
-    catch (error) { throw new AcceptanceBlocked('upstream-unavailable', error.message); }
-    record(`upstream-${id}-${node}-${hop}`, { url: target, ...evidence(res) });
-    if (res.status >= 500 || [408, 429].includes(res.status)) {
-      throw new AcceptanceBlocked('upstream-unavailable', `API status ${res.status}`);
-    }
-    // HTTP may now redirect to the same API over HTTPS before returning a video.
-    let next;
-    try { next = new URL(res.headers.location, target); } catch {}
-    if ([301, 302, 307, 308].includes(res.status) && next?.protocol === 'https:' &&
-        next.hostname === 'api.udon.dance' && next.pathname === '/Api/Songs/play' &&
-        !next.username && !next.password && !next.port && !next.hash) {
-      target = next.toString();
-      continue;
-    }
-    return videoRedirect(res.status, res.headers.location);
+  const target = playbackURL(id, node);
+  let res;
+  try { res = await request(target, { timeout: 20000 }); }
+  catch (error) { throw new AcceptanceBlocked('upstream-unavailable', error.message); }
+  record(`upstream-${id}-${node}`, { url: target, ...evidence(res) });
+  if (res.status >= 500 || [408, 429].includes(res.status)) {
+    throw new AcceptanceBlocked('upstream-unavailable', `API status ${res.status}`);
   }
-  throw new AcceptanceBlocked('upstream-protocol-change', 'API redirect limit exceeded');
+  const video = videoRedirect(res.status, res.headers.location);
+  video.protocol = 'http:';
+  return video;
 }
 function fullVideo(res, url, cache) {
   assert.equal(res.status, 200);

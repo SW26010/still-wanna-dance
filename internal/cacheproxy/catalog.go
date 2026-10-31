@@ -19,7 +19,7 @@ const UdonCatalogURL = catalogmeta.UdonURL
 const KivaCatalogURL = catalogmeta.KivaURL
 const WannaCatalogURL = catalogmeta.WannaURL
 
-// Logical source identity is independent of a protocol fallback.
+// Recognize Udon in persisted catalogs written before the fixed HTTP policy.
 func IsUdonCatalog(source string) bool {
 	u, err := url.Parse(source)
 	return err == nil && strings.EqualFold(u.Hostname(), "api.udon.dance") && u.Path == "/Api/Songs/list"

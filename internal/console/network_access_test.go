@@ -30,8 +30,8 @@ func TestConnectivityDiscoverySharesRequestDeadline(t *testing.T) {
 		c.settings.UpstreamMode = "direct"
 		started := time.Now()
 		result, _, _ := c.connectivityAccess().Catalog(t.Context(), "api")
-		if result.State != "timeout" || requests != 2 || time.Since(started) != 30*time.Second {
-			t.Fatalf("discovery and protocol fallback received separate budgets: result=%+v requests=%d elapsed=%v", result, requests, time.Since(started))
+		if result.State != "timeout" || requests != 1 || time.Since(started) != 30*time.Second {
+			t.Fatalf("discovery and HTTP request received separate budgets: result=%+v requests=%d elapsed=%v", result, requests, time.Since(started))
 		}
 	})
 }

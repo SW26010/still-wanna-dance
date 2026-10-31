@@ -60,7 +60,6 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.PrepareAhead = 120 * time.Second
 	cfg.ResolvePlayback = c.resolvePlayback
-	cfg.OriginScheme = "http"
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)

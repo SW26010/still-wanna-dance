@@ -163,8 +163,8 @@ func TestColdCatalogFallsBackAfterTLSFailure(t *testing.T) {
 		{ID: "direct/fixture/127.0.0.1", Mode: "direct", Transport: good.Client().Transport},
 	}}
 	catalog, err := c.fetchCatalogSnapshot(context.Background())
-	// The first ranked path exhausts HTTPS and its qualified HTTP fallback.
-	if err != nil || len(catalog.Songs) != 1 || first.Load() != 2 || second.Load() != 1 {
+	// A failed TLS candidate advances to the next candidate without downgrading.
+	if err != nil || len(catalog.Songs) != 1 || first.Load() != 1 || second.Load() != 1 {
 		t.Fatalf("songs=%d first=%d second=%d err=%v", len(catalog.Songs), first.Load(), second.Load(), err)
 	}
 }

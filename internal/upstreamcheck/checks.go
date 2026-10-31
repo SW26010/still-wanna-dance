@@ -43,7 +43,7 @@ type Sample struct {
 	Size                int64
 }
 
-// Result describes only this request, including its bounded protocol fallback.
+// Result describes only this request, including bounded candidate retries.
 type Result struct {
 	Operation                           Operation
 	Route, State, Stage, Scheme         string
@@ -70,7 +70,7 @@ func ProbeCatalog(ctx context.Context, clients []*http.Client, p Policy, route s
 	return o.result(), id, response
 }
 func ProbePlayback(ctx context.Context, clients []*http.Client, p Policy, id int64, r playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
-	o, s, response := probePlaybackSession(ctx, upstreamrequest.NewSession(clients), p, id, r)
+	o, s, response := probePlaybackPaths(ctx, clients, p, id, r)
 	if s == nil {
 		return o.result(), nil, response
 	}
@@ -128,7 +128,7 @@ func entry(op Operation, id string) string {
 		return catalogmeta.SourceURL(id)
 	}
 	if op == Resource && videometa.ValidHost(id) {
-		return "https://" + id
+		return upstreamrequest.ResourceScheme + "://" + id
 	}
 	for _, r := range playbackRoutes {
 		if r.ID == id {

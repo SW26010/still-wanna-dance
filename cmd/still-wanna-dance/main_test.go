@@ -52,7 +52,6 @@ func TestShutdownClosesPausedReaderAndFlushesUsage(t *testing.T) {
 	cfg := cacheproxy.DefaultConfig()
 	cfg.CacheUnlimited = true // This shutdown test serves a previously retained video.
 	cfg.Origins["play.udon.dance"] = "127.0.0.1:1"
-	cfg.OriginScheme = "http"
 	root := t.TempDir()
 	cfg.VideoDir = filepath.Join(root, "videos")
 	if err := os.Mkdir(cfg.VideoDir, 0700); err != nil {

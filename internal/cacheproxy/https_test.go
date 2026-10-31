@@ -2,84 +2,47 @@ package cacheproxy
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
-func upstreamCertificate(t *testing.T) (tls.Certificate, *x509.CertPool) {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	template := &x509.Certificate{SerialNumber: big.NewInt(1), DNSNames: []string{"nya.xin.moe", "play.udon.dance", "api.udon.dance"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		t.Fatal(err)
-	}
-	roots := x509.NewCertPool()
-	roots.AddCert(cert)
-	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, roots
-}
-
-func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
-	cert, roots := upstreamCertificate(t)
-	var requests atomic.Int32
-	backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		if r.TLS.ServerName != r.Host {
-			t.Errorf("identity: host=%s sni=%s", r.Host, r.TLS.ServerName)
+func TestHTTPOriginUsesIndependentDialAndPublicName(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS != nil {
+			t.Error("resource request used TLS")
 		}
 		if r.Host == "nya.xin.moe" {
 			w.Header().Set("Location", videoURL(payload))
 			w.WriteHeader(302)
 			return
 		}
+		if r.Host != "play.udon.dance" {
+			t.Errorf("unexpected host %s", r.Host)
+		}
 		io.WriteString(w, payload)
 	}))
-	backend.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
-	backend.StartTLS()
 	defer backend.Close()
-	for _, tc := range []struct {
-		name     string
-		trusted  bool
-		override string
-	}{
-		{name: "public", trusted: true},
-		{name: "explicit override", trusted: true, override: "origin.example:8443"},
-		{name: "untrusted"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, override := range []string{"", "origin.example:8080"} {
+		t.Run(override, func(t *testing.T) {
 			cfg := fixtureConfig()
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
-			if tc.override != "" {
+			if override != "" {
 				for host := range cfg.Origins {
-					cfg.Origins[host] = tc.override
+					cfg.Origins[host] = override
 				}
 			}
 			var dials atomic.Int32
 			cfg.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 				dials.Add(1)
-				if tc.override != "" && address != tc.override {
+				if override != "" && address != override {
 					t.Errorf("override not used: %s", address)
-				} else if tc.override == "" && address != "play.udon.dance:443" && address != "nya.xin.moe:443" {
+				} else if override == "" && address != "play.udon.dance:80" && address != "nya.xin.moe:80" {
 					t.Errorf("unexpected origin %s", address)
 				}
 				return (&net.Dialer{}).DialContext(ctx, network, backend.Listener.Addr().String())
@@ -89,26 +52,10 @@ func TestHTTPSOriginUsesIndependentDialAndVerifiedPublicName(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer s.Close()
-			pool := x509.NewCertPool()
-			if tc.trusted {
-				pool = roots
-			}
-			s.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: pool}
-			before := requests.Load()
-			target := videoURL(payload)
-			expectedDials := int32(1)
-			if tc.trusted {
-				target = strings.Replace(target, "play.udon.dance", "nya.xin.moe", 1)
-				expectedDials = 2
-			}
-			w := request(s, "GET", target, nil)
-			if tc.trusted {
-				assertResponse(t, w, 200, payload)
-			} else if w.Code != 502 || requests.Load() != before {
-				t.Fatalf("untrusted TLS accepted: %d", w.Code)
-			}
-			if dials.Load() != expectedDials {
-				t.Fatalf("fallback or missing built-in dial: %d", dials.Load())
+			target := strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1)
+			assertResponse(t, request(s, "GET", target, nil), 200, payload)
+			if dials.Load() != 2 {
+				t.Fatal("missing independent dial", dials.Load())
 			}
 		})
 	}

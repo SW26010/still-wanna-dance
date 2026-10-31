@@ -135,7 +135,9 @@ func TestPlaybackURLDeliveryPrecedesResourceProbe(t *testing.T) {
 				return response(http.StatusServiceUnavailable, ""), nil
 			}
 			return fixture(r)
-		}, func(_ context.Context, r PlaybackURLResponse) { delivered.Store(r.URL, true) })
+		}, func(_ context.Context, r PlaybackURLResponse) {
+			delivered.Store(strings.Replace(r.URL, "https://", "http://", 1), true)
+		})
 		if err := m.Check(context.Background()); err != nil {
 			t.Fatal(err)
 		}

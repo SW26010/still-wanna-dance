@@ -68,7 +68,7 @@ func TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor(t *testing.T) {
 					t.Fatalf("got=%q attempts=%d err=%v", got, attempts, err)
 				}
 			case "all-fail":
-				if err == nil || attempts != 4 { // Two HTTPS paths, then their bounded HTTP fallbacks.
+				if err == nil || attempts != 2 { // Each fixed-HTTP candidate is attempted once.
 					t.Fatalf("attempts=%d err=%v", attempts, err)
 				}
 			case "parent-canceled":

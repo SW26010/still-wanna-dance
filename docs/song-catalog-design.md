@@ -224,6 +224,6 @@ Toast 仅在首次自动建库的本次运行、且当前不在曲库时显示�
 
 三个来源均用 YYYYMMDDhhmmss 民用时间字符串表达版本，按真实日历校验后比较；共同 UTC 轴只用于排序，不声称发布者原时区。非法日期、失败或空清单不推进水位。
 
-Udon 读取顶层 time 与 groups.contents[].songInfos；Kiva/WannaInfo 读取成功状态 code=200、data.time 与 data.groups[].entries。正文上限、HTTPS/HTTP 有界回退和逻辑来源身份复用现有 upstreamrequest；这里不另定传输策略。
+Udon 读取顶层 time 与 groups.contents[].songInfos；Kiva/WannaInfo 读取成功状态 code=200、data.time 与 data.groups[].entries。请求尝试与正文校验复用现有 upstreamrequest，入口及逻辑来源身份由 catalogmeta 统一定义；传输规则统一见[业务请求的协议策略](upstream-channels.md#业务请求的协议策略)。
 
 2026-10-29 的保留真实样本验证：同版 Udon/Kiva 各 10,470 首，经共同字段规范化后摘要一致。字段取舍、历史来源限制和旧实现证据见[研究记录](research/catalog-sources-20261029.md)。此前仅接受 MD5 清单、API 只补缺的规则已被本文替代。

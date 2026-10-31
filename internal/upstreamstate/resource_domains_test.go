@@ -104,7 +104,7 @@ func TestResourcesFollowReturnedDomainsAcrossChannels(t *testing.T) {
 						t.Fatal("status lost sources", r)
 					}
 					returned := r.Route == host
-					if r.Entry != "https://"+r.Route || r.Route != host {
+					if r.Entry != "http://"+r.Route || r.Route != host {
 						t.Fatal("resource identity is not its domain", r)
 					}
 					if returned && (r.State != "available" || loads[r.Route] != wantLoads) {
@@ -116,7 +116,7 @@ func TestResourcesFollowReturnedDomainsAcrossChannels(t *testing.T) {
 				}
 				if candidates {
 					s, ok := m.Recommended(Resource)
-					if !ok || s.Channel.Host != s.Result.Route || s.Result.Entry != "https://"+s.Channel.Host {
+					if !ok || s.Channel.Host != s.Result.Route || s.Result.Entry != "http://"+s.Channel.Host {
 						t.Fatal("recommended channel belongs to another domain", s, ok)
 					}
 				}

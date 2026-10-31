@@ -37,7 +37,7 @@ func parseSample(target string) (videoSample, error) {
 	if err != nil {
 		return videoSample{}, err
 	}
-	u.Scheme = "https"
+	u.Scheme = upstreamrequest.ResourceScheme
 	return videoSample{u.String(), u.Host, meta.Checksum, meta.Size}, nil
 }
 
@@ -108,15 +108,14 @@ func doProbeRequest(ctx context.Context, client *http.Client, target, byteRange 
 	return resp, t, err
 }
 
-// Probes use the same complete-attempt policy as real requests, without a
-// separate HTTP/HTTPS measurement matrix or a background protocol cache.
-func probeProtocols(parent context.Context, session *upstreamrequest.Session, timeout time.Duration, target string, run func(context.Context, *http.Client, string) observation) observation {
+// Probes use the same complete-attempt policy and fixed URL as real requests.
+func probeRequests(parent context.Context, clients []*http.Client, timeout time.Duration, target string, run func(context.Context, *http.Client, string) observation) observation {
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	started := time.Now()
 	var last observation
-	err := session.Read(ctx, target, timeout,
-		func(ctx context.Context, client *http.Client, target string) error {
+	_, err := upstreamrequest.Fetch(ctx, target, clients, timeout,
+		func(ctx context.Context, client *http.Client, target string) (struct{}, error) {
 			offset := time.Since(started)
 			last = run(ctx, client, target)
 			if last.err != nil {
@@ -127,12 +126,12 @@ func probeProtocols(parent context.Context, session *upstreamrequest.Session, ti
 				last.latency += offset
 			}
 			if last.state == "available" || last.state == "redirect" {
-				return nil
+				return struct{}{}, nil
 			}
 			if last.err != nil {
-				return last.err
+				return struct{}{}, last.err
 			}
-			return errors.New(last.state)
+			return struct{}{}, errors.New(last.state)
 		})
 	if last.state == "" {
 		last.state, last.err, last.at = errorState(err), err, time.Now()
@@ -188,7 +187,7 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 // The diagnostic can select several IDs from this one validated response.
 // Business consumers validate full song metadata before accepting it.
 func probeCatalogData(parent context.Context, clients []*http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
-	o = probeProtocols(parent, upstreamrequest.NewSession(clients), p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
+	o = probeRequests(parent, clients, p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
 		current, id, result = probeCatalogDataAt(ctx, client, p, route, target)
 		return current
@@ -290,12 +289,12 @@ func probePlayback(parent context.Context, client *http.Client, p Policy, id int
 }
 
 func probePlaybackResponse(parent context.Context, client *http.Client, p Policy, id int64, r route, alternatives ...*http.Client) (o observation, sample *videoSample, result PlaybackURLResponse) {
-	return probePlaybackSession(parent, upstreamrequest.NewSession(append([]*http.Client{client}, alternatives...)), p, id, r)
+	return probePlaybackPaths(parent, append([]*http.Client{client}, alternatives...), p, id, r)
 }
 
-func probePlaybackSession(parent context.Context, session *upstreamrequest.Session, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
+func probePlaybackPaths(parent context.Context, clients []*http.Client, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
 	target := entry(PlaybackURL, r.ID) + "&id=" + strconv.FormatInt(id, 10)
-	o = probeProtocols(parent, session, p.RequestTimeout, target, func(ctx context.Context, client *http.Client, target string) observation {
+	o = probeRequests(parent, clients, p.RequestTimeout, target, func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
 		current, sample, result = probePlaybackAt(ctx, client, p, id, r, target)
 		return current
@@ -332,7 +331,7 @@ func probePlaybackAt(parent context.Context, client *http.Client, p Policy, id i
 		return
 	}
 	resourceURL := *u
-	resourceURL.Scheme = "https"
+	resourceURL.Scheme = upstreamrequest.ResourceScheme
 	s := videoSample{resourceURL.String(), u.Host, meta.Checksum, meta.Size}
 	o.state = "available"
 	o.resourceHost = s.host
@@ -357,9 +356,15 @@ func probeResourcePaths(parent context.Context, clients []*http.Client, p Policy
 		o.op, o.route, o.songID = Resource, s.host, id
 		o.duration = time.Since(started)
 	}()
-	// Samples and validated redirects normalize to HTTPS. Reject revisits as
+	u, err := url.Parse(s.url)
+	if err != nil {
+		o.state, o.err = "invalid", err
+		return
+	}
+	u.Scheme = upstreamrequest.ResourceScheme
+	s.url = u.String()
+	// Samples and validated redirects execute over HTTP. Reject revisits as
 	// redirect loops instead of giving the same endpoint a new attempt budget.
-	// Exact HTTP-to-HTTPS upgrades stay inside the shared Fetch cursor.
 	visited := make(map[string]bool)
 	for redirects := 0; redirects <= 3; redirects++ {
 		if visited[s.url] {
@@ -369,7 +374,7 @@ func probeResourcePaths(parent context.Context, clients []*http.Client, p Policy
 		visited[s.url] = true
 		var next string
 		offset := time.Since(started)
-		o = probeProtocols(ctx, upstreamrequest.NewSession(clients), p.RequestTimeout+p.ResourceTimeout, s.url, func(ctx context.Context, client *http.Client, target string) observation {
+		o = probeRequests(ctx, clients, p.RequestTimeout+p.ResourceTimeout, s.url, func(ctx context.Context, client *http.Client, target string) observation {
 			current := s
 			current.url = target
 			var result observation

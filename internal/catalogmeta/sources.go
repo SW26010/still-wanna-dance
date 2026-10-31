@@ -1,7 +1,7 @@
 package catalogmeta
 
 const (
-	UdonURL  = "https://api.udon.dance/Api/Songs/list"
+	UdonURL  = "http://api.udon.dance/Api/Songs/list"
 	KivaURL  = "https://x.kiva.moe/api/v2/wanna/songs"
 	WannaURL = "https://wanna.kiva.moe/api/wannaInfo"
 )

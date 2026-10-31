@@ -10,7 +10,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"still-wanna-dance/internal/playbacksource"
 )
+
+const legacyUdonAPI = "https://api.udon.dance/Api/Songs/play"
 
 // SongURL records API evidence, not verification of the downloaded media.
 // QueryStartedAt orders overlapping queries; ObservedAt describes completion.
@@ -101,6 +105,13 @@ func (s *Store) ObserveSongURL(ctx context.Context, o SongURL) (resultErr error)
 	}
 	if accepted == 0 {
 		return nil // A stale/tied observation must not update metadata or mappings either.
+	}
+	// A fresh HTTP observation replaces the same logical entry's old HTTPS row.
+	// The cross-source timestamp check above still protects newer observations.
+	if o.API == playbacksource.DefaultAPI {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM song_urls WHERE song_id=? AND api=? AND node=?", o.SongID, legacyUdonAPI, o.Node); err != nil {
+			return err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size); err != nil {
 		return err

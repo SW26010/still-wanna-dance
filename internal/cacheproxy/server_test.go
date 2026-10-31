@@ -31,7 +31,6 @@ func setup(t *testing.T, handler http.HandlerFunc, configure ...func(*Config)) (
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	cfg := fixtureConfig()
-	cfg.OriginScheme = "http"
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.Logger = slog.New(slog.NewTextHandler(testLogWriter{t}, nil))
 	for h := range cfg.Origins {

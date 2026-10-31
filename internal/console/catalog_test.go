@@ -28,7 +28,7 @@ func (f catalogTransport) Current(target string) []upstreamrequest.Candidate {
 	return []upstreamrequest.Candidate{{ID: "direct/" + u.Hostname() + "/192.0.2.1", Host: u.Hostname(), Mode: "direct", IP: "192.0.2.1", Transport: f}}
 }
 
-func TestCatalogUsesHTTPSForProductionAPI(t *testing.T) {
+func TestBackupCatalogUsesHTTPS(t *testing.T) {
 	c := testConsole(t)
 	c.checksumURL = "https://x.kiva.moe/api/v2/wanna/songs"
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -47,7 +47,7 @@ type truncatedCatalogBody struct{}
 func (truncatedCatalogBody) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
 func (truncatedCatalogBody) Close() error             { return nil }
 
-func TestCatalogProtocolFallbackReadsCompleteBody(t *testing.T) {
+func TestBackupCatalogTruncatedBodyDoesNotDowngrade(t *testing.T) {
 	var schemes []string
 	c := &Console{checksumURL: "https://x.kiva.moe/api/v2/wanna/songs"}
 	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -59,7 +59,7 @@ func TestCatalogProtocolFallbackReadsCompleteBody(t *testing.T) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: body, Request: r}, nil
 	})}
 	catalog, err := c.fetchCatalogSnapshot(context.Background())
-	if err != nil || len(catalog.Songs) != 1 || len(schemes) != 2 || schemes[0] != "https" || schemes[1] != "http" {
+	if !errors.Is(err, io.ErrUnexpectedEOF) || len(catalog.Songs) != 0 || len(schemes) != 1 || schemes[0] != "https" {
 		t.Fatal(catalog, schemes, err)
 	}
 }

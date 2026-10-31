@@ -43,7 +43,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.OriginScheme, cfg.VideoBudgetBytes = "http", limit
+			cfg.VideoBudgetBytes = limit
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.CacheUnlimited = tc.unlimited
 			for host := range cfg.Origins {

@@ -66,7 +66,7 @@ func TestLiveHTTPSUpstreams(t *testing.T) {
 			if err != nil || len(body) != 1024 {
 				t.Fatalf("bytes=%d error=%v", len(body), err)
 			}
-			t.Logf("%s HTTPS API + certificate-verified video Range passed via local TLS relay and public-host DNS", route)
+			t.Logf("%s HTTP API + certificate-verified video Range passed via local TLS relay and public-host DNS", route)
 		})
 	}
 }

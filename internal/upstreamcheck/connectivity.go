@@ -8,7 +8,7 @@ import (
 )
 
 // ConnectivityAccess is assembled by the application. Each operation owns its
-// bounded request and protocol fallback; the check never discovers channels.
+// bounded candidate retries; the check never discovers channels.
 type ConnectivityAccess struct {
 	Catalog  func(context.Context, string) (Result, int64, CatalogResponse)
 	Playback func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)

@@ -51,7 +51,7 @@ func recommendable(r Result) bool {
 		return false
 	}
 	if r.Operation == Resource {
-		return r.EstimatedSpeedBPS != nil || observedScheme(r.Scheme) == "https" && r.EstimatedLatencyMS != nil
+		return r.EstimatedSpeedBPS != nil || r.EstimatedLatencyMS != nil
 	}
 	return r.EstimatedLatencyMS != nil
 }
@@ -70,9 +70,6 @@ func score(r Result) float64 {
 }
 
 func preferred(a, b Result) bool {
-	if observedScheme(a.Scheme) != observedScheme(b.Scheme) {
-		return observedScheme(a.Scheme) == "https"
-	}
 	return score(a) > score(b)
 }
 
@@ -134,7 +131,7 @@ func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 	sort.SliceStable(eligible, func(i, j int) bool { return preferred(eligible[i], eligible[j]) })
 	if pref := m.preferences[op]; pref != nil {
 		for i := range eligible {
-			if resultID(eligible[i]) == pref.current && observedScheme(eligible[i].Scheme) == observedScheme(eligible[0].Scheme) &&
+			if resultID(eligible[i]) == pref.current &&
 				(op != Resource || eligible[i].EstimatedSpeedBPS != nil || eligible[0].EstimatedSpeedBPS == nil) {
 				winner := eligible[i]
 				copy(eligible[1:i+1], eligible[:i])
@@ -187,7 +184,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 				current = &available[i]
 			}
 		}
-		if current == nil || observedScheme(best.Scheme) == "https" && observedScheme(current.Scheme) == "http" ||
+		if current == nil ||
 			op == Resource && current.EstimatedSpeedBPS == nil && best.EstimatedSpeedBPS != nil {
 			pref.current, pref.challenger, pref.wins = resultID(best), "", 0
 			continue

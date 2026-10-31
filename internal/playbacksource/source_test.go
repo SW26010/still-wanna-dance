@@ -14,7 +14,7 @@ type transport struct {
 	do func(*http.Request) (*http.Response, error)
 }
 
-func TestResolverProtocolFallbackKeepsSourceIdentity(t *testing.T) {
+func TestResolverUsesHTTPAndKeepsSourceIdentity(t *testing.T) {
 	const raw = "http://play.udon.dance/files/1/42-video.mp4?e=00000000000000000000000000000000&s=1"
 	var schemes []string
 	c := client("fixed-channel", func(r *http.Request) (*http.Response, error) {
@@ -26,7 +26,7 @@ func TestResolverProtocolFallbackKeepsSourceIdentity(t *testing.T) {
 	})
 	r := Resolver{AttemptTimeout: time.Second, MaxFileBytes: 1024, Clients: func(context.Context, string) []*http.Client { return []*http.Client{c} }}
 	a, err := r.Resolve(context.Background(), 42)
-	if err != nil || a.URL != raw || a.API != DefaultBaseURL+"/Api/Songs/play" || a.ChannelID != "fixed-channel" || len(schemes) != 2 || schemes[0] != "https" || schemes[1] != "http" {
+	if err != nil || a.URL != raw || a.API != DefaultBaseURL+"/Api/Songs/play" || a.ChannelID != "fixed-channel" || len(schemes) != 1 || schemes[0] != "http" {
 		t.Fatal(a, schemes, err)
 	}
 }

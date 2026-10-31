@@ -190,20 +190,6 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 		}
 		if origin, ok := cfg.Origins[host]; ok {
 			address = origin
-			if cfg.OriginScheme == "http" {
-				ipHost, _, _ := net.SplitHostPort(origin)
-				ip := net.ParseIP(ipHost)
-				if ip == nil || !ip.IsLoopback() {
-					return nil, errors.New("HTTP origins must be loopback")
-				}
-			}
-		}
-		if cfg.OriginScheme == "http" {
-			ipHost, _, _ := net.SplitHostPort(address)
-			ip := net.ParseIP(ipHost)
-			if ip == nil || !ip.IsLoopback() {
-				return nil, errors.New("HTTP origins must be loopback")
-			}
 		}
 		return dial(ctx, network, address)
 	}

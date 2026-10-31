@@ -161,7 +161,7 @@ func TestCFPlaybackAcceptsNyaWithoutFollowingRedirect(t *testing.T) {
 func TestSmallResourceAndPermittedRedirect(t *testing.T) {
 	var calls atomic.Int32
 	client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Scheme != "https" || r.Header.Get("Range") != "bytes=0-3" {
+		if r.URL.Scheme != "http" || r.Header.Get("Range") != "bytes=0-3" {
 			t.Error(r.URL, r.Header)
 		}
 		if calls.Add(1) == 1 {

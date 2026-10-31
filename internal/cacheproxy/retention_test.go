@@ -95,7 +95,6 @@ func TestRetentionPinsAndUnlimited(t *testing.T) {
 }
 func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 	cfg := fixtureConfig()
-	cfg.OriginScheme = "http"
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.VideoBudgetBytes = 1
 	cfg.CacheUnlimited = false

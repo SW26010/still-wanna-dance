@@ -13,7 +13,6 @@ import (
 
 	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 // Isolated calibration keeps the default engine geometry as its baseline.
@@ -274,14 +273,11 @@ func prepareCalibrationSamples(parent context.Context, clients []*http.Client, p
 	var wg sync.WaitGroup
 	for range min(calibrationPrepareWorkers, len(ids)) {
 		wg.Go(func() {
-			// Each worker owns a short sequential batch. Reuse a fully validated
-			// route instead of rediscovering the same failed paths for every song.
-			session := upstreamrequest.NewSession(clients)
 			for id := range jobs {
 				if ctx.Err() != nil {
 					return
 				}
-				_, sample, _ := probePlaybackSession(ctx, session, p, id, playbackRoutes[0])
+				_, sample, _ := probePlaybackPaths(ctx, clients, p, id, playbackRoutes[0])
 				if sample == nil {
 					continue
 				}

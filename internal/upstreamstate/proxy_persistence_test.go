@@ -16,7 +16,7 @@ func TestDirectMonitorIgnoresObsoleteProxySamples(t *testing.T) {
 	at := time.Now().Add(-time.Minute)
 	a := "stable-v1-" + strings.Repeat("a", 64)
 
-	sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
+	sample := ThroughputSample{Scheme: "http", ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 	key := func(id string) string { return "resource/play.udon.dance/socks5/play.udon.dance/" + id }
 	state := throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{key(a): sample, key("1"): sample, key("2"): sample}}
 	data, _ := json.Marshal(state)

@@ -16,7 +16,7 @@ import (
 var errTooManyVideoRedirects = errors.New("too many video redirects")
 
 func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
-	u := &url.URL{Scheme: s.cfg.OriginScheme, Host: v.host, Path: v.path, RawQuery: v.query}
+	u := &url.URL{Scheme: upstreamrequest.ResourceScheme, Host: v.host, Path: v.path, RawQuery: v.query}
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err == nil {
 		r.Host = v.host
@@ -26,11 +26,16 @@ func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, erro
 }
 
 // Follow only validated video redirects. Rebuild every request through the
-// origin transport and the shared HTTPS-first attempt policy.
+// origin transport using the fixed resource protocol.
 // API requests retain the client's no-redirect policy so their Location can be
 // parsed separately.
 func (s *Server) videoResponse(r *http.Request, original video, attempts *resourceAttempts) (*http.Response, error) {
+	visited := make(map[string]bool)
 	for {
+		if visited[r.URL.String()] {
+			return nil, errors.New("video redirect revisits HTTP resource")
+		}
+		visited[r.URL.String()] = true
 		resp, err := s.resourceResponse(r, attempts)
 		if err != nil {
 			return nil, err
@@ -61,13 +66,6 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 			return nil, errTooManyVideoRedirects
 		}
 		attempts.redirects++
-		if resp.Request != nil && resp.Request.URL.Scheme == "http" && u.Scheme == "https" {
-			previous := *resp.Request.URL
-			previous.Scheme = "https"
-			if previous.String() == u.String() {
-				s.candidates(next, attempts).attempts.RequireHTTPS()
-			}
-		}
 		next.Header = r.Header.Clone()
 		r = next
 	}
@@ -91,7 +89,7 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 		attempts.targets = make(map[string]*resourceCandidates)
 	}
 	target := *r.URL
-	target.Scheme = s.cfg.OriginScheme
+	target.Scheme = upstreamrequest.ResourceScheme
 	key := target.String()
 	if candidates := attempts.targets[key]; candidates != nil {
 		return candidates
@@ -104,7 +102,7 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 		transports = []http.RoundTripper{s.client.Transport}
 	}
 	transports = append([]http.RoundTripper(nil), transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]...)
-	candidates := &resourceCandidates{transports: transports, attempts: upstreamrequest.NewAttempts(s.cfg.OriginScheme, len(transports))}
+	candidates := &resourceCandidates{transports: transports, attempts: upstreamrequest.NewAttempts(len(transports))}
 	attempts.targets[key] = candidates
 	return candidates
 }
@@ -147,13 +145,12 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 	candidates := s.candidates(r, attempts)
 	transports := candidates.transports
 	var failures []error
-	// Protocol fallbacks and channel changes share one cursor. Header validation
-	// and body failures feed this same cursor before another request is sent.
+	// Header validation and body failures share the same candidate cursor.
 	for {
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}
-		attempt, ok := candidates.attempts.Next(candidates.err)
+		index, ok := candidates.attempts.Next()
 		if !ok {
 			candidates.done = true
 			if candidates.err != nil && len(failures) == 0 {
@@ -166,7 +163,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err != nil {
 			return nil, err
 		}
-		transport := transports[attempt.Index]
+		transport := transports[index]
 		if transport == nil {
 			release()
 			continue
@@ -179,7 +176,6 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })
 		}
 		request := r.Clone(ctx)
-		request.URL.Scheme = attempt.Scheme
 		resp, err := client.Do(request)
 		if err == nil && resp.StatusCode < 500 {
 			closeBody := sync.OnceValue(resp.Body.Close)

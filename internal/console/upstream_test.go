@@ -66,7 +66,6 @@ func TestPrefetchOnlyUsesCFEntry(t *testing.T) {
 			defer api.Close()
 			c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 			cfg := fixtureCacheConfig()
-			cfg.OriginScheme = "http"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			if failure == "timeout" {
 				cfg.DownloadTimeout = 100 * time.Millisecond

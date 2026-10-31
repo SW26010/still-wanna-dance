@@ -15,7 +15,7 @@ import (
 
 // Config controls the local video service. Origins are dial addresses, not URLs;
 // by default, valid API-returned hosts are connected through the selected dialer.
-// Overrides retain the original HTTP Host and TLS identity; environment proxies
+// Overrides retain the original HTTP Host; environment proxies
 // are not used.
 type Config struct {
 	// Optional observation sinks. They must be fast, concurrency-safe, and must
@@ -36,9 +36,6 @@ type Config struct {
 	Origins           map[string]string
 	// IsResourceHost checks the current API-derived resource domain set.
 	IsResourceHost func(string) bool
-	// OriginScheme defaults to HTTPS, with bounded HTTP fallback on transport
-	// failures. Explicit HTTP remains restricted to loopback test origins.
-	OriginScheme string
 	// ResolvePlayback supplies a fresh address under the shared source policy.
 	// It owns network selection and evidence recording, never download execution.
 	// Nil uses the standalone resolver under the same source policy.
@@ -100,7 +97,6 @@ func DefaultConfig() Config {
 		RetainFavorites:              true,
 		AggressiveBlockReclamation:   "auto",
 		RequestRetentionUnlimited:    true,
-		OriginScheme:                 "https",
 		Origins:                      make(map[string]string),
 		DownloadTimeout:              10 * time.Minute,
 		BlockSize:                    DefaultBlockSize,
@@ -134,9 +130,6 @@ func (c Config) validate() error {
 	}
 	if c.LocalProtectionGrace < 0 || c.LocalProtectionGrace > MaxLocalProtectionGrace {
 		return errors.New("local protection grace must be between 0 and 10000 seconds")
-	}
-	if c.OriginScheme != "https" && c.OriginScheme != "http" {
-		return errors.New("invalid origin scheme")
 	}
 	if c.RequestRetentionDays < 0 || c.RequestRetentionDays > 36500 {
 		return errors.New("request retention must be between 0 and 36500 days")

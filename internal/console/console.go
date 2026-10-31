@@ -23,6 +23,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogsync"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
@@ -145,7 +146,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: "https://api.udon.dance", checksumURL: cacheproxy.UdonCatalogURL}
+	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: playbacksource.DefaultBaseURL, checksumURL: cacheproxy.UdonCatalogURL}
 	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)

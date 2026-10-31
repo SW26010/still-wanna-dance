@@ -127,7 +127,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	}
 	for _, node := range []string{"cf"} {
 		urls, err := c.store.SongURLs(context.Background(), 42, node)
-		if err != nil || len(urls) != 1 || urls[0].API != "https://api.udon.dance/Api/Songs/play" || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
+		if err != nil || len(urls) != 1 || urls[0].API != c.apiBase+"/Api/Songs/play" || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
 			t.Fatalf("monitor URL not reusable for %s: %+v, %v", node, urls, err)
 		}
 	}

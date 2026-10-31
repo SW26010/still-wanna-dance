@@ -463,7 +463,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	}
 	select {
 	case got := <-requested:
-		if got != "play.udon.dance:443" {
+		if got != "play.udon.dance:80" {
 			t.Fatal(got)
 		}
 	default:

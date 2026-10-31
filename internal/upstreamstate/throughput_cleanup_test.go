@@ -54,7 +54,7 @@ func TestRestoredThroughputPrunedOnlyAfterResourceDiscovery(t *testing.T) {
 			keep := "resource/play.udon.dance/a/play.udon.dance"
 			gone := "resource/play.udon.dance/b/play.udon.dance"
 			at := time.Now().Add(-time.Minute)
-			sample := ThroughputSample{ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
+			sample := ThroughputSample{Scheme: "http", ObservedAt: at, SongID: 42, Bytes: 16 << 20, Duration: 2 * time.Second}
 			data, _ := json.Marshal(throughputState{SchemaVersion: throughputSchemaVersion, LastAttempt: at, Samples: map[string]ThroughputSample{keep: sample, gone: sample}})
 			if err := os.WriteFile(path, data, 0600); err != nil {
 				t.Fatal(err)

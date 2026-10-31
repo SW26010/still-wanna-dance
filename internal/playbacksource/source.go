@@ -15,7 +15,8 @@ import (
 	"still-wanna-dance/internal/videometa"
 )
 
-const DefaultBaseURL = "https://api.udon.dance"
+const DefaultBaseURL = "http://api.udon.dance"
+const DefaultAPI = DefaultBaseURL + "/Api/Songs/play"
 
 type Entry struct{ ID, Node string }
 

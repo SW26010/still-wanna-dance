@@ -34,7 +34,7 @@ New-Item -ItemType Directory -Path .\complete-videos
 2. 备份 hosts，将 `api.udon.dance` 映射到 `127.0.0.1`，由本地播放 API 直接返回视频；不预设或写入资源域名。
 3. 选择游戏中的 HTTP 播放接口。游戏中的接口选择不影响 CLI 回源，统一请求上游 `node=cf`。测试后恢复 hosts 并停止服务。
 
-本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`，统一通过 `node=cf` 解析，失败不回退 HKG。它优先通过 HTTPS 获取上游视频地址，传输失败时允许有界 HTTP 回退，按资源指纹命中本地视频或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
+本页 `still-wanna-dance.exe` 命令行入口支持 HTTP 视频请求及 `api.udon.dance/Api/Songs/play?id=…` 的 GET/HEAD，接受省略 node、`node=cf` 或 `node=nya`，统一通过 `node=cf` 解析，失败不回退 HKG。播放 API 解析与上游视频下载固定使用 HTTP，具体边界见[业务请求的协议策略](upstream-channels.md#业务请求的协议策略)。程序按资源指纹命中本地视频或边下边播，直接以 HTTP 返回视频，支持单段 Range。游戏入口须使用 HTTP，播放器须接受 API 地址直接返回视频；游戏内兼容性仍待实测。其他 API 路径的 GET/HEAD 返回 307，指向原站 HTTPS。
 
 CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS，因此映射后的域名若被客户端通过 HTTPS 访问（包括上述 307），CLI 单独运行无法承接该连接。需要同时兼容网页 HTTPS 播放时，使用 `SWD.exe`：其播放网关同时启动 HTTP 播放和 HTTPS 透传，详见[WebUI 与桌面程序](console.md#网页-https-播放)。透传不使用本地视频。更详细的原版接入记录见[复现手册](history/original-testing-runbook.md)，其中原版命令不能直接当作 Still Wanna Dance 命令使用。
 
@@ -45,9 +45,9 @@ CLI 不监听 443，也不支持 `/v/` 或 SHA。hosts 同时影响 HTTP/HTTPS�
 - 接收有效 API 响应已确认的资源 Host（允许附带端口），或显式配置的域名覆盖项的 GET/HEAD；路径限定为 `/files/<数字目录>/<正整数ID>-<字母数字版本>.mp4`。e 必须为 MD5，s 为正数且不超过上限。重复 e/s、错误转义、其他 Host 和路径返回 400，其他方法返回 405。
 - 本地仅以 MD5 定位 `<video-dir>/{md5}.mp4`；同内容跨歌曲、资源版本、目录和线路共用一份文件。歌曲 ID 到 MD5 的关联以批量清单为准，新增和更新但不删除旧 ID。纯视频 URL 不推断曲目关系。
 - 下载完整后校验一次 MD5。之后按不可变文件使用，普通命中和扫描不再读取正文校验；活动响应共享文件句柄和独立读取位置。扫描由独立函数一次枚举目录，仅检查被引用的 MD5 文件是否存在，忽略孤儿。见[存储契约](storage.md)。
-- 未命中时同内容共享一个下载会话，支持 Range 的上游按 1 MiB 内容块接入全局调度，各块共享执行。客户端独立按自己的 Range 读取已完整可读的块，缺块时等待；上游不支持 Range 时回退顺序整文件下载。原理见[全局块调度设计](block-scheduler-design.md)。默认连接 API 返回的实际资源域名及 443 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTPS 连接，保留原视频 Host、TLS SNI 和证书校验，不使用系统代理环境变量，不回退系统 DNS/hosts；业务请求传输失败时可在既有预算内回退 HTTP（默认端口 80），具体规则见[协议策略](upstream-channels.md#业务请求的协议策略)。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](history/playback-domain-observation-20260926.md)。
-- 使用 `-socks5-proxy` 时，上述内置 DoH 直连改为通过 SOCKS5 建连，目标域名解析交给代理，失败不回退直连；不改变 HTTPS 证书校验或本地视频逻辑。
-- 视频回源最多跟随五次重定向，仅接受当前已确认的视频域名、合法视频路径且 MD5/大小与原资源一致的目标。HTTP Location 优先通过 HTTPS 访问，失败回退共用原候选预算，每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一视频资源处理链路。
+- 未命中时同内容共享一个下载会话，支持 Range 的上游按 1 MiB 内容块接入全局调度，各块共享执行。客户端独立按自己的 Range 读取已完整可读的块，缺块时等待；上游不支持 Range 时回退顺序整文件下载。原理见[全局块调度设计](block-scheduler-design.md)。默认连接 API 返回的实际资源域名及 80 端口，不把节点名称或 IP 地理位置当作域名身份，也不预设这两个历史域名继续存在。详见[资源域名规则](resource-domains.md)。通过内置 DoH 解析并建立 HTTP 连接，保留原视频 Host，不使用系统代理环境变量，不回退系统 DNS/hosts；Udon 播放 API 与视频资源均固定 HTTP，不自动升降级，具体规则见[协议策略](upstream-channels.md#业务请求的协议策略)。独立 DNS 绕过本机 hosts 接管，无需额外的回源别名，也不会在失败时静默改用历史 `ud-*` 地址。域名依据见[播放域名实测](history/playback-domain-observation-20260926.md)。
+- 使用 `-socks5-proxy` 时，上述内置 DoH 直连改为通过 SOCKS5 建连，目标域名解析交给代理，失败不回退直连；不改变固定协议或本地视频逻辑。
+- 视频回源最多跟随五次重定向，仅接受当前已确认的视频域名、合法视频路径且 MD5/大小与原资源一致的目标。合法 Location 执行时统一使用 HTTP，同端点 HTTPS 升级明确失败；每次连接继续使用所选的直连／SOCKS5 出口；不接受任意域名跳转。播放 API 的重定向作为视频地址解析，再进入同一视频资源处理链路。
 - Range 与顺序 200 将完整块保存到 EXE 旁固定 `work/service-<实例摘要>/download-block-*.part`，写入关闭后提供读取；半块不保存。收齐后先按预算和共用资源保留优先级取得预留，再按块顺序合并到发布文件，合并时计算 MD5 并核对长度，同步关闭后重命名到所选完整视频目录。旧读者继续使用块文件，最后引用释放后清理。上游错误、截断、超长、非预期压缩和校验失败不发布正式视频。MD5 仅用于协议完整性检查；零预算下普通资源不进行整视频合并/校验，默认开启的 `-retain-favorites` 允许收藏完整视频按[歌曲偏好规则](download-resource-design.md#8-歌曲屏蔽与收藏)豁免预算；队列可报告临时可读，手动补齐只有校验发布成功才算完成。
 - 同键并发共享后台任务，回源节点取首次请求；尚在下载时切 CDN 仍复用这一任务，不会自动换源。实际读取等待缺块时登记 Blocking 并立即启动；普通有限期限块按 ReadyBy 排队，进入固定 M 启动窗口且含 Blocking 的总在途数低于开放额度时才启动，独立无期限补齐可提前使用普通额度。已有下载自然完成，优先级变化不抢占；最后一份有效需求撤销或到期才正常取消清理。块使用需求和下载任务容量有界，无法接纳时可返回 503 后重试。详见[需求调度](queue-prefetch.md#资源需求与优先级)。
 - 数据库、视频与块工作区分别使用 OS 锁；不同数据库共用同一视频目录也会被拒绝。视频锁为 `.swd.lock`，旧 `videos` 目录还沿用父目录 `.lock` 防止旧写入者并发。正常退出或进程死亡释放锁，重启仅清理所属受管工作文件；不删除锁文件解锁。
@@ -114,7 +114,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 | `-request-retention-unlimited` | `true`，显式永久保留；不可与显式 `-request-retention-days` 同时启用 |
 | `-max-local-validations` | `3`，仅限制本地文件校验并发（内部 `MaxLocalValidations` / `localChecks`）；资源会话无独立数量门槛，上游视频请求由全局块调度器控制，普通请求软上限 16，Blocking 缺块立即放行 |
 
-回源参数是 HTTPS 服务的 TCP `host:port`，不是 URL；修改端口不会切换成 HTTP。自定义地址在直连模式下通过内置 DoH 解析，在代理模式下交给 SOCKS5；两者均验证对应视频原域名的证书。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
+回源参数是提供 HTTP 视频的 TCP `host:port`，不是 URL；修改端口不改变固定 HTTP 协议。自定义地址在直连模式下通过内置 DoH 解析，在代理模式下交给 SOCKS5；两者均保留原视频 Host。不要将回源地址配置到本服务。默认仅用于本机；无鉴权，不建议监听公网地址。配置受信任，外部请求不能任意指定回源目标。
 
 代理启动示例：`still-wanna-dance.exe -socks5-proxy 127.0.0.1:7891`。播放 API 查询、元数据检查、测速与视频下载均使用此出口；目标域名直接交给代理，Still Wanna Dance 不负责代理端 DNS 的实现。该参数不修改系统代理，也不改变播放器到本地服务的连接。
 

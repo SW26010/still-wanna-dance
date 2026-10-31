@@ -49,7 +49,6 @@ func TestBackgroundModesAdmitNextSongBeforeEarlierDownloadsComplete(t *testing.T
 			c.client.Transport = http.DefaultTransport
 			cfg := fixtureCacheConfig()
 			cfg.ResolvePlayback = c.resolvePlayback
-			cfg.OriginScheme = "http"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 			cfg.Origins["nya.xin.moe"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)

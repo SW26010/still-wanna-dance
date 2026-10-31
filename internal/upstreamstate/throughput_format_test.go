@@ -100,7 +100,7 @@ func TestThroughputClaimPreservesMonotonicCooldown(t *testing.T) {
 	}
 }
 
-func TestThroughputV2Golden(t *testing.T) {
+func TestLegacyThroughputV2RetainsCooldownOnly(t *testing.T) {
 	b, err := os.ReadFile("testdata/throughput-v2.json")
 	if err != nil {
 		t.Fatal(err)
@@ -114,8 +114,7 @@ func TestThroughputV2Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	o, ok := m.throughput["resource/play.udon.dance/direct/play.udon.dance/192.0.2.1"]
-	if !ok || o.transferDuration != 123456789 || o.at.UTC().Format(time.RFC3339Nano) != "2026-01-02T03:04:05.123456789Z" {
-		t.Fatal(o)
+	if len(m.throughput) != 0 || m.lastThroughput.IsZero() {
+		t.Fatal("unknown historical protocol must not affect HTTP selection", m.throughput, m.lastThroughput)
 	}
 }

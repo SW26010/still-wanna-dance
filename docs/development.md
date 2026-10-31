@@ -123,7 +123,7 @@ node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test
 
 上游预检使用 Node.js `Resolver.resolve4` 直接向配置的 DNS 服务器查询 IPv4，绕过系统 hosts；解析失败不回退系统解析，并过滤回环、内网及本机网卡地址。此查询仍可能受系统 DNS/代理影响，不等同于服务内置 DoH。HTTP/HTTPS 均保留原 Host 与正常 TLS 域名校验，报告记录实际 `remoteAddress`；显式端口的本地请求仍走回环。
 
-上游预检支持 301/302/307/308、HTTP/HTTPS 视频地址及 API 的 HTTPS 升级跳转，保留原始 Location。未知协议/视频格式记为 `upstream-protocol-change`，网络不可达、限流及上游 5xx 记为 `upstream-unavailable`，缺失构建或端口占用记为 `environment`。依赖不满足的链路标为 blocked，其他独立检查继续。`results.json` 的总体 `outcome` 为 passed/failed/blocked，退出码分别为 0/1/2；存在程序检查失败时优先返回 1。blocked 不表示完整验收通过；程序检查失败仍应结合同期上游证据和日志判断，例如下载期间断网或歌曲版本变化，不能只凭退出码归因。
+上游预检支持 301/302/307/308 返回的合法 HTTP/HTTPS 视频地址，保留原始 Location，视频执行统一使用 HTTP；不跟随 API 的 HTTPS 升级跳转。未知协议/视频格式记为 `upstream-protocol-change`，网络不可达、限流及上游 5xx 记为 `upstream-unavailable`，缺失构建或端口占用记为 `environment`。依赖不满足的链路标为 blocked，其他独立检查继续。`results.json` 的总体 `outcome` 为 passed/failed/blocked，退出码分别为 0/1/2；存在程序检查失败时优先返回 1。blocked 不表示完整验收通过；程序检查失败仍应结合同期上游证据和日志判断，例如下载期间断网或歌曲版本变化，不能只凭退出码归因。
 
 `scripts/game-hosts.ps1` 仅用于人工联合验收：先要求 1343 的 API 热缓存 Range 探测通过，再添加 `api.udon.dance` 映射；Disable 只清理当前验收会话标记的 API 映射。它不会添加两个历史视频域名；旧版操作结果见[验收记录](acceptance/early-service-20260925.md)。日常接入使用 WebUI 或托盘，开发检查不自动执行此脚本。
 

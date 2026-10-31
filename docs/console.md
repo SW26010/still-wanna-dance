@@ -205,11 +205,11 @@ go build -tags=no_easytier -o bin/still-wanna-dance-console-cli.exe ./cmd/still-
 
 整份节点快照使用 Windows 当前用户加密保护；无法解密时保留原密文并提示重新导入。页面显示已保存和当前已加载数量，全部已加载节点交给 Mihomo。生效上游为 Mihomo 时，「网络」直接显示 zashboard；设置中的「打开代理面板」也进入该页。在 SWD 组选择节点或「自动故障切换」，也可使用「独立窗口打开」。选择由核心保存，影响新连接，默认保留已有下载；配置仍在 SWD 中导入、保存并重启应用。离开面板或隐藏网页会停止面板刷新，后台代理继续运行。SWD 不再按节点测速、排名或维护备用子集，业务连通性检查与接入诊断从网络页的链接访问。详见 [Mihomo 与 zashboard](mihomo-dashboard.md)。
 
-API 查询、清单、冷播放、队列预加载、下载补齐和手动检测使用当前生效上游；应用的 HTTPS 回源和游戏 HTTPS 兼容透传均使用当前生效上游。外部 SOCKS5 后端把目标域名和端口直接交给 SOCKS5，不在 Still Wanna Dance 中解析目标域名，不使用内置 DoH 或多 IP 直连，不检查代理端如何实现 DNS；代理不可用或拒绝连接时返回错误，不自动回退直连。原域名 Host、TLS SNI 和证书校验保持不变。代理服务器地址本身若填写域名，由本机网络解析；本地代理推荐填写 `127.0.0.1`。
+API 查询、清单、冷播放、队列预加载、下载补齐和手动检测使用当前生效上游；应用的固定协议回源和游戏 HTTPS 兼容透传均使用当前生效上游。外部 SOCKS5 后端把目标域名和端口直接交给 SOCKS5，不在 Still Wanna Dance 中解析目标域名，不使用内置 DoH 或多 IP 直连，不检查代理端如何实现 DNS；代理不可用或拒绝连接时返回错误，不自动回退直连。HTTP 保留原域名 Host，HTTPS 透传保留 TLS SNI 和证书校验。代理服务器地址本身若填写域名，由本机网络解析；本地代理推荐填写 `127.0.0.1`。
 
 运行中允许保存配置；当前及后续任务继续使用本次应用启动时的配置，重启应用后统一应用新配置。保存不会重建上游客户端或本地资源引擎，不取消覆盖率查询。详情见[配置与运行生命周期](settings-lifecycle.md)。旧配置默认直连，切回直连会保留代理地址方便再次启用。播放接口选项仅决定 API 查询参数，资源域名由返回值决定，测速经过当前所选出口；完整本地视频的本地读取不经过代理。
 
-SOCKS5 使用本地模拟服务验证域名转交、API HTTPS、视频回源、游戏 HTTPS 同出口转发、取消和设置切换；受控结果不代表公网代理持续吞吐或 VRChat 实际播放体验。
+SOCKS5 使用本地模拟服务验证域名转交、HTTP API 与视频回源、游戏 HTTPS 同出口转发、取消和设置切换；受控结果不代表公网代理持续吞吐或 VRChat 实际播放体验。
 
 ## 独立 DNS
 
@@ -245,10 +245,10 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 直连并发查询 A 与 AAAA，DNS 只维护有效地址池与 TTL，不记录连接胜者。普通建连采用成熟的 Happy Eyeballs 组件，优先尝试 IPv6并自动回退 IPv4；已由 Monitor 测速选定的 IP 则继续固定使用。双栈地址池、连接间隔、代理边界及验证以[上游通道的请求与连接规则](upstream-channels.md#请求与连接)为准。视频请求仍保留原始 HTTP Host，历史 UI 中 HKG 对应查询参数 `node=nya`，不代表资源域名。
 
-全部加密 DNS 通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库以 Udon 为 canonical，Kiva／WannaInfo 同级提供备选清单与映射补缺，共用版本裁决，规则见[曲库设计](song-catalog-design.md)。曲库、播放地址、视频下载、测速和 Range 回源优先使用 HTTPS；传输失败时可在既有尝试预算内回退 HTTP，证书校验失败不授权回退，完整规则以[业务请求的协议策略](upstream-channels.md#业务请求的协议策略)为准。HTTP 链路不提供 HTTPS 的加密和服务器身份验证保护。内置 DoH 与游戏 HTTPS 透传不采用此回退，也不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
+全部加密 DNS 通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库以 Udon 为 canonical，Kiva／WannaInfo 同级提供备选清单与映射补缺，共用版本裁决，规则见[曲库设计](song-catalog-design.md)。Udon 清单、播放 API、视频下载、测速与 Range 回源固定 HTTP；Kiva/WannaInfo 固定 HTTPS，不自动升降级，完整规则以[业务请求的协议策略](upstream-channels.md#业务请求的协议策略)为准。HTTP 链路的安全代价已接受；内置 DoH 和游戏 HTTPS 透传保留原职责，不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 
 2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`SWD_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
-桌面程序与独立命令行服务共用内置 DoH 建连及上述业务协议策略。上游 API 查询和视频回源优先使用 HTTPS，默认端口为 443，获准的 HTTP 回退默认使用 80；均不回退系统 DNS/hosts。视频重定向仅在目标域名已由有效 API 响应确认且 MD5/大小一致时跟随，最多五次；HTTP Location 优先通过 HTTPS 访问，后续尝试仍受共同预算和回退条件约束。
+桌面程序与独立命令行服务共用内置 DoH 建连及上述业务协议策略。Udon API 查询和视频回源固定 HTTP，默认端口为 80，不回退系统 DNS/hosts。视频重定向仅在目标域名已由有效 API 响应确认且 MD5/大小一致时跟随，最多五次；合法视频 Location 按固定 HTTP 执行，同端点 HTTPS 升级明确失败。
 
 ## hosts
 
@@ -351,15 +351,31 @@ WebUI 通过 /api/status 的 traffic 字段展示当前数据库的累计请求�
 
 首正文等待由 `/api/latency` 读取最近 72 小时窗口，按首字节前是否实际等块分为 Blocking 与缓存／本地，分别展示 P50、P95 和有效样本数；没有正文的请求不计样本。不把不同阶段的 Monitor 样本相加，不计算未配对样本的加速比例。完整传输耗时、首正文和客户端首帧是不同指标。
 
-## HTTP 播放 API 接管与 HTTPS 回源
+## HTTP 播放 API 接管与回源
 
-通过手动或自动一键加速接入 `api.udon.dance`，不预设资源域名。自动一键加速遵循条款门禁，必要时通过会话权限助手申请授权；失败撤销本次变更。程序只管理当前 `# SWD managed` 标记，不迁移历史标记或资源域名映射；其他条目保留，冲突时提示检查。资源集合与历史记录的解释见[资源域名规则](resource-domains.md)。游戏以 HTTP 请求 `/Api/Songs/play?id=…` 时，Still Wanna Dance 使用 HTTPS 解析上游地址，校验资源指纹，然后直接以 HTTP 返回视频；命中复用本地视频，未命中边下边播，支持 HEAD 和单段 Range。接受不带 node、`node=cf` 和 `node=nya` 的请求，但它们不影响桌面程序或 CLI 的回源入口，统一使用 `node=cf`；其他线路仍明确拒绝。非播放 API 的 GET/HEAD 重定向至原站 HTTPS；原有 HTTPS 请求通过 443 透传，使用与 HTTP 请求相同的当前生效上游；代理模式传原域名，不调用 SWD 目标 DNS。不读取本地视频或填充视频块缓存。
+通过手动或自动一键加速接入 `api.udon.dance`，不预设资源域名。自动一键加速遵循条款门禁，必要时通过会话权限助手申请授权；失败撤销本次变更。程序只管理当前 `# SWD managed` 标记，不迁移历史标记或资源域名映射；其他条目保留，冲突时提示检查。资源集合与历史记录的解释见[资源域名规则](resource-domains.md)。游戏以 HTTP 请求 `/Api/Songs/play?id=…` 时，Still Wanna Dance 使用 HTTP 解析上游地址，校验资源指纹，然后直接以 HTTP 返回视频；命中复用本地视频，未命中边下边播，支持 HEAD 和单段 Range。接受不带 node、`node=cf` 和 `node=nya` 的请求，但它们不影响桌面程序或 CLI 的回源入口，统一使用 `node=cf`；其他线路仍明确拒绝。非播放 API 的 GET/HEAD 重定向至原站 HTTPS；原有 HTTPS 请求通过 443 透传，使用与 HTTP 请求相同的当前生效上游；代理模式传原域名，不调用 SWD 目标 DNS。不读取本地视频或填充视频块缓存。
 
-游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；当前 HTTP 播放 API 接管的实际游戏兼容性需要实机确认。仅接管 API 的前提是解析器和播放器能通过这个直接返回视频的本地入口完成后续读取。历史上正常解析后请求资源 URL 有证据；“新的播放绕过 API、复用旧资源 URL”则尚无发生证据、频率统计或稳定复现步骤。假设、条件性担忧及实机验证要求见[仅接管 API 的假设与待验证边界](resource-domains.md#仅接管-api-的假设与待验证边界)。服务端改用 HTTPS 回源不改变当前统一存储的资源指纹；此说明不表示兼容旧存储格式。下载和测速最多跟随五次视频重定向，仅接受当前 API 确认的视频域名且 MD5/大小一致的地址；HTTP Location 会升级为 HTTPS 后再访问。其他重定向明确拒绝。
+游戏入口必须仍使用 HTTP，并且播放器需接受 API 地址直接返回视频；当前 HTTP 播放 API 接管的实际游戏兼容性需要实机确认。仅接管 API 的前提是解析器和播放器能通过这个直接返回视频的本地入口完成后续读取。历史上正常解析后请求资源 URL 有证据；“新的播放绕过 API、复用旧资源 URL”则尚无发生证据、频率统计或稳定复现步骤。假设、条件性担忧及实机验证要求见[仅接管 API 的假设与待验证边界](resource-domains.md#仅接管-api-的假设与待验证边界)。服务端固定 HTTP 回源不改变当前统一存储的资源指纹；此说明不表示兼容旧存储格式。下载和测速最多跟随五次视频重定向，仅接受当前 API 确认的视频域名且 MD5/大小一致的地址；合法视频 Location 保留原始证据，执行统一使用 HTTP。其他重定向明确拒绝。
 
 HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待后台 API。已保存 URL 下载失败时，尚未输出正文可等待本次已有查询再尝试；旧下载与刷新都失败时保留两个阶段的错误。正文输出后仍中止响应，不切换内容。HTTPS 透传不适用；地址记录见[曲库设计](song-catalog-design.md)，当前下载与资源边界见[下载需求与资源管理设计](download-resource-design.md)。
 
-可选实网验收：设置 `SWD_LIVE_UPSTREAM=1`，运行 `go test ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1`。仅解析播放 API 并读取每路 1 KiB 视频 Range，不修改 hosts。
+可选实网验收从仓库根目录执行。固定协议检查通过产品 DoH、候选选择和隔离存储，验证完整 Udon 清单、播放 API 及单字节视频 Range：
+
+```powershell
+$env:SWD_LIVE_FIXED_PROTOCOL = '1'
+./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console -run '^TestLiveFixedUpstreamProtocols$' -v -count=1
+Remove-Item Env:SWD_LIVE_FIXED_PROTOCOL
+```
+
+HTTPS 透传的独立兼容检查验证原站证书，仅读取 1 KiB 视频 Range：
+
+```powershell
+$env:SWD_LIVE_UPSTREAM = '1'
+./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1
+Remove-Item Env:SWD_LIVE_UPSTREAM
+```
+
+两项检查均不修改系统 hosts，不启动 VRC，也不下载完整视频。
 
 ## 最近请求监控
 

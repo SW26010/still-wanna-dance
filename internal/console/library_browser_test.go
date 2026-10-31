@@ -40,7 +40,7 @@ func TestLibraryBrowser(t *testing.T) {
 	defer api.Close()
 	c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 	cfg := fixtureCacheConfig()
-	cfg.OriginScheme, cfg.CacheUnlimited = "http", true
+	cfg.CacheUnlimited = true
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.LocalProtectionGrace = 0

@@ -68,7 +68,6 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	t.Cleanup(upstream.Close)
 	logs := new(logCapture)
 	cfg := fixtureConfig()
-	cfg.OriginScheme = "http"
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
 	for host := range cfg.Origins {

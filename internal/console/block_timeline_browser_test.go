@@ -53,7 +53,6 @@ func TestBlockTimelineBrowser(t *testing.T) {
 	t.Cleanup(origin.Close)
 	cfg := cacheproxy.DefaultConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
-	cfg.OriginScheme = "http"
 	cfg.LocalProtectionGrace = 10 * time.Second
 	cfg.Origins = map[string]string{"play.udon.dance": strings.TrimPrefix(origin.URL, "http://")}
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))

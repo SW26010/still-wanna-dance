@@ -27,6 +27,30 @@ type downloadProgress struct {
 
 type progressSample struct{ second, bytes int64 }
 
+func bytesPerSecond(bytes int64, elapsed time.Duration) float64 {
+	if elapsed <= 0 {
+		return 0
+	}
+	return float64(bytes) / elapsed.Seconds()
+}
+
+// A zero-length clock interval has no measurable rate. Keep its bytes for the
+// next interval instead of losing them or publishing NaN/Inf.
+type progressRateSample struct {
+	at    time.Time
+	bytes int64
+}
+
+func (s *progressRateSample) rate(now time.Time, bytes int64) float64 {
+	elapsed := now.Sub(s.at)
+	if elapsed <= 0 {
+		return 0
+	}
+	rate := bytesPerSecond(bytes-s.bytes, elapsed)
+	s.at, s.bytes = now, bytes
+	return rate
+}
+
 // Five bounded buckets cover the current second and the preceding four seconds.
 // Snapshot reads never reset counters, so multiple observers see the same rate.
 func (p *downloadProgress) rate(now time.Time) float64 {
@@ -39,11 +63,7 @@ func (p *downloadProgress) rate(now time.Time) float64 {
 			bytes += sample.bytes
 		}
 	}
-	seconds := min(5.0, now.Sub(p.changed).Seconds())
-	if seconds <= 0 {
-		return 0
-	}
-	return float64(bytes) / seconds
+	return bytesPerSecond(bytes, min(5*time.Second, now.Sub(p.changed)))
 }
 
 func (p *downloadProgress) setHost(host string) {
@@ -60,7 +80,7 @@ func startProgress(log *slog.Logger, size int64, interval time.Duration) *downlo
 		defer close(p.done)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		last, previous := now, int64(0)
+		sample := progressRateSample{at: now}
 		for {
 			select {
 			case <-p.stop:
@@ -71,9 +91,8 @@ func startProgress(log *slog.Logger, size int64, interval time.Duration) *downlo
 				p.mu.Unlock()
 				now := time.Now()
 				p.log.Info("download_progress", "stage", stage, "bytes", bytes, "expected_bytes", p.size,
-					"bytes_per_second", float64(bytes-previous)/now.Sub(last).Seconds(),
+					"bytes_per_second", sample.rate(now, bytes),
 					"idle_ms", now.Sub(lastByte).Milliseconds(), "stage_elapsed_ms", now.Sub(changed).Milliseconds(), "elapsed_ms", now.Sub(p.start).Milliseconds())
-				last, previous = now, bytes
 			}
 		}
 	}()

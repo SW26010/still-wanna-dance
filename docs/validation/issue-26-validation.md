@@ -103,6 +103,14 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 本节仍是本地证据，不声称附件已经公开；最终发布须重新构建最终提交，并通过公开下载验证。
 
+### 第八轮 CI：相同时间戳下的下载速率
+
+[check #34](https://github.com/SW26010/still-wanna-dance/actions/runs/41221875652) 的 Linux 浏览器、工具、Go 测试/vet/编译和 race 全部通过；Windows 浏览器、61 项工具、首轮 Go 测试/vet/编译也通过。候选包入口再次执行 Go 测试时，`TestProgressReportsStallAndStopsBeforeTerminal` 失败：进度日志的 `bytes_per_second` 为 `!ERROR:json: unsupported value: NaN`。正式打包和 Release 未执行，该轮不是发布成功。
+
+日志采样对字节增量直接除以两次时间差；连续读到相同时间戳时，零字节产生 `0/0`，有字节会产生无穷大。将真实进度路径的两次时间固定为相同值，在本机复现与 CI 相同的 NaN；修复后保持相同故障条件重复 20 次通过。日志速率在时钟未推进时返回零，并保留字节和基准供下一次有效采样；共享总下载速度的原子字节计数也仅在时长为正时取走。活动任务五秒窗口复用同一有限速率计算，不改变正常窗口语义。检查其它 Go 速率和比例计算后，已有调用处均有正分母或有效样本保护。
+
+定向边界和正常行为重复 20 次通过，固定故障窗口下真实 JSON 日志重复 20 次通过；原日志用例改用虚拟时钟，保留停顿与终态检查，并确认终态后不再出现进度。全部 `cmd`/`internal` Go 测试及 vet 通过，缓存代理整包 race 通过，虚拟时钟及相关并发回归另重复 100 次。实际桌面 EXE 成功构建，依赖许可覆盖 **114 个**模块、Mihomo 补丁身份通过；该诊断 EXE 的提交为 `58c7d7e8ba9a52d85476cd97fe1564459d847cb4`、`dirty=true`，只作本机验证，不冒充正式包。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-check34.log`、`linux-check34.log`、`progress-equal-clock-red.log`、`progress-rate-regression-red.log`、`progress-equal-clock-green.log`、`progress-rate-targeted-green.log`、`progress-full-go.log`、`progress-full-vet.log`、`progress-cacheproxy-race.log`、`progress-final-race-stress.log` 和 `progress-desktop-*.log`。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

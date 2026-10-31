@@ -40,7 +40,7 @@
 | `request_started` / `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误 |
 | `upstream_response` / `download_first_byte` | 初始化或顺序下载响应的实际上游域名、状态、声明长度（不是每次块请求的响应清单）；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查） |
 | `download_stage` | 阶段变更以及上一阶段耗时：本地视频校验、等待上游响应头、下载并计算哈希、发布文件、数据库登记 |
-| `download_progress` | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件 |
+| `download_progress` | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件；时钟未推进时速度记为零，字节留待下一次有效采样 |
 | `download_verified` / `download_integrity_failed` | 正文大小和 MD5 是否满足预期；MD5 在读取中计算，因此与下载耗时合并记录 |
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
 | `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` / `not_retained` 结果；成功命中也会出现，不能将它单独当作新下载成功 |

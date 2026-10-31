@@ -41,7 +41,7 @@ test('unmeasured network offers direct checks and shows new samples without expa
   await panel.getByRole('button',{name:'检测视频列表',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='upstream/check/catalog').length).toBe(1);
   await (await actionRefresh).finished();
-  await expect(page.getByText('网络检测已开始，请查看检测结果。')).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'网络检测已开始，请查看检测结果。',exact:true})).toBeVisible();
   // Pin a future virtual time relative to install, avoiding a wall-clock race
   // between reading Date.now() in the page and issuing pauseAt from Node.
   await page.clock.pauseAt(new Date('2026-10-30T00:01:00Z'));

@@ -50,6 +50,16 @@
 
 证据位于 `artifacts/release-v1.0.0-beta.3/`：`local-candidate.log`、失败的 `local-formal.log`、`patch-offline-red.log`、`patch-offline-green.log`、`offline-product-green.log` 和 `tools-offline-fixed.log`。诊断脚本首轮遗漏重建身份的 revision，在编译前被既有校验拒绝；补齐当前提交后才取得上述实际编译结果，该首轮日志也保留。实际完整正式包与公开交付仍须按最终提交复核。
 
+### 本地源码重建与嵌套升级驱动补验
+
+`db37ce9642577e6a20688226c8727af5e936dc89` 的第二次完整本地流程已通过干净检出检查、完整源码生成/解包校验、正式 EXE 构建及身份/许可核对、全新缓存的前端与 zashboard 离线重建、Go 独立重建、模块身份比较，以及实际 ZIP 单包和覆盖冒烟。最后的升级驱动中，三布局数据断言均通过，但 Go 同时对 Mihomo 包执行的 vet 报路径过长，整体命令仍失败，不把该次流程写成一次完整成功。
+
+共同原因是干净检出中的 `with-test-temp.ps1` 再次按自身路径创建 `artifacts/tmp`，使已缩短的补丁目录重新落入更深的临时根。现在最外层包装器临时传递共同根，子包装器核对其与调用者临时目录的关系后创建并列的独占目录；环境恢复、退出码和只清理自身目录的规则不变。复制包装器到临时检出的回归修复前失败、修复后通过；全部发布工具 **58/58** 通过。
+
+保留同一对实际 EXE，在重新导出的嵌套源码检出中仅应用包装器修复，重放升级驱动；vet 和默认存储、外置库、自定义配置 **3/3** 均通过，退出码为 0。起点为 `ci-beta3-local-1`（`9bdddb0f`，EXE SHA256 `1a46447cd5b3c7fe192948fcef54757ff8fdfbc05e80d48b761c0a10b7da4205`），终点为上述正式候选（EXE SHA256 `35318a8b2487f57f8b8b1b462c0463fb3f814b47e298c6c33b22136fe273a67e`）；不外推为公开 Beta 2 升级验证。复用已通过的源码重建和 ZIP 冒烟证据，最终提交仍由远端完整流程重新生成、校验并公开附件。
+
+原始证据：`artifacts/release-v1.0.0-beta.3/local-formal-fixed.log`、`nested-temp-red.log`、`nested-temp-green.log`、`nested-upgrade-fixed.log`、`tools-nested-fixed.log`；失败升级的完整日志和实际 EXE 保留于 `artifacts/portable-upgrade/dab3d9c3a78d427f923e7e37947f4aec/`。本节不声称本地产物已经公开。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

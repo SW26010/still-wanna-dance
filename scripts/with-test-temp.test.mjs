@@ -19,7 +19,7 @@ function powershell(source) {
   assert.equal(result.status, 0, result.stdout + result.stderr);
   return JSON.parse(result.stdout);
 }
-const snapshot = "@($env:TEMP, $env:TMP, $env:GOTMPDIR)";
+const snapshot = "@($env:TEMP, $env:TMP, $env:GOTMPDIR, $env:SWD_TEST_TEMP_ROOT)";
 const probe = `
   const fs = require('node:fs'), path = require('node:path');
   const temp = process.env.TEMP;
@@ -106,6 +106,26 @@ test('nested invocations use separate directories without deleting the caller te
   `);
   assert.equal(result.restored, result.outer);
   assert.equal(result.sentinel, true);
+  assert.notEqual(result.outer, result.child.temp);
+  assert.equal(existsSync(result.outer), false);
+  assert.equal(existsSync(result.child.temp), false);
+});
+
+test('a wrapper copied into a release checkout keeps nested temporary directories beside its caller', windows, () => {
+  const result = powershell(`
+    function Invoke-OuterFixture {
+      $outer = $env:TEMP
+      $checkout = Join-Path $outer 'source-checkout/scripts'
+      New-Item -ItemType Directory -Path $checkout -Force | Out-Null
+      $copy = Join-Path $checkout 'with-test-temp.ps1'
+      Copy-Item -LiteralPath ./with-test-temp.ps1 -Destination $copy
+      $child = & $copy $env:SWD_TEST_NODE -e ${quote(probe)}
+      @{ outer = $outer; restored = $env:TEMP; child = ($child | ConvertFrom-Json) } | ConvertTo-Json -Compress -Depth 4
+    }
+    & ./with-test-temp.ps1 Invoke-OuterFixture
+  `);
+  assert.equal(result.restored, result.outer);
+  assert.equal(path.dirname(result.child.temp), path.dirname(result.outer));
   assert.notEqual(result.outer, result.child.temp);
   assert.equal(existsSync(result.outer), false);
   assert.equal(existsSync(result.child.temp), false);

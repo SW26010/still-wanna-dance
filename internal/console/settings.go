@@ -26,6 +26,7 @@ type Settings struct {
 	RequestRetentionMode         string `json:"requestRetentionMode"`
 	AutoAccelerate               bool   `json:"autoAccelerate"`
 	AutoOpenWebUI                bool   `json:"autoOpenWebUI"`
+	ExitWithVRChat               bool   `json:"exitWithVRChat"`
 	Theme                        string `json:"theme"`
 	LogLevel                     string `json:"logLevel"`
 	RestoreHostsOnStopOrExit     bool   `json:"restoreHostsOnStopOrExit"`

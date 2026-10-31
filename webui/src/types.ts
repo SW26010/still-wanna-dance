@@ -7,7 +7,7 @@ export interface Settings {
   databasePath: string; videoDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadConcurrencySoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
-  autoAccelerate: boolean; autoOpenWebUI: boolean; queueWithGateway: boolean; restoreHostsOnStopOrExit: boolean; vrchatLogDir: string;
+  autoAccelerate: boolean; autoOpenWebUI: boolean; exitWithVRChat: boolean; queueWithGateway: boolean; restoreHostsOnStopOrExit: boolean; vrchatLogDir: string;
 }
 export interface Job {
 	 target?: {songID?:string;resource?:string};

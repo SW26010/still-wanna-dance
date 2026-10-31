@@ -26,12 +26,15 @@ try {
   await second.goto(baseURL+'/#prepareAheadSeconds');
   await second.getByRole('spinbutton',{name:'同时下载数量',exact:true}).fill('17');
   await first.getByLabel('程序日志级别',{exact:true}).selectOption('warn');
+  await first.getByRole('checkbox',{name:'随 VRChat 退出',exact:true}).check();
   await first.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(async()=>(await status()).settings.logLevel).toBe('warn');
   await second.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(async()=>(await status()).settings.downloadConcurrencySoftLimit).toBe(17);
   const saved=await status();
   expect(saved.settings.logLevel).toBe('warn');
+  expect(saved.settings.exitWithVRChat).toBe(true);
+  expect(saved.activeSettings.exitWithVRChat).toBe(false);
   expect(submitted).toEqual({downloadConcurrencySoftLimit:17});
   expect(saved.activeSettings.logLevel).toBe('info');
   expect(saved.activeSettings.downloadConcurrencySoftLimit).toBe(initial.settings.downloadConcurrencySoftLimit);
@@ -40,6 +43,7 @@ try {
   await expect(second.getByRole('spinbutton',{name:'同时下载数量',exact:true})).toHaveValue('17');
   await second.getByRole('tab',{name:'常规',exact:true}).click();
   await expect(second.getByLabel('程序日志级别',{exact:true})).toHaveValue('warn');
+  await expect(second.getByRole('checkbox',{name:'随 VRChat 退出',exact:true})).toBeChecked();
   await second.getByRole('tab',{name:'存储',exact:true}).click();
   await second.route('**/api/path/select',route=>route.fulfill({json:{path:videoDir,canceled:false}}));
   await second.getByRole('textbox',{name:'完整视频目录',exact:true}).click();

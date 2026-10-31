@@ -27,3 +27,27 @@ test('startup settings have one owner and saving does not trigger acceleration o
  expect(api.state.activeSettings.queueWithGateway).toBe(true);
  expect(api.calls.some(c=>c.path.startsWith('activation/')||c.path.startsWith('hosts/')||c.path.startsWith('queue/'))).toBe(false);
 });
+
+test('exit with VRChat is opt-in and follows saved settings until restart',async({page},info)=>{
+ const api=await mockAPI(page);
+ await page.setViewportSize({width:390,height:850});
+ await page.goto('/#/settings');
+ const follow=page.getByRole('checkbox',{name:'随 VRChat 退出',exact:true});
+ await expect(follow).not.toBeChecked();
+ await follow.focus();await page.keyboard.press('Space');
+ expect(api.state.settings.exitWithVRChat).toBe(false);
+ await page.getByRole('button',{name:'放弃更改',exact:true}).click();
+ await expect(follow).not.toBeChecked();
+ await follow.check();
+ await saveSettings(page,'待重启');
+ expect(api.state.settings.exitWithVRChat).toBe(true);
+ expect(api.state.activeSettings.exitWithVRChat).toBe(false);
+ expect(api.calls.filter(c=>c.path==='settings').at(-1)?.body).toEqual({exitWithVRChat:true});
+ await page.reload();await expect(follow).toBeChecked();
+ await follow.scrollIntoViewIfNeeded();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:info.outputPath('exit-with-vrchat.png')});
+ await follow.uncheck();await saveSettings(page,'已生效');
+ expect(api.state.settings.exitWithVRChat).toBe(false);
+ expect(api.calls.some(c=>c.path==='exit'||c.path.startsWith('activation/')||c.path.startsWith('hosts/'))).toBe(false);
+});

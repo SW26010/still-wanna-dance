@@ -44,7 +44,7 @@ func TestSettingsSeparateBrowsers(t *testing.T) {
 		t.Fatal("saving settings applied runtime settings or started the gateway")
 	}
 	c = restartTestConsole(t, c)
-	if c.settings.LogLevel != "debug" || c.settings.DownloadConcurrencySoftLimit != 17 || c.settings.VideoDir != videoDir || c.settings.VideoStorageMode != "none" {
+	if c.settings.LogLevel != "debug" || !c.settings.ExitWithVRChat || c.settings.DownloadConcurrencySoftLimit != 17 || c.settings.VideoDir != videoDir || c.settings.VideoStorageMode != "none" {
 		t.Fatal("restart lost a browser's saved settings")
 	}
 	if data, err := os.ReadFile(video); err != nil || string(data) != "existing video" {

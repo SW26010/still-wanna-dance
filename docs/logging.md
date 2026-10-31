@@ -32,6 +32,8 @@
 | `cache_engine_ready` | 引擎配置摘要、启动清理的残留临时文件数；残留不能直接证明上次为何退出 |
 | `temporary_cleanup_removed` / `temporary_cleanup_skipped` | 回收的暂存路径，或因未知内容、异常类型保留的路径；实际删除失败使引擎启动返回错误 |
 | `config_work_cleanup_removed` / `config_work_cleanup_failed` | 配置锁持有者回收明确的原子写入工作槽；失败阻止 Console 创建 |
+| `vrchat_detected` / `vrchat_exited` | 开启「随 VRChat 退出」后，本次首次检测到游戏、随后确认当前会话内游戏进程均已结束；后者请求正常退出 SWD |
+| `vrchat_process_check_failed` | 游戏进程状态暂时无法确认，不触发退出；持续失败只在开始时记录一次，成功检查后恢复判定 |
 | `snapshot_load_failed` / `monitor_throughput_state_load_failed` | 可重建状态未恢复的原因；不生成连续损坏备份 |
 | `proxy_channel_identity_corrupt` / `proxy_channel_identity_unavailable` | 密钥原文件保留，代理使用临时身份；持久样本关联需恢复原密钥 |
 | `cache_capacity_wait` | 等待正在退出的共享下载会话清理；附着成功后的 `wait_ms` 包含此前等待，不是调度器块席位等待时长 |

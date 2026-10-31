@@ -1349,3 +1349,22 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 同轮测试同步修订：取消与完成事件可能分批提交，`history-live.mjs` 原先只等待出现歌曲 85，可能提前匹配仅含取消记录的中间响应。现改为等待歌曲 85 的 `completed` 记录，保留结果严格等于 `['completed']` 的后续断言；不放宽隐藏规则的验证。代码时序核对确认该窗口存在，本轮未主动复现旧版本的偶发失败。修订后的 `TestRequestHistoryBrowser` 真实服务、SQLite 与 Edge 联调通过，脚本语法检查通过；证据为同目录 `completion-wait.log` 与 `completion-wait/`。
 
 同轮提示精简：说明改为「同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。」隐藏判定保持原规则。定向 Edge 用例验证悬停、键盘聚焦及辅助说明均使用完整新文案，通过；前端重建、类型及嵌入资源一致性、联调脚本语法检查通过。证据为同目录 `short-tooltip.log`；此次仅调整提示，未重复运行真实服务联调。
+
+## 2026-10-31 随 VRChat 退出
+
+常规设置增加默认关闭的「随 VRChat 退出」，保存后重启生效；规则统一见[配置生命周期](../settings-lifecycle.md)。本节记录首版轮询构建，当前原生等待实现在下方修订中记录。首版 Windows 使用 [WTSEnumerateProcessesExW](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/nf-wtsapi32-wtsenumerateprocessesexw) 直接枚举当前会话的进程，不逐个查询游戏进程权限，也不依赖退出日志。
+
+- Go 定向检查通过：缺失/null/显式布尔值、部分保存与重新打开；尚未启动游戏、先开游戏、短暂重开、检测错误、退出与重启竞争及监测停止。Windows 原生隔离子进程检查覆盖精确名称、大小写、会话过滤、两个实例、正常结束和强制结束；最终 WTS 实现在沙箱内通过。
+- Edge 定向回归 26/26 通过，覆盖新开关的默认值、键盘、放弃、部分保存、刷新及窄屏布局，以及现有退出通知和设置交互。390px 新选项截图已检查，无横向溢出。
+- 隔离真实 Console、两个 Edge 页面及数据库联调通过：新开关随常规设置保存，旧页面修改无关字段不覆盖它，运行配置保持原值，重新构造应用后读取已保存值。桌面入口的实际子进程重启、配置锁释放和启动失败清理回归通过；未启动游戏或改系统 hosts，不外推实际 VRC 播放体验，也没有新增必须在游戏内判断的场景。
+- 前端构建、类型与嵌入产物一致性、受影响包的 `go vet`、Windows 桌面构建均通过。桌面构建初次因 PATH 中 Go 1.27.1 不满足仓库最低 1.27.3 被拒绝；仅为该构建进程指定已安装的 Go 1.27.3 后成功，没有修改全局环境。
+
+初次沙箱检查中，进程判定与退出时序通过，Console 条款夹具在 `renameat .terms.json.swd-tmp terms.json: The handle is invalid` 处失败，Edge 在启动阶段遇到 `TransactNamedPipe` 错误。正常环境第一次浏览器复跑被本轮残留的 18473 夹具端口阻止；核对并结束该 `fixture.mjs` 进程后得到上述通过结果，未调整产品逻辑或放宽断言。证据保存在忽略目录 `artifacts/vrchat-exit-20261031/`：`go.log`、`sandbox-browser-error.md`、`browser-normal.log` 保留这些失败；`go-normal.log`、`application-normal.log`、`browser-normal-after.log`、`settings-live/`、`browser/` 与 `build.log` 保存通过结果和截图。测试构建为同目录 `SWD.exe`，未替换日常程序。
+
+### 同轮修订：原生进程退出等待
+
+按用户反馈移除游戏运行期间的固定存活轮询。发现进程后只申请 `SYNCHRONIZE`，用 [WaitForMultipleObjects](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects) 同时等待进程结束和应用取消；收到结束信号后重新发现剩余实例，再做一次 2 秒的重启确认。只有尚未发现游戏或监测失败时继续定期发现。等待一个仍存活的实例即可阻止 SWD 提前退出，多个实例不需要一组常驻等待线程或全局进程事件订阅；业务仍使用原有 `RequestExit`。
+
+定向验证通过：合成时钟在已监测进程存活期间推进一小时，没有新增枚举调用；其他实例接续、确认期快速重启、查询和等待失败后的恢复、取消发现与取消等待均通过。真实 Windows 隔离子进程的正常结束和强制结束均唤醒原生等待，取消等待后子进程仍存活；资源在等待返回后关闭。Console 的设置生效边界、退出与重启选择、清理取消、生命周期通知和实际桌面子进程重启回归通过，受影响包 `go vet` 通过。未改变页面或配置格式，沿用上一轮设置与浏览器验证；这些检查没有启动真实 VRC，不代表真实游戏长期运行的性能测量。
+
+结果位于同一忽略目录的 `native-wait.log`、`native-wait-application.log` 和 `native-wait-build.log`；修订构建为 `SWD-native-wait.exe`，首版 `SWD.exe` 与原证据保留，现行行为以[配置生命周期](../settings-lifecycle.md)为准。

@@ -111,6 +111,22 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 定向边界和正常行为重复 20 次通过，固定故障窗口下真实 JSON 日志重复 20 次通过；原日志用例改用虚拟时钟，保留停顿与终态检查，并确认终态后不再出现进度。全部 `cmd`/`internal` Go 测试及 vet 通过，缓存代理整包 race 通过，虚拟时钟及相关并发回归另重复 100 次。实际桌面 EXE 成功构建，依赖许可覆盖 **114 个**模块、Mihomo 补丁身份通过；该诊断 EXE 的提交为 `58c7d7e8ba9a52d85476cd97fe1564459d847cb4`、`dirty=true`，只作本机验证，不冒充正式包。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-check34.log`、`linux-check34.log`、`progress-equal-clock-red.log`、`progress-rate-regression-red.log`、`progress-equal-clock-green.log`、`progress-rate-targeted-green.log`、`progress-full-go.log`、`progress-full-vet.log`、`progress-cacheproxy-race.log`、`progress-final-race-stress.log` 和 `progress-desktop-*.log`。
 
+### 本机交付与 Beta 2 升级预检
+
+`e9e130fae6c0c412c2a54270af0c4987a6723883` 的本机正式打包从干净检出完整通过，含对应源码、正式 EXE、全新缓存独立重建、ZIP 冒烟及候选包到正式包的三布局覆盖升级。随后用同一对附件执行 `verifyRelease`，再次完成源码/EXE 绑定和新缓存重建，返回 `verified=true`。正式 EXE SHA256 为 `9facf1c109a73f865e0461c5f3677a0654454461ded6c99738b3be6a3286c52f`；Portable ZIP SHA256 为 `37dfa50fb30ee7f2c7536517a58825b95ca7ecb497d33b0df0d4f2539275e0c7`，源码归档 SHA256 为 `e0e0c09831b41d78b42f5c7b275d950926218fda0ee7257cdc0876c6f0899014`。本地产物不是公开附件。
+
+另从 [Beta 2 Release](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.2) 下载原 Portable ZIP 及校验文件，对照 GitHub 的字节数和 SHA256 核验，确认 EXE 是 `a7dbeca4ae93454737d9195b9b8a278bd73bb8fa`、`dirty=false`。使用该实际 EXE 覆盖升级到上述本机 Beta 3，ZIP 冒烟及默认存储、外置库、自定义配置 **3/3** 持久化检查通过。日志为 `artifacts/release-v1.0.0-beta.3/local-formal-final.log`、`local-delivery-final-verify.log` 和 `beta2-to-beta3-local.log`；升级材料位于同目录的 `beta2-upgrade-local/732f508495ae4064afed675c69d368fb/`。
+
+### 第九轮 CI：测量窗口与来源耗尽分开验证
+
+[check #35](https://github.com/SW26010/still-wanna-dance/actions/runs/41226317970) 的 Linux 浏览器及工具测试通过，但 Go 的 `TestCalibrationUsesActiveClientAcrossResourceHosts` 只观察到一个域名而失败；该轮不会发布。测速在测量窗口完成时可以立即停止，准备了多个视频并不保证每个来源都已被调度。另一项完整测速测试同样假定短窗口内至少用到三个视频。将假视频延长至在窗口中不会耗尽后，两项均稳定复现失败；完整测速本身已正常完成、峰值并发和终态均满足要求。
+
+现在完整测速用虚拟时钟验证两个测量阶段、16 路峰值、速率、取消及去重；双域名共用客户端以两个各一块的视频运行到来源耗尽，明确断言两个域名各使用一次。已有的 12 视频／192 个不同 Range 耗尽测试补充断言 12 个不同资源且不请求清单，不新增重复的三视频测试。另一项只检查耗尽的短视频测试也固定为不会先完成测速窗口。生产测速和调度逻辑未变；固定长来源的同一窗口已从失败转为通过，多域名回归重复 50 次通过，受影响四项成组重复 5 次、race 重复 10 次通过。完整测速包及 vet 通过。
+
+同轮 Windows 完整通过：369 项浏览器和 61 项工具测试、Go 测试/vet/编译、候选包、正式干净检出、完整源码收集与解包、正式 EXE、全新缓存的独立源码重建、实际 ZIP 冒烟及覆盖升级均成功。Linux 失败使该轮整体未通过，不能记为发布成功。
+
+原始日志保留在 `artifacts/release-v1.0.0-beta.3/` 的 `linux-check35.log`、`windows-check35.log`、`calibration-long-source-red.log`、`calibration-long-source-green.log`、`calibration-deterministic-stress.log`、`calibration-final-full.log`、`calibration-exhaustion-cohort.log` 和 `calibration-cohort-final-race.log`。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

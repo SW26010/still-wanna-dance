@@ -4,7 +4,7 @@
 
 ## 2026-10-31 beta.3 发布前修复
 
-从指定提交 `9cc27069bce5ada5db7431a4823d671dfcb614a5` 创建 `codex/release-v1.0.0-beta.3`。基线已包含 beta.1/beta.2 的自动发布、冷缓存元数据收集、升级夹具和发布说明修复，本轮不修改产品行为。
+从指定提交 `9cc27069bce5ada5db7431a4823d671dfcb614a5` 创建 `codex/release-v1.0.0-beta.3`。基线已包含 beta.1/beta.2 的自动发布、冷缓存元数据收集、升级夹具和发布说明修复。最初预检只修改产物检查；后续完整 CI 揭示测试同步问题与 AnyTLS 依赖竞态，处理范围见下文。
 
 原产物检查对全部历史 blob 一次执行 `git cat-file --batch`，在当前历史和独立 256 MiB 历史夹具中均复现 `spawnSync git ENOBUFS`。现在先查询对象大小，再按 16 MiB 目标分批读取；大于该目标的单个 blob 独立读取，仍完整检查。新增回归保留八版各 32 MiB 的历史，其中首版含随后被替换的二进制内容；修复前溢出，修复后仍准确拒绝首版，不缩短历史范围、不放宽内容规则。
 
@@ -21,6 +21,18 @@
 两项测试使用真实时钟，完成时刻和调度截止由两次 `time.Now()` 取得；同锁下状态已经完成，但取时之间仍经过时间。Windows 原测试重复 100 次通过；在两次取时之间临时加入 1 毫秒间隔后，两项同样失败，排除了仅靠重跑恢复绿灯的处理。精确周期已有 `network_connectivity_schedule_test.go` 的虚拟时间依据；现在这两项也复用 `synctest.Test`、`synctest.Wait` 和 `automaticTestConsole` 的通道隔离，保留原 5 秒/5 分钟等值断言及全部数据检查，不修改生产调度或增大容差。
 
 修复后的两项及相关自动调度回归重复 100 次通过，完整 console 包通过。验证断言保留时，等待型探针在虚拟时钟的锁内阻塞，已停止该隔离测试；改用不阻塞的 1 毫秒完成时刻偏移，两项仍按预期失败，移除探针后再次通过。所有生产文件已恢复原字节，诊断探针不入库。首轮远端日志、探针失败/中断和修复结果保存在同一忽略目录的 `linux-attempt1.log`、`console-clock-*.log` 与 `console-full-fixed.log`，不覆盖历史失败。
+
+### 第二轮 CI：通知定位、发现夹具与 AnyTLS 竞态
+
+提交 `2760601041adc9d58cab8ac4dad84117e86ab99a` 的 [check #28](https://github.com/SW26010/still-wanna-dance/actions/runs/41191952799)未发布：Windows 浏览器 368 通过、1 失败；Linux 普通 Go 检查通过，race 在 desktop 与 AnyTLS 集成路径失败。收齐两平台日志后成组处理；没有放宽断言、跳过协议、关闭 race 或把重跑成功当作修复。
+
+- `monitor-details` 的全页文本断言同时命中 Toast 标题与 Fluent 的 `aria-live` 朗读副本。本地原用例重复 20 次通过，固定时钟推进到排队的第二条朗读消息后复现同一 strict-mode 错误；只改为精确通知 `listitem` 定位，保持该故障窗口时通过。一起修正 hosts 通知中的同类定位，移除临时探针后相关 14 项浏览器回归通过。
+- VRChat 退出发现夹具在虚拟时间推进后读写共享发现结果；`synctest.Wait` 不能替代相反方向的同步。本机 race 复现原三项失败；发现结果、错误与调用计数统一由夹具互斥保护。首版遗漏计数读取的失败也保留，补齐后四条退出路径重复 100 次 race 通过，生产进程等待逻辑未修改。
+- Mihomo `v1.19.32` 的 AnyTLS Stream 由接收 goroutine 写 `dieErr`，调用者同时读写；当前上游文件仍有同一问题。原集成用例在本机重复三次没有触发，新增原生 Stream 并发读、写、关闭回归后稳定报 race。修改文件只原子发布、读取该错误，最小回归重复 10 次 race 通过；全部 console、desktop、mihomo 包 race 通过（分别 109.765、5.112、37.021 秒）。
+
+用户选择在本仓库维护最小依赖补丁并验证完整交付链。最初 Go overlay 探针被工具链明确拒绝，未改写模块缓存；最终使用隔离副本和临时 `-modfile`，由构建、测试、vet、覆盖升级和源码重建共用入口。原版本、模块校验和、原文件及补丁哈希均核对；产物显式保留补丁身份，不将修改版冒充原模块。维护和移除规则见[依赖补丁](../../patches/README.md)。
+
+本地发布工具 **55/55**、actionlint、实际桌面构建、实际 EXE 的补丁身份及 **114 个**依赖许可校验通过；原模块文件 SHA256 未变化。第二轮远端日志、Windows trace 附件、受控失败、overlay 拒绝和成功复核分别保留在 `artifacts/release-v1.0.0-beta.3/` 的 `*-attempt2.log`、`beta3-attempt2-webui-failure.zip`、`monitor-announcement-*.log`、`desktop-race-*.log`、`anytls-*.log`、`affected-race-patched.log` 和 `tools-patched.log`。这些是本地修复证据，最终公开交付结果另记。
 
 ## 2026-10-30 Beta 候选与自动发布
 

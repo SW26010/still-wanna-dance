@@ -3,18 +3,21 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { executableInfo, readJSON } from './release-source.mjs';
+import { mihomoPatch } from './go-patches.mjs';
 
 export function checkNotices(text, review, modules) {
   const normalized = text.replace(/\r\n/g, '\n');
   const hash = crypto.createHash('sha256').update(normalized).digest('hex');
   if (review.schemaVersion !== 1 || hash !== review.noticesSHA256) throw Error('Third-party notice contents differ from the reviewed inventory');
   for (const mod of modules) {
-    if (!review.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === mod.sum && m.licenseFiles.length > 0)) throw Error(`Missing reviewed license identity: ${mod.path}@${mod.version}`);
+    const baseSum = mod.patchSHA256 && mod.path === mihomoPatch.module && mod.version === mihomoPatch.version ? mihomoPatch.originalSum : mod.sum;
+    if (!review.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === baseSum && m.licenseFiles.length > 0)) throw Error(`Missing reviewed license identity: ${mod.path}@${mod.version}`);
     if (!normalized.split('\n').includes(`Module: ${mod.path} ${mod.version}`)) throw Error(`Missing notice text: ${mod.path}`);
   }
 }
 
 export function validateNotices(root, modules) {
+  for (const mod of modules.filter(m => m.patchSHA256)) if (mod.patchSHA256 !== crypto.createHash('sha256').update(fs.readFileSync(path.join(root, mihomoPatch.replacement))).digest('hex')) throw Error('Binary Go patch differs from reviewed source');
   checkNotices(fs.readFileSync(path.join(root, 'THIRD-PARTY-NOTICES.txt'), 'utf8'), readJSON(path.join(root, 'docs/licenses/reviewed-modules.json')), modules);
 }
 

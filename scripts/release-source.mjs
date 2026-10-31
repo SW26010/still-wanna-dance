@@ -9,6 +9,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { collectFrontend, rebuildFrontend } from './webui-source.mjs';
 import { collectDashboard, rebuildDashboard, verifyDashboardBundle } from './dashboard-source.mjs';
 import { identityFlags } from './build-info.mjs';
+import { runGo, mihomoPatch, patchManifest, readPatchedModule } from './go-patches.mjs';
 
 export const desktopEntry = './cmd/still-wanna-dance-console';
 export const repository = 'SW26010/still-wanna-dance';
@@ -162,8 +163,8 @@ export function createSource({ root, tag, outputDir }) {
     const currentSum = run('git', ['show', `${revision}:go.sum`], root);
     if (fs.readFileSync(path.join(source, 'go.mod'), 'utf8') !== currentMod || fs.readFileSync(path.join(source, 'go.sum'), 'utf8') !== currentSum) throw Error('Module download changed source go.mod/go.sum');
     const toolchain = run('go', ['env', 'GOVERSION'], source, env).trim();
-    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+, the pnpm version in source/webui/package.json,\nand tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, locked npm packages in frontend-store,\noriginal notices, generated inputs and scripts. The frontend is rebuilt offline\nwith pnpm and its assets/notices are byte-checked before the Go build.\nThe separate dashboard/ tree contains the pinned zashboard source and npm store.\nIts no-fonts application is rebuilt offline; upstream archive bytes are preserved\nand no byte-identical frontend/font regeneration is claimed.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
-    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, supplementalInputs: extras, frontend, dashboard,
+    fs.writeFileSync(path.join(bundle, 'BUILD.txt'), `SWD ${tag}\nCommit: ${revision}\nLicense: GPL-3.0-only for new SWD contributions; see source/LICENSING.md.\n\nInstall ${toolchain}, Node.js 22+, the pnpm version in source/webui/package.json,\nand tar (general-purpose build tools).\nFrom this directory run:\n  node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe\nThe verifier checks all source/proxy file hashes, uses fresh Go caches and ONLY\nthe included file GOPROXY; it does not download modules or a toolchain.\nSource includes full module ZIPs, locked npm packages in frontend-store,\noriginal notices, generated inputs and scripts. Reviewed Go dependency patches\nare recorded separately in source-manifest.json; see source/patches/README.md.\nThe frontend is rebuilt offline\nwith pnpm and its assets/notices are byte-checked before the Go build.\nThe separate dashboard/ tree contains the pinned zashboard source and npm store.\nIts no-fonts application is rebuilt offline; upstream archive bytes are preserved\nand no byte-identical frontend/font regeneration is claimed.\nGit export-ignore omits historical experiments/ and docs/evidence/; these remain\nin the repository at the recorded commit. Research/chart inputs are retained.\nNo bit-for-bit binary reproducibility is claimed.\n`);
+    const manifest = { schemaVersion: 1, tag, revision, repository, target: 'windows/amd64', toolchain, entry: desktopEntry, productionFlags, modules, goPatches: patchManifest(source, modules), supplementalInputs: extras, frontend, dashboard,
       files: filesUnder(bundle).map(p => ({ path: p, bytes: fs.statSync(safePath(bundle, p)).size, sha256: sha256(safePath(bundle, p)) })) };
     writeJSON(path.join(bundle, 'source-manifest.json'), manifest);
     verifyBundle(bundle);
@@ -186,6 +187,11 @@ export function verifyBundle(bundle) {
     seen.add(f.path);
   }
   for (const name of ['go.mod', 'go.sum', 'LICENSE', 'LICENSE-MIT', 'LICENSING.md', 'THIRD-PARTY-NOTICES.txt', 'scripts/build-desktop.ps1', 'scripts/build-desktop.mjs', 'scripts/build-info.mjs', 'scripts/release-source.mjs']) if (!seen.has('source/' + name)) throw Error(`Missing source input: ${name}`);
+  // Earlier published source bundles predate repository dependency patches.
+  if (m.goPatches !== undefined || seen.has('source/scripts/go-patches.mjs')) {
+    if (!seen.has('source/scripts/go-patches.mjs') || JSON.stringify(m.goPatches) !== JSON.stringify(patchManifest(path.join(bundle, 'source'), m.modules))) throw Error('Go patch identity differs from delivered source');
+    if (m.goPatches.length && (!seen.has('source/' + mihomoPatch.replacement) || !seen.has('source/patches/README.md'))) throw Error('Missing reviewed Go patch source');
+  }
   if (!seen.has('BUILD.txt')) throw Error('Missing build instructions');
   if(seen.has('source/webui/package.json')) {
     const pkg=readJSON(path.join(bundle,'source/webui/package.json'));
@@ -243,9 +249,9 @@ export function executableInfo(executable) {
   for (const [i, line] of text.split(/\r?\n/).entries()) {
     if (i === 0) toolchain = line.slice(line.lastIndexOf(': ') + 2);
     const fields = line.trim().split(/\s+/);
-    if (fields[0] === '=>') throw Error('Replacement modules are not approved');
+    if (fields[0] === '=>') readPatchedModule(modules.at(-1), fields);
     if (fields[0] === 'path') entry = fields[1];
-    if (fields[0] === 'dep') modules.push({ path: fields[1], version: fields[2], sum: fields[3] });
+    if (fields[0] === 'dep') modules.push({ path: fields[1], version: fields[2], sum: fields[3] ?? null });
     if (fields[0] === 'build') { const kv = fields.slice(1).join(' '); const at = kv.indexOf('='); settings[kv.slice(0, at)] = kv.slice(at + 1); }
   }
   return { entry, toolchain, modules, settings };
@@ -254,7 +260,10 @@ export function checkExecutable(info, manifest, requireRevision = true) {
   if (info.entry !== 'still-wanna-dance/' + desktopEntry.slice(2) || info.toolchain !== manifest.toolchain || info.settings.GOOS !== 'windows' || info.settings.GOARCH !== 'amd64' || info.settings.GOAMD64 !== 'v1' || info.settings.CGO_ENABLED !== '0' || info.settings['-trimpath'] !== 'true' || info.settings['-tags'] !== buildTags) throw Error('Binary target/toolchain/entry differs from source');
   if (info.modules.some(m => m.path === 'github.com/easytier/easytier/easytier-go')) throw Error('EasyTier must be excluded from the desktop build');
   if (requireRevision && (info.settings['vcs.revision'] !== manifest.revision || info.settings['vcs.modified'] !== 'false')) throw Error('Binary revision is missing, dirty or differs from source');
-  for (const mod of info.modules) if (!manifest.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === mod.sum && m.sourceIncluded)) throw Error(`Binary dependency differs from source: ${mod.path}`);
+  for (const mod of info.modules) {
+    const patch = manifest.goPatches?.find(p => p.module === mod.path);
+    if (mod.patchSHA256 !== patch?.sha256 || !manifest.modules.some(m => m.path === mod.path && m.version === mod.version && m.sum === (patch ? patch.originalSum : mod.sum) && m.sourceIncluded)) throw Error(`Binary dependency differs from source: ${mod.path}`);
+  }
 }
 
 export function rebuild({ bundle, output }) {
@@ -269,7 +278,9 @@ export function rebuild({ bundle, output }) {
     rebuildFrontend(source,bundle,temp);
     rebuildDashboard(source,bundle,temp);
     if (run('go', ['env', 'GOVERSION'], source, env).trim() !== manifest.toolchain) throw Error(`Install recorded toolchain ${manifest.toolchain} for independent verification`);
-    run('go', ['build', ...desktopBuildFlags({ kind: 'rebuild', version: manifest.tag, revision: manifest.revision }), '-buildvcs=false', '-o', output, desktopEntry], source, env);
+    const args = ['build', ...desktopBuildFlags({ kind: 'rebuild', version: manifest.tag, revision: manifest.revision }), '-buildvcs=false', '-o', output, desktopEntry];
+    if (manifest.goPatches !== undefined) runGo(args, source, env);
+    else run('go', args, source, env); // Preserve the inputs of earlier releases.
     const info = executableInfo(output); checkExecutable(info, manifest, false);
     verifyBundle(bundle); // readonly build must not revise supplied inputs
     return { manifest, info, executableSHA256: sha256(output) };

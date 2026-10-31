@@ -10,9 +10,11 @@
 node scripts/release-source.mjs create --tag v1.2.3 --output artifacts
 ```
 
-脚本拒绝 dirty/untracked、标签不指向 HEAD、模块 replacement、尚未支持的符号链接或子模块。使用 `git archive` 导出提交，忽略本地数据、缓存和未跟踪文件；`.gitattributes` 的 `export-ignore` 排除历史 `experiments/` 和 `docs/evidence/`，原文件仍保留在相同提交的仓库中。保留产品源码、测试、许可、构建脚本，以及内置图表的研究聚合数据和绘图脚本。
+脚本拒绝 dirty/untracked、标签不指向 HEAD、源 `go.mod` 中的模块 replacement、尚未支持的符号链接或子模块。使用 `git archive` 导出提交，忽略本地数据、缓存和未跟踪文件；`.gitattributes` 的 `export-ignore` 排除历史 `experiments/` 和 `docs/evidence/`，原文件仍保留在相同提交的仓库中。保留产品源码、测试、许可、构建脚本，以及内置图表的研究聚合数据和绘图脚本。
 
 按生产入口及相同构建标签重新列出实际编译依赖，仅下载这些模块的完整 `.zip`，放入本地 Go proxy。同时只查询整个固定模块图的 `.mod`、`.info` 元数据和版本清单，支持只读离线解析，不再下载未使用模块的 ZIP。清单中的 `sourceIncluded` 区分源码与仅图元数据；未取得的未使用模块 ZIP 校验和允许为 `null`，不伪造已交付源码，所有实际交付文件仍记录 SHA256。完整源码模块必须有 Go h1，EXE 引用仅元数据模块时拒绝。没有裁剪原模块 ZIP，保证 Go 校验和和原许可完整。一般用途的 Go、Node.js、tar、编译器/代码生成工具及操作系统不随源码包安装。
+
+2026-10-31 起，Mihomo `v1.19.32` 的 AnyTLS 关闭竞态使用[仓库内补丁](../patches/README.md)。源码仍交付原始完整模块 ZIP，另交付修改文件、来源说明和统一构建入口；`goPatches` 分别记录原模块校验和、原文件哈希和补丁哈希。构建入口核验后在隔离副本上应用，使用临时 `-modfile`，不改共享缓存或交付的 `go.mod/go.sum`。EXE 元数据明确保留该替换，发布校验仅接受这一已审查修改；其他替换仍拒绝。离线重建从包内 ZIP 和修改文件重新产生副本，并核对补丁身份。
 
 完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交、选定路径和哈希：只从 modernc SQLite 固定 Git 提交导出 `vendor_libsqlite3/` 三个文件及 `LICENSE`，另保留对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这两个档案，不再重复交付整个 modernc SQLite 仓库。导出关闭 Git 换行转换，避免 Windows/Linux 生成不同归档。Go 模块 ZIP 内已有 Makefile、生成代码和条件参数；修改 SQLite 原稿时结合补充的生成辅助程序参考这些命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
@@ -37,7 +39,7 @@ SWD-source/
 node source/scripts/release-source.mjs rebuild --bundle . --output ../SWD-rebuilt.exe
 ```
 
-重建使用全新模块/编译缓存，`GOPROXY=file:...` 且没有联网 fallback，禁止自动下载工具链、工作区覆盖和隐式 Go 构建参数；以 Windows amd64、CGO=0 和生产参数构建。没有 `.git`，因此显式关闭 VCS 自动标记，并由共用构建参数注入清单版本和提交；程序明确显示为「对应源码重建」，构建时间取本次重建时间。重建后核对模块版本、校验和、工具链与目标，确认输入没有被修改。若缺少依赖、必要输入或校验失败则停止。与原 EXE 比较时允许 VCS 标记及构建时间等差异，不要求 EXE SHA256 相同。
+重建使用全新模块/编译缓存，`GOPROXY=file:...` 且没有联网 fallback，禁止自动下载工具链、Go workspace 覆盖和外部隐式 Go 构建参数；以 Windows amd64、CGO=0 和生产参数构建。没有 `.git`，因此显式关闭 VCS 自动标记，并由共用构建参数注入清单版本和提交；程序明确显示为「对应源码重建」，构建时间取本次重建时间。重建后核对模块版本、校验和、工具链与目标，确认输入没有被修改。若缺少依赖、必要输入或校验失败则停止。与原 EXE 比较时允许 VCS 标记及构建时间等差异，不要求 EXE SHA256 相同。
 
 许可证依据见[许可审计](issue-30-license-audit.md)。上游已明确 `go-lzo` 为 GPL-2.0-or-later，澄清记录与固定模块原文一同保留在对应源码中；缺少源码、声明或对应关系仍会失败。
 

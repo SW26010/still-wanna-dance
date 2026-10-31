@@ -62,13 +62,15 @@ Go 自带构建、测试、格式化和静态检查工具。当前纯 Go 方案�
 
 ## 开发命令
 
+构建、测试和 vet 统一经过 `scripts/go-patches.mjs`，应用已确认的 AnyTLS 关闭竞态修复；版本、原文件校验与移除条件见[依赖补丁](../patches/README.md)。直接调用 `go build/test` 会使用未修补的上游代码。桌面打包和对应源码重建已自动接入，格式化不需要该入口。
+
 SQLite 使用纯 Go 驱动 `modernc.org/sqlite`。开发命令：
 
 ```powershell
 go fmt ./cmd/... ./internal/...
-./scripts/with-test-temp.ps1 go test -tags=no_easytier ./cmd/... ./internal/...
-./scripts/with-test-temp.ps1 go vet -tags=no_easytier ./cmd/... ./internal/...
-go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./cmd/... ./internal/...
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs vet -tags=no_easytier ./cmd/... ./internal/...
+node scripts/go-patches.mjs build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
 ```
 
 Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也只需在原命令前加这个入口。它保持调用目录和参数，每次在忽略目录 `artifacts/tmp/<随机标识>` 创建独立临时目录，仅为本次命令及子进程设置 `TEMP`、`TMP`、`GOTMPDIR`；正常返回或命令报错后恢复环境并清理本次目录，原样返回命令退出码。无法清理时明确警告并保留路径，不影响测试失败的退出码。测试日志和需要保留的报告放在该临时目录之外。打包脚本的开发检查与正式发布准备也使用同一入口。
@@ -81,7 +83,7 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
-Linux CI 额外运行 `go test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
+Linux CI 额外运行 `node scripts/go-patches.mjs test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
 
 真实磁盘耗尽是独立的 Windows 环境检查，不在普通测试中自动执行。`scripts/test-storage-full.ps1` 使用 Hyper-V 的虚拟磁盘命令创建新的固定 128 MiB NTFS 镜像；只接受本仓库 `artifacts/` 下的测试二进制和证据目录，校验新磁盘身份及容量后才初始化，并为宿主卷保留至少 512 MiB 空间。测试再次校验卷标记与容量，分别填满块、发布和数据库所在的可丢弃卷，检查错误、关闭、清理及已提交数据；结束后卸载并删除本次镜像，保留日志与 `result.json`。不接受现有磁盘号或镜像路径，不填满日常使用的卷。构建不需管理员权限，挂载阶段需要 Windows 管理员令牌；UAC 未确认时此项仍为未验证。
 

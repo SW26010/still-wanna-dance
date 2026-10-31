@@ -14,7 +14,7 @@ function fixture(temp) {
     const dest = path.join(root, name); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.writeFileSync(dest, text);
   }
   fs.copyFileSync(path.join(here, 'release-source.mjs'), path.join(root, 'scripts/release-source.mjs'));
-  for(const name of ['webui-source.mjs','dashboard-source.mjs','check-webui.mjs','build-info.mjs','build-desktop.mjs'])fs.copyFileSync(path.join(here,name),path.join(root,'scripts',name));
+  for(const name of ['webui-source.mjs','dashboard-source.mjs','check-webui.mjs','build-info.mjs','build-desktop.mjs','go-patches.mjs'])fs.copyFileSync(path.join(here,name),path.join(root,'scripts',name));
   fs.mkdirSync(path.join(root, 'internal/buildinfo'), {recursive:true});
   fs.copyFileSync(path.join(here, '../internal/buildinfo/buildinfo.go'), path.join(root, 'internal/buildinfo/buildinfo.go'));
   fs.writeFileSync(path.join(root, 'cmd/still-wanna-dance-console/main.go'), 'package main\nimport ("encoding/json"; "os"; "still-wanna-dance/internal/buildinfo")\nfunc main() { json.NewEncoder(os.Stdout).Encode(buildinfo.Current()) }\n');
@@ -70,6 +70,10 @@ test('complete source archive rebuilds without Git metadata or populated Go cach
   assert.throws(() => createSource({ root, tag: 'v0.0.0-test', outputDir: path.join(temp, 'out') }), /already exists/);
   const manifestFile = path.join(bundle, 'source-manifest.json');
   const original = readJSON(manifestFile);
+  const { goPatches: omittedPatchIdentity, ...withoutPatchIdentity } = original;
+  writeJSON(manifestFile, withoutPatchIdentity);
+  assert.throws(() => verifyBundle(bundle), /Go patch identity/);
+  writeJSON(manifestFile, original);
   const license = path.join(bundle, 'source/LICENSE'); const originalLicense = fs.readFileSync(license);
   fs.appendFileSync(license, 'tampered');
   assert.throws(() => verifyBundle(bundle), /mismatch/);

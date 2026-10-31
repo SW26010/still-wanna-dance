@@ -19,7 +19,7 @@ try {
     Expand-Archive -LiteralPath $after -DestinationPath (Join-Path $root 'after')
     $env:SWD_UPGRADE_BEFORE_EXE = Join-Path $root 'before/SWD/SWD.exe'
     $env:SWD_UPGRADE_AFTER_EXE = Join-Path $root 'after/SWD/SWD.exe'
-    & "$PSScriptRoot/with-test-temp.ps1" go test -tags=no_easytier ./internal/console -run '^TestPortableExecutableUpgrade$' -count=1 -v 2>&1 | Tee-Object -FilePath (Join-Path $root 'persisted-data.log')
+    & "$PSScriptRoot/with-test-temp.ps1" node "$PSScriptRoot/go-patches.mjs" test -tags=no_easytier ./internal/console -run '^TestPortableExecutableUpgrade$' -count=1 -v 2>&1 | Tee-Object -FilePath (Join-Path $root 'persisted-data.log')
     if ($LASTEXITCODE -ne 0) { throw 'Persisted-data upgrade verification failed.' }
 } finally {
     Pop-Location

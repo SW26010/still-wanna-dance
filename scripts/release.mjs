@@ -8,6 +8,7 @@ import { pipeline } from 'node:stream/promises';
 import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, desktopBuildFlags, buildTags } from './release-source.mjs';
 import { validateNotices } from './release-notices.mjs';
 import { checkBuildMetadata } from './build-info.mjs';
+import { runGo } from './go-patches.mjs';
 
 export const assetURL = (tag, name) => `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
 export const releaseNames = tag => ({ portable: `still-wanna-dance-${tag}-windows-amd64-portable.zip`, source: `still-wanna-dance-${tag}-corresponding-source.tar.gz`, manifest: `still-wanna-dance-${tag}-release.json`, notes: `still-wanna-dance-${tag}-release-notes.md` });
@@ -32,7 +33,7 @@ export function renderReleaseNotes({ tag, revision, assets }) {
 `;
 }
 
-const moduleIdentity = modules => JSON.stringify([...modules].map(m => [m.path, m.version, m.sum]).sort((a, b) => a[0].localeCompare(b[0])));
+const moduleIdentity = modules => JSON.stringify([...modules].map(m => [m.path, m.version, m.sum, m.patchSHA256]).sort((a, b) => a[0].localeCompare(b[0])));
 
 export function checkReleaseManifest(m) {
   if (m.schemaVersion !== 1 || m.kind !== 'formal' || m.repository !== repository || !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(m.tag) || !/^[a-f0-9]{40}$/.test(m.revision) || m.target !== 'windows/amd64' || !/^go\d+\.\d+/.test(m.toolchain) || (JSON.stringify(m.acceptedRisks) !== '[]' && JSON.stringify(m.acceptedRisks) !== JSON.stringify([legacyAcceptedRisk]))) throw Error('Invalid formal release identity');
@@ -89,8 +90,8 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     const nodeTests = fs.readdirSync(path.join(checkout, 'scripts')).filter(f => f.endsWith('.test.mjs')).map(f => 'scripts/' + f);
     console.log('Checking clean release checkout...');
     run(process.execPath, ['--test', ...nodeTests], checkout);
-    run('go', ['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
-    run('go', ['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
+    runGo(['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
+    runGo(['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
     const results = path.join(temp, 'results'); fs.mkdirSync(results);
     console.log('Collecting complete corresponding source...');
     const source = createSource({ root: checkout, tag, outputDir: results });
@@ -98,7 +99,7 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     const folder = path.join(temp, 'portable/SWD'), licenses = path.join(folder, 'licenses'); fs.mkdirSync(licenses, { recursive: true });
     const env = goEnv({ GOPROXY: pathToFileURL(path.join(bundle, 'proxy')).href, GOSUMDB: 'off', GONOPROXY: 'none', GONOSUMDB: 'none', GOPRIVATE: '', GOMODCACHE: path.join(temp, 'modules'), GOCACHE: path.join(temp, 'build') });
     console.log('Building pinned desktop executable...');
-    run('go', ['build', ...desktopBuildFlags({ kind: 'formal', version: tag }), '-buildvcs=true', '-o', path.join(folder, 'SWD.exe'), desktopEntry], checkout, env);
+    runGo(['build', ...desktopBuildFlags({ kind: 'formal', version: tag }), '-buildvcs=true', '-o', path.join(folder, 'SWD.exe'), desktopEntry], checkout, env);
     for (const name of ['LICENSE', 'LICENSE-MIT', 'LICENSING.md']) fs.copyFileSync(path.join(checkout, name), path.join(licenses, name));
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/package-notices.ps1'), '-Executable', path.join(folder, 'SWD.exe'), '-Output', path.join(licenses, 'THIRD-PARTY-NOTICES.txt')], checkout, goEnv());
     const sourceAsset = { kind: 'source', name: names.source, sha256: source.sha256, bytes: fs.statSync(source.archive).size, url: assetURL(tag, names.source) };

@@ -40,6 +40,7 @@
 | `cmd/`、`internal/` | 可执行入口、产品实现及同包 Go 测试；固定夹具放包内 `testdata/` |
 | `webui/src/`、`webui/e2e/`、`webui/test-support/` | 前端源码、浏览器用例、内存服务器与 Go 联调浏览器驱动 |
 | `scripts/` | 构建、发布、检查及维护入口；研究工具按主题放子目录 |
+| `patches/` | 已确认问题所需的最小依赖修改、来源和移除条件；经共用构建入口应用，随对应源码交付 |
 | `docs/images/` | 中英文 README 展示素材：品牌 Logo 的固定暗色副本与使用示例数据的 WebUI 截图；更新方法见[资源约定](evidence-storage.md#readme-展示素材) |
 | `experiments/` | 可复跑的独立实验及工具，不作为产品运行依赖 |
 | `data/initial-priority/`、`data/media-seed/` | 产品内嵌的初始优先级及版本化资源/映射快照；其余运行数据不入库 |

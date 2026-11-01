@@ -30,7 +30,11 @@ func initializeStorage(db *sql.DB) error {
 
 // SQLite's own normalized DDL includes columns, defaults, constraints, indexes,
 // triggers and views. Compare against the frozen schema, ignoring whitespace only.
-func schemaObjects(db *sql.DB) (map[string]string, error) {
+type schemaReader interface {
+	Query(string, ...any) (*sql.Rows, error)
+}
+
+func schemaObjects(db schemaReader) (map[string]string, error) {
 	rows, err := db.Query(`SELECT type, name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -64,16 +68,20 @@ func validateStorageSchema(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	return validateSchemaObjects(db, expected, storageSchemaVersion)
+}
+
+func validateSchemaObjects(db schemaReader, expected map[string]string, version int) error {
 	actual, err := schemaObjects(db)
 	if err != nil {
 		return err
 	}
 	if len(actual) != len(expected) {
-		return fmt.Errorf("存储结构与版本 %d 不符；原文件未修改", storageSchemaVersion)
+		return fmt.Errorf("存储结构与版本 %d 不符；原文件未修改", version)
 	}
 	for name, ddl := range expected {
 		if actual[name] != ddl {
-			return fmt.Errorf("存储结构 %s 与版本 %d 不符；原文件未修改", name, storageSchemaVersion)
+			return fmt.Errorf("存储结构 %s 与版本 %d 不符；原文件未修改", name, version)
 		}
 	}
 	return nil

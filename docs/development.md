@@ -17,7 +17,7 @@ pnpm --dir webui check
 ./scripts/with-test-temp.ps1 pnpm --dir webui test
 ```
 
-使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+使用 `webui/package.json` 固定的 pnpm 版本。Windows 本机和 CI 的浏览器测试均使用 Edge；其他平台的 CI 使用 Playwright Chromium。当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
 前端构建与检查统一启用 TypeScript `noUnusedLocals`、`noUnusedParameters`，移除失去用途的声明和参数。设置保存的真实双页面、持久化与重启回归可设置 `SWD_SETTINGS_BROWSER_EVIDENCE` 为隔离输出目录，再通过上述临时目录入口执行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v`；测试固定第二个页面的旧状态快照以检查部分更新，并覆盖目录确认期间的策略变化、拒绝后重新确认及无关字段合并。原生选择器用隔离目录替代，检查与保存均经过真实 Console，不启动网关或修改 hosts。
 
@@ -31,11 +31,27 @@ pnpm --dir webui check
 4. **等待可观察的完成条件。** 按请求结果、最终界面状态或实际事件同步测试，精确时序断言放在可控的层次。不得用增加固定等待、超时、重试或删弱断言代替根因修复；诊断用延迟和探针在验证后移除。保留历史失败和必要证据，明确本机与远端、模拟与真实环境的覆盖范围。
 5. **按证据收敛工作。** 已知失败得到解释、受控复现通过、相关回归及所需远端检查通过后结束本轮。仅在出现新失败、相关改动或明确证据缺口时扩大验证；不为追求绝对无偶发而无限重跑。已稳定的测试不因潜在风险启动整体重写，维护改进优先处理已确认的重复逻辑和时序耦合。
 
-CI 浏览器失败保留 trace 与截图到同一产物目录；矩阵关闭 fail-fast，让两平台各自完成检查。上述原则的失败对照与适用边界见 [CI 稳定性验证](validation/ci-stability-20261028.md)，该记录描述当时构建，不替代本节现行规则。
+CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包各自运行。上述原则的失败对照与适用边界见 [CI 稳定性验证](validation/ci-stability-20261028.md)，该记录描述当时构建，不替代本节现行规则。
 
 成功保存设置的用例通过 `webui/e2e/settings-actions.ts` 等待页面明确显示“待重启”或“已生效”，再读取状态或刷新页面；按钮禁用也可能表示请求尚未完成。验证处理中、失败和校验拒绝的用例仍直接控制请求并检查对应状态。
 
 验证异步轮询最终状态时，使用 `webui/e2e/clock.ts` 在断言等待期间持续推进模拟时钟；请求到达或局部 UI 更新不代表下一次轮询定时器已经注册。该助手保留默认断言期限，只用于验证持续轮询与最终状态；精确周期、超时和停止后的无请求检查仍显式推进指定时长。短暂通知的操作先完成，再对目标页面截图，避免截图采集与通知自动消失争抢时间。
+
+## 发布前本机 Windows 完整预检
+
+正式发行前，由开发者先在本机对待发行源码完成以下完整预检，再启动发行 Action。日常开发仍按变更影响选择检查，PR/main 的代表性浏览器和 race 检查不代替本节完整预检，也不要求每次编辑或推送都重跑整套发布流程。
+
+预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集；记录提交或可还原的源码快照。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐，Windows 测试统一经过下文的临时目录入口，日志放在临时目录之外。
+
+| 范围 | 完成条件与现有入口 |
+| --- | --- |
+| 产品与工具检查 | 冻结锁文件安装前端依赖，运行前端一致性检查和完整浏览器套件、全部 `scripts/*.test.mjs`、Go `./...` 的 test/vet/build、gofmt、仓库产物策略及 Python 证据工具测试；Go 检查统一使用 `scripts/go-patches.mjs` 和 `no_easytier`，产品构建使用 `CGO_ENABLED=0` |
+| 前后端联调 | 运行本页的真实 Console 双浏览器设置检查；保存、持久化、重启等其他受影响流程复用对应隔离联调，不能用内存浏览器夹具代替 |
+| 完整 Windows race | 设置匹配 CI 的 `CC` 和 `CGO_ENABLED=1`，完成下文的三个 `test-race-shard.ps1` 分组，以及工作流 `Race-check remaining packages` 步骤覆盖的其余 Go 包；保留完整执行结果和跳过项 |
+| 正式包预演 | 在干净独立检出中使用仅本地的测试 tag，先构建候选包，再按[打包入口](packaging.md)用 `-ReleaseTag` 和 `-PreviousZip` 完成对应源码收集、全新缓存离线重建、实际 ZIP 启动及带持久数据的覆盖升级；测试 tag 不推送 |
+| 历史版本升级 | 涉及数据库、配置或持久化格式变化时，另用实际前一发行包和隔离旧数据验证迁移；同一源码的候选包到正式包升级不证明历史格式兼容 |
+
+完成记录写明源码、实际工具版本、通过/失败/跳过范围和证据路径；skip 不算通过，缺少专用环境只限制对应结论。失败先归因并完成相关修复与复验；后续变更按影响补验，复用仍适用的证据，纯文档修改不触发整套重跑。本机通过后，发行仍须由 GitHub Actions 确认 runner 环境、上传和公开附件回下载；本地结果不代替公开交付验证。
 
 ## Console 路由与共享引擎
 
@@ -83,7 +99,7 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
-Linux CI 额外运行 `node scripts/go-patches.mjs test -race ./...`；Windows race 检测需要额外的 C 工具链；本机已使用独立 w64devkit/GCC 完成下载与本地资源整包检查，执行时显式设置 CGO_ENABLED=1 和 CC，测试命令同样通过上述入口运行。工具及原始结果保存在忽略目录 artifacts/，不依赖全局 PATH。
+Windows CI 的 PR 和 main push 运行代表性 race；手动或版本 tag 检查额外运行全包 race。独立作业下载固定的 w64devkit 2.10.0 并核对 SHA256，再设置 `CGO_ENABLED=1` 和 `CC`。Windows 下大量 SQLite 测试开启 race 后整包超过 Go 默认的 10 分钟上限，因此缓存和 Console 包由 `scripts/test-race-shard.ps1` 依据 Go 列出的顶层测试分为三组；每个测试及其子测试恰好分配一组，其余包由第 0 组检查。每组设 45 分钟的整包期限，测试自身的等待期限不变。本机可使用同版本 GCC，分别运行 `./scripts/test-race-shard.ps1 -Shard 0`、`-Shard 1`、`-Shard 2`，并单独检查其他跟踪包；工具及验证日志保存在忽略目录 `artifacts/`，不依赖全局 PATH。
 
 真实磁盘耗尽是独立的 Windows 环境检查，不在普通测试中自动执行。`scripts/test-storage-full.ps1` 使用 Hyper-V 的虚拟磁盘命令创建新的固定 128 MiB NTFS 镜像；只接受本仓库 `artifacts/` 下的测试二进制和证据目录，校验新磁盘身份及容量后才初始化，并为宿主卷保留至少 512 MiB 空间。测试再次校验卷标记与容量，分别填满块、发布和数据库所在的可丢弃卷，检查错误、关闭、清理及已提交数据；结束后卸载并删除本次镜像，保留日志与 `result.json`。不接受现有磁盘号或镜像路径，不填满日常使用的卷。构建不需管理员权限，挂载阶段需要 Windows 管理员令牌；UAC 未确认时此项仍为未验证。
 

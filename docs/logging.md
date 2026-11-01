@@ -18,7 +18,7 @@
 
 - `session_id`：一次桌面或 CLI 日志会话。桌面的 `application_build` 记录 Go 构建信息中的版本、提交和工作区修改标记（构建器未嵌入时不提供提交）。不同启动不能只靠 PID 区分。
 - `service_id`：一个本地资源引擎实例，重新创建会变。`request_id` 和 `flight_id` 都只在这个实例内有效。
-- `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、预加载及结束事件使用同一个值；共享下载继续使用最初创建它的操作标识。
+- `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、预加载及结束事件使用同一个值；共享地址查询和共享下载分别使用最初创建它们的操作标识。地址查询只继承该标识，取消责任仍由引擎持有，不随单个等待者退出而取消。
 - `resource_key`：视频内容版本的指纹。用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight。
 - `song_id`：曲库列表中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
 - `host`：请求或下载会话的资源域名；`upstream_host`：建立上游响应时实际选择的域名，可能经过重定向或回退。两者分别记录，不能以重复 JSON 键覆盖原始身份。
@@ -44,13 +44,12 @@
 | `download_verified` / `download_integrity_failed` | 正文大小和 MD5 是否满足预期；MD5 在读取中计算，因此与下载耗时合并记录 |
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
 | `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` / `not_retained` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
-| `prefetch_resolved` / `prefetch_finished` | 解析线路与耗时、资源关联，以及预加载结果；`success=false` 表示本次地址解析失败 |
+| `prefetch_resolved` / `prefetch_finished` | 共用播放地址查询的结果与耗时、资源域名及 MD5，以及预加载结果；`success=false` 表示本次地址解析失败。解析日志的 song_id 是实际查询歌曲，固定资源反查的歌曲不改变下载操作的歌曲身份；完整 URL 不入日志 |
 | `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；用于更新队列需求，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
 | `batch_started` / `batch_finished` | 批次开始与结束汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件；处理中进度通过运行状态展示 |
 | `network_calibration_finished` | 手动测速结束摘要：上游、阶段与原因、已准备视频数／总大小及实际下载字节；区分样本准备不足、取消和下载阶段结果，不记录签名地址或凭据 |
 | `network_calibration_local_songs_failed` | 测速未能读取本地歌曲或已有 URL 的原因；该轮只利用已取得的候选，不触发清单同步、不修复或重建本地数据库 |
-| `metadata_sync_url_reject_failed` | 资源下载失败后未能保存该次 URL 观察的失效状态；只记录歌曲 ID 和安全错误摘要，不记录完整 URL |
 | `block_schedule`（Debug） | 块排队、开始、结束、期限退出、采样与开放数量变化；`event` / `reason` 说明事件和原因，`block_key` 标识块，附带活动数、开放量及期限等调度信息 |
 | `block_demand` / `block_demand_handoff`（Debug） | 单块有效需求及 GET／队列来源退出后的交接期限，用于核对需求、租约和本地保护边界 |
 | `playback_timing` / `queue_playback_timing`（Debug） | GET 与队列使用媒体信息推算的播放时间；不能直接证明播放器已开始或完成播放 |
@@ -59,7 +58,7 @@
 
 ## 可判定的验收范围
 
-以下过程证据需要至少启用 Info；调度细节需要 Debug。Warn、Error 或关闭模式下缺少过程事件属于级别过滤，不能据此推断业务未发生。旧报告中的 `cache_capacity_rejected`、`batch_progress` 属于当时实现，当前版本不再输出。
+以下过程证据需要至少启用 Info；调度细节需要 Debug。Warn、Error 或关闭模式下缺少过程事件属于级别过滤，不能据此推断业务未发生。旧报告中的 `cache_capacity_rejected`、`batch_progress`、`metadata_sync_url_reject_failed` 属于当时实现，当前版本不再输出。v9 下载失败只影响本次执行与重试，不保存 URL 失效状态；地址规则见[媒体地址模型](song-catalog-design.md#媒体地址模型)。
 
 1. 本地未命中：沿 trace 找到 flight，确认 `download_verified`、`download_published`；同时请求结果应符合预期状态和字节数。
 2. 本地视频命中和 Range：核对 `request_finished.cache=HIT`、状态 200/206、范围及实际字节；HEAD 正文为 0 是正常情况。

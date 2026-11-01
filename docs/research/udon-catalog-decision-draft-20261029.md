@@ -2,6 +2,8 @@
 
 记录日期：2026-10-29。状态：**已实施，代码、离线数据、后端及浏览器验证完成；未启动 VRC**。本文保存改造目标、实施边界及必要依据；当前运行规则以[曲库设计](../song-catalog-design.md)、[存储契约](../storage.md)和[下载设计](../download-resource-design.md)为准。
 
+下文的同版本内容冲突、旧 URL 观察顺序及旧格式拒绝规则属于当时的 v8 实现，已由上述 v9 现行规则替代。
+
 清单样本、字段差异及采样时实现见[内容与使用核对](catalog-sources-20261029.md)，连接结果见[观测汇总](../validation/kiva-connectivity-20261029.md)。历史可用性不决定来源资格或长期协议策略；HTTP/HTTPS 的选择、回退及重定向由独立的协议改造处理。
 
 ## 已确认的规则
@@ -60,15 +62,15 @@
 
 | 位置 | 已有能力或需要调整的假设 |
 | --- | --- |
-| [成员存储](../../internal/cacheproxy/schema/storage-v7.sql#L52)、[清单同步](../../internal/cacheproxy/catalog.go#L76) | 已有独立当前成员集合，业务资料增改不删，可直接复用 |
-| [本地快照](../../internal/cacheproxy/catalog_snapshot.go#L105) | 全量读取仍取全部有映射歌曲；需改为当前成员并保留无映射歌曲 |
-| [曲库展示](../../internal/cacheproxy/library.go#L134)、[指定目标](../../internal/cacheproxy/catalog_snapshot.go#L89) | 已不以当前成员为准入，关联改动必须保留这一范围 |
+| [成员存储](../../internal/cacheproxy/schema/storage-v7.sql#L52)、[清单同步](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L76) | 已有独立当前成员集合，业务资料增改不删，可直接复用 |
+| [本地快照](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog_snapshot.go#L105) | 全量读取仍取全部有映射歌曲；需改为当前成员并保留无映射歌曲 |
+| [曲库展示](../../internal/cacheproxy/library.go#L134)、[指定目标](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog_snapshot.go#L89) | 已不以当前成员为准入，关联改动必须保留这一范围 |
 | [资源表](../../internal/cacheproxy/schema/storage-v7.sql#L12)、[导入入口](../../internal/console/import.go#L131) | `media` 已有 MD5 和可空大小；导入仍依赖有效清单及其成员引用，需要解除这项启动条件 |
-| [URL 观察](../../internal/cacheproxy/song_urls.go#L48) | 已有事务及查询排序，但现有映射只补缺；需要落实 API 覆盖规则 |
-| [监测候选](../../internal/cacheproxy/song_metadata_candidates.go#L17) | 仍从 `song_media JOIN media` 出发，按共享资源聚合分数排序；需改为歌曲及歌曲分数 |
+| [当时的 URL 观察](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_urls.go#L48) | 已有事务及查询排序，但现有映射只补缺；需要落实 API 覆盖规则 |
+| [监测候选](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_metadata_candidates.go#L17) | 仍从 `song_media JOIN media` 出发，按共享资源聚合分数排序；需改为歌曲及歌曲分数 |
 | [监测清单同步](../../internal/console/monitor_catalog.go#L17) | 已接受 Kiva/WannaInfo；需接入 Udon 并统一版本裁决及备选补缺 |
-| [本地播放](../../internal/cacheproxy/song_load.go#L12) | 已支持命中即播及后台查询，继续复用并保持当前响应身份 |
-| [手动任务](../../internal/console/batch.go#L145)、[预下载校验](../../internal/cacheproxy/prefetch.go#L58) | 入口区分歌曲与资源，但执行层按快照 MD5 合并。已有映射的目标遇到 API 返回不同 MD5 会失败；无映射单歌曲允许解析 |
+| [本地播放](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_load.go#L12) | 已支持命中即播及后台查询，继续复用并保持当前响应身份 |
+| [手动任务](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/batch.go#L145)、[预下载校验](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/prefetch.go#L58) | 入口区分歌曲与资源，但执行层按快照 MD5 合并。已有映射的目标遇到 API 返回不同 MD5 会失败；无映射单歌曲允许解析 |
 
 监测补缺首次引入于 `fb7445e61`（2026-10-15），同期说明围绕已有映射补当前资源 URL/大小；未找到把“必须已有 MD5”单独定为产品要求的记录。按歌曲 ID 查询播放 API 本身不需要预先知道 MD5。
 
@@ -79,7 +81,7 @@
 - 核对最终字段、逐歌数组表示、数据库 DDL、摘要投影及调用方。开发期旧库继续遵守[不兼容、不迁移、不改写](../storage.md#打开失败与未来升级)的现行约定。
 - 确定预置数据格式、版本落盘位置及生成工具；保持可验证的快照、外键一致和补缺写入，不新增通用同步框架。
 - 统一主表候选比较与提交，覆盖前台更新、监测回调和为补映射取得的候选，避免较旧请求晚完成后回退数据。
-- 细化监测中缺大小、失败记录和地址时效的筛选。建议沿用现有“补缺而非整库续期”的边界：单纯超过播放 URL 复用期不等于缺资料，不因此周期性重查全库；依据见[候选说明](../../internal/cacheproxy/song_metadata_candidates.go#L11)。
+- 细化监测中缺大小、失败记录和地址时效的筛选。建议沿用现有“补缺而非整库续期”的边界：单纯超过播放 URL 复用期不等于缺资料，不因此周期性重查全库；依据见[候选说明](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_metadata_candidates.go#L11)。
 - 验证无映射歌曲不会按空 MD5 合并为同一下载任务，当前覆盖率不会遗漏未知映射，曲库展示与单项下载不受成员过滤影响。
 
 **自动追随新 MD5 属于可选改善。** 手动全量或单歌曲下载期间是否自动重排，不作为本轮前提；指定资源始终保持身份。不能简单删除 `expectedMD5` 校验：多首歌共用任务时，某首歌换资源后不得把其他歌误记为已完成。保留字节一致和失败如实记录，不引入无界重试或重排。

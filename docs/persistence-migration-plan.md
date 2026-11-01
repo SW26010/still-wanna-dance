@@ -1,5 +1,7 @@
 # 持久化职责迁移计划
 
+> 当前数据库 v9 已实现，规则见[存储契约](storage.md)，本轮结果见[v9 开发验证](validation/storage-v9-20261101.md)。下文保留此前批次的结果、失败和决策历史；其中旧表、摘要、累计及旧格式全部拒绝规则只适用于当时版本，已由 v9 取代，不作为新实现要求或验证证据。
+
 > 2026-10-30 后代理出口与吞吐历史的现行边界见 [Mihomo 与 zashboard](mihomo-dashboard.md)。下文实施批次中的保留节点集合、代理样本恢复描述仅适用于当时版本。
 
 > 2026-10-29 配置字段整理已将主配置升为 v8，不迁移旧格式；下文 v7 及更旧配置描述只适用于当时批次。当前字段和版本以[配置生命周期](settings-lifecycle.md)及[存储契约](storage.md)为准，数据库与辅助状态版本未因本次字段更名改变。
@@ -45,7 +47,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 复审修正所有权夹具：候选提供者保留 `CloseIdleConnections`，候选 Transport 指向原对象，避免函数包装掩盖误关闭。定向测试通过（`ownership.txt`）；通过 Go overlay 分别注入关闭候选提供者和候选 Transport 的错误，两次均触发 `closed borrowed connection pool` 断言（`ownership-provider-mutation.txt`、`ownership-candidate-mutation.txt`）。注入源码仅保存在上述忽略目录，不改动产品文件。
 
-当前数据库已随 Udon 曲库改造升为 v8，库存/任务快照为 v3；此前 v7 新增的响应来源字节字段继续保留。沿用开发期旧格式拒绝且不改写的约定，当前依据见[存储契约](storage.md)及[曲库改造验证](research/udon-catalog-decision-draft-20261029.md#实施进度2026-10-29)。下方 v6/v7 收口记录保留当时验证范围，不能作为现行格式；后继格式演练使用独立的新 v8 样本。
+2026-10-29 数据库随 Udon 曲库改造升为 v8，库存/任务快照为 v3；此前 v7 新增的响应来源字节字段继续保留。沿用开发期旧格式拒绝且不改写的约定，当前依据见[存储契约](storage.md)及[曲库改造验证](research/udon-catalog-decision-draft-20261029.md#实施进度2026-10-29)。下方 v6/v7 收口记录保留当时验证范围，不能作为现行格式；后继格式演练使用独立的新 v8 样本。
 
 ## 2026-10-27 首发数据库收口
 
@@ -138,7 +140,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | 把 `.json.d` 当成旧配置兼容推导一并删除 | [ForConfig](../internal/apppaths/paths.go)与[隔离测试](../internal/apppaths/paths_test.go)表明它是当前不同配置文件的辅助文件、锁和默认库隔离规则 | 保留现行能力；不兼容旧配置字段不等于取消自定义配置实例隔离 |
 | 把条款等已有文件再次集中搬位置 | [路径入口](../internal/apppaths/paths.go)已经为 `terms.json`、`channel.key`、`state/`、`logs/` 规定位置；不同文件有不同保存及失效语义 | 保留文件、位置和格式；不增加搬迁步骤、合并容器或空的“辅助资料”目录 |
 | 将所有个人数据入口笼统视为依赖引擎 | [收藏](../internal/cacheproxy/song_policy.go)、[VRCX](../internal/console/vrcx.go)已有离线入口；但 [openOfflineStorage](../internal/cacheproxy/storage_database.go)仍锁混合根、可隐式建库并创建 `videos`。清单和地址观察仍通过 `ensureEngine()` | 复用现有 SQL 与离线能力，解除实际耦合，不重写全部入口；搬连接时必须保留与淘汰、映射更新的串行关系 |
-| 把拆分生命周期描述成关闭时绝不丢统计 | [usageStore](../internal/cacheproxy/usage.go)已有有限队列、满队列丢弃与批次写失败只记日志；[流量统计](../internal/cacheproxy/stats.go)已有单独错误字段 | 保留当前采集口径和有限队列，正常关闭排空已接受工作、公开写入失败；不借本轮新增持久队列或承诺故障下零丢失 |
+| 把拆分生命周期描述成关闭时绝不丢统计 | [usageStore](../internal/cacheproxy/usage.go)已有有限队列、满队列丢弃与批次写失败只记日志；[流量统计](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/stats.go)已有单独错误字段 | 保留当前采集口径和有限队列，正常关闭排空已接受工作、公开写入失败；不借本轮新增持久队列或承诺故障下零丢失 |
 
 以下清单分别写明保留和改动的证据。没有业务收益的物理搬移不进入实施；仍需实现验证的事项单列在阶段一与验收表，不先当作已解决。
 
@@ -156,7 +158,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | `channel.key` | 保留原位置和独立文件；仅收拢为实例准备一次并共享 | [proxy_identity.go](../internal/console/proxy_identity.go)、[network_mihomo.go](../internal/console/network_mihomo.go)、[诊断入口](../internal/console/network_diagnostics.go)都可读／建同一 key；写或 Sync 失败后其他调用可再次读取。统一本实例结果可避免身份与失败状态不一致；不宣称发现死锁，不新增密钥格式或用户备份要求 |
 | `terms.json` | 保留现位置、独立确认语义与格式；无搬动必要 | [terms.go](../internal/console/terms.go)：DPAPI、条款版本、成功保存才确认、自动加速门禁。丢失／失效可重新确认 |
 | `state/throughput.json` | 原样保留小型可重建状态，不进核心库 | [throughput.go](../internal/upstreamstate/throughput.go)：先保存尝试时间再自动测速，写失败抑制自动大流量；显式手动测试仍可运行。样本按通道身份复用及清退，跟随配置实例而非视频盘 |
-| `state/inventory.json`、`batch.json`、`attempt.json` | 保留各自最近一份；必须改归属与失败反馈 | [snapshots.go](../internal/console/snapshots.go)已有共用机制；[storage_usage.go](../internal/console/storage_usage.go)把恢复结果用于建库判断，须移除该依赖。[inventory.go](../internal/console/inventory.go)和 [batch.go](../internal/console/batch.go)部分内存结果仅在保存成功后发布，须解耦。数量有界不等于字节固定，失败列表随一次批量规模增长；本轮不增加历史库或压缩框架 |
+| `state/inventory.json`、`batch.json`、`attempt.json` | 保留各自最近一份；必须改归属与失败反馈 | [snapshots.go](../internal/console/snapshots.go)已有共用机制；[storage_usage.go](https://github.com/SW26010/still-wanna-dance/blob/a4b4c41d3523e56bb014d3e9bd2a8a93a5ce28c8/internal/console/storage_usage.go)把恢复结果用于建库判断，须移除该依赖。[inventory.go](../internal/console/inventory.go)和 [batch.go](../internal/console/batch.go)部分内存结果仅在保存成功后发布，须解耦。数量有界不等于字节固定，失败列表随一次批量规模增长；本轮不增加历史库或压缩框架 |
 | `storage.sqlite` 及 SQLite 必要伴随文件 | 必改定位、打开和所有者；保留 v5 数据模型 | [storage_database.go](../internal/cacheproxy/storage_database.go)、[server.go](../internal/cacheproxy/server.go)：现由引擎打开并由统计 worker 关闭；普通写打开用 `rwc`，缺库判断还查看 `videos`。迁移后不依赖视频盘，不将伴随文件当垃圾清理 |
 | `videos/{md5}.mp4` | 必改为独立目录，直接使用所选位置；保留现有文件和策略 | [storage.go](../internal/cacheproxy/storage.go)、[retention.go](../internal/cacheproxy/retention.go)、[manage.go](../internal/cacheproxy/manage.go)：路径、收藏保护、文件身份和删除校验均依赖旧根；引擎初始化即执行淘汰，接入旧视频前必须明确保留策略 |
 | `tmp/download-block-*.part` | 必改到 EXE 旁 `data/work/` 的实例区；不增加设置 | [local_resource.go](../internal/cacheproxy/local_resource.go)、[local_blocks.go](../internal/cacheproxy/local_blocks.go)、[block_reclamation.go](../internal/cacheproxy/block_reclamation.go)：只有运行期引用与 pin，没有重启恢复；保留回收和活动读取保护 |
@@ -177,14 +179,14 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | 表 | 实际读写及依赖 | 本轮处理 |
 | --- | --- | --- |
 | `songs` | [catalog.go](../internal/cacheproxy/catalog.go)清单更新，[library.go](../internal/cacheproxy/library.go)曲库查询；个人数据写入也可补歌曲占位 | 保留，大量歌曲资料及关联锚点 |
-| `media` | [storage.go](../internal/cacheproxy/storage.go)、[song_urls.go](../internal/cacheproxy/song_urls.go)写资源描述；扫描、排序和本地复用读取 | 保留，不把资源描述等同于本地文件存在 |
+| `media` | [storage.go](../internal/cacheproxy/storage.go)、[song_urls.go](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/song_urls.go)写资源描述；扫描、排序和本地复用读取 | 保留，不把资源描述等同于本地文件存在 |
 | `song_media` | 清单／URL／完成下载更新映射；[song_policy.go](../internal/cacheproxy/song_policy.go)按共享资源聚合收藏和屏蔽 | 保留事务与映射优先级，不能独立搬走 |
 | `song_preferences` | [song_policy.go](../internal/cacheproxy/song_policy.go)事务写入，播放准入、队列、淘汰和界面读取 | 保留不可重建个人偏好及提交前后保护 |
-| `song_urls` | [song_urls.go](../internal/cacheproxy/song_urls.go)、[song_load.go](../internal/cacheproxy/song_load.go)、[song_metadata_candidates.go](../internal/cacheproxy/song_metadata_candidates.go) | 保留，播放候选／失败回退与元数据缺项查询共用；每个歌曲、API、节点只更新最近一条，不追加每次响应 |
+| `song_urls` | [song_urls.go](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/song_urls.go)、[song_load.go](../internal/cacheproxy/song_load.go)、[song_metadata_candidates.go](../internal/cacheproxy/song_metadata_candidates.go) | 保留，播放候选／失败回退与元数据缺项查询共用；每个歌曲、API、节点只更新最近一条，不追加每次响应 |
 | `song_usage` | [usage.go](../internal/cacheproxy/usage.go)聚合需求，[usage_import.go](../internal/cacheproxy/usage_import.go)事务替换 VRCX 导入；[priority.go](../internal/cacheproxy/priority.go)参与排序 | 保留个人积累、衰减规则和导入覆盖语义 |
-| `song_playback` | [playback_stats.go](../internal/cacheproxy/playback_stats.go)随事件事务记录传输、统计播放传输量 | 保留，重下视频无法重建过去记录 |
-| `traffic_totals` | [stats.go](../internal/cacheproxy/stats.go)串行保存累计节省量、命中／未命中 | 保留；请求明细清理不重置累计量 |
-| `media_access` | [usage.go](../internal/cacheproxy/usage.go)更新最近请求，[manage_list.go](../internal/cacheproxy/manage_list.go)与 [manage.go](../internal/cacheproxy/manage.go)参与文件最近使用排序 | 保留稀疏聚合状态，不新增每次访问历史 |
+| `song_playback` | [playback_stats.go](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/playback_stats.go)随事件事务记录传输、统计播放传输量 | 保留，重下视频无法重建过去记录 |
+| `traffic_totals` | [stats.go](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/stats.go)串行保存累计节省量、命中／未命中 | 保留；请求明细清理不重置累计量 |
+| `media_access` | [usage.go](../internal/cacheproxy/usage.go)更新最近请求，[manage_list.go](https://github.com/SW26010/still-wanna-dance/blob/76e0da8e4919718a71d7e81d93cdcdb8f606cc99/internal/cacheproxy/manage_list.go)与 [manage.go](../internal/cacheproxy/manage.go)参与文件最近使用排序 | 保留稀疏聚合状态，不新增每次访问历史 |
 | `catalog_state` | [catalog.go](../internal/cacheproxy/catalog.go)按版本、摘要判断新旧和冲突，并随清单提交 | 保留业务一致性事实 |
 | `catalog_members` | 同事务维护接受清单的当前成员；[catalog_snapshot.go](../internal/cacheproxy/catalog_snapshot.go)读取当前集合，历史歌曲仍可留库 | 保留，不能仅靠 `songs` 全表替代 |
 | `catalog_checks` | 同一次清单成功事务更新；错误仅改错误字段、不推进成功时间；[inventory.go](../internal/console/inventory.go)可在无引擎时读取 | 保留单份清单配套状态，不搬、不删；不因同库提高其备份价值 |
@@ -250,7 +252,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 桌面接线验证：在视频目录缺失时，Monitor 清单／地址观察和收藏仍能读写数据库，不创建视频目录、不启动引擎、不写请求采集起点；应用在引擎启动前持有数据库排他权，关闭后释放。缺失数据库在状态中明确报错，不通过空库存或旧结果快照授权重建。VRCX 覆盖确认显示目标数据库文件，7 项浏览器交互回归通过。完整回归、竞态与静态检查结果见本次验证记录；不将夹具结果视为真实用户资料迁移验收。
 
-主要入口：[引擎](../internal/cacheproxy/server.go)、[统计写入](../internal/cacheproxy/usage.go)、[监测清单](../internal/console/monitor_catalog.go)、[地址观察](../internal/console/monitor_playback_url.go)。
+主要入口：[引擎](../internal/cacheproxy/server.go)、[统计写入](../internal/cacheproxy/usage.go)、[监测清单](https://github.com/SW26010/still-wanna-dance/blob/9056d4a39d9abae714085084722f699225eb6a56/internal/console/monitor_catalog.go)、[地址观察](https://github.com/SW26010/still-wanna-dance/blob/9056d4a39d9abae714085084722f699225eb6a56/internal/console/monitor_playback_url.go)。
 
 完成条件：没有视频引擎或视频目录失联时，个人数据查询和适当写入仍可工作；数据库写失败真实返回或显示，不假报成功；正常关闭先排空已接受的统计工作，再关闭 DB 和释放锁，失败须报告。保留有限队列及现有采集口径，不承诺 I/O 故障、队列饱和或强杀时零丢失，不新增磁盘队列、重试日志或另一套统计。
 

@@ -1,6 +1,6 @@
 # 证据与大文件存储约定
 
-Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记，当前为固定的 `internal/cacheproxy/testdata/storage-v2.sqlite` 、`storage-v3.sqlite`、`storage-v4.sqlite` 、`storage-v5.sqlite` 、`storage-v6.sqlite` 、`storage-v7.sqlite` 和 `storage-v8.sqlite`，v2～v7 覆盖旧格式拒绝，v8 覆盖当前格式及全部 14 张表。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
+Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记：`internal/cacheproxy/testdata/storage-v2.sqlite` 至 `storage-v8.sqlite` 冻结保留，v2～v7 覆盖旧格式拒绝，v8 覆盖旧结构及迁移边界；`storage-v9.sqlite` 覆盖当前格式全部 10 张表、重开与备份。v8 原始占位 URL 无法迁移的失败样本保持不变，成功转换使用仅修正 URL 的隔离副本，见[v9 验证](validation/storage-v9-20261101.md)。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属
 
@@ -62,6 +62,8 @@ node scripts/check-repository-artifacts.mjs --base origin/main --head HEAD
 新增二进制默认拒绝；固定样本必须匹配登记路径与 SHA256。超过 256 KiB 提醒，超过 1 MiB 必须登记精确例外。例外文件为 `scripts/repository-artifacts-policy.json`，需说明用途；已发布研究输入和完整许可声明已登记。新增或修改例外需审查，不用修改后缀、Base64 或压缩规避检查。`.gitignore` 只减少误加文件，不能代替历史检查。
 
 Web UI 的 `app.js` 是离线构建所需的生成产物。重建后按构建清单核对字节数和 SHA256，为新版本追加精确例外，保留历史版本的登记。历史改写后重新检查整个范围，不能只更新最终产物的哈希。
+
+历史扫描按 Git blob 的实际字节数分批读取，避免生成产物随提交积累而耗尽单次输出缓冲；单个大文件仍完整分类，历史中随后删除或替换的文件仍须检查。
 
 `data/media-seed/media-seed.json` 是离线启动所需的产品资源快照，按精确字节数和 SHA256 登记。只包含 MD5、可选大小、歌曲映射及脱敏来源摘要；生成与版本规则见[快照说明](../data/media-seed/README.md)。用户数据库、URL、统计及偏好不得随快照入库。
 

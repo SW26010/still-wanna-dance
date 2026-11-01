@@ -2,7 +2,7 @@
 
 核对日期：2026-10-29。依据为本轮读取的工作区代码；当时 HEAD 为 `2819074c56e233f146d21354c2efee1b8e4b6ace`，工作区另有并行修改。这三项是三个远端歌曲清单入口，本地没有按它们分别保存三套业务表。当前实现把 Kiva 和 WannaInfo 的带 MD5 清单同步到同一个本地曲库；Udon 清单用于网络探测和测速样本准备，不参与本地歌曲资料或版本水位更新。
 
-本文是固定批次研究，文中的“当前实现”仅指上述核对范围，不随之后的产品改造改变。网络可用性及后续成功复核见[连接观测汇总](../validation/kiva-connectivity-20261029.md)，较早的协议对照见[10 月 28 日 HTTP 批次](upstream-http-20261028.md)；这些记录不单独决定长期协议策略。曲库改造的已确认目标见[决策记录](udon-catalog-decision-draft-20261029.md)，尚未实施，与本文描述的采样时行为分开。
+本文是固定批次研究，文中的“当前实现”仅指上述核对范围，不随之后的产品改造改变。网络可用性及后续成功复核见[连接观测汇总](../validation/kiva-connectivity-20261029.md)，较早的协议对照见[10 月 28 日 HTTP 批次](upstream-http-20261028.md)；这些记录不单独决定长期协议策略。采样时尚未实施的曲库改造见[决策记录](udon-catalog-decision-draft-20261029.md)，现行规则见[曲库设计](../song-catalog-design.md)。
 
 ## 本轮样本内容比较
 
@@ -89,7 +89,7 @@ Udon 的常规探测只解析顶层 `time` 与歌曲 `id`，测速样本准备�
 | `genre` | 全量等于所在分组的 `major`，Udon 和 Kiva 的父级都已提供同一信息 | 仅持久保存及参与清单内容比较 |
 | `composedTitle` | 全部 10,470 条都等于 `name + " - " + artist + " | " + dancer`，由共有资料直接派生 | 部分标题读取在名称缺失时使用它兜底；本次所有 `name` 均非 null 且非空，不触发这些兜底 |
 
-“仅保存”仍包括类型校验和清单内容摘要比较；这些字段改变时可能影响同版本冲突判断，但没有单独的用户功能读取。字段入库和摘要见 [`catalog.go:86`](../../internal/cacheproxy/catalog.go#L86)、[`catalog_digest.go:41`](../../internal/cacheproxy/catalog_digest.go#L41)；分组搜索和标题兜底见 [`library.go:134`](../../internal/cacheproxy/library.go#L134)、[`queue_timing.go:25`](../../internal/cacheproxy/queue_timing.go#L25)。接口外层 Kiva 还多一个 `code` 业务状态码，解析器要求其为 200；它是响应有效性判据，不是歌曲资料，见 [`catalogmeta/catalog.go:46`](../../internal/catalogmeta/catalog.go#L46)。
+“仅保存”仍包括类型校验和清单内容摘要比较；这些字段改变时可能影响同版本冲突判断，但没有单独的用户功能读取。字段入库和摘要见 [`catalog.go:86`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L86)、[当时的 `catalog_digest.go`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog_digest.go#L41)；分组搜索和标题兜底见 [`library.go:134`](../../internal/cacheproxy/library.go#L134)、[`queue_timing.go:25`](../../internal/cacheproxy/queue_timing.go#L25)。接口外层 Kiva 还多一个 `code` 业务状态码，解析器要求其为 200；它是响应有效性判据，不是歌曲资料，见 [`catalogmeta/catalog.go:46`](../../internal/catalogmeta/catalog.go#L46)。
 
 本次复算摘要保存在忽略目录 `artifacts/catalog-sources-20261029/unique-information.json`。当前实际承担业务职责的 Kiva 独有核心信息是 MD5；组合标题作为派生文本有兜底读取，其余真正额外的歌曲资料目前没有独立业务消费者。Udon 的独有标签翻译和顶层新歌集合均未使用。
 
@@ -105,11 +105,11 @@ Udon 的常规探测只解析顶层 `time` 与歌曲 `id`，测速样本准备�
 
 ### 曲库同步和回退
 
-手动全量检查、补齐、覆盖率和视频导入调用 `refreshLocalCatalog`，默认 URL 固定为 Kiva。它会尝试该入口的可用网络通道，但不会在 Kiva 失败后额外请求 WannaInfo。刷新尝试之后，业务读取本地数据库快照；远端失败而本地已有有效 MD5 清单时仍可继续，无有效本地清单才失败。单个歌曲或资源下载直接读本地目标，不执行这次全量刷新。参见 [`console.go:175`](../../internal/console/console.go#L175)、[`catalog_checksums.go:18`](../../internal/console/catalog_checksums.go#L18)、[`batch.go:145`](../../internal/console/batch.go#L145)、[`inventory.go:160`](../../internal/console/inventory.go#L160)、[`import.go:131`](../../internal/console/import.go#L131)。
+手动全量检查、补齐、覆盖率和视频导入调用 `refreshLocalCatalog`，默认 URL 固定为 Kiva。它会尝试该入口的可用网络通道，但不会在 Kiva 失败后额外请求 WannaInfo。刷新尝试之后，业务读取本地数据库快照；远端失败而本地已有有效 MD5 清单时仍可继续，无有效本地清单才失败。单个歌曲或资源下载直接读本地目标，不执行这次全量刷新。参见 [`console.go:175`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/console.go#L175)、[`catalog_checksums.go:18`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/catalog_checksums.go#L18)、[`batch.go:145`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/batch.go#L145)、[`inventory.go:160`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/inventory.go#L160)、[`import.go:131`](../../internal/console/import.go#L131)。
 
 WannaInfo 的业务入口是 monitor：复用本轮已获取的 Kiva 和 WannaInfo 正文，完整解析后按上游 `data.time` 从新到旧提交。后台 monitor 和引导连通性 monitor 注册同一套回调。没有“无条件优先 Kiva”或“两个来源逐字段合并”的存储规则。参见 [`monitor_catalog.go:17`](../../internal/console/monitor_catalog.go#L17)、[`upstream_monitor.go:13`](../../internal/console/upstream_monitor.go#L13)。
 
-两个来源共用唯一的 `songs` 水位。较新清单事务性更新歌曲、资源、当前映射和水位；较旧候选保留本地数据；同时间同规范化内容视为重复，同时间不同内容报告冲突。上游时间按 `YYYYMMDDhhmmss` 校验日历日期，放在同一个时间轴上比较，不将机器当前时间或获取时间当成版本。歌曲和关联增改不删，清单中消失的旧 ID 仍在本地；`catalog_members` 单独记录最近接受清单的成员集合。参见 [`catalog.go:24`](../../internal/cacheproxy/catalog.go#L24)、[`catalog.go:110`](../../internal/cacheproxy/catalog.go#L110)、[`catalogmeta/catalog.go:30`](../../internal/catalogmeta/catalog.go#L30)。
+两个来源共用唯一的 `songs` 水位。较新清单事务性更新歌曲、资源、当前映射和水位；较旧候选保留本地数据；同时间同规范化内容视为重复，同时间不同内容报告冲突。上游时间按 `YYYYMMDDhhmmss` 校验日历日期，放在同一个时间轴上比较，不将机器当前时间或获取时间当成版本。歌曲和关联增改不删，清单中消失的旧 ID 仍在本地；`catalog_members` 单独记录最近接受清单的成员集合。参见 [`catalog.go:24`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L24)、[`catalog.go:110`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L110)、[`catalogmeta/catalog.go:30`](../../internal/catalogmeta/catalog.go#L30)。
 
 因此“WannaInfo 是备用来源”只能表示它能通过 monitor 提供合法清单候选，不能解释为每次手动刷新都有即时的跨入口回退；若它比本地版本旧，也不会覆盖较新的本地清单。
 
@@ -125,21 +125,21 @@ WannaInfo 的业务入口是 monitor：复用本轮已获取的 Kiva 和 WannaIn
 | `start`、`playerCount`、`volume`、`flip`、`doubleWidth`、`skipRandom`、`disablePublic`、`rpe`、`genre`、`composedTitleSpell`、`ayaId`、`tag`、`originalUrl`、`shaderMotion` | 按已定义结构持久保存并参与清单内容摘要；当前未找到驱动播放、调度或曲库展示的其他读取方 |
 | 父级分组结构、标签翻译及未知响应字段 | 不完整保留，不能从本地表无损重建原始游戏清单 |
 
-字段映射见 [`catalog_format.go:18`](../../internal/cacheproxy/catalog_format.go#L18) 和 [`catalog.go:13`](../../internal/cacheproxy/catalog.go#L13)；曲库展示与搜索见 [`library.go:134`](../../internal/cacheproxy/library.go#L134)；队列标题、时长见 [`queue_timing.go:16`](../../internal/cacheproxy/queue_timing.go#L16)；资源时长估算见 [`media_timing.go:60`](../../internal/cacheproxy/media_timing.go#L60)。存储字段与原始协议的边界见[曲库设计](../song-catalog-design.md#songs歌曲资料)。
+字段映射见 [`catalog_format.go:18`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog_format.go#L18) 和 [`catalog.go:13`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L13)；曲库展示与搜索见 [`library.go:134`](../../internal/cacheproxy/library.go#L134)；队列标题、时长见 [`queue_timing.go:16`](../../internal/cacheproxy/queue_timing.go#L16)；资源时长估算见 [`media_timing.go:60`](../../internal/cacheproxy/media_timing.go#L60)。存储字段与原始协议的边界见[曲库设计](../song-catalog-design.md#songs歌曲资料)。
 
-全量扫描和覆盖率使用本地已保存的所有有 MD5 映射的歌曲，包含被远端新清单移出的保留记录；覆盖率按歌曲计数，多首歌曲可共同命中同一视频。补齐按唯一 MD5 合并资源，优先选最近接受清单中的歌曲 ID 解析下载。视频导入的允许集合则仅取最近清单成员所引用的 MD5。参见 [`catalog_snapshot.go:93`](../../internal/cacheproxy/catalog_snapshot.go#L93)、[`inventory.go:160`](../../internal/console/inventory.go#L160)、[`download_fill.go:137`](../../internal/cacheproxy/download_fill.go#L137)、[`import.go:140`](../../internal/console/import.go#L140)。
+全量扫描和覆盖率使用本地已保存的所有有 MD5 映射的歌曲，包含被远端新清单移出的保留记录；覆盖率按歌曲计数，多首歌曲可共同命中同一视频。补齐按唯一 MD5 合并资源，优先选最近接受清单中的歌曲 ID 解析下载。视频导入的允许集合则仅取最近清单成员所引用的 MD5。参见 [`catalog_snapshot.go:93`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog_snapshot.go#L93)、[`inventory.go:160`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/console/inventory.go#L160)、[`download_fill.go:137`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/download_fill.go#L137)、[`import.go:140`](../../internal/console/import.go#L140)。
 
 ### 清单不直接提供下载地址或文件大小
 
-清单同步只补充 MD5 资源记录，不写资源大小或 URL。实际播放地址通过 `https://api.udon.dance/Api/Songs/play?node=cf&id=…` 获得；当前允许的节点统一为 `cf`。从有效返回 URL 的 `e` 解析 MD5、`s` 解析字节数，并保存地址观测。清单里的 `originalUrl` 属于歌曲资料，不被用作下载地址。参见 [`catalog.go:90`](../../internal/cacheproxy/catalog.go#L90)、[`playbacksource/source.go:23`](../../internal/playbacksource/source.go#L23)、[`videometa/parse.go:26`](../../internal/videometa/parse.go#L26)。
+清单同步只补充 MD5 资源记录，不写资源大小或 URL。实际播放地址通过 `https://api.udon.dance/Api/Songs/play?node=cf&id=…` 获得；当前允许的节点统一为 `cf`。从有效返回 URL 的 `e` 解析 MD5、`s` 解析字节数，并保存地址观测。清单里的 `originalUrl` 属于歌曲资料，不被用作下载地址。参见 [`catalog.go:90`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/catalog.go#L90)、[`playbacksource/source.go:23`](../../internal/playbacksource/source.go#L23)、[`videometa/parse.go:26`](../../internal/videometa/parse.go#L26)。
 
-播放 URL 观测能在尚无映射时补歌曲及关联；若已有映射与 URL 的 MD5 不同，只记录差异，不覆盖映射。已有映射由后续合法新版本清单更新；批量补齐还要求下载资源符合任务所引用的 MD5。参见 [`song_urls.go:48`](../../internal/cacheproxy/song_urls.go#L48)、[`download_fill.go:144`](../../internal/cacheproxy/download_fill.go#L144)。
+播放 URL 观测能在尚无映射时补歌曲及关联；若已有映射与 URL 的 MD5 不同，只记录差异，不覆盖映射。已有映射由后续合法新版本清单更新；批量补齐还要求下载资源符合任务所引用的 MD5。参见[当时的 `song_urls.go`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_urls.go#L48)、[`download_fill.go:144`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/download_fill.go#L144)。
 
 ### 探测选歌并非总是随机
 
 普通清单后备样本从有效歌曲 ID 中随机抽取，入口顺序为 Udon、Kiva、WannaInfo；没有新样本时，旧 ID 最多保留默认 10 分钟。Udon 只要求 JSON 可读且能找到正整数 ID，记录原始顶层 `time`；Kiva 和 WannaInfo 还必须通过业务码 200、14 位合法日期、完整分组/entries、唯一正整数 ID 和合法 MD5 校验。两个 ID 可以合法共享同一个 MD5，同一 ID 重复则整份拒绝。参见 [`probe.go:160`](../../internal/upstreamstate/probe.go#L160)、[`catalogmeta/catalog.go:46`](../../internal/catalogmeta/catalog.go#L46)、[`routes.go:39`](../../internal/upstreamstate/routes.go#L39)。
 
-Console 注册了本地缺项候选回调：清单同步后，优先按资源分数选择缺当前 MD5 的 CF URL 或正资源大小的歌曲，利用本轮播放探测补齐地址和大小；每轮仍只选一首，未补齐的失败歌曲在本遍跳过，下遍再重试。没有缺项或本地查询失败才使用上述随机后备样本。因此不能把“Udon 优先采样”理解成“当前所有测速都优先随机抽 Udon 歌曲”。参见 [`check.go:120`](../../internal/upstreamstate/check.go#L120)、[`playback_sample.go:9`](../../internal/upstreamstate/playback_sample.go#L9)、[`song_metadata_candidates.go:17`](../../internal/cacheproxy/song_metadata_candidates.go#L17)、[`monitor_playback_url.go:12`](../../internal/console/monitor_playback_url.go#L12)。
+Console 注册了本地缺项候选回调：清单同步后，优先按资源分数选择缺当前 MD5 的 CF URL 或正资源大小的歌曲，利用本轮播放探测补齐地址和大小；每轮仍只选一首，未补齐的失败歌曲在本遍跳过，下遍再重试。没有缺项或本地查询失败才使用上述随机后备样本。因此不能把“Udon 优先采样”理解成“当前所有测速都优先随机抽 Udon 歌曲”。参见 [`check.go:120`](../../internal/upstreamstate/check.go#L120)、[`playback_sample.go:9`](../../internal/upstreamstate/playback_sample.go#L9)、[`song_metadata_candidates.go:17`](https://github.com/SW26010/still-wanna-dance/blob/2819074c56e233f146d21354c2efee1b8e4b6ace/internal/cacheproxy/song_metadata_candidates.go#L17)、[`monitor_playback_url.go:12`](../../internal/console/monitor_playback_url.go#L12)。
 
 独立 CF 单路及满路测速另外从这三个清单依次准备多首资源，取得足够样本便停止；它用实际播放 API 确定 URL、大小与资源身份，不将 Udon 正文写入业务曲库。参见 [`calibration.go:264`](../../internal/upstreamstate/calibration.go#L264)。
 

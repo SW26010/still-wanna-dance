@@ -71,3 +71,28 @@ test('rejects a binary introduced then deleted before HEAD', () => {
     assert.equal(result.errors.length, 1); assert.equal(result.errors[0].path, 'trace.txt');
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
+
+test('checks every historical blob when their combined contents exceed 256 MiB', () => {
+  const cwd = mkdtempSync(path.join(os.tmpdir(), 'swd-artifact-history-'));
+  const git = (...args) => execFileSync('git', args, { cwd, windowsHide: true }).toString().trim();
+  try {
+    git('init', '-q'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.invalid');
+    writeFileSync(path.join(cwd, 'source.txt'), 'source\n'); git('add', '.'); git('commit', '-qm', 'base');
+    const base = git('rev-parse', 'HEAD');
+    const bytes = Buffer.alloc(32 * 1024 * 1024);
+    for (let i = 0; i < 8; i++) {
+      bytes.fill(65 + i);
+      // The rejected first version disappears from HEAD but must still be checked.
+      if (i === 0) bytes[0] = 0;
+      writeFileSync(path.join(cwd, 'history.txt'), bytes);
+      git('add', '.'); git('commit', '-qm', `version ${i}`);
+    }
+    const result = check({ cwd, base, policy: { maxBytes: bytes.length, warnBytes: bytes.length, exceptions: [] } });
+    assert.equal(result.blobs, 9);
+    assert.deepEqual(result.errors.map(({ path, bytes, reason }) => ({ path, bytes, reason })), [{
+      path: 'history.txt', bytes: bytes.length,
+      reason: 'binary content requires an exact documented product or fixture exception',
+    }]);
+    assert.deepEqual(result.warnings, []);
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
+});

@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"time"
@@ -21,6 +22,7 @@ type networkConnectivityStatus struct {
 	Revision     uint64                      `json:"revision"`
 	Run          uint64                      `json:"run"`
 	Upstream     string                      `json:"upstream"`
+	Operation    upstreamcheck.Operation     `json:"operation,omitempty"`
 	Running      bool                        `json:"running"`
 	Closed       bool                        `json:"closed"`
 	Phase        string                      `json:"phase"`
@@ -34,6 +36,27 @@ type networkConnectivityResult struct {
 	Scheme     string                  `json:"scheme,omitempty"`
 	LatencyMS  *float64                `json:"latencyMS"`
 	ObservedAt time.Time               `json:"observedAt"`
+	Retained   bool                    `json:"retained,omitempty"`
+}
+
+// Keep real observations when a later run cannot attempt the same operation.
+// The retained marker distinguishes history from the current run.
+func retainUnobservedConnectivity(results, previous []networkConnectivityResult) []networkConnectivityResult {
+	for _, operation := range []upstreamcheck.Operation{upstreamcheck.PlaybackURL, upstreamcheck.Resource} {
+		observed := slices.ContainsFunc(results, func(row networkConnectivityResult) bool {
+			return row.Operation == operation && !row.ObservedAt.IsZero()
+		})
+		if observed {
+			continue
+		}
+		for _, row := range previous {
+			if row.Operation == operation && !row.ObservedAt.IsZero() {
+				row.Retained = true
+				results = append(results, row)
+			}
+		}
+	}
+	return results
 }
 
 func (c *Console) publishNetworkConnectivityLocked() {
@@ -86,6 +109,13 @@ func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
 }
 
 func (c *Console) controlNetworkConnectivity(cancel bool) error {
+	return c.controlNetworkConnectivityOperation(cancel, "")
+}
+
+func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation upstreamcheck.Operation) error {
+	if operation != "" && operation != upstreamcheck.Catalog && operation != upstreamcheck.PlaybackURL && operation != upstreamcheck.Resource {
+		return errors.New("无效的连通性检测项目")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	_, err := c.networkCalibrationLocked()
@@ -102,15 +132,18 @@ func (c *Console) controlNetworkConnectivity(cancel bool) error {
 		return nil
 	}
 	if n.connectivity.Running {
+		if operation != "" || n.connectivity.Operation != "" {
+			return errors.New("连通性检测正在进行，请稍后重试")
+		}
 		c.publishNetworkConnectivityLocked()
-		return nil // Both triggers join the same round; never queue duplicate work.
+		return nil // Full checks join the existing full round.
 	}
-	c.startConnectivityLocked(false)
+	c.startConnectivityLocked(operation, operation != "")
 	return nil
 }
 
 // Caller holds c.mu. All triggers share progress, publication and cancellation.
-func (c *Console) startConnectivityLocked(catalogOnly bool) {
+func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, keepSchedule bool) {
 	n := c.networkDiagnostics
 	if n.connectivityTimer != nil {
 		n.connectivityTimer.Stop()
@@ -118,9 +151,16 @@ func (c *Console) startConnectivityLocked(catalogOnly bool) {
 	ctx, stop := context.WithCancel(context.Background())
 	n.connectivityCancel = stop
 	previous := n.connectivity
-	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: c.settings.UpstreamMode, Running: true, Phase: "running", Initializing: previous.Initializing}
-	if catalogOnly && previous.LastResult != nil {
-		n.connectivity.Results = slices.Clone(previous.LastResult.Results)
+	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: c.settings.UpstreamMode, Operation: operation, Running: true, Phase: "running", Initializing: previous.Initializing}
+	if keepSchedule {
+		n.connectivity.NextCheck = previous.NextCheck
+	}
+	if operation != "" && previous.LastResult != nil {
+		for _, row := range previous.LastResult.Results {
+			if !keepSchedule || row.Operation != operation {
+				n.connectivity.Results = append(n.connectivity.Results, row)
+			}
+		}
 	}
 	c.publishNetworkConnectivityLocked()
 	done := make(chan struct{})
@@ -135,8 +175,8 @@ func (c *Console) startConnectivityLocked(catalogOnly bool) {
 		c.publishNetworkConnectivityLocked()
 		c.mu.Unlock()
 		upstreamcheck.CheckConnectivity(ctx, c.connectivityAccess(), upstreamcheck.ConnectivityBusiness{
-			OnCatalog: c.syncCatalogs, SelectSong: metadata.SelectSong, OnPlaybackURL: c.syncPlaybackURL,
-		}, catalogOnly, func(r upstreamcheck.Result) { c.connectivityRow(ctx, connectivityResult(r)) })
+			OnCatalog: c.syncCatalogs, RememberSample: metadata.RememberSample, SelectSong: metadata.SelectSong, OnPlaybackURL: c.syncPlaybackURL,
+		}, operation, func(r upstreamcheck.Result) { c.connectivityRow(ctx, connectivityResult(r)) })
 		if ctx.Err() == nil {
 			ready = c.catalogReady(ctx)
 		}
@@ -153,16 +193,23 @@ func (c *Console) startConnectivityLocked(catalogOnly bool) {
 			n.connectivity.Phase = "completed"
 			n.connectivity.Finished = time.Now()
 			n.connectivity.Initializing = !ready
+			if previous.LastResult != nil {
+				n.connectivity.Results = retainUnobservedConnectivity(n.connectivity.Results, previous.LastResult.Results)
+			}
 			n.connectivity.LastResult = &networkConnectivityRecord{Finished: n.connectivity.Finished, Results: slices.Clone(n.connectivity.Results)}
 			if ready {
 				n.connectivityRetry = 0
-			} else {
+			} else if !keepSchedule {
 				n.connectivityRetry = min(max(5*time.Second, 2*n.connectivityRetry), time.Minute)
 				delay = n.connectivityRetry
 			}
 		}
 		if n.connectivityAuto && !n.connectivity.Closed {
-			c.scheduleConnectivityLocked(delay)
+			if keepSchedule && !previous.NextCheck.IsZero() {
+				c.scheduleConnectivityAtLocked(previous.NextCheck)
+			} else {
+				c.scheduleConnectivityLocked(delay)
+			}
 		}
 		c.publishNetworkConnectivityLocked()
 	}()

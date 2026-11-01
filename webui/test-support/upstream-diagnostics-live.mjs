@@ -29,8 +29,40 @@ try {
   await page.mouse.move(0,0);
   await page.getByRole('button',{name:'开始连通性检测',exact:true}).blur();
   await page.screenshot({path:join(output,'active-proxy.png'),fullPage:true});
+  await page.goto(base+'/#/home');
+  const home=page.locator('.upstream-card');
+  await expect(home.getByText('SOCKS5',{exact:true})).toBeVisible();
+  for(const name of ['歌曲列表','播放地址','视频下载'])await expect(home.getByRole('button',{name:new RegExp('检测'+name)})).toHaveText(new RegExp(name+'：\\d+ ms'));
+  await page.evaluate(()=>new Promise((resolve,reject)=>{
+    const stream=window.upstreamEvidenceStream=new EventSource('/api/network/connectivity/events');
+    stream.addEventListener('connectivity',event=>{window.upstreamEvidence=JSON.parse(event.data);resolve();});
+    stream.onerror=()=>reject(new Error('connectivity stream unavailable'));
+  }));
+  for(const [name,operation] of [['歌曲列表','catalog'],['播放地址','playback_url'],['视频下载','resource']]){
+    const before=await page.evaluate(()=>window.upstreamEvidence);
+    const response=page.waitForResponse(r=>r.url().endsWith('/api/network/connectivity/start')&&r.request().method()==='POST');
+    await home.getByRole('button',{name:new RegExp('检测'+name)}).click();
+    const started=await response;
+    expect(started.ok()).toBe(true);expect(started.request().postDataJSON()).toEqual({operation});
+    await expect.poll(()=>page.evaluate(()=>window.upstreamEvidence)).toMatchObject({run:before.run+1,operation,running:false,phase:'completed'});
+    const after=await page.evaluate(()=>window.upstreamEvidence);
+    expect(after.results.filter(row=>row.operation!==operation)).toEqual(before.results.filter(row=>row.operation!==operation));
+    expect(after.nextCheck).toBe(before.nextCheck);
+  }
+  const before=await page.evaluate(()=>window.upstreamEvidence);
+  const homeResponse=page.waitForResponse(r=>r.url().endsWith('/api/network/connectivity/start')&&r.request().method()==='POST');
+  await home.getByRole('button',{name:'重新检测上游',exact:true}).click();
+  const homeStarted=await homeResponse;
+  expect(homeStarted.ok()).toBe(true);expect(homeStarted.request().postDataJSON()).toEqual({});
+  await expect.poll(()=>page.evaluate(()=>window.upstreamEvidence)).toMatchObject({run:before.run+1,running:false,phase:'completed'});
+  const after=await page.evaluate(()=>window.upstreamEvidence);
+  for(const operation of ['catalog','playback_url','resource'])expect(after.results.some(row=>row.operation===operation&&row.state==='available')).toBe(true);
+  await page.evaluate(()=>window.upstreamEvidenceStream.close());
+  await home.getByRole('link',{name:'上游',exact:true}).click();
+  await expect(page).toHaveURL(/#network-tests$/);
+  await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
   await page.goto(base+'/#/library');
   await expect(page.getByRole('table',{name:'曲库歌曲'})).toContainText('canonical Udon metadata');
   expect(errors).toEqual([]);
-  await writeFile(join(output,'result.json'),JSON.stringify({passed:true,realConsole:true,upstream:'controlled HTTP fixture',screenshots:['active-proxy.png'],errors},null,2));
+  await writeFile(join(output,'result.json'),JSON.stringify({passed:true,realConsole:true,upstream:'controlled HTTP fixture',checks:['all three home actions','home full refresh','shared results and automatic deadline','home title navigation'],screenshots:['active-proxy.png'],errors},null,2));
 } finally {await browser.close();}

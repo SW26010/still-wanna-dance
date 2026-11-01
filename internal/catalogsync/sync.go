@@ -57,6 +57,22 @@ func (s *Sync) Close() {
 	s.mu.Unlock()
 }
 
+// RememberSample retains an accepted catalog sample without advancing metadata traversal.
+func (s *Sync) RememberSample(ctx context.Context, id int64) {
+	if id <= 0 || ctx.Err() != nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed && ctx.Err() == nil {
+		s.rememberSampleLocked(id)
+	}
+}
+
+func (s *Sync) rememberSampleLocked(id int64) {
+	s.songID, s.songAt = id, time.Now()
+}
+
 // SelectSong traverses current missing metadata in business priority order.
 // The traversal belongs to this business scope, including manual diagnostics.
 func (s *Sync) SelectSong(ctx context.Context, fallback int64) int64 {
@@ -79,7 +95,7 @@ func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded ma
 		return 0
 	}
 	if fallback > 0 {
-		s.songID, s.songAt = fallback, time.Now()
+		s.rememberSampleLocked(fallback)
 	} else if time.Since(s.songAt) < 10*time.Minute {
 		fallback = s.songID
 	}

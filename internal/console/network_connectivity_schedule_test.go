@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
@@ -280,5 +281,79 @@ func TestAutomaticConnectivityRunsAlongsideSpeedAndSharesManualRound(t *testing.
 			t.Fatal("canceling connectivity stopped the speed test")
 		}
 		c.BeginShutdown()
+	})
+}
+
+func TestManualConnectivityItemSharesResultsWithoutDelayingAutomaticCheck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := automaticTestConsole(t)
+		var catalog, playback, resource atomic.Int32
+		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.URL.Path == "/Api/Songs/play":
+				playback.Add(1)
+			case r.Header.Get("Range") != "":
+				resource.Add(1)
+			default:
+				catalog.Add(1)
+			}
+			return automaticConnectivityResponse(r), nil
+		})}
+		if err := c.StartUpstreamServices(); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		previous := connectivitySnapshot(c)
+		if previous.Running || previous.Initializing || len(previous.Results) != 5 {
+			t.Fatal(previous)
+		}
+		deadline := previous.NextCheck
+		for _, tc := range []struct {
+			operation                     upstreamcheck.Operation
+			catalogs, playback, resources int32
+		}{
+			{upstreamcheck.Catalog, 1, 0, 0},
+			{upstreamcheck.PlaybackURL, 0, 1, 0},
+			{upstreamcheck.Resource, 0, 1, 1},
+		} {
+			time.Sleep(time.Minute)
+			catalog.Store(0)
+			playback.Store(0)
+			resource.Store(0)
+			r := httptest.NewRequest("POST", "http://"+c.address+"/api/network/connectivity/start", strings.NewReader(`{"operation":"`+string(tc.operation)+`"}`))
+			r.Header.Set("X-SWD-Token", c.token)
+			w := httptest.NewRecorder()
+			c.ServeHTTP(w, r)
+			if w.Code != http.StatusOK {
+				t.Fatal(tc.operation, w.Code, w.Body.String())
+			}
+			synctest.Wait()
+			state := connectivitySnapshot(c)
+			if state.Running || state.Operation != tc.operation || !state.NextCheck.Equal(deadline) || catalog.Load() != tc.catalogs || playback.Load() != tc.playback || resource.Load() != tc.resources {
+				t.Fatal(tc.operation, state, catalog.Load(), playback.Load(), resource.Load())
+			}
+			for _, old := range previous.Results {
+				row := slices.IndexFunc(state.Results, func(row networkConnectivityResult) bool {
+					return row.Operation == old.Operation && row.Entry == old.Entry
+				})
+				if old.Operation != tc.operation && (row < 0 || !state.Results[row].ObservedAt.Equal(old.ObservedAt) || state.Results[row].State != old.State) {
+					t.Fatal("unrelated observation changed", tc.operation, old, state.Results)
+				}
+			}
+			if !slices.ContainsFunc(state.Results, func(row networkConnectivityResult) bool {
+				return row.Operation == tc.operation && row.State == "available" && row.ObservedAt.After(previous.Finished)
+			}) {
+				t.Fatal("requested observation was not refreshed", tc.operation, state.Results)
+			}
+			previous = state
+		}
+		if err := c.controlNetworkConnectivityOperation(false, "invalid"); err == nil {
+			t.Fatal("invalid operation accepted")
+		}
+		time.Sleep(time.Until(deadline))
+		synctest.Wait()
+		if state := connectivitySnapshot(c); state.Run != previous.Run+1 || state.Operation != "" {
+			t.Fatal("automatic full check did not run at its original deadline", state)
+		}
 	})
 }

@@ -24,6 +24,7 @@ import (
 	"still-wanna-dance/internal/catalogsync"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/playbacksource"
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 	"still-wanna-dance/internal/vrclog"
@@ -722,9 +723,11 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	case "/api/network/calibration/cancel":
 		err = c.controlNetworkCalibration(true)
 	case "/api/network/connectivity/start":
-		var input struct{}
+		var input struct {
+			Operation upstreamcheck.Operation `json:"operation"`
+		}
 		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
-			err = c.controlNetworkConnectivity(false)
+			err = c.controlNetworkConnectivityOperation(false, input.Operation)
 		}
 	case "/api/network/connectivity/cancel":
 		err = c.controlNetworkConnectivity(true)

@@ -40,7 +40,7 @@ func TestConnectivityCatalogFallbackStopsAfterAcceptance(t *testing.T) {
 				return route == accepted, nil
 			}}
 			var skipped []string
-			CheckConnectivity(t.Context(), access, business, true, func(r Result) {
+			CheckConnectivity(t.Context(), access, business, Catalog, func(r Result) {
 				if r.State == "skipped" {
 					if !r.ObservedAt.IsZero() || r.Responded {
 						t.Fatal("skipped source fabricated an observation", r)

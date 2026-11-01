@@ -80,7 +80,7 @@ test('rejected cancellation stays running and stale SSE events cannot replace ne
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
   await page.route('**/api/network/connectivity/cancel',r=>r.fulfill({status:503,json:{error:'取消未送达'}}));
   await page.getByRole('button',{name:'停止并放弃连通性检测'}).click();
-  await expect(page.getByText(/操作未确认.*取消未送达/)).toBeVisible();
+  await expect(page.getByRole('listitem',{name:/操作未确认.*取消未送达/})).toBeVisible();
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();
   Object.assign(api.diagnostics.connectivity,{revision:1,run:0,running:false,phase:'idle'});await api.emit('connectivity');
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();

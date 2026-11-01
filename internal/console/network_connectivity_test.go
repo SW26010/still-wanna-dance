@@ -207,6 +207,46 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	}
 }
 
+func TestNetworkConnectivityScopedRequestsNeverJoinAnotherRun(t *testing.T) {
+	c := testConsole(t)
+	started := stubNetworkDiagnostics(t, c)
+	if err := c.controlNetworkConnectivity(false); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	first := connectivitySnapshot(c)
+	if err := c.controlNetworkConnectivityOperation(false, upstreamcheck.Catalog); err == nil {
+		t.Fatal("single-item request silently joined a full check")
+	}
+	if err := c.controlNetworkConnectivity(false); err != nil || connectivitySnapshot(c).Run != first.Run {
+		t.Fatal("full check did not retain existing join behavior", err)
+	}
+	if err := c.controlNetworkConnectivity(true); err != nil {
+		t.Fatal(err)
+	}
+	<-c.networkDiagnostics.connectivityDone
+	for len(started) > 0 {
+		<-started
+	}
+	if err := c.controlNetworkConnectivityOperation(false, upstreamcheck.Catalog); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	second := connectivitySnapshot(c)
+	for _, operation := range []upstreamcheck.Operation{"", upstreamcheck.Catalog, upstreamcheck.Resource} {
+		if err := c.controlNetworkConnectivityOperation(false, operation); err == nil {
+			t.Fatal("request silently joined a single-item check", operation)
+		}
+	}
+	if state := connectivitySnapshot(c); state.Run != second.Run || !state.Running {
+		t.Fatal("rejected request changed running check", state)
+	}
+	if err := c.controlNetworkConnectivity(true); err != nil {
+		t.Fatal(err)
+	}
+	<-c.networkDiagnostics.connectivityDone
+}
+
 func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := automaticTestConsole(t)
@@ -307,8 +347,8 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 				t.Fatalf("browser: %v\n%s", err, output)
 			}
 		}
-		// A new failed run replaces success with current observations. Neither old
-		// latency nor successful rows may survive, even without usable new samples.
+		// A failed run replaces attempted observations; an unattempted resource
+		// may retain a clearly marked historical result beside the skipped row.
 		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
 		})}
@@ -323,7 +363,7 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 			t.Fatal("failed run lost test time", failed)
 		}
 		for _, row := range failed.Results {
-			if row.State == "available" {
+			if row.State == "available" && !row.Retained {
 				t.Fatal("previous success leaked into fresh test", row)
 			}
 		}

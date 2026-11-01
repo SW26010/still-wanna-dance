@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Spinner, Tooltip, Text, Caption1, tokens } from '@fluentui/react-components';
+import { Button, Card, Link, Spinner, Tooltip, Text, Subtitle2, Caption1, tokens } from '@fluentui/react-components';
 import { GaugeChart } from '@fluentui/react-charts';
-import { Play20Filled, Stop20Filled } from '@fluentui/react-icons';
-import { request } from './api';
-import { RecordDetails, Feedback, Panel } from './ui';
+import { ArrowSync20Regular, Play20Filled, Stop20Filled } from '@fluentui/react-icons';
+import { APIError, request } from './api';
+import { RecordDetails, Feedback, Notification, Panel, StatusBadge } from './ui';
 import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
 
 interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string; finished?:string }
-interface ConnectionResult {operation:string;entry?:string;state?:string;reason?:string;scheme?:string;latencyMS?:number | null;observedAt?:string}
-interface Connectivity extends EventState { initializing?:boolean;nextCheck?:string;results?: ConnectionResult[]; lastResult?: {finished:string;results:ConnectionResult[]} }
+interface ConnectionResult {operation:string;entry?:string;state?:string;reason?:string;scheme?:string;latencyMS?:number | null;observedAt?:string;retained?:boolean}
+type ConnectivityOperation = 'catalog' | 'playback_url' | 'resource';
+interface Connectivity extends EventState { operation?:ConnectivityOperation;initializing?:boolean;nextCheck?:string;results?: ConnectionResult[]; lastResult?: {finished:string;results:ConnectionResult[]} }
 interface Measurement {finished?:string;singleSpeedBPS?:number | null;fullSpeedBPS?:number | null;fullConcurrency?:number;fullCPUPercent?:number | null;cpuP95Percent?:number | null;referenceBitrateBPS?:number}
 interface Calibration extends EventState, Measurement {
   lastValid?:Measurement; measurementStage?:string; reason?:string; preparationProgress?:number;
@@ -17,7 +18,7 @@ interface Calibration extends EventState, Measurement {
 }
 type Kind = 'connectivity' | 'calibration';
 function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean) {
-  const [state,setState] = useState<T>(), [online,setOnline] = useState(false), [message,setMessage] = useState(''), [pending,setPending] = useState(false), [intent,setIntent] = useState<'start'|'cancel'>();
+  const [state,setState] = useState<T>(), [online,setOnline] = useState(false), [message,setMessage] = useState(''), [actionError,setActionError] = useState(''), [pending,setPending] = useState(false), [intent,setIntent] = useState<'start'|'cancel'>();
   const latest = useRef(state), currentIntent = useRef<{action:'start'|'cancel';run:number} | undefined>(undefined);
   useEffect(() => {
     if (!enabled) return;
@@ -38,7 +39,7 @@ function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean) {
           revision = next.revision; latest.current = next; setState(next); setOnline(true); setMessage('');
           const wanted = currentIntent.current;
           if (wanted && (wanted.run !== next.run || wanted.action==='start' && next.running || wanted.action==='cancel' && (!next.running || next.phase==='canceling'))) {currentIntent.current=undefined;setIntent(undefined);}
-          if (next.closed) { disconnect();setMessage('应用正在关闭。'); }
+          if (next.closed) disconnect();
         } catch {setOnline(false);setMessage('检测状态无法读取，请重新进入网络页。');}
       });
       source.onerror = () => { if (stream===source) {setOnline(false);setMessage('检测状态连接已断开，正在重新连接…');} };
@@ -46,18 +47,55 @@ function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean) {
     connect();document.addEventListener('visibilitychange',connect);addEventListener('pagehide',disconnect);addEventListener('pageshow',connect);
     return () => {disconnect();document.removeEventListener('visibilitychange',connect);removeEventListener('pagehide',disconnect);removeEventListener('pageshow',connect);};
   }, [enabled,kind]);
-  async function toggle() {
+  async function toggle(operation?:ConnectivityOperation) {
     if (!online || pending || currentIntent.current || state?.closed) return;
-    const action = latest.current?.running ? 'cancel' : 'start';
-    currentIntent.current={action,run:latest.current?.run || 0};setIntent(action);setPending(true);setMessage('');
-    try {await request(`network/${kind}/${action}`, {});}
-    catch(e) {currentIntent.current=undefined;setIntent(undefined);setMessage('操作未确认：'+String(e)+'。请根据推送状态核对。');}
+    if(operation&&latest.current?.running){setActionError('连通性检测正在进行，请稍后重试。');return;}
+    const action = !operation&&latest.current?.running ? 'cancel' : 'start';
+    currentIntent.current={action,run:latest.current?.run || 0};setIntent(action);setPending(true);setActionError('');
+    try {await request(`network/${kind}/${action}`, action==='start'&&operation?{operation}:{});}
+    catch(e) {currentIntent.current=undefined;setIntent(undefined);setActionError(operation&&e instanceof APIError?e.message:'操作未确认：'+String(e)+'。请根据推送状态核对。');}
     finally {setPending(false);}
   }
-  return {state,online,message,pending,intent,toggle};
+  const start = () => latest.current?.running ? undefined : toggle();
+  return {state,online,message,actionError,pending,intent,toggle,start};
 }
 const valid = (value:unknown):value is number => typeof value==='number' && Number.isFinite(value) && value>=0;
 const metric = (value?:number|null, factor=1) => valid(value) ? (value*factor).toFixed(2) : '—';
+const connectionNames:Record<ConnectivityOperation,string>={catalog:'歌曲列表',playback_url:'播放地址',resource:'视频下载'};
+const operations=Object.keys(connectionNames) as ConnectivityOperation[];
+const upstreamName=(active:ReturnType<typeof useApp>['status']['data'])=>!active?'—':active.activeSettings.upstreamMode==='direct'?'直连':active.activeSettings.proxyBackend==='mihomo'?'Mihomo':'SOCKS5';
+
+export function UpstreamStatus({visible}:{visible:boolean}) {
+  const app=useApp(), connectivity=useDiagnostic<Connectivity>('connectivity',visible&&!app.stopped);
+  const [tooltipBelow,setTooltipBelow]=useState<HTMLDivElement|null>(null);
+  const c=connectivity.state, discard=connectivity.intent==='cancel'||['canceling','canceled'].includes(c?.phase||'');
+  const rows=discard?c?.lastResult?.results||[]:c?.results||[];
+  const disabled=app.unavailable||!connectivity.online||connectivity.pending||!!connectivity.intent||!!c?.running||!!c?.closed;
+  const busy=connectivity.online&&(!!c?.running||connectivity.intent==='start');
+  const latest=(items:ConnectionResult[],operation:ConnectivityOperation)=>items.filter(row=>row.operation===operation&&dated(row.observedAt)).sort((a,b)=>new Date(b.observedAt!).getTime()-new Date(a.observedAt!).getTime())[0];
+  const observations=operations.map(operation=>{
+    const checking=!!c?.running&&(c.operation===operation||rows.some(row=>row.operation===operation&&row.state==='checking'));
+    const current=latest(rows,operation), previous=(checking||c?.running)?latest(c?.lastResult?.results||[],operation):undefined;
+    const row=current||previous, skipped=rows.some(item=>item.operation===operation&&item.state==='skipped');
+    return {operation,checking,row,retained:!!row?.retained||!!(!current&&previous&&skipped)};
+  });
+  const oldest=observations.map(item=>item.row?.observedAt).filter((at):at is string=>dated(at)).sort((a,b)=>new Date(a).getTime()-new Date(b).getTime())[0];
+  return <Card size="small" className="upstream-card">
+    <div className="toolbar spread upstream-heading"><Subtitle2 as="h2"><Link appearance="subtle" href="#network-tests">上游</Link>：<Link appearance="subtle" href="#network-proxy">{upstreamName(app.status.data)}</Link></Subtitle2><Tooltip content="重新检测上游" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={disabled} disabledFocusable={busy} onClick={()=>void connectivity.start()}/></Tooltip></div>
+    <div ref={setTooltipBelow} className="toolbar upstream-badges">{observations.map(({operation,checking,row,retained})=>{
+      const unknown=!connectivity.online||!!app.status.error||app.stopped;
+      const previousState=row?.state==='available'?'可连接':row?.state==='failed'?'连接失败':'尚未检测';
+      const state=unknown?'待确认':checking?'检测中':retained?`本次未检测，上次${previousState}`:previousState;
+      const latency=valid(row?.latencyMS)?Math.round(row.latencyMS)+' ms':'—';
+      const value=unknown||checking?state:valid(row?.latencyMS)?latency:'—';
+      const description=dated(row?.observedAt)?(retained&&!checking?'本次未检测；':'')+(!checking&&row?.state==='failed'?(retained?'上次连接失败；':'连接失败；'):'')+(retained&&!checking?'上次检测：':'最后检测：')+date(row?.observedAt):'尚未检测';
+      const label=connectionNames[operation];
+      return <StatusBadge key={operation} label={label} description={description} color={unknown?'informative':checking?'brand':retained?'informative':row?.state==='available'?'success':row?.state==='failed'?'danger':'informative'} interactive={{label:`检测${label}，${state}${!unknown&&!checking&&valid(row?.latencyMS)?'，'+latency:''}`,disabled,tooltipBelow,onClick:()=>void connectivity.toggle(operation)}}>{value}</StatusBadge>;
+    })}</div>
+    <Tooltip content="最早检测" relationship="description" positioning={{position:'after'}}><Caption1 as="p" tabIndex={0} className="secondary upstream-updated">{oldest?<time dateTime={oldest}>{date(oldest)}</time>:'—'}</Caption1></Tooltip>
+    <Notification message={connectivity.actionError} error/>
+  </Card>;
+}
 function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
   const previous=s?.lastValid;
   const canceled=discard || ['canceling','canceled','failed'].includes(s?.phase || '');
@@ -101,33 +139,30 @@ export function Diagnostics({visible}: {visible:boolean}) {
   const c=connectivity.state, discard=connectivity.intent==='cancel' || ['canceling','canceled'].includes(c?.phase || '');
   const rows=discard?c?.lastResult?.results||[]:c?.results||[];
   const finished=discard?c?.lastResult?.finished:c?.finished;
-  const active=app.status.data!.activeSettings;
-  const upstream=active.upstreamMode==='direct'?'直连':active.proxyBackend==='mihomo'?'Mihomo':'SOCKS5';
-  const names:Record<string,string>={catalog:'歌曲列表',playback_url:'播放地址',resource:'视频下载'};
+  const upstream=upstreamName(app.status.data);
   const entries:Record<string,string>={api:'Udon',kiva:'Kiva',wanna:'WannaInfo',cf:'CF'};
   const reasons:Record<string,string>={timeout:'请求超时',network_error:'网络请求失败',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',origin_timeout:'源站响应超时',http_error:'HTTP 响应异常',local_capacity:'代理连接额度已满',runtime_retired:'代理已退出',channel_unavailable:'连接不可用'};
-  const shown=rows.length?rows:[{operation:'catalog'},{operation:'playback_url'},{operation:'resource'}] as ConnectionResult[];
+  const shown=operations.flatMap(operation=>{const entries=rows.filter(row=>row.operation===operation);return entries.length?entries:[{operation}];});
   const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'');
   const speedFinished=speedState?.finished, savedSpeedFinished=speedState?.lastValid?.finished;
+  const notice=app.stopped?'':[...new Set([connectivity.message,calibration.message].filter(message=>message&&message!=='正在连接检测状态…'))].join('；');
   return <><p className="secondary">检测上游：{upstream}</p>
     <div className="settings-columns"><Panel title="连通性检测" action={button('connectivity','连通性检测')}>
       <p className="secondary">每 5 分钟自动检测，也可手动开始。</p>
       <div><span role="status">{connectivity.intent==='start'?'正在启动…':discard?c?.running?'正在停止…':'已放弃本次检测':''}</span></div>
       <div className="diagnostic-rows">{shown.map(row=><p key={row.operation+'/'+(row.entry||'')}>
-        {row.state==='checking'&&<Spinner size="tiny"/>}{names[row.operation]}{row.entry?' · '+(entries[row.entry]||row.entry):''}：
-        {({available:'可连接',failed:'连接失败',skipped:row.operation==='catalog'?'未使用（已有可用清单）':'未检测（缺少有效样本）',checking:'检测中'}[row.state||'']||(c?.running&&!discard?'等待检测':'尚未检测'))}
-        {row.reason&&reasons[row.reason]?' · '+reasons[row.reason]:''}{valid(row.latencyMS)&&(' · 响应时间 '+Math.round(row.latencyMS)+' ms')}{row.scheme?' · '+row.scheme.toUpperCase():''}
+        {row.state==='checking'&&<Spinner size="tiny"/>}{connectionNames[row.operation as ConnectivityOperation]}{row.entry?' · '+(entries[row.entry]||row.entry):''}：
+        {({available:'可连接',failed:'连接失败',skipped:row.operation==='catalog'?'未使用（已有可用清单）':'未检测（缺少有效样本）',checking:'检测中'}[row.state||'']||(c?.running&&!discard&&(!c.operation||c.operation===row.operation)?'等待检测':'尚未检测'))}
+        {row.retained?' · 本次未检测，上次结果':''}{row.reason&&reasons[row.reason]?' · '+reasons[row.reason]:''}{valid(row.latencyMS)&&(' · 响应时间 '+Math.round(row.latencyMS)+' ms')}{row.scheme?' · '+row.scheme.toUpperCase():''}
         {dated(row.observedAt)&&<Caption1 block className="secondary">检测时间：<time dateTime={row.observedAt}>{date(row.observedAt)}</time></Caption1>}
       </p>)}</div>
       {dated(finished)&&<p className="secondary">最后测试：{date(finished)}</p>}
       {c?.initializing&&<p className="secondary">正在建立歌曲清单，暂时自动重试清单检测。</p>}
-      <Feedback>{connectivity.message}</Feedback>
     </Panel><Panel title="下载速度测试" action={button('calibration','下载速度测试')}>
       {otherActivity&&<Caption1 as="p" className="secondary">当前有其他网络请求，测速结果可能受影响。</Caption1>}
       <Speed state={speedState} discard={calibration.intent==='cancel'} />
       {dated(speedFinished)&&<p className="secondary">最后测试：{date(speedFinished)}</p>}
       {speedRestored&&dated(savedSpeedFinished)&&savedSpeedFinished!==speedFinished&&<p className="secondary">保留的测速结果：{date(savedSpeedFinished)}</p>}
-      <Feedback>{calibration.message}</Feedback>
-    </Panel></div></>;
+    </Panel></div><Notification message={notice} error/><Notification message={connectivity.actionError} error/><Notification message={calibration.actionError} error/></>;
 
 }

@@ -3,6 +3,7 @@ import { Button, Link, Card, Title2, Table, TableHeader, TableHeaderCell, TableB
 import { useApp, useResource } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, StatusBadge } from './ui';
 import { BlockTimeline } from './block-timeline';
+import { UpstreamStatus } from './diagnostics';
 import { requestOutcome } from './requests';
 import { active, accelerationLabel, date, dated, type RequestRecord, type Status } from './types';
 
@@ -29,7 +30,7 @@ export function Home({visible}: {visible:boolean}) {
   const stopping=a.phase==='stopping';
   const stopHint=s.activeSettings.restoreHostsOnStopOrExit?needsExitPreparation?'停止视频服务及队列预加载；尚未取得恢复权限，将保留游戏接入。':'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
   return <div className="page-stack">
-    <Card id="activation" size="small" className="acceleration-card" tabIndex={-1}>
+    <div className="home-cards"><UpstreamStatus visible={visible}/><Card id="activation" size="small" className="acceleration-card" tabIndex={-1}>
       <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip></div>
@@ -40,7 +41,7 @@ export function Home({visible}: {visible:boolean}) {
       </div>
       <div className="toolbar home-result" role="status"><span className="secondary"><Link href="#recent">最近请求</Link>：{requests.error?'暂时无法读取':recent?`${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'暂无记录'}</span>
       </div>
-    </Card>
+    </Card></div>
     <BlockTimeline visible={visible}/>
   </div>;
 }

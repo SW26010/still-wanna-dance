@@ -54,6 +54,26 @@ func TestSampleReuseExpiresWithoutExtendingOnRead(t *testing.T) {
 	})
 }
 
+func TestRememberSampleDoesNotAdvanceMetadataTraversal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		pending := []int64{73, 91}
+		s := New(Options{SongCandidates: func(context.Context) []int64 { return slices.Clone(pending) }})
+		ctx := t.Context()
+		s.RememberSample(ctx, 42)
+		if s.SelectSong(ctx, 0) != 73 || s.SelectSong(ctx, 0) != 91 {
+			t.Fatal("remembering a sample advanced metadata traversal")
+		}
+		pending = nil
+		if s.SelectSong(ctx, 0) != 42 {
+			t.Fatal("sample was not reused after pending metadata was exhausted")
+		}
+		time.Sleep(10 * time.Minute)
+		if s.SelectSong(ctx, 0) != 0 {
+			t.Fatal("remembered sample outlived its existing validity period")
+		}
+	})
+}
+
 func TestMetadataTraversalSharesProgressWithBatchExclusions(t *testing.T) {
 	s := New(Options{SongCandidates: func(context.Context) []int64 { return []int64{1, 2, 3} }})
 	defer s.Close()

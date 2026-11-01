@@ -39,7 +39,7 @@ export async function mockAPI(page: Page) {
     if(path==='vrcx/detect')data={path:'C:\\VRCX\\VRCX.sqlite3',found:false,existingSongs:0};
     if(path==='vrcx/preview')return route.fulfill({status:400,body:'未找到默认位置的 VRCX 数据库'});
     const command=path.match(/^network\/(connectivity|calibration)\/(start|cancel)$/);
-    if(command){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=state.activeSettings.upstreamMode;}await emit(kind);}
+    if(command){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=state.activeSettings.upstreamMode;if(kind==='connectivity')Object.assign(diag,{operation:body.operation});}await emit(kind);}
     if (path==='inventory') data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
     if (path==='downloads') data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (path==='songs') data={storageID:'fixture',entries:[],total:0};

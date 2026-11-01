@@ -2,6 +2,44 @@ import {navigate} from './navigation';
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
+test('a single check after the first full check is canceled still lists all projects',async({page})=>{
+  const api=await mockAPI(page);await page.goto('/#network-tests');
+  await page.getByRole('button',{name:'开始连通性检测',exact:true}).click();
+  await page.getByRole('button',{name:'停止并放弃连通性检测',exact:true}).click();
+  await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
+  await navigate(page,'加速');
+  await page.locator('.upstream-card').getByRole('button',{name:/检测歌曲列表/}).click();
+  const results=[{operation:'catalog',entry:'api',state:'available',latencyMS:42,observedAt:'2026-10-30T12:00:00Z'}];
+  Object.assign(api.diagnostics.connectivity,{revision:api.diagnostics.connectivity.revision+1,running:false,phase:'completed',results,lastResult:{finished:'2026-10-30T12:00:00Z',results}});
+  await api.emit('connectivity');
+  await navigate(page,'网络');
+  const rows=page.locator('.diagnostic-rows');
+  await expect(rows).toContainText('歌曲列表 · Udon：可连接');
+  await expect(rows).toContainText('播放地址：尚未检测');
+  await expect(rows).toContainText('视频下载：尚未检测');
+});
+
+for(const event of ['closed','disconnect'])test(`network connectivity ${event} does not shift the diagnostics layout`,async({page})=>{
+  const api=await mockAPI(page);await page.goto('/#network-tests');
+  const button=page.getByRole('button',{name:'开始连通性检测',exact:true});await expect(button).toBeEnabled();
+  const layout=()=>page.evaluate(()=>{
+    const rect=(selector:string)=>{const r=document.querySelector(selector)!.getBoundingClientRect();return {y:r.y,height:r.height};};
+    return {connectivity:rect('#network-tests .panel'),monitor:rect('#network')};
+  });
+  const before=await layout();
+  if(event==='closed'){
+    Object.assign(api.diagnostics.connectivity,{revision:2,closed:true});await api.emit('connectivity');
+    await expect(button).toBeDisabled();
+    await expect(page.getByText('应用正在关闭。',{exact:true})).toHaveCount(0);
+  } else {
+    await page.request.post('/__fixture/disconnect',{data:{id:api.fixtureID,kind:'connectivity'}});
+    await expect(page.getByRole('listitem',{name:'检测状态连接已断开，正在重新连接…',exact:true})).toBeVisible();
+    await expect(button).toBeDisabled();
+  }
+  await expect(page.locator('#network-tests .fui-MessageBar')).toHaveCount(0);
+  expect(await layout()).toEqual(before);
+});
+
 for(const first of ['连通性检测','下载速度测试'])test(`diagnostics run and cancel independently when ${first} starts first`,async({page},info)=>{
   await mockAPI(page);
   await page.goto('/#network-tests');

@@ -1,6 +1,10 @@
 package console
 
-import "time"
+import (
+	"time"
+
+	"still-wanna-dance/internal/upstreamcheck"
+)
 
 // Caller holds c.mu. Consent/startup enables automatic lightweight checks;
 // status reads and SSE subscriptions remain inert.
@@ -22,18 +26,25 @@ func (c *Console) startAutomaticConnectivityLocked() error {
 
 // Completion of either connectivity trigger sets the next deadline.
 func (c *Console) scheduleConnectivityLocked(delay time.Duration) {
+	c.scheduleConnectivityAtLocked(time.Now().Add(delay))
+}
+
+func (c *Console) scheduleConnectivityAtLocked(due time.Time) {
 	n := c.networkDiagnostics
 	if n.connectivityTimer != nil {
 		n.connectivityTimer.Stop()
 	}
-	due := time.Now().Add(delay)
 	n.connectivity.NextCheck = due
-	n.connectivityTimer = time.AfterFunc(delay, func() {
+	n.connectivityTimer = time.AfterFunc(max(0, time.Until(due)), func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		if c.closing || n.connectivity.Closed || n.connectivity.Running || !n.connectivity.NextCheck.Equal(due) {
 			return
 		}
-		c.startConnectivityLocked(n.connectivityRetry > 0)
+		var operation upstreamcheck.Operation
+		if n.connectivityRetry > 0 {
+			operation = upstreamcheck.Catalog
+		}
+		c.startConnectivityLocked(operation, false)
 	})
 }

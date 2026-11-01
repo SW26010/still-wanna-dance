@@ -56,9 +56,20 @@ export function RecordDetails({title,children}:PropsWithChildren<{title:string}>
   return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
-export function StatusBadge({label,color,children,description,action}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string;action?:{label:string;onClick:()=>void;disabled?:boolean}}>) {
+export function StatusBadge({label,color,children,description,action,interactive}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string;action?:{label:string;onClick:()=>void;disabled?:boolean};interactive?:{label:string;onClick:()=>void;disabled?:boolean;tooltipBelow?:HTMLElement|null}}>) {
+  const buttonRef=useRef<HTMLButtonElement>(null);
   const Icon=statusIcons[color];
-  const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role="status" aria-label={label} aria-atomic="true" tabIndex={description?0:undefined}>{label&&<>{label}：</>}{children}</Badge>;
+  const badge=<Badge size="large" appearance="tint" color={color} icon={<Icon aria-hidden="true"/>} role={interactive?undefined:'status'} aria-label={interactive?undefined:label} aria-live={interactive?'polite':undefined} aria-atomic="true" tabIndex={description&&!interactive?0:undefined}>{label&&<>{label}：</>}{children}</Badge>;
+  if(interactive){
+    const control=<button ref={buttonRef} type="button" className="status-badge-button" aria-label={interactive.label} aria-disabled={interactive.disabled||undefined} onClick={()=>{if(!interactive.disabled)interactive.onClick();}}>{badge}</button>;
+    // Align to this badge below the whole group, keeping wrapped rows distinct.
+    const target=interactive.tooltipBelow&&buttonRef.current?{contextElement:buttonRef.current,getBoundingClientRect:()=>{
+      const rect=buttonRef.current!.getBoundingClientRect(),group=interactive.tooltipBelow!.getBoundingClientRect();
+      const bottom=group.bottom+Math.max(0,rect.top-group.top);
+      return {x:rect.x,y:rect.top,top:rect.top,bottom,left:rect.left,right:rect.right,width:rect.width,height:bottom-rect.top};
+    }}:undefined;
+    return description?<Tooltip content={description} relationship="description" positioning={{position:'below',target}}>{control}</Tooltip>:control;
+  }
   if(action)return <Popover openOnHover size="small" positioning={{strategy:'fixed',overflowBoundaryPadding:16}}><PopoverTrigger>{badge}</PopoverTrigger><PopoverSurface aria-label={`${label}说明`}><span>{description} </span><Link as="button" disabled={action.disabled} disabledFocusable={action.disabled} onClick={action.onClick}>{action.label}</Link></PopoverSurface></Popover>;
   return description?<Tooltip content={description} relationship="description">{badge}</Tooltip>:badge;
 }

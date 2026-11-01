@@ -246,6 +246,21 @@ form.actions { align-items: flex-end; }
 
 .runtime-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 .runtime-status { display: flex; align-items: center; gap: var(--spacingHorizontalS); max-width: 100%; min-height: 32px; }
+.home-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,26rem),1fr)); gap: var(--spacingHorizontalXXL); }
+.home-cards > * { min-width: 0; }
+.upstream-card > .toolbar { padding-block: 0; }
+.upstream-heading { flex-wrap: nowrap; }
+.upstream-heading .fui-Link { color: inherit; font: inherit; text-decoration: none; }
+.upstream-heading .fui-Link:hover, .upstream-heading .fui-Link:active, .upstream-heading .fui-Link:visited { color: inherit; }
+.upstream-heading .fui-Link:hover, .upstream-heading .fui-Link:focus-visible { text-decoration: underline; }
+.upstream-badges .fui-Badge { font-variant-numeric: tabular-nums; }
+.upstream-updated { align-self: flex-start; max-width: 100%; margin: auto 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (forced-colors: active) {
+  .upstream-heading .fui-Link, .upstream-heading .fui-Link:hover, .upstream-heading .fui-Link:active, .upstream-heading .fui-Link:visited { forced-color-adjust: none; color: CanvasText; }
+}
+.status-badge-button { display: inline-flex; padding: 0; border: 0; background: none; border-radius: var(--borderRadiusCircular); cursor: pointer; }
+.status-badge-button:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: 2px; }
+.status-badge-button[aria-disabled="true"] { cursor: default; }
 .acceleration-card { container-type: inline-size; }
 .acceleration-card > .toolbar { padding-block: 0; }
 .acceleration-title { display: flex; align-items: baseline; gap: var(--spacingHorizontalM); }

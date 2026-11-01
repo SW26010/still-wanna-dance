@@ -19,7 +19,7 @@ pnpm --dir webui check
 
 使用 `webui/package.json` 固定的 pnpm 版本。浏览器测试默认使用本机 Edge；CI 安装 Playwright Chromium，当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
-前端构建与检查统一启用 TypeScript `noUnusedLocals`、`noUnusedParameters`，移除失去用途的声明和参数。设置保存的真实双页面、持久化与重启回归可设置 `SWD_SETTINGS_BROWSER_EVIDENCE` 为隔离输出目录，再通过上述临时目录入口执行 `go test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v`；测试固定第二个页面的旧状态快照以检查部分更新，并覆盖目录确认期间的策略变化、拒绝后重新确认及无关字段合并。原生选择器用隔离目录替代，检查与保存均经过真实 Console，不启动网关或修改 hosts。
+前端构建与检查统一启用 TypeScript `noUnusedLocals`、`noUnusedParameters`，移除失去用途的声明和参数。设置保存的真实双页面、持久化与重启回归可设置 `SWD_SETTINGS_BROWSER_EVIDENCE` 为隔离输出目录，再通过上述临时目录入口执行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v`；测试固定第二个页面的旧状态快照以检查部分更新，并覆盖目录确认期间的策略变化、拒绝后重新确认及无关字段合并。原生选择器用隔离目录替代，检查与保存均经过真实 Console，不启动网关或修改 hosts。
 
 ## 测试维护与 CI 修复
 
@@ -89,7 +89,7 @@ Linux CI 额外运行 `node scripts/go-patches.mjs test -race ./...`；Windows r
 
 ```powershell
 New-Item -ItemType Directory -Force artifacts/storage-full | Out-Null
-./scripts/with-test-temp.ps1 go test -tags=no_easytier -c -o artifacts/storage-full/cacheproxy.test.exe ./internal/cacheproxy
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -c -o artifacts/storage-full/cacheproxy.test.exe ./internal/cacheproxy
 # 在本仓库的管理员 PowerShell 中执行已构建的定向测试：
 ./scripts/test-storage-full.ps1 -TestBinary artifacts/storage-full/cacheproxy.test.exe -EvidenceDirectory artifacts/storage-full
 ```
@@ -100,17 +100,17 @@ CF 专用实验的新构建要求显式指定本地网卡配置，统一绑定 A
 
 入口位于 `cmd/still-wanna-dance`，协议、本地资源和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认本地存储、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版本地视频或证据目录。安装环境不会启动播放网关或修改 hosts。
 
-桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。直接 `go build` 仍是开发构建，未注入的时间明确留空。
+桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。通过补丁入口直接执行 `build` 仍是开发构建，未注入的时间明确留空。
 
-Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目录已登记的 `logo_windows_amd64.syso` 由 Go 自动链接，普通 `go build` 与桌面／便携打包均生效。更新 ICO 后运行 `go generate ./internal/branding`，使用固定版本的 [rsrc](https://github.com/akavel/rsrc/tree/v0.10.2) 重新生成资源；正常构建无需安装或下载此工具。图标源、生成步骤与哈希登记见[资源约定](evidence-storage.md#git-历史和防回归)。
+Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目录已登记的 `logo_windows_amd64.syso` 由 Go 自动链接，开发构建与桌面／便携打包均生效。更新 ICO 后运行 `go generate ./internal/branding`，使用固定版本的 [rsrc](https://github.com/akavel/rsrc/tree/v0.10.2) 重新生成资源；正常构建无需安装或下载此工具。图标源、生成步骤与哈希登记见[资源约定](evidence-storage.md#git-历史和防回归)。
 
 2026-10-21 图标验证：普通 `go build -tags=no_easytier` 与桌面构建均通过；用 Win32 资源 API 从两个实际 EXE 读取的九档图标逐字节匹配 `logo.ico`，`PrivateExtractIconsW` 在 16–256 像素九档尺寸均可提取，256 像素提取图已检查。原生图标解码、资源策略的三项回归及生成资源重复构建字节一致性通过。原始核对结果与提取图在忽略目录 `artifacts/exe-icon/`；未检查已有资源管理器窗口的图标缓存刷新行为。
 
 可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖：
 
 ```powershell
-go build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
-go build -o bin/SWD.exe ./cmd/still-wanna-dance-console
+node scripts/go-patches.mjs build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
+node scripts/go-patches.mjs build -o bin/SWD.exe ./cmd/still-wanna-dance-console
 node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/state/terms.json
 node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
 ```
@@ -119,7 +119,7 @@ node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test
 
 验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭自动加速的桌面程序，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少桌面程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序阻塞服务链路。
 
-条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 go test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](validation/issue-15-validation.md)。
+条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](validation/issue-15-validation.md)。
 
 桌面条款检查以 `-no-tray -no-open` 启动，关闭自动加速并使用动态回环控制端口，不占用 80/443。脚本不改 hosts、不读取旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程。
 

@@ -153,7 +153,7 @@ Windows 普通桌面模式在同一用户会话中只允许一个实例，使用
 默认自动选择端口；也可用 `-listen 127.0.0.1:18082` 手动指定（托盘模式同样支持）。自定义控制端口及无托盘运行示例：
 
 ```powershell
-go build -tags=no_easytier -o bin/still-wanna-dance-console-cli.exe ./cmd/still-wanna-dance-console
+node scripts/go-patches.mjs build -tags=no_easytier -o bin/still-wanna-dance-console-cli.exe ./cmd/still-wanna-dance-console
 .\bin\still-wanna-dance-console-cli.exe -no-tray -listen 127.0.0.1:18082 -config .\other-settings.json
 ```
 
@@ -223,7 +223,7 @@ hosts 同时影响 HTTP 和 HTTPS。桌面程序启动播放网关时提供 TLS 
 
 只绑定本机 IPv4，最多 128 条连接，ClientHello 限制为 64 KiB / 10 秒，建连最多 15 秒，两分钟双向均无进展的连接关闭。关闭播放网关会取消解析和建连并清理活动连接。此入口不支持无 SNI 或隐藏目标域名的握手，也不提供 QUIC/UDP 443。
 
-回归覆盖 TLS 1.2 / 1.3、原站证书验证、HTTP/2、Range/HEAD、分片 ClientHello 原样转发、未托管域名拒绝、建连和活动连接取消，以及端口冲突/目录失败的回滚与重启。需要浏览器实网复验时，先释放本机 443，使用当次 API 返回的实际资源域名进行本地连接测试，在 PowerShell 中运行 `$env:SWD_HTTPS_LIVE='1'; go test ./internal/console -run '^TestHTTPSLiveBrowser$' -v -count=1`。此显式验收辅助服务先通过两个播放接口发现歌曲 1343 的资源域名并打印集合，仅监听 443，两分钟后自动退出，不改 hosts 或本地视频；普通测试和 CI 默认跳过。它仅为手工验收提供连接窗口，测试通过本身不代表视频播放成功，须另行检查浏览器。
+回归覆盖 TLS 1.2 / 1.3、原站证书验证、HTTP/2、Range/HEAD、分片 ClientHello 原样转发、未托管域名拒绝、建连和活动连接取消，以及端口冲突/目录失败的回滚与重启。需要浏览器实网复验时，先释放本机 443，使用当次 API 返回的实际资源域名进行本地连接测试，在 PowerShell 中运行 `$env:SWD_HTTPS_LIVE='1'; node scripts/go-patches.mjs test ./internal/console -run '^TestHTTPSLiveBrowser$' -v -count=1`。此显式验收辅助服务先通过两个播放接口发现歌曲 1343 的资源域名并打印集合，仅监听 443，两分钟后自动退出，不改 hosts 或本地视频；普通测试和 CI 默认跳过。它仅为手工验收提供连接窗口，测试通过本身不代表视频播放成功，须另行检查浏览器。
 
 历史 Chrome 实测（2026-09-26，切换公开域名前）：通过上述辅助服务从原站点击歌曲 6228，播放器 `readyState=4`、`error=null`，播放时间推进到 13 秒；重新打开当时 node=nya 返回的地址后，重定向到 play.udon.dance，继续播放至 37 秒。当时服务连接的是 `ud-nya.kiva.moe:443` 和 `ud-play.kiva.moe:443`，不代表当前默认目标。没有改写网页、视频 URL、系统证书或 hosts；这是该歌曲当时的连通与播放验证，不代表全曲库或持续吞吐测试。
 
@@ -249,7 +249,7 @@ DNSPod 和 360 的入口发现只通过具备固定引导 IP 的 DoH 服务进�
 
 全部加密 DNS 通道失败时明确报错。这保护的是客户端到解析服务的 DNS 链路，仍信任所选解析服务及系统证书信任库；DNS 模块本身不改变视频或 API 请求的 HTTP/HTTPS 协议。曲库以 Udon 为 canonical，Kiva／WannaInfo 按需提供完整备用清单，规则见[曲库设计](song-catalog-design.md)。Udon 清单、播放 API、视频下载、测速与 Range 回源固定 HTTP；Kiva/WannaInfo 固定 HTTPS，不自动升降级，完整规则以[业务请求的协议策略](upstream-channels.md#业务请求的协议策略)为准。HTTP 链路的安全代价已接受；内置 DoH 和游戏 HTTPS 透传保留原职责，不回退系统 DNS/hosts。此前依赖明文 DNS 劫持产生 fake-IP 的代理路径不再由此模块自动使用。
 
-2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`SWD_LIVE_DOH=1` 后运行 `go test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
+2026-09-25 本机逐入口真实解析 `api.udon.dance`：阿里双入口、DNSPod、360、Cloudflare、Google 六项均通过 HTTPS 证书验证与 DNS 报文解析。这不代表其他网络始终可达。可选复测：`SWD_LIVE_DOH=1` 后运行 `node scripts/go-patches.mjs test ./internal/console -run '^TestLiveDoHProviders$' -v -count=1`。
 桌面程序与独立命令行服务共用内置 DoH 建连及上述业务协议策略。Udon API 查询和视频回源固定 HTTP，默认端口为 80，不回退系统 DNS/hosts。视频重定向仅在目标域名已由有效 API 响应确认且 MD5/大小一致时跟随，最多五次；合法视频 Location 按固定 HTTP 执行，同端点 HTTPS 升级明确失败。
 
 ## hosts
@@ -317,7 +317,7 @@ VRChat 原始日志正文；重复的日志读取错误只在变化时记录，�
 
 ```powershell
 $env:SWD_TRAY_CHECK = '1'
-./scripts/with-test-temp.ps1 go test ./internal/desktop -run TestLiveTray -v -count=1
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test ./internal/desktop -run TestLiveTray -v -count=1
 Remove-Item Env:SWD_TRAY_CHECK
 ```
 
@@ -327,7 +327,7 @@ Remove-Item Env:SWD_TRAY_CHECK
 
 ```powershell
 $env:SWD_LIVE_CHECK = '1'
-go test ./internal/console -run TestLiveIndependentDNS -v -count=1
+node scripts/go-patches.mjs test ./internal/console -run TestLiveIndependentDNS -v -count=1
 Remove-Item Env:SWD_LIVE_CHECK
 ```
 
@@ -367,7 +367,7 @@ HTTP 播放 API 优先使用受保护且校验通过的本地文件，不等待�
 
 ```powershell
 $env:SWD_LIVE_FIXED_PROTOCOL = '1'
-./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console -run '^TestLiveFixedUpstreamProtocols$' -v -count=1
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestLiveFixedUpstreamProtocols$' -v -count=1
 Remove-Item Env:SWD_LIVE_FIXED_PROTOCOL
 ```
 
@@ -375,7 +375,7 @@ HTTPS 透传的独立兼容检查验证原站证书，仅读取 1 KiB 视频 Ran
 
 ```powershell
 $env:SWD_LIVE_UPSTREAM = '1'
-./scripts/with-test-temp.ps1 go test -tags=no_easytier ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestLiveHTTPSUpstreams$' -v -count=1
 Remove-Item Env:SWD_LIVE_UPSTREAM
 ```
 

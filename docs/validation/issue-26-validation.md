@@ -2,6 +2,20 @@
 
 本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
+## 2026-11-01 beta.3 修复回合主线
+
+以主线 `c80c6b2578f866b88d1b24788a375f7d4b56c24b` 和发布分支 `46f7c3fa56fbd33927b769f34927ce3f8db758fb` 合并。产物策略冲突保留主线：经路径、类型、字节数与 SHA256 对比，已含发布分支全部登记，也保留 v9 夹具与新版 WebUI。数据库 v9 实现和迁移测试未被覆盖。现行开发、桌面与 CLI 示例均使用补丁入口，历史构建命令保留原样。
+
+Windows amd64 正常用户权限、Go 1.27.3 下，`cmd` 和 `internal` 完整 Go 回归及 vet 通过，含 v8→v9 迁移、回滚和重开测试；需显式环境的条件跳过不记为通过。AnyTLS 并发关闭、VRChat 退出夹具和下载速率边界的定向 Windows race 通过。Node 发布工具 **61/61**、受影响的三个浏览器用例文件 **51/51**、TypeScript 和嵌入资源一致性检查通过。开发版桌面 EXE 成功构建，Go 元数据中的 Mihomo 版本及补丁哈希与源码一致；该次 EXE 标记 `dirty=true`，只用于开发验证。
+
+合并提交 `f14486be52504b9924923ec766cbab37200a6d6d` 的全历史产物扫描检查了 **6,659** 个 blob，零错误，保留 35 条既有体积提醒。首次沙箱 Go 检查出现原子重命名、硬链接、junction 和进程发现等失败；正常用户权限下同范围回归通过，不抹去首次失败。Node 首轮因本机默认 Go 1.27.1 被工具链要求拒绝，指定已安装的 1.27.3 后通过；沙箱还拒绝 pnpm 目录链接，浏览器验证使用隔离检出中指向已有依赖的目录联接。原始日志保存在忽略目录 `artifacts/beta3-merge-20261101/artifacts/integration-checks/`。
+
+此轮未重新执行 Linux 全量 race、正式源码包／公开发行或真实版本间 Portable 覆盖升级；[v9 验证](storage-v9-20261101.md)及下方 beta.3 发布证据各按原构建适用，不外推为本次新合并的正式发行验收。未启动 VRC 或修改系统 hosts。
+
+## 2026-11-01 beta.3 公开交付
+
+发布分支 `46f7c3fa56fbd33927b769f34927ce3f8db758fb` 的 [check #36](https://github.com/SW26010/still-wanna-dance/actions/runs/41229751455) 已通过 Windows／Linux 检查、Linux race、正式打包及公开附件验证；[beta.3](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.3) 已作为 Pre-release 公开五个附件。以下各轮失败和本地候选结果保留其当时范围，不替代该次最终结果。发布构建早于主线数据库 v9，不能将其升级证据外推为 v8→v9 迁移验证。
+
 ## 2026-10-31 beta.3 发布前修复
 
 从指定提交 `9cc27069bce5ada5db7431a4823d671dfcb614a5` 创建 `codex/release-v1.0.0-beta.3`。基线已包含 beta.1/beta.2 的自动发布、冷缓存元数据收集、升级夹具和发布说明修复。最初预检只修改产物检查；后续完整 CI 揭示测试同步问题与 AnyTLS 依赖竞态，处理范围见下文。

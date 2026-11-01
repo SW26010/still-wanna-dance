@@ -404,14 +404,18 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 		}
 		now := time.Now()
 		plan, changed, active := w.plan(now, initialized)
+		// Initialization can complete while plan uses the earlier single-block
+		// view. Replan so pending readers do not wait for another event.
+		if !initialized {
+			select {
+			case <-w.initialized:
+				continue
+			default:
+			}
+		}
 		// Planning filters completed blocks, so an empty plan can mean the
 		// last range just finished. Check completion after that filtering and
 		// before withdrawing demands; drain task results before hashing.
-		select {
-		case <-w.initialized:
-			initialized = true
-		default:
-		}
 		complete := false
 		if initialized {
 			complete = f.ranges.complete()

@@ -16,6 +16,12 @@ Windows race 的其他 Go 包通过；cacheproxy 与 Console 的三个分组分�
 
 原始成功、失败、夹具调整及覆盖核对保存在忽略目录 `artifacts/beta4-local-preflight-20261101/`，主要为 `result.md`、`race-coverage-final.json`、`race-cacheproxy-shard0-final.log`、`browser-node22-full.log`、`formal-package-v2.log`、`beta3-v8-final-release.log` 和 `beta3-v8-final-release-verify.log`。一轮更早的本地正式预演也通过，重复的中间快照预演主动停止并清理其专用临时目录。此阶段没有运行 beta.4 的远端工作流或验证公开附件；未启动 VRC 或修改 hosts。本节是本地证据，正式发行仍须记录实际提交、工作流和公开交付结果。
 
+### 首轮 beta.4 远端预发布与 race 分组调整
+
+发布分支提交 `a0223362661eb0bf56f00f28957eae8a7c29fba8` 的 PR [check #37](https://github.com/SW26010/still-wanna-dance/actions/runs/41332554474)通过 Windows 产品检查和代表性 race。完整预发布 [check #38](https://github.com/SW26010/still-wanna-dance/actions/runs/41332654903)的产品检查、完整正式包及三布局覆盖升级通过；race 第 2 组在缓存包的整包 45 分钟上限处失败，未报告数据竞态。此轮不计为完整发布成功。
+
+超时时正在运行 `TestStoreLeaseExcludesOtherWriters`（47 秒），栈仍在为独立数据库初始化预置资料；相同分组此前本机完整执行为 2,438.109 秒。被截断用例在本机使用同版本 GCC 定向 race 通过（32.873 秒）。这些证据支持 CI 上分组总工作量超出期限，没有证明该用例发生死锁；保留首轮完整日志于忽略目录 `artifacts/beta4-release-preparation/race2-attempt1-failure.log`。完整 race 由三组拆为六组，保持 45 分钟整包上限、单用例期限和全部断言，减少每组工作量。分组核对确认缓存每组 85 项、Console 每组 74～75 项，原 956 个测试名无遗漏或重复，每个旧分组恰好拆成两个新分组；PowerShell 语法和 actionlint 通过。产品运行代码未变，后续结果另记。
+
 ## 2026-11-01 beta.3 修复回合主线
 
 以主线 `c80c6b2578f866b88d1b24788a375f7d4b56c24b` 和发布分支 `46f7c3fa56fbd33927b769f34927ce3f8db758fb` 合并。产物策略冲突保留主线：经路径、类型、字节数与 SHA256 对比，已含发布分支全部登记，也保留 v9 夹具与新版 WebUI。数据库 v9 实现和迁移测试未被覆盖。现行开发、桌面与 CLI 示例均使用补丁入口，历史构建命令保留原样。

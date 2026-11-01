@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][int]$Shard,
-    [int]$Shards = 3
+    [int]$Shards = 6
 )
 $ErrorActionPreference = 'Stop'
 if ($Shards -lt 1 -or $Shard -lt 0 -or $Shard -ge $Shards) { throw 'Invalid race shard.' }

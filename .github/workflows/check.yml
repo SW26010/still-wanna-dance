@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON((github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '[0,1,2]' || '[0]') }}
+        shard: ${{ fromJSON((github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '[0,1,2,3,4,5]' || '[0]') }}
     env:
       GOTOOLCHAIN: local
       CGO_ENABLED: '1'
@@ -101,7 +101,7 @@ jobs:
           "CC=$compiler" >> $env:GITHUB_ENV
       - name: Race-check cache and Console shard
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: ./scripts/test-race-shard.ps1 -Shard ${{ matrix.shard }} -Shards 3
+        run: ./scripts/test-race-shard.ps1 -Shard ${{ matrix.shard }} -Shards 6
       - name: Race-check remaining packages
         if: matrix.shard == 0 && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
         shell: pwsh

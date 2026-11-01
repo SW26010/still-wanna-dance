@@ -47,7 +47,7 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 | --- | --- |
 | 产品与工具检查 | 冻结锁文件安装前端依赖，运行前端一致性检查和完整浏览器套件、全部 `scripts/*.test.mjs`、Go `./...` 的 test/vet/build、gofmt、仓库产物策略及 Python 证据工具测试；Go 检查统一使用 `scripts/go-patches.mjs` 和 `no_easytier`，产品构建使用 `CGO_ENABLED=0` |
 | 前后端联调 | 运行本页的真实 Console 双浏览器设置检查；保存、持久化、重启等其他受影响流程复用对应隔离联调，不能用内存浏览器夹具代替 |
-| 完整 Windows race | 设置匹配 CI 的 `CC` 和 `CGO_ENABLED=1`，完成下文的三个 `test-race-shard.ps1` 分组，以及工作流 `Race-check remaining packages` 步骤覆盖的其余 Go 包；保留完整执行结果和跳过项 |
+| 完整 Windows race | 设置匹配 CI 的 `CC` 和 `CGO_ENABLED=1`，完成下文的全部 `test-race-shard.ps1` 分组，以及工作流 `Race-check remaining packages` 步骤覆盖的其余 Go 包；保留完整执行结果和跳过项 |
 | 正式包预演 | 在干净独立检出中使用仅本地的测试 tag，先构建候选包，再按[打包入口](packaging.md)用 `-ReleaseTag` 和 `-PreviousZip` 完成对应源码收集、全新缓存离线重建、实际 ZIP 启动及带持久数据的覆盖升级；测试 tag 不推送 |
 | 历史版本升级 | 涉及数据库、配置或持久化格式变化时，另用实际前一发行包和隔离旧数据验证迁移；同一源码的候选包到正式包升级不证明历史格式兼容 |
 
@@ -99,7 +99,7 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
-Windows CI 的 PR 和 main push 运行代表性 race；手动或版本 tag 检查额外运行全包 race。独立作业下载固定的 w64devkit 2.10.0 并核对 SHA256，再设置 `CGO_ENABLED=1` 和 `CC`。Windows 下大量 SQLite 测试开启 race 后整包超过 Go 默认的 10 分钟上限，因此缓存和 Console 包由 `scripts/test-race-shard.ps1` 依据 Go 列出的顶层测试分为三组；每个测试及其子测试恰好分配一组，其余包由第 0 组检查。每组设 45 分钟的整包期限，测试自身的等待期限不变。本机可使用同版本 GCC，分别运行 `./scripts/test-race-shard.ps1 -Shard 0`、`-Shard 1`、`-Shard 2`，并单独检查其他跟踪包；工具及验证日志保存在忽略目录 `artifacts/`，不依赖全局 PATH。
+Windows CI 的 PR 和 main push 运行代表性 race；手动或版本 tag 检查额外运行全包 race。独立作业下载固定的 w64devkit 2.10.0 并核对 SHA256，再设置 `CGO_ENABLED=1` 和 `CC`。Windows 下大量 SQLite 测试开启 race 后整包超过 Go 默认的 10 分钟上限，因此缓存和 Console 包由 `scripts/test-race-shard.ps1` 依据 Go 列出的顶层测试分为六组；每个测试及其子测试恰好分配一组，其余包由第 0 组检查。每组设 45 分钟的整包期限，测试自身的等待期限不变。本机可使用同版本 GCC，分别运行 `./scripts/test-race-shard.ps1 -Shard 0` 至 `-Shard 5`，并单独检查其他跟踪包；工具及验证日志保存在忽略目录 `artifacts/`，不依赖全局 PATH。此前三组在本机通过，但 CI 第 2 组触及 45 分钟整包上限；改为六组以减小每组工作量，保留原失败记录和测试期限。
 
 真实磁盘耗尽是独立的 Windows 环境检查，不在普通测试中自动执行。`scripts/test-storage-full.ps1` 使用 Hyper-V 的虚拟磁盘命令创建新的固定 128 MiB NTFS 镜像；只接受本仓库 `artifacts/` 下的测试二进制和证据目录，校验新磁盘身份及容量后才初始化，并为宿主卷保留至少 512 MiB 空间。测试再次校验卷标记与容量，分别填满块、发布和数据库所在的可丢弃卷，检查错误、关闭、清理及已提交数据；结束后卸载并删除本次镜像，保留日志与 `result.json`。不接受现有磁盘号或镜像路径，不填满日常使用的卷。构建不需管理员权限，挂载阶段需要 Windows 管理员令牌；UAC 未确认时此项仍为未验证。
 

@@ -256,6 +256,15 @@ func (s *BlockSubscription) DownloadSpeed() (float64, <-chan struct{}) {
 	return o.speed, o.speedChanged
 }
 
+// Leave bytes accumulated when the clock cannot define a sample interval.
+func (o *blockObserver) takeSpeedSample(elapsed time.Duration) (int64, float64, bool) {
+	if elapsed <= 0 {
+		return 0, 0, false
+	}
+	bytes := o.speedBytes.Swap(0)
+	return bytes, bytesPerSecond(bytes, elapsed), true
+}
+
 // Byte arrivals arm a one-second sample. One empty sample resets the speed to
 // zero and disarms the timer. Speed samples never capture or wake block state.
 func (o *blockObserver) runSpeed() {
@@ -286,8 +295,11 @@ func (o *blockObserver) runSpeed() {
 			default:
 			}
 			now := time.Now()
-			bytes := o.speedBytes.Swap(0)
-			rate := float64(bytes) / now.Sub(last).Seconds()
+			bytes, rate, valid := o.takeSpeedSample(now.Sub(last))
+			if !valid {
+				timer.Reset(time.Second)
+				continue
+			}
 			o.mu.Lock()
 			if rate != o.speed {
 				o.speed = rate

@@ -28,12 +28,12 @@ func TestCalibrationUsesActiveClientAcrossResourceHosts(t *testing.T) {
 	var active atomic.Int32
 	var mu sync.Mutex
 	hosts := map[string]int{}
-	fixture, _ := calibrationManyVideos(t, 8, func(r *http.Request) (*http.Response, error) {
+	fixture, _ := calibrationManyVideosSized(t, 2, calibrationBlock, func(r *http.Request) (*http.Response, error) {
 		mu.Lock()
 		hosts[r.URL.Host]++
 		mu.Unlock()
 		active.Add(1)
-		resp := calibrationRange(r, nil)
+		resp := calibrationRangeSized(r, nil, calibrationBlock)
 		resp.Body = &pacedCalibrationBody{ctx: r.Context(), remaining: resp.ContentLength, active: &active}
 		return resp, nil
 	})
@@ -43,27 +43,28 @@ func TestCalibrationUsesActiveClientAcrossResourceHosts(t *testing.T) {
 			var id int
 			fmt.Sscanf(r.URL.Query().Get("id"), "%d", &id)
 			host := "cf-a.example.com"
-			if id > 4 {
+			if id > 1 {
 				host = "cf-b.example.com"
 			}
 			location := strings.ReplaceAll(resp.Header.Get("Location"), "play.udon.dance", host)
-			resp.Header.Set("Location", strings.ReplaceAll(location, "s=16777216", "s=33554432"))
+			resp.Header.Set("Location", location)
 		}
 		return resp, err
 	})}
-	c := calibrationForTest(t, client, 8)
-	c.limits.reserveVideos, c.limits.reserveBytes = 8, 256<<20
-	c.limits.warmup, c.limits.window, c.limits.interval = 50*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
+	c := calibrationForTest(t, client, 2)
+	c.limits.reserveVideos, c.limits.reserveBytes = 2, 2*calibrationBlock
+	// Each source is one block; finish both before ending on source exhaustion.
+	c.limits.warmup, c.limits.window = time.Hour, time.Hour
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
 	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "completed" || s.Reason != "measurement_complete" || s.Failures != 0 || s.PeakActive != 16 || active.Load() != 0 || s.Finished.IsZero() {
+	if s.Phase != "completed" || s.Reason != "samples_exhausted" || s.Bytes != 2*calibrationBlock || s.Failures != 0 || active.Load() != 0 || s.Finished.IsZero() {
 		t.Fatalf("%+v active=%d", s, active.Load())
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if hosts["cf-a.example.com"] == 0 || hosts["cf-b.example.com"] == 0 {
+	if hosts["cf-a.example.com"] != 1 || hosts["cf-b.example.com"] != 1 {
 		t.Fatal("resource hosts did not share the active client", hosts)
 	}
 }

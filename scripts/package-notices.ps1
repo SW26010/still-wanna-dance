@@ -13,7 +13,7 @@ if (@($info | Where-Object { $_ -match '^\s+path\s+still-wanna-dance/cmd/still-w
     throw 'Expected a Still Wanna Dance desktop executable.'
 }
 foreach ($line in $info) {
-    if ($line -match '^\s+=>') { throw 'Replacement modules require a license review before packaging.' }
+    # release-notices.mjs above accepts only the reviewed, hash-bound Mihomo patch.
     if ($line -match '^\s+dep\s+(\S+)\s+(\S+)') {
         $marker = "Module: $($Matches[1]) $($Matches[2])"
         if (($notices -split '\r?\n') -cnotcontains $marker) {
@@ -28,6 +28,7 @@ $goVersion = & go env GOVERSION
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the Go toolchain.' }
 if (!$info[0].EndsWith(": $goVersion")) { throw 'Executable and selected Go toolchain versions differ.' }
 $builder = [Text.StringBuilder]::new($notices.TrimEnd())
+[void]$builder.AppendLine().AppendLine('SWD modifies Mihomo v1.19.32 AnyTLS stream close-error synchronization. The original module and GPLv3 license remain in the corresponding source; patches/README.md and patches/mihomo-anytls-stream.go.txt contain the modification and provenance.')
 $webNotices = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/licenses/WEBUI-NOTICES.txt'
 [void]$builder.AppendLine().AppendLine().AppendLine([IO.File]::ReadAllText($webNotices).TrimEnd())
 $dashboardNotices = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/licenses/ZASHBOARD-NOTICES.txt'

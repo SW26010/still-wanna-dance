@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/applog"
@@ -322,12 +323,61 @@ func TestLogsClientWriteFailureAfter200(t *testing.T) {
 	t.Fatal("missing request result")
 }
 
+func TestBytesPerSecondRequiresElapsedTime(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		bytes   int64
+		elapsed time.Duration
+		want    float64
+	}{
+		{"stalled with equal timestamps", 0, 0, 0},
+		{"bytes with equal timestamps", 2048, 0, 0},
+		{"clock before previous sample", 2048, -time.Second, 0},
+		{"one second", 2048, time.Second, 2048},
+		{"fractional second", 512, 500 * time.Millisecond, 1024},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bytesPerSecond(tc.bytes, tc.elapsed); got != tc.want {
+				t.Fatalf("bytesPerSecond(%d, %s) = %v; want %v", tc.bytes, tc.elapsed, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestProgressRateSampleKeepsBytesUntilTimeAdvances(t *testing.T) {
+	start := time.Unix(100, 0)
+	sample := progressRateSample{at: start}
+	if got := sample.rate(start, 2048); got != 0 {
+		t.Fatal("same-time sample produced a rate", got)
+	}
+	if got := sample.rate(start.Add(-time.Second), 3072); got != 0 {
+		t.Fatal("backward sample produced a rate", got)
+	}
+	if got := sample.rate(start.Add(time.Second), 3072); got != 3072 {
+		t.Fatal("bytes were lost before the first measurable interval", got)
+	}
+	if got := sample.rate(start.Add(time.Second), 4096); got != 0 {
+		t.Fatal("same-time sample produced a rate", got)
+	}
+	if got := sample.rate(start.Add(2*time.Second), 4096); got != 1024 {
+		t.Fatal("bytes were lost between measurable intervals", got)
+	}
+}
+
 func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
-	logs := new(logCapture)
-	p := startProgress(slog.New(slog.NewJSONHandler(logs, nil)), 10, time.Millisecond)
-	p.setStage("download")
-	deadline := time.Now().Add(time.Second)
-	for {
+	synctest.Test(t, func(t *testing.T) {
+		logs := new(logCapture)
+		p := startProgress(slog.New(slog.NewJSONHandler(logs, nil)), 10, time.Millisecond)
+		finished := false
+		defer func() {
+			if !finished {
+				p.finish(context.Canceled)
+			}
+		}()
+		p.setStage("download")
+		synctest.Wait()
+		time.Sleep(time.Millisecond)
+		synctest.Wait()
 		found := false
 		for _, r := range logs.records(t) {
 			if r["msg"] == "download_progress" && r["stage"] == "download" {
@@ -337,18 +387,20 @@ func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
 				}
 			}
 		}
-		if found {
-			break
-		}
-		if time.Now().After(deadline) {
+		if !found {
 			t.Fatal("no stalled progress")
 		}
-		time.Sleep(time.Millisecond)
-	}
-	p.finish(context.DeadlineExceeded)
-	records := logs.records(t)
-	last := records[len(records)-1]
-	if last["msg"] != "cache_task_finished" || last["outcome"] != "timeout" {
-		t.Fatal(last)
-	}
+		p.finish(context.DeadlineExceeded)
+		finished = true
+		records := logs.records(t)
+		last := records[len(records)-1]
+		if last["msg"] != "cache_task_finished" || last["outcome"] != "timeout" {
+			t.Fatal(last)
+		}
+		time.Sleep(10 * time.Millisecond)
+		synctest.Wait()
+		if after := logs.records(t); len(after) != len(records) {
+			t.Fatal("progress was reported after the terminal event", after[len(records):])
+		}
+	})
 }

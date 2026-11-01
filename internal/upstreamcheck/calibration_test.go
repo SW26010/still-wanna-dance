@@ -147,9 +147,13 @@ func (b *calibrationBlockedBody) Read(p []byte) (int, error) {
 func (b *calibrationBlockedBody) Close() error { b.once.Do(b.close); return nil }
 
 func calibrationRange(r *http.Request, body io.ReadCloser) *http.Response {
+	return calibrationRangeSized(r, body, 32<<20)
+}
+
+func calibrationRangeSized(r *http.Request, body io.ReadCloser, size int64) *http.Response {
 	var start, end int64
 	fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
-	return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/33554432", start, end)}}, ContentLength: end - start + 1, Body: body}
+	return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, size)}}, ContentLength: end - start + 1, Body: body}
 }
 
 func TestCalibrationHoldsSingleThenUsesNaturalGrowthAndCancels(t *testing.T) {
@@ -228,7 +232,8 @@ func TestCalibrationDiscardsVideoOnceAndSnapshots(t *testing.T) {
 		time.Sleep(2 * time.Millisecond) // Keep full-block samples above the platform clock resolution.
 		return calibrationRange(r, io.NopCloser(bytes.NewReader(block))), nil
 	}))
-	c.limits.interval = 10 * time.Millisecond
+	// This case checks source exhaustion, not completion of a speed window.
+	c.limits.interval, c.limits.window = 10*time.Millisecond, time.Hour
 	for run := uint64(1); run <= 2; run++ {
 		if err := c.Start(); err != nil {
 			t.Fatal(err)
@@ -409,8 +414,12 @@ func (b *pacedCalibrationBody) Read(p []byte) (int, error) {
 func (b *pacedCalibrationBody) Close() error { b.once.Do(func() { b.active.Add(-1) }); return nil }
 
 func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
+	synctest.Test(t, calibrationMultipleVideosFinishBothMeasurementStages)
+}
+
+func calibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	var mu sync.Mutex
-	ranges, videos := map[string]int{}, map[string]bool{}
+	ranges := map[string]int{}
 	var active, catalogs atomic.Int32
 	c := calibrationForTest(t, transportFunc(func(r *http.Request) (*http.Response, error) {
 		switch r.URL.Path {
@@ -429,7 +438,6 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 		default:
 			mu.Lock()
 			ranges[r.URL.String()+r.Header.Get("Range")]++
-			videos[r.URL.Query().Get("e")] = true
 			mu.Unlock()
 			active.Add(1)
 			resp := calibrationRange(r, nil)
@@ -453,9 +461,8 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 		t.Fatal("missing/invalid process CPU statistics")
 	}
 	mu.Lock()
-
-	if len(videos) < 3 || catalogs.Load() != 0 {
-		t.Fatalf("did not replenish known videos without catalog requests: videos=%d catalogs=%d", len(videos), catalogs.Load())
+	if catalogs.Load() != 0 {
+		t.Fatalf("measurement requested a catalog: %d", catalogs.Load())
 	}
 	for _, n := range ranges {
 		if n != 1 {
@@ -491,6 +498,11 @@ func TestCalibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 
 func calibrationManyVideos(t *testing.T, count int, resource func(*http.Request) (*http.Response, error)) (http.RoundTripper, *atomic.Int32) {
 	t.Helper()
+	return calibrationManyVideosSized(t, count, 16<<20, resource)
+}
+
+func calibrationManyVideosSized(t *testing.T, count int, size int64, resource func(*http.Request) (*http.Response, error)) (http.RoundTripper, *atomic.Int32) {
+	t.Helper()
 	var catalogs atomic.Int32
 	songs := make([]map[string]int, count)
 	for i := range songs {
@@ -509,7 +521,7 @@ func calibrationManyVideos(t *testing.T, count int, resource func(*http.Request)
 			var id int
 			fmt.Sscanf(r.URL.Query().Get("id"), "%d", &id)
 			v := response(302, "")
-			v.Header.Set("Location", fmt.Sprintf("https://play.udon.dance/files/123/%d-abc.mp4?e=%032x&s=16777216", id, id))
+			v.Header.Set("Location", fmt.Sprintf("https://play.udon.dance/files/123/%d-abc.mp4?e=%032x&s=%d", id, id, size))
 			return v, nil
 		default:
 			return resource(r)
@@ -546,11 +558,13 @@ func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
 func TestCalibrationReplenishesMoreThanInitiallyLoadedVideos(t *testing.T) {
 	var mu sync.Mutex
 	requests := map[string]int{}
-	transport, _ := calibrationManyVideos(t, 12, func(r *http.Request) (*http.Response, error) {
+	videos := map[string]bool{}
+	transport, catalogs := calibrationManyVideos(t, 12, func(r *http.Request) (*http.Response, error) {
 		var start, end int64
 		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
 		mu.Lock()
 		requests[r.URL.String()+r.Header.Get("Range")]++
+		videos[r.URL.Query().Get("e")] = true
 		mu.Unlock()
 		return &http.Response{StatusCode: 206, ContentLength: end - start + 1,
 			Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/16777216", start, end)}},
@@ -568,8 +582,8 @@ func TestCalibrationReplenishesMoreThanInitiallyLoadedVideos(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(requests) != 12*16 {
-		t.Fatal("did not replenish beyond the initial eight resources")
+	if len(videos) != 12 || len(requests) != 12*16 || catalogs.Load() != 0 {
+		t.Fatalf("did not replenish known videos without catalog requests: videos=%d ranges=%d catalogs=%d", len(videos), len(requests), catalogs.Load())
 	}
 	for _, n := range requests {
 		if n != 1 {

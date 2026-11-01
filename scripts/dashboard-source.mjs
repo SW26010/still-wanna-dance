@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {pnpm,collectPackageStore} from './webui-source.mjs';
 
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -28,13 +29,19 @@ const trustArgs=release=>(release.trustPolicyExclude||[]).map(id=>'--trust-polic
 // The upstream workspace requests only the builder's platform. Expand it only
 // in the disposable fetch staging directory; shipped upstream source is intact.
 export const dashboardArchitectures='\nsupportedArchitectures:\n  os: [win32, linux, darwin]\n  cpu: [x64, arm64]\n  libc: [glibc, musl]\n';
+export function extractDashboardArchive(archive,unpack) {
+  // Windows bsdtar can reject UTF-8 ZIP names outside the system code page.
+  // .NET decodes the ZIP's Unicode flag without that lossy conversion.
+  if(process.platform==='win32')execFileSync('pwsh',['-NoProfile','-File',fileURLToPath(new URL('./archive-source.ps1',import.meta.url)),'-Action','extract','-Archive',archive,'-Directory',unpack],{windowsHide:true});
+  else execFileSync('tar',['-xf',archive,'-C',unpack],{windowsHide:true,env:{...process.env,TAR_OPTIONS:''}});
+}
 export function collectDashboard(source,bundle,work) {
   const release=checkDashboard(source);if(!release)return null;
   manager(release,source);
   const archive=path.join(work,'zashboard-source.zip');
   execFileSync(process.execPath,[path.join(source,'scripts/fetch-source-input.mjs'),release.sourceURL,archive,release.sourceSHA256],{windowsHide:true,stdio:'inherit'});
   const unpack=path.join(work,'dashboard-unpack');fs.mkdirSync(unpack);
-  execFileSync('tar',['-xf',archive,'-C',unpack],{windowsHide:true});
+  extractDashboardArchive(archive,unpack);
   const checkout=path.join(bundle,'dashboard/source');fs.mkdirSync(path.dirname(checkout));
   fs.renameSync(path.join(unpack,release.sourcePrefix),checkout);
   manager(release,checkout);

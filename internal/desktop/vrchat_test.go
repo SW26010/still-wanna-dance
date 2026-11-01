@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -25,34 +26,61 @@ func (p *waitingTestProcess) Wait(ctx context.Context) error {
 
 func (p *waitingTestProcess) Close() error { p.closed = true; return nil }
 
+// synctest.Wait orders completed observations before the test reads them, but
+// fake time advancing does not order a new observation after a test-side write.
+type waitingTestDiscovery struct {
+	mu      sync.Mutex
+	process processWaiter
+	err     error
+	calls   int
+}
+
+func (d *waitingTestDiscovery) set(process processWaiter, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.process, d.err = process, err
+}
+
+func (d *waitingTestDiscovery) find() (processWaiter, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.calls++
+	return d.process, d.err
+}
+
+func (d *waitingTestDiscovery) count() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.calls
+}
+
 func TestVRChatExitWaitsWithoutPolling(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		process := &waitingTestProcess{exit: make(chan struct{})}
-		var available processWaiter
-		calls := 0
+		discovery := &waitingTestDiscovery{}
 		done := make(chan error, 1)
 		go func() {
-			done <- waitForVRChatExit(ctx, func() (processWaiter, error) { calls++; return available, nil })
+			done <- waitForVRChatExit(ctx, discovery.find)
 		}()
 		synctest.Wait()
 		// No prior game: stay open. The next discovery attaches to the new game.
-		available = process
+		discovery.set(process, nil)
 		time.Sleep(vrchatDiscoveryInterval)
 		synctest.Wait()
-		if calls != 2 || process.closed {
-			t.Fatal("game was not attached", calls, process.closed)
+		if discovery.count() != 2 || process.closed {
+			t.Fatal("game was not attached", discovery.count(), process.closed)
 		}
 		time.Sleep(time.Hour)
 		synctest.Wait()
-		if calls != 2 {
-			t.Fatal("enumerated processes while the known game was alive", calls)
+		if discovery.count() != 2 {
+			t.Fatal("enumerated processes while the known game was alive", discovery.count())
 		}
-		available = nil
+		discovery.set(nil, nil)
 		close(process.exit)
 		synctest.Wait()
-		if calls != 3 || !process.closed {
+		if discovery.count() != 3 || !process.closed {
 			t.Fatal("exit did not release the handle and recheck other instances")
 		}
 		select {
@@ -62,8 +90,8 @@ func TestVRChatExitWaitsWithoutPolling(t *testing.T) {
 		}
 		time.Sleep(vrchatExitConfirmation)
 		synctest.Wait()
-		if err := <-done; err != nil || calls != 4 {
-			t.Fatal(err, calls)
+		if err := <-done; err != nil || discovery.count() != 4 {
+			t.Fatal(err, discovery.count())
 		}
 	})
 }
@@ -75,36 +103,35 @@ func TestVRChatExitWaitsForOtherInstancesAndRestart(t *testing.T) {
 		first := &waitingTestProcess{exit: make(chan struct{})}
 		second := &waitingTestProcess{exit: make(chan struct{})}
 		restarted := &waitingTestProcess{exit: make(chan struct{})}
-		var available processWaiter = first
-		calls := 0
+		discovery := &waitingTestDiscovery{process: first}
 		done := make(chan error, 1)
 		go func() {
-			done <- waitForVRChatExit(ctx, func() (processWaiter, error) { calls++; return available, nil })
+			done <- waitForVRChatExit(ctx, discovery.find)
 		}()
 		synctest.Wait()
-		available = second
+		discovery.set(second, nil)
 		close(first.exit)
 		synctest.Wait()
-		if calls != 2 || !first.closed || second.closed {
+		if discovery.count() != 2 || !first.closed || second.closed {
 			t.Fatal("did not follow the remaining instance")
 		}
-		available = nil
+		discovery.set(nil, nil)
 		close(second.exit)
 		synctest.Wait()
 		time.Sleep(vrchatExitConfirmation / 2)
-		available = restarted
+		discovery.set(restarted, nil)
 		time.Sleep(vrchatExitConfirmation / 2)
 		synctest.Wait()
-		if calls != 4 || restarted.closed {
+		if discovery.count() != 4 || restarted.closed {
 			t.Fatal("restart did not cancel exit confirmation")
 		}
-		available = nil
+		discovery.set(nil, nil)
 		close(restarted.exit)
 		synctest.Wait()
 		time.Sleep(vrchatExitConfirmation)
 		synctest.Wait()
-		if err := <-done; err != nil || calls != 6 || !restarted.closed {
-			t.Fatal(err, calls, restarted.closed)
+		if err := <-done; err != nil || discovery.count() != 6 || !restarted.closed {
+			t.Fatal(err, discovery.count(), restarted.closed)
 		}
 	})
 }
@@ -115,22 +142,20 @@ func TestVRChatExitObservationErrorsRecover(t *testing.T) {
 		defer cancel()
 		failure := errors.New("observation unavailable")
 		process := &waitingTestProcess{exit: make(chan struct{}), err: failure}
-		var available processWaiter
-		findErr := failure
-		calls := 0
+		discovery := &waitingTestDiscovery{err: failure}
 		done := make(chan error, 1)
 		go func() {
-			done <- waitForVRChatExit(ctx, func() (processWaiter, error) { calls++; return available, findErr })
+			done <- waitForVRChatExit(ctx, discovery.find)
 		}()
 		synctest.Wait()
-		findErr = nil
+		discovery.set(nil, nil)
 		time.Sleep(vrchatDiscoveryInterval)
 		synctest.Wait()
 		// An unknown first observation never arms automatic exit.
-		available = process
+		discovery.set(process, nil)
 		time.Sleep(vrchatDiscoveryInterval)
 		synctest.Wait()
-		available = nil
+		discovery.set(nil, nil)
 		close(process.exit) // a failed native wait must release its handle and retry
 		synctest.Wait()
 		if !process.closed {
@@ -138,10 +163,10 @@ func TestVRChatExitObservationErrorsRecover(t *testing.T) {
 		}
 		time.Sleep(vrchatDiscoveryInterval)
 		synctest.Wait()
-		findErr = failure // confirmation failure resets the absent evidence
+		discovery.set(nil, failure) // confirmation failure resets the absent evidence
 		time.Sleep(vrchatExitConfirmation)
 		synctest.Wait()
-		findErr = nil
+		discovery.set(nil, nil)
 		time.Sleep(vrchatDiscoveryInterval)
 		synctest.Wait()
 		select {
@@ -151,8 +176,8 @@ func TestVRChatExitObservationErrorsRecover(t *testing.T) {
 		}
 		time.Sleep(vrchatExitConfirmation)
 		synctest.Wait()
-		if err := <-done; err != nil || calls != 7 {
-			t.Fatal(err, calls)
+		if err := <-done; err != nil || discovery.count() != 7 {
+			t.Fatal(err, discovery.count())
 		}
 	})
 }

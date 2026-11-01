@@ -11,6 +11,22 @@ import (
 	"time"
 )
 
+func TestDownloadSpeedSampleRetainsBytesWithoutElapsedTime(t *testing.T) {
+	o := &blockObserver{}
+	o.speedBytes.Store(2048)
+	for _, elapsed := range []time.Duration{0, -time.Second} {
+		if n, rate, valid := o.takeSpeedSample(elapsed); valid || n != 0 || rate != 0 {
+			t.Fatal("invalid interval produced a sample", n, rate, valid)
+		}
+	}
+	if n, rate, valid := o.takeSpeedSample(time.Second); !valid || n != 2048 || rate != 2048 {
+		t.Fatal("bytes were lost before a valid interval", n, rate, valid)
+	}
+	if n, rate, valid := o.takeSpeedSample(time.Second); !valid || n != 0 || rate != 0 {
+		t.Fatal("empty interval did not reset the speed", n, rate, valid)
+	}
+}
+
 func TestDownloadSpeedSharesReadsWithoutCapturingBlocks(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)

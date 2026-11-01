@@ -2,6 +2,131 @@
 
 本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
+## 2026-10-31 beta.3 发布前修复
+
+从指定提交 `9cc27069bce5ada5db7431a4823d671dfcb614a5` 创建 `codex/release-v1.0.0-beta.3`。基线已包含 beta.1/beta.2 的自动发布、冷缓存元数据收集、升级夹具和发布说明修复。最初预检只修改产物检查；后续完整 CI 揭示测试同步问题与 AnyTLS 依赖竞态，处理范围见下文。
+
+原产物检查对全部历史 blob 一次执行 `git cat-file --batch`，在当前历史和独立 256 MiB 历史夹具中均复现 `spawnSync git ENOBUFS`。现在先查询对象大小，再按 16 MiB 目标分批读取；大于该目标的单个 blob 独立读取，仍完整检查。新增回归保留八版各 32 MiB 的历史，其中首版含随后被替换的二进制内容；修复前溢出，修复后仍准确拒绝首版，不缩短历史范围、不放宽内容规则。
+
+扫描恢复后确认仅有八版 `app.js` 缺少精确登记，分别来自 `498d2544`、`9056d4a3`、`558c6107`、`fedf4650`、`46d5345a`、`46bd4960`、`f35435e7` 和 `9cc27069`。逐版核对 Git blob 字节与对应提交的 `webui/build-manifest.json` SHA256 后补齐，未改动产物本身。
+
+本机预检：产物策略回归 **6/6**、全部 Node 工具回归 **52/52**、前端类型与产物一致性检查通过；基线完整历史扫描 **6,428 blobs、0 errors**，35 条已有体积提醒保留。首轮工具回归的两项失败来自沙箱符号链接限制和 PATH 中的 Go 1.27.1；切换已安装的 Go 1.27.3、正常用户权限后通过。当前工作区前端依赖需按固定锁文件重新安装，完成后检查通过。原失败与复核日志保存在忽略目录 `artifacts/release-v1.0.0-beta.3/`。
+
+这些结果仅证明发布前修复与本机预检；最终交付仍以该分支的完整 `check`、候选到正式包覆盖升级，以及独立 release job 的公开回下载与冷缓存重建结果为准。
+
+### 首轮 CI 暴露的真实时钟断言
+
+发布前修复提交 `fb109c6786409a616d642bc6883e891dae1ae1d8` 的[产物检查](https://github.com/SW26010/still-wanna-dance/actions/runs/41190551073)通过，完整扫描 6,433 blobs、零错误。随后 [check #27](https://github.com/SW26010/still-wanna-dance/actions/runs/41190632666) 的 Linux Go 测试在 `TestCatalogInitializationFailureSchedulesRetryAfterConsent` 和 `TestNetworkConnectivityReusesResponsesToInitializeStorage` 失败；第一项得到 `5.00000039s`，却要求与 5 秒完全相等。该轮不能记为发布成功。
+
+两项测试使用真实时钟，完成时刻和调度截止由两次 `time.Now()` 取得；同锁下状态已经完成，但取时之间仍经过时间。Windows 原测试重复 100 次通过；在两次取时之间临时加入 1 毫秒间隔后，两项同样失败，排除了仅靠重跑恢复绿灯的处理。精确周期已有 `network_connectivity_schedule_test.go` 的虚拟时间依据；现在这两项也复用 `synctest.Test`、`synctest.Wait` 和 `automaticTestConsole` 的通道隔离，保留原 5 秒/5 分钟等值断言及全部数据检查，不修改生产调度或增大容差。
+
+修复后的两项及相关自动调度回归重复 100 次通过，完整 console 包通过。验证断言保留时，等待型探针在虚拟时钟的锁内阻塞，已停止该隔离测试；改用不阻塞的 1 毫秒完成时刻偏移，两项仍按预期失败，移除探针后再次通过。所有生产文件已恢复原字节，诊断探针不入库。首轮远端日志、探针失败/中断和修复结果保存在同一忽略目录的 `linux-attempt1.log`、`console-clock-*.log` 与 `console-full-fixed.log`，不覆盖历史失败。
+
+### 第二轮 CI：通知定位、发现夹具与 AnyTLS 竞态
+
+提交 `2760601041adc9d58cab8ac4dad84117e86ab99a` 的 [check #28](https://github.com/SW26010/still-wanna-dance/actions/runs/41191952799)未发布：Windows 浏览器 368 通过、1 失败；Linux 普通 Go 检查通过，race 在 desktop 与 AnyTLS 集成路径失败。收齐两平台日志后成组处理；没有放宽断言、跳过协议、关闭 race 或把重跑成功当作修复。
+
+- `monitor-details` 的全页文本断言同时命中 Toast 标题与 Fluent 的 `aria-live` 朗读副本。本地原用例重复 20 次通过，固定时钟推进到排队的第二条朗读消息后复现同一 strict-mode 错误；只改为精确通知 `listitem` 定位，保持该故障窗口时通过。一起修正 hosts 通知中的同类定位，移除临时探针后相关 14 项浏览器回归通过。
+- VRChat 退出发现夹具在虚拟时间推进后读写共享发现结果；`synctest.Wait` 不能替代相反方向的同步。本机 race 复现原三项失败；发现结果、错误与调用计数统一由夹具互斥保护。首版遗漏计数读取的失败也保留，补齐后四条退出路径重复 100 次 race 通过，生产进程等待逻辑未修改。
+- Mihomo `v1.19.32` 的 AnyTLS Stream 由接收 goroutine 写 `dieErr`，调用者同时读写；当前上游文件仍有同一问题。原集成用例在本机重复三次没有触发，新增原生 Stream 并发读、写、关闭回归后稳定报 race。修改文件只原子发布、读取该错误，最小回归重复 10 次 race 通过；全部 console、desktop、mihomo 包 race 通过（分别 109.765、5.112、37.021 秒）。
+
+用户选择在本仓库维护最小依赖补丁并验证完整交付链。最初 Go overlay 探针被工具链明确拒绝，未改写模块缓存；最终使用隔离副本和临时 `-modfile`，由构建、测试、vet、覆盖升级和源码重建共用入口。原版本、模块校验和、原文件及补丁哈希均核对；产物显式保留补丁身份，不将修改版冒充原模块。维护和移除规则见[依赖补丁](../../patches/README.md)。
+
+本地发布工具 **55/55**、actionlint、实际桌面构建、实际 EXE 的补丁身份及 **114 个**依赖许可校验通过；原模块文件 SHA256 未变化。第二轮远端日志、Windows trace 附件、受控失败、overlay 拒绝和成功复核分别保留在 `artifacts/release-v1.0.0-beta.3/` 的 `*-attempt2.log`、`beta3-attempt2-webui-failure.zip`、`monitor-announcement-*.log`、`desktop-race-*.log`、`anytls-*.log`、`affected-race-patched.log` 和 `tools-patched.log`。这些是本地修复证据，最终公开交付结果另记。
+
+### 第三轮 CI 的 Windows 深路径修复
+
+[check #29](https://github.com/SW26010/still-wanna-dance/actions/runs/41194848967) 在 `2fc5061edf0a910030157cd3fd20333975769ec0` 上完成两平台各 369 项浏览器回归、Go 测试、vet 和编译；Linux 完整 race 与格式检查通过。Windows 候选包生成成功，但正式流程的嵌套干净检出中，五个较深的 Mihomo 包无法启动 `vet.exe`，报告 `The directory name is invalid`。发布 job 跳过，该轮没有创建公开 tag 或 Release。
+
+本机新增真实依赖 vet 回归，将检出根目录延长到 136 字符，原实现稳定复现相同失败。补丁副本原先位于检出目录内，叠加 SHA256 目录名和依赖包路径后超出 Windows 子进程工作目录限制；改为进程临时目录下的独占 `swd-go-*`，与正式检出/源码解包目录并列，并保留完整补丁哈希。替换路径按 Go 字符串格式引用，二进制元数据按制表符解析，支持含空格的目录。补丁内容、原模块校验和、隔离与清理边界保持原规则。
+
+同一深目录回归修复后通过；源码交付相关 12 项及全部 Node 工具 **56/56** 通过。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-attempt3.log`、`linux-attempt3.log`、`patch-path-red.log`、`patch-path-green.log`、`tools-path-fixed.log`。这些结果不替代完整本地正式打包及最终远端公开交付。
+
+### 本地完整流程的冷缓存查询修复
+
+`9bdddb0f842df5a990de75c0cba34eccc5ce06fc` 的本地候选 ZIP、114 个依赖许可校验及正式干净检出检查通过，约 812 MB 的完整源码归档生成并校验通过；正式 EXE 的冷缓存编译准备阶段随后失败。补丁入口的 `go list -m all` 加载整个模块图，索取未选中的 `github.com/stretchr/testify@v1.8.1.mod`。现行源码包只交付选定版本元数据和实际编译模块的 ZIP；这次入口新增的全图读取超出了生产构建需求，该次完整流程不记为成功。
+
+新增回归使用真实 Mihomo ZIP、全新模块缓存和仅含该模块的文件代理，原入口会读取无关模块而失败。修复先只读解析 `go.mod`，仅对实际需要补丁的模块查询所选版本/替换，再维持原始模块、源文件和补丁哈希检查。相同回归通过；使用与正式源码包相同的 **225 个选定版本、114 个完整 ZIP** 构造隔离代理，真实桌面入口在全新模块/编译缓存、仅本地 `GOPROXY` 下编译成功，EXE 的 114 个依赖及补丁身份通过。全部 Node 工具 **57/57** 通过。
+
+证据位于 `artifacts/release-v1.0.0-beta.3/`：`local-candidate.log`、失败的 `local-formal.log`、`patch-offline-red.log`、`patch-offline-green.log`、`offline-product-green.log` 和 `tools-offline-fixed.log`。诊断脚本首轮遗漏重建身份的 revision，在编译前被既有校验拒绝；补齐当前提交后才取得上述实际编译结果，该首轮日志也保留。实际完整正式包与公开交付仍须按最终提交复核。
+
+### 本地源码重建与嵌套升级驱动补验
+
+`db37ce9642577e6a20688226c8727af5e936dc89` 的第二次完整本地流程已通过干净检出检查、完整源码生成/解包校验、正式 EXE 构建及身份/许可核对、全新缓存的前端与 zashboard 离线重建、Go 独立重建、模块身份比较，以及实际 ZIP 单包和覆盖冒烟。最后的升级驱动中，三布局数据断言均通过，但 Go 同时对 Mihomo 包执行的 vet 报路径过长，整体命令仍失败，不把该次流程写成一次完整成功。
+
+共同原因是干净检出中的 `with-test-temp.ps1` 再次按自身路径创建 `artifacts/tmp`，使已缩短的补丁目录重新落入更深的临时根。现在最外层包装器临时传递共同根，子包装器核对其与调用者临时目录的关系后创建并列的独占目录；环境恢复、退出码和只清理自身目录的规则不变。复制包装器到临时检出的回归修复前失败、修复后通过；全部发布工具 **58/58** 通过。
+
+保留同一对实际 EXE，在重新导出的嵌套源码检出中仅应用包装器修复，重放升级驱动；vet 和默认存储、外置库、自定义配置 **3/3** 均通过，退出码为 0。起点为 `ci-beta3-local-1`（`9bdddb0f`，EXE SHA256 `1a46447cd5b3c7fe192948fcef54757ff8fdfbc05e80d48b761c0a10b7da4205`），终点为上述正式候选（EXE SHA256 `35318a8b2487f57f8b8b1b462c0463fb3f814b47e298c6c33b22136fe273a67e`）；不外推为公开 Beta 2 升级验证。复用已通过的源码重建和 ZIP 冒烟证据，最终提交仍由远端完整流程重新生成、校验并公开附件。
+
+原始证据：`artifacts/release-v1.0.0-beta.3/local-formal-fixed.log`、`nested-temp-red.log`、`nested-temp-green.log`、`nested-upgrade-fixed.log`、`tools-nested-fixed.log`；失败升级的完整日志和实际 EXE 保留于 `artifacts/portable-upgrade/dab3d9c3a78d427f923e7e37947f4aec/`。本节不声称本地产物已经公开。
+
+启动 [check #30](https://github.com/SW26010/still-wanna-dance/actions/runs/41213518252) 后，追加实际嵌套检出的完整工具套件检查，发现三项旧测试仍按脚本自身目录计算临时根。本机复现 **55 通过、3 失败**，主动取消该轮 CI，未等待其后续打包，未创建 Release。测试现在按同一继承契约确定预期根，保留目录隔离、环境恢复及清理断言；相同嵌套检出中的全部 **58/58** 通过。失败与成功日志分别为 `nested-tools-red.log`、`nested-tools-green.log`；这次只修正测试预期，没有再次改动产品或包装器行为。
+
+### Linux 私有测试缓存清理
+
+[check #31](https://github.com/SW26010/still-wanna-dance/actions/runs/41214273922) 的 Linux 浏览器 **369/369** 通过；工具套件 **47 通过、1 失败、10 项 Windows 专属跳过**。失败发生于新增冷缓存回归结束后的目录清理：Go 在 Unix 将解压模块目录设为只读，普通 `fs.rmSync` 在 `.github` 目录返回 `EACCES`，不属于补丁准备或身份断言失败。
+
+回归现在在 `finally` 中调用 Go 自带的 `clean -modcache`，先确认显式 `GOMODCACHE` 是该测试临时目录的直接子目录，避免触及共享缓存；没有放宽断言或跳过 Linux。已核对固定 Go 1.27.3 的清理实现会恢复模块目录权限。Windows 相关 **5/5** 通过；本机没有已安装的 WSL/Linux 环境，Unix 结果仍须以后续完整 CI 为准。原始 Linux 日志及本地复核分别保留为 `linux-attempt5.log` 和 `private-cache-cleanup-fixed.log`。
+
+### 第六轮 CI 的曲库空闲测试同步
+
+[check #32](https://github.com/SW26010/still-wanna-dance/actions/runs/41215301470) 的 Linux 全部检查通过：369 项浏览器、48 项工具（10 项 Windows 专属跳过）、Go 测试/vet/编译、完整 race 和格式检查；上一轮私有模块缓存清理问题已在 Linux 验证。Windows 浏览器 368 通过、1 失败，后续打包与 release 跳过，未发布。
+
+失败 trace 只出现一次歌曲查询和一次资源查询；切换视图的资源请求在测试记录查询数之后、推进 11 秒时才到达。用请求门固定该顺序，在本机复现同一“预期 1、实际 2”的失败，排除额外空闲轮询。测试现在等待资源视图响应及表格加载完成后记录基准；原两次 11 秒无新查询、删除确认与提交内容断言全部保留。保持同一受控窗口重复 10 次通过，移除诊断探针后曲库及刷新相关 **55/55**、前端类型与嵌入产物一致性检查通过。相邻删除确认用例已等待可用按钮和对话框，没有同类提前计数问题；生产代码未变。
+
+证据保留于 `artifacts/release-v1.0.0-beta.3/` 的 `linux-attempt6.log`、`windows-attempt6.log`、`beta3-attempt6-webui-failure.zip`、`library-idle-gate-red.log`、`library-idle-gate-green.log` 和 `library-ready-fixed.log`。失败附件 SHA256 为 `6d4344f8cdeb0adb304e03ba212f0ad347174012d0ac71c0c76cf5a8e8a7b984`；该轮失败不能记为完整交付成功。
+
+### 第七轮 CI：Windows Unicode 源码归档
+
+[check #33](https://github.com/SW26010/still-wanna-dance/actions/runs/41217289403) 在 `f5025447081d932a24d9de536e1482385f5fc100` 上通过两平台各 369 项浏览器、Windows 58 项工具、Linux 48 项工具（10 项 Windows 专属跳过）、Go 测试/vet/编译及 Linux race。Windows 的候选包与正式干净检出检查通过，但收集 zashboard 源码时，系统 `tar` 对两个中文文件名报 `Archive entry has empty or unreadable filename`。该轮没有创建 Release。
+
+固定 zashboard ZIP 的 SHA256 仍为 `21078a51b05413c7dca5f689b400b889f063645c2f59c64376beb335e4afcb35`，其两条中文路径均标记为 UTF-8。用超出本机代码页的 emoji 文件名构造最小 ZIP，原入口稳定复现相同错误；上游也记录了 [Windows libarchive 3.8.6–3.8.9 的 Unicode 回归](https://github.com/libarchive/libarchive/issues/3063)。扩展到完整归档往返后，系统 tar 在创建含该名称的 tar.gz 时崩溃；Git 自带 GNU tar 能保留文件，但列举输出仍转义 emoji，因此未采用依赖文本解码的方案。
+
+Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `ZipFile`、`TarFile` 和 `TarReader`。TAR 名称和类型以 JSON 交给原路径规则检查；路径穿越、绝对路径、反斜杠、控制字符、备用流、错误前缀、重复条目及软硬链接均在落盘前拒绝。没有裁剪上游文件、修改原归档或弱化哈希检查；其它平台继续使用 tar。新增 Unicode 往返和九种非法条目回归通过，实际固定 ZIP 的 **334 个文件**在解包、tar.gz 创建和再次解包后逐个名称与 SHA256 相同；全部发布工具 **60/60** 通过。
+
+证据位于 `artifacts/release-v1.0.0-beta.3/`：`linux-check33.log`、`windows-attempt7.log`、`dashboard-tar-unicode-red.log`、`dashboard-extract-red.log`、`dashboard-dotnet-roundtrip.log`、`archive-safety-final.log`、`dashboard-actual-roundtrip.log` 和 `tools-archive-fixed.log`。中间探针的系统 tar 崩溃、GNU tar 文本转义拒绝，以及 PAX 夹具先被标准库拒绝的日志也保留；最终非法路径夹具改用有效 USTAR 条目直接覆盖应用预检。真实完整产品的最终打包与公开回下载仍须以后续最终提交为准。
+
+### 2026-11-01 本机完整交付预检
+
+`af72f0529fe0fef9bf50baa5f40dd6a3b44d6ea8` 的本机正式流程一次完成，退出码为 0：干净检出检查、完整源码生成/解包、正式 EXE 构建及许可/补丁身份校验、全新缓存的前端/zashboard/Go 重建、实际 ZIP 单包与覆盖冒烟，以及默认存储、外置库、自定义配置 **3/3** 持久化升级全部通过。升级起点继续为已保留的 `ci-beta3-local-1`，不外推为历史配置迁移或公开 Beta 2 的升级结果。独立 Python `tarfile` 读取器另逐项校验新源码归档的 **89,658 个文件**，名称、字节数与 SHA256 均匹配清单。
+
+| 本地正式候选 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| Portable ZIP | 24,268,968 | `094a6078985f46ff21655b4d3e297f04eca679c4f5f6becf60fc20f495b13144` |
+| 完整对应源码 tar.gz | 820,201,041 | `0043c55d1997785d7e6d205903aa557223373c3ff45549bb45da59d16b3e451d` |
+
+正式 EXE SHA256 为 `6f39a43b1d2e187b7ea5e28f44fdc4ce29e38637096ac84585d2fc6b78cdfb28`，独立重建 EXE 为 `7ae8ca1b9616053b1c6a6d6e29f428e05d303eb2b436bf4805fd1ab46e0b3e2b`。附件与清单位于忽略目录 `artifacts/release-v1.0.0-beta.3/local-formal-unicode/`，全流程日志为 `local-formal-unicode.log`，独立读取记录为 `source-independent-reader.log`；三布局升级证据位于 `artifacts/portable-upgrade/1c8538b422b54d9abd18a0b962bef633/`。
+
+同时审查构建与公开下载后的全部解包调用，发现共用 `extractArchive` 也接收 Portable ZIP。此前新增的 Windows 读取器仅处理 TAR，这个关联缺口已在本机固定为失败用例，未启动远端发布碰运气。现在同一标准库入口识别 ZIP/TAR/gzip；ZIP 名称及 Unix 类型属性也接受原路径/链接预检，删除单独的 ZIP 解包脚本。Unicode 完整往返覆盖上游源码 ZIP、Portable ZIP 和源码 tar.gz；10 种 TAR、9 种 ZIP 非法条目均在落盘前拒绝，真实候选 ZIP 的 EXE 哈希不变，全部工具 **61/61** 通过。失败及复核日志分别为 `public-zip-entry-red.log`、`archive-unified-staged.log`、`archive-real-portable.log` 和 `tools-unified-archive.log`。
+
+同一对真实正式附件随后通过与 `verify-published` 共用的 `verifyRelease` 入口：资产哈希、源码/EXE 绑定、ZIP 解包及另一轮全新缓存的前端/zashboard/Go 重建全部通过，退出码 0，返回 `verified=true`，提交与 EXE 哈希保持上述值。完整日志为 `local-delivery-verify.log`。这次复核使用收口后的统一归档入口；附件本身仍准确标识 `af72f052`，不将后续入口修复冒充该附件已包含的源码。
+
+本节仍是本地证据，不声称附件已经公开；最终发布须重新构建最终提交，并通过公开下载验证。
+
+### 第八轮 CI：相同时间戳下的下载速率
+
+[check #34](https://github.com/SW26010/still-wanna-dance/actions/runs/41221875652) 的 Linux 浏览器、工具、Go 测试/vet/编译和 race 全部通过；Windows 浏览器、61 项工具、首轮 Go 测试/vet/编译也通过。候选包入口再次执行 Go 测试时，`TestProgressReportsStallAndStopsBeforeTerminal` 失败：进度日志的 `bytes_per_second` 为 `!ERROR:json: unsupported value: NaN`。正式打包和 Release 未执行，该轮不是发布成功。
+
+日志采样对字节增量直接除以两次时间差；连续读到相同时间戳时，零字节产生 `0/0`，有字节会产生无穷大。将真实进度路径的两次时间固定为相同值，在本机复现与 CI 相同的 NaN；修复后保持相同故障条件重复 20 次通过。日志速率在时钟未推进时返回零，并保留字节和基准供下一次有效采样；共享总下载速度的原子字节计数也仅在时长为正时取走。活动任务五秒窗口复用同一有限速率计算，不改变正常窗口语义。检查其它 Go 速率和比例计算后，已有调用处均有正分母或有效样本保护。
+
+定向边界和正常行为重复 20 次通过，固定故障窗口下真实 JSON 日志重复 20 次通过；原日志用例改用虚拟时钟，保留停顿与终态检查，并确认终态后不再出现进度。全部 `cmd`/`internal` Go 测试及 vet 通过，缓存代理整包 race 通过，虚拟时钟及相关并发回归另重复 100 次。实际桌面 EXE 成功构建，依赖许可覆盖 **114 个**模块、Mihomo 补丁身份通过；该诊断 EXE 的提交为 `58c7d7e8ba9a52d85476cd97fe1564459d847cb4`、`dirty=true`，只作本机验证，不冒充正式包。日志保留于 `artifacts/release-v1.0.0-beta.3/` 的 `windows-check34.log`、`linux-check34.log`、`progress-equal-clock-red.log`、`progress-rate-regression-red.log`、`progress-equal-clock-green.log`、`progress-rate-targeted-green.log`、`progress-full-go.log`、`progress-full-vet.log`、`progress-cacheproxy-race.log`、`progress-final-race-stress.log` 和 `progress-desktop-*.log`。
+
+### 本机交付与 Beta 2 升级预检
+
+`e9e130fae6c0c412c2a54270af0c4987a6723883` 的本机正式打包从干净检出完整通过，含对应源码、正式 EXE、全新缓存独立重建、ZIP 冒烟及候选包到正式包的三布局覆盖升级。随后用同一对附件执行 `verifyRelease`，再次完成源码/EXE 绑定和新缓存重建，返回 `verified=true`。正式 EXE SHA256 为 `9facf1c109a73f865e0461c5f3677a0654454461ded6c99738b3be6a3286c52f`；Portable ZIP SHA256 为 `37dfa50fb30ee7f2c7536517a58825b95ca7ecb497d33b0df0d4f2539275e0c7`，源码归档 SHA256 为 `e0e0c09831b41d78b42f5c7b275d950926218fda0ee7257cdc0876c6f0899014`。本地产物不是公开附件。
+
+另从 [Beta 2 Release](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.2) 下载原 Portable ZIP 及校验文件，对照 GitHub 的字节数和 SHA256 核验，确认 EXE 是 `a7dbeca4ae93454737d9195b9b8a278bd73bb8fa`、`dirty=false`。使用该实际 EXE 覆盖升级到上述本机 Beta 3，ZIP 冒烟及默认存储、外置库、自定义配置 **3/3** 持久化检查通过。日志为 `artifacts/release-v1.0.0-beta.3/local-formal-final.log`、`local-delivery-final-verify.log` 和 `beta2-to-beta3-local.log`；升级材料位于同目录的 `beta2-upgrade-local/732f508495ae4064afed675c69d368fb/`。
+
+### 第九轮 CI：测量窗口与来源耗尽分开验证
+
+[check #35](https://github.com/SW26010/still-wanna-dance/actions/runs/41226317970) 的 Linux 浏览器及工具测试通过，但 Go 的 `TestCalibrationUsesActiveClientAcrossResourceHosts` 只观察到一个域名而失败；该轮不会发布。测速在测量窗口完成时可以立即停止，准备了多个视频并不保证每个来源都已被调度。另一项完整测速测试同样假定短窗口内至少用到三个视频。将假视频延长至在窗口中不会耗尽后，两项均稳定复现失败；完整测速本身已正常完成、峰值并发和终态均满足要求。
+
+现在完整测速用虚拟时钟验证两个测量阶段、16 路峰值、速率、取消及去重；双域名共用客户端以两个各一块的视频运行到来源耗尽，明确断言两个域名各使用一次。已有的 12 视频／192 个不同 Range 耗尽测试补充断言 12 个不同资源且不请求清单，不新增重复的三视频测试。另一项只检查耗尽的短视频测试也固定为不会先完成测速窗口。生产测速和调度逻辑未变；固定长来源的同一窗口已从失败转为通过，多域名回归重复 50 次通过，受影响四项成组重复 5 次、race 重复 10 次通过。完整测速包及 vet 通过。
+
+同轮 Windows 完整通过：369 项浏览器和 61 项工具测试、Go 测试/vet/编译、候选包、正式干净检出、完整源码收集与解包、正式 EXE、全新缓存的独立源码重建、实际 ZIP 冒烟及覆盖升级均成功。Linux 失败使该轮整体未通过，不能记为发布成功。
+
+原始日志保留在 `artifacts/release-v1.0.0-beta.3/` 的 `linux-check35.log`、`windows-check35.log`、`calibration-long-source-red.log`、`calibration-long-source-green.log`、`calibration-deterministic-stress.log`、`calibration-final-full.log`、`calibration-exhaustion-cohort.log` 和 `calibration-cohort-final-race.log`。
+
 ## 2026-10-30 Beta 候选与自动发布
 
 `dc8e922920ce46a6b02df04f32a88992e9e5d5fa` 的完整 [check #22](https://github.com/SW26010/still-wanna-dance/actions/runs/40913936608)在 Windows/Linux 全部通过。本地 `v1.0.0-beta.1` 候选完成正式 EXE、完整对应源码、空缓存离线重建及单包冒烟；此阶段仍为未公开候选，不将本地通过记为公开下载成功。

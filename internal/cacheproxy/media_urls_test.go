@@ -6,6 +6,34 @@ import (
 	"testing"
 )
 
+func TestFirstAvailableMediaURLSkipsInvalidAndDisallowedRows(t *testing.T) {
+	s, _ := setup(t, nil)
+	ctx := t.Context()
+	if _, ok, err := s.Store.FirstAvailableMediaURL(ctx, nil); err != nil || ok {
+		t.Fatal("empty store returned an address", ok, err)
+	}
+	valid := "http://play.udon.dance/files/1/42-video.mp4?e=cccccccccccccccccccccccccccccccc&s=1234"
+	if err := s.Store.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, Node: "cf", URL: valid}); err != nil {
+		t.Fatal(err)
+	}
+	// Corrupt or disallowed entries must not hide a later valid CF address.
+	for _, row := range []struct{ md5, node, url string }{
+		{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "cf", "invalid"},
+		{"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "nya", valid},
+	} {
+		if _, err := s.Store.db.ExecContext(ctx, "INSERT INTO media(md5,byte_size) VALUES (?,1234)", row.md5); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Store.db.ExecContext(ctx, "INSERT INTO media_urls(md5,node,url) VALUES (?,?,?)", row.md5, row.node, row.url); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, ok, err := s.Store.FirstAvailableMediaURL(ctx, nil)
+	if err != nil || !ok || got.URL != valid || got.Node != "cf" {
+		t.Fatal("did not select the first valid permitted address", got, ok, err)
+	}
+}
+
 func TestMediaURLsSharedIdentityCommitOrderAndRestart(t *testing.T) {
 	s, cfg := setup(t, nil)
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)

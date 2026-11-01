@@ -10,6 +10,32 @@ import (
 	"testing"
 )
 
+func TestCatalogSampleSongUsesCurrentAcceptedMembers(t *testing.T) {
+	s, _ := setup(t, nil)
+	ctx := t.Context()
+	if id, err := s.Store.CatalogSampleSong(ctx, 0); err != nil || id != 0 {
+		t.Fatal("empty catalog returned a sample", id, err)
+	}
+	if err := s.Store.SyncCatalog(ctx, testCandidate("20261031000000", CatalogSong{ID: 10}, CatalogSong{ID: 20})); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := s.Store.CatalogSampleSong(ctx, 0); err != nil || id != 10 {
+		t.Fatal("sample is not a current member", id, err)
+	}
+	if id, err := s.Store.CatalogSampleSong(ctx, 10); err != nil || id != 20 {
+		t.Fatal("sample did not advance", id, err)
+	}
+	if id, err := s.Store.CatalogSampleSong(ctx, 20); err != nil || id != 10 {
+		t.Fatal("sample did not wrap", id, err)
+	}
+	if err := s.Store.SyncCatalog(ctx, testCandidate("20261101000000", CatalogSong{ID: 20})); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := s.Store.CatalogSampleSong(ctx, 10); err != nil || id != 20 {
+		t.Fatal("sample followed a removed historical song", id, err)
+	}
+}
+
 func TestStoreCatalogInspectionKeepsConcurrentSnapshotsCoherent(t *testing.T) {
 	s, cfg := setup(t, nil)
 	key := strings.Repeat("a", 32)

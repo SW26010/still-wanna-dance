@@ -20,13 +20,44 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 	c.settings.UpstreamMode = "proxy"
 	var failCatalog atomic.Bool
 	var playback, resource atomic.Int32
+	playbackStarted, resourceStarted := make(chan struct{}, 1), make(chan struct{}, 1)
+	faultReady, releaseFault := make(chan struct{}), make(chan struct{})
+	defer func() {
+		select {
+		case <-releaseFault:
+		default:
+			close(releaseFault)
+		}
+	}()
+	var waitForPeers atomic.Bool
+	waitForPeers.Store(true)
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 		resp := automaticConnectivityResponse(r)
 		if r.URL.Path == "/Api/Songs/play" {
 			playback.Add(1)
+			if failCatalog.Load() {
+				playbackStarted <- struct{}{}
+				<-r.Context().Done()
+				return nil, r.Context().Err()
+			}
 		} else if r.Header.Get("Range") != "" {
 			resource.Add(1)
+			if failCatalog.Load() {
+				resourceStarted <- struct{}{}
+				<-r.Context().Done()
+				return nil, r.Context().Err()
+			}
 		} else if failCatalog.Load() {
+			if waitForPeers.Swap(false) {
+				<-playbackStarted
+				<-resourceStarted
+				close(faultReady)
+				select {
+				case <-releaseFault:
+				case <-r.Context().Done():
+					return nil, r.Context().Err()
+				}
+			}
 			resp.Body.Close()
 			resp.Body = io.NopCloser(strings.NewReader(`{"time":"20261101000000","groups":{"contents":[{"songInfos":[{"id":900001},{"id":900002}]}]}}`))
 		}
@@ -58,13 +89,57 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 		t.Fatal(err)
 	}
 	failCatalog.Store(true)
-	for range 2 {
-		run()
+	for attempt := range 2 {
+		var previousSnapshot networkConnectivityStatus
+		if attempt == 0 {
+			if err := c.controlNetworkConnectivity(false); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-faultReady:
+			case <-time.After(5 * time.Second):
+				t.Fatal("parallel checks did not start")
+			}
+			func() {
+				c.lifecycleMu.Lock()
+				defer c.lifecycleMu.Unlock()
+				close(releaseFault)
+				for {
+					c.mu.Lock()
+					current, changed := c.networkDiagnostics.connectivity, c.networkDiagnostics.connectivityChanged
+					c.mu.Unlock()
+					if slices.ContainsFunc(current.Results, func(row networkConnectivityResult) bool {
+						return row.Operation == upstreamcheck.Catalog && row.State == "available"
+					}) {
+						previousSnapshot = current
+						break
+					}
+					select {
+					case <-changed:
+					case <-time.After(5 * time.Second):
+						t.Fatal("catalog observation was not published")
+					}
+				}
+			}()
+			select {
+			case <-c.networkDiagnostics.connectivityDone:
+			case <-time.After(5 * time.Second):
+				t.Fatal("connectivity check did not finish")
+			}
+		} else {
+			run()
+		}
 		after := connectivitySnapshot(c)
-		if playback.Load() != counts[0] || resource.Load() != counts[1] || !strings.Contains(c.metadata.CatalogError(), "catalog write rejected") {
+		if !strings.Contains(c.metadata.CatalogError(), "catalog write rejected") {
 			t.Fatal("catalog storage failure did not stop the full check", after.Results, c.metadata.CatalogError())
 		}
+		if slices.ContainsFunc(after.Results, func(row networkConnectivityResult) bool { return row.State == "checking" }) {
+			t.Fatal("canceled sibling checks remained in progress after the round ended", after.Results)
+		}
 		for _, operation := range []upstreamcheck.Operation{upstreamcheck.PlaybackURL, upstreamcheck.Resource} {
+			if attempt == 0 && !slices.ContainsFunc(previousSnapshot.Results, func(row networkConnectivityResult) bool { return row.Operation == operation && row.State == "checking" }) {
+				t.Fatal("an already published snapshot was mutated", operation, previousSnapshot.Results)
+			}
 			old := slices.IndexFunc(before.Results, func(row networkConnectivityResult) bool {
 				return row.Operation == operation && !row.ObservedAt.IsZero()
 			})
@@ -113,7 +188,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 			var id int64
 			_, _ = fmt.Sscan(r.URL.Query().Get("id"), &id)
 			requestedSong.Store(id)
-			if call == 2 {
+			if call == 3 {
 				resp.Header.Set("Location", fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&s=1234", id))
 			}
 		} else if r.Header.Get("Range") != "" {
@@ -135,18 +210,18 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 		}
 	}
 	run("")
-	if playback.Load() != 0 || resource.Load() != 0 {
-		t.Fatal("failed first catalog unexpectedly produced a sample")
+	if playback.Load() != 1 || resource.Load() != 1 {
+		t.Fatal("cached samples did not allow checks despite the failed catalog")
 	}
 	catalogAvailable.Store(true)
 	run(upstreamcheck.Catalog)
 	status, err := c.store.CatalogStatus(ctx)
-	if err != nil || status.Revision != "20261031000000" || playback.Load() != 0 {
+	if err != nil || status.Revision != "20261031000000" || playback.Load() != 1 {
 		t.Fatal("catalog-only check did not update the business catalog independently", status, err)
 	}
 	run(upstreamcheck.PlaybackURL)
 	id := requestedSong.Load()
-	if playback.Load() != 1 || !slices.Contains(ids, id) {
+	if playback.Load() != 2 || !slices.Contains(ids, id) {
 		t.Fatalf("playback check did not reuse the successful catalog sample: calls=%d song=%d", playback.Load(), id)
 	}
 	urls, err := c.store.SongURLs(ctx, id, "cf")
@@ -154,7 +229,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 		t.Fatal("playback observation did not update song/media mapping and URL", urls, err)
 	}
 	run(upstreamcheck.Resource)
-	if playback.Load() != 2 || resource.Load() != 1 {
+	if playback.Load() != 3 || resource.Load() != 2 {
 		t.Fatal("resource check did not reuse the sample and resolve its address", playback.Load(), resource.Load())
 	}
 	urls, err = c.store.SongURLs(ctx, id, "cf")
@@ -196,7 +271,7 @@ func TestConnectivityReviewSkippedResourceRetainsObservedResult(t *testing.T) {
 	}
 	observed := before.Results[i]
 	failPlayback.Store(true)
-	for _, operation := range []upstreamcheck.Operation{upstreamcheck.Resource, upstreamcheck.Resource, ""} {
+	for _, operation := range []upstreamcheck.Operation{upstreamcheck.Resource, upstreamcheck.Resource} {
 		run(operation)
 		state := connectivitySnapshot(c)
 		old := slices.IndexFunc(state.Results, func(row networkConnectivityResult) bool {
@@ -208,6 +283,13 @@ func TestConnectivityReviewSkippedResourceRetainsObservedResult(t *testing.T) {
 		if old < 0 || !skipped || !state.Results[old].Retained {
 			t.Fatal("skipped check lost the previous observation or omitted the skipped result", operation, state.Results)
 		}
+	}
+	run("")
+	full := connectivitySnapshot(c)
+	if !slices.ContainsFunc(full.Results, func(row networkConnectivityResult) bool {
+		return row.Operation == upstreamcheck.Resource && row.State == "available" && !row.Retained
+	}) {
+		t.Fatal("full check did not use the cached resource while playback failed", full.Results)
 	}
 	failPlayback.Store(false)
 	run(upstreamcheck.Resource)

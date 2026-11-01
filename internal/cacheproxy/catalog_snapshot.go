@@ -68,6 +68,19 @@ func (s *Store) KnownSongIDs(ctx context.Context) (resultValue []int64, resultEr
 	return ids, rows.Err()
 }
 
+// CatalogSampleSong returns the next current member, wrapping at the end.
+func (s *Store) CatalogSampleSong(ctx context.Context, after int64) (id int64, resultErr error) {
+	if !s.beginRequest() {
+		return 0, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(
+ (SELECT song_id FROM catalog_members WHERE song_id>? ORDER BY song_id LIMIT 1),
+ (SELECT song_id FROM catalog_members ORDER BY song_id LIMIT 1), 0)`, after).Scan(&id)
+	return id, err
+}
+
 type LocalCatalog struct {
 	Current map[string]bool
 	Status  CatalogStatus

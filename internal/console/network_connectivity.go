@@ -37,6 +37,8 @@ type networkConnectivityResult struct {
 	LatencyMS  *float64                `json:"latencyMS"`
 	ObservedAt time.Time               `json:"observedAt"`
 	Retained   bool                    `json:"retained,omitempty"`
+	// Retain this round's completed resource observation while retrying it.
+	retryPrevious *networkConnectivityResult
 }
 
 // Keep real observations when a later run cannot attempt the same operation.
@@ -80,6 +82,10 @@ func (c *Console) connectivityRow(ctx context.Context, row networkConnectivityRe
 	if i < 0 {
 		rows = append(rows, row)
 	} else {
+		if row.Operation == upstreamcheck.Resource && row.State == "checking" && !rows[i].ObservedAt.IsZero() {
+			previous := rows[i]
+			row.retryPrevious = &previous
+		}
 		rows[i] = row
 	}
 	n.connectivity.Results = rows
@@ -176,6 +182,7 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 		c.mu.Unlock()
 		upstreamcheck.CheckConnectivity(ctx, c.connectivityAccess(), upstreamcheck.ConnectivityBusiness{
 			OnCatalog: c.syncCatalogs, RememberSample: metadata.RememberSample, SelectSong: metadata.SelectSong, OnPlaybackURL: c.syncPlaybackURL,
+			CachedSong: c.connectivityCachedSong, CachedResource: c.connectivityCachedResource,
 		}, operation, func(r upstreamcheck.Result) { c.connectivityRow(ctx, connectivityResult(r)) })
 		if ctx.Err() == nil {
 			ready = c.catalogReady(ctx)
@@ -193,6 +200,13 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 			n.connectivity.Phase = "completed"
 			n.connectivity.Finished = time.Now()
 			n.connectivity.Initializing = !ready
+			results := slices.Clone(n.connectivity.Results)
+			for i, row := range results {
+				if row.State == "checking" && row.retryPrevious != nil {
+					results[i] = *row.retryPrevious
+				}
+			}
+			n.connectivity.Results = slices.DeleteFunc(results, func(row networkConnectivityResult) bool { return row.State == "checking" })
 			if previous.LastResult != nil {
 				n.connectivity.Results = retainUnobservedConnectivity(n.connectivity.Results, previous.LastResult.Results)
 			}

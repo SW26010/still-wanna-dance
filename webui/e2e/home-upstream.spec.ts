@@ -221,6 +221,25 @@ test('the refresh button starts the same full connectivity check as the network 
   expect(await homeLayout(page)).toEqual(before);
 });
 
+test('home and network show concurrent checks and independent completion',async({page})=>{
+  const api=await mockAPI(page);
+  const results=[{operation:'catalog',entry:'api',state:'checking'},{operation:'playback_url',entry:'cf',state:'checking'},{operation:'resource',entry:'play.udon.dance',state:'checking'}];
+  Object.assign(api.diagnostics.connectivity,{run:1,revision:2,running:true,phase:'running',results});
+  await api.emit('connectivity');await page.goto('/#/home');
+  const card=page.locator('.upstream-card');
+  for(const name of ['歌曲列表','播放地址','视频下载'])await expect(card.getByRole('button',{name:new RegExp('检测'+name)})).toHaveText(name+'：检测中');
+  results[1]=Object.assign(results[1],{state:'available',latencyMS:55,observedAt:first});
+  Object.assign(api.diagnostics.connectivity,{revision:3,results});await api.emit('connectivity');
+  await expect(card.getByRole('button',{name:/检测播放地址/})).toHaveText('播放地址：55 ms');
+  await expect(card.getByRole('button',{name:/检测歌曲列表/})).toHaveText('歌曲列表：检测中');
+  await expect(card.getByRole('button',{name:/检测视频下载/})).toHaveText('视频下载：检测中');
+  await navigate(page,'网络');
+  const rows=page.locator('.diagnostic-rows');
+  await expect(rows).toContainText('歌曲列表 · Udon：检测中');
+  await expect(rows).toContainText('播放地址 · CF：可连接 · 响应时间 55 ms');
+  await expect(rows).toContainText('视频下载 · play.udon.dance：检测中');
+});
+
 test('automatic checks spin the refresh icon and respect reduced motion',async({page})=>{
   await page.emulateMedia({reducedMotion:'no-preference'});
   const api=await mockAPI(page);await page.goto('/#/home');

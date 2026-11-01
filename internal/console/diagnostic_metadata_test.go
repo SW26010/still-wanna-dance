@@ -87,6 +87,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 				mu.Lock()
 				blocked, requested = round == 2, nil
 				recoverHigh = round >= 6
+				previousLists, previousResources := lists, resources
 				mu.Unlock()
 				if err := c.controlNetworkConnectivity(false); err != nil {
 					t.Fatal(err)
@@ -108,6 +109,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 				}
 				mu.Lock()
 				ids := slices.Clone(requested)
+				listRequests, resourceRequests := lists-previousLists, resources-previousResources
 				mu.Unlock()
 				if len(ids) == 0 || (round != 2 && len(ids) != 1) {
 					t.Fatalf("round %d requests: %v", round, ids)
@@ -117,13 +119,19 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 						t.Fatalf("round %d requested %v, want %d", round, ids, want)
 					}
 				}
+				if round != 2 && listRequests != 2 || round == 2 && listRequests > 2 {
+					t.Fatalf("round %d catalog requests: %d", round, listRequests)
+				}
+				if round == 0 && resourceRequests != 0 || round != 0 && round != 2 && resourceRequests != 1 || round == 2 && resourceRequests > 1 {
+					t.Fatalf("round %d resource requests: %d", round, resourceRequests)
+				}
 				if c.monitor != nil {
 					t.Fatal("manual diagnostics created a monitor")
 				}
 			}
 			pending := c.metadataSongCandidates(context.Background())
-			if len(pending) != 0 || lists != 16 || resources != 4 {
-				t.Fatalf("pending=%v lists=%d resources=%d", pending, lists, resources)
+			if len(pending) != 0 {
+				t.Fatal("metadata remained incomplete", pending)
 			}
 			for _, id := range []int64{low, middle, high} {
 				for _, node := range []string{"cf"} {

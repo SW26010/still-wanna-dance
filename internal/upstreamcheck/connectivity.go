@@ -3,6 +3,7 @@ package upstreamcheck
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
@@ -26,34 +27,47 @@ type ConnectivityBusiness struct {
 	RememberSample func(context.Context, int64)
 	SelectSong     func(context.Context, int64) int64
 	OnPlaybackURL  func(context.Context, PlaybackURLResponse)
+	CachedSong     func(context.Context) int64
+	CachedResource func(context.Context) string
 }
 
-// CheckConnectivity is the shared lightweight flow. An empty operation checks
-// everything; a specific operation publishes only that operation's results.
+// CheckConnectivity shares one flow across automatic, full and scoped checks.
+// Full checks start independently when local samples are available; otherwise
+// playback and resource checks wait only for the samples they need.
 func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business ConnectivityBusiness, operation Operation, publish func(Result)) {
-	checking := func(op Operation, route string) { publish(Result{Operation: op, Route: route, State: "checking"}) }
-	var sampleSong int64
-	var catalogResponses []CatalogResponse
-	accepted := false
-	if operation == "" || operation == Catalog {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var publishMu sync.Mutex
+	emit := func(result Result) {
+		publishMu.Lock()
+		defer publishMu.Unlock()
+		if ctx.Err() == nil {
+			publish(result)
+		}
+	}
+	checking := func(op Operation, route string) { emit(Result{Operation: op, Route: route, State: "checking"}) }
+	checkCatalog := func() (int64, error) {
+		var sampleSong int64
+		var catalogResponses []CatalogResponse
+		accepted := false
 		for _, route := range catalogmeta.SourceIDs() {
 			if ctx.Err() != nil {
-				return
+				return 0, ctx.Err()
 			}
 			if accepted {
-				publish(Result{Operation: Catalog, Route: route, State: "skipped"})
+				emit(Result{Operation: Catalog, Route: route, State: "skipped"})
 				continue
 			}
 			checking(Catalog, route)
 			result, id, response := access.Catalog(ctx, route)
-			publish(result)
+			emit(result)
 			if len(response.Body) > 0 {
 				var err error
 				catalogResponses = append(catalogResponses, response)
 				accepted, err = business.OnCatalog(ctx, catalogResponses)
 				if err != nil {
 					if ctx.Err() != nil || errors.Is(err, cacheproxy.ErrLocalStorage) {
-						return
+						return 0, err
 					}
 				}
 				if accepted {
@@ -61,45 +75,125 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 				}
 			}
 		}
+		if sampleSong > 0 && ctx.Err() == nil && business.RememberSample != nil {
+			business.RememberSample(ctx, sampleSong)
+		}
+		return sampleSong, nil
 	}
-	if operation == Catalog && sampleSong > 0 && ctx.Err() == nil && business.RememberSample != nil {
-		business.RememberSample(ctx, sampleSong)
-	}
-	if operation == Catalog || ctx.Err() != nil {
+	if operation == Catalog {
+		_, _ = checkCatalog()
 		return
 	}
-	id := business.SelectSong(ctx, sampleSong)
-	if id <= 0 {
-		for _, op := range []Operation{PlaybackURL, Resource} {
-			if operation == "" || operation == op {
-				publish(Result{Operation: op, State: "skipped"})
+
+	type catalogResult struct {
+		id  int64
+		err error
+	}
+	type resourceSample struct {
+		id     int64
+		sample Sample
+	}
+	full := operation == ""
+	wantPlayback := full || operation == PlaybackURL
+	wantResource := full || operation == Resource
+	catalogDone := make(chan catalogResult, 1)
+	samples := make(chan resourceSample, len(playbacksource.Entries()))
+	var workers sync.WaitGroup
+	if full {
+		workers.Go(func() {
+			id, err := checkCatalog()
+			if err != nil {
+				cancel()
+			}
+			catalogDone <- catalogResult{id, err}
+		})
+	}
+	if wantResource {
+		workers.Go(func() {
+			type attempted struct {
+				url       string
+				available bool
+			}
+			seen := make(map[string]attempted)
+			check := func(id int64, sample Sample) {
+				if prior, ok := seen[sample.Host]; ok && (prior.available || prior.url == sample.URL) {
+					return
+				}
+				if ctx.Err() != nil {
+					return
+				}
+				checking(Resource, sample.Host)
+				result := access.Resource(ctx, id, sample)
+				if ctx.Err() != nil {
+					return
+				}
+				emit(result)
+				seen[sample.Host] = attempted{sample.URL, result.State == "available"}
+			}
+			if full && business.CachedResource != nil {
+				if saved, err := parseSample(business.CachedResource(ctx)); err == nil {
+					check(0, saved.sample())
+				}
+			}
+			for sample := range samples {
+				check(sample.id, sample.sample)
+			}
+			if len(seen) == 0 && ctx.Err() == nil {
+				emit(Result{Operation: Resource, State: "skipped"})
+			}
+		})
+	}
+	workers.Go(func() {
+		defer close(samples)
+		var fallback int64
+		if full && business.CachedSong != nil {
+			fallback = business.CachedSong(ctx)
+		}
+		id := business.SelectSong(ctx, fallback)
+		if id <= 0 && full {
+			select {
+			case catalog := <-catalogDone:
+				if catalog.err != nil {
+					return
+				}
+				if catalog.id > 0 {
+					id = business.SelectSong(ctx, catalog.id)
+				}
+			case <-ctx.Done():
+				return
 			}
 		}
-		return
-	}
-	seen := map[string]bool{}
-	for _, route := range playbacksource.Entries() {
-		if ctx.Err() != nil {
+		if id <= 0 {
+			if wantPlayback && ctx.Err() == nil {
+				emit(Result{Operation: PlaybackURL, State: "skipped"})
+			}
 			return
 		}
-		if operation != Resource {
-			checking(PlaybackURL, route.ID)
+		for _, route := range playbacksource.Entries() {
+			if ctx.Err() != nil {
+				return
+			}
+			if wantPlayback {
+				checking(PlaybackURL, route.ID)
+			}
+			result, sample, response := access.Playback(ctx, id, route)
+			if ctx.Err() != nil {
+				return
+			}
+			if wantPlayback {
+				emit(result)
+			}
+			if wantResource && sample != nil {
+				select {
+				case samples <- resourceSample{id, *sample}:
+				case <-ctx.Done():
+					return
+				}
+			}
+			if response.URL != "" && ctx.Err() == nil {
+				business.OnPlaybackURL(ctx, response)
+			}
 		}
-		result, sample, response := access.Playback(ctx, id, route)
-		if operation != Resource {
-			publish(result)
-		}
-		if response.URL != "" && ctx.Err() == nil {
-			business.OnPlaybackURL(ctx, response)
-		}
-		if operation == PlaybackURL || sample == nil || seen[sample.Host] || ctx.Err() != nil {
-			continue
-		}
-		seen[sample.Host] = true
-		checking(Resource, sample.Host)
-		publish(access.Resource(ctx, id, *sample))
-	}
-	if operation != PlaybackURL && len(seen) == 0 {
-		publish(Result{Operation: Resource, State: "skipped"})
-	}
+	})
+	workers.Wait()
 }

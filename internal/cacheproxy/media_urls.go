@@ -95,18 +95,31 @@ func (s *Store) ObserveSongURL(ctx context.Context, o PlaybackObservation) (resu
 // SongURLs follows the current mapping; reading never changes that mapping.
 // Empty node allows inspection of all nodes, independent of playback policy.
 func (s *Store) SongURLs(ctx context.Context, id int64, node string) ([]MediaURL, error) {
-	return s.mediaURLs(ctx, "song", id, observationNodes(node), -1)
+	return s.mediaURLs(ctx, "song", id, observationNodes(node), -1, nil)
 }
 
 func (s *Store) ResourceURLs(ctx context.Context, key, node string, limit int) ([]MediaURL, error) {
-	return s.mediaURLs(ctx, "media", key, observationNodes(node), limit)
+	return s.mediaURLs(ctx, "media", key, observationNodes(node), limit, nil)
 }
 
 func (s *Store) AvailableMediaURLs(ctx context.Context) ([]MediaURL, error) {
-	return s.mediaURLs(ctx, "", nil, playbacksource.Nodes(), -1)
+	return s.mediaURLs(ctx, "", nil, playbacksource.Nodes(), -1, nil)
 }
 
-func (s *Store) mediaURLs(ctx context.Context, scope string, value any, nodes []string, limit int) (result []MediaURL, resultErr error) {
+// FirstAvailableMediaURL reads one accepted address without loading the full list.
+func (s *Store) FirstAvailableMediaURL(ctx context.Context, accept func(string) bool) (MediaURL, bool, error) {
+	if accept == nil {
+		accept = func(string) bool { return true }
+	}
+	urls, err := s.mediaURLs(ctx, "", nil, playbacksource.Nodes(), -1, accept)
+	if err != nil || len(urls) == 0 {
+		return MediaURL{}, false, err
+	}
+	return urls[0], true, nil
+}
+
+// acceptFirst optionally filters addresses and stops at the first accepted one.
+func (s *Store) mediaURLs(ctx context.Context, scope string, value any, nodes []string, limit int, acceptFirst func(string) bool) (result []MediaURL, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
@@ -133,8 +146,11 @@ func (s *Store) mediaURLs(ctx context.Context, scope string, value any, nodes []
 		if err := rows.Scan(&u.URL, &u.MD5, &u.Node, &u.Size); err != nil {
 			return nil, err
 		}
-		if validMediaURL(u) {
+		if validMediaURL(u) && (acceptFirst == nil || acceptFirst(u.URL)) {
 			result = append(result, u)
+			if acceptFirst != nil {
+				break
+			}
 		}
 	}
 	return result, rows.Err()

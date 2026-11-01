@@ -16,6 +16,7 @@ type networkDiagnostics struct {
 	connectivityAuto    bool
 	connectivityRetry   time.Duration
 	connectivityTimer   *time.Timer
+	connectivitySample  int64
 	calibration         *upstreamcheck.Calibration
 }
 

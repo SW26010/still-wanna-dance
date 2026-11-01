@@ -2,13 +2,54 @@ package console
 
 import (
 	"context"
+	"log/slog"
 
+	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
+
+func (c *Console) connectivityCachedSong(ctx context.Context) int64 {
+	c.mu.Lock()
+	previous := c.networkDiagnostics.connectivitySample
+	c.mu.Unlock()
+	store, err := c.businessStore()
+	var id int64
+	if err == nil {
+		id, err = store.CatalogSampleSong(ctx, previous)
+	}
+	if err == nil && id > 0 {
+		c.mu.Lock()
+		if ctx.Err() == nil {
+			c.networkDiagnostics.connectivitySample = id
+		}
+		c.mu.Unlock()
+	}
+	if err != nil && ctx.Err() == nil {
+		slog.Warn("connectivity_catalog_sample_failed", "error", applog.SafeError(err))
+	}
+	return id
+}
+
+func (c *Console) connectivityCachedResource(ctx context.Context) string {
+	store, err := c.businessStore()
+	if err == nil {
+		var ok bool
+		var sample cacheproxy.MediaURL
+		sample, ok, err = store.FirstAvailableMediaURL(ctx, upstreamcheck.ValidResourceSampleURL)
+		if ok {
+			return sample.URL
+		}
+	}
+	if err != nil && ctx.Err() == nil {
+		slog.Warn("connectivity_resource_sample_failed", "error", applog.SafeError(err))
+	}
+	return ""
+}
 
 // Both triggers receive the same active access policy. Direct paths retain the
 // existing fallback; proxy requests receive only the configured proxy client.

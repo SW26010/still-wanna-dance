@@ -119,7 +119,7 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 		}
 		time.Sleep(2 * time.Minute)
 		synctest.Wait()
-		if !slices.Equal(requested(), []int64{900002, 900001, 900002}) || catalogs.Load() != 3 || resources.Load() != 1 {
+		if !slices.Equal(requested(), []int64{900002, 900001, 900002}) || catalogs.Load() != 3 || resources.Load() != 2 {
 			t.Fatal("triggers did not share one traversal/response", requested(), catalogs.Load(), resources.Load())
 		}
 		if pending := c.metadataSongCandidates(t.Context()); !slices.Equal(pending, []int64{900002}) {

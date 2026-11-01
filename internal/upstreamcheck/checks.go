@@ -70,6 +70,12 @@ func (o observation) result() Result {
 }
 func (s videoSample) sample() Sample { return Sample{s.url, s.host, s.checksum, s.size} }
 
+// ValidResourceSampleURL applies the same bounds used by resource probes.
+func ValidResourceSampleURL(target string) bool {
+	_, err := parseSample(target)
+	return err == nil
+}
+
 // ProbeCatalog uses the supplied paths within one request budget.
 func ProbeCatalog(ctx context.Context, clients []*http.Client, p Policy, route string) (Result, int64, CatalogResponse) {
 	o, id, response := probeCatalogData(ctx, clients, p, route)

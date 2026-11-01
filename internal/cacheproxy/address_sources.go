@@ -173,7 +173,7 @@ func (s *Server) loadSongAddress(ctx context.Context, canonical string) (video, 
 	}
 	check := s.startPlaybackCheck(ctx, canonical, video{songID: canonical})
 	id, _ := strconv.ParseInt(canonical, 10, 64)
-	urls, err := s.mediaURLs(ctx, "song", id, playbacksource.Nodes(), -1)
+	urls, err := s.mediaURLs(ctx, "song", id, playbacksource.Nodes(), -1, nil)
 	if err != nil {
 		return video{}, err
 	}
@@ -278,7 +278,7 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		// Known addresses are selected by resource, independent of the API
 		// lookup budget or the number/order of songs sharing this content.
 		var err error
-		p.candidates, err = s.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32)
+		p.candidates, err = s.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32, nil)
 		if err != nil {
 			return video{}, err
 		}

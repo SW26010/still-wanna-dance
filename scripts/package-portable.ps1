@@ -3,12 +3,14 @@ param(
     [string]$Version = ('dev-' + (Get-Date -Format 'yyyyMMdd-HHmmss')),
     [string]$OutputDir = 'artifacts',
     [string]$ReleaseTag,
-    [string]$PreviousZip
+    [string]$PreviousZip,
+    [switch]$AllPackages
 )
 $ErrorActionPreference = 'Stop'
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
     if ($ReleaseTag) {
+        if ($AllPackages) { throw 'AllPackages applies only to development candidates.' }
         if ($PSBoundParameters.ContainsKey('Version')) { throw 'Use ReleaseTag alone for a formal package.' }
         $releaseArgs = @('scripts/release.mjs', 'create', '--tag', $ReleaseTag, '--output', $OutputDir)
         if ($PreviousZip) { $releaseArgs += @('--previous-portable', (Resolve-Path -LiteralPath $PreviousZip).Path) }
@@ -24,9 +26,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git status.' }
     node scripts/check-webui.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Embedded Web UI is stale. Rebuild webui before packaging.' }
-    & "$PSScriptRoot/with-test-temp.ps1" node "$PSScriptRoot/go-patches.mjs" test -tags=no_easytier ./cmd/... ./internal/...
+    $packages = @('./cmd/...', './internal/...')
+    if ($AllPackages) { $packages = @('./...') }
+    & "$PSScriptRoot/with-test-temp.ps1" node "$PSScriptRoot/go-patches.mjs" test -tags=no_easytier @packages
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
-    & "$PSScriptRoot/with-test-temp.ps1" node "$PSScriptRoot/go-patches.mjs" vet -tags=no_easytier ./cmd/... ./internal/...
+    & "$PSScriptRoot/with-test-temp.ps1" node "$PSScriptRoot/go-patches.mjs" vet -tags=no_easytier @packages
     if ($LASTEXITCODE -ne 0) { throw 'Go vet failed.' }
     $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDir)
     $name = "still-wanna-dance-$Version-windows-amd64-portable"

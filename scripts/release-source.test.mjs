@@ -2,12 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 import { withTemp, run, jsonStream, safePath, cleanRevision, createSource, extractSource, verifyBundle, readJSON, writeJSON, rebuild, checkExecutable, supplementalInputs, desktopBuildFlags, goEnv, filesUnder, sha256 } from './release-source.mjs';
 import { checkBuildMetadata } from './build-info.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+test('release commands retain failing stdout diagnostics', () => {
+  const module = pathToFileURL(path.join(here, 'release-source.mjs')).href;
+  const command = 'console.log("failure diagnostic on stdout"); process.exit(7)';
+  for (const options of ['{}', "{ stdio: 'inherit' }"]) {
+    const script = `import { run } from ${JSON.stringify(module)}; run(process.execPath, ['-e', ${JSON.stringify(command)}], undefined, {}, ${options});`;
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', windowsHide: true });
+    assert.notEqual(child.status, 0);
+    assert.match(child.stdout + child.stderr, /failure diagnostic on stdout/);
+  }
+});
+
 function fixture(temp) {
   const root = path.join(temp, 'repo'); fs.mkdirSync(root);
   for (const [name, text] of Object.entries({ 'go.mod': 'module still-wanna-dance\n\ngo 1.25.0\n', 'go.sum': '', LICENSE: 'fixture GPL', 'LICENSE-MIT': 'fixture MIT', 'LICENSING.md': 'fixture policy', 'THIRD-PARTY-NOTICES.txt': 'fixture notices', 'scripts/build-desktop.ps1': '# fixture', 'cmd/still-wanna-dance-console/main.go': 'package main\nfunc main() {}\n', 'docs/evidence/old.json': '{}', 'experiments/probe.go': 'historical probe', 'docs/research/chart.json': '[1,2,3]', 'scripts/render-chart.py': '# source for an embedded chart' })) {

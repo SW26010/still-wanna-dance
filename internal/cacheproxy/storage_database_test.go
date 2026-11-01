@@ -11,7 +11,7 @@ import (
 )
 
 func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
-	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "PRAGMA user_version=4", "PRAGMA user_version=5", "DROP TABLE song_preferences", "DROP TABLE catalog_checks", "DROP INDEX request_events_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
+	for _, mutation := range []string{"PRAGMA user_version=999", "PRAGMA application_id=123", "PRAGMA user_version=0", "PRAGMA user_version=1", "PRAGMA user_version=2", "PRAGMA user_version=3", "PRAGMA user_version=4", "PRAGMA user_version=5", "DROP TABLE song_preferences", "DROP TABLE catalog_state", "DROP INDEX request_events_time", "ALTER TABLE songs ADD COLUMN surprise TEXT"} {
 		t.Run(mutation, func(t *testing.T) {
 			cfg := fixtureConfig()
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
@@ -58,7 +58,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 					t.Errorf("%s accepted incompatible database", name)
 				}
 			}
-			if ReadTrafficStats(cfg.Store.path).Error == "" {
+			if _, err := ReadResponseSources(context.Background(), cfg.Store.path); err == nil {
 				t.Error("traffic accepted incompatible database")
 			}
 			after, err := os.ReadFile(path)
@@ -155,7 +155,7 @@ func TestStorageInitializationRollsBack(t *testing.T) {
 	}
 	defer db.Close()
 	// A conflicting final table fails after the earlier DDL has executed.
-	if _, err := db.Exec("CREATE TABLE traffic_totals (sentinel TEXT)"); err != nil {
+	if _, err := db.Exec("CREATE TABLE media (sentinel TEXT)"); err != nil {
 		t.Fatal(err)
 	}
 	if err := initializeStorage(db); err == nil {

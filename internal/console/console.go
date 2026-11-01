@@ -118,13 +118,7 @@ type Console struct {
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
-	c, err := newConsole(configPath, address, nil, work)
-	if err == nil && c.store != nil {
-		if seedErr := c.store.ApplyBundledMediaSeed(context.Background()); seedErr != nil {
-			return nil, errors.Join(seedErr, c.Close())
-		}
-	}
-	return c, err
+	return newConsole(configPath, address, nil, work)
 }
 
 func newConsole(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory) (*Console, error) {
@@ -551,36 +545,35 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running               bool                    `json:"running"`
-			Settings              Settings                `json:"settings"`
-			ActiveSettings        Settings                `json:"activeSettings"`
-			RestartRequired       bool                    `json:"restartRequired"`
-			Hosts                 HostsStatus             `json:"hosts"`
-			PortOK                bool                    `json:"portOK"`
-			CDNError              string                  `json:"cdnError"`
-			StorageError          string                  `json:"storageError,omitempty"`
-			VRCXImportAvailable   bool                    `json:"vrcxImportAvailable"`
-			VideoImportSuggested  bool                    `json:"videoImportSuggested"`
-			ProxyModeMigrated     bool                    `json:"proxyModeMigrated,omitempty"`
-			ActionErrors          map[string]string       `json:"actionErrors"`
-			Batch                 Batch                   `json:"batch"`
-			Import                ImportStatus            `json:"import"`
-			PortOwner             *desktop.Owner          `json:"portOwner,omitempty"`
-			Queue                 QueueStatus             `json:"queue"`
-			LastBatch             Batch                   `json:"lastBatch"`
-			HTTPSPortOK           bool                    `json:"httpsPortOK"`
-			HTTPSPortOwner        *desktop.Owner          `json:"httpsPortOwner,omitempty"`
-			Traffic               cacheproxy.TrafficStats `json:"traffic"`
-			SOCKS5PasswordSet     bool                    `json:"socks5PasswordSet"`
-			SOCKS5CredentialError string                  `json:"socks5CredentialError,omitempty"`
-			ProxyNodes            proxyNodeStatus         `json:"proxyNodes"`
-			Activation            Activation              `json:"activation"`
-			DefaultLogDir         string                  `json:"defaultLogDir"`
-			DefaultDatabasePath   string                  `json:"defaultDatabasePath"`
-			DefaultVideoDir       string                  `json:"defaultVideoDir"`
-			PortableDir           string                  `json:"portableDir"`
-			CatalogSync           catalogSyncStatus       `json:"catalogSync"`
-			UpstreamMonitor       upstreamstate.Status    `json:"upstreamMonitor"`
+			Running               bool                 `json:"running"`
+			Settings              Settings             `json:"settings"`
+			ActiveSettings        Settings             `json:"activeSettings"`
+			RestartRequired       bool                 `json:"restartRequired"`
+			Hosts                 HostsStatus          `json:"hosts"`
+			PortOK                bool                 `json:"portOK"`
+			CDNError              string               `json:"cdnError"`
+			StorageError          string               `json:"storageError,omitempty"`
+			VRCXImportAvailable   bool                 `json:"vrcxImportAvailable"`
+			VideoImportSuggested  bool                 `json:"videoImportSuggested"`
+			ProxyModeMigrated     bool                 `json:"proxyModeMigrated,omitempty"`
+			ActionErrors          map[string]string    `json:"actionErrors"`
+			Batch                 Batch                `json:"batch"`
+			Import                ImportStatus         `json:"import"`
+			PortOwner             *desktop.Owner       `json:"portOwner,omitempty"`
+			Queue                 QueueStatus          `json:"queue"`
+			LastBatch             Batch                `json:"lastBatch"`
+			HTTPSPortOK           bool                 `json:"httpsPortOK"`
+			HTTPSPortOwner        *desktop.Owner       `json:"httpsPortOwner,omitempty"`
+			SOCKS5PasswordSet     bool                 `json:"socks5PasswordSet"`
+			SOCKS5CredentialError string               `json:"socks5CredentialError,omitempty"`
+			ProxyNodes            proxyNodeStatus      `json:"proxyNodes"`
+			Activation            Activation           `json:"activation"`
+			DefaultLogDir         string               `json:"defaultLogDir"`
+			DefaultDatabasePath   string               `json:"defaultDatabasePath"`
+			DefaultVideoDir       string               `json:"defaultVideoDir"`
+			PortableDir           string               `json:"portableDir"`
+			CatalogSync           catalogSyncStatus    `json:"catalogSync"`
+			UpstreamMonitor       upstreamstate.Status `json:"upstreamMonitor"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired:      c.savedSettings != c.settings,
@@ -633,14 +626,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err := service.StorageError(); err != nil {
 				result.StorageError = applog.SafeError(err).Error()
 			}
-			result.Traffic = service.TrafficStats()
 			result.Queue.Titles = service.QueueTitles()
 			for i := range result.Queue.Failures {
 				f := &result.Queue.Failures[i]
 				f.Name = result.Queue.Titles[strconv.FormatInt(f.ID, 10)]
 			}
-		} else {
-			result.Traffic = cacheproxy.ReadTrafficStats(libraryPaths(result.ActiveSettings).DatabasePath)
 		}
 		writeJSON(w, result)
 		return

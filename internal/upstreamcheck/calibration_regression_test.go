@@ -37,7 +37,7 @@ func (*calibrationPacedRange) Close() error { return nil }
 func calibrationSavedCandidates(count int, size int64) CalibrationCandidates {
 	var candidates CalibrationCandidates
 	for id := 1; id <= count; id++ {
-		candidates.URLs = append(candidates.URLs, cacheproxy.SongURL{SongID: int64(id), URL: fmt.Sprintf("http://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=%d", id, id, size)})
+		candidates.URLs = append(candidates.URLs, cacheproxy.MediaURL{URL: fmt.Sprintf("http://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=%d", id, id, size)})
 	}
 	return candidates
 }

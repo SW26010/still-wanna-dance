@@ -30,19 +30,16 @@ func TestNetworkCalibrationReusesMetadataPriorityAndPersistence(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Pure expiry does not outrank missing metadata. Song 2 has an obsolete
-	// mapping and a failed URL; song 3 has no mapping at all.
-	old := time.Now().Add(-25 * time.Hour)
+	// Song 2 has only a disallowed node; song 3 has no mapping.
 	for _, id := range []int64{1, 2} {
-		observation := cacheproxy.SongURL{SongID: id, API: c.apiBase + "/Api/Songs/play", Node: "cf",
-			URL: "https://play.udon.dance/files/1/42-old.mp4?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=1234", QueryStartedAt: old, ObservedAt: old}
+		observation := cacheproxy.PlaybackObservation{SongID: id, Node: "cf",
+			URL: "https://play.udon.dance/files/1/42-old.mp4?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=134217728"}
+		if id == 2 {
+			observation.Node = "nya"
+			observation.URL = strings.ReplaceAll(observation.URL, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+		}
 		if err := c.store.ObserveSongURL(ctx, observation); err != nil {
 			t.Fatal(err)
-		}
-		if id == 2 {
-			if err := c.store.RejectSongURL(ctx, observation); err != nil {
-				t.Fatal(err)
-			}
 		}
 	}
 	candidates := c.metadataSongCandidates(ctx)
@@ -75,7 +72,7 @@ func TestNetworkCalibrationReusesMetadataPriorityAndPersistence(t *testing.T) {
 		for {
 			state, changed := c.networkDiagnostics.calibration.Snapshot()
 			if !state.Running {
-				if state.PreparedVideos != 3 || playback.Load() != 3 || state.Reason != "samples_exhausted" || state.Bytes != 384<<20 {
+				if state.PreparedVideos != 3 || playback.Load() != 2 || state.Reason != "samples_exhausted" || state.Bytes != 384<<20 {
 					t.Fatalf("run %d: prepared=%d requests=%d reason=%s", run, state.PreparedVideos, playback.Load(), state.Reason)
 				}
 				break
@@ -95,7 +92,7 @@ func TestNetworkCalibrationReusesMetadataPriorityAndPersistence(t *testing.T) {
 		}
 		var md5 string
 		var size int64
-		if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=?", id).Scan(&md5, &size); err != nil || md5 != fmt.Sprintf("%032x", id) || size != 128<<20 {
+		if err := db.QueryRow("SELECT md5,byte_size FROM song_media JOIN media USING(md5) WHERE song_id=?", id).Scan(&md5, &size); err != nil || md5 != map[int64]string{1: strings.Repeat("a", 32), 2: fmt.Sprintf("%032x", 2), 3: fmt.Sprintf("%032x", 3)}[id] || size != 128<<20 {
 			t.Fatalf("song %d: metadata not updated: md5=%s size=%d err=%v", id, md5, size, err)
 		}
 	}
@@ -114,14 +111,10 @@ func TestNetworkCalibrationUsesLocalSongsWithoutCatalogRequests(t *testing.T) {
 		name   string
 		cached int
 		usable int32
-		age    time.Duration
 		node   string
-		failed bool
 	}{
 		{name: "saved_urls_sufficient", cached: 16, usable: 16, node: "cf"},
 		{name: "saved_urls_partial", cached: 1, usable: 1, node: "cf"},
-		{name: "expired_urls", cached: 16, age: 25 * time.Hour, node: "cf"},
-		{name: "failed_urls", cached: 16, node: "cf", failed: true},
 		{name: "ineligible_node", cached: 16, node: "nya"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -175,21 +168,15 @@ func TestNetworkCalibrationUsesLocalSongsWithoutCatalogRequests(t *testing.T) {
 			}
 			// Playback-only identities and songs with complete metadata are candidates
 			// too; neither current membership nor metadata repair progress defines them.
-			at := time.Now().Add(-time.Minute - tc.age)
+
 			for i := 0; i < tc.cached; i++ {
 				id := 16 - i
-				observation := cacheproxy.SongURL{
-					SongID: int64(id), API: c.apiBase + "/Api/Songs/play", Node: tc.node,
-					URL:            fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=134217728&saved=1", id, id),
-					QueryStartedAt: at, ObservedAt: at.Add(time.Second),
+				observation := cacheproxy.PlaybackObservation{
+					SongID: int64(id), Node: tc.node,
+					URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=134217728&saved=1", id, id),
 				}
 				if err := c.store.ObserveSongURL(t.Context(), observation); err != nil {
 					t.Fatal(err)
-				}
-				if tc.failed {
-					if err := c.store.RejectSongURL(t.Context(), observation); err != nil {
-						t.Fatal(err)
-					}
 				}
 			}
 			before, err := c.store.CatalogStatus(t.Context())
@@ -235,9 +222,9 @@ func TestNetworkCalibrationAvailableLocalSamplesDoNotSyncCatalog(t *testing.T) {
 				seedCalibrationSong(t, c)
 			}
 			if source == "saved_url" {
-				at := time.Now().Add(-time.Minute)
-				if err := c.store.ObserveSongURL(t.Context(), cacheproxy.SongURL{SongID: 42, URL: target,
-					API: c.apiBase + "/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at}); err != nil {
+
+				if err := c.store.ObserveSongURL(t.Context(), cacheproxy.PlaybackObservation{SongID: 42, URL: target,
+					Node: "cf"}); err != nil {
 					t.Fatal(err)
 				}
 			}

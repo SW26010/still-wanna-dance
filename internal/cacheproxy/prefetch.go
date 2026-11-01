@@ -27,6 +27,95 @@ func (s *Server) PrefetchSong(ctx context.Context, id, target string) (string, e
 	return s.prefetch(ctx, id, target)
 }
 
+// PrefetchDownload preserves the fill's captured MD5 while checking the explicit
+// song for updates. Unresolved songs use the ordinary playback resolver.
+func (s *Server) PrefetchDownload(ctx context.Context, id int64) (string, error) {
+	ctx = applog.WithTrace(ctx)
+	if key, _ := ctx.Value(expectedMD5Key{}).(string); key != "" {
+		return s.prefetchResource(ctx, key, strconv.FormatInt(id, 10))
+	}
+	ctx, stopRequest := context.WithCancel(ctx)
+	stopServer := context.AfterFunc(s.ctx, stopRequest)
+	defer stopServer()
+	defer stopRequest()
+	if s.ctx.Err() != nil {
+		return "", context.Canceled
+	}
+	if !s.beginRequest() {
+		return "", context.Canceled
+	}
+	defer s.wg.Done()
+	if err := s.CheckSongAllowed(ctx, id); err != nil {
+		return "", err
+	}
+	if err := s.StorageError(); err != nil {
+		return "", err
+	}
+	resolveCtx, cancel := context.WithTimeout(ctx, playbackResolveBudget)
+	check, finishCheck := s.startBatchPlaybackCheck(resolveCtx, strconv.FormatInt(id, 10), video{})
+	v, err := s.waitSongQuery(resolveCtx, check)
+	finishCheck()
+	cancel()
+	if errors.Is(err, ErrLocalStorage) {
+		return "", err
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err != nil {
+		if errors.Is(err, errPlaybackUpstream) {
+			return "", err
+		}
+		return "", fmt.Errorf("%w: %w", errPlaybackUpstream, err)
+	}
+	return s.prefetchVideo(withPreparationScope(ctx), v)
+}
+
+func (s *Server) prefetchResource(ctx context.Context, key, id string) (string, error) {
+	if !s.beginRequest() {
+		return "", context.Canceled
+	}
+	defer s.wg.Done()
+	ctx, stopRequest := context.WithCancel(ctx)
+	stopServer := context.AfterFunc(s.ctx, stopRequest)
+	defer stopServer()
+	defer stopRequest()
+	if s.ctx.Err() != nil {
+		return "", context.Canceled
+	}
+	target, err := s.PreviewMetadata(ctx, s.cfg.libraryPaths(), PreviewTarget{Resource: key, AdmissionSongID: id})
+	if err != nil {
+		return "", err
+	}
+	selected, _ := ctx.Value(fillCandidatesKey{}).(map[string]struct{})
+	p := previewRequest{target: target, addresses: &resourceAddresses{key: key, size: target.Size, preferredSong: id, batch: true, selectedSongs: selected}}
+	v, err := p.video(ctx, s)
+	if err == nil && !v.localOnly && v.host == "" {
+		v, err = p.nextAddress(ctx, s, video{})
+	}
+	if err == nil && id != "" && ctx.Err() == nil && p.addresses.preferredCheck == nil {
+		// Reusing an address must still refresh the explicit song's mapping.
+		// The download keeps v; retries reuse this result even after the shared
+		// in-flight query has finished and left the server's lookup table.
+		var finishCheck func()
+		p.addresses.preferredCheck, finishCheck = s.startBatchPlaybackCheck(ctx, id, v)
+		defer finishCheck()
+	}
+	for err == nil {
+		// The API lookup alias is never the caller's song identity.
+		v.songID = id
+		source, downloadErr := s.prefetchVideo(ctx, v)
+		if downloadErr == nil || !errors.Is(downloadErr, errUpstreamDownload) || ctx.Err() != nil {
+			return source, downloadErr
+		}
+		v, err = p.nextAddress(ctx, s, v)
+		if err != nil {
+			return source, errors.Join(downloadErr, err)
+		}
+	}
+	return "", err
+}
+
 func (s *Server) prefetch(ctx context.Context, id, target string) (source string, resultErr error) {
 	if !s.beginRequest() {
 		return "", context.Canceled

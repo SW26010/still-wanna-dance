@@ -47,6 +47,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			c.apiBase, c.client.Transport = api.URL, http.DefaultTransport
 			cfg := fixtureCacheConfig()
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+			cfg.ResolvePlayback = c.resolvePlayback
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 			}
@@ -70,7 +71,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer db.Close()
-				table := "song_urls"
+				table := "media_urls"
 				if mode == "index" {
 					table = "media"
 				}
@@ -137,6 +138,7 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			defer origin.Close()
 			cfg := fixtureCacheConfig()
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+			cfg.ResolvePlayback = c.resolvePlayback
 			cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 			engine, err := cacheproxy.New(cfg)
 			if err != nil {

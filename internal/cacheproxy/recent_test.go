@@ -20,10 +20,10 @@ func TestRecentRequestsWindowAndOutcomes(t *testing.T) {
 	defer u.close()
 	now := time.Now().UnixMilli()
 	err = u.write([]usageEvent{
-		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, method: "GET", outcome: "completed", status: 200, size: 100, bytes: 100},
+		{key: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", at: now, method: "GET", outcome: "completed", status: 200, bytes: 100},
 		{at: now + 1, method: "GET", outcome: "canceled", status: 200, bytes: 3, rangeHeader: "bytes=0-9"},
-		{key: strings.Repeat("b", 32), at: now + 3, method: "GET", outcome: "completed", status: 200, size: 100, bytes: 5, rangeHeader: "secret=signed-url"},
-		{key: strings.Repeat("c", 32), at: now + 3, method: "GET", outcome: "completed", status: 206, size: 100, bytes: 10, rangeHeader: "bytes=0-9"},
+		{key: strings.Repeat("b", 32), at: now + 3, method: "GET", outcome: "completed", status: 200, bytes: 5, rangeHeader: "secret=signed-url"},
+		{key: strings.Repeat("c", 32), at: now + 3, method: "GET", outcome: "completed", status: 206, bytes: 10, rangeHeader: "bytes=0-9"},
 	})
 	if err != nil {
 		t.Fatal(err)

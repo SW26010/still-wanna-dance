@@ -90,7 +90,7 @@ func (c *Console) localInventoryWithLoader(load func(context.Context, string) (c
 	c.inventoryMu.Unlock()
 	v.Catalog = status
 	if err != nil {
-		v.Catalog = cacheproxy.CatalogStatus{Error: "无法读取本地清单状态：" + err.Error()}
+		v.Error = strings.Trim(strings.Join([]string{v.Error, "无法读取本地清单状态：" + err.Error()}, "；"), "；")
 	}
 	return v
 }
@@ -141,7 +141,7 @@ func (c *Console) startInventory(refreshCatalog bool) {
 		defer cancel()
 		result := scanInventory(ctx, s)
 		if !refreshCatalog {
-			c.readInventoryCoverage(ctx, &result, nil)
+			c.readInventoryCoverage(ctx, &result)
 		} else if c.checksumURL != "" {
 			c.addInventoryCoverage(ctx, &result)
 		}
@@ -155,12 +155,14 @@ func (c *Console) startInventory(refreshCatalog bool) {
 		if ctx.Err() != nil {
 			return // Lifecycle cancellation preserves the last successful snapshot.
 		}
-		if result.Error != "" {
+		if result.Error != "" && !result.CoverageKnown {
 			c.inventory.Error = result.Error
 			c.inventory.CoverageKnown = false
 			return
 		}
-		if err := c.writeSnapshot("inventory", libraryPaths(s), result); err != nil {
+		saved := result
+		saved.Error = "" // Current refresh failures are not persisted catalog state.
+		if err := c.writeSnapshot("inventory", libraryPaths(s), saved); err != nil {
 			result.Error = "本次扫描已完成，但无法保存结果；退出后将丢失本次结果：" + err.Error()
 		}
 		c.inventory = result
@@ -173,11 +175,13 @@ func (c *Console) addInventoryCoverage(ctx context.Context, result *Inventory) {
 		result.Error = err.Error()
 		return
 	}
-	refreshErr := c.refreshLocalCatalog(ctx, store)
-	c.readInventoryCoverage(ctx, result, refreshErr)
+	// Current catalog errors belong to catalogSync so a later background check
+	// can replace them without clearing independent file/coverage failures.
+	c.refreshLocalCatalog(ctx, store)
+	c.readInventoryCoverage(ctx, result)
 }
 
-func (c *Console) readInventoryCoverage(ctx context.Context, result *Inventory, refreshErr error) {
+func (c *Console) readInventoryCoverage(ctx context.Context, result *Inventory) {
 	// Metadata synchronization does not depend on video availability. A failed
 	// file scan still prevents publishing a new coverage result.
 	if result.Error != "" {
@@ -196,9 +200,6 @@ func (c *Console) readInventoryCoverage(ctx context.Context, result *Inventory, 
 	}
 	if catalog.Status.Revision == "" || len(catalog.Songs) == 0 {
 		result.Error = "本地尚无有效歌曲清单，无法计算覆盖率"
-		if refreshErr != nil {
-			result.Error += "：" + refreshErr.Error()
-		}
 		return
 	}
 	for _, song := range catalog.Songs {

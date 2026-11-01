@@ -48,8 +48,8 @@ func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	at := time.Now().Add(-time.Minute)
-	if err := c.store.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: 42, API: c.apiBase + "/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at,
+
+	if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 42, Node: "cf",
 		URL: "https://play.udon.dance/files/1/42-video.mp4?e=0000000000000000000000000000002a&s=134217728"}); err != nil {
 		t.Fatal(err)
 	}
@@ -142,13 +142,13 @@ func TestNetworkCalibrationSharesMetadataTraversal(t *testing.T) {
 	}
 }
 
-func TestNetworkCalibrationRejectsFailedSavedURLs(t *testing.T) {
+func TestNetworkCalibrationKeepsFailedSavedURLs(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	at := time.Now().Add(-time.Minute)
+
 	for id := int64(1); id <= 16; id++ {
-		o := cacheproxy.SongURL{SongID: id, API: c.apiBase + "/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at,
+		o := cacheproxy.PlaybackObservation{SongID: id, Node: "cf",
 			URL: fmt.Sprintf("http://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=134217728", id, id)}
 		if err := c.store.ObserveSongURL(ctx, o); err != nil {
 			t.Fatal(err)
@@ -180,15 +180,13 @@ func TestNetworkCalibrationRejectsFailedSavedURLs(t *testing.T) {
 			t.Fatal(ctx.Err())
 		}
 	}
-	urls, err := c.store.RecentSongURLs(ctx)
+	urls, err := c.store.AvailableMediaURLs(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	for _, o := range urls {
-		if failed[fmt.Sprintf("%032x", o.SongID)] {
-			t.Fatalf("URL that returned HTTP 404 remains eligible for the next run: song=%d eligible=%d", o.SongID, len(urls))
-		}
+	if len(failed) == 0 || len(urls) != 16 {
+		t.Fatal("failed download removed addresses", len(failed), len(urls))
 	}
 }

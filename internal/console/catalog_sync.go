@@ -2,10 +2,36 @@ package console
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogsync"
 )
+
+func catalogSourceError(source string, err error) error {
+	name := "清单来源"
+	switch {
+	case cacheproxy.IsUdonCatalog(source):
+		name = "主来源 Udon"
+	case source == cacheproxy.KivaCatalogURL:
+		name = "备用来源 Kiva"
+	case source == cacheproxy.WannaCatalogURL:
+		name = "备用来源 WannaInfo"
+	}
+	return fmt.Errorf("%s：%w", name, err)
+}
+
+// Report source errors only when the round has no usable response. Successful
+// fallback is silent; each failed source still has its diagnostic log.
+func catalogRefreshError(failures []error) error {
+	err := errors.Join(failures...)
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("在线曲库更新失败：%w", err)
+}
 
 // Caller holds c.mu. Business progress is shared by both detection triggers.
 func (c *Console) metadataLocked() *catalogsync.Sync {
@@ -16,6 +42,13 @@ func (c *Console) metadataLocked() *catalogsync.Sync {
 	}
 	return c.metadata
 }
+func (c *Console) catalogChecked(err error) {
+	c.mu.Lock()
+	m := c.metadataLocked()
+	c.mu.Unlock()
+	m.CatalogChecked(err)
+}
+
 func (c *Console) catalogDataUpdated() {
 	c.mu.Lock()
 	m := c.metadata
@@ -39,12 +72,13 @@ func (c *Console) catalogSyncSnapshotLocked() catalogSyncStatus {
 	var s catalogSyncStatus
 	if c.metadata != nil {
 		s.Updated = c.metadata.UpdatedAt()
+		s.Error = c.metadata.CatalogError()
 	}
 	if n := c.networkDiagnostics; n != nil {
 		v := n.connectivity
 		s.Initializing, s.Checking = v.Initializing && !v.Closed, v.Running
 		s.Finished, s.NextCheck = v.Finished, v.NextCheck
-		if s.Initializing && !s.Finished.IsZero() {
+		if s.Error == "" && s.Initializing && !s.Finished.IsZero() {
 			s.Error = "尚未取得可用的完整歌曲清单"
 		}
 	}

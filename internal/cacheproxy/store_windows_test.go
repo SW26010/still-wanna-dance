@@ -11,7 +11,7 @@ import (
 
 func TestStoreRejectsShortFilenameAlias(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "personal-library.sqlite")
-	s, err := CreateStore(path)
+	s, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestStoreRejectsShortFilenameAlias(t *testing.T) {
 		t.Fatal("read through a short filename alias")
 	}
 	if !strings.EqualFold(filepath.Dir(alias), filepath.Dir(path)) {
-		if created, err := CreateStore(filepath.Join(filepath.Dir(alias), "new.sqlite")); err == nil {
+		if created, err := createEmptyFixtureStore(filepath.Join(filepath.Dir(alias), "new.sqlite")); err == nil {
 			created.Close()
 			t.Fatal("created a database under a short directory alias")
 		}

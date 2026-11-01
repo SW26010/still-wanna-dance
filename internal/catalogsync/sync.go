@@ -13,18 +13,33 @@ type Options struct {
 }
 
 type Sync struct {
-	mu        sync.Mutex
-	options   Options
-	updated   time.Time
-	closed    bool
-	attempted map[int64]bool
-	songID    int64
-	songAt    time.Time
+	mu           sync.Mutex
+	options      Options
+	updated      time.Time
+	catalogError string
+	closed       bool
+	attempted    map[int64]bool
+	songID       int64
+	songAt       time.Time
 }
 
 func New(options Options) *Sync {
 	return &Sync{options: options}
 }
+
+// CatalogChecked keeps only the current in-process operation result.
+func (s *Sync) CatalogChecked(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
+	s.catalogError = ""
+	if err != nil {
+		s.catalogError = err.Error()
+	}
+}
+func (s *Sync) CatalogError() string { s.mu.Lock(); defer s.mu.Unlock(); return s.catalogError }
 
 func (s *Sync) UpdatedAt() time.Time { s.mu.Lock(); defer s.mu.Unlock(); return s.updated }
 

@@ -28,7 +28,7 @@ func TestMD5PlaybackCheckRedactsTransportURL(t *testing.T) {
 	}
 	local := parsedVideo(t, s, payload)
 	local.songID = "42"
-	check := s.startPlaybackCheck("42", local)
+	check := s.startPlaybackCheck(t.Context(), "42", local)
 	select {
 	case <-check.done:
 	case <-time.After(5 * time.Second):

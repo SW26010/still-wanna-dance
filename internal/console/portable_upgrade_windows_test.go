@@ -101,9 +101,6 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			defer cfg.Store.Close()
 			// A real installation already contains the bundled catalog. General
 			// Console fixtures omit it, so initialize it before freezing file hashes.
-			if err := cfg.Store.ApplyBundledMediaSeed(t.Context()); err != nil {
-				t.Fatal(err)
-			}
 			cfg.Work, err = cacheproxy.OpenWorkDirectory(t.TempDir(), nil)
 			if err != nil {
 				t.Fatal(err)

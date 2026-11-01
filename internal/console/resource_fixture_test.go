@@ -12,6 +12,7 @@ func initializeTestLibrary(t *testing.T, c *Console) {
 	t.Helper()
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	s, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

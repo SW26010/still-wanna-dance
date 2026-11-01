@@ -20,21 +20,15 @@ type savedSnapshot[T any] struct {
 	Result        T      `json:"result"`
 }
 
-func sameLibrary(a, b Settings) bool {
-	return cacheproxy.CacheStorageID(libraryPaths(a)) == cacheproxy.CacheStorageID(libraryPaths(b))
-}
-
 // Replace atomically, so interruption or a failed write leaves the last good file.
 func (c *Console) writeSnapshot(kind string, paths cacheproxy.LibraryPaths, result any) error {
 	// Persist absolute instants in UTC; never change upstream civil revisions.
 	switch value := result.(type) {
 	case Batch:
 		value.Updated, value.Finished = value.Updated.UTC(), value.Finished.UTC()
-		value.Catalog.CheckedAt = value.Catalog.CheckedAt.UTC()
 		result = value
 	case Inventory:
 		value.Updated = value.Updated.UTC()
-		value.Catalog.CheckedAt = value.Catalog.CheckedAt.UTC()
 		result = value
 	}
 	// Store only the library origin. Network settings and credentials have no
@@ -105,6 +99,7 @@ func (c *Console) loadSnapshots() {
 	c.inventory = Inventory{}
 	if saved, err := readSnapshot[Inventory](c, "inventory"); err == nil {
 		saved.Scanning = false
+		saved.Error = ""
 		c.inventory = saved
 	}
 }

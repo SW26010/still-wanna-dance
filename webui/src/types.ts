@@ -41,7 +41,6 @@ export interface Status {
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
-  traffic?: {hits?: number; hitRate?: number; savedBytes?: number; playbackTransfers?: number; requests?: number; misses?: number; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; dashboard?: boolean; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
@@ -49,7 +48,7 @@ export interface Status {
 }
 export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; unresolvedSongs?: number; scanning?: boolean; error?: string;
-  catalogRevision?: string; catalog?: {checkedAt?: string; revision?: string; error?: string; message?: string};
+  catalogRevision?: string; catalog?: {revision?: string; source?: string};
 }
 export interface Song { id: string; title?: string }
 export type SongPolicy = 'normal' | 'blocked' | 'favorite';
@@ -65,7 +64,7 @@ export interface RequestRecord {
 	sources?:ResponseSources|null;
   songID?:string; songTitle?:string; completedAt?:number|null; responseBytes?:number|null; firstBodyNS?:number|null; firstBodyBlocking?:boolean|null;
   id: number; at: number; resource: string; method: string; range?: string; elapsedMS: number; bytes: number; status: number;
-  cache: string; outcome: string;
+  outcome: string;
 }
 export interface Download {
   id: number; resource: string; songs?: Song[]; moreSongs?: boolean; host: string; stage: string; size: number; bytes: number; bytesPerSecond: number; idleMS: number;

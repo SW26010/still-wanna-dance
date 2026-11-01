@@ -375,7 +375,7 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if string(beforeConfig) != string(afterConfig) {
 		t.Fatal("import changed settings")
 	}
-	for _, table := range []string{"song_media", "song_urls", "request_events"} {
+	for _, table := range []string{"song_media", "media_urls", "request_events"} {
 		if err = db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatal("unexpected side effects", table, count, err)
 		}

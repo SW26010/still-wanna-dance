@@ -18,7 +18,12 @@ import (
 
 // Fetching only feeds synchronization. Business operations read the database
 // after this attempt, including when the remote endpoint is unavailable.
-func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Store) error {
+func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Store) (resultErr error) {
+	defer func() {
+		if ctx.Err() == nil {
+			c.catalogChecked(resultErr)
+		}
+	}()
 	sources := []string{c.checksumURL}
 	if cacheproxy.IsUdonCatalog(c.checksumURL) {
 		for _, route := range catalogmeta.SourceIDs()[1:] {
@@ -35,21 +40,15 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Sto
 			err = store.SyncCatalog(ctx, candidate)
 		}
 		if err == nil || errors.Is(err, cacheproxy.ErrCatalogOlder) {
-			return nil
+			return ctx.Err()
 		}
 		if errors.Is(err, cacheproxy.ErrLocalStorage) {
 			return err
 		}
-		failures = append(failures, err)
+		failures = append(failures, catalogSourceError(source, err))
 		slog.Warn("catalog_source_failed", "source", source, "error", err)
 	}
-	err := errors.Join(failures...)
-	if err != nil && ctx.Err() == nil {
-		if saveErr := store.RecordCatalogError(ctx, err); saveErr != nil {
-			return fmt.Errorf("%v；无法保存检查结果：%w", err, saveErr)
-		}
-	}
-	return err
+	return errors.Join(catalogRefreshError(failures), ctx.Err())
 }
 
 func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {

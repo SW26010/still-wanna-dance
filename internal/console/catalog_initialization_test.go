@@ -45,10 +45,7 @@ func TestCatalogInitializationPublishesFirstCoverage(t *testing.T) {
 }
 
 func TestCatalogInitializationRequiresCompleteCatalogAndRetainsSnapshot(t *testing.T) {
-	c := testConsole(t)
-	if err := c.store.ApplyBundledMediaSeed(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	c := testConsoleWithSeed(t, true)
 	if c.catalogReady(t.Context()) {
 		t.Fatal("seed mappings counted as a complete catalog")
 	}

@@ -53,13 +53,17 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 }
 
 func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
-	for _, scenario := range []string{"healthy-udon", "invalid-udon", "udon-failed", "kiva-failed", "all-failed"} {
+	for _, scenario := range []string{"healthy-udon", "invalid-udon", "udon-failed", "kiva-failed", "all-failed", "older-backup"} {
 		t.Run(scenario, func(t *testing.T) {
 			c := testConsole(t)
 			c.settings.UpstreamMode = "proxy"
 			c.checksumURL = cacheproxy.UdonCatalogURL
-			if scenario == "all-failed" {
-				catalog, err := cacheproxy.ParseCatalog(monitorNames("20261001000000", "local").Body, cacheproxy.UdonCatalogURL)
+			if scenario == "all-failed" || scenario == "older-backup" {
+				revision := "20261001000000"
+				if scenario == "older-backup" {
+					revision = "20261005000000"
+				}
+				catalog, err := cacheproxy.ParseCatalog(monitorNames(revision, "local").Body, cacheproxy.UdonCatalogURL)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -110,6 +114,9 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 			}
 			if scenario == "all-failed" {
 				wantRevision = "20261001000000"
+			}
+			if scenario == "older-backup" {
+				wantRevision = "20261005000000"
 			}
 			status, err := c.store.CatalogStatus(t.Context())
 			if err != nil || !slices.Equal(calls, wantCalls) || status.Revision != wantRevision {

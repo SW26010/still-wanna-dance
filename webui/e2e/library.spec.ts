@@ -268,7 +268,7 @@ test('unavailable videos leave song preferences usable and availability unknown'
 
 test('historical object links retain exact identity and explain missing objects',async({page})=>{
   const {queries}=await libraryFixture(page);
-  await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'999',resource:'c'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:5,status:200,outcome:'completed',cache:'HIT'}],hasMore:false,nextCursor:''}}));
+  await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'999',resource:'c'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:5,status:200,outcome:'completed'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   await page.getByRole('link',{name:'ID 999',exact:true}).click();
   await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();

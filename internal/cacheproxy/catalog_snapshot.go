@@ -4,16 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
-	"time"
 )
 
-// CatalogStatus describes the accepted song catalog. A zero check time
-// means this database has never passed validation.
+// CatalogStatus describes the accepted complete song catalog.
 type CatalogStatus struct {
-	Revision  string    `json:"revision"`
-	CheckedAt time.Time `json:"checkedAt"`
-	Message   string    `json:"message"`
-	Error     string    `json:"error"`
+	Revision string `json:"revision"`
+	Source   string `json:"source"`
 }
 
 func (s *Store) catalogStatus(ctx context.Context) (CatalogStatus, error) {
@@ -33,15 +29,9 @@ func LoadCatalogStatus(ctx context.Context, databasePath string) (CatalogStatus,
 
 func readCatalogStatus(ctx context.Context, db *sql.DB) (CatalogStatus, error) {
 	var v CatalogStatus
-	var checked int64
 	err := db.QueryRowContext(ctx, `SELECT
- COALESCE((SELECT revision FROM catalog_state WHERE catalog_key='songs'),''),
- COALESCE((SELECT checked_at FROM catalog_checks WHERE catalog_key='songs'),0),
- COALESCE((SELECT message FROM catalog_checks WHERE catalog_key='songs'),''),
- COALESCE((SELECT error FROM catalog_checks WHERE catalog_key='songs'),'')`).Scan(&v.Revision, &checked, &v.Message, &v.Error)
-	if checked != 0 {
-		v.CheckedAt = time.UnixMilli(checked).UTC()
-	}
+ COALESCE((SELECT revision FROM catalog_state WHERE catalog_key='songs_list'),''),
+ COALESCE((SELECT source FROM catalog_state WHERE catalog_key='songs_list'),'')`).Scan(&v.Revision, &v.Source)
 	return v, err
 }
 
@@ -76,17 +66,6 @@ func (s *Store) KnownSongIDs(ctx context.Context) (resultValue []int64, resultEr
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
-}
-
-func (s *Store) RecordCatalogError(ctx context.Context, err error) (resultErr error) {
-	if !s.beginRequest() {
-		return context.Canceled
-	}
-	defer s.wg.Done()
-	defer func() { resultErr = s.storageError(resultErr) }()
-	_, saveErr := s.usage.db.ExecContext(ctx, `INSERT INTO catalog_checks(catalog_key,error) VALUES ('songs',?)
- ON CONFLICT(catalog_key) DO UPDATE SET error=excluded.error`, err.Error())
-	return saveErr
 }
 
 type LocalCatalog struct {

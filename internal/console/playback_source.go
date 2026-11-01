@@ -46,7 +46,7 @@ func (c *Console) resolveSongURL(ctx context.Context, id int64) (string, error) 
 	engine = c.service
 	c.mu.Unlock()
 	if engine != nil {
-		if err := engine.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: id, URL: address.URL, API: address.API, Node: address.Node, QueryStartedAt: address.QueryStartedAt, ObservedAt: address.ObservedAt}); err != nil {
+		if err := engine.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: id, URL: address.URL, Node: address.Node}); err != nil {
 			return "", fmt.Errorf("保存歌曲地址：%w", err)
 		}
 	}

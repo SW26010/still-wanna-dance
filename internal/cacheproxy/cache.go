@@ -270,13 +270,15 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 	}
 	stopCheck() // Waiting for a block's activation window has no execution timer.
 	if v.localOnly {
-		resolved, err := s.loadSongAddress(ctx, v.songID)
+		addresses := resourceAddresses{key: v.key, size: v.size, preferredSong: v.songID}
+		resolved, err := addresses.next(ctx, s, video{})
 		if err != nil {
 			return "", "", fmt.Errorf("%w: resolve evicted resource: %w", errUpstreamDownload, err)
 		}
 		if resolved.key != v.key || resolved.size != v.size {
 			return "", "", fmt.Errorf("%w: resolved address changed evicted resource identity", errUpstreamDownload)
 		}
+		resolved.songID = v.songID
 		v = resolved
 		flight.progress.setHost(v.host)
 	}

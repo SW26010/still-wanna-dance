@@ -41,7 +41,7 @@ func run() (resultErr error) {
 	socks5Address := flag.String("socks5-proxy", "", "SOCKS5 proxy host:port; delegates destination DNS to proxy; empty uses built-in DoH directly")
 	socks5Username := flag.String("socks5-username", "", "SOCKS5 username; set password via SWD_SOCKS5_PASSWORD")
 	listen := flag.String("listen", "127.0.0.1:18080", "HTTP listen address (use 127.0.0.1:80 for game integration)")
-	database := flag.String("database", "", "existing SWD database file; opened without creating or migrating data")
+	database := flag.String("database", "", "existing SWD database file; supported v8 files are upgraded once to v9")
 	createDatabase := flag.Bool("create-database", false, "create the new file selected by -database and exit; never overwrite an existing file")
 	flag.StringVar(&cfg.VideoDir, "video-dir", "", "existing complete-video directory, independent of the database; work files stay beside the executable")
 	flag.Func("origin", "explicit DOMAIN=HOST:PORT dial override (repeatable); retains DOMAIN as HTTP Host and TLS SNI", func(value string) error {
@@ -59,7 +59,7 @@ func run() (resultErr error) {
 	flag.BoolVar(&cfg.CacheUnlimited, "cache-unlimited", cfg.CacheUnlimited, "retain local videos without a storage budget limit (mutually exclusive with -video-budget-bytes when true)")
 	flag.BoolVar(&cfg.RetainFavorites, "retain-favorites", cfg.RetainFavorites, "allow favorite videos to exceed the storage budget (does not start downloads)")
 	flag.StringVar(&cfg.AggressiveBlockReclamation, "aggressive-block-reclamation", cfg.AggressiveBlockReclamation, "block cache reclamation: auto (on only with zero video budget), on, off")
-	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 disables retention (summaries are always retained)")
+	flag.IntVar(&cfg.RequestRetentionDays, "request-retention-days", cfg.RequestRetentionDays, "request detail retention in days; 0 disables retention (song demand and last access are retained)")
 	flag.BoolVar(&cfg.RequestRetentionUnlimited, "request-retention-unlimited", cfg.RequestRetentionUnlimited, "retain request details indefinitely (mutually exclusive with -request-retention-days when true)")
 	flag.Parse()
 	level, err := applog.ParseLevel(*logLevel)
@@ -133,8 +133,7 @@ func run() (resultErr error) {
 		if err != nil {
 			return err
 		}
-		seedErr := store.ApplyBundledMediaSeed(context.Background())
-		if err := errors.Join(seedErr, store.Close()); err != nil {
+		if err := store.Close(); err != nil {
 			return err
 		}
 		cfg.Logger.Info("database_created", "database", *database)
@@ -164,9 +163,6 @@ func run() (resultErr error) {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
-	if err := store.ApplyBundledMediaSeed(context.Background()); err != nil {
-		return err
-	}
 	cfg.Store = store
 	service, err := cacheproxy.New(cfg)
 	if err != nil {

@@ -51,7 +51,7 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		}
 		assertSongResource(t, s, id, key)
 	}
-	for table, want := range map[string]int{"media": 1, "song_urls": 2, "song_media": 2, "song_usage": 0, "request_events": 0} {
+	for table, want := range map[string]int{"media": 1, "media_urls": 1, "song_media": 2, "song_usage": 0, "request_events": 0} {
 		var count int
 		if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
@@ -81,69 +81,17 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 	assertSongResource(t, reopened, "43", key)
 }
 
-func TestSongURLMetadataPreservesOrderingAndMapping(t *testing.T) {
-	s, _ := setup(t, nil)
-	ctx := context.Background()
-	at := time.Now().Add(-time.Minute)
-	const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	const other = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	o := SongURL{SongID: 42, API: "https://api.udon.dance/Api/Songs/play", Node: "cf",
-		URL: "https://play.udon.dance/files/1/42-new.mp4?e=" + key + "&s=24",
-		MD5: other, Size: 999, // Untrusted caller fields must not override URL metadata.
-		QueryStartedAt: at, ObservedAt: at.Add(time.Second)}
-	if err := s.ObserveSongURL(ctx, o); err != nil {
-		t.Fatal(err)
-	}
-	older := o
-	older.QueryStartedAt = at.Add(-time.Second)
-	older.ObservedAt = at.Add(2 * time.Second)
-	older.URL = "https://play.udon.dance/files/1/42-old.mp4?e=" + key + "&s=12"
-	tied := o
-	tied.URL = "https://play.udon.dance/files/1/42-other.mp4?e=" + other + "&s=48"
-	for _, stale := range []SongURL{older, tied} {
-		if err := s.ObserveSongURL(ctx, stale); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var size int64
-	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size != 24 {
-		t.Fatal(size, err)
-	}
-	assertSongResource(t, s, "42", key)
-	for table, want := range map[string]int{"media": 1, "song_urls": 1, "songs": 1, "song_media": 1, "song_usage": 0} {
-		var count int
-		if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
-			t.Fatal(table, count, err)
-		}
-	}
-	got, err := s.SongURLs(ctx, 42, "cf")
-	if err != nil || len(got) != 1 || got[0].URL != o.URL {
-		t.Fatal(got, err)
-	}
-	// A newer observation replaces URL and mapping together.
-	newer := tied
-	newer.QueryStartedAt = at.Add(time.Nanosecond)
-	if err := s.ObserveSongURL(ctx, newer); err != nil {
-		t.Fatal(err)
-	}
-	assertSongResource(t, s, "42", other)
-	got, err = s.SongURLs(ctx, 42, "cf")
-	if err != nil || len(got) != 1 || got[0].URL != newer.URL {
-		t.Fatal(got, err)
-	}
-}
-
 func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
-	for _, table := range []string{"media", "song_urls", "songs", "song_media"} {
+	for _, table := range []string{"media", "media_urls", "songs", "song_media"} {
 		for _, existing := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/existing=%v", table, existing), func(t *testing.T) {
 				s, _ := setup(t, nil)
 				ctx := context.Background()
-				at := time.Now().Add(-time.Minute)
+
 				const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-				o := SongURL{SongID: 42, API: "https://api.udon.dance/Api/Songs/play", Node: "cf",
-					URL:            "https://play.udon.dance/files/1/42-old.mp4?e=" + key + "&s=12",
-					QueryStartedAt: at, ObservedAt: at}
+				o := PlaybackObservation{SongID: 42, Node: "cf",
+					URL: "https://play.udon.dance/files/1/42-old.mp4?e=" + key + "&s=12",
+				}
 				if existing {
 					if err := s.ObserveSongURL(ctx, o); err != nil {
 						t.Fatal(err)
@@ -154,7 +102,6 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 				}
 				next := o
 				next.URL = strings.ReplaceAll(strings.ReplaceAll(o.URL, "old.mp4", "new.mp4"), "s=12", "s=24")
-				next.QueryStartedAt, next.ObservedAt = at.Add(time.Second), at.Add(time.Second)
 				if err := s.ObserveSongURL(ctx, next); !errors.Is(err, ErrLocalStorage) || !errors.Is(s.StorageError(), ErrLocalStorage) {
 					t.Fatalf("storage failure not retained: %v", err)
 				}
@@ -164,12 +111,12 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 						t.Fatal(size, err)
 					}
 					got, err := s.SongURLs(ctx, 42, "cf")
-					if err != nil || len(got) != 1 || got[0].URL != o.URL || !got[0].QueryStartedAt.Equal(o.QueryStartedAt) {
+					if err != nil || len(got) != 1 || got[0].URL != o.URL {
 						t.Fatal(got, err)
 					}
 					assertSongResource(t, s, "42", key)
 				} else {
-					for _, name := range []string{"media", "song_urls", "songs", "song_media"} {
+					for _, name := range []string{"media", "media_urls", "songs", "song_media"} {
 						var count int
 						if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + name).Scan(&count); err != nil || count != 0 {
 							t.Fatal(name, count, err)
@@ -185,13 +132,13 @@ func TestSongURLInvalidMetadataDoesNotWrite(t *testing.T) {
 	for _, query := range []string{"", "?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=0", "?e=bad&s=12", "?e=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&s=12&s=13"} {
 		t.Run(query, func(t *testing.T) {
 			s, _ := setup(t, nil)
-			at := time.Now()
-			err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, API: "https://api.udon.dance/Api/Songs/play", Node: "cf",
-				URL: "https://play.udon.dance/files/1/42-video.mp4" + query, QueryStartedAt: at, ObservedAt: at})
+
+			err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, Node: "cf",
+				URL: "https://play.udon.dance/files/1/42-video.mp4" + query})
 			if err == nil || s.StorageError() != nil {
 				t.Fatal("invalid URL must fail validation without a storage fault", err, s.StorageError())
 			}
-			for _, table := range []string{"media", "song_urls", "songs", "song_media"} {
+			for _, table := range []string{"media", "media_urls", "songs", "song_media"} {
 				var count int
 				if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 					t.Fatal(table, count, err)
@@ -237,9 +184,9 @@ func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
 	if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM media").Scan(&count); err != nil || count != 0 {
 		t.Fatal("canceled transaction was not rolled back", count, err)
 	}
-	now := time.Now()
-	if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload),
-		API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now}); err != nil {
+
+	if err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: videoURL(payload),
+		Node: "cf"}); err != nil {
 		t.Fatal("subsequent observation failed", err)
 	}
 	if source, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil || source != "MISS" {

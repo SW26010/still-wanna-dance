@@ -29,6 +29,11 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	body := "history browser video"
 	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Expose response metadata before delaying bytes, so the real reader
+		// can register its block wait instead of waiting only for headers.
+		w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
 		time.Sleep(20 * time.Millisecond)
 		io.WriteString(w, body)
 	}))

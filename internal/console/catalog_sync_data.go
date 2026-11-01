@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sort"
 	"time"
@@ -15,6 +14,11 @@ import (
 
 // Reuse probe bodies; parsing happens outside storage lifecycle locks.
 func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.CatalogResponse) (usable bool, resultErr error) {
+	defer func() {
+		if ctx.Err() == nil && (usable || resultErr != nil) {
+			c.catalogChecked(resultErr)
+		}
+	}()
 	type candidate struct {
 		full             *cacheproxy.Catalog
 		revision, source string
@@ -25,7 +29,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	seen := make(map[[32]byte]bool)
 	for _, response := range responses {
 		if ctx.Err() != nil {
-			return
+			return usable, ctx.Err()
 		}
 		// Deduplicate identical bodies; semantic duplicates are handled by storage.
 		key := sha256.Sum256(append([]byte(response.Route+"\x00"), response.Body...))
@@ -48,14 +52,14 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		}
 		if err != nil {
 			slog.Warn("catalog_sync_invalid", "source", response.Source, "error", err)
-			failures = append(failures, fmt.Errorf("%s: %w", response.Source, err))
+			failures = append(failures, catalogSourceError(response.Source, err))
 			continue
 		}
 		v.source = response.Source
 		candidates = append(candidates, v)
 	}
 	if (len(candidates) == 0 && len(failures) == 0) || ctx.Err() != nil {
-		return
+		return usable, ctx.Err()
 	}
 	// Offer newer versions first, preferring canonical Udon at the same version.
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -79,7 +83,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	}
 	for _, v := range candidates {
 		if ctx.Err() != nil {
-			return
+			return usable, ctx.Err()
 		}
 		err = store.SyncCatalog(ctx, *v.full)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
@@ -87,21 +91,16 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 			if errors.Is(err, cacheproxy.ErrLocalStorage) {
 				return false, err
 			}
-			failures = append(failures, fmt.Errorf("%s: %w", v.source, err))
+			failures = append(failures, catalogSourceError(v.source, err))
 		} else {
 			usable = true
 		}
 	}
-	// Record after the entire round so a later duplicate or older mirror cannot
-	// hide a conflict from another candidate in this same round.
-	if len(failures) > 0 && ctx.Err() == nil {
-		if err := store.RecordCatalogError(ctx, errors.Join(failures...)); err != nil {
-			slog.Warn("catalog_sync_status_failed", "error", err)
-			return usable, err
+	if usable {
+		if ctx.Err() == nil {
+			c.catalogDataUpdated()
 		}
+		return usable, ctx.Err()
 	}
-	if usable && ctx.Err() == nil {
-		c.catalogDataUpdated()
-	}
-	return usable, ctx.Err()
+	return false, errors.Join(catalogRefreshError(failures), ctx.Err())
 }

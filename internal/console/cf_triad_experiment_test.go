@@ -10,7 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand/v2"
+
 	"net"
 	"net/http"
 	"net/http/httptrace"

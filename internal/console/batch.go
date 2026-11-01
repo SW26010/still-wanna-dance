@@ -166,8 +166,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		fail("读取本地清单失败：" + err.Error())
 		return
 	}
-	if target != nil && len(local.Songs) == 0 {
-		fail("所选歌曲不存在，或资源已无当前歌曲关联。请刷新曲库。")
+	if target != nil && target.SongID != "" && len(local.Songs) == 0 {
+		fail("所选歌曲不存在，请刷新曲库。")
 		return
 	}
 	if target == nil && (local.Status.Revision == "" || len(local.Songs) == 0) {
@@ -186,9 +186,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		titles[strconv.FormatInt(song.ID, 10)] = name
 	}
-	result, err := fill.Run(local, func(ctx context.Context, id int64) (string, error) {
-		return c.prefetchSong(ctx, s, id)
-	}, func(progress cacheproxy.DownloadFillResult) {
+	progress := func(progress cacheproxy.DownloadFillResult) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.batch.Total, c.batch.Checked = progress.Total, progress.Checked
@@ -211,7 +209,16 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		} else {
 			c.batch.Phase = "正在解析歌曲并补齐缺失视频"
 		}
-	})
+	}
+	var result cacheproxy.DownloadFillResult
+	if target != nil && target.Resource != "" && len(local.Songs) == 0 {
+		result, err = fill.RunResource(target.Resource)
+		progress(result)
+	} else {
+		result, err = fill.Run(local, func(ctx context.Context, id int64) (string, error) {
+			return c.prefetchSong(ctx, s, id)
+		}, progress)
+	}
 	if result.BudgetReached {
 		c.mu.Lock()
 		c.batch.Phase = "视频存储预算不足，已停止普通补齐。"

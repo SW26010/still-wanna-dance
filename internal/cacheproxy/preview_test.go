@@ -51,7 +51,7 @@ func previewResponse(s *Server, target PreviewTarget, headers map[string]string)
 func assertPreviewUncounted(t *testing.T, s *Server, target PreviewTarget) {
 	t.Helper()
 	s.usage.flush()
-	for _, table := range []string{"request_events", "song_playback", "song_usage"} {
+	for _, table := range []string{"request_events", "song_usage"} {
 		var count int
 		if err := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("%s: count=%d error=%v", table, count, err)
@@ -61,11 +61,8 @@ func assertPreviewUncounted(t *testing.T, s *Server, target PreviewTarget) {
 	if err := s.db.QueryRow("SELECT last_requested_at FROM media_access WHERE md5=?", target.Resource).Scan(&at); err != nil || at <= 0 {
 		t.Fatalf("resource access missing: %d %v", at, err)
 	}
-	if stats := s.TrafficStats(); stats.Hits != 0 || stats.Misses != 0 || stats.SavedBytes != 0 {
-		t.Fatalf("preview changed traffic: %+v", stats)
-	}
 	var total int64
-	if err := s.db.QueryRow("SELECT COALESCE(sum(download_bytes+cache_bytes+local_bytes),0) FROM traffic_totals").Scan(&total); err != nil || total != 0 {
+	if err := s.db.QueryRow("SELECT COALESCE(sum(download_bytes+cache_bytes+local_bytes),0) FROM request_events").Scan(&total); err != nil || total != 0 {
 		t.Fatalf("response source totals changed: %d %v", total, err)
 	}
 }
@@ -97,6 +94,82 @@ func TestPreviewColdHotAndNoGameEffects(t *testing.T) {
 		t.Fatal("local preview refreshed upstream")
 	}
 	assertPreviewUncounted(t, s, target)
+}
+
+func TestResourcePreviewCanResolveThroughBlockedAlias(t *testing.T) {
+	var queries atomic.Int32
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			queries.Add(1)
+			if id != "1" {
+				t.Errorf("unexpected alias %s", id)
+			}
+			return videoURL(payload), nil
+		}
+	})
+	target := seedPreview(t, s, payload)
+	if err := s.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
+		t.Fatal(err)
+	}
+	// Selecting a resource does not create a demand for its lookup alias.
+	target.AdmissionSongID = ""
+	assertResponse(t, previewResponse(s, target, nil), http.StatusOK, payload)
+	if queries.Load() != 1 {
+		t.Fatalf("lookup queries = %d", queries.Load())
+	}
+	assertPreviewUncounted(t, s, target)
+}
+
+func TestSongPreviewTriesSelectedAliasFirst(t *testing.T) {
+	called := make(chan string, 2)
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
+			called <- id
+			if id == "2" {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
+			return videoURL(payload), nil
+		}
+	})
+	target := seedPreview(t, s, payload)
+	if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (2); INSERT INTO song_media(song_id,md5) VALUES (2,?)", target.Resource); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/media/preview", nil).WithContext(ctx)
+	done := make(chan struct{})
+	go func() { defer close(done); s.ServePreview(w, r, target) }()
+	select {
+	case id := <-called:
+		if id != "1" {
+			cancel()
+			<-done
+			t.Fatalf("selected song 1 was bypassed by %s", id)
+		}
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("no lookup started")
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("preview stalled")
+	}
+	if w.Code != http.StatusOK || w.Body.String() != payload {
+		t.Fatalf("preview status=%d body=%q", w.Code, w.Body.String())
+	}
 }
 
 func TestPreviewStaysOnClickTimeResourceAndRechecksSongPolicy(t *testing.T) {
@@ -135,8 +208,8 @@ func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 	var downloads atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1) }, func(cfg *Config) {
 		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
-			now := time.Now()
-			err := cfg.Store.ObserveSongURL(ctx, SongURL{SongID: 1, URL: videoURL("new-version"), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now})
+
+			err := cfg.Store.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, URL: videoURL("new-version"), Node: "cf"})
 			return videoURL("new-version"), err
 		}
 	})
@@ -284,8 +357,8 @@ func TestPreviewKnownAddressBeyondAPILookupBudget(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	now := time.Now()
-	if err := s.ObserveSongURL(t.Context(), SongURL{SongID: 12, URL: videoURL(payload), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now}); err != nil {
+
+	if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 12, URL: videoURL(payload), Node: "cf"}); err != nil {
 		t.Fatal(err)
 	}
 	assertResponse(t, previewResponse(s, target, nil), 200, payload)
@@ -371,7 +444,7 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 				t.Fatal("game was canceled with preview")
 			}
 			s.usage.flush()
-			for _, table := range []string{"request_events", "song_usage", "song_playback"} {
+			for _, table := range []string{"request_events", "song_usage"} {
 				var count int
 				if err := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 1 {
 					t.Fatal(table, count, err)

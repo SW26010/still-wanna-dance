@@ -13,7 +13,7 @@ func prepareFixtureResources(t testing.TB, cfg *Config, root string, create bool
 	t.Helper()
 	var err error
 	if create {
-		cfg.Store, err = CreateStore(storagePath(root))
+		cfg.Store, err = createEmptyFixtureStore(storagePath(root))
 	} else {
 		cfg.Store, err = OpenStore(storagePath(root))
 	}
@@ -59,7 +59,7 @@ func storagePath(root string) string { return filepath.Join(root, storageDatabas
 func openFixtureDatabase(path string, writable bool) (*sql.DB, error) {
 	if writable {
 		if _, err := os.Lstat(path); os.IsNotExist(err) {
-			store, err := CreateStore(path)
+			store, err := createEmptyFixtureStore(path)
 			if err != nil {
 				return nil, err
 			}
@@ -102,4 +102,18 @@ func fixtureFaultableBlocks(t *testing.T, cfg *Config) {
 		t.Fatal(err)
 	}
 	cfg.Work.path = dir
+}
+
+// Small business fixtures remove only creation-time seed data. Creation, lease,
+// schema and reopen behavior still use the real application boundary.
+func createEmptyFixtureStore(path string) (*Store, error) {
+	store, err := CreateStore(path)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.db.Exec("BEGIN; DELETE FROM song_media; DELETE FROM songs; DELETE FROM media; COMMIT;"); err != nil {
+		store.Close()
+		return nil, err
+	}
+	return store, nil
 }

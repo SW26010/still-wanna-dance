@@ -413,15 +413,15 @@ func TestCalibrationSavedURLsShareReserveAndFallback(t *testing.T) {
 		}
 		return base.RoundTrip(r)
 	}))
-	saved := func(id, checksum, size int64) cacheproxy.SongURL {
-		return cacheproxy.SongURL{SongID: id, URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=%d&saved=1", id, checksum, size)}
+	saved := func(id, checksum, size int64) cacheproxy.MediaURL {
+		return cacheproxy.MediaURL{URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=%d&saved=1", id, checksum, size)}
 	}
 	local := CalibrationCandidates{
-		SongIDs: []int64{1, 2, 3, 4, 5, 6, 7},
-		URLs: []cacheproxy.SongURL{
+		SongIDs: []int64{2, 4, 5, 7},
+		URLs: []cacheproxy.MediaURL{
 			saved(1, 1, 16<<20), saved(2, 1, 16<<20), // shared resource counts once
-			saved(3, 3, 1<<20), {SongID: 4, URL: "invalid"}, saved(5, 5, 3<<30),
-			saved(6, 6, 16<<20), saved(6, 8, 16<<20), // older observation must not replace the first
+			saved(3, 3, 1<<20), {URL: "invalid"}, saved(5, 5, 3<<30),
+			saved(6, 6, 16<<20), saved(6, 8, 16<<20), // distinct media remain independent of lookup song
 		},
 	}
 	c := newTestCalibration(client, "direct", func(context.Context) CalibrationCandidates { return local }, nil)
@@ -432,7 +432,7 @@ func TestCalibrationSavedURLsShareReserveAndFallback(t *testing.T) {
 	if err != nil || len(samples) != 6 || state.PreparedBytes != 81<<20 || catalogs.Load() != 0 {
 		t.Fatalf("saved/live reserve: samples=%d bytes=%d catalogs=%d err=%v", len(samples), state.PreparedBytes, catalogs.Load(), err)
 	}
-	for _, id := range []int64{1, 2, 3, 6} {
+	for _, id := range []int64{1, 3, 6} {
 		if calls[id] != 0 {
 			t.Fatalf("already prepared song %d was resolved again", id)
 		}
@@ -444,7 +444,7 @@ func TestCalibrationSavedURLsShareReserveAndFallback(t *testing.T) {
 		}
 		seen[sample.checksum] = true
 	}
-	if seen[fmt.Sprintf("%032x", 8)] || !strings.Contains(samples[0].url, "saved=1") {
-		t.Fatal("saved address provenance was lost")
+	if !seen[fmt.Sprintf("%032x", 8)] || !strings.Contains(samples[0].url, "saved=1") {
+		t.Fatal("saved resources were not retained")
 	}
 }

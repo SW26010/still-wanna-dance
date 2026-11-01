@@ -40,9 +40,8 @@ type PlaybackURLResponse struct {
 	QueryStartedAt, ObservedAt time.Time
 }
 
-func (r PlaybackURLResponse) SongURL() cacheproxy.SongURL {
-	return cacheproxy.SongURL{SongID: r.SongID, URL: r.URL, API: r.API, Node: r.Node,
-		QueryStartedAt: r.QueryStartedAt, ObservedAt: r.ObservedAt}
+func (r PlaybackURLResponse) Observation() cacheproxy.PlaybackObservation {
+	return cacheproxy.PlaybackObservation{SongID: r.SongID, URL: r.URL, Node: r.Node}
 }
 
 type Sample struct {

@@ -21,7 +21,6 @@ type RecentRequest struct {
 	Resource          string           `json:"resource"`
 	Method            string           `json:"method"`
 	Range             string           `json:"range"`
-	Cache             string           `json:"cache"`
 	Outcome           string           `json:"outcome"`
 	Bytes             int64            `json:"bytes"`
 	ElapsedMS         int64            `json:"elapsedMS"`
@@ -62,7 +61,7 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	defer cancel()
 	window, args := query.window(getOnly)
 	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, COALESCE(resource_md5,''), method, range_header,
- cache_result, outcome, transferred_bytes, elapsed_ms, status, COALESCE(CAST(song_id AS TEXT),''), COALESCE(s.name,''), completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes
+ outcome, transferred_bytes, elapsed_ms, status, COALESCE(CAST(song_id AS TEXT),''), COALESCE(s.name,''), completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes
  FROM (`+window+`) e LEFT JOIN songs s ON s.id=e.song_id
  ORDER BY `+query.order(), args...)
 	if err != nil {
@@ -73,7 +72,7 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	for rows.Next() {
 		var r RecentRequest
 		var download, cache, local *int64
-		if err = rows.Scan(&r.ID, &r.At, &r.Resource, &r.Method, &r.Range, &r.Cache, &r.Outcome, &r.Bytes, &r.ElapsedMS, &r.Status, &r.SongID, &r.SongTitle, &r.CompletedAt, &r.ResponseBytes, &r.FirstBodyNS, &r.FirstBodyBlocking, &download, &cache, &local); err != nil {
+		if err = rows.Scan(&r.ID, &r.At, &r.Resource, &r.Method, &r.Range, &r.Outcome, &r.Bytes, &r.ElapsedMS, &r.Status, &r.SongID, &r.SongTitle, &r.CompletedAt, &r.ResponseBytes, &r.FirstBodyNS, &r.FirstBodyBlocking, &download, &cache, &local); err != nil {
 			return result, err
 		}
 		if download != nil && cache != nil && local != nil {

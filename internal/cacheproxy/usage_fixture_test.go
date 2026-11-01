@@ -12,7 +12,7 @@ import (
 func fixtureUsage(t testing.TB, path string, log *slog.Logger, retentionDays int, unlimited bool) (*usageStore, error) {
 	t.Helper()
 	if _, err := os.Lstat(path); os.IsNotExist(err) {
-		store, err := CreateStore(path)
+		store, err := createEmptyFixtureStore(path)
 		if err != nil {
 			return nil, err
 		}
@@ -36,7 +36,7 @@ func fixtureUsage(t testing.TB, path string, log *slog.Logger, retentionDays int
 func cacheReadDB(root string) (*sql.DB, error) { return readDatabaseFile(storagePath(root)) }
 
 func TestUsageWorkerBorrowsApplicationDatabase(t *testing.T) {
-	store, err := CreateStore(storagePath(t.TempDir()))
+	store, err := createEmptyFixtureStore(storagePath(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}

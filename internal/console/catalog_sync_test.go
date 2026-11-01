@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -27,7 +26,7 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 			address := func(id int64) string {
 				return fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=1234", id, id)
 			}
-			if err := c.store.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: 42, URL: address(42), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: time.Now(), ObservedAt: time.Now()}); err != nil {
+			if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 42, URL: address(42), Node: "cf"}); err != nil {
 				t.Fatal(err)
 			}
 			var rejected, catalogs, playback, resources atomic.Int32

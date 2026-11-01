@@ -127,11 +127,11 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	}
 	for _, node := range []string{"cf"} {
 		urls, err := c.store.SongURLs(context.Background(), 42, node)
-		if err != nil || len(urls) != 1 || urls[0].API != c.apiBase+"/Api/Songs/play" || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
+		if err != nil || len(urls) != 1 || urls[0].Node != node || urls[0].MD5 != md5 || urls[0].Size != size {
 			t.Fatalf("monitor URL not reusable for %s: %+v, %v", node, urls, err)
 		}
 	}
-	for table, want := range map[string]int{"song_urls": 1, "media": 1, "song_usage": 0, "request_events": 0} {
+	for table, want := range map[string]int{"media_urls": 1, "media": 1, "song_usage": 0, "request_events": 0} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)

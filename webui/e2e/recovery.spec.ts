@@ -65,7 +65,7 @@ test('Mihomo preview stays a draft and clearing it releases only that preview',a
 
 test('history clears failed reads and recovers focus after a row disappears',async({page})=>{
   const api=await mockAPI(page);let failed=false;
-  const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,cache:'HIT',outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
+  const rows=[2,1].map(id=>({id,at:1700000000000+id*1000,resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,outcome:'completed',songs:[{id:'1',title:'分段歌曲'}]}));
   await page.route('**/api/history?*',r=>failed?r.fulfill({status:500,json:{error:'unavailable'}}):r.fulfill({json:{storageID:'fixture',requests:rows,hasMore:false}}));
   await page.goto('/#recent');
   const group=page.getByRole('button',{name:'请求 2 的明细',exact:true});await group.click();

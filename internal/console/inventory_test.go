@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -325,7 +326,7 @@ func TestInventoryReadDoesNotWaitForLifecycle(t *testing.T) {
 	select {
 	case got := <-done:
 		c.lifecycleMu.Unlock()
-		if got.Catalog.Error != "" {
+		if got.Error != "" {
 			t.Fatal(got)
 		}
 	case <-time.After(time.Second):
@@ -349,7 +350,7 @@ func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 					if calls == 1 {
 						close(entered)
 						<-release
-						return cacheproxy.CatalogStatus{Revision: "stale", Error: "stale error"}, nil
+						return cacheproxy.CatalogStatus{Revision: "stale"}, errors.New("stale error")
 					}
 					return cacheproxy.CatalogStatus{Revision: "current"}, nil
 				})
@@ -372,7 +373,7 @@ func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 			}
 			close(release)
 			got := <-done
-			if calls != 1 || got.Catalog.Revision != "stale" || got.Catalog.Error != "stale error" {
+			if calls != 1 || got.Catalog.Revision != "stale" || !strings.Contains(got.Error, "stale error") {
 				t.Fatal(calls, got)
 			}
 		})

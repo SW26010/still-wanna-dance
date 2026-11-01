@@ -1,5 +1,39 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
+import {expectWithClock} from './clock';
+
+test('existing catalog shows background sync errors until a successful check clears them',async({page})=>{
+  await page.clock.install();
+  const api=await mockAPI(page);
+  const error='清单歌曲字段格式无效：playerCount';
+  api.state.catalogSync={initializing:false,checking:false,error};
+  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:true,totalSongs:2,coveredSongs:1,updated:'2026-11-01T00:00:00Z',catalogRevision:'20261101000000',catalog:{revision:'20261101000000',source:'kiva'}}}));
+  await page.goto('/#/library');
+  const coverage=page.getByRole('group',{name:'曲库覆盖率',exact:true});
+  const notice=page.locator('.fui-Toast').getByText(error,{exact:true});
+  await expect(coverage).toContainText('50.0%');
+  await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
+  await expect(notice).toBeVisible();
+  api.state.catalogSync.error=undefined;
+  await expectWithClock(page,()=>notice.count()).toBe(0);
+  await expect(coverage).toContainText('50.0%');
+});
+
+test('catalog recovery clears only the sync error and retains independent inventory errors',async({page})=>{
+  await page.clock.install();
+  const api=await mockAPI(page);
+  const syncError='在线曲库更新失败：主来源 Udon：清单接口返回 503',fileError='无法读取视频目录：磁盘不可用';
+  api.state.catalogSync={initializing:false,checking:false,error:syncError};
+  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:false,error:fileError,catalog:{revision:'20261101000000'}}}));
+  await page.goto('/#/library');
+  const notice=page.locator('.fui-Toast');
+  await expect(notice.getByText(fileError+'；'+syncError,{exact:true})).toBeVisible();
+  api.state.catalogSync.error=undefined;
+  await expectWithClock(page,()=>notice.filter({hasText:syncError}).count()).toBe(0);
+  await expect(notice.getByText(fileError,{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'覆盖率说明',exact:true}).focus();
+  await expect(page.getByRole('tooltip')).toContainText(fileError);
+});
 
 for(const width of [1280,390,320])test(`coverage keeps a compact layout and explains uncertain data at ${width}px`,async({page},info)=>{
   const api=await mockAPI(page);

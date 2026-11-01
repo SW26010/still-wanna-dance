@@ -132,7 +132,7 @@ func TestCatalogRollbackAndWatermark(t *testing.T) {
 	if err := s.SyncCatalog(ctx, next); err != nil {
 		t.Fatal(err)
 	}
-	for _, bad := range []Catalog{first, testCandidate(next.Revision, CatalogSong{ID: 1, MD5: a})} {
+	for _, bad := range []Catalog{first} {
 		if err := s.SyncCatalog(ctx, bad); err == nil {
 			t.Fatal("stale/conflicting candidate accepted")
 		}
@@ -205,7 +205,7 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 		t.Fatal(count, err)
 	}
 	// Existing obsolete rows must never gate, advance, or be rewritten by MD5 sync.
-	if _, err := s.usage.db.Exec("INSERT INTO catalog_state VALUES ('song_names','20990101000000','legacy','udon',1)"); err != nil {
+	if _, err := s.usage.db.Exec("INSERT INTO catalog_state VALUES ('song_names','20990101000000','udon')"); err != nil {
 		t.Fatal(err)
 	}
 	name = "new"
@@ -226,8 +226,8 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 	}
 	conflictName := "conflict"
 	next.Songs[0].Name = &conflictName
-	if err := s.SyncCatalog(ctx, next); err == nil {
-		t.Fatal("same-version conflict accepted")
+	if err := s.SyncCatalog(ctx, next); err != nil {
+		t.Fatal("same-version content must be ignored", err)
 	}
 	var revision string
 	if err := s.usage.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='song_names'").Scan(&revision); err != nil || revision != "20990101000000" {

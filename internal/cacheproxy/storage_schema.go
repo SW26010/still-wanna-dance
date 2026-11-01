@@ -6,20 +6,29 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	mediaseed "still-wanna-dance/data/media-seed"
 )
 
-//go:embed schema/storage-v8.sql
+//go:embed schema/storage-v9.sql
 var storageSchemaSQL string
 
 // Only a newly created database reaches this transaction. Existing databases
-// are validated, never repaired. Future migrations belong at the open boundary.
+// are validated or migrated at the writable open boundary.
 func initializeStorage(db *sql.DB) error {
+	return initializeStorageFromSeed(db, mediaseed.Bundled())
+}
+
+func initializeStorageFromSeed(db *sql.DB, seed string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Exec(storageSchemaSQL + `INSERT INTO traffic_totals(id,saved_bytes,hits,misses) VALUES(1,0,0,0);`); err != nil {
+	if _, err = tx.Exec(storageSchemaSQL); err != nil {
+		return err
+	}
+	if err := initializeMediaSeed(tx, seed); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(fmt.Sprintf("PRAGMA application_id=%d; PRAGMA user_version=%d;", storageApplicationID, storageSchemaVersion)); err != nil {

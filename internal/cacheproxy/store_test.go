@@ -11,7 +11,7 @@ import (
 
 func TestStoreCreationPreservesRecoveryFiles(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.sqlite")
-	store, err := CreateStore(seed)
+	store, err := createEmptyFixtureStore(seed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestStoreCreationPreservesRecoveryFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			created, createErr := CreateStore(path)
+			created, createErr := createEmptyFixtureStore(path)
 			if created != nil {
 				created.Close()
 			}
@@ -106,7 +106,7 @@ func TestStoreOpenDoesNotCreateOrRepair(t *testing.T) {
 		if s, err := OpenStore(path); s != nil || err == nil {
 			t.Fatal("accepted invalid database", err)
 		}
-		if s, err := CreateStore(path); s != nil || !errors.Is(err, os.ErrExist) {
+		if s, err := createEmptyFixtureStore(path); s != nil || !errors.Is(err, os.ErrExist) {
 			t.Fatal("replaced existing file", err)
 		}
 		after, err := os.ReadFile(path)
@@ -118,7 +118,7 @@ func TestStoreOpenDoesNotCreateOrRepair(t *testing.T) {
 
 func TestStorePreservesV6WithoutVideoOrObservation(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database", "personal.sqlite")
-	s, err := CreateStore(path)
+	s, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestStorePreservesV6WithoutVideoOrObservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var count int
-	if err := s.db.QueryRow("SELECT count(*) FROM request_observation").Scan(&count); err != nil || count != 0 {
+	if err := s.db.QueryRow("SELECT count(*) FROM request_events").Scan(&count); err != nil || count != 0 {
 		t.Fatal("opening the database started request observation", count, err)
 	}
 	if err := s.Close(); err != nil {
@@ -162,7 +162,7 @@ func TestStoreLeaseExcludesOtherWriters(t *testing.T) {
 	for _, name := range []string{"storage.sqlite", "personal.sqlite"} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), name)
-			s, err := CreateStore(path)
+			s, err := createEmptyFixtureStore(path)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -175,7 +175,7 @@ func TestStoreLeaseExcludesOtherWriters(t *testing.T) {
 				release()
 				t.Fatal("database lease was not held")
 			}
-			sibling, err := CreateStore(filepath.Join(filepath.Dir(path), "independent.sqlite"))
+			sibling, err := createEmptyFixtureStore(filepath.Join(filepath.Dir(path), "independent.sqlite"))
 			if err != nil {
 				t.Fatal("independent database was blocked", err)
 			}
@@ -196,7 +196,7 @@ func TestStoreLeaseExcludesOtherWriters(t *testing.T) {
 
 func TestStoreRejectsHardLinkedDatabasesWithoutChangingFiles(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "storage.sqlite")
-	s, err := CreateStore(path)
+	s, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestStoreRejectsHardLinkedDatabasesWithoutChangingFiles(t *testing.T) {
 
 func TestStoreRejectsHardLinkAddedWhileWriterOpen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "storage.sqlite")
-	s, err := CreateStore(path)
+	s, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,10 +279,10 @@ func TestStoreOpenRejectsUnsupportedV6ChangesWithoutWriting(t *testing.T) {
 			t.Fatal("open changed old database", err)
 		}
 	})
-	for _, mutation := range []string{"PRAGMA user_version=4", "PRAGMA user_version=999", "DROP TABLE catalog_checks"} {
+	for _, mutation := range []string{"PRAGMA user_version=4", "PRAGMA user_version=999", "DROP TABLE catalog_state"} {
 		t.Run(mutation, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "library.sqlite")
-			s, err := CreateStore(path)
+			s, err := createEmptyFixtureStore(path)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-func TestStorageV7Constraints(t *testing.T) {
-	store, err := CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
+func TestStorageV9Constraints(t *testing.T) {
+	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "library.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,21 +23,16 @@ func TestStorageV7Constraints(t *testing.T) {
 	for name, query := range map[string]string{
 		"integer type":           `UPDATE media SET byte_size='not-a-number'`,
 		"integer precision":      `UPDATE media SET byte_size=1.5`,
+		"zero bytes":             `UPDATE media SET byte_size=0`,
 		"negative bytes":         `UPDATE media SET byte_size=-1`,
 		"negative demand":        `INSERT INTO song_usage VALUES(1,-1,1,1)`,
 		"negative score":         `INSERT INTO song_usage VALUES(1,1,-1,1)`,
 		"score type":             `INSERT INTO song_usage VALUES(1,1,'not-a-number',1)`,
-		"negative transfers":     `INSERT INTO song_playback VALUES(1,-1,1)`,
-		"negative saved":         `UPDATE traffic_totals SET saved_bytes=-1`,
-		"negative hits":          `UPDATE traffic_totals SET hits=-1`,
-		"negative misses":        `UPDATE traffic_totals SET misses=-1`,
-		"null catalog state key": `INSERT INTO catalog_state VALUES(NULL,'x','x','x',1)`,
-		"null catalog check key": `INSERT INTO catalog_checks(catalog_key) VALUES(NULL)`,
+		"null catalog state key": `INSERT INTO catalog_state VALUES(NULL,'x','x')`,
 		"invalid access MD5":     `INSERT INTO media_access VALUES('not-a-md5',1)`,
 		"uppercase access MD5":   `INSERT INTO media_access VALUES('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',1)`,
-		"URL without song":       `INSERT INTO song_urls VALUES(999,'api','cf','url','` + key + `',1,1,1,0)`,
-		"URL without media":      `INSERT INTO song_urls VALUES(1,'api','cf','url','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',1,1,1,0)`,
-		"URL invalid MD5":        `INSERT INTO song_urls VALUES(1,'api','cf','url','zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz',1,1,1,0)`,
+		"URL without media":      `INSERT INTO media_urls VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','cf','url')`,
+		"URL invalid MD5":        `INSERT INTO media_urls VALUES('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz','cf','url')`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			// Autocommit must enforce even the deferred foreign keys.
@@ -47,26 +42,14 @@ func TestStorageV7Constraints(t *testing.T) {
 		})
 	}
 	var strict int
-	if err := store.db.QueryRow(`SELECT count(*) FROM pragma_table_list WHERE schema='main' AND name NOT LIKE 'sqlite_%' AND strict=1`).Scan(&strict); err != nil || strict != 14 {
+	if err := store.db.QueryRow(`SELECT count(*) FROM pragma_table_list WHERE schema='main' AND name NOT LIKE 'sqlite_%' AND strict=1`).Scan(&strict); err != nil || strict != 10 {
 		t.Fatal("all business tables must enforce types", strict, err)
 	}
-	// URL evidence, song and resource may arrive in that order in one transaction.
-	tx, err := store.db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO song_urls VALUES(2,'api','cf','url','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',1,1,1,0);
-INSERT INTO songs(id) VALUES(2); INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')`); err != nil {
-		t.Fatal(err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatal("complete URL transaction rejected", err)
-	}
+
 }
 
 func TestRequestHistoryIdentityAndConstraints(t *testing.T) {
-	store, err := CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
+	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "library.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,8 +77,8 @@ func TestRequestHistoryIdentityAndConstraints(t *testing.T) {
 	for name, assignments := range map[string]string{
 		"song text": `song_id='bad'`, "song zero": `song_id=0`, "song fraction": `song_id=1.5`,
 		"empty resource": `resource_md5=''`, "invalid resource": `resource_md5='bad'`,
-		"negative file": `file_bytes=-1`, "negative transfer": `transferred_bytes=-1`,
-		"negative elapsed": `elapsed_ms=-1`, "negative response": `response_bytes=-1`,
+		"negative transfer": `transferred_bytes=-1`,
+		"negative elapsed":  `elapsed_ms=-1`, "negative response": `response_bytes=-1`,
 		"negative first body": `first_body_ns=-1`, "invalid blocking": `first_body_blocking=2`,
 		"partial sources":    `download_bytes=0`,
 		"negative sources":   `download_bytes=-1,cache_bytes=0,local_bytes=0`,
@@ -134,14 +117,11 @@ func TestPrefetchDoesNotPersistRequestHistory(t *testing.T) {
 				t.Fatalf("prefetch status %d: %v", status, err)
 			}
 			s.usage.flush()
-			for _, table := range []string{"request_events", "song_usage", "song_playback", "media_access"} {
+			for _, table := range []string{"request_events", "song_usage", "media_access"} {
 				var count int
 				if err := s.usage.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 					t.Fatal("preparation persisted request facts", table, count, err)
 				}
-			}
-			if stats := s.TrafficStats(); stats.Requests != 0 || stats.SavedBytes != 0 || stats.PlaybackTransfers != 0 {
-				t.Fatal(stats)
 			}
 			if err := s.Close(); err != nil {
 				t.Fatal(err)

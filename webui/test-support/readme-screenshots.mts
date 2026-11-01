@@ -33,7 +33,7 @@ try {
   }));
   await page.route('**/api/library?*', route => route.fulfill({ json: { storageID: 'fixture', databaseID: 'fixture-db', songs, resources, keys: songs.map(s => s.resource), total: songs.length, fileCount: 6, totalBytes: Object.values(resources).reduce((sum, r) => sum + (r.local?.bytes || 0), 0) } }));
   await page.route('**/api/inventory', route => route.fulfill({ json: { totalSongs: 8, coveredSongs: 6, coverageKnown: true, updated: new Date(at).toISOString() } }));
-  await page.route('**/api/requests?*', route => route.fulfill({ json: { storageID: 'fixture', requests: [{ id: 1, at: at - 220000, resource: songs[0].resource, songID: songs[0].id, songTitle: songs[0].title, method: 'GET', range: 'bytes=0-', elapsedMS: 82, bytes: 1048576, status: 206, cache: 'TEMP', outcome: 'completed' }], hasMore: false } }));
+  await page.route('**/api/requests?*', route => route.fulfill({ json: { storageID: 'fixture', requests: [{ id: 1, at: at - 220000, resource: songs[0].resource, songID: songs[0].id, songTitle: songs[0].title, method: 'GET', range: 'bytes=0-', elapsedMS: 82, bytes: 1048576, status: 206, outcome: 'completed' }], hasMore: false } }));
   const blocks = [], demands = [];
   for (let row = 0; row < 4; row++) {
     const s = songs[row], count = 40 + row * 8, ids = [];

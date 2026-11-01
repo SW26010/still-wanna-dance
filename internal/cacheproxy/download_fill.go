@@ -46,11 +46,39 @@ func (s *Server) NewDownloadFill(ctx context.Context, scanOnly, retainFavorites 
 	return &DownloadFill{server: s, ctx: ctx, scanOnly: scanOnly, retainFavorites: retainFavorites}
 }
 
+// RunResource handles a selected resource without any current song aliases.
+// It shares the fill budget and fixed-resource preparation, without inventing
+// a song identity or changing catalog membership.
+func (f *DownloadFill) RunResource(key string) (DownloadFillResult, error) {
+	ctx, finish := withBatchSongBudget(f.ctx)
+	defer finish()
+	result := DownloadFillResult{Total: 1}
+	source, err := f.server.prefetchResource(ctx, key, "")
+	if errors.Is(err, ErrBatchBudget) {
+		result.BudgetReached = true
+		return result, nil
+	}
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+	result.Checked = 1
+	if err != nil {
+		result.Failed = 1
+	} else if source == "HIT" {
+		result.Hits, result.Reused = 1, 1
+	} else {
+		result.Downloaded = 1
+	}
+	return result, err
+}
+
 type fillResource struct {
 	md5   string
 	ids   []string
 	score float64
 }
+
+type fillCandidatesKey struct{}
 
 func (s *Server) fillResources(ctx context.Context, references map[string]string) (result []*fillResource, resultErr error) {
 	if !s.beginRequest() {
@@ -108,7 +136,8 @@ func (s *Server) fillResources(ctx context.Context, references map[string]string
 }
 
 // Run uses the existing song preparation adapter, forwarding an opaque context
-// through all retries. The adapter returns the engine's PrefetchSong result.
+// through all retries. The adapter returns the engine's PrefetchDownload result;
+// fixed-resource preparation already owns bounded alias and URL retries.
 // Progress snapshots are serialized, independent copies; the callback must
 // return promptly. Run waits for every started preparation and retry budget
 // scope to settle, including on cancellation. Shared engine work may outlive it.
@@ -171,6 +200,13 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 			sort.SliceStable(candidates, func(i, j int) bool {
 				return local.Current[candidates[i]] && !local.Current[candidates[j]]
 			})
+			// A blocked song is skipped as a demand but can still provide an
+			// address for another selected song sharing the same resource.
+			selected := make(map[string]struct{}, len(job.ids))
+			for _, id := range job.ids {
+				selected[id] = struct{}{}
+			}
+			songCtx = context.WithValue(songCtx, fillCandidatesKey{}, selected)
 			for _, id := range candidates {
 				n, _ := strconv.ParseInt(id, 10, 64)
 				update(func() { result.CurrentSongID = id })
@@ -180,7 +216,7 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 					continue
 				}
 				source, err = attemptSource, attemptErr
-				if err == nil || songCtx.Err() != nil || errors.Is(err, ErrBatchBudget) || errors.Is(err, ErrLocalStorage) {
+				if job.md5 != "" || err == nil || songCtx.Err() != nil || errors.Is(err, ErrBatchBudget) || errors.Is(err, ErrLocalStorage) {
 					break
 				}
 			}

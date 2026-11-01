@@ -2,9 +2,7 @@ package cacheproxy
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -12,13 +10,9 @@ import (
 	mediaseed "still-wanna-dance/data/media-seed"
 )
 
-// ApplyBundledMediaSeed is application bootstrap, separate from strict schema
-// creation/opening and read-only database inspection. It never advances songs.
-func (s *Store) ApplyBundledMediaSeed(ctx context.Context) error {
-	return s.applyMediaSeed(ctx, mediaseed.Bundled())
-}
-
-func (s *Store) applyMediaSeed(ctx context.Context, encoded string) (resultErr error) {
+// initializeMediaSeed belongs to the creation transaction only.
+func initializeMediaSeed(tx *sql.Tx, encoded string) error {
+	ctx := context.Background()
 	var seed mediaseed.Snapshot
 	decoder := json.NewDecoder(strings.NewReader(encoded))
 	decoder.DisallowUnknownFields()
@@ -46,39 +40,7 @@ func (s *Store) applyMediaSeed(ctx context.Context, encoded string) (resultErr e
 		}
 		ids[song.ID] = true
 	}
-	hash := sha256.Sum256([]byte(encoded))
-	digest := "sha256-seed-v1:" + hex.EncodeToString(hash[:])
-	if !s.beginRequest() {
-		return context.Canceled
-	}
-	defer s.wg.Done()
-	defer func() { resultErr = s.storageError(resultErr) }()
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var previous, previousDigest string
-	err = tx.QueryRowContext(ctx, "SELECT revision,digest FROM catalog_state WHERE catalog_key='media_seed'").Scan(&previous, &previousDigest)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if err == nil {
-		if previous > seed.Version {
-			return nil
-		}
-		if previous == seed.Version {
-			if previousDigest != digest {
-				return fmt.Errorf("预置资源同版本内容冲突")
-			}
-			return nil
-		}
-	}
-	mediaStmt, err := tx.PrepareContext(ctx, "INSERT INTO media(md5,byte_size) VALUES (?,?) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(media.byte_size,excluded.byte_size)")
+	mediaStmt, err := tx.PrepareContext(ctx, "INSERT INTO media(md5,byte_size) VALUES (?,?)")
 	if err != nil {
 		return err
 	}
@@ -88,12 +50,12 @@ func (s *Store) applyMediaSeed(ctx context.Context, encoded string) (resultErr e
 			return err
 		}
 	}
-	songStmt, err := tx.PrepareContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING")
+	songStmt, err := tx.PrepareContext(ctx, "INSERT INTO songs(id) VALUES (?)")
 	if err != nil {
 		return err
 	}
 	defer songStmt.Close()
-	mappingStmt, err := tx.PrepareContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT DO NOTHING")
+	mappingStmt, err := tx.PrepareContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?)")
 	if err != nil {
 		return err
 	}
@@ -106,13 +68,6 @@ func (s *Store) applyMediaSeed(ctx context.Context, encoded string) (resultErr e
 			return err
 		}
 	}
-	if err := writeCatalogState(ctx, tx, "media_seed", seed.Version, digest, "bundled"); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	s.changed(false)
 	return nil
 }
 

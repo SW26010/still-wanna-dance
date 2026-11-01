@@ -17,9 +17,11 @@ var errPlaybackUpstream = errors.New("playback upstream failed")
 const playbackResolveBudget = 30 * time.Second
 
 type playbackCheck struct {
-	done chan struct{}
-	v    video
-	err  error
+	done      chan struct{}
+	v         video
+	err       error
+	cancel    context.CancelFunc
+	exclusive bool // guarded by Server.mu; false once another caller shares it
 }
 
 // Resolve fresh evidence through the application adapter or the standalone
@@ -57,17 +59,36 @@ func (s *Server) resolvePlaybackVideo(ctx context.Context, id string) (video, er
 	}
 	v.songID = strconv.FormatInt(n, 10)
 	if s.cfg.ResolvePlayback == nil {
-		if err := s.ObserveSongURL(ctx, SongURL{SongID: n, URL: target, API: address.API, Node: address.Node, QueryStartedAt: address.QueryStartedAt, ObservedAt: address.ObservedAt}); err != nil {
+		if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: n, URL: target, Node: address.Node}); err != nil {
 			return video{}, err
 		}
 	}
 	return v, nil
 }
 
+func (s *Server) resolvePlaybackLogged(ctx, caller context.Context, id string, local video) (video, error) {
+	log := s.cfg.Logger.With("trace_id", applog.TraceID(applog.WithTrace(caller)), "song_id", id)
+	started := time.Now()
+	v, err := s.resolvePlaybackVideo(ctx, id)
+	log.Info("prefetch_resolved", "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil,
+		"resource_key", v.key, "host", v.host, "error", applog.SafeError(err))
+	if err != nil {
+		log.Warn("playback_check_failed", "error", applog.SafeError(err))
+	} else if local.key != "" && v.key != local.key {
+		log.Warn("song_md5_mismatch", "mapped_md5", local.key, "url_md5", v.key)
+	}
+	return v, err
+}
+
 // Share in-flight checks across probes and range requests. Their lifetime is
 // owned by the server, so serving cached bytes or disconnecting cannot cancel
 // check. Fresh evidence updates future mappings without changing this response.
-func (s *Server) startPlaybackCheck(id string, local video) *playbackCheck {
+func (s *Server) startPlaybackCheck(caller context.Context, id string, local video) *playbackCheck {
+	check, _ := s.startPlaybackCheckOwned(caller, id, local, false)
+	return check
+}
+
+func (s *Server) startPlaybackCheckOwned(caller context.Context, id string, local video, batch bool) (*playbackCheck, bool) {
 	// Source policy is fixed for this process; only song identity keys a check.
 	n, _ := strconv.ParseInt(id, 10, 64)
 	id = strconv.FormatInt(n, 10)
@@ -75,24 +96,29 @@ func (s *Server) startPlaybackCheck(id string, local video) *playbackCheck {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if check := s.playbackChecks[key]; check != nil {
-		return check
+		check.exclusive = false
+		return check, false
 	}
 	check := &playbackCheck{done: make(chan struct{})}
 	if s.closed {
 		check.err = context.Canceled
 		close(check.done)
-		return check
+		return check, false
 	}
 	if s.playbackChecks == nil {
 		s.playbackChecks = make(map[string]*playbackCheck)
 	}
+	ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
+	check.cancel, check.exclusive = cancel, batch
 	s.playbackChecks[key] = check
+	// An abandoned waiter cannot cancel a shared lookup.
 	if local.key != "" {
 		s.pinVideo(local)
 	}
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		defer cancel()
 		defer func() {
 			s.mu.Lock()
 			if s.playbackChecks[key] == check {
@@ -103,17 +129,40 @@ func (s *Server) startPlaybackCheck(id string, local video) *playbackCheck {
 		if local.key != "" {
 			defer s.releaseVideo(local)
 		}
-		ctx, cancel := context.WithTimeout(s.ctx, playbackResolveBudget)
-		check.v, check.err = s.resolvePlaybackVideo(ctx, id)
-		cancel()
-		if check.err != nil {
-			s.cfg.Logger.Warn("playback_check_failed", "song_id", local.songID, "error", applog.SafeError(check.err))
-		} else if local.key != "" && check.v.key != local.key {
-			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", local.songID, "mapped_md5", local.key, "url_md5", check.v.key)
-		}
+		check.v, check.err = s.resolvePlaybackLogged(ctx, caller, id, local)
 		close(check.done)
 	}()
-	return check
+	return check, batch
+}
+
+// An exclusive batch check follows cancellation until the batch finishes.
+// Other callers sharing the check keep its server-owned lifetime.
+func (s *Server) startBatchPlaybackCheck(caller context.Context, id string, local video) (*playbackCheck, func()) {
+	check, owned := s.startPlaybackCheckOwned(caller, id, local, true)
+	if !owned {
+		return check, func() {}
+	}
+	n, _ := strconv.ParseInt(id, 10, 64)
+	key := strconv.FormatInt(n, 10)
+	cancelExclusive := func() {
+		s.mu.Lock()
+		var cancel context.CancelFunc
+		if s.playbackChecks[key] == check && check.exclusive {
+			delete(s.playbackChecks, key)
+			cancel = check.cancel
+		}
+		s.mu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+	}
+	stop := context.AfterFunc(caller, cancelExclusive)
+	return check, func() {
+		if caller.Err() != nil {
+			cancelExclusive()
+		}
+		stop()
+	}
 }
 
 // Resolve through the same cached-address and API policy when a formerly local
@@ -122,9 +171,9 @@ func (s *Server) loadSongAddress(ctx context.Context, canonical string) (video, 
 	if err := s.StorageError(); err != nil {
 		return video{}, err
 	}
-	check := s.startPlaybackCheck(canonical, video{songID: canonical})
+	check := s.startPlaybackCheck(ctx, canonical, video{songID: canonical})
 	id, _ := strconv.ParseInt(canonical, 10, 64)
-	urls, err := s.songURLs(ctx, "song_id", id, playbacksource.Nodes(), -1)
+	urls, err := s.mediaURLs(ctx, "song", id, playbacksource.Nodes(), -1)
 	if err != nil {
 		return video{}, err
 	}
@@ -138,10 +187,20 @@ func (s *Server) loadSongAddress(ctx context.Context, canonical string) (video, 
 func (s *Server) waitSongQuery(ctx context.Context, check *playbackCheck) (video, error) {
 	select {
 	case <-ctx.Done():
+		select {
+		case <-check.done:
+			if errors.Is(check.err, ErrLocalStorage) {
+				return video{}, check.err
+			}
+		default:
+		}
 		return video{}, ctx.Err()
 	case <-check.done:
 	}
 	if check.err != nil {
+		if errors.Is(check.err, ErrLocalStorage) {
+			return video{}, check.err
+		}
 		return video{}, fmt.Errorf("%w: %w", errPlaybackUpstream, check.err)
 	}
 	return check.v, nil
@@ -149,7 +208,7 @@ func (s *Server) waitSongQuery(ctx context.Context, check *playbackCheck) (video
 
 // Candidates belong to one load, including all pre-body retries.
 type songCandidates struct {
-	remaining []SongURL
+	remaining []MediaURL
 	tried     map[string]bool
 }
 
@@ -167,23 +226,29 @@ func (s *Server) nextSongCandidate(ctx context.Context, id string, check *playba
 			continue
 		}
 		candidates.tried[videoAddress(v)] = true
-		v.songID, v.cached, v.refresh, v.candidates = id, &o, check, candidates
+		v.songID, v.savedAddress, v.refresh, v.candidates = id, true, check, candidates
 		return v, true
 	}
 	return video{}, false
 }
 func (s *Server) retrySongURL(ctx context.Context, v video) (video, error) {
-	if err := s.RejectSongURL(ctx, *v.cached); err != nil {
-		return video{}, err
-	}
 	if v.candidates != nil {
-		if next, ok := s.nextSongCandidate(ctx, v.songID, v.refresh, v.candidates); ok {
-			return next, nil
+		for {
+			next, ok := s.nextSongCandidate(ctx, v.songID, v.refresh, v.candidates)
+			if !ok {
+				break
+			}
+			if next.key == v.key && next.size == v.size {
+				return next, nil
+			}
 		}
 	}
 	fresh, err := s.waitSongQuery(ctx, v.refresh)
 	if err != nil {
 		return video{}, err
+	}
+	if fresh.key != v.key || fresh.size != v.size {
+		return video{}, errors.New("refreshed URL does not match selected resource")
 	}
 	if videoAddress(fresh) == videoAddress(v) || (v.candidates != nil && v.candidates.tried[videoAddress(fresh)]) {
 		return video{}, errors.New("refreshed URL matches failed address")
@@ -194,31 +259,39 @@ func (s *Server) retrySongURL(ctx context.Context, v video) (video, error) {
 // Resource address lookup is request-owned and pinned to content identity.
 // Lookup aliases never become the download's song identity.
 type resourceAddresses struct {
-	key        string
-	size       int64
-	candidates []SongURL
-	songs      []string
-	tried      map[string]bool
+	key            string
+	preferredSong  string
+	preferredCheck *playbackCheck
+	preferredTried bool
+	batch          bool
+	selectedSongs  map[string]struct{}
+	size           int64
+	candidates     []MediaURL
+	songs          []string
+	tried          map[string]bool
 }
 
 func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (video, error) {
-	if failed.cached != nil {
-		if err := s.RejectSongURL(ctx, *failed.cached); err != nil {
-			return video{}, err
-		}
-	}
+
 	if p.tried == nil {
 		p.tried = make(map[string]bool)
 		// Known addresses are selected by resource, independent of the API
 		// lookup budget or the number/order of songs sharing this content.
 		var err error
-		p.candidates, err = s.songURLs(ctx, "md5", p.key, playbacksource.Nodes(), 32)
+		p.candidates, err = s.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32)
 		if err != nil {
 			return video{}, err
 		}
-		// Bound address work independently of the number of aliases in a library.
-		rows, err := s.db.QueryContext(ctx, `SELECT song_id FROM song_media WHERE md5=?
- UNION SELECT song_id FROM song_urls WHERE md5=? ORDER BY song_id LIMIT 8`, p.key, p.key)
+		// Preview and retry keep their existing alias bound. Batch fill tries
+		// each candidate within the caller's lifetime and per-query timeout.
+		limit := 8
+		if p.batch {
+			limit = -1
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT sm.song_id FROM song_media sm
+ LEFT JOIN catalog_members c ON c.song_id=sm.song_id
+ WHERE sm.md5=?
+ ORDER BY sm.song_id=? DESC,c.song_id IS NOT NULL DESC,sm.song_id DESC LIMIT ?`, p.key, p.preferredSong, limit)
 		if err != nil {
 			return video{}, s.storageError(err)
 		}
@@ -226,6 +299,11 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 			var id string
 			if err = rows.Scan(&id); err != nil {
 				break
+			}
+			if p.selectedSongs != nil {
+				if _, ok := p.selectedSongs[id]; !ok {
+					continue
+				}
 			}
 			p.songs = append(p.songs, id)
 		}
@@ -255,19 +333,54 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		}
 		v, err := s.parseResolved(r)
 		if err == nil {
-			v.cached = &o
+			v.savedAddress = true
 			if v, ok := accept(v); ok {
 				return v, nil
 			}
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, playbackResolveBudget)
-	defer cancel()
+	if !p.batch {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, playbackResolveBudget)
+		defer cancel()
+	}
+	// The preferred query belongs to this request even if its song no longer
+	// appears in the current mapping snapshot.
+	if p.preferredCheck != nil && !p.preferredTried {
+		p.songs = append([]string{p.preferredSong}, p.songs...)
+	}
 	for len(p.songs) > 0 {
 		id := p.songs[0]
 		p.songs = p.songs[1:]
-		check := s.startPlaybackCheck(id, video{})
-		v, err := s.waitSongQuery(ctx, check)
+		if id == p.preferredSong {
+			if p.preferredTried {
+				continue
+			}
+			p.preferredTried = true
+		}
+		lookupCtx := ctx
+		cancelLookup := func() {}
+		if p.batch {
+			lookupCtx, cancelLookup = context.WithTimeout(ctx, playbackResolveBudget)
+		}
+		check := p.preferredCheck
+		finishCheck := func() {}
+		if check == nil || id != p.preferredSong {
+			if p.batch {
+				check, finishCheck = s.startBatchPlaybackCheck(lookupCtx, id, video{})
+			} else {
+				check = s.startPlaybackCheck(ctx, id, video{})
+			}
+			if id == p.preferredSong {
+				p.preferredCheck = check
+			}
+		}
+		v, err := s.waitSongQuery(lookupCtx, check)
+		finishCheck()
+		cancelLookup()
+		if errors.Is(err, ErrLocalStorage) {
+			return video{}, err
+		}
 		if ctx.Err() != nil {
 			return video{}, ctx.Err()
 		}
@@ -279,5 +392,5 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		// A valid URL for a newer version remains valid evidence. It is simply
 		// not eligible for this pinned resource; never reject or switch to it.
 	}
-	return video{}, fmt.Errorf("%w: 当前资源版本没有可用的下载地址，请更新曲库后重新预览", errPlaybackUpstream)
+	return video{}, fmt.Errorf("%w: 当前资源没有可用地址或可解析的歌曲关联，请更新曲库后重试", errPlaybackUpstream)
 }

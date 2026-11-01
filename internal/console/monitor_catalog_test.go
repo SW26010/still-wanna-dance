@@ -48,7 +48,7 @@ func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {
 			t.Fatalf("songs=%d, err=%v", count, err)
 		}
 		var revision string
-		if err := db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='songs'").Scan(&revision); err != nil || revision != "20261003000000" {
+		if err := db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='songs_list'").Scan(&revision); err != nil || revision != "20261003000000" {
 			t.Fatalf("full revision=%s, err=%v", revision, err)
 		}
 	}
@@ -129,23 +129,22 @@ func TestMonitorCatalogFailureStatus(t *testing.T) {
 	good := monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))
 	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{good})
 	before := c.localInventory().Catalog
-	conflict := monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))
+	conflict := monitorFull("wanna", "20261002000000", "invalid", "bad")
 	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{conflict})
 	after := c.localInventory().Catalog
-	if after.Error == "" || after.Revision != before.Revision || !after.CheckedAt.Equal(before.CheckedAt) {
+	if c.metadata.CatalogError() == "" || after != before {
 		t.Fatal(before, after)
 	}
 	old := monitorFull("wanna", "20261001000000", "old", strings.Repeat("a", 32))
-	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{conflict, old})
-	if c.localInventory().Catalog.Error == "" {
-		t.Fatal("old mirror hid conflict")
+	if usable, err := c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{conflict, old}); !usable || err != nil || c.metadata.CatalogError() != "" || c.localInventory().Catalog != before {
+		t.Fatal("valid older backup should quietly retain the current catalog", usable, err)
 	}
 	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{good})
-	if c.localInventory().Catalog.Error != "" {
+	if c.metadata.CatalogError() != "" {
 		t.Fatal("successful retry did not clear error")
 	}
 	c.syncCatalogs(ctx, []upstreamstate.CatalogResponse{monitorFull("kiva", "20261003000000", "bad", "invalid")})
-	if c.localInventory().Catalog.Error == "" {
+	if c.metadata.CatalogError() == "" {
 		t.Fatal("validation error not recorded")
 	}
 }
@@ -189,7 +188,7 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	c.inventory.Catalog = want // A stale snapshot must never supply current status.
-	if got := c.localInventory().Catalog; got.Revision != "" || got.Error == "" || !got.CheckedAt.IsZero() {
+	if got := c.localInventory(); got.Catalog.Revision != "" || got.Error == "" {
 		t.Fatal(got)
 	}
 	if _, err := os.Stat(filepath.Join(testStorageRoot(next), "storage.sqlite")); !os.IsNotExist(err) {
@@ -198,7 +197,7 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(testStorageRoot(next), "storage.sqlite"), []byte("invalid database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if got := c.localInventory().Catalog; got.Revision != "" || !strings.Contains(got.Error, "无法读取本地清单状态") {
+	if got := c.localInventory(); got.Catalog.Revision != "" || !strings.Contains(got.Error, "无法读取本地清单状态") {
 		t.Fatal("database failure reused stale status", got)
 	}
 }

@@ -330,11 +330,9 @@ func TestRequestRetentionNonePreservesHTTPSummaries(t *testing.T) {
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
 	s.usage.flush()
 	for query, want := range map[string]int64{
-		"SELECT count(*) FROM request_events":                                          0,
-		"SELECT demand_count FROM song_usage WHERE song_id=1":                          1,
-		"SELECT transfer_count FROM song_playback WHERE song_id=1":                     1,
-		"SELECT count(*) FROM media_access":                                            1,
-		"SELECT download_bytes+cache_bytes+local_bytes FROM traffic_totals WHERE id=1": int64(len(payload)),
+		"SELECT count(*) FROM request_events":                 0,
+		"SELECT demand_count FROM song_usage WHERE song_id=1": 1,
+		"SELECT count(*) FROM media_access":                   1,
 	} {
 		var got int64
 		if err := s.usage.db.QueryRow(query).Scan(&got); err != nil || got != want {
@@ -377,10 +375,7 @@ func TestRequestRetentionNoneCleansAllExistingDetails(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	var retainedSince int64
-	if err := u.db.QueryRow("SELECT retained_since FROM request_observation WHERE id=1").Scan(&retainedSince); err != nil || retainedSince == 0 {
-		t.Fatal("cleanup did not update observation coverage", retainedSince, err)
-	}
+
 }
 
 func TestRequestRetentionUnlimitedKeepsOldDetails(t *testing.T) {

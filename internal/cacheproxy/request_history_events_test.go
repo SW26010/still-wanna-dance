@@ -7,7 +7,7 @@ import (
 )
 
 func TestRequestHistoryChangesFollowCommitAndPruning(t *testing.T) {
-	store, err := CreateStore(filepath.Join(t.TempDir(), "history.sqlite"))
+	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "history.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}

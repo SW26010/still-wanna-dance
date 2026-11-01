@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
@@ -16,8 +15,8 @@ func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			s, cfg := setup(t, nil)
 			target := strings.Replace(videoURL(payload), "play.udon.dance", "media.example", 1)
-			at := time.Now().Add(-time.Minute)
-			if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at}); err != nil {
+
+			if err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: target, Node: "cf"}); err != nil {
 				t.Fatal(err)
 			}
 			if err := s.Close(); err != nil {

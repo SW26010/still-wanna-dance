@@ -13,7 +13,7 @@ import (
 func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "personal.sqlite")
-	store, err := CreateStore(path)
+	store, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
 		t.Fatal(err)
 	}
 	started := time.Now().Add(-time.Second)
-	o := SongURL{SongID: 19, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/19-video.mp4?e=" + key + "&s=12", QueryStartedAt: started, ObservedAt: time.Now()}
+	o := PlaybackObservation{SongID: 19, Node: "cf", URL: "https://play.udon.dance/files/1/19-video.mp4?e=" + key + "&s=12"}
 	if err := store.ObserveSongURL(ctx, o); err != nil {
 		t.Fatal(err)
 	}
@@ -37,11 +37,11 @@ func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
 	if count, err := store.SongUsageCount(ctx); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
-	if ids, err := store.SongMetadataCandidates(ctx, o.API); err != nil || len(ids) != 0 {
+	if ids, err := store.SongMetadataCandidates(ctx); err != nil || len(ids) != 0 {
 		t.Fatal(ids, err)
 	}
 	var observations int
-	if err := store.db.QueryRow("SELECT count(*) FROM request_observation").Scan(&observations); err != nil || observations != 0 {
+	if err := store.db.QueryRow("SELECT count(*) FROM request_events").Scan(&observations); err != nil || observations != 0 {
 		t.Fatal("metadata started traffic collection", observations, err)
 	}
 	if err := store.Close(); err != nil {
@@ -70,13 +70,13 @@ func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
 		t.Fatal(urls, err)
 	}
 	status, err := store.CatalogStatus(ctx)
-	if err != nil || status.Revision != "20261001000000" || status.CheckedAt.IsZero() {
+	if err != nil || status.Revision != "20261001000000" {
 		t.Fatal(status, err)
 	}
 }
 
 func TestEngineBorrowsStoreAndCannotCloseItsOwner(t *testing.T) {
-	store, err := CreateStore(filepath.Join(t.TempDir(), "personal.sqlite"))
+	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "personal.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 		"transaction": "CREATE TRIGGER reject_usage BEFORE INSERT ON song_usage BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
 	} {
 		t.Run(name, func(t *testing.T) {
-			store, err := CreateStore(filepath.Join(t.TempDir(), "personal.sqlite"))
+			store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "personal.sqlite"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -149,7 +149,7 @@ func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 
 func TestStoreCloseDrainsAcceptedBusinessEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "personal.sqlite")
-	store, err := CreateStore(path)
+	store, err := createEmptyFixtureStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestStoreCloseDrainsAcceptedBusinessEvents(t *testing.T) {
 
 func TestSecondEngineCannotCleanOwnedWork(t *testing.T) {
 	root := t.TempDir()
-	store, err := CreateStore(storagePath(root))
+	store, err := createEmptyFixtureStore(storagePath(root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestSecondEngineCannotCleanOwnedWork(t *testing.T) {
 }
 
 func TestStoreDoesNotReportRejectedInputAsDatabaseDamage(t *testing.T) {
-	store, err := CreateStore(filepath.Join(t.TempDir(), "personal.sqlite"))
+	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "personal.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +230,7 @@ func TestStoreDoesNotReportRejectedInputAsDatabaseDamage(t *testing.T) {
 	if err := store.SetSongPolicy(t.Context(), -1, SongFavorite); err == nil {
 		t.Fatal("accepted invalid song")
 	}
-	if err := store.ObserveSongURL(t.Context(), SongURL{}); err == nil {
+	if err := store.ObserveSongURL(t.Context(), PlaybackObservation{}); err == nil {
 		t.Fatal("accepted invalid observation")
 	}
 	if err := store.SyncCatalog(t.Context(), Catalog{}); err == nil {

@@ -41,6 +41,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			cfg := fixtureCacheConfig()
 			cfg.CacheUnlimited = mode != "budget"
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+			cfg.ResolvePlayback = c.resolvePlayback
 			cfg.VideoBudgetBytes = 0
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
@@ -114,7 +115,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			if mode == "blocked" && (resolves.Load() != 0 || c.batch.Skipped != 1) {
 				t.Fatal(resolves.Load(), c.batch)
 			}
-			if mode == "orphan" && (resolves.Load() != 0 || !strings.Contains(c.batch.Phase, "无当前歌曲关联")) {
+			if mode == "orphan" && (resolves.Load() != 0 || !strings.Contains(c.batch.Phase, "资源已不存在")) {
 				t.Fatal(resolves.Load(), c.batch)
 			}
 		})

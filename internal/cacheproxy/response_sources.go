@@ -59,8 +59,8 @@ func (c *responseSourceCounter) accept(start, end int64) {
 	c.nextBlock = last
 }
 
-// ReadResponseSources reads lifetime totals without scanning retained history
-// or starting an engine. Detail pruning does not change these totals.
+// ReadResponseSources sums frozen contributions from all retained requests,
+// independently of history pagination and time filters.
 func ReadResponseSources(ctx context.Context, databasePath string) (ResponseSources, error) {
 	var result ResponseSources
 	db, err := readDatabaseFile(databasePath)
@@ -70,6 +70,6 @@ func ReadResponseSources(ctx context.Context, databasePath string) (ResponseSour
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	err = db.QueryRowContext(ctx, "SELECT download_bytes,cache_bytes,local_bytes FROM traffic_totals WHERE id=1").Scan(&result.DownloadBytes, &result.CacheBytes, &result.LocalBytes)
+	err = db.QueryRowContext(ctx, "SELECT COALESCE(SUM(download_bytes),0),COALESCE(SUM(cache_bytes),0),COALESCE(SUM(local_bytes),0) FROM request_events").Scan(&result.DownloadBytes, &result.CacheBytes, &result.LocalBytes)
 	return result, err
 }

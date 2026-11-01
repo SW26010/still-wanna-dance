@@ -26,7 +26,7 @@ func TestLibraryResourcePageBatchOrderingAndDetails(t *testing.T) {
 	}
 	for _, i := range []int{1, 256, 257, 270} {
 		key := fmt.Sprintf("%032x", i)
-		if _, err := u.db.Exec(`INSERT INTO request_events(resource_md5,requested_at,host,method,range_header,cache_result,outcome,file_bytes,transferred_bytes,elapsed_ms,status) VALUES (?,100,'local','GET','','HIT','completed',1,1,1,200)`, key); err != nil {
+		if _, err := u.db.Exec(`INSERT INTO request_events(resource_md5,requested_at,method,range_header,outcome,transferred_bytes,elapsed_ms,status) VALUES (?,100,'GET','','completed',1,1,200)`, key); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -36,9 +36,9 @@ func TestLibraryResourcePageBatchOrderingAndDetails(t *testing.T) {
 	}{{257, 200}, {259, 300}} {
 		key := fmt.Sprintf("%032x", event.i)
 		if _, err := u.db.Exec(`INSERT INTO request_events
- (resource_md5,requested_at,host,method,range_header,cache_result,outcome,
- file_bytes,transferred_bytes,elapsed_ms,status)
- VALUES (?,?,'local','GET','','HIT','completed',1,1,1,200)`, key, event.at); err != nil {
+ (resource_md5,requested_at,method,range_header,outcome,
+ transferred_bytes,elapsed_ms,status)
+ VALUES (?,?,'GET','','completed',1,1,200)`, key, event.at); err != nil {
 			t.Fatal(err)
 		}
 	}

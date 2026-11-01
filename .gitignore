@@ -33,6 +33,7 @@ Thumbs.db
 !internal/cacheproxy/testdata/storage-v6.sqlite
 !internal/cacheproxy/testdata/storage-v7.sqlite
 !internal/cacheproxy/testdata/storage-v8.sqlite
+!internal/cacheproxy/testdata/storage-v9.sqlite
 
 # Known legacy test layouts (rejected, never migrated)
 /stepstash-data/

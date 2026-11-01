@@ -53,7 +53,7 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/api/storage/prepare-database" {
 				if _, statErr := os.Lstat(s.DatabasePath); statErr == nil {
 					// Existing files are inspected read-only, never recreated or migrated.
-					if _, err = cacheproxy.LoadCatalogStatus(r.Context(), s.DatabasePath); err == nil {
+					if err = cacheproxy.CheckDatabaseSelection(s.DatabasePath); err == nil {
 						writeJSON(w, map[string]any{"path": s.DatabasePath, "created": false})
 						return
 					}

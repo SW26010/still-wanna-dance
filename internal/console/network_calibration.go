@@ -25,7 +25,7 @@ func (c *Console) networkCalibrationLocked() (*upstreamcheck.Calibration, error)
 		c.networkDiagnostics.calibration = upstreamcheck.NewCalibration(c.client, c.settings.UpstreamMode, upstreamcheck.CalibrationOptions{
 			Candidates: c.calibrationCandidates, SelectSong: c.metadataLocked().SelectSongExcept,
 			Playback: c.connectivityAccess().Playback, OnPlaybackURL: c.syncPlaybackURL,
-			ResourceTransports: c.resourceTransports, OnFailedURL: c.rejectPlaybackURL,
+			ResourceTransports: c.resourceTransports,
 		})
 	}
 	return c.networkDiagnostics.calibration, nil
@@ -35,16 +35,16 @@ func (c *Console) networkCalibrationLocked() (*upstreamcheck.Calibration, error)
 // during preparation; subscribing to results must not read storage or network.
 func (c *Console) calibrationCandidates(ctx context.Context) upstreamcheck.CalibrationCandidates {
 	// The shared selector handles priority and traversal when each request starts.
-	// Known songs remain a fallback, including complete but expired URLs.
+	// Only incomplete current chains need resolution after saved media samples.
 	var candidates upstreamcheck.CalibrationCandidates
 	store, err := c.businessStore()
 	if err == nil {
 		var known []int64
-		known, err = store.KnownSongIDs(ctx)
+		known, err = store.SongMetadataCandidates(ctx)
 		candidates.SongIDs = append(candidates.SongIDs, known...)
 	}
 	if err == nil {
-		candidates.URLs, err = store.RecentSongURLs(ctx)
+		candidates.URLs, err = store.AvailableMediaURLs(ctx)
 	}
 	if err != nil {
 		if ctx.Err() == nil {

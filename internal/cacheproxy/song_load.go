@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"still-wanna-dance/internal/applog"
 )
 
 // loadSong is the common immediate-playback/queue address policy. The query is
@@ -21,7 +23,7 @@ func (s *Server) loadSong(ctx context.Context, songID string) (video, func(), er
 	if local, err := s.localPlaybackVideo(ctx, canonical); err == nil {
 		s.pinVideo(local)
 		if _, err = s.verifiedFile(ctx, local); err == nil {
-			s.startPlaybackCheck(canonical, local)
+			s.startPlaybackCheck(ctx, canonical, local)
 			return local, func() { s.releaseVideo(local) }, nil
 		}
 		s.releaseVideo(local)
@@ -33,6 +35,7 @@ func (s *Server) loadSong(ctx context.Context, songID string) (video, func(), er
 // PrefetchPlayback shares address policy and flights with HTTP playback while
 // retaining queue ownership; waiting here never counts as a playback request.
 func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error) {
+	ctx = applog.WithTrace(ctx)
 	ctx = withPreparationScope(ctx)
 	if !s.beginRequest() {
 		return "", context.Canceled
@@ -62,7 +65,7 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 			return "", err
 		}
 		source, err := s.prefetchVideo(ctx, v)
-		if err == nil || v.cached == nil || !errors.Is(err, errUpstreamDownload) || ctx.Err() != nil {
+		if err == nil || !v.savedAddress || !errors.Is(err, errUpstreamDownload) || ctx.Err() != nil {
 			return source, err
 		}
 		fresh, fallbackErr := s.retrySongURL(ctx, v)

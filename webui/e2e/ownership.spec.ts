@@ -103,7 +103,7 @@ test('normal startup stays on acceleration even after a manual wizard was left a
 test('acceleration summarizes recent failures and links to their owning page',async({page},info)=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;
   api.state.activation={phase:'waiting',firstRequest:new Date().toISOString()};
-  await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song',cache:'MISS'}]}}));
+  await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song'}]}}));
   await page.setViewportSize({width:390,height:844});await page.goto('/');
   await expect(page.getByText(/最近请求：请求失败 · HTTP 502/)).toBeVisible();
   await expect(page.getByRole('button',{name:'加速错误',exact:true})).toHaveCount(0);

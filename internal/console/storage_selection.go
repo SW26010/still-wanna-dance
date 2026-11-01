@@ -1,7 +1,6 @@
 package console
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -92,7 +91,7 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 		if err := validateStorageLocation(s.DatabasePath, c.defaultDatabasePath(), c.portableDir()); err != nil {
 			return false, err
 		}
-		if _, err := cacheproxy.LoadCatalogStatus(context.Background(), s.DatabasePath); err != nil {
+		if err := cacheproxy.CheckDatabaseSelection(s.DatabasePath); err != nil {
 			return false, fmt.Errorf("请选择已有的有效数据库，或先明确新建：%w", err)
 		}
 	}

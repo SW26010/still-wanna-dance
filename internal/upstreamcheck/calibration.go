@@ -117,7 +117,7 @@ type CalibrationStatus struct {
 // Store's validity and source policy; SongIDs supply local fallbacks for the
 // shared business selector.
 type CalibrationCandidates struct {
-	URLs    []cacheproxy.SongURL
+	URLs    []cacheproxy.MediaURL
 	SongIDs []int64
 }
 
@@ -128,13 +128,7 @@ type CalibrationOptions struct {
 	SelectSong         func(context.Context, int64, map[int64]bool) int64
 	Playback           func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)
 	OnPlaybackURL      func(context.Context, PlaybackURLResponse)
-	OnFailedURL        func(context.Context, cacheproxy.SongURL)
 	ResourceTransports func(string) []http.RoundTripper
-}
-
-type calibrationVideo struct {
-	videoSample
-	observation cacheproxy.SongURL
 }
 
 // Candidates supplies fresh observations per run. Saved URLs precede live
@@ -227,22 +221,22 @@ func (c *Calibration) Close() {
 
 var errCalibrationPreparationInsufficient = errors.New("preparation_insufficient")
 
-func (c *Calibration) prepare(ctx context.Context) (*http.Client, []calibrationVideo, error) {
+func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample, error) {
 	var local CalibrationCandidates
 	if c.options.Candidates != nil && ctx.Err() == nil {
 		local = c.options.Candidates(ctx)
 	}
-	var samples []calibrationVideo
+	var samples []videoSample
 	var preparedBytes int64
 	ready := func() bool { return len(samples) >= c.limits.reserveVideos && preparedBytes >= c.limits.reserveBytes }
 	seenIDs, seenVideos := make(map[int64]bool), make(map[string]bool)
-	accept := func(observation cacheproxy.SongURL) bool {
-		sample, err := parseSample(observation.URL)
+	accept := func(address string) bool {
+		sample, err := parseSample(address)
 		if err != nil || seenVideos[sample.checksum] {
 			return false
 		}
 		seenVideos[sample.checksum] = true
-		samples = append(samples, calibrationVideo{sample, observation})
+		samples = append(samples, sample)
 		preparedBytes += sample.size
 		c.mu.Lock()
 		c.state.PreparedVideos, c.state.PreparedBytes = len(samples), preparedBytes
@@ -255,14 +249,10 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []calibrationV
 		if ctx.Err() != nil || ready() || len(samples) == calibrationMaxVideos {
 			break
 		}
-		if saved.SongID <= 0 || seenIDs[saved.SongID] {
-			continue
-		}
 		if _, err := parseSample(saved.URL); err != nil {
 			continue
 		}
-		seenIDs[saved.SongID] = true
-		accept(saved)
+		accept(saved.URL)
 	}
 	if ctx.Err() == nil && !ready() && len(samples) < calibrationMaxVideos && c.options.Playback != nil {
 		c.prepareSamples(ctx, local.SongIDs, seenIDs, accept)
@@ -278,7 +268,7 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []calibrationV
 
 // Resolve metadata only, with bounded parallelism. Cancel and join every probe
 // before returning, so preparation cannot contaminate download CPU samples.
-func (c *Calibration) prepareSamples(parent context.Context, ids []int64, seen map[int64]bool, accept func(cacheproxy.SongURL) bool) {
+func (c *Calibration) prepareSamples(parent context.Context, ids []int64, seen map[int64]bool, accept func(string) bool) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	var selectMu sync.Mutex
@@ -301,7 +291,7 @@ func (c *Calibration) prepareSamples(parent context.Context, ids []int64, seen m
 		seen[id] = true
 		return id
 	}
-	results := make(chan cacheproxy.SongURL, calibrationPrepareWorkers)
+	results := make(chan string, calibrationPrepareWorkers)
 	var wg sync.WaitGroup
 	for range min(calibrationPrepareWorkers, len(ids)) {
 		wg.Go(func() {
@@ -320,7 +310,7 @@ func (c *Calibration) prepareSamples(parent context.Context, ids []int64, seen m
 					continue
 				}
 				select {
-				case results <- response.SongURL():
+				case results <- response.URL:
 				case <-ctx.Done():
 					return
 				}
@@ -382,7 +372,7 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 	reason = c.download(ctx, client, samples)
 }
 
-func (c *Calibration) download(parent context.Context, client *http.Client, samples []calibrationVideo) (reason string) {
+func (c *Calibration) download(parent context.Context, client *http.Client, samples []videoSample) (reason string) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	started := time.Now()
@@ -496,14 +486,10 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	defer cpuTicker.Stop()
 	deadline := time.NewTimer(c.limits.duration)
 	defer deadline.Stop()
-	type loadResult struct {
-		observation cacheproxy.SongURL
-		err         error
-	}
-	finished := make(chan loadResult, len(samples))
+	finished := make(chan error, len(samples))
 	activeLoads := len(samples)
 	for _, sample := range samples {
-		go func() { finished <- loadResult{sample.observation, engine.Load(ctx, sample.url)} }()
+		go func() { finished <- engine.Load(ctx, sample.url) }()
 	}
 	defer func() {
 		captureCPU() // Freeze before draining canceled bodies and other cleanup.
@@ -534,7 +520,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 				c.mu.Unlock()
 				engine.SetSoftLimit(cacheproxy.VideoRequestSoftLimit)
 			}
-		case result := <-finished:
+		case loadErr := <-finished:
 			activeLoads--
 			if parent.Err() != nil {
 				return "canceled"
@@ -545,17 +531,12 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			if byteLimit.Load() {
 				return "byte_limit"
 			}
-			if result.err != nil {
-				lastFailure = result.err
+			if loadErr != nil {
+				lastFailure = loadErr
 				c.mu.Lock()
 				c.state.Failures++
 				c.publishLocked()
 				c.mu.Unlock()
-				// Canceled work and local upstream availability do not invalidate
-				// an address. Ordinary failures use the shared URL store.
-				if !localObservation(errorState(result.err)) && c.options.OnFailedURL != nil {
-					c.options.OnFailedURL(parent, result.observation)
-				}
 			}
 			if activeLoads == 0 {
 				if lastFailure != nil {

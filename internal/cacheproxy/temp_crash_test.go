@@ -11,7 +11,7 @@ import (
 
 func TestTemporaryMediaAfterProcessTermination(t *testing.T) {
 	root, workDir := t.TempDir(), t.TempDir()
-	store, err := CreateStore(storagePath(root))
+	store, err := createEmptyFixtureStore(storagePath(root))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -124,10 +124,6 @@ INSERT INTO media(md5) VALUES(?); INSERT INTO song_media VALUES(99,?)`, key, key
 func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	s, cfg := setup(t, nil)
 	now := time.Now().Truncate(time.Second)
-	start := now.Add(-80 * time.Hour).UnixMilli()
-	if _, err := s.usage.db.Exec("UPDATE request_observation SET started_at=?,retained_since=0", start); err != nil {
-		t.Fatal(err)
-	}
 	var events []usageEvent
 	for _, blocking := range []bool{false, true} {
 		for i := 1; i <= 20; i++ {
@@ -159,7 +155,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, err := ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
-	if err != nil || r.Partial || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
+	if err != nil || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
 		t.Fatalf("quantiles: %+v %v", r, err)
 	}
 	var openErr error
@@ -181,7 +177,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, err = ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
-	if err != nil || !r.Partial || r.AvailableFrom == nil || *r.AvailableFrom != now.Add(-30*time.Minute).UnixMilli() || r.Ready.Samples != 0 || r.Ready.P50MS != nil {
+	if err != nil || r.Ready.Samples != 0 || r.Ready.P50MS != nil {
 		t.Fatalf("short retention: %+v %v", r, err)
 	}
 }

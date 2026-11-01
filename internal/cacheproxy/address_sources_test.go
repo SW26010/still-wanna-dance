@@ -3,12 +3,71 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestSongRetryKeepsSelectedResource(t *testing.T) {
+	for _, queued := range []bool{false, true} {
+		for _, changed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("queue=%v/changed=%v", queued, changed), func(t *testing.T) {
+				body := payload
+				if changed {
+					body = strings.Repeat("z", len(payload))
+				}
+				freshURL := videoURL(body) + "&address=fresh"
+				oldRequested := make(chan struct{})
+				var once sync.Once
+				var freshRequests atomic.Int32
+				var s *Server
+				s, _ = setup(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Query().Get("address") == "old" {
+						once.Do(func() { close(oldRequested) })
+						http.Error(w, "denied", http.StatusForbidden)
+						return
+					}
+					freshRequests.Add(1)
+					io.WriteString(w, body)
+				}, func(cfg *Config) {
+					cfg.CacheUnlimited = true
+					cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
+						select {
+						case <-oldRequested:
+						case <-ctx.Done():
+							return "", ctx.Err()
+						}
+						return freshURL, s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, Node: "cf", URL: freshURL})
+					}
+				})
+				if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload) + "&address=old"}); err != nil {
+					t.Fatal(err)
+				}
+				if queued {
+					_, err := s.PrefetchPlayback(t.Context(), 42)
+					if (err != nil) != changed {
+						t.Fatalf("changed=%v, prefetch error=%v", changed, err)
+					}
+				} else {
+					w := request(s, http.MethodGet, "http://api.udon.dance/Api/Songs/play?id=42", nil)
+					if changed && w.Code == http.StatusOK || !changed && (w.Code != http.StatusOK || w.Body.String() != body) {
+						t.Fatalf("changed=%v, status=%d body=%q", changed, w.Code, w.Body.String())
+					}
+				}
+				if changed && freshRequests.Load() != 0 || !changed && freshRequests.Load() == 0 {
+					t.Fatal("unexpected fresh-resource requests", freshRequests.Load())
+				}
+				assertSongResource(t, s, "42", parsedVideo(t, s, body).key)
+			})
+		}
+	}
+}
 
 func TestPlaybackCheckSharesSongAndSurvivesWaiterCancellation(t *testing.T) {
 	started, finish := make(chan struct{}), make(chan struct{})
@@ -28,13 +87,13 @@ func TestPlaybackCheckSharesSongAndSurvivesWaiterCancellation(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	check := s.startPlaybackCheck("042", video{})
+	check := s.startPlaybackCheck(ctx, "042", video{})
 	select {
 	case <-started:
 	case <-ctx.Done():
 		t.Fatal("resolution did not start")
 	}
-	if s.startPlaybackCheck("42", video{}) != check {
+	if s.startPlaybackCheck(ctx, "42", video{}) != check {
 		t.Fatal("duplicate query for the same song")
 	}
 	waiter, stop := context.WithCancel(ctx)
@@ -61,26 +120,48 @@ func TestResourceAddressEligibilityPrecedesCandidateLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	old := time.Now().Add(-time.Minute)
+
 	// More recent disallowed observations must not consume the 32 slots and
 	// hide an older usable address. Historical evidence remains inspectable.
 	for id := int64(1); id <= 34; id++ {
-		node := "nya"
+		node := fmt.Sprintf("other%d", id)
 		if id == 1 {
 			node = "cf"
 		}
-		observed := old.Add(time.Duration(id) * time.Millisecond)
-		if err := s.ObserveSongURL(t.Context(), SongURL{SongID: id, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: observed, ObservedAt: observed}); err != nil {
+		if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: id, URL: target, Node: node}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	addresses := resourceAddresses{key: v.key, size: v.size}
 	got, err := addresses.next(t.Context(), s, video{})
-	if err != nil || got.cached == nil || got.cached.Node != "cf" || got.songID != "" || queries.Load() != 0 {
+	if err != nil || !got.savedAddress || got.songID != "" || queries.Load() != 0 {
 		t.Fatalf("address=%+v queries=%d err=%v", got, queries.Load(), err)
 	}
 	all, err := s.ResourceURLs(t.Context(), v.key, "", 40)
 	if err != nil || len(all) != 34 {
 		t.Fatalf("historical observations=%d err=%v", len(all), err)
+	}
+}
+
+func TestResourcePreviewKeepsAliasLimit(t *testing.T) {
+	var queries atomic.Int32
+	s, _ := setup(t, nil, func(cfg *Config) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
+			queries.Add(1)
+			return "", errors.New("unavailable")
+		}
+	})
+	target := seedPreview(t, s, payload)
+	for id := 2; id <= 9; id++ {
+		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, target.Resource); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addresses := resourceAddresses{key: target.Resource, size: target.Size}
+	if _, err := addresses.next(t.Context(), s, video{}); err == nil || queries.Load() != 8 {
+		t.Fatalf("queries=%d error=%v", queries.Load(), err)
 	}
 }

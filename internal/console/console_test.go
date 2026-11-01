@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"crypto/md5"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -43,12 +44,13 @@ func testWorkDirectory(t *testing.T) *cacheproxy.WorkDirectory {
 
 func newConsoleWithWorkForTest(t *testing.T, path, address string) (*Console, error) {
 	t.Helper()
-	// General fixtures exercise storage without the distribution's 10k-row seed.
-	// Production bootstrap is covered separately through New.
+	// Use an isolated work directory for the same production constructor.
 	return newConsole(path, address, upstreamnet.NewResolver(nil), testWorkDirectory(t))
 }
 
-func testConsole(t *testing.T) *Console {
+func testConsole(t *testing.T) *Console { return testConsoleWithSeed(t, false) }
+
+func testConsoleWithSeed(t *testing.T, seeded bool) *Console {
 	t.Helper()
 	root := t.TempDir()
 	store, err := cacheproxy.CreateStore(filepath.Join(root, "library", "storage.sqlite"))
@@ -57,6 +59,9 @@ func testConsole(t *testing.T) *Console {
 	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
+	}
+	if !seeded {
+		clearTestSeed(t, filepath.Join(root, "library", "storage.sqlite"))
 	}
 	if err := os.Mkdir(filepath.Join(root, "library", "videos"), 0700); err != nil {
 		t.Fatal(err)
@@ -193,6 +198,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	defer origin.Close()
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
@@ -320,4 +326,16 @@ func TestLiveIndependentDNS(t *testing.T) {
 		t.Fatal(resp.StatusCode, len(b), err)
 	}
 	t.Log("API and video range request succeeded using independent DNS")
+}
+
+func clearTestSeed(t *testing.T, path string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("BEGIN; DELETE FROM song_media; DELETE FROM songs; DELETE FROM media; COMMIT;"); err != nil {
+		t.Fatal(err)
+	}
 }

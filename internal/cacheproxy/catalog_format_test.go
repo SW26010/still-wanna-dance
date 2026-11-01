@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,8 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 		strings.Replace(catalogSample, `"tag":[]`, `"tag":{}`, 1),
 		strings.Replace(catalogSample, `"flip":true`, `"flip":2`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":"1"`, 1),
+		strings.Replace(catalogSample, `"volume":1.0`, `"volume":1e40`, 1),
+		strings.Replace(catalogSample, `"volume":1.0`, `"volume":-1e40`, 1),
 		strings.Replace(catalogSample, `"20261003235746"`, `""`, 1),
 		strings.Replace(catalogSample, `0e49fdc94f704ed9520fa23a45b20f94`, `invalid`, 1),
 	}
@@ -29,8 +32,17 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Songs = append(c.Songs, c.Songs[0])
-	if _, _, err := normalizeCatalog(c); err == nil {
+	if _, err := normalizeCatalog(c); err == nil {
 		t.Fatal("duplicate ID accepted")
+	}
+}
+
+func TestCatalogRejectsNonFiniteVolume(t *testing.T) {
+	for _, volume := range []float64{math.MaxFloat64, math.Inf(1), math.Inf(-1), math.NaN()} {
+		c := testCandidate("20261001000000", CatalogSong{ID: 1, Volume: &volume})
+		if _, err := normalizeCatalog(c); err == nil {
+			t.Fatalf("accepted volume %v", volume)
+		}
 	}
 }
 

@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
 
-const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,cache:'MISS',outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
+const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
 test('adjacent cancellation filter defaults on, resets pagination, and stays only in the page session',async({page})=>{
   const api=await mockAPI(page),queries:URLSearchParams[]=[];
@@ -41,6 +41,16 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3)],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   const summary=page.getByRole('region',{name:'响应来源统计'});
+  const heading=summary.getByRole('heading',{name:'响应来源',exact:true});
+  await expect(heading).toBeVisible();
+  if(width===1280){
+    await heading.hover();
+    await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+    await page.keyboard.press('Escape');await page.mouse.move(0,0);
+    await heading.focus();
+    await expect(heading).toHaveAccessibleDescription('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+    await page.keyboard.press('Escape');
+  }
   await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
   await expect(summary.getByText('缓存 50%',{exact:true})).toBeVisible();
   await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();
@@ -167,12 +177,12 @@ test('history can retry a rejected event connection without promising automatic 
 test('history pages beyond 500 without growing the DOM; filtering leaves latency window alone',async({page})=>{
   await mockAPI(page);const queries:URLSearchParams[]=[];let latencyReads=0;
   await page.route('**/api/history?*',r=>{const q=new URL(r.request().url()).searchParams;queries.push(q);const index=Number(q.get('cursor')||0);return r.fulfill({json:{storageID:'fixture',requests:Array.from({length:50},(_,i)=>record(index*50+i+1)),hasMore:index<12,nextCursor:String(index+1)}});});
-  await page.route('**/api/latency',r=>{latencyReads++;return r.fulfill({json:{from:Date.now()-72*3600000,to:Date.now(),availableFrom:Date.now()-3600000,partial:true,blocking:{samples:20,p50MS:10,p95MS:80},ready:{samples:0,p50MS:null,p95MS:null}}});});
+  await page.route('**/api/latency',r=>{latencyReads++;return r.fulfill({json:{from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:20,p50MS:10,p95MS:80},ready:{samples:0,p50MS:null,p95MS:null}}});});
   await page.clock.install();await page.goto('/#recent');
   await expect(page.getByRole('heading',{level:1,name:'历史'})).toBeVisible();
   await expect(page.getByText('P50 10 ms · P95 80 ms',{exact:true})).toBeVisible();
   await page.getByRole('heading',{name:'首正文等待时间',exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toContainText('最近 72 小时 · 数据不足 72 小时');
+  await expect(page.getByRole('tooltip')).toContainText('最近 72 小时');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);

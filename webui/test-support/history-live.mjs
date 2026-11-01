@@ -11,6 +11,8 @@ try {
   await page.goto(baseURL+'/#/timeline');
   const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
   const latency=await (await page.request.get(baseURL+'/api/latency',{headers:{'X-SWD-Token':token}})).json();
+  expect(latency).not.toHaveProperty('availableFrom');
+  expect(latency).not.toHaveProperty('partial');
   expect(latency.blocking.samples).toBeGreaterThan(0);
   expect(latency.blocking.samples+latency.ready.samples).toBe(601);
   const sources=await (await page.request.get(baseURL+'/api/response-sources',{headers:{'X-SWD-Token':token}})).json();
@@ -18,6 +20,11 @@ try {
   expect(sources.downloadBytes+sources.cacheBytes+sources.localBytes).toBe(601*blockBytes);
   expect(sources.localBytes).toBeGreaterThan(0);
   const firstPage=await (await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
+  expect(firstPage.requests.every(r=>!('cache' in r))).toBe(true);
+  const status=await(await page.request.get(baseURL+'/api/status',{headers:{'X-SWD-Token':token}})).json();
+  expect(status).not.toHaveProperty('traffic');
+  const sourceHeading=page.getByRole('heading',{name:'响应来源',exact:true});
+  await expect(sourceHeading).toBeVisible();
   expect(firstPage.requests.every(r=>r.bytes===4&&r.sources.localBytes===blockBytes)).toBe(true);
   expect(firstPage.requests.every(r=>r.songID==='42'&&r.songTitle==='new current mapping'&&r.resource===key)).toBe(true);
   await expect(page.getByRole('region',{name:'响应来源统计'})).toContainText('本地视频');
@@ -27,6 +34,10 @@ try {
   await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
+  await sourceHeading.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+  await page.screenshot({path:join(output,'history-source-tooltip.png'),fullPage:false});
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
   const timeHeader=history.getByRole('button',{name:'按收到时间排序',exact:true});
   const ascendingResponse=page.waitForResponse(r=>r.url().includes('/api/history?')&&new URL(r.url()).searchParams.get('direction')==='ascending');
   await timeHeader.focus();await page.keyboard.press('Enter');

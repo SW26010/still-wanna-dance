@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"slices"
 	"testing"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestConnectivityCatalogFallbackStopsAfterAcceptance(t *testing.T) {
@@ -27,13 +29,13 @@ func TestConnectivityCatalogFallbackStopsAfterAcceptance(t *testing.T) {
 				return ProbeCatalog(ctx, []*http.Client{client}, DefaultPolicy(), route)
 			}}
 			business := ConnectivityBusiness{OnCatalog: func(_ context.Context, responses []CatalogResponse) (bool, error) {
-				if len(responses) != 1 {
+				if len(responses) != len(delivered)+1 {
 					t.Fatal(responses)
 				}
-				route := responses[0].Route
+				route := responses[len(responses)-1].Route
 				delivered = append(delivered, route)
 				if accepted == "local-error" {
-					return false, errors.New("local storage unavailable")
+					return false, errors.Join(cacheproxy.ErrLocalStorage, errors.New("local storage unavailable"))
 				}
 				return route == accepted, nil
 			}}

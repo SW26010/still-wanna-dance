@@ -12,12 +12,11 @@ const metadataProbeAPI = "https://api.udon.dance/Api/Songs/play"
 
 func completeSongMetadata(t *testing.T, s *Server, id int64, key string) {
 	t.Helper()
-	at := time.Now().Add(-time.Minute)
+
 	for _, node := range []string{"cf", "nya"} {
-		if err := s.ObserveSongURL(context.Background(), SongURL{
-			SongID: id, API: metadataProbeAPI, Node: node,
-			URL:            fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%s&s=1234", id, key),
-			QueryStartedAt: at, ObservedAt: at.Add(time.Second),
+		if err := s.ObserveSongURL(context.Background(), PlaybackObservation{
+			SongID: id, Node: node,
+			URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%s&s=1234", id, key),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -40,7 +39,7 @@ func TestSongMetadataCandidatesUseSongPriority(t *testing.T) {
 	}
 	assert := func(want []int64) {
 		t.Helper()
-		got, err := s.SongMetadataCandidates(ctx, metadataProbeAPI)
+		got, err := s.SongMetadataCandidates(ctx)
 		if err != nil || !slices.Equal(got, want) {
 			t.Fatalf("candidates=%v, want=%v: %v", got, want, err)
 		}
@@ -49,7 +48,7 @@ func TestSongMetadataCandidatesUseSongPriority(t *testing.T) {
 	assert([]int64{104, 103, 102, 101})
 	completeSongMetadata(t, s, 104, c)
 	completeSongMetadata(t, s, 101, a)
-	assert([]int64{103, 102})
+	assert([]int64{103})
 	completeSongMetadata(t, s, 102, a)
 	assert([]int64{103})
 	completeSongMetadata(t, s, 103, b)
@@ -63,14 +62,14 @@ func TestSongMetadataCandidatesUsePriorAndDecayedDemand(t *testing.T) {
 	if err := s.SyncCatalog(ctx, testCandidate("20261015000000", CatalogSong{ID: 1981, MD5: a}, CatalogSong{ID: 5404, MD5: b})); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.SongMetadataCandidates(ctx, metadataProbeAPI)
+	got, err := s.SongMetadataCandidates(ctx)
 	if err != nil || !slices.Equal(got, []int64{1981, 5404}) {
 		t.Fatal("initial prior order", got, err)
 	}
 	if err := s.usage.write([]usageEvent{{songID: "1981", at: time.Now().Add(-700 * 24 * time.Hour).UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
-	got, err = s.SongMetadataCandidates(ctx, metadataProbeAPI)
+	got, err = s.SongMetadataCandidates(ctx)
 	if err != nil || !slices.Equal(got, []int64{5404, 1981}) {
 		t.Fatal("real decayed demand must replace prior", got, err)
 	}
@@ -84,15 +83,10 @@ func TestSongMetadataCandidatesDetectMissingCurrentMetadata(t *testing.T) {
 		{"complete", "", false},
 		{"missing_mapping", "DELETE FROM song_media", true},
 		{"unknown_size", "UPDATE media SET byte_size=NULL", true},
-		{"zero_size", "UPDATE media SET byte_size=0", true},
-		{"missing_cf", "DELETE FROM song_urls WHERE node='cf'", true},
-		{"missing_nya", "DELETE FROM song_urls WHERE node='nya'", false},
-		{"empty_url", "UPDATE song_urls SET url='' WHERE node='cf'", true},
-		{"failed_url", "UPDATE song_urls SET failed_at=1 WHERE node='cf'", true},
-		{"other_api", "UPDATE song_urls SET api='https://other.invalid/play'", true},
-		{"display_node", "UPDATE song_urls SET node='hkg' WHERE node='cf'", true},
-		{"old_md5", "INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); UPDATE song_urls SET md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'", true},
-		{"expired_url", "UPDATE song_urls SET query_started_at=1,observed_at=2", false},
+		{"missing_cf", "DELETE FROM media_urls WHERE node='cf'", true},
+		{"missing_nya", "DELETE FROM media_urls WHERE node='nya'", false},
+		{"display_node", "UPDATE media_urls SET node='hkg' WHERE node='cf'", true},
+		{"old_md5", "INSERT INTO media(md5) VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); UPDATE media_urls SET md5='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, _ := setup(t, nil)
@@ -107,7 +101,7 @@ func TestSongMetadataCandidatesDetectMissingCurrentMetadata(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			got, err := s.SongMetadataCandidates(ctx, metadataProbeAPI)
+			got, err := s.SongMetadataCandidates(ctx)
 			var want []int64
 			if tc.missing {
 				want = []int64{42}

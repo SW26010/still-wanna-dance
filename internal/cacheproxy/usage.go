@@ -19,18 +19,18 @@ const demandWindow = 30 * time.Second
 const requestCleanupBatch = 500
 
 type usageEvent struct {
-	sources                                        *ResponseSources
-	songID                                         string
-	firstBodyNS                                    int64
-	responseBytes                                  *int64
-	firstBodyBlocking                              *bool
-	completedAt                                    int64
-	barrier                                        chan struct{}
-	at                                             int64
-	key, host, method, rangeHeader, cache, outcome string
-	size, bytes, elapsedMS                         int64
-	status                                         int
-	summaryOnly                                    bool
+	sources                           *ResponseSources
+	songID                            string
+	firstBodyNS                       int64
+	responseBytes                     *int64
+	firstBodyBlocking                 *bool
+	completedAt                       int64
+	barrier                           chan struct{}
+	at                                int64
+	key, method, rangeHeader, outcome string
+	bytes, elapsedMS                  int64
+	status                            int
+	summaryOnly                       bool
 }
 
 type usageStore struct {
@@ -64,9 +64,6 @@ func (u *usageStore) start(retentionDays int, unlimited bool) error {
 	}
 	if u.started {
 		return nil
-	}
-	if _, err := u.db.Exec("INSERT INTO request_observation(id,started_at,retained_since) VALUES(1,?,0) ON CONFLICT DO NOTHING", u.now().UnixMilli()); err != nil {
-		return err
 	}
 	u.retention = time.Duration(retentionDays) * 24 * time.Hour
 	u.unlimited = unlimited
@@ -214,7 +211,6 @@ func (u *usageStore) write(batch []usageEvent) error {
 		return err
 	}
 	defer tx.Rollback()
-	var sources ResponseSources
 	historyChanged := false
 	for _, e := range batch {
 		if e.barrier != nil {
@@ -229,25 +225,19 @@ func (u *usageStore) write(batch []usageEvent) error {
 			}
 		}
 		if !e.summaryOnly {
-			if err := recordPlaybackTransfer(ctx, tx, e, id); err != nil {
-				return err
-			}
 			var download, cache, local any
 			if e.sources != nil {
 				download, cache, local = e.sources.DownloadBytes, e.sources.CacheBytes, e.sources.LocalBytes
-				sources.DownloadBytes += e.sources.DownloadBytes
-				sources.CacheBytes += e.sources.CacheBytes
-				sources.LocalBytes += e.sources.LocalBytes
 			}
 			if !u.unlimited && u.retention == 0 {
 				continue
 			}
 			_, err = tx.ExecContext(ctx, `INSERT INTO request_events
-(resource_md5, requested_at, host, method, range_header, cache_result, outcome,
- file_bytes, transferred_bytes, elapsed_ms, status, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				nullString(e.key), e.at, e.host, e.method, e.rangeHeader, e.cache, e.outcome,
-				e.size, e.bytes, e.elapsedMS, e.status, nullPositive(id), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking, download, cache, local)
+(resource_md5, requested_at, method, range_header, outcome,
+ transferred_bytes, elapsed_ms, status, song_id, completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				nullString(e.key), e.at, e.method, e.rangeHeader, e.outcome,
+				e.bytes, e.elapsedMS, e.status, nullPositive(id), nullPositive(e.completedAt), e.responseBytes, nullFirstBody(e), e.firstBodyBlocking, download, cache, local)
 			if err != nil {
 				return err
 			}
@@ -285,11 +275,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			return err
 		}
 	}
-	if sources != (ResponseSources{}) {
-		if _, err := tx.ExecContext(ctx, `UPDATE traffic_totals SET download_bytes=download_bytes+?,cache_bytes=cache_bytes+?,local_bytes=local_bytes+? WHERE id=1`, sources.DownloadBytes, sources.CacheBytes, sources.LocalBytes); err != nil {
-			return err
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -313,9 +298,6 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 	}
 	defer tx.Rollback()
 	cutoff := now.Add(-u.retention).UnixMilli()
-	if _, err := tx.ExecContext(ctx, "UPDATE request_observation SET retained_since=max(retained_since,?) WHERE id=1", cutoff); err != nil {
-		return 0, err
-	}
 	query := `DELETE FROM request_events WHERE event_id IN (
  SELECT event_id FROM request_events WHERE requested_at < ? ORDER BY requested_at LIMIT ?
 )`

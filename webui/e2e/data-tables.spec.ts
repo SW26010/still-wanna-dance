@@ -55,7 +55,7 @@ test('library sorts the query before paging, preserves search order and uses key
 test('history sorting resets the cursor, keeps keyboard focus and suspends live updates',async({page})=>{
   const api=await mockAPI(page);await page.clock.install();
   const queries:URLSearchParams[]=[];
-  const records=Array.from({length:54},(_,i)=>({id:i+1,at:Date.now()-i*1000,completedAt:Date.now()-i*1000+800,resource:String(i+1).padStart(32,'0'),songID:String(54-i),method:'GET',range:'',elapsedMS:800,bytes:50,responseBytes:100,status:206,cache:'MISS',outcome:'completed'}));
+  const records=Array.from({length:54},(_,i)=>({id:i+1,at:Date.now()-i*1000,completedAt:Date.now()-i*1000+800,resource:String(i+1).padStart(32,'0'),songID:String(54-i),method:'GET',range:'',elapsedMS:800,bytes:50,responseBytes:100,status:206,outcome:'completed'}));
   await page.route('**/api/history?**',route=>{
     const q=new URL(route.request().url()).searchParams;queries.push(q);
     const field=q.get('sort'),sign=q.get('direction')==='ascending'?1:-1;

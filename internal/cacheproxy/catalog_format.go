@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -99,16 +100,16 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 		song.MD5, song.GroupName, song.Major = entry.Checksum, entry.GroupName, entry.Major
 		c.Songs = append(c.Songs, song)
 	}
-	c, _, err = normalizeCatalog(c)
+	c, err = normalizeCatalog(c)
 	return c, err
 }
 
-func normalizeCatalog(c Catalog) (Catalog, string, error) {
+func normalizeCatalog(c Catalog) (Catalog, error) {
 	if c.Source == "" || len(c.Songs) == 0 {
-		return c, "", fmt.Errorf("清单为空或来源无效")
+		return c, fmt.Errorf("清单为空或来源无效")
 	}
 	if _, err := ParseCatalogTime(c.Revision); err != nil {
-		return c, "", err
+		return c, err
 	}
 	c.Songs = append([]CatalogSong(nil), c.Songs...)
 	sort.Slice(c.Songs, func(i, j int) bool { return c.Songs[i].ID < c.Songs[j].ID })
@@ -116,12 +117,15 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 		s := &c.Songs[i]
 		s.MD5 = strings.ToLower(s.MD5)
 		if s.ID <= 0 || (s.MD5 != "" && !catalogmeta.ValidIdentity(s.ID, s.MD5)) || (i > 0 && c.Songs[i-1].ID == s.ID) {
-			return c, "", fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, s.ID)
+			return c, fmt.Errorf("%w: %d", ErrInvalidCatalogMapping, s.ID)
 		}
 		// Udon serializes Unity single-precision volume with fewer decimal
 		// digits than the backups. Compare/store their shared float32 value.
 		if s.Volume != nil {
 			v := float64(float32(*s.Volume))
+			if math.IsInf(v, 0) || math.IsNaN(v) {
+				return c, fmt.Errorf("清单音量无效: %d", s.ID)
+			}
 			s.Volume = &v
 		}
 		for _, raw := range []*json.RawMessage{&s.Tags, &s.ShaderMotion} {
@@ -133,15 +137,14 @@ func normalizeCatalog(c Catalog) (Catalog, string, error) {
 			decoder := json.NewDecoder(bytes.NewReader(*raw))
 			decoder.UseNumber()
 			if err := decoder.Decode(&value); err != nil {
-				return c, "", fmt.Errorf("清单数组格式无效: %w", err)
+				return c, fmt.Errorf("清单数组格式无效: %w", err)
 			}
 			normalized, err := json.Marshal(value)
 			if err != nil {
-				return c, "", err
+				return c, err
 			}
 			*raw = normalized
 		}
 	}
-	digest, err := catalogDigestV2(c.Songs)
-	return c, digest, err
+	return c, nil
 }

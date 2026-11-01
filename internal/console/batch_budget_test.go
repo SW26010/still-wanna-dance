@@ -45,6 +45,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			cfg := fixtureCacheConfig()
 			cfg.VideoBudgetBytes = limit
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+			cfg.ResolvePlayback = c.resolvePlayback
 			cfg.CacheUnlimited = tc.unlimited
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")

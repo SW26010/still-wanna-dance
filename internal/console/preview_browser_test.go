@@ -52,8 +52,8 @@ func TestPreviewBrowser(t *testing.T) {
 	cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 		target := fmt.Sprintf("http://play.udon.dance/files/2403/1-abc.mp4?e=%s&s=%d", key, len(body))
 		n, _ := strconv.ParseInt(id, 10, 64)
-		now := time.Now()
-		err := c.store.ObserveSongURL(ctx, cacheproxy.SongURL{SongID: n, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now})
+
+		err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: n, URL: target, Node: "cf"})
 		return target, err
 	}
 	engine, err := cacheproxy.New(cfg)

@@ -28,12 +28,12 @@ func TestProductionBootstrapSeedsMediaWithoutCatalogOrEngine(t *testing.T) {
 			c.Close()
 			t.Fatal(err)
 		}
-		var version string
-		err = db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='media_seed'").Scan(&version)
+		var count int
+		err = db.QueryRow("SELECT count(*) FROM catalog_state").Scan(&count)
 		db.Close()
-		if err != nil || version != "20261029000000" {
+		if err != nil || count != 0 {
 			c.Close()
-			t.Fatal(version, err)
+			t.Fatal(count, err)
 		}
 		if err := c.Close(); err != nil {
 			t.Fatal(err)

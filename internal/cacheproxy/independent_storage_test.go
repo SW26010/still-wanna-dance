@@ -13,7 +13,7 @@ func independentConfig(t *testing.T) Config {
 	cfg := fixtureConfig()
 	cfg.VideoDir = t.TempDir()
 	var err error
-	cfg.Store, err = CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
+	cfg.Store, err = createEmptyFixtureStore(filepath.Join(t.TempDir(), "library.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestIndependentVideoLeaseDoesNotLockSiblingDatabase(t *testing.T) {
 	if err := os.Mkdir(cfg.VideoDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	other, err := CreateStore(filepath.Join(root, "storage.sqlite"))
+	other, err := createEmptyFixtureStore(filepath.Join(root, "storage.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestIndependentPathsRejectCleanupOverCoreData(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			cfg := independentConfig(t)
-			store, err := CreateStore(filepath.Join(cfg.VideoDir, name))
+			store, err := createEmptyFixtureStore(filepath.Join(cfg.VideoDir, name))
 			if err != nil {
 				t.Fatal(err)
 			}

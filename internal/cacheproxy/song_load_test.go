@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
+
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -44,8 +44,8 @@ func TestSongLoadingShortCachedRangeRecoversBeforeBody(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%x&s=%d", md5.Sum(body), len(body))
-			old := time.Now().Add(-time.Minute)
-			if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: target + "&stale=1", API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
+
+			if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, URL: target + "&stale=1", Node: "cf"}); err != nil {
 				t.Fatal(err)
 			}
 			s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
@@ -107,8 +107,8 @@ func TestSongLoadingFailedCacheDoesNotSwitchAfterBody(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	target := fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%x&s=%d", md5.Sum(body), len(body))
-	old := time.Now().Add(-time.Minute)
-	if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: target + "&stale=1", API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
+
+	if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, URL: target + "&stale=1", Node: "cf"}); err != nil {
 		t.Fatal(err)
 	}
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
@@ -130,8 +130,8 @@ func TestSongLoadingUsesCachedAddressWithoutWaitingForQuery(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			target := videoURL(payload)
-			old := time.Now().Add(-time.Minute)
-			if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: target, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
+
+			if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, URL: target, Node: "cf"}); err != nil {
 				t.Fatal(err)
 			}
 			started, release := make(chan struct{}), make(chan struct{})
@@ -186,8 +186,8 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 			defer cancel()
 			target := videoURL(payload)
 			stale := strings.Replace(target, "660524b4ebadb", "old", 1)
-			old := time.Now().Add(-time.Minute)
-			if err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: stale, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: old, ObservedAt: old}); err != nil {
+
+			if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, URL: stale, Node: "cf"}); err != nil {
 				t.Fatal(err)
 			}
 			s.cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
@@ -213,8 +213,8 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 			if queries.Load() != 1 || downloads.Load() != 2 {
 				t.Fatal("duplicated lookup/download", queries.Load(), downloads.Load())
 			}
-			if urls, err := s.SongURLs(ctx, 42, ""); err != nil || len(urls) != 0 {
-				t.Fatal("failed observation remained usable", urls, err)
+			if urls, err := s.SongURLs(ctx, 42, ""); err != nil || len(urls) != 1 || urls[0].URL != stale {
+				t.Fatal("failure discarded resource address", urls, err)
 			}
 		})
 	}
@@ -246,8 +246,8 @@ func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
 
 func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(403) })
-	at := time.Now().Add(-time.Minute)
-	if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: at, ObservedAt: at}); err != nil {
+
+	if err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: videoURL(payload), Node: "cf"}); err != nil {
 		t.Fatal(err)
 	}
 	refreshFailure := errors.New("API refresh unavailable")
@@ -328,60 +328,6 @@ func TestQueueCancellationDoesNotCancelJoinedRangePlayback(t *testing.T) {
 	}
 }
 
-func TestCachedCandidatesPrecedeBlockedRefresh(t *testing.T) {
-	for _, prefetch := range []bool{false, true} {
-		for _, short := range []bool{false, true} {
-			t.Run(fmt.Sprintf("prefetch=%v/short=%v", prefetch, short), func(t *testing.T) {
-				var good atomic.Int32
-				var server *Server
-				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-					if r.URL.Query().Get("bad") != "" {
-						if short {
-							w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
-							w.WriteHeader(200)
-							w.(http.Flusher).Flush()
-						} else {
-							w.WriteHeader(502)
-						}
-						return
-					}
-					parts, err := filepath.Glob(filepath.Join(server.cfg.tempDir(), "download-*.part"))
-					if err != nil || len(parts) != 0 {
-						t.Errorf("failed spool retained during retry: %v %v", parts, err)
-					}
-					good.Add(1)
-					fmt.Fprint(w, payload)
-				})
-				server = s
-				s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) { <-ctx.Done(); return "", ctx.Err() }
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer cancel()
-				for i, suffix := range []string{"", "&bad=2", "&bad=1"} {
-					at := time.Now().Add(time.Duration(i-10) * time.Minute)
-					err := s.ObserveSongURL(ctx, SongURL{SongID: 42, URL: videoURL(payload) + suffix, API: fmt.Sprintf("https://api.udon.dance/source%d", i), Node: "cf", QueryStartedAt: at, ObservedAt: at})
-					if err != nil {
-						t.Fatal(err)
-					}
-				}
-				if prefetch {
-					if _, err := s.PrefetchPlayback(ctx, 42); err != nil {
-						t.Fatal(err)
-					}
-				} else {
-					w := httptest.NewRecorder()
-					s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx))
-					if w.Code != 200 || w.Body.String() != payload {
-						t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
-					}
-				}
-				if good.Load() != 1 {
-					t.Fatalf("good downloads=%d", good.Load())
-				}
-			})
-		}
-	}
-}
-
 func TestCachedCandidatesOnlyUseCFEntry(t *testing.T) {
 	for _, entry := range []string{"prefetch", "playback", "preview"} {
 		t.Run(entry, func(t *testing.T) {
@@ -399,8 +345,8 @@ func TestCachedCandidatesOnlyUseCFEntry(t *testing.T) {
 				return "", refreshErr
 			}
 			for _, node := range []string{"cf", "nya"} {
-				now := time.Now()
-				if err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload) + "&node=" + node, API: "https://api.udon.dance/Api/Songs/play", Node: node, QueryStartedAt: now, ObservedAt: now}); err != nil {
+
+				if err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: videoURL(payload) + "&node=" + node, Node: node}); err != nil {
 					t.Fatal(err)
 				}
 			}

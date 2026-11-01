@@ -1,6 +1,33 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
+import {expectWithClock} from './clock';
+
+test('catalog errors clear after a later successful refresh',async({page},info)=>{
+  await page.clock.install();
+  const api=await mockAPI(page);
+  const warning='在线曲库更新失败：主来源 Udon：清单接口返回 503';
+  api.state.catalogSync={initializing:false,checking:false,error:warning};
+  api.state.batch={scanOnly:true,total:2,checked:2,hits:1,missing:1,catalog:{revision:'20261101000000'},catalogWarning:warning,phase:'本地检查完成'};
+  await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:true,totalSongs:2,coveredSongs:1,updated:'2026-11-01T00:00:00Z',catalogRevision:'20261101000000',catalog:{revision:'20261101000000'}}}));
+  await page.setViewportSize({width:390,height:844});await page.goto('/#/library');
+  await expect(page.getByRole('group',{name:'曲库覆盖率',exact:true})).toContainText('50.0%');
+  await expect(page.locator('.fui-Toast').getByText(warning,{exact:true})).toBeVisible();
+  const panel=page.locator('#batch');
+  await expect(panel.getByText('在线曲库更新失败，本次使用已有清单。',{exact:true})).toBeVisible();
+  await panel.getByRole('button',{name:'在线更新错误详情',exact:true}).click();
+  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText(warning);
+  await page.keyboard.press('Escape');
+  api.state.catalogSync.error=undefined;
+  api.state.batch.catalogWarning=undefined;
+  await expectWithClock(page,()=>page.locator('.fui-Toast').count()).toBe(0);
+  await expect(panel.getByRole('button',{name:'重试更新',exact:true})).toHaveCount(0);
+  await expect(panel.getByText(warning,{exact:true})).toHaveCount(0);
+  await expect(panel.getByText('本地检查完成',{exact:true})).toBeVisible();
+  await expect(page.getByRole('group',{name:'曲库覆盖率',exact:true})).toContainText('50.0%');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await panel.screenshot({path:info.outputPath('catalog-backup-silent.png')});
+});
 
 test('offline video import reports file failures without a catalog refresh',async({page},info)=>{
   const api=await mockAPI(page);
@@ -52,7 +79,8 @@ test('sample preparation points to library and connectivity without fetching a c
 
 for(const cached of [true,false])test(`local scan distinguishes online catalog failure and retries (${cached})`,async({page},info)=>{
   const api=await mockAPI(page);
-  api.state.batch={scanOnly:true,running:false,catalogWarning:'Get "https://catalog.example/": EOF',
+  const warning='在线曲库更新失败：主来源 Udon：清单接口返回 503';
+  api.state.batch={scanOnly:true,running:false,catalogWarning:warning,
     phase:cached?'本地检查完成；可通过下载缺失视频获取缺失视频':'暂无可用的歌曲清单，未开始本地检查。请重试在线更新。',
     catalog:{revision:cached?'fixture-v1':''},total:cached?2:0,checked:cached?2:0,hits:1,missing:1,failed:0};
   if(cached)api.state.lastBatch={...api.state.batch,updated:'2026-10-21T00:00:00Z'};
@@ -64,11 +92,13 @@ for(const cached of [true,false])test(`local scan distinguishes online catalog f
   await page.setViewportSize({width:390,height:844});await page.goto('/#/library');
   const panel=page.locator('#batch');
   await expect(panel.getByText(cached?'在线曲库更新失败，本次使用已有清单。':'没有可用清单，请重试更新。',{exact:true})).toBeVisible();
+  await panel.getByRole('button',{name:'在线更新错误详情',exact:true}).click();
+  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText(warning);
+  await page.keyboard.press('Escape');
+  await expect(panel.getByText(api.state.batch.phase!,{exact:true})).toBeVisible();
   if(cached){await panel.getByRole('button',{name:'上次完成的批量任务',exact:true}).click();await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('共 2 · 已有 1 · 缺失 1');await page.keyboard.press('Escape');}
   else await expect(panel.getByRole('button',{name:'上次完成的批量任务',exact:true})).toHaveCount(0);
   await panel.screenshot({path:info.outputPath('catalog-error.png')});
-  await panel.getByRole('button',{name:'在线更新错误详情',exact:true}).click();
-  await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('Get "https://catalog.example/": EOF');await page.keyboard.press('Escape');
   await panel.getByRole('button',{name:'重试更新',exact:true}).click();
   await expect(panel.getByText('正在更新歌曲清单',{exact:true})).toBeVisible();
   await expect(panel.getByRole('button',{name:'重试更新',exact:true})).toHaveCount(0);

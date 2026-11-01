@@ -63,11 +63,12 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
   const scanning=!!v?.scanning&&!inventory.error;
   const known = !videoError && v && dated(v.updated) && v.coverageKnown && v.totalSongs > 0;
   const sync=s.catalogSync,initializing=!!sync?.initializing&&!v?.catalog?.revision;
+  const catalogError=[v?.error,sync?.error].filter(Boolean).join('；');
   const catalogBusy=scanning||inventory.loading||initializing&&!!sync?.checking;
-  const initializationError=initializing?(s.storageError||v?.catalog?.error||sync?.error):'';
+  const initializationError=initializing?(s.storageError||catalogError):'';
   const initializationDetail=initializing?[initializationError,sync?.checking?'正在获取完整歌曲清单。':`程序会自动重试${dated(sync?.nextCheck)?'，下次尝试：'+date(sync?.nextCheck):''}。`].filter(Boolean).join(' '):'';
   const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
-  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(v.error||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。')):undefined;
+  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(catalogError||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。')):undefined;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">
@@ -82,6 +83,6 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
       <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.videoBudgetBytes)}</Text></div>
     </div>
     <div className="inline library-actions">{actions}</div>
-    <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':v?.error||v?.catalog?.error||s.actionErrors?.inventory):undefined} error/>
+    <Notification message={visible?(inventory.error?'曲库统计暂时不可用。':catalogError||s.actionErrors?.inventory):undefined} error/>
   </section>;
 }

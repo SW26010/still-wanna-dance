@@ -85,6 +85,7 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	cfg := fixtureCacheConfig()
 	cfg.CacheUnlimited = true
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -272,6 +273,7 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.CacheUnlimited = false
 	cfg.RetainFavorites = retain
 	cfg.VideoBudgetBytes = 0

@@ -10,8 +10,8 @@ import (
 	"strconv"
 )
 
-// PreviewTarget is the click-time resource snapshot. AdmissionSongID is only
-// for checking song policy, never for scoring, mapping updates or queue timing.
+// PreviewTarget is the click-time resource snapshot. AdmissionSongID controls
+// song admission and lookup order, never scoring or queue timing.
 type PreviewTarget struct {
 	Resource        string `json:"resource"`
 	Size            int64  `json:"size,omitempty"`
@@ -156,7 +156,7 @@ func (s *Server) previewRoute(v video) (video, bool) {
 
 func (p *previewRequest) nextAddress(ctx context.Context, s *Server, failed video) (video, error) {
 	if p.addresses == nil {
-		p.addresses = &resourceAddresses{key: p.target.Resource, size: p.target.Size}
+		p.addresses = &resourceAddresses{key: p.target.Resource, size: p.target.Size, preferredSong: p.target.AdmissionSongID}
 	}
 	v, err := p.addresses.next(ctx, s, failed)
 	if err == nil {

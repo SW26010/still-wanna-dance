@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -36,7 +35,7 @@ func nullableJSON(raw json.RawMessage) any {
 // Metadata acceptance and backup resource fill are separate decisions in one
 // transaction. Catalog omissions never delete accumulated business records.
 func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
-	c, digest, err := normalizeCatalog(c)
+	c, err := normalizeCatalog(c)
 	if err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 	}
 	defer s.wg.Done()
 	defer func() {
-		if !errors.Is(resultErr, ErrCatalogOlder) && !errors.Is(resultErr, ErrCatalogConflict) {
+		if !errors.Is(resultErr, ErrCatalogOlder) {
 			resultErr = s.metadataWriteError(ctx, resultErr)
 		}
 	}()
@@ -59,18 +58,9 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 		return err
 	}
 	defer tx.Rollback()
-	duplicate, err := checkSongCatalogState(ctx, tx, c, digest)
+	duplicate, err := checkSongCatalogState(ctx, tx, c)
 	decisionErr := err
 	if err != nil {
-		if errors.Is(err, ErrCatalogConflict) {
-			diagnostic, diagnosticErr := catalogConflictDetails(ctx, tx, c, digest)
-			if diagnosticErr != nil {
-				s.log.Warn("catalog_conflict_diagnostic_failed", "error", diagnosticErr)
-			} else {
-				s.log.Warn("catalog_conflict", "revision", c.Revision, "diagnostic", diagnostic)
-				return fmt.Errorf("%w：%s", err, diagnostic)
-			}
-		}
 		if !errors.Is(err, ErrCatalogOlder) {
 			return err
 		}
@@ -92,14 +82,14 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 		}
 	}
 	if errors.Is(decisionErr, ErrCatalogOlder) {
-		if err = commitCatalogCheck(ctx, tx, "远端版本较旧，保留歌曲资料并补充资源缺项"); err != nil {
+		if err = tx.Commit(); err != nil {
 			return err
 		}
 		s.changed(false)
 		return decisionErr
 	}
 	if duplicate {
-		if err = commitCatalogCheck(ctx, tx, "歌曲清单未变化，已检查资源缺项"); err != nil {
+		if err = tx.Commit(); err != nil {
 			return err
 		}
 		s.changed(false)
@@ -123,23 +113,23 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 			return err
 		}
 	}
-	if err := writeCatalogState(ctx, tx, "songs", c.Revision, digest, c.Source); err != nil {
+	if err := writeCatalogState(ctx, tx, c.Revision, c.Source); err != nil {
 		return err
 	}
-	if err = commitCatalogCheck(ctx, tx, "已更新本地清单"); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 	s.changed(false)
 	return nil
 }
 
-func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog, digest string) (bool, error) {
+func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog) (bool, error) {
 	candidateTime, err := ParseCatalogTime(c.Revision)
 	if err != nil {
 		return false, err
 	}
-	var previousRevision, previousDigest, previousSource string
-	err = tx.QueryRowContext(ctx, "SELECT revision,digest,source FROM catalog_state WHERE catalog_key='songs'").Scan(&previousRevision, &previousDigest, &previousSource)
+	var previousRevision, previousSource string
+	err = tx.QueryRowContext(ctx, "SELECT revision,source FROM catalog_state WHERE catalog_key='songs_list'").Scan(&previousRevision, &previousSource)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -160,22 +150,19 @@ func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog, digest st
 		if !IsUdonCatalog(c.Source) && IsUdonCatalog(previousSource) {
 			return true, nil
 		}
-		if digest != previousDigest {
-			return false, ErrCatalogConflict
-		}
+
 		return true, nil
 	}
 	return false, nil
 }
 
-func writeCatalogState(ctx context.Context, tx *sql.Tx, key, revision, digest, source string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_state(catalog_key,revision,digest,source,accepted_at) VALUES (?,?,?,?,?)
- ON CONFLICT(catalog_key) DO UPDATE SET revision=excluded.revision,digest=excluded.digest,source=excluded.source,accepted_at=excluded.accepted_at`, key, revision, digest, source, time.Now().UnixMilli())
+func writeCatalogState(ctx context.Context, tx *sql.Tx, revision, source string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_state(catalog_key,revision,source) VALUES ('songs_list',?,?)
+ ON CONFLICT(catalog_key) DO UPDATE SET revision=excluded.revision,source=excluded.source`, revision, source)
 	return err
 }
 
 var ErrCatalogOlder = errors.New("清单时间较旧，未更新")
-var ErrCatalogConflict = errors.New("清单同时间内容冲突，未更新")
 
 type catalogObservation struct {
 	revision, source string
@@ -208,13 +195,4 @@ func (s *Store) observeCatalogVersion(c Catalog) {
 		}
 		s.log.Warn("catalog_backup_newer_than_udon", "source", backup.source, "revision", backup.revision, "observed_at", backup.at, "udon_revision", udon.revision, "udon_observed_at", udon.at)
 	}
-}
-
-func commitCatalogCheck(ctx context.Context, tx *sql.Tx, message string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO catalog_checks(catalog_key,checked_at,message) VALUES ('songs',?,?)
- ON CONFLICT(catalog_key) DO UPDATE SET checked_at=excluded.checked_at,message=excluded.message,error=''`, time.Now().UnixMilli(), message)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
 }

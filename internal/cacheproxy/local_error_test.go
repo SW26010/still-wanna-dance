@@ -9,10 +9,45 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"still-wanna-dance/internal/blocksched"
 )
+
+func TestFixedResourceFillReportsAddressStorageFailure(t *testing.T) {
+	var calls atomic.Int32
+	var s *Server
+	s, _ = setup(t, nil, func(cfg *Config) {
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
+			calls.Add(1)
+			url := videoURL(payload)
+			return url, s.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, Node: "cf", URL: url})
+		}
+	})
+	target := seedPreview(t, s, payload)
+	if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(2); INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.PrefetchDownload(withExpectedMD5(t.Context(), target.Resource), 1)
+	if !errors.Is(err, ErrLocalStorage) || errors.Is(err, errPlaybackUpstream) || !errors.Is(s.StorageError(), ErrLocalStorage) || calls.Load() != 1 {
+		t.Fatalf("error=%v retained=%v API calls=%d", err, s.StorageError(), calls.Load())
+	}
+}
+
+func TestPlaybackCheckKeepsCompletedStorageFailureOnCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	check := &playbackCheck{done: make(chan struct{}), err: fmt.Errorf("address write: %w", ErrLocalStorage)}
+	close(check.done)
+	s := &Server{}
+	for range 100 {
+		if _, err := s.waitSongQuery(ctx, check); !errors.Is(err, ErrLocalStorage) {
+			t.Fatalf("completed storage failure was replaced: %v", err)
+		}
+	}
+}
 
 func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 	var calls atomic.Int32
@@ -52,11 +87,11 @@ func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 }
 func TestObservationStorageFailureIsRetained(t *testing.T) {
 	s, _ := setup(t, func(http.ResponseWriter, *http.Request) {})
-	if _, err := s.usage.db.Exec(`CREATE TRIGGER fail_observation BEFORE INSERT ON song_urls BEGIN SELECT RAISE(FAIL, 'disk failure'); END`); err != nil {
+	if _, err := s.usage.db.Exec(`CREATE TRIGGER fail_observation BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'disk failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	now := time.Now()
-	err := s.ObserveSongURL(context.Background(), SongURL{SongID: 42, URL: videoURL(payload), API: "https://api.udon.dance/Api/Songs/play", Node: "cf", QueryStartedAt: now, ObservedAt: now})
+
+	err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: videoURL(payload), Node: "cf"})
 	if !errors.Is(err, ErrLocalStorage) || !errors.Is(s.StorageError(), ErrLocalStorage) {
 		t.Fatal(err)
 	}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,7 +14,70 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/applog"
 )
+
+func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
+	for _, fixed := range []bool{false, true} {
+		for _, failed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("fixed=%v/failed=%v", fixed, failed), func(t *testing.T) {
+				logs := new(logCapture)
+				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+					cfg.CacheUnlimited = true
+					cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
+					cfg.ResolvePlayback = func(context.Context, string) (string, error) {
+						if failed {
+							return "", errors.New("lookup unavailable")
+						}
+						return videoURL(payload) + "&token=secret", nil
+					}
+				})
+				ctx := applog.WithTrace(t.Context())
+				key := parsedVideo(t, s, payload).key
+				if fixed {
+					if err := syncTestCatalog(s, ctx, map[string]string{"42": key}); err != nil {
+						t.Fatal(err)
+					}
+					ctx = withExpectedMD5(ctx, key)
+				}
+				_, err := s.PrefetchDownload(ctx, 42)
+				if (err != nil) != failed {
+					t.Fatal("unexpected download result", err)
+				}
+				s.wg.Wait()
+				resolved, finished := 0, 0
+				for _, record := range logs.records(t) {
+					if record["msg"] == "prefetch_resolved" {
+						resolved++
+						if record["trace_id"] != applog.TraceID(ctx) || fmt.Sprint(record["song_id"]) != "42" || record["elapsed_ms"] == nil || record["success"] != !failed {
+							t.Fatal("resolution lost operation details", record)
+						}
+						if !failed && record["resource_key"] != key {
+							t.Fatal("resolution lost resource", record)
+						}
+					}
+					if record["msg"] == "playback_check_failed" && (record["trace_id"] != applog.TraceID(ctx) || fmt.Sprint(record["song_id"]) != "42") {
+						t.Fatal("failure lost trace or lookup song", record)
+					}
+					if record["msg"] == "prefetch_finished" {
+						finished++
+						if record["trace_id"] != applog.TraceID(ctx) {
+							t.Fatal("download and resolution used different operations", record)
+						}
+					}
+					encoded, _ := json.Marshal(record)
+					if strings.Contains(string(encoded), "secret") {
+						t.Fatal("resolution leaked URL", record)
+					}
+				}
+				if resolved != 1 || !failed && finished != 1 {
+					t.Fatal("missing resolution or completion event", resolved, finished)
+				}
+			})
+		}
+	}
+}
 
 type logCapture struct {
 	mu   sync.Mutex

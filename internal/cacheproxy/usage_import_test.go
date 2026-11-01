@@ -58,7 +58,7 @@ func TestHistoricalUsageMatchesNativeDemand(t *testing.T) {
 func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	store, err := CreateStore(storagePath(root))
+	store, err := createEmptyFixtureStore(storagePath(root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,6 +238,11 @@ func TestHistoricalUsageFullAndForeignKeyRollback(t *testing.T) {
 			h := historyAt(1, at)
 			code := sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY
 			if failure == "full" {
+				// Creation seeded and then cleared this fixture. Reclaim its free
+				// pages before capping the file, so new rows really exhaust space.
+				if _, err := db.Exec("VACUUM"); err != nil {
+					t.Fatal(err)
+				}
 				var pages int
 				if err = db.QueryRow("PRAGMA page_count").Scan(&pages); err != nil {
 					t.Fatal(err)

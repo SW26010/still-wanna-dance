@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ func TestCatalogNewerBackupWarningNeedsObservedUdon(t *testing.T) {
 	}
 }
 
-func TestUdonAndBackupShareMetadataDigest(t *testing.T) {
+func TestUdonAndBackupNormalizeSharedMetadata(t *testing.T) {
 	const udon = `{"time":"20261003235746","groups":{"contents":[{"groupName":"Hide","major":"","songInfos":[{"id":90000,"danceid":90000,"name":"测试","artist":"测试","dancer":"测试","playerCount":1,"volume":0.35,"start":0,"end":8,"flip":true,"double_width":false,"skip_random":1,"disable_public":1,"rpe":100,"tag":null,"shader_motion":""}]}]}}`
 	backup := strings.Replace(catalogSample, `"volume":1.0`, `"volume":0.3499999940395355`, 1)
 	a, err := ParseCatalog([]byte(udon), UdonCatalogURL)
@@ -47,21 +48,13 @@ func TestUdonAndBackupShareMetadataDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ad, err := normalizeCatalog(a)
-	if err != nil {
-		t.Fatal(err)
+	a.Songs[0].MD5 = b.Songs[0].MD5
+	if !reflect.DeepEqual(a.Songs, b.Songs) {
+		t.Fatal(a.Songs, b.Songs)
 	}
-	_, bd, err := normalizeCatalog(b)
-	if err != nil || ad != bd {
-		t.Fatal(ad, bd, err)
-	}
+	a.Songs[0].MD5 = ""
 	if a.Songs[0].MD5 != "" || b.Songs[0].MD5 == "" {
 		t.Fatal("resource evidence lost", a, b)
-	}
-	b.Songs[0].MD5 = strings.Repeat("a", 32)
-	_, bd, err = normalizeCatalog(b)
-	if err != nil || ad != bd {
-		t.Fatal("MD5 changed metadata identity", bd, err)
 	}
 	for _, bad := range []string{
 		strings.Replace(udon, `"id":90000`, `"id":0`, 1),
@@ -104,7 +97,7 @@ func TestUdonAuthorityAndOlderBackupFill(t *testing.T) {
 	if err := s.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&title); err != nil || title != canonical {
 		t.Fatal(title, err)
 	}
-	if err := s.db.QueryRow("SELECT source FROM catalog_state WHERE catalog_key='songs'").Scan(&source); err != nil || source != UdonCatalogURL {
+	if err := s.db.QueryRow("SELECT source FROM catalog_state WHERE catalog_key='songs_list'").Scan(&source); err != nil || source != UdonCatalogURL {
 		t.Fatal(source, err)
 	}
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id IN (1,2)").Scan(&members); err != nil || members != 2 {
@@ -124,23 +117,21 @@ func TestUdonAuthorityAndOlderBackupFill(t *testing.T) {
 	}
 }
 
-func TestSongURLOrdersAcrossNodesAndCannotBeUndoneByCatalog(t *testing.T) {
+func TestSongURLCommitOrderAndCatalogFill(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
-	at := time.Now().Add(-time.Minute)
+
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	c := Catalog{Revision: "20261001000000", Source: KivaCatalogURL, Songs: []CatalogSong{{ID: 42, MD5: a}}}
 	if err := s.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	o := SongURL{SongID: 42, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/42-new.mp4?e=" + b + "&s=24", QueryStartedAt: at, ObservedAt: at}
+	o := PlaybackObservation{SongID: 42, Node: "cf", URL: "https://play.udon.dance/files/1/42-new.mp4?e=" + b + "&s=24"}
 	if err := s.ObserveSongURL(ctx, o); err != nil {
 		t.Fatal(err)
 	}
 	late := o
 	late.Node = "nya"
-	late.QueryStartedAt = at.Add(-time.Second)
-	late.ObservedAt = at.Add(time.Second)
 	late.URL = strings.Replace(o.URL, b, a, 1)
 	if err := s.ObserveSongURL(ctx, late); err != nil {
 		t.Fatal(err)
@@ -152,9 +143,9 @@ func TestSongURLOrdersAcrossNodesAndCannotBeUndoneByCatalog(t *testing.T) {
 	if err := s.recordSongVideo(ctx, "42", video{key: a}); err != nil {
 		t.Fatal(err)
 	}
-	assertSongResource(t, s, "42", b)
+	assertSongResource(t, s, "42", a)
 	var n int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM song_urls").Scan(&n); err != nil || n != 1 {
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM media_urls").Scan(&n); err != nil || n != 2 {
 		t.Fatal(n, err)
 	}
 }

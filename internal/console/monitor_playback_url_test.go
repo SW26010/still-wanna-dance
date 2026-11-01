@@ -70,11 +70,11 @@ func TestMonitorPlaybackURLPersistsMetadataWithoutDownload(t *testing.T) {
 	}
 	for _, id := range []int64{1, 2} {
 		urls, err := c.store.SongURLs(ctx, id, "cf")
-		if err != nil || len(urls) != 1 || urls[0].URL != newer.URL || !urls[0].QueryStartedAt.Equal(newer.QueryStartedAt) || !urls[0].ObservedAt.Equal(newer.ObservedAt) {
+		if err != nil || len(urls) != 1 || urls[0].URL != newer.URL {
 			t.Fatalf("wrong persisted observation for %d: %+v, %v", id, urls, err)
 		}
 	}
-	for table, want := range map[string]int{"songs": 2, "song_media": 2, "song_urls": 2, "media": 2, "song_usage": 0, "request_events": 0, "request_observation": 0} {
+	for table, want := range map[string]int{"songs": 2, "song_media": 2, "media_urls": 1, "media": 2, "song_usage": 0, "request_events": 0} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)

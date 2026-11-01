@@ -459,7 +459,7 @@ func followEngine(ctx context.Context, p followPlan, tr *followTransport, r *fol
 	path := storagePath(p.Storage)
 	var err error
 	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		cfg.Store, err = CreateStore(path)
+		cfg.Store, err = createEmptyFixtureStore(path)
 	} else {
 		cfg.Store, err = OpenStore(path)
 	}

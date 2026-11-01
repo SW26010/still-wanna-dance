@@ -41,11 +41,12 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 		current []int
 		working string
 		want    string
+		success bool
 	}{
-		{"prefer_catalog", []int{1, 2}, "2", "2"},
-		{"fallback_catalog", []int{1, 2}, "1", "2,1"},
-		{"retained_not_a_target", []int{1}, "99", "1"},
-		{"all_fail", []int{1, 2}, "", "2,1"},
+		{"prefer_catalog", []int{1, 2}, "2", "2", true},
+		{"fallback_catalog", []int{1, 2}, "1", "2,1", true},
+		{"nonmember_mapping_not_used_for_full_batch", []int{1}, "99", "1", false},
+		{"all_fail", []int{1, 2}, "", "2,1", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
@@ -84,6 +85,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 			cfg := fixtureCacheConfig()
 			cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+			cfg.ResolvePlayback = c.resolvePlayback
 			for host := range cfg.Origins {
 				cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 			}
@@ -117,7 +119,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			if b.Total != total || b.Checked != total {
 				t.Fatalf("%+v", b)
 			}
-			if tc.working == "" || tc.working == "99" {
+			if !tc.success {
 				if b.Failed != total || len(b.Failures) != total || b.Downloaded != 0 || downloads.Load() != 0 {
 					t.Fatalf("batch=%+v downloads=%d", b, downloads.Load())
 				}
@@ -174,6 +176,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	c.apiBase, c.checksumURL, c.client.Transport = api.URL, api.URL+"/catalog", http.DefaultTransport
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 	}
@@ -246,6 +249,7 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 	c := testConsole(t)
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, c.settings.VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -262,7 +266,7 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 	if closeErr := engine.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	status, readErr := cacheproxy.LoadCatalogStatus(context.Background(), fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)).DatabasePath)
+	_, readErr := cacheproxy.LoadCatalogStatus(context.Background(), fixtureLibraryPaths(filepath.Dir(cfg.VideoDir)).DatabasePath)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
@@ -271,7 +275,7 @@ func TestCatalogRedirectErrorPrivacy(t *testing.T) {
 		t.Fatal(readErr)
 	}
 	for name, message := range map[string]string{
-		"returned": err.Error(), "database": status.Error,
+		"returned": err.Error(), "current check": c.metadata.CatalogError(),
 		"batch": c.batch.CatalogWarning, "snapshot": saved.CatalogWarning,
 	} {
 		if strings.Contains(message, secret) || strings.Contains(message, "token=") || strings.Contains(message, "example.invalid") {
@@ -326,6 +330,7 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 					if cached {
 						cfg := fixtureCacheConfig()
 						cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+						cfg.ResolvePlayback = c.resolvePlayback
 						engine, err := cacheproxy.New(cfg)
 						if err != nil {
 							t.Fatal(err)
@@ -384,6 +389,7 @@ func TestCatalogRetryReplacesFallbackWarning(t *testing.T) {
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
+	cfg.ResolvePlayback = c.resolvePlayback
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)

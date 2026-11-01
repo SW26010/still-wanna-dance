@@ -10,9 +10,8 @@ import (
 
 // SongMetadataCandidates ranks missing URL/size metadata by individual song
 // scores. Songs without a mapping are candidates too.
-// Historical URLs count as metadata: their playback freshness is independently
-// checked by SongURLs. Expiry alone must not keep starving unfilled songs.
-func (s *Store) SongMetadataCandidates(ctx context.Context, api string) (resultValue []int64, resultErr error) {
+// One resource address completes the chain for all currently associated songs.
+func (s *Store) SongMetadataCandidates(ctx context.Context) (resultValue []int64, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
@@ -21,28 +20,28 @@ func (s *Store) SongMetadataCandidates(ctx context.Context, api string) (resultV
 	s.usage.flush()
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
-	filter, args := songURLNodeFilter(playbacksource.Nodes())
-	previousAPI := api
-	if api == playbacksource.DefaultAPI {
-		previousAPI = legacyUdonAPI
-	}
-	args = append([]any{api, previousAPI}, args...)
-	rows, err := s.usage.db.QueryContext(ctx, `SELECT s.id FROM songs s
+	filter, args := mediaURLNodeFilter(playbacksource.Nodes())
+	rows, err := s.usage.db.QueryContext(ctx, `SELECT s.id,COALESCE(sm.md5,''),COALESCE(m.byte_size,0),COALESCE(u.node,''),COALESCE(u.url,'') FROM songs s
  LEFT JOIN song_media sm ON sm.song_id=s.id LEFT JOIN media m ON m.md5=sm.md5
- WHERE m.byte_size IS NULL OR m.byte_size<=0
-  OR NOT EXISTS(SELECT 1 FROM song_urls u WHERE u.song_id=s.id AND u.api IN (?,?)`+filter+`
-    AND u.md5=sm.md5 AND u.url<>'' AND u.failed_at=0)`, args...)
+ LEFT JOIN media_urls u ON u.md5=sm.md5`+filter, args...)
 	if err != nil {
 		return nil, err
 	}
-	var ids []int64
+	complete := map[int64]bool{}
 	for rows.Next() {
 		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var u MediaURL
+		if err := rows.Scan(&id, &u.MD5, &u.Size, &u.Node, &u.URL); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		ids = append(ids, id)
+		complete[id] = complete[id] || u.Size > 0 && validMediaURL(u)
+	}
+	var ids []int64
+	for id, ready := range complete {
+		if !ready {
+			ids = append(ids, id)
+		}
 	}
 	err = rows.Err()
 	rows.Close()

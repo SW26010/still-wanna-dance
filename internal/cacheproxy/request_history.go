@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -199,18 +198,16 @@ type LatencyGroup struct {
 	P95MS   *float64 `json:"p95MS"`
 }
 type FirstBodyLatency struct {
-	From          int64        `json:"from"`
-	To            int64        `json:"to"`
-	AvailableFrom *int64       `json:"availableFrom"`
-	Partial       bool         `json:"partial"`
-	Blocking      LatencyGroup `json:"blocking"`
-	Ready         LatencyGroup `json:"ready"`
+	From     int64        `json:"from"`
+	To       int64        `json:"to"`
+	Blocking LatencyGroup `json:"blocking"`
+	Ready    LatencyGroup `json:"ready"`
 }
 
 // Exact nearest-rank percentiles are calculated in SQLite; only two aggregate
-// rows reach the UI. Retention and collection coverage survive process restarts.
+// rows reach the UI. Only retained samples contribute; no coverage watermark is inferred.
 func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Time) (FirstBodyLatency, error) {
-	r := FirstBodyLatency{From: now.Add(-72 * time.Hour).UnixMilli(), To: now.UnixMilli(), Partial: true}
+	r := FirstBodyLatency{From: now.Add(-72 * time.Hour).UnixMilli(), To: now.UnixMilli()}
 	db, err := readDatabaseFile(databasePath)
 	if err != nil {
 		return r, err
@@ -218,17 +215,6 @@ func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Tim
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	var start, retained int64
-	err = db.QueryRowContext(ctx, "SELECT started_at,retained_since FROM request_observation WHERE id=1").Scan(&start, &retained)
-	if err == sql.ErrNoRows {
-		return r, nil
-	}
-	if err != nil {
-		return r, err
-	}
-	available := max(r.From, start, retained)
-	r.AvailableFrom = &available
-	r.Partial = available > r.From
 	rows, err := db.QueryContext(ctx, `WITH samples AS (
  SELECT first_body_blocking AS blocking,first_body_ns AS ns,
  row_number() OVER (PARTITION BY first_body_blocking ORDER BY first_body_ns) AS rank,

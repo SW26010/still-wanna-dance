@@ -27,6 +27,184 @@ func fillTestCatalog(t *testing.T, s *Server, songs []CatalogSong) LocalCatalog 
 	return local
 }
 
+func TestDownloadFillTriesAllSharedSongCandidates(t *testing.T) {
+	var mu sync.Mutex
+	var attempts []string
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, payload)
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			mu.Lock()
+			attempts = append(attempts, id)
+			mu.Unlock()
+			if id != "1" {
+				return "", errors.New("song address unavailable")
+			}
+			return videoURL(payload), nil
+		}
+	})
+	songs := make([]CatalogSong, 9)
+	for i := range songs {
+		songs[i] = CatalogSong{ID: int64(i + 1), MD5: videoKey(payload)}
+	}
+	local := fillTestCatalog(t, s, songs)
+	result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, s.PrefetchDownload, nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if err != nil || result.Total != 9 || result.Downloaded != 9 || result.Failed != 0 || len(attempts) != 9 || attempts[8] != "1" {
+		t.Fatalf("result=%+v attempts=%v error=%v", result, attempts, err)
+	}
+}
+
+func TestDownloadFillUsesBlockedSelectedSongAsAddressHint(t *testing.T) {
+	var mu sync.Mutex
+	var attempts []string
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, payload)
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			mu.Lock()
+			attempts = append(attempts, id)
+			mu.Unlock()
+			if id != "1" {
+				return "", errors.New("song address unavailable")
+			}
+			return videoURL(payload), nil
+		}
+	})
+	local := fillTestCatalog(t, s, []CatalogSong{
+		{ID: 1, MD5: videoKey(payload)},
+		{ID: 2, MD5: videoKey(payload)},
+	})
+	if err := s.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, s.PrefetchDownload, nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if err != nil || result.Total != 2 || result.Checked != 2 || result.Skipped != 1 || result.Downloaded != 1 || result.Failed != 0 || !reflect.DeepEqual(attempts, []string{"2", "1"}) {
+		t.Fatalf("result=%+v attempts=%v error=%v", result, attempts, err)
+	}
+	var blockedDemands int
+	if err := s.db.QueryRow("SELECT COALESCE(SUM(demand_count), 0) FROM song_usage WHERE song_id=1").Scan(&blockedDemands); err != nil || blockedDemands != 0 {
+		t.Fatalf("blocked song demands=%d error=%v", blockedDemands, err)
+	}
+}
+
+func TestDownloadFillDoesNotResolveUnselectedAliases(t *testing.T) {
+	const firstID, nextID = int64(9000100), int64(9000001)
+	staleLookup, nextLookup := make(chan string, 1), make(chan struct{}, 1)
+	s, _ := setup(t, nil, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
+			switch id {
+			case strconv.FormatInt(firstID, 10):
+				return "", errors.New("first song unavailable")
+			case strconv.FormatInt(nextID, 10):
+				nextLookup <- struct{}{}
+				return "", errors.New("next song unavailable")
+			default:
+				staleLookup <- id
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
+		}
+	})
+	local := fillTestCatalog(t, s, []CatalogSong{
+		{ID: firstID, MD5: videoKey(payload)},
+		{ID: nextID, MD5: videoKey("next resource")},
+	})
+	for id := int64(9000200); id < 9000220; id++ {
+		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan DownloadFillResult, 1)
+	go func() {
+		result, _ := s.NewDownloadFill(ctx, false, false).Run(local, s.PrefetchDownload, nil)
+		done <- result
+	}()
+	select {
+	case id := <-staleLookup:
+		cancel()
+		<-done
+		t.Fatalf("unselected song %s blocked the next resource", id)
+	case <-nextLookup:
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("next resource was not processed")
+	}
+	select {
+	case result := <-done:
+		if result.Checked != 2 || result.Failed != 2 {
+			t.Fatalf("unexpected batch result: %+v", result)
+		}
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("batch did not finish")
+	}
+}
+
+func TestDownloadFillCanResolveSelectedHistoricalSongs(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		target DownloadTarget
+		want   []string
+	}{
+		{"song", DownloadTarget{SongID: "9000200"}, []string{"9000200"}},
+		{"resource", DownloadTarget{Resource: videoKey(payload)}, []string{"9000201", "9000200"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			var attempts []string
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, payload) }, func(cfg *Config) {
+				cfg.CacheUnlimited = true
+				cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+					mu.Lock()
+					attempts = append(attempts, id)
+					mu.Unlock()
+					if id != "9000200" {
+						return "", errors.New("song address unavailable")
+					}
+					return videoURL(payload), nil
+				}
+			})
+			fillTestCatalog(t, s, []CatalogSong{{ID: 9000100, MD5: videoKey("current resource")}})
+			if _, err := s.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", videoKey(payload), len(payload)); err != nil {
+				t.Fatal(err)
+			}
+			for _, id := range []int64{9000200, 9000201} {
+				if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			local, release, err := s.ReadDownloadTarget(t.Context(), tc.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer release()
+			result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, s.PrefetchDownload, nil)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil || result.Downloaded != len(tc.want) || result.Failed != 0 || !reflect.DeepEqual(attempts, tc.want) {
+				t.Fatalf("result=%+v attempts=%v want=%v error=%v", result, attempts, tc.want, err)
+			}
+		})
+	}
+}
+
 func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	const firstID, otherID, retainedID = 9000004, 9000003, 9000001
 	budgetStop := make(chan struct{})
@@ -69,6 +247,10 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 		mu.Unlock()
 		switch id {
 		case firstID:
+			if _, err := s.PrefetchSong(ctx, strconv.FormatInt(id, 10), videoURL(payload)); !errors.Is(err, errUpstreamDownload) {
+				return "", err
+			}
+			retry.Store(true)
 			return s.PrefetchSong(ctx, strconv.FormatInt(id, 10), videoURL(payload))
 		case otherID:
 			mu.Lock()
@@ -82,9 +264,6 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 			}
 			close(budgetStop)
 			return source, err
-		case retainedID:
-			retry.Store(true)
-			return s.PrefetchSong(ctx, strconv.FormatInt(id, 10), videoURL(payload))
 		default:
 			return "", fmt.Errorf("unexpected candidate %d", id)
 		}
@@ -100,7 +279,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	if !reflect.DeepEqual(result, want) || !reflect.DeepEqual(latest, want) {
 		t.Fatalf("result=%+v progress=%+v, want %+v", result, latest, want)
 	}
-	if !reflect.DeepEqual(calls, []int64{firstID, otherID, retainedID}) {
+	if !reflect.DeepEqual(calls, []int64{firstID, otherID}) {
 		t.Fatal("lost resource or candidate order", calls)
 	}
 	data, err := os.ReadFile(cfg.videoFile(videoKey(payload)))
@@ -127,9 +306,7 @@ func TestDownloadFillCancellationWaitsForRetrySettlement(t *testing.T) {
 		result, resultErr = s.NewDownloadFill(ctx, false, false).Run(local, func(ctx context.Context, id int64) (string, error) {
 			switch id {
 			case 9000003:
-				// An early failure has no admission notification.
-				return "", errors.New("address unavailable")
-			case 9000002:
+				// Fixed-resource preparation owns its retries until settlement.
 				close(retrying)
 				<-ctx.Done()
 				close(settling)
@@ -159,7 +336,7 @@ func TestDownloadFillCancellationWaitsForRetrySettlement(t *testing.T) {
 	}
 	release <- struct{}{}
 	wait(done)
-	if !errors.Is(resultErr, context.Canceled) || result.Total != 3 || result.Checked != 0 || result.Failed != 0 || result.CurrentSongID != "9000002" {
+	if !errors.Is(resultErr, context.Canceled) || result.Total != 3 || result.Checked != 0 || result.Failed != 0 || result.CurrentSongID != "9000003" {
 		t.Fatalf("cancellation changed partial results: %+v err=%v", result, resultErr)
 	}
 }

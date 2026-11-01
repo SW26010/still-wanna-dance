@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,7 +18,7 @@ func TestMediaOnlyImportUsesActualBudgetAndMappingScore(t *testing.T) {
 	s, cfg := setup(t, nil)
 	orphan, mapped := "orphan-A", "mapped-B"
 	a, b := fmt.Sprintf("%x", md5.Sum([]byte(orphan))), fmt.Sprintf("%x", md5.Sum([]byte(mapped)))
-	if err := s.applyMediaSeed(t.Context(), seedJSON(t, "20261029000000", []string{a, b}, mediaseed.Mapping{ID: 1, MD5: b})); err != nil {
+	if err := insertSeedFixture(s.Store, seedJSON(t, "20261029000000", []string{a, b}, mediaseed.Mapping{ID: 1, MD5: b})); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
@@ -55,142 +56,83 @@ func seedJSON(t *testing.T, version string, media []string, mappings ...mediasee
 	return string(body)
 }
 
-func TestMediaSeedFillsOnlyAndHasIndependentVersion(t *testing.T) {
-	s, _ := setup(t, nil)
-	ctx := t.Context()
-	a, b, c := strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32)
-	seed := seedJSON(t, "20261029000000", []string{a, b}, mediaseed.Mapping{ID: 1, MD5: a})
-	if err := s.applyMediaSeed(ctx, seed); err != nil {
-		t.Fatal(err)
+func insertSeedFixture(s *Store, seed string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
 	}
-	var version string
-	if err := s.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='media_seed'").Scan(&version); err != nil || version != "20261029000000" {
-		t.Fatal(version, err)
+	defer tx.Rollback()
+	if err := initializeMediaSeed(tx, seed); err != nil {
+		return err
 	}
-	status, err := s.CatalogStatus(ctx)
-	if err != nil || status.Revision != "" || !status.CheckedAt.IsZero() {
-		t.Fatal("seed became a song catalog", status, err)
-	}
-	var members int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM catalog_members").Scan(&members); err != nil || members != 0 {
-		t.Fatal(members, err)
-	}
-	known, err := s.KnownMedia(ctx)
-	if err != nil || len(known) != 2 || !known[a] || !known[b] {
-		t.Fatal(known, err)
-	}
-	// A repeated seed is a no-op, including when a real API already corrected it.
-	at := time.Now()
-	if err := s.ObserveSongURL(ctx, SongURL{SongID: 1, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/1-new.mp4?e=" + b + "&s=24", QueryStartedAt: at, ObservedAt: at}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.applyMediaSeed(ctx, seed); err != nil {
-		t.Fatal(err)
-	}
-	newer := seedJSON(t, "20261030000000", []string{a, b, c}, mediaseed.Mapping{ID: 1, MD5: a}, mediaseed.Mapping{ID: 2, MD5: c})
-	if err := s.applyMediaSeed(ctx, newer); err != nil {
-		t.Fatal(err)
-	}
-	assertSongResource(t, s, "1", b)
-	assertSongResource(t, s, "2", c)
-	var size int64
-	if err := s.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", b).Scan(&size); err != nil || size != 24 {
-		t.Fatal("seed erased known size", size, err)
-	}
-	if err := s.applyMediaSeed(ctx, seed); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='media_seed'").Scan(&version); err != nil || version != "20261030000000" {
-		t.Fatal("old program regressed seed marker", version, err)
-	}
-	if err := s.applyMediaSeed(ctx, strings.Replace(newer, `"id":2`, `"id":3`, 1)); err == nil {
-		t.Fatal("same-version seed conflict accepted")
-	}
+	return tx.Commit()
 }
 
-func TestMediaSeedValidationAndAtomicRollback(t *testing.T) {
-	a := strings.Repeat("a", 32)
-	for _, encoded := range []string{
-		`{}`, seedJSON(t, "bad", []string{a}), seedJSON(t, "20261029000000", []string{"bad"}),
-		seedJSON(t, "20261029000000", []string{a, a}),
-		seedJSON(t, "20261029000000", []string{a}, mediaseed.Mapping{ID: 1, MD5: strings.Repeat("b", 32)}),
-		seedJSON(t, "20261029000000", []string{a}, mediaseed.Mapping{ID: 1, MD5: a}, mediaseed.Mapping{ID: 1, MD5: a}),
-	} {
-		s, _ := setup(t, nil)
-		if err := s.applyMediaSeed(t.Context(), encoded); err == nil {
-			t.Fatal("accepted invalid seed", encoded)
-		}
-		var count int
-		if err := s.db.QueryRow("SELECT COUNT(*) FROM media").Scan(&count); err != nil || count != 0 {
-			t.Fatal(count, err)
-		}
-	}
-	s, _ := setup(t, nil)
-	if _, err := s.db.Exec("CREATE TRIGGER fail_seed BEFORE INSERT ON song_media BEGIN SELECT RAISE(ABORT,'seed failure'); END"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.applyMediaSeed(t.Context(), seedJSON(t, "20261029000000", []string{a}, mediaseed.Mapping{ID: 1, MD5: a})); err == nil {
-		t.Fatal("failure committed")
-	}
-	for _, table := range []string{"songs", "media", "song_media", "catalog_state"} {
-		var count int
-		if err := s.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
-			t.Fatal(table, count, err)
-		}
-	}
-}
-
-func TestMediaSeedSizesOnlyFillHoles(t *testing.T) {
-	s, _ := setup(t, nil)
-	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
-	if _, err := s.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,24),(?,NULL)", a, b); err != nil {
-		t.Fatal(err)
-	}
-	size := int64(48)
-	seed := mediaseed.Snapshot{Version: "20261029000000", Media: []mediaseed.Media{{MD5: a, ByteSize: &size}, {MD5: b, ByteSize: &size}}}
-	body, err := json.Marshal(seed)
+func TestBundledMediaSeedOnlyOnCreation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "seed.sqlite")
+	s, err := CreateStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.applyMediaSeed(t.Context(), string(body)); err != nil {
-		t.Fatal(err)
-	}
-	for key, want := range map[string]int64{a: 24, b: 48} {
-		var got int64
-		if err := s.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&got); err != nil || got != want {
-			t.Fatal(got, want, err)
-		}
-	}
-}
-
-func TestBundledMediaSeedIntegrityAndReopen(t *testing.T) {
-	s, cfg := setup(t, nil)
-	if err := s.ApplyBundledMediaSeed(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	for table, want := range map[string]int{"media": 10446, "song_media": 10471, "songs": 10471, "catalog_members": 0, "song_urls": 0, "song_usage": 0} {
+	defer s.Close()
+	for table, want := range map[string]int{"media": 10446, "song_media": 10471, "songs": 10471, "catalog_members": 0, "media_urls": 0, "song_usage": 0, "catalog_state": 0} {
 		var count int
 		if err := s.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatal(table, count, want, err)
 		}
 	}
-	var nullSize int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM media WHERE byte_size IS NULL").Scan(&nullSize); err != nil || nullSize != 29 {
-		t.Fatal(nullSize, err)
+	// An existing library may deliberately have no seed rows. Reopening, format
+	// selection and read-only inspection must preserve it, never reseed it.
+	if _, err := s.db.Exec("DELETE FROM song_media; DELETE FROM songs; DELETE FROM media"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSongPolicy(t.Context(), 42, SongFavorite); err != nil {
+		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	reopenFixtureStore(t, &cfg)
-	if err := cfg.Store.ApplyBundledMediaSeed(t.Context()); err != nil {
+	if err := CheckDatabaseSelection(path); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := cfg.Store.db.Query("PRAGMA foreign_key_check")
+	s, err = OpenStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
-	if rows.Next() {
-		t.Fatal("broken foreign key")
+	defer s.Close()
+	var count int
+	if err := s.db.QueryRow("SELECT count(*) FROM media").Scan(&count); err != nil || count != 0 {
+		t.Fatal(count, err)
+	}
+	if policy, err := s.SongPolicies(t.Context()); err != nil || policy[42] != SongFavorite {
+		t.Fatal(policy, err)
+	}
+}
+
+func TestCreationSeedFailureRollsBackSchemaAndVersion(t *testing.T) {
+	key := strings.Repeat("a", 32)
+	for _, seed := range []string{"{}", seedJSON(t, "bad", []string{key}), seedJSON(t, "20261029000000", []string{key, key}), seedJSON(t, "20261029000000", []string{key}, mediaseed.Mapping{ID: 1, MD5: strings.Repeat("b", 32)})} {
+		path := filepath.Join(t.TempDir(), "failed.sqlite")
+		db, err := sql.Open("sqlite", filepath.ToSlash(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := initializeStorageFromSeed(db, seed); err == nil {
+			t.Fatal("invalid seed initialized database")
+		}
+		if got := migrationRows(t, db, "PRAGMA user_version"); got != "[0]\n" {
+			t.Fatal(got)
+		}
+		if got := migrationRows(t, db, "SELECT count(*) FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'"); got != "[0]\n" {
+			t.Fatal(got)
+		}
+		db.Close()
+		if store, err := OpenStore(path); err == nil {
+			store.Close()
+			t.Fatal("failed creation accepted")
+		}
+		if _, err := os.Stat(path); err != nil {
+			t.Fatal("recovery file removed", err)
+		}
 	}
 }

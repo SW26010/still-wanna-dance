@@ -24,7 +24,7 @@ import (
 
 type video struct {
 	candidates             *songCandidates
-	cached                 *SongURL
+	savedAddress           bool
 	refresh                *playbackCheck
 	localOnly              bool
 	songID                 string
@@ -60,7 +60,6 @@ type Server struct {
 	getMu            sync.Mutex // Current incoming GET observations; independent of worker locks.
 	currentGETs      map[uint64]*currentGET
 	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
-	stats            trafficStats
 	cfg              Config
 	client           *http.Client
 	ctx              context.Context
@@ -227,9 +226,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	if err := store.usage.start(cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited); err != nil {
 		return nil, err
 	}
-	if err := s.loadTraffic(store.db); err != nil {
-		return nil, fmt.Errorf("load traffic statistics: %w", err)
-	}
+
 	if initialRead != "" {
 		s.pinVideo(video{key: initialRead})
 		s.wg.Add(1)
@@ -433,14 +430,9 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		}
 		event.firstBodyNS = response.firstBodyLatency.Nanoseconds()
 		event.elapsedMS = time.Since(start).Milliseconds()
-		event.cache = w.Header().Get("X-SWD-Cache")
-		if event.cache == "" {
-			event.cache = "UNKNOWN"
-		}
 		event.outcome = response.outcome(clientContext, panicked)
 		if preview == nil {
 			s.usage.record(event)
-			s.recordTraffic(r.Method, event.cache, event.outcome, event.status, event.bytes)
 		}
 		if panicked != nil {
 			panic(panicked)
@@ -455,7 +447,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		v, release, err = s.requestVideo(r, observed, response.current)
 	}
 	response.current.identify(v.songID, v.key)
-	event.key, event.host, event.size, event.songID = v.key, v.host, v.size, v.songID
+	event.key, event.songID = v.key, v.songID
 	if release != nil {
 		defer release()
 	}
@@ -554,7 +546,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		}
 		s.releaseVideo(v)
 		v = replacement
-		event.key, event.host, event.size = v.key, v.host, v.size
+		event.key = v.key
 		response.current.identify(v.songID, v.key)
 		return nil
 	}
@@ -584,7 +576,7 @@ loadVideo:
 		}
 	} else {
 		f, stream, err = s.obtainDemand(r.Context(), v, false, r.Method == http.MethodGet)
-		if err != nil && (preview != nil || v.cached != nil) && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
+		if err != nil && (preview != nil || v.savedAddress) && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
 			if err = retry(err); err == nil {
 				goto loadVideo
 			}
@@ -610,7 +602,7 @@ serveVideo:
 		}
 		pending := serveStream(w, r, v, stream)
 		if stream.err != nil {
-			if (preview != nil || v.cached != nil) && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
+			if (preview != nil || v.savedAddress) && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
 				if !pending.committed {
 					// finish wakes readers before the failed flight is removed.
 					// Wait for removal so a same-MD5 retry starts a new flight.
@@ -621,11 +613,6 @@ serveVideo:
 					}
 					if stream.err = retry(stream.err); stream.err == nil {
 						goto loadVideo
-					}
-				}
-				if v.cached != nil {
-					if rejectErr := s.RejectSongURL(r.Context(), *v.cached); rejectErr != nil {
-						log.Warn("song_url_reject_failed", "error", applog.SafeError(rejectErr))
 					}
 				}
 			}

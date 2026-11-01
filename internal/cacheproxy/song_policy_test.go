@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
@@ -115,8 +114,8 @@ func TestResourcePoliciesFollowSharedCurrentAssociations(t *testing.T) {
 	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	now := time.Now()
-	if err := s.ObserveSongURL(ctx, SongURL{SongID: 1, API: "https://api.udon.dance/Api/Songs/play", Node: "cf", URL: "https://play.udon.dance/files/1/1-new.mp4?e=" + b + "&s=12", QueryStartedAt: now, ObservedAt: now}); err != nil {
+
+	if err := s.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-new.mp4?e=" + b + "&s=12"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.resourcePolicies(ctx)

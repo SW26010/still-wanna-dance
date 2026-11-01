@@ -70,7 +70,7 @@ func TestResolveLogsMalformedLocationIsRedacted(t *testing.T) {
 	if strings.Contains(output.String(), "secret") || strings.Contains(output.String(), "token") {
 		t.Fatalf("Location leaked: %s", output.String())
 	}
-	if !strings.Contains(output.String(), "prefetch_upstream_failed") {
+	if !strings.Contains(output.String(), "playback_check_failed") {
 		t.Fatal("missing resolution failure")
 	}
 }

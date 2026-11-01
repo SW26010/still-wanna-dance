@@ -2,7 +2,9 @@ package upstreamcheck
 
 import (
 	"context"
+	"errors"
 
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 )
@@ -30,6 +32,7 @@ type ConnectivityBusiness struct {
 func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business ConnectivityBusiness, catalogOnly bool, publish func(Result)) {
 	checking := func(op Operation, route string) { publish(Result{Operation: op, Route: route, State: "checking"}) }
 	var sampleSong int64
+	var catalogResponses []CatalogResponse
 	accepted := false
 	for _, route := range catalogmeta.SourceIDs() {
 		if ctx.Err() != nil {
@@ -44,9 +47,12 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 		publish(result)
 		if len(response.Body) > 0 {
 			var err error
-			accepted, err = business.OnCatalog(ctx, []CatalogResponse{response})
+			catalogResponses = append(catalogResponses, response)
+			accepted, err = business.OnCatalog(ctx, catalogResponses)
 			if err != nil {
-				return
+				if ctx.Err() != nil || errors.Is(err, cacheproxy.ErrLocalStorage) {
+					return
+				}
 			}
 			if accepted {
 				sampleSong = id

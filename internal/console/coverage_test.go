@@ -74,15 +74,21 @@ func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 	}
 	c.startInventoryScan()
 	after := waitInventory(t, c)
-	if after.Error != "" || after.CoveredSongs != 1 || !after.Updated.After(v.Updated) || after.Catalog.Error == "" || !after.Catalog.CheckedAt.Equal(v.Catalog.CheckedAt) {
+	if after.Error != "" || after.CoveredSongs != 1 || !after.Updated.After(v.Updated) || !after.CoverageKnown {
 		t.Fatalf("did not recompute local coverage: %+v", after)
+	}
+	if warning := c.metadata.CatalogError(); !strings.Contains(warning, "503") {
+		t.Fatal("current sync result lost the HTTP failure", warning)
 	}
 	timeout.Store(true)
 	c.client.Timeout = 20 * time.Millisecond
 	c.startInventoryScan()
 	after = waitInventory(t, c)
-	if after.Error != "" || after.CoveredSongs != 1 || after.Catalog.Error == "" || !after.Catalog.CheckedAt.Equal(v.Catalog.CheckedAt) {
+	if after.Error != "" || after.CoveredSongs != 1 || !after.CoverageKnown {
 		t.Fatal(after)
+	}
+	if warning := c.metadata.CatalogError(); warning == "" || strings.Contains(warning, "503") {
+		t.Fatal("timeout did not replace the previous sync error", warning)
 	}
 }
 
@@ -110,16 +116,13 @@ func TestCoverageOnlineStillUsesDatabaseSnapshot(t *testing.T) {
 	c.startInventoryScan()
 	v := waitInventory(t, c)
 	// ID 2 remains in the library but no longer belongs to the accepted catalog.
-	if v.Error != "" || v.TotalSongs != 1 || v.CoveredSongs != 1 || v.CatalogRevision != "20261001000000" || v.Catalog.CheckedAt.IsZero() {
+	if v.Error != "" || v.TotalSongs != 1 || v.CoveredSongs != 1 || v.CatalogRevision != "20261001000000" {
 		t.Fatal(v)
 	}
 }
 
 func TestCoverageSeedIsUnknownAndUnresolvedMembersStayInDenominator(t *testing.T) {
-	c := testConsole(t)
-	if err := c.store.ApplyBundledMediaSeed(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	c := testConsoleWithSeed(t, true)
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	engine, err := cacheproxy.New(cfg)
@@ -132,7 +135,7 @@ func TestCoverageSeedIsUnknownAndUnresolvedMembersStayInDenominator(t *testing.T
 	c.checksumURL, c.client.Transport = api.URL, http.DefaultTransport
 	var seeded Inventory
 	c.addInventoryCoverage(t.Context(), &seeded)
-	if seeded.CoverageKnown || seeded.TotalSongs != 0 || seeded.Error == "" {
+	if seeded.CoverageKnown || seeded.TotalSongs != 0 || seeded.Error == "" || !strings.Contains(c.metadata.CatalogError(), "503") {
 		t.Fatal(seeded)
 	}
 	key := strings.Repeat("a", 32)
@@ -147,7 +150,7 @@ func TestCoverageSeedIsUnknownAndUnresolvedMembersStayInDenominator(t *testing.T
 	}
 	var current Inventory
 	c.addInventoryCoverage(t.Context(), &current)
-	if current.Error != "" || !current.CoverageKnown || current.TotalSongs != 3 || current.CoveredSongs != 1 || current.UnresolvedSongs != 2 {
+	if current.Error != "" || !current.CoverageKnown || current.TotalSongs != 3 || current.CoveredSongs != 1 || current.UnresolvedSongs != 2 || !strings.Contains(c.metadata.CatalogError(), "503") {
 		t.Fatal(current)
 	}
 }

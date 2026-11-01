@@ -185,8 +185,7 @@ func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
 		{"initial-redirects", 6, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
+			var cancel context.CancelFunc
 			var calls atomic.Int32
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				n := int(calls.Add(1))
@@ -215,6 +214,8 @@ func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
 				}
 				return channels
 			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
 			_, err := s.Prefetch(ctx, videoURL(payload))
 			// Follow five redirects, then reject the sixth. Initial redirects
 			// must still count after the first response reaches the block reader.

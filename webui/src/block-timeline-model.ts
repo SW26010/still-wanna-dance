@@ -53,7 +53,7 @@ export function blockNumber(block: BlockView) {
   return `${block.block + 1}/${block.totalBlocks > 0 ? block.totalBlocks : '?'}`;
 }
 export function demandLabel(demand: BlockDemand) {
-  return demand.kind === 'get' ? `GET #${demand.sourceID}` : demand.kind === 'queue' ? `队列 #${demand.position}` : demand.kind === 'batch' ? '手动下载' : '短期交接';
+  return demand.kind === 'get' ? `读取 #${demand.sourceID}` : demand.kind === 'queue' ? `队列 #${demand.position}` : demand.kind === 'batch' ? '手动下载' : '短期交接';
 }
 export function compareDemands(a: BlockDemand, b: BlockDemand) {
   const rank = { get: 0, handoff: 1, queue: 2, batch: 3 };

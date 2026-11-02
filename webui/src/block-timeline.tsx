@@ -1,26 +1,51 @@
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Badge, Button, Caption1, Card, CardHeader, Popover, PopoverSurface, Slider, Spinner, Subtitle2, Switch, Text, Tooltip } from '@fluentui/react-components';
-import { Add20Regular, Subtract20Regular, ArrowSync20Regular, ChevronDown20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
+import { Badge, Button, Caption1, Card, CardHeader, CardPreview, Popover, PopoverSurface, Spinner, Subtitle2, Switch, Text, Tooltip } from '@fluentui/react-components';
+import { Add16Regular, Subtract16Regular, ArrowSync16Regular, ChevronDown20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
 import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { Feedback, StatusBadge, useThemePreference } from './ui';
-import { useApp } from './hooks';
+import { useApp, useFocusRecovery } from './hooks';
 import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
-import { blockLane, blockY, drawTimeline, hitBlocks, timelineLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
+import { blockY, drawTimeline, hitBlocks, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
-import { gib, mb } from './types';
+import { gib } from './types';
+import { bootstrap } from './bootstrap';
 
 type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
+const blockSize = 16; // CSS px, chosen to match the current card title's font size.
+const speedUnitKey = 'swd-download-speed-mbps-run';
+
+function readSpeedInBits() {
+  try { return localStorage.getItem(speedUnitKey) === bootstrap.token; }
+  catch { return false; }
+}
 
 export function BlockTimeline({ visible }: { visible: boolean }) {
   const app = useApp(), documentVisible = useDocumentVisible();
   const container = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [speedInBits, setSpeedInBits] = useState(readSpeedInBits);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === speedUnitKey || event.key === null) setSpeedInBits(readSpeedInBits());
+    };
+    addEventListener('storage', sync);
+    return () => removeEventListener('storage', sync);
+  }, []);
+  const toggleSpeedUnit = () => {
+    const next = !speedInBits;
+    setSpeedInBits(next);
+    // The existing token changes on each SWD run; no program settings are saved.
+    try {
+      if (next) localStorage.setItem(speedUnitKey, bootstrap.token);
+      else localStorage.removeItem(speedUnitKey);
+    } catch { /* Keep the in-page choice if browser storage is unavailable. */ }
+  };
   useEffect(() => {
     // A resize/scroll can enqueue multiple transitions for this same element.
     // Apply the latest entry, including when a long panel crosses the viewport.
@@ -31,16 +56,18 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
   const enabled = visible && inView && documentVisible && !app.stopped;
   const { data, connection, speed, cacheBytes } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
+  const taskCounts = data?.running && connection !== 'offline' && !app.stopped ? data : undefined;
+  const speedText = `${(speedInBits ? speed * 8 / 1e6 : speed / 1048576).toFixed(2)} ${speedInBits ? 'Mbps' : 'MiB/s'}`;
   const toggleLabel = expanded ? '收起时间轴视图' : '展开时间轴视图';
   return <div ref={container}><Card size="medium" className="panel block-demand-panel" id="block-demands" tabIndex={-1}>
     <CardHeader header={<div className="block-demand-heading">
-      <Subtitle2 as="h2">视频块需求</Subtitle2>
-      <Text className="block-demand-speed" size={400} weight="semibold" aria-label="总下载速度" title="最近一次约 1 秒采样的网络下载速度">{mb(speed)}/s</Text>
-      <Tooltip content="临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。" relationship="description"><Text className="block-demand-cache" tabIndex={0}>块缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text></Tooltip>
-      {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'error' ? '事件连接中断，正在重连。' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</StatusBadge>}
-      {data&&<Caption1 className="block-demand-capacity">需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}
+      <Subtitle2 as="h2">视频需求</Subtitle2>
+      {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="状态展示：读取中"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '状态展示：已暂停' : connection === 'error' ? '状态展示：重连中' : connection === 'live' ? '状态展示：更新中' : connection === 'offline' ? '状态展示：待启动' : '状态展示：读取中'}</StatusBadge>}
+      <Tooltip content={`切换为 ${speedInBits ? 'MiB/s' : 'Mbps'}；最近一次约 1 秒采样的网络下载速度。`} relationship="description"><Button className="block-demand-speed" size="small" appearance="transparent" aria-label={`总下载速度：${speedText}`} onClick={toggleSpeedUnit}><Text size={400} weight="semibold">{speedText}</Text></Button></Tooltip>
+      <Tooltip content="临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。" relationship="description"><Text className="block-demand-cache" tabIndex={0}>缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text></Tooltip>
+      <Tooltip content="块任务统计当前需求占用的唯一视频块。下载统计执行中的下载任务（含收尾）；分母为当前生效的同时下载数量，播放急需时可临时超出。" relationship="description"><Caption1 className="block-demand-capacity" tabIndex={0}>块任务 {taskCounts ? taskCounts.used.toLocaleString() : '—'} / {data?.capacity || 4096} | 下载 {taskCounts ? taskCounts.active : '—'} / {app.status.data?.activeSettings.downloadConcurrencySoftLimit ?? '—'}</Caption1></Tooltip>
     </div>} action={<Tooltip content={toggleLabel} relationship="label"><Button size="small" appearance="subtle" icon={expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />} aria-label={toggleLabel} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)} /></Tooltip>} />
-    {data && <TimelineViewport data={data} active={active} expanded={expanded} />}
+    {data && <CardPreview><TimelineViewport data={data} active={active} expanded={expanded} /></CardPreview>}
   </Card></div>;
 }
 
@@ -56,12 +83,12 @@ function readPalette(element: HTMLElement): TimelinePalette {
 
 const TimelineViewport = memo(function TimelineViewport({ data, active, expanded }: { data: TimelineData; active: boolean; expanded: boolean }) {
   const {preference}=useThemePreference();
-  const root = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
+  const focus = useFocusRecovery(), root = focus.ref, canvas = useRef<HTMLCanvasElement>(null);
   const surface = useRef<HTMLDivElement>(null), pointerAt = useRef({ x: 0, y: 0 });
   const [width, setWidth] = useState(700), [untimedOffset, setUntimedOffset] = useState(0);
   const [selection, setSelection] = useState<Selection>();
   const [canvasInView, setCanvasInView] = useState(false);
-  const [blockSize, setBlockSize] = useState(18), [layers, setLayers] = useState(false);
+  const [layers, setLayers] = useState(false);
   const demandHover = useRef<{ ids: string[]; target: HTMLCanvasElement } | undefined>(undefined);
   const selectionTarget = useRef<HTMLCanvasElement | null>(null);
   const defaultSpan = Math.max(120000, data.prepareAheadMS * 2 || 1000000);
@@ -70,10 +97,9 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   const [palette, setPalette] = useState<TimelinePalette>();
   const timed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => b.at).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)) : [], [data.blocks, expanded]);
   const untimed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => !b.at).sort((a, b) => a.resource.localeCompare(b.resource) || a.block - b.block) : [], [data.blocks, expanded]);
-  const untimedRows = useMemo(() => layers ? [0, 1, 2].map(row => untimed.filter(b => blockLane(b) === row)) : [untimed], [untimed, layers]);
-  const untimedCount = Math.max(...untimedRows.map(row => row.length));
-  const latest = useRef({ data, active, expanded, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers });
-  latest.current = { data, active, expanded, view, timed, untimed, untimedRows, untimedOffset, selection, width, palette, reducedMotion, blockSize, layers };
+  const untimedBounds = untimedLayout(width, untimed.length, blockSize), visibleUntimedOffset = Math.min(untimedOffset, untimedBounds.maxOffset);
+  const latest = useRef({ data, active, expanded, view, timed, untimed, untimedOffset: visibleUntimedOffset, selection, width, palette, reducedMotion, blockSize, layers });
+  latest.current = { data, active, expanded, view, timed, untimed, untimedOffset: visibleUntimedOffset, selection, width, palette, reducedMotion, blockSize, layers };
   const frame = useRef<TimelineFrame | undefined>(undefined), frozenNow = useRef(data.at || Date.now());
   const animation = useRef(0), repaint = useRef<(force?: boolean) => void>(() => {}), interacting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -137,7 +163,9 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       return ids.length ? { ...old, ids, index: Math.max(0, ids.indexOf(old.ids[old.index])) } : undefined;
     });
   }, [data.blocks]);
-  useEffect(() => { setUntimedOffset(value => Math.min(value, Math.max(0, untimedCount * (blockSize + 6) - width + 48))); }, [untimedCount, width, blockSize]);
+  useEffect(() => {
+    setUntimedOffset(value => Math.min(value, untimedBounds.maxOffset));
+  }, [untimedBounds.maxOffset]);
 
   useEffect(() => {
     const element = canvas.current!, ctx = element.getContext('2d');
@@ -146,12 +174,12 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     const paint = (force = false) => {
       if (disposed || !latest.current.expanded || !canvasInView && !force) return;
       const c = latest.current, currentTime = now();
-      const { height } = timelineLayout(c.layers, !!c.untimed.length, c.blockSize), dpr = window.devicePixelRatio || 1;
+      const { height } = timelineLayout(c.layers, !!c.timed.length, !!c.untimed.length, c.blockSize), dpr = window.devicePixelRatio || 1;
       if (element.width !== Math.round(c.width * dpr) || element.height !== Math.round(height * dpr)) {
         element.width = Math.round(c.width * dpr); element.height = Math.round(height * dpr);
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const currentFrame: TimelineFrame = { data: c.data, timed: c.timed, untimed: c.untimed, untimedRows: c.untimedRows, center: c.view.follow ? currentTime + c.view.offset : c.view.center, now: currentTime, span: c.view.span, width: c.width, untimedOffset: c.untimedOffset, selected: c.selection?.ids[c.selection.index], palette: c.palette!, blockSize: c.blockSize, layers: c.layers };
+      const currentFrame: TimelineFrame = { data: c.data, timed: c.timed, untimed: c.untimed, center: c.view.follow ? currentTime + c.view.offset : c.view.center, now: currentTime, span: c.view.span, width: c.width, untimedOffset: c.untimedOffset, selected: c.selection?.ids[c.selection.index], palette: c.palette!, blockSize: c.blockSize, layers: c.layers };
       frame.current = currentFrame;
       drawTimeline(ctx, currentFrame);
     };
@@ -165,28 +193,47 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   useEffect(() => {
     if (!active || !expanded) return;
     const element = canvas.current!, target = select(element);
-    const base = scaleLinear().domain([-defaultSpan / 2, defaultSpan / 2]).range([24, width - 24]);
+    const range = timelineRange(width, layers), plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
+    const base = scaleLinear().domain([-defaultSpan / 2, defaultSpan / 2]).range(range);
     let anchor = now(), quiet = true;
+    let untimedDrag: { offset: number; transform: ReturnType<typeof zoomTransform> } | undefined;
+    const overUntimed = (clientY: number) => {
+      const c = latest.current;
+      return c.untimed.length > 0 && clientY - element.getBoundingClientRect().top >= timelineLayout(c.layers, !!c.timed.length, true, c.blockSize).untimedY - 28;
+    };
     const centerOffset = (transform: ReturnType<typeof zoomTransform>) => { const domain = transform.rescaleX(base).domain(); return (domain[0] + domain[1]) / 2; };
-    const behavior = zoom<HTMLCanvasElement, unknown>().clickDistance(4).scaleExtent([defaultSpan / maximumSpan, defaultSpan / minimumSpan]).extent((): [[number, number], [number, number]] => [[24, 0], [width - 24, timelineLayout(latest.current.layers, !!latest.current.untimed.length, latest.current.blockSize).height]])
+    const behavior = zoom<HTMLCanvasElement, unknown>().clickDistance(4).scaleExtent([defaultSpan / maximumSpan, defaultSpan / minimumSpan]).extent((): [[number, number], [number, number]] => [[range[0], 0], [range[1], timelineLayout(latest.current.layers, !!latest.current.timed.length, !!latest.current.untimed.length, latest.current.blockSize).height]])
       .filter(event => !event.ctrlKey && !event.button && event.type !== 'wheel')
-      .on('start.timeline', () => {
+      .on('start.timeline', event => {
         if (quiet) return;
-        const current = latest.current.view;
-        anchor = (current.follow ? now() + current.offset : current.center) - centerOffset(zoomTransform(element));
+        const c = latest.current, pointer = event.sourceEvent?.touches?.[0] || event.sourceEvent;
+        if (pointer && overUntimed(pointer.clientY)) untimedDrag = { offset: c.untimedOffset, transform: zoomTransform(element) };
+        else anchor = (c.view.follow ? now() + c.view.offset : c.view.center) - centerOffset(zoomTransform(element));
         interacting.current = true; clearHoverTimers();
         if (!latest.current.selection?.pinned) setSelection(undefined);
       })
       .on('zoom.timeline', event => {
         if (quiet) return;
+        if (untimedDrag) {
+          const c = latest.current, { maxOffset } = untimedLayout(c.width, c.untimed.length, c.blockSize);
+          setUntimedOffset(Math.max(0, Math.min(maxOffset, untimedDrag.offset + untimedDrag.transform.x - event.transform.x)));
+          return;
+        }
         const domain = event.transform.rescaleX(base).domain();
         const next = { follow: false, center: anchor + (domain[0] + domain[1]) / 2, span: domain[1] - domain[0], offset: 0 };
         latest.current.view = next; setView(next); repaint.current();
-      }).on('end.timeline', () => { interacting.current = false; });
+      }).on('end.timeline', () => {
+        if (quiet) return;
+        if (untimedDrag) {
+          const original = untimedDrag.transform; untimedDrag = undefined;
+          quiet = true; target.call(behavior.transform, original); quiet = false;
+        }
+        interacting.current = false;
+      });
     const synchronize = (next: View) => {
       quiet = true; anchor = next.center;
       const k = defaultSpan / next.span;
-      target.call(behavior.transform, zoomIdentity.translate(width / 2 * (1 - k), 0).scale(k));
+      target.call(behavior.transform, zoomIdentity.translate(plotCenter * (1 - k), 0).scale(k));
       quiet = false; latest.current.view = next; setView(next); repaint.current();
     };
     const zoomBy = (factor: number) => {
@@ -198,17 +245,20 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     // Horizontal scrolling in follow mode moves the offset, not the clock.
     target.on('wheel.timeline', (event: WheelEvent) => {
       if (event.ctrlKey || !(event.deltaX || event.deltaY)) return;
+      const c = latest.current, horizontal = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      if (!horizontal && !c.timed.length) return;
       event.preventDefault(); clearHoverTimers();
       if (!latest.current.selection?.pinned) setSelection(undefined);
-      if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-        const c = latest.current, current = c.view;
-        const pixels = (event.deltaX || event.deltaY) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width - 48 : 1);
-        if (c.untimed.length && event.clientY - element.getBoundingClientRect().top >= timelineLayout(c.layers, true, c.blockSize).untimedY - 28) {
-          const maxOffset = Math.max(0, Math.max(...c.untimedRows.map(row => row.length)) * (c.blockSize + 6) - width + 48);
+      if (horizontal) {
+        const current = c.view, inUntimed = overUntimed(event.clientY);
+        const scrollRange = inUntimed ? timelineRange(c.width, false) : range, scrollWidth = scrollRange[1] - scrollRange[0];
+        const pixels = (event.deltaX || event.deltaY) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scrollWidth : 1);
+        if (inUntimed) {
+          const { maxOffset } = untimedLayout(c.width, c.untimed.length, c.blockSize);
           setUntimedOffset(value => Math.max(0, Math.min(maxOffset, value + pixels)));
           return;
         }
-        const shift = pixels * current.span / (width - 48);
+        const shift = pixels * current.span / plotWidth;
         synchronize({ ...current, center: (current.follow ? now() + current.offset : current.center) + shift, offset: current.follow ? current.offset + shift : 0 });
       } else {
         zoomBy(2 ** behavior.wheelDelta().call(element, event, 0, [element]));
@@ -221,7 +271,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       pan: center => synchronize({ ...latest.current.view, follow: false, center, offset: 0 }),
     };
     return () => { target.on('.zoom', null).on('.timeline', null); interacting.current = false; controls.current = { zoom: () => {}, home: () => {}, pan: () => {} }; };
-  }, [active, expanded, width, defaultSpan]);
+  }, [active, expanded, width, defaultSpan, layers]);
 
   const showBlocks = (blocks: BlockView[], x: number, y: number, pinned: boolean) => {
     if (!blocks.length) { if (!selection?.pinned) closeSelection(); return; }
@@ -253,23 +303,29 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   const navigate = (event: KeyboardEvent<HTMLCanvasElement>) => {
     if (!active) return;
     if (event.key === 'Escape') { closeSelection(); return; }
-    if (event.key === '+' || event.key === '=') { event.preventDefault(); controls.current.zoom(1.5); return; }
-    if (event.key === '-') { event.preventDefault(); controls.current.zoom(1 / 1.5); return; }
+    if (timed.length && (event.key === '+' || event.key === '=')) { event.preventDefault(); controls.current.zoom(1.5); return; }
+    if (timed.length && event.key === '-') { event.preventDefault(); controls.current.zoom(1 / 1.5); return; }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter'].includes(event.key)) return;
     event.preventDefault();
     const blocks = [...timed, ...untimed]; if (!blocks.length) return;
     const index = blocks.findIndex(b => b.id === selectedID);
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? blocks.length - 1 : Math.max(0, Math.min(blocks.length - 1, index + (event.key === 'ArrowLeft' ? -1 : event.key === 'Enter' ? 0 : 1)));
     const block = blocks[next];
+    const range = timelineRange(width, !!block.at && layers), plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
+    let anchorX = plotCenter;
     if (block.at) {
       const visibleFrame = frame.current;
       if (!visibleFrame || Math.abs(block.at - visibleFrame.center) > view.span * .4) controls.current.pan(block.at);
-    } else { setUntimedOffset(Math.max(0, untimedRows[layers ? blockLane(block) : 0].findIndex(b => b.id === block.id) * (blockSize + 6) - width / 2)); }
+    } else {
+      const center = untimed.findIndex(b => b.id === block.id) * untimedBounds.pitch + blockSize / 2;
+      const offset = Math.max(0, Math.min(untimedBounds.maxOffset, center - plotWidth / 2));
+      setUntimedOffset(offset); anchorX = untimedBounds.start + center - offset;
+    }
     const rect = canvas.current!.getBoundingClientRect();
     selectionTarget.current = canvas.current;
-    const layout = timelineLayout(layers, true, blockSize);
-    const y = block.at ? blockY(block, layers, blockSize) : layout.untimedY + (layers ? blockLane(block) * layout.lanePitch : 0);
-    showBlocks([block], rect.left + width / 2, rect.top + y + blockSize / 2, true);
+    const layout = timelineLayout(layers, !!timed.length, !!untimed.length, blockSize);
+    const y = block.at ? blockY(block, layers, blockSize) : layout.untimedY;
+    showBlocks([block], rect.left + anchorX, rect.top + y + blockSize / 2, true);
   };
   // The anchor is a viewport point; fixed positioning prevents source-detail
   // height changes from scrolling the document while a popup control has focus.
@@ -280,18 +336,20 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     return counts;
   }, [data.blocks]);
 
-  return <div ref={root} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(view.span)} data-center={Math.round(view.follow ? data.at + view.offset : view.center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
-    <div className="block-demand-controls"><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
-    <label className="timeline-size-control"><Caption1>块显示大小</Caption1><Slider aria-label="块显示大小" min={4} max={36} step={1} value={blockSize} onChange={(_, value) => setBlockSize(value.value)} /><Caption1>{blockSize} px</Caption1></label></div>
-    <div id="block-timeline-content" hidden={!expanded}>
-    <div className="timeline-toolbar"><div className="timeline-window-keys"><Text weight="semibold" size={400}>时间轴视图</Text><span className="timeline-window-key grace">延续 {data.downloadGraceMS / 1000} 秒</span><span className="timeline-window-key ahead">提前 {data.prepareAheadMS / 1000} 秒</span><Switch label="分层显示" checked={layers} onChange={(_, value) => setLayers(value.checked)} /></div><div className="timeline-controls">
-      <Button size="small" icon={<Subtract20Regular />} aria-label="缩小时间轴" disabled={!active || view.span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
-      <Button size="small" icon={<Add20Regular />} aria-label="放大时间轴" disabled={!active || view.span <= minimumSpan} onClick={() => controls.current.zoom(1.5)} />
-      <Button size="small" icon={<ArrowSync20Regular />} appearance={view.follow && !view.offset ? 'subtle' : 'primary'} disabled={!active} onClick={() => controls.current.home()}>{view.follow && !view.offset ? '跟随现在' : '回到现在'}</Button>
-    </div></div>
-    <canvas ref={canvas} className="timeline-canvas" style={{ height: timelineLayout(layers, !!untimed.length, blockSize).height }} tabIndex={0} role="group" aria-label={`块需求时间轴，${data.blocks.size} 个块，${layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，加减号缩放，Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
+  const empty = !data.blocks.size && !data.demands.size;
+  return <div {...focus} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(view.span)} data-center={Math.round(view.follow ? data.at + view.offset : view.center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
+    <div className="block-demand-controls" hidden={!expanded || !data.blocks.size}><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
     </div>
-    {palette && <BlockDemandView data={data} size={blockSize} palette={palette} active={active} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {
+    <div id="block-timeline-content" hidden={!expanded}>
+    <div className="timeline-toolbar" hidden={!timed.length}><div className="timeline-window-keys"><Text weight="semibold" size={300}>时间轴视图</Text><span className="timeline-window-key grace">延续 {data.downloadGraceMS / 1000} 秒</span><span className="timeline-window-key ahead">提前 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
+      <Switch size="small" label={{ children: '分层显示', size: 'small' }} checked={layers} onChange={(_, value) => setLayers(value.checked)} />
+      <Button size="small" icon={<Subtract16Regular />} aria-label="缩小时间轴" disabled={!active || view.span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
+      <Button size="small" icon={<Add16Regular />} aria-label="放大时间轴" disabled={!active || view.span <= minimumSpan} onClick={() => controls.current.zoom(1.5)} />
+      <Button size="small" icon={<ArrowSync16Regular />} appearance={view.follow && !view.offset ? 'subtle' : 'primary'} disabled={!active} onClick={() => controls.current.home()}>{view.follow && !view.offset ? '跟随现在' : '回到现在'}</Button>
+    </div></div>
+    <canvas ref={canvas} hidden={!data.blocks.size} className="timeline-canvas" style={{ height: timelineLayout(layers, !!timed.length, !!untimed.length, blockSize).height }} tabIndex={0} role="group" aria-label={`块需求${timed.length ? '时间轴' : '列表'}，${data.blocks.size} 个块，${timed.length && layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，${timed.length ? '加减号缩放，' : ''}Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
+    </div>
+    {palette && <BlockDemandView showHeading={expanded && !empty} data={data} size={blockSize} palette={palette} active={active} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {
       demandHover.current = { ids: blocks.map(b => b.id), target };
       if (!active || selection?.pinned && !pinned) return;
       clearHoverTimers();

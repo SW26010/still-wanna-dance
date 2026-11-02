@@ -14,12 +14,12 @@ try {
   await page.goto(url + '/#/home');
   await page.getByRole('button', { name: '展开时间轴视图' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
-  await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   const cache = panel.locator('.block-demand-cache');
-  await expect(cache).toHaveText('块缓存 0.0 MiB');
+  await expect(cache).toHaveText('缓存 0.0 MiB');
   await expect(canvas).toHaveAccessibleName(/4 个块/);
   await expect(panel.locator('.demand-row')).toHaveCount(1);
-  await expect(panel.locator('.demand-row')).toContainText('GET #');
+  await expect(panel.locator('.demand-row')).toContainText('读取 #');
   await expect(panel.locator('.demand-block-canvas')).toHaveAccessibleName(/视频共 4 块/);
   await expect.poll(() => panel.locator('.timeline-legend').innerText()).toMatch(/正在下载\s+[1-4]/);
   await canvas.focus(); await canvas.press('Home');
@@ -41,11 +41,11 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(detail).toContainText('播放请求 #');
   await page.request.post(url + '/__timeline/release');
-  await expect.poll(async () => parseFloat(await page.getByLabel('总下载速度', {exact:true}).innerText())).toBeGreaterThan(0);
+  await expect.poll(async () => parseFloat(await page.getByRole('button', { name: /^总下载速度：/ }).innerText())).toBeGreaterThan(0);
   await expect(panel.locator('.timeline-legend')).toContainText('延续保护 4');
-  await expect(cache).toHaveText('块缓存 3.0 MiB');
+  await expect(cache).toHaveText('缓存 3.0 MiB');
   expect(await (await page.request.get(url + '/__timeline/cache')).json()).toBe(3 * 1048576 + 37);
-  await expect(panel).toContainText('需求占用 0 / 4096');
+  await expect(panel).toContainText('块任务 0 / 4096');
   await expect(panel.locator('.demand-row')).toHaveCount(0);
   await expect(detail).toContainText('已无使用需求，本地数据仍在延续保护期');
   await expect(detail).toContainText('沿用最后一次 need-by');
@@ -54,14 +54,14 @@ try {
   await page.getByRole('button', { name: '关闭块详情' }).click();
   await page.getByRole('button', { name: '收起时间轴视图' }).click();
   await expect(canvas).toBeHidden();
-  await expect.poll(async () => parseFloat(await page.getByLabel('总下载速度', {exact:true}).innerText())).toBe(0);
+  await expect.poll(async () => parseFloat(await page.getByRole('button', { name: /^总下载速度：/ }).innerText())).toBe(0);
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(1);
   await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   // Physical reclamation continues while the page has no observation worker.
   await expect.poll(async () => (await page.request.get(url + '/__timeline/cache')).json(), { timeout: 15000 }).toBe(0);
   await page.evaluate(() => { location.hash = '#/home'; });
-  await expect(cache).toHaveText('块缓存 0.0 MiB');
+  await expect(cache).toHaveText('缓存 0.0 MiB');
   await page.screenshot({ path: path.join(evidence, 'real-cache-reclaimed.png'), fullPage: true });
   await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);

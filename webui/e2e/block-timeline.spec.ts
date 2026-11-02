@@ -8,11 +8,11 @@ async function setPageHidden(page: Page, hidden: boolean) {
 import { navigate } from './navigation';
 import type { BlockView, BlockEvent, BlockSource, BlockDemand } from '../src/block-timeline-model';
 import { applyBlockEvent } from '../src/block-timeline-model';
-import { timelineLayout } from '../src/block-timeline-canvas';
-const singleY = timelineLayout(false, false, 18).timedY + 9;
-const laneCenter = (row: number, size: number, untimed = false) => {
-  const layout = timelineLayout(true, untimed, size);
-  return (untimed ? layout.untimedY : layout.timedY) + row * layout.lanePitch + size / 2;
+import { timelineLayout, timelineRange } from '../src/block-timeline-canvas';
+const singleY = timelineLayout(false, true, false, 16).timedY + 8;
+const laneCenter = (row: number, size: number) => {
+  const layout = timelineLayout(true, true, false, size);
+  return layout.timedY + row * layout.lanePitch + size / 2;
 };
 
 function block(index: number, at: number, patch: Partial<BlockView> = {}): BlockView {
@@ -42,7 +42,7 @@ async function setup(page: Page, count = 48) {
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
   await page.goto('/#/home');
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
-  const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
+  const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('状态展示：更新中', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   const hidePanel = async () => {
     await page.evaluate(() => window.scrollTo(0, 0));
     const top = await panel.evaluate(el => el.getBoundingClientRect().top);
@@ -199,14 +199,14 @@ test('event deltas, overlap selection, source changes and untimed demands stay i
   await popup.getByRole('button', { name: '关闭块详情' }).click(); await f.canvas.press('End');
   await expect(popup).toContainText('块 103/?'); await expect(popup).toContainText('无有限期限');
   await page.getByRole('button', { name: '关闭块详情' }).click();
-  await f.emit({ removed: [first.id, untimed.id], used: 0 }); await expect(f.canvas).toHaveAccessibleName(/0 个块/);
+  await f.emit({ removed: [first.id, untimed.id], used: 0 }); await expect(f.canvas).toHaveAttribute('aria-label', /0 个块/);
 });
 
 test('zoom preserves follow or fixed center, dragging fixes the view and click pins details', async ({ page }, info) => {
   const f = await setup(page); await f.open();
   await f.panel.screenshot({ path: info.outputPath('timeline-overview.png') });
   await f.canvas.scrollIntoViewIfNeeded();
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   const before = Number(await f.viewport.getAttribute('data-span')), rect = (await f.canvas.boundingBox())!;
   const center = () => f.viewport.getAttribute('data-center').then(Number);
   const initialCenter = await center();
@@ -275,7 +275,7 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   expect(await center()).toBe(pausedCenter);
   await expect(f.viewport).toHaveAttribute('data-span', span!);
   await setPageHidden(page, false);
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await f.panel.getByRole('button', { name: '回到现在' }).click();
   await f.panel.getByRole('switch', { name: '分层显示' }).check();
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 80); await page.mouse.wheel(rect.width / 2 - 10, 0);
@@ -283,7 +283,7 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await f.panel.screenshot({ path: info.outputPath('transparent-lane-labels.png') });
 });
 
-test('square sizes, three state layers and demand memberships share selection and one stream', async ({ page }, info) => {
+test('fixed squares, three state layers and demand memberships share selection and one stream', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => {
@@ -311,7 +311,7 @@ test('square sizes, three state layers and demand memberships share selection an
   await f.emit({ reset: true, blocks, used: blocks.length, active: 1, demands: [manual, queue2, queue1, get] });
   await f.open();
   const rows = f.panel.locator('.demand-row'), headings = f.panel.locator('.demand-row-heading');
-  await expect(headings).toHaveText([/GET #4.*星河.*3 块/, /队列 #1.*星河.*3 块/, /队列 #2.*远山.*1 块/, /手动下载.*星河.*63 块/]);
+  await expect(headings).toHaveText([/读取 #4.*星河.*3 块/, /队列 #1.*星河.*3 块/, /队列 #2.*远山.*1 块/, /手动下载.*星河.*63 块/]);
   const borders = await rows.evaluateAll(els => els.map(el => getComputedStyle(el).borderLeftColor));
   expect(borders[0]).toBe(borders[1]); expect(borders[0]).toBe(borders[3]); expect(borders[0]).not.toBe(borders[2]);
   await expect.poll(f.totalStreams).toBe(1);
@@ -319,22 +319,21 @@ test('square sizes, three state layers and demand memberships share selection an
   await expect(f.viewport).toHaveAttribute('data-layers', '3');
   const popup = page.getByRole('group', { name: '块需求详情' });
   const rect = (await f.canvas.boundingBox())!;
-  for (const [i, y] of [0, 1, 2].map(row => laneCenter(row, 18)).entries()) {
-    await f.canvas.click({ position: { x: rect.width / 2, y } });
+  for (const [i, y] of [0, 1, 2].map(row => laneCenter(row, 16)).entries()) {
+    const range = timelineRange(rect.width, true);
+    await f.canvas.click({ position: { x: (range[0] + range[1]) / 2, y } });
     await expect(popup).toContainText(`块 ${i + 1}/`);
     await expect(popup).toContainText('星河 · 测试歌曲');
     await expect(popup).not.toContainText('重叠');
     await popup.getByRole('button', { name: '关闭块详情' }).click();
   }
   // The same source color survives state changes. Every painted block is square.
-  const size = f.panel.getByRole('slider', { name: '块显示大小', exact: true });
-  await size.focus(); await size.press('End'); await expect(f.viewport).toHaveAttribute('data-block-size', '36');
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+  await expect(f.viewport).toHaveAttribute('data-block-size', '16');
   const readStrokes = () => page.evaluate(() => (window as unknown as { blockStrokes: { x: number; width: number; height: number; color: string }[] }).blockStrokes);
-  await expect.poll(async () => { const values = await readStrokes(); return values.length >= 3 && values.every(s => s.width === 36 && s.height === 36); }).toBe(true);
+  await expect.poll(async () => { const values = await readStrokes(); return values.length >= 3 && values.every(s => s.width === 16 && s.height === 16); }).toBe(true);
   const strokes = await readStrokes();
   expect(new Set(strokes.slice(-3).map(s => s.color)).size).toBe(1);
-  await size.press('Home'); await expect(f.viewport).toHaveAttribute('data-block-size', '4');
-  await size.press('End');
   await f.panel.screenshot({ path: info.outputPath('three-layers-and-demands.png') });
   const strip = rows.nth(3).locator('canvas');
   await strip.focus(); await strip.press('End');
@@ -342,7 +341,7 @@ test('square sizes, three state layers and demand memberships share selection an
   expect(await rows.nth(3).locator('.demand-block-strip').evaluate(el => el.scrollWidth === el.clientWidth && el.scrollLeft === 0)).toBe(true);
   await strip.press('Escape'); await expect(popup).toHaveCount(0);
   await f.emit({ demands: [{ ...queue2, position: 1 }], removedDemands: [queue1.id, manual.id] });
-  await expect(headings).toHaveText([/GET #4/, /队列 #1.*远山/]);
+  await expect(headings).toHaveText([/读取 #4/, /队列 #1.*远山/]);
   await expect.poll(f.totalStreams).toBe(1);
   await rows.first().locator('canvas').hover({ position: { x: 25, y: 25 } });
   await expect(popup).toContainText('块 1/');
@@ -351,9 +350,9 @@ test('square sizes, three state layers and demand memberships share selection an
   const untimed = blocks.slice(0, 3).map(b => ({ ...b, at: 0, needBy: 0, deadline: 0, timeBasis: 'untimed' as const }));
   for (const b of untimed) await f.detail(b);
   await f.emit({ reset: true, blocks: untimed, demands: [demand(1, untimed, { kind: 'batch' })], used: 3 });
-  await expect(f.canvas).toHaveAccessibleName(/3 个块，三层/);
-  for (const [i, y] of [0, 1, 2].map(row => laneCenter(row, 36, true)).entries()) {
-    await f.canvas.click({ position: { x: 42, y } });
+  await expect(f.canvas).toHaveAccessibleName(/3 个块，单层/);
+  for (let i = 0; i < untimed.length; i++) {
+    await f.canvas.click({ position: { x: timelineRange(rect.width, false)[0] + i * 22 + 8, y: timelineLayout(true, false, true, 16).untimedY + 8 } });
     await expect(popup).toContainText(`块 ${i + 1}/`);
     await expect(popup).toContainText('无有限期限');
     await popup.getByRole('button', { name: '关闭块详情' }).click();
@@ -361,7 +360,7 @@ test('square sizes, three state layers and demand memberships share selection an
   await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
 });
 
-for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand replacement and list shrink avoid blank frames with motion ${reducedMotion}`, async ({ page }, info) => {
+for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand list grows with the page and live updates avoid blank frames with motion ${reducedMotion}`, async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1400 });
   await page.emulateMedia({ reducedMotion });
   const f = await setup(page, 2);
@@ -369,7 +368,17 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand r
   const rows = Array.from({ length: 30 }, (_, i) => demand(i + 1, blocks, { kind: 'queue', position: i + 1 }));
   await f.emit({ reset: true, blocks, demands: rows, used: 2 }); await f.open();
   const list = f.panel.getByRole('list', { name: '视频需求列表' });
-  await list.scrollIntoViewIfNeeded();
+  await list.locator('.demand-row').first().scrollIntoViewIfNeeded();
+  const rowBounds = () => list.evaluate(list => {
+    const view = list.closest('.block-demand-view')!.getBoundingClientRect(), row = list.querySelector('.demand-row')!.getBoundingClientRect(), slot = list.querySelector('.demand-row-slot')!.getBoundingClientRect();
+    return { width: row.width, height: list.clientHeight, rowHeight: slot.height, gapDifference: Math.abs(row.left - view.left - (view.right - row.right)), overflowing: list.scrollHeight > list.clientHeight, overflowY: getComputedStyle(list).overflowY };
+  });
+  const full = await rowBounds();
+  expect(full.overflowing).toBe(false);
+  expect(full.overflowY).toBe('visible');
+  expect(full.height).toBe(30 * full.rowHeight);
+  expect(full.gapDifference).toBeLessThanOrEqual(1);
+  await expect(list.getByRole('listitem')).toHaveCount(30);
   await page.evaluate(() => {
     const samples: { rows: number; blank: number; wrongWidth: number }[] = [];
     let frame = 0;
@@ -381,7 +390,7 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand r
       });
       samples.push({
         rows: list.querySelectorAll('.demand-row').length,
-        blank: canvases.filter(canvas => !canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data.some((channel, i) => i % 4 === 3 && channel > 0)).length,
+        blank: canvases.filter(canvas => !canvas.width || !canvas.height || !canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data.some((channel, i) => i % 4 === 3 && channel > 0)).length,
         wrongWidth: canvases.filter(canvas => Math.abs(canvas.getBoundingClientRect().width - canvas.parentElement!.clientWidth) > 1 || canvas.width !== Math.round(canvas.parentElement!.clientWidth * devicePixelRatio)).length,
       });
       frame = requestAnimationFrame(sample);
@@ -394,15 +403,27 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand r
   for (let i = 0; i < 8; i++) {
     const next = demand(100 + i, blocks);
     await f.emit({ demands: [next], removedDemands: previous ? [previous.id] : [], used: 2 });
-    await expect(list.locator('.demand-row-heading').first()).toContainText(`GET #${next.sourceID}`);
+    await expect(list.locator('.demand-row-heading').first()).toContainText(`读取 #${next.sourceID}`);
     previous = next;
   }
-  await list.evaluate(el => { el.scrollTop = el.scrollHeight; });
-  await expect(list.locator('.demand-row-heading').last()).toContainText('队列 #30');
-  // A large removal must clamp the visible range in the same commit.
+  const last = list.locator('.demand-row').last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await expect(last).toContainText('队列 #30');
+  await expect.poll(() => last.locator('canvas').evaluate(canvas => canvas.width)).toBeGreaterThan(0);
+  await expect.poll(() => list.locator('canvas').first().evaluate(canvas => canvas.width)).toBe(0);
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  expect(await list.evaluate(list => list.scrollTop)).toBe(0);
+  await page.screenshot({ path: info.outputPath('page-scroll-demand-list.png') });
+  // Removing most rows lets the browser shrink the page and restore its scroll.
   await f.emit({ removedDemands: [...rows.slice(3).map(row => row.id), previous!.id], used: 2 });
   await expect(list.locator('.demand-row-heading')).toHaveText([/队列 #1\D/, /队列 #2\D/, /队列 #3\D/]);
-  await expect.poll(() => list.evaluate(el => el.scrollTop)).toBe(0);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  const compact = await rowBounds();
+  expect(compact.overflowing).toBe(false);
+  expect(compact.height).toBe(3 * compact.rowHeight);
+  expect(compact.gapDifference).toBeLessThanOrEqual(1);
+  expect(compact.width).toBe(full.width);
   const samples = await page.evaluate(() => (window as unknown as { stopDemandFrames: () => { rows: number; blank: number; wrongWidth: number }[] }).stopDemandFrames());
   await writeFile(info.outputPath('demand-frames.json'), JSON.stringify(samples, null, 2));
   expect(samples.length).toBeGreaterThan(0);
@@ -433,17 +454,17 @@ test('protection is translucent and sparse demands keep their positions within t
   for (let channel = 0; channel < 3; channel++) expect(Math.abs(pixels.protected[channel] - (.35 * pixels.available[channel] + .65 * pixels.background[channel]))).toBeLessThanOrEqual(2);
   const strips = f.panel.locator('.demand-block-canvas'), popup = page.getByRole('group', { name: '块需求详情' });
   await expect(strips.first()).toHaveAccessibleName(/需要 2 个块，视频共 20 块/);
-  const width = await strips.first().evaluate(c => c.clientWidth), x = (index: number) => 21 + index * (width - 42) / 19;
+  const width = await strips.first().evaluate(c => c.clientWidth), x = (index: number) => 20 + index * (width - 40) / 19;
   const alphaAt = (row: number, index: number) => strips.nth(row).evaluate((c, at) => {
-    const pixel = (c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round(at * devicePixelRatio), 21 * devicePixelRatio, 1, 1).data;
+    const pixel = (c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round(at * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data;
     return pixel[3];
   }, x(index));
   expect(await alphaAt(0, 0)).toBe(0); expect(await alphaAt(0, 12)).toBe(0);
   expect(await alphaAt(0, 9)).toBe(255); expect(await alphaAt(0, 15)).toBe(255); expect(await alphaAt(1, 15)).toBe(255);
-  await strips.first().click({ position: { x: x(0), y: 21 } }); await expect(popup).toHaveCount(0);
-  await strips.first().hover({ position: { x: x(9), y: 21 } }); await expect(popup).toContainText('块 10/');
+  await strips.first().click({ position: { x: x(0), y: 20 } }); await expect(popup).toHaveCount(0);
+  await strips.first().hover({ position: { x: x(9), y: 20 } }); await expect(popup).toContainText('块 10/');
   await popup.getByRole('button', { name: '关闭块详情' }).click();
-  await strips.nth(1).click({ position: { x: x(15), y: 21 } }); await expect(popup).toContainText('块 16/');
+  await strips.nth(1).click({ position: { x: x(15), y: 20 } }); await expect(popup).toContainText('块 16/');
   await popup.getByRole('button', { name: '关闭块详情' }).click();
   await f.panel.screenshot({ path: info.outputPath('sparse-demand-positions.png') });
   await f.emit({ removed: [middle.id], demands: [{ ...first, blocks: [later.id] }], used: 1 });
@@ -471,7 +492,7 @@ test('video colors survive handoff and reconnect, with white handoff borders and
     const x = c.clientWidth / 2 + (c.clientWidth - 48) * .12;
     const pixel = (at: number) => [...ctx.getImageData(Math.round(at * devicePixelRatio), y * devicePixelRatio, 1, 1).data];
     // The subpixel edge can straddle two columns as the clock advances.
-    const edge = [8, 9, 10].map(offset => pixel(x + offset)).sort((a, b) => a[0] + a[1] + a[2] - b[0] - b[1] - b[2])[0];
+    const edge = [7, 8, 9].map(offset => pixel(x + offset)).sort((a, b) => a[0] + a[1] + a[2] - b[0] - b[1] - b[2])[0];
     return { fill: pixel(x - 2), edge };
   }, singleY);
   const original = await sample();
@@ -485,7 +506,7 @@ test('video colors survive handoff and reconnect, with white handoff borders and
   await expect(row).toContainText('短期交接');
   await expect(row).toHaveCSS('border-left-color', 'rgb(255, 255, 255)');
   expect((await sample()).fill).toEqual(original.fill);
-  const stripFill = () => strip.evaluate(c => [...(c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round((21 + 12 * (c.clientWidth - 42) / 44) * devicePixelRatio), 21 * devicePixelRatio, 1, 1).data]);
+  const stripFill = () => strip.evaluate(c => [...(c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round((20 + 12 * (c.clientWidth - 40) / 44) * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data]);
   await expect.poll(stripFill).toEqual(original.fill);
   await strip.focus(); await strip.press('Home');
   const popup = page.getByRole('group', { name: '块需求详情' });
@@ -497,10 +518,10 @@ test('video colors survive handoff and reconnect, with white handoff borders and
   await f.panel.getByText('需求视图', { exact: true }).click();
   await f.panel.screenshot({ path: info.outputPath('handoff-overview.png') });
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
-  await expect(f.panel).toContainText('事件连接中断');
+  await expect(f.panel).toContainText('状态展示：重连中');
   // A reset with changed identity must keep the established video color too.
   await f.emit({ reset: true, blocks: changed.map(b => ({ ...b, songID: '84' })), demands: [{ ...queue, songID: '84' }], used: 2 });
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await expect(row).toHaveCSS('border-left-color', border);
   expect((await sample()).fill).toEqual(original.fill);
 });
@@ -519,14 +540,15 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
     demand(3, blocks, { kind: 'handoff' }), demand(4, blocks),
   ] });
   await f.open();
-  await expect(f.panel.locator('.demand-row-heading')).toHaveText([/GET #4/, /短期交接/, /队列 #1/, /手动下载/]);
+  await expect(f.panel.locator('.demand-row-heading')).toHaveText([/读取 #4/, /短期交接/, /队列 #1/, /手动下载/]);
   const popup = page.getByRole('group', { name: '块需求详情' });
   const timelinePixels = () => f.canvas.evaluate((c, y) => {
     const ctx = (c as HTMLCanvasElement).getContext('2d')!;
     const firstX = c.clientWidth / 2 + (c.clientWidth - 48) * .12;
     const secondX = c.clientWidth / 2 + (c.clientWidth - 48) * .128;
+    const overlapX = (firstX + secondX) / 2;
     const at = (x: number) => [...ctx.getImageData(Math.round(x * devicePixelRatio), y * devicePixelRatio, 1, 1).data];
-    return { early: at(firstX - 3), overlap: at(secondX), late: at(secondX + 7), x: secondX };
+    return { early: at(firstX - 3), overlap: at(overlapX), late: at(secondX + 6), x: overlapX };
   }, singleY);
   const timeline = await timelinePixels();
   const scrollBeforeDetails=await page.evaluate(()=>scrollY);
@@ -541,16 +563,18 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
   const strip = f.panel.locator('.demand-block-canvas').first();
   await expect.poll(() => strip.evaluate(c => {
     const canvas = c as HTMLCanvasElement;
-    return c.clientWidth === c.parentElement!.clientWidth && canvas.getContext('2d')!.getImageData(Math.round((c.clientWidth - 21) * devicePixelRatio), 21 * devicePixelRatio, 1, 1).data[3] === 255;
+    return c.clientWidth === c.parentElement!.clientWidth && canvas.getContext('2d')!.getImageData(Math.round((c.clientWidth - 20) * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data[3] === 255;
   })).toBe(true);
   const demandPixels = () => strip.evaluate(c => {
-    const ctx = (c as HTMLCanvasElement).getContext('2d')!, pitch = (c.clientWidth - 42) / 63;
-    const at = (x: number) => [...ctx.getImageData(Math.round(x * devicePixelRatio), 21 * devicePixelRatio, 1, 1).data];
-    return { early: at(18), overlap: at(14 + pitch), late: at(28 + pitch), x: 14 + pitch };
+    const ctx = (c as HTMLCanvasElement).getContext('2d')!, pitch = (c.clientWidth - 40) / 63;
+    const overlapX = (12 + pitch + 28) / 2;
+    // Sample inside the shared fill, away from the first square's right stroke.
+    const at = (x: number) => [...ctx.getImageData(Math.floor(x * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data];
+    return { early: at(20), overlap: at(overlapX), late: at(20 + pitch), x: overlapX };
   });
   const demandPaint = await demandPixels();
   expect(demandPaint.overlap).toEqual(demandPaint.early); expect(demandPaint.overlap).not.toEqual(demandPaint.late);
-  await strip.click({ position: { x: demandPaint.x, y: 21 } });
+  await strip.click({ position: { x: demandPaint.x, y: 20 } });
   await expect(popup).toContainText('块 1/64'); await expect(popup).toContainText('重叠 2 块');
   await popup.getByRole('button', { name: '下一个重叠块' }).click();
   await expect(popup).toContainText('块 2/64');
@@ -558,14 +582,12 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
   await popup.getByRole('button', { name: '关闭块详情' }).click();
   await f.panel.screenshot({ path: info.outputPath('fitted-demand-overlap.png') });
   await page.setViewportSize({ width: 390, height: 1000 });
-  const size = f.panel.getByRole('slider', { name: '块显示大小', exact: true });
-  await size.focus(); await size.press('End');
-  await expect(f.viewport).toHaveAttribute('data-block-size', '36');
-  await expect.poll(() => strip.evaluate(c => c.clientWidth === c.parentElement!.clientWidth && c.height === 54 * devicePixelRatio)).toBe(true);
+  await expect(f.viewport).toHaveAttribute('data-block-size', '16');
+  await expect.poll(() => strip.evaluate(c => c.clientWidth === c.parentElement!.clientWidth && c.height === 34 * devicePixelRatio)).toBe(true);
   expect(await strip.locator('..').evaluate(el => el.scrollWidth === el.clientWidth)).toBe(true);
   const width = await strip.evaluate(c => c.clientWidth);
   // Both endpoints stay fully visible after a narrow resize, with no horizontal scroll.
-  await strip.click({ position: { x: width - 30, y: 30 } });
+  await strip.click({ position: { x: width - 20, y: 20 } });
   await expect(popup).toContainText('块 64/64');
   await strip.press('Escape'); await strip.press('Home');
   await expect(popup).toContainText('块 1/64');
@@ -587,11 +609,11 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
   const rect = (await target.boundingBox())!;
   const firstCenter = rect.width / 2 + (rect.width - 48) * .12;
   const secondCenter = rect.width / 2 + (rect.width - 48) * .128;
-  const pitch = (rect.width - 42) / 63;
+  const pitch = (rect.width - 40) / 63;
   const firstOnly = view === 'timeline' ? firstCenter - 6 : 16;
   const secondOnly = view === 'timeline' ? secondCenter + 6 : 12 + pitch + 15;
-  const overlap = view === 'timeline' ? firstCenter + 3 : 14 + pitch;
-  const y = view === 'timeline' ? singleY : 21;
+  const overlap = view === 'timeline' ? firstCenter + 3 : 13 + pitch;
+  const y = view === 'timeline' ? singleY : 20;
   // Wait for hit-target actionability while async source details reposition
   // the popover; raw mouse moves can land on that surface during its resize.
   const move = (x: number) => target.hover({ position: { x, y } });
@@ -626,9 +648,9 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
 test('native EventSource reconnect resets old state without a polling endpoint', async ({ page }) => {
   const f = await setup(page); await f.open();
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
-  await expect(f.panel).toContainText('事件连接中断');
+  await expect(f.panel).toContainText('状态展示：重连中');
   await f.emit({ reset: true, blocks: [block(100, f.at)], used: 1 });
-  await expect(f.canvas).toHaveAccessibleName(/1 个块/); await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.canvas).toHaveAccessibleName(/1 个块/); await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   expect(f.calls.filter(c => c.path === 'block-demands/events').length).toBe(2);
 });
 
@@ -636,10 +658,10 @@ test('opening before engine startup waits for its event on the same connection',
   const f = await setup(page);
   await f.emit({ reset: true, running: false, blocks: [], used: 0 });
   await f.panel.getByRole('button', { name: '展开时间轴视图' }).click();
-  await expect(f.panel.getByText('引擎未运行', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：待启动', { exact: true })).toBeVisible();
   await expect.poll(f.totalStreams).toBe(1);
   await f.emit({ reset: true, blocks: f.blocks, used: 44 });
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await expect(f.canvas).toHaveAccessibleName(/48 个块/);
   expect(f.calls.filter(c => c.path === 'block-demands/events')).toHaveLength(1);
 });
@@ -702,11 +724,13 @@ test('offscreen timeline stops painting while demand events continue and unchang
   await expect.poll(async () => (await paints()).timeline).toBeGreaterThan(2);
   const beforeCapacity = await paints();
   await f.emit({ active: 7, open: 17 });
-  await expect(f.panel).toContainText('执行 7 / 额度 17');
+  await expect(f.panel).toContainText('下载 7 / 16');
   expect((await paints()).demands).toBe(beforeCapacity.demands);
-  await page.setViewportSize({ width: 1280, height: 240 });
+  await page.setViewportSize({ width: 1280, height: 200 });
   await f.panel.locator('.demand-block-canvas').first().evaluate(el => el.scrollIntoView({ block: 'start' }));
   await expect(f.canvas).not.toBeInViewport();
+  // Edge contact still counts as intersecting; put the canvas fully offscreen.
+  await expect.poll(() => f.canvas.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThan(0);
   // Let IntersectionObserver and React commit the visibility transition.
   const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))));
   await settle();
@@ -724,21 +748,45 @@ test('offscreen timeline stops painting while demand events continue and unchang
   await expect.poll(f.totalStreams).toBe(1);
 });
 
-test('compact timeline scales all lanes and places the current time among nonoverlapping ticks', async ({ page }, info) => {
+test('fixed blocks fit timeline lanes and labels follow Fluent caption typography without overlapping', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => {
-    const paint = { labels: [] as { text: string; x: number; y: number; width: number }[], blocks: [] as { y: number; height: number }[] };
+    const paint = { labels: [] as { text: string; x: number; y: number; width: number; font: string; ink: { left: number; right: number; top: number; bottom: number } }[], blocks: [] as { y: number; height: number }[], pills: [] as { x: number; y: number; width: number; height: number }[], dots: [] as { y: number; radius: number }[], outlines: [] as { y: number; height: number; stroke: number }[] };
     Object.assign(window, { axisPaint: paint });
-    const clear = CanvasRenderingContext2D.prototype.clearRect, text = CanvasRenderingContext2D.prototype.fillText, rounded = CanvasRenderingContext2D.prototype.roundRect;
-    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.classList.contains('timeline-canvas')) { paint.labels.length = 0; paint.blocks.length = 0; } return clear.apply(this, args); };
-    CanvasRenderingContext2D.prototype.fillText = function (value, x, y, maxWidth) { if (this.canvas.classList.contains('timeline-canvas')) paint.labels.push({ text: value, x, y, width: this.measureText(value).width }); return text.call(this, value, x, y, maxWidth); };
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) { if (this.canvas.classList.contains('timeline-canvas') && width === height && width <= 36) paint.blocks.push({ y, height }); return rounded.call(this, x, y, width, height, radii); };
+    const clear = CanvasRenderingContext2D.prototype.clearRect, text = CanvasRenderingContext2D.prototype.fillText, rounded = CanvasRenderingContext2D.prototype.roundRect, arc = CanvasRenderingContext2D.prototype.arc;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.classList.contains('timeline-canvas')) { paint.labels.length = 0; paint.blocks.length = 0; paint.pills.length = 0; paint.dots.length = 0; paint.outlines.length = 0; } return clear.apply(this, args); };
+    CanvasRenderingContext2D.prototype.arc = function (x, y, radius, start, end, counterclockwise) {
+      if (this.canvas.classList.contains('timeline-canvas')) paint.dots.push({ y, radius });
+      return arc.call(this, x, y, radius, start, end, counterclockwise);
+    };
+    CanvasRenderingContext2D.prototype.fillText = function (value, x, y, maxWidth) {
+      if (this.canvas.classList.contains('timeline-canvas')) {
+        const m = this.measureText(value);
+        paint.labels.push({ text: value, x, y, width: m.width, font: this.font, ink: { left: x - m.actualBoundingBoxLeft, right: x + m.actualBoundingBoxRight, top: y - m.actualBoundingBoxAscent, bottom: y + m.actualBoundingBoxDescent } });
+      }
+      return text.call(this, value, x, y, maxWidth);
+    };
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) {
+      if (this.canvas.classList.contains('timeline-canvas')) {
+        if (width === 16 && height === 16) paint.blocks.push({ y, height });
+        if (width === height && width > 16) paint.outlines.push({ y, height, stroke: this.lineWidth });
+        if (width > height) paint.pills.push({ x, y, width, height });
+      }
+      return rounded.call(this, x, y, width, height, radii);
+    };
   });
   const f = await setup(page, 0);
-  const timed = ['waiting', 'downloading', 'available'].map((state, i) => block(i, f.at, { state: state as BlockView['state'] }));
+  // Use different Fluent body/caption fonts to catch hard-coded Canvas typography.
+  await page.addStyleTag({ content: '.app-provider { --fontSizeBase300: 16px; --lineHeightBase300: 22px; --fontSizeBase200: 13px; --lineHeightBase200: 18px; --fontFamilyBase: Arial, sans-serif; }' });
+  const bodySize = await f.panel.locator('.block-demand-cache').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  const caption = await f.panel.locator('.block-demand-capacity').evaluate(el => { const style = getComputedStyle(el); return { fontSize: style.fontSize, fontFamily: style.fontFamily, weight: style.getPropertyValue('--fontWeightSemibold').trim() }; });
+  expect(parseFloat(caption.fontSize)).toBeLessThan(bodySize);
+  const timed = ['waiting', 'downloading', 'available'].map((state, i) => block(i, f.at, { state: state as BlockView['state'], readers: 1 }));
+  await f.detail(timed[0]);
   await f.emit({ reset: true, blocks: timed, used: 3 }); await f.open();
-  const slider = f.panel.getByRole('slider', { name: '块显示大小', exact: true }), layered = f.panel.getByRole('switch', { name: '分层显示' });
+  expect(await f.panel.locator('.timeline-legend').evaluate(el => getComputedStyle(el).fontSize)).toBe(caption.fontSize);
+  const layered = f.panel.getByRole('switch', { name: '分层显示' });
   await expect(f.panel.locator('#block-timeline-content').getByRole('slider')).toHaveCount(0);
   await expect(f.panel.locator('.timeline-help')).toHaveCount(0);
   const windowBounds = await f.panel.locator('.timeline-window-key').first().boundingBox(), switchBounds = await layered.boundingBox();
@@ -754,41 +802,259 @@ test('compact timeline scales all lanes and places the current time among nonove
     await f.emit({ reset: true, blocks: untimed ? [...timed, ...timed.map((b, i) => ({ ...b, id: `untimed/${i}`, at: 0, needBy: 0, timeBasis: 'untimed' as const }))] : timed, used: untimed ? 6 : 3 });
     for (const layers of [false, true]) {
       await layered.setChecked(layers);
-      let smallHeight = 0;
-      for (const [key, size] of [['Home', 4], ['End', 36]] as const) {
-        await slider.focus(); await slider.press(key); await f.canvas.scrollIntoViewIfNeeded();
-        const paint = await page.evaluate(() => (window as unknown as { axisPaint: { labels: { text: string; x: number; y: number; width: number }[]; blocks: { y: number; height: number }[] } }).axisPaint);
-        const height = await f.canvas.evaluate(c => c.clientHeight), now = paint.labels.find(label => label.text.startsWith('现在 '))!;
-        expect(now).toBeTruthy(); expect(now.y).toBeLessThan(height - 6);
-        expect(paint.blocks.length).toBe(untimed ? 6 : 3);
-        for (const b of paint.blocks) { expect(b.height).toBe(size); expect(b.y - 12).toBeGreaterThanOrEqual(0); expect(b.y + b.height + 4).toBeLessThan(height); }
-        const timedBlocks = paint.blocks.slice(0, 3);
-        expect(now.y).toBeGreaterThan(Math.max(...timedBlocks.map(b => b.y + b.height)));
-        for (const tick of paint.labels.filter(label => /^\d{2}:\d{2}/.test(label.text))) {
-          expect(tick.y).toBe(now.y);
-          expect(Math.abs(tick.x - now.x)).toBeGreaterThan((tick.width + now.width) / 2);
-        }
-        if (key === 'Home') smallHeight = height; else expect(height).toBeGreaterThan(smallHeight);
-        await f.panel.screenshot({ path: info.outputPath(`axis-${layers ? 'layered' : 'single'}-${untimed ? 'mixed' : 'timed'}-${size}.png`) });
+      await f.canvas.scrollIntoViewIfNeeded();
+      if (layers) {
+        await f.canvas.press('Home');
+        await expect.poll(() => page.evaluate(() => (window as unknown as { axisPaint: { outlines: { height: number }[] } }).axisPaint.outlines.some(outline => outline.height === 22))).toBe(true);
       }
+      const paint = await page.evaluate(() => (window as unknown as { axisPaint: { labels: { text: string; x: number; y: number; width: number; font: string; ink: { left: number; right: number; top: number; bottom: number } }[]; blocks: { y: number; height: number }[]; pills: { x: number; y: number; width: number; height: number }[]; dots: { y: number; radius: number }[]; outlines: { y: number; height: number; stroke: number }[] } }).axisPaint);
+      const height = await f.canvas.evaluate(c => c.clientHeight), now = paint.labels.find(label => label.text.startsWith('现在 '))!;
+      expect(now).toBeTruthy(); expect(now.y).toBeLessThan(height - 6);
+      const pill = paint.pills[0], gaps = { left: now.ink.left - pill.x, right: pill.x + pill.width - now.ink.right, top: now.ink.top - pill.y, bottom: pill.y + pill.height - now.ink.bottom };
+      await info.attach('current-time-label', { body: JSON.stringify({ pill, text: now, gaps }), contentType: 'application/json' });
+      expect.soft(Math.abs(gaps.left - gaps.right), `Horizontal centering: ${JSON.stringify(gaps)}`).toBeLessThanOrEqual(1);
+      expect.soft(Math.abs(gaps.top - gaps.bottom), `Vertical centering: ${JSON.stringify(gaps)}`).toBeLessThanOrEqual(1);
+      expect.soft(Math.max(gaps.left, gaps.right), 'Compact horizontal padding').toBeLessThanOrEqual(8);
+      expect.soft(Math.max(gaps.top, gaps.bottom), 'Compact vertical padding').toBeLessThanOrEqual(5);
+      for (const label of paint.labels) expect(label.font).toContain(`${label.text.startsWith('块 ') ? bodySize + 'px' : caption.fontSize} ${caption.fontFamily}`);
+      expect(now.font).toBe(`${caption.weight} ${caption.fontSize} ${caption.fontFamily}`);
+      expect(paint.blocks.length).toBe(untimed ? 6 : 3);
+      for (const b of paint.blocks) { expect(b.height).toBe(16); expect(b.y - 12).toBeGreaterThanOrEqual(0); expect(b.y + b.height + 4).toBeLessThan(height); }
+      const timedBlocks = paint.blocks.slice(0, 3);
+      expect(now.y).toBeGreaterThan(Math.max(...timedBlocks.map(b => b.y + b.height)));
+      if (layers) {
+        const laneBlocks = [...timedBlocks].sort((a, b) => a.y - b.y);
+        const laneLabels = paint.labels.filter(label => ['待下载', '下载中', '本地'].includes(label.text)).sort((a, b) => a.ink.top - b.ink.top);
+        const dots = paint.dots.filter(dot => dot.y < timelineLayout(true, true, false, 16).axis).sort((a, b) => a.y - b.y);
+        expect(dots).toHaveLength(laneBlocks.length);
+        expect(laneLabels).toHaveLength(3);
+        const plotStart = timelineRange(await f.canvas.evaluate(canvas => canvas.clientWidth), true)[0];
+        for (const [index, block] of laneBlocks.entries()) {
+          const label = laneLabels[index];
+          expect(label.ink.right).toBeLessThan(plotStart - 12);
+          expect((label.ink.top + label.ink.bottom) / 2).toBeCloseTo(block.y + 8);
+          if (index > 0) {
+            const previous = laneBlocks[index - 1];
+            expect(block.y - previous.y).toBe(32);
+            const previousBottom = Math.max(previous.y + 16.75, ...paint.outlines.filter(outline => outline.y >= previous.y - 4 && outline.y <= previous.y).map(outline => outline.y + outline.height + outline.stroke / 2));
+            const gap = dots[index].y - dots[index].radius - previousBottom;
+            expect(gap).toBeGreaterThanOrEqual(0);
+            if (index === 1) expect(gap).toBeLessThan(1);
+          }
+        }
+      }
+      if (untimed) {
+        const untimedBlocks = paint.blocks.slice(3), labels = paint.labels.filter(label => label.text.startsWith('无期限'));
+        expect(new Set(untimedBlocks.map(b => b.y)).size).toBe(1);
+        expect(untimedBlocks[0].y).toBe(timelineLayout(layers, true, true, 16).untimedY);
+        expect(labels).toHaveLength(1);
+        expect(labels[0].text).toBe('无期限 · 3 块');
+        expect(labels[0].ink.bottom).toBeLessThan(Math.min(...paint.dots.filter(dot => dot.y > now.y).map(dot => dot.y - dot.radius)));
+        expect(height - untimedBlocks[0].y - untimedBlocks[0].height).toBe(12);
+      }
+      const ticks = paint.labels.filter(label => /^\d{2}:\d{2}/.test(label.text));
+      for (const [index, tick] of ticks.entries()) {
+        expect(tick.y).toBe(now.y);
+        expect(Math.abs(tick.x - now.x)).toBeGreaterThan((tick.width + now.width) / 2);
+        if (index > 0) expect(tick.x - tick.width / 2 - (ticks[index - 1].x + ticks[index - 1].width / 2)).toBeGreaterThanOrEqual(8);
+      }
+      if (layers) { await f.canvas.press('Escape'); await expect(page.getByRole('group', { name: '块需求详情' })).toBeHidden(); }
+      await f.panel.screenshot({ path: info.outputPath(`axis-${layers ? 'layered' : 'single'}-${untimed ? 'mixed' : 'timed'}.png`) });
     }
   }
 });
 
-test('untimed blocks remain reachable by horizontal wheel and keyboard without a scroll slider', async ({ page }) => {
+test('empty and untimed-only states stay compact and restore timed controls with focus intact', async ({ page }, info) => {
+  const f = await setup(page, 1), layered = f.panel.getByRole('switch', { name: '分层显示' });
+  await f.open(); await layered.check();
+  await layered.focus();
+  await f.emit({ reset: true, blocks: [], demands: [], used: 0, active: 0 });
+  await expect(f.canvas).toBeHidden();
+  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
+  await expect(f.panel.locator('.demand-empty')).toHaveCount(1);
+  await expect(f.panel.locator('.demand-empty')).toBeVisible();
+  await expect(f.viewport).toBeFocused();
+  const toggle = f.panel.getByRole('button', { name: '收起时间轴视图', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(f.totalStreams).toBe(1);
+  await f.panel.screenshot({ path: info.outputPath('empty-compact.png') });
+
+  const untimed = block(1, 0, { state: 'available', readers: 1 });
+  await f.detail(untimed);
+  await f.emit({ blocks: [untimed], demands: [demand(1, [untimed], { kind: 'batch' })], used: 1 });
+  await expect(f.canvas).toHaveAccessibleName(/1 个块，单层/);
+  await expect(f.canvas).toBeVisible();
+  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  expect(await f.canvas.evaluate(c => c.clientHeight)).toBeLessThan(80);
+  await f.panel.screenshot({ path: info.outputPath('only-untimed-compact.png') });
+  await f.canvas.press('Home');
+  await expect(page.getByRole('group', { name: '块需求详情' })).toContainText('无有限期限');
+  await f.canvas.press('Escape');
+
+  await f.emit({ blocks: [block(2, f.at)] });
+  await expect(f.panel.locator('.timeline-toolbar')).toBeVisible();
+  await expect(layered).toBeChecked();
+  await expect(f.canvas).toHaveAccessibleName(/2 个块，三层/);
+  await toggle.focus();
+  await f.emit({ removed: ['resource/2'] });
+  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(toggle).toBeFocused();
+  await f.canvas.focus();
+  await f.emit({ reset: true, blocks: [], demands: [], used: 0 });
+  await expect(f.canvas).toBeHidden(); await expect(f.viewport).toBeFocused();
+});
+
+for (const layers of [false, true]) test(`untimed dragging moves its row without changing the timed view when layers are ${layers}`, async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const f = await setup(page, 0), blocks = Array.from({ length: 80 }, (_, i) => block(i, 0, { state: 'available', totalBlocks: 80 }));
-  await f.detail(blocks[0]); await f.detail(blocks[79]);
-  await f.emit({ reset: true, blocks, used: 80 }); await f.open();
-  const before = await f.viewport.getAttribute('data-center'), rect = (await f.canvas.boundingBox())!, y = timelineLayout(false, true, 18).untimedY + 9;
-  await page.mouse.move(rect.x + rect.width / 2, rect.y + y); await page.mouse.wheel(10000, 0);
-  await f.canvas.click({ position: { x: rect.width - 39, y } });
+  const f = await setup(page, 0), untimed = Array.from({ length: 200 }, (_, i) => block(i, 0, { state: 'available', totalBlocks: 200 }));
+  for (const b of [untimed[0], untimed[10]]) await f.detail(b);
+  await f.emit({ reset: true, blocks: [block(1000, f.at), ...untimed], used: 201 }); await f.open();
+  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(layers);
+  const rect = (await f.canvas.boundingBox())!, y = timelineLayout(layers, true, true, 16).untimedY + 8;
+  const drag = async (atY: number, dx: number) => {
+    await page.mouse.move(rect.x + rect.width / 2, rect.y + atY); await page.mouse.down();
+    await page.mouse.move(rect.x + rect.width / 2 + dx, rect.y + atY, { steps: 8 }); await page.mouse.up();
+  };
+  const before = await f.viewport.getAttribute('data-center'), span = await f.viewport.getAttribute('data-span');
+  await drag(y, -80);
+  await expect(f.viewport).toHaveAttribute('data-center', before!); await expect(f.viewport).toHaveAttribute('data-follow', 'true');
+  await expect(f.viewport).toHaveAttribute('data-span', span!);
   const popup = page.getByRole('group', { name: '块需求详情' });
-  await expect(popup).toContainText('块 80/80');
+  await f.canvas.click({ position: { x: 36, y } }); await expect(popup).toContainText('块 11/200');
+  await popup.getByRole('button', { name: '关闭块详情' }).click();
+
+  await drag(singleY, -80);
+  await expect(f.viewport).toHaveAttribute('data-follow', 'false');
+  expect(await f.viewport.getAttribute('data-center')).not.toBe(before);
+  await f.canvas.click({ position: { x: 36, y } }); await expect(popup).toContainText('块 11/200');
+  await popup.getByRole('button', { name: '关闭块详情' }).click();
+  const fixedCenter = await f.viewport.getAttribute('data-center');
+  await drag(y, 200);
+  await expect(f.viewport).toHaveAttribute('data-center', fixedCenter!); await expect(f.viewport).toHaveAttribute('data-follow', 'false');
+  await f.canvas.click({ position: { x: 36, y } }); await expect(popup).toContainText('块 1/200');
+});
+
+test('blank space before dense untimed blocks never opens an overlap or detail stream', async ({ page }) => {
+  const f = await setup(page, 0), blocks = Array.from({ length: 200 }, (_, i) => block(i, 0, { state: 'available', totalBlocks: 200 }));
+  await page.addStyleTag({ content: '#block-demands { width: 800px; }' });
+  await f.emit({ reset: true, blocks, used: 200 }); await f.open();
+  expect(await f.canvas.evaluate(c => c.clientWidth)).toBe(800);
+  const y = await f.canvas.evaluate(c => c.clientHeight - 20);
+  for (const x of [12, 16, 23]) {
+    await f.canvas.click({ position: { x, y } });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    await expect(page.getByRole('group', { name: '块需求详情' })).toBeHidden();
+  }
+  await expect.poll(f.totalStreams).toBe(1);
+});
+
+for (const layers of [false, true]) test(`untimed blocks stay in one row with horizontal wheel and keyboard when layers are ${layers}`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const f = await setup(page, 1), blocks = Array.from({ length: 200 }, (_, i) => block(i, 0, { state: (['waiting', 'downloading', 'available'] as const)[i % 3], totalBlocks: 200 }));
+  for (const b of [...blocks.slice(0, 3), blocks[199]]) await f.detail(b);
+  await f.open();
+  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(layers);
+  await f.emit({ reset: true, blocks, used: 200 });
+  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  const before = await f.viewport.getAttribute('data-center'), rect = (await f.canvas.boundingBox())!, y = timelineLayout(layers, false, true, 16).untimedY + 8;
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  for (let i = 0; i < 3; i++) {
+    await f.canvas.click({ position: { x: 24 + i * 8 + 12, y } });
+    await expect(popup).toContainText(`块 ${i + 1}/200`);
+    await expect(popup).toContainText('重叠 2 块');
+    await expect(popup).toContainText('无有限期限');
+    await popup.getByRole('button', { name: '关闭块详情' }).click();
+  }
+  await page.mouse.move(rect.x + rect.width / 2, rect.y + y); await page.mouse.wheel(10000, 0);
+  await f.canvas.click({ position: { x: rect.width - 28, y } });
+  await expect(popup).toContainText('块 200/200');
   expect(await f.viewport.getAttribute('data-center')).toBe(before);
   await popup.getByRole('button', { name: '关闭块详情' }).click();
-  await f.canvas.press('Home'); await expect(popup).toContainText('块 1/80');
-  await f.canvas.press('End'); await expect(popup).toContainText('块 80/80');
+  const timed = block(200, f.at);
+  await f.emit({ blocks: [timed] });
+  await expect(f.panel.locator('.timeline-toolbar')).toBeVisible();
+  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(!layers);
+  await f.emit({ removed: [timed.id] });
+  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await f.canvas.click({ position: { x: rect.width - 28, y: timelineLayout(!layers, false, true, 16).untimedY + 8 } });
+  await expect(popup).toContainText('块 200/200');
+  await popup.getByRole('button', { name: '关闭块详情' }).click();
+  await f.canvas.press('Home'); await expect(popup).toContainText('块 1/200');
+  await f.canvas.press('End'); await expect(popup).toContainText('块 200/200');
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+});
+
+test('untimed spacing adapts to width and count, caps overlap and releases overflow without reserving slider height', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    const blocks: { x: number; y: number }[] = [];
+    Object.assign(window, { untimedPaint: blocks });
+    const clear = CanvasRenderingContext2D.prototype.clearRect, rounded = CanvasRenderingContext2D.prototype.roundRect;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.classList.contains('timeline-canvas')) blocks.length = 0; return clear.apply(this, args); };
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) {
+      if (this.canvas.classList.contains('timeline-canvas') && width === 16 && height === 16) blocks.push({ x, y });
+      return rounded.call(this, x, y, width, height, radii);
+    };
+  });
+  const f = await setup(page, 0);
+  const readPaint = () => page.evaluate(() => [...(window as unknown as { untimedPaint: { x: number; y: number }[] }).untimedPaint].sort((a, b) => a.x - b.x));
+  const emit = async (count: number) => {
+    const blocks = Array.from({ length: count }, (_, i) => block(i, 0, { state: 'available', totalBlocks: count }));
+    await f.emit({ reset: true, blocks, used: count });
+    await expect(f.canvas).toHaveAttribute('aria-label', new RegExp(`${count} 个块`));
+    return blocks;
+  };
+  await emit(12); await f.open();
+  const canvasHeight = await f.canvas.evaluate(c => c.clientHeight);
+  await expect.poll(async () => (await readPaint()).length).toBe(12);
+  let paint = await readPaint();
+  expect(paint[0].x).toBe(24); expect(paint[1].x - paint[0].x).toBe(22);
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+  await f.panel.screenshot({ path: info.outputPath('untimed-spaced.png') });
+
+  const available = await f.canvas.evaluate(c => c.clientWidth - 48), packedCount = Math.ceil((available - 16) / 12) + 1;
+  const packed = await emit(packedCount);
+  await f.detail(packed[0]); await f.detail(packed[1]);
+  await expect.poll(async () => (await readPaint()).length).toBe(packedCount);
+  paint = await readPaint();
+  const packedPitch = paint[1].x - paint[0].x;
+  expect(packedPitch).toBeGreaterThan(8); expect(packedPitch).toBeLessThan(16);
+  expect(paint.at(-1)!.x + 16).toBeCloseTo(available + 24);
+  expect(new Set(paint.map(b => b.y)).size).toBe(1);
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await f.canvas.click({ position: { x: 24 + packedPitch + 1, y: paint[0].y + 8 } });
+  await expect(popup).toContainText(`块 1/${packedCount}`); await expect(popup).toContainText('重叠 2 块');
+  await popup.getByRole('button', { name: '下一个重叠块' }).click(); await expect(popup).toContainText(`块 2/${packedCount}`);
+  await popup.getByRole('button', { name: '关闭块详情' }).click(); await page.mouse.move(0, 0);
+  await f.panel.screenshot({ path: info.outputPath('untimed-packed.png') });
+
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await expect.poll(async () => { const p = await readPaint(); return p[1].x - p[0].x; }).toBeGreaterThan(packedPitch);
+  paint = await readPaint(); expect(paint[1].x - paint[0].x).toBeLessThanOrEqual(22);
+  expect(await f.canvas.evaluate(c => c.clientHeight)).toBe(canvasHeight);
+
+  const overflowing = await emit(200); await f.detail(overflowing[199]);
+  await expect.poll(async () => { const p = await readPaint(); return p[1].x - p[0].x; }).toBe(8);
+  expect((await readPaint()).length).toBeLessThan(200);
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+  await f.panel.screenshot({ path: info.outputPath('untimed-overflow.png') });
+  await f.canvas.press('End'); await expect(popup).toContainText('块 200/200');
+  await popup.getByRole('button', { name: '关闭块详情' }).click(); await page.mouse.move(0, 0);
+
+  await emit(12);
+  await expect.poll(async () => (await readPaint()).length).toBe(12);
+  paint = await readPaint(); expect(paint[0].x).toBe(24); expect(paint[1].x - paint[0].x).toBe(22);
+  expect(await f.canvas.evaluate(c => c.clientHeight)).toBe(canvasHeight);
+  const gap = await f.panel.evaluate(panel => {
+    const canvas = panel.querySelector('.timeline-canvas')!.getBoundingClientRect(), list = panel.querySelector('.block-demand-view')!.getBoundingClientRect();
+    return list.top - canvas.bottom;
+  });
+  expect(gap).toBe(0);
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
 });
 
 test('4096 blocks render with viewport canvases and no animation after collapse', async ({ page }, info) => {

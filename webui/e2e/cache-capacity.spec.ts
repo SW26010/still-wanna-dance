@@ -109,7 +109,7 @@ test('no retention overrides the remembered budget while favorites can still be 
     await expect(panel.getByRole('link',{name:'前往设置',exact:true})).toHaveAttribute('href','#videoBudgetGiB');
     await expect(notice.getByRole('link')).toHaveCount(0);
   }
-  await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频块需求',exact:true})).toBeVisible();
+  await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频需求',exact:true})).toBeVisible();
 });
 
 for(const width of [320,390,1280])test(`empty storage keeps actions and settings links available (${width})`,async({page},info)=>{

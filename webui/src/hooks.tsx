@@ -6,12 +6,12 @@ import { active, type Status } from './types';
 import { usePageFeedback } from './page-feedback';
 import {isShutdownAction,useLifecycle,type ShutdownAction} from './lifecycle';
 
-// When an update removes the focused row, return focus to its labelled region.
+// When an update removes or hides the focused control, return to its region.
 export function useFocusRecovery() {
   const ref=useRef<HTMLDivElement>(null), focused=useRef<HTMLElement>(null);
   useLayoutEffect(()=>{
-    if(focused.current && !focused.current.isConnected){
-      if(document.activeElement===document.body)ref.current?.focus();
+    if(focused.current && (!focused.current.isConnected || !focused.current.getClientRects().length)){
+      if(document.activeElement===document.body || document.activeElement===focused.current)ref.current?.focus();
       focused.current=null;
     }
   });

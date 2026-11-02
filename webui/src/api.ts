@@ -18,13 +18,31 @@ export async function decode<T>(response: Response): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-export async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch('/api/' + path, {
+function fetchAPI(path:string,body?:unknown,signal?:AbortSignal) {
+  return fetch('/api/' + path, {
     method: body === undefined ? 'GET' : 'POST',
     headers: { 'Content-Type': 'application/json', 'X-SWD-Token': bootstrap.token },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: signal ?? AbortSignal.timeout(15000),
     cache: 'no-store',
   });
-  return decode<T>(response);
+}
+
+export async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  return decode<T>(await fetchAPI(path,body,signal));
+}
+
+export async function downloadFile(path:string,filename:string,signal:AbortSignal):Promise<Headers> {
+  const response=await fetchAPI(path,undefined,signal);
+  if(!response.ok)await decode<never>(response);
+  const content=await response.blob();
+  signal.throwIfAborted();
+  const url=URL.createObjectURL(content),link=document.createElement('a');
+  try {
+    link.href=url;link.download=filename;link.hidden=true;
+    document.body.append(link);link.click();
+  } finally {
+    link.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
+  }
+  return response.headers;
 }

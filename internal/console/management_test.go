@@ -18,6 +18,8 @@ func TestManagementAdmissionThroughRouter(t *testing.T) {
 		{"POST", "/api/proxy/import"}, {"POST", "/api/settings"},
 		{"POST", "/api/import/dismiss-suggestion"},
 		{"GET", "/api/import/space"},
+		{"GET", "/api/logs"},
+		{"GET", "/api/logs/export"},
 		{"POST", "/api/import/pause"}, {"POST", "/api/import/resume"}, {"POST", "/api/import/discard"}, {"POST", "/api/import/cleanup"},
 		{"POST", "/api/hosts/prepare"},
 		{"POST", "/api/exit"}, {"POST", "/api/restart"},

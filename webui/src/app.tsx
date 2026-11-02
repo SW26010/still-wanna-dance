@@ -15,7 +15,7 @@ import { VRCXProvider } from './vrcx';
 
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
 type Page = keyof typeof pages;
-const anchors:Record<string,Page>={activation:'home',service:'home',queue:'home',overview:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'home','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnStopOrExit:'settings',prepareAheadSeconds:'settings',videoBudgetGiB:'settings','storage-settings':'settings','video-import':'library','vrcx-import':'library',help:'about',terms:'about',licenses:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
+const anchors:Record<string,Page>={activation:'home',service:'home',queue:'home',overview:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'home','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnStopOrExit:'settings',prepareAheadSeconds:'settings',videoBudgetGiB:'settings','storage-settings':'settings','video-import':'library','vrcx-import':'library',help:'about',terms:'about',licenses:'about',logs:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
 export function route(hash: string): Page {
   const key = hash.replace(/^#\/?/,'').split('?')[0];
   return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
@@ -93,7 +93,7 @@ export function App() {
       {feedback}
       {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor} onTabSelect={selectTab}/>
       </VRCXProvider>}
-      {page==='about'&&<AboutPage anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/>}
+      <div hidden={page!=='about'}><AboutPage visible={accepted&&page==='about'} anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/></div>
       </main>
     <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}{!accepted&&<TermsConsent onAccepted={()=>setAccepted(true)}/> }

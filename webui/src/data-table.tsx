@@ -6,8 +6,8 @@ import {TableRegion} from './ui';
 export type TableSort={sort:string;direction:SortDirection};
 
 // Server queries own the rows; Fluent owns table semantics and header interaction.
-export function RecordTable({children,label,regionLabel,busy}:PropsWithChildren<{label:string;regionLabel:string;busy?:boolean}>) {
-  return <TableRegion label={regionLabel}><Table size="small" className="data-table" style={{tableLayout:'auto'}} aria-label={label} aria-busy={busy}>{children}</Table></TableRegion>;
+export function RecordTable({children,label,regionLabel,busy,className}:PropsWithChildren<{label:string;regionLabel:string;busy?:boolean;className?:string}>) {
+  return <TableRegion label={regionLabel}><Table size="small" className={'data-table'+(className?' '+className:'')} style={{tableLayout:'auto'}} aria-label={label} aria-busy={busy}>{children}</Table></TableRegion>;
 }
 
 export function SortHeader({column,label,sort,onSortChange,defaultDirection='ascending',disabled,className,description}:{

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/buildinfo"
 	"still-wanna-dance/internal/cacheproxy"
 )
@@ -140,7 +141,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			for _, file := range preserved {
 				hashes[file] = upgradeFileHash(t, file)
 			}
-			var previousLog []byte
+			previousLog := map[string]bool{}
 			for i, binary := range []string{before, after} {
 				content, err := os.ReadFile(binary)
 				if err != nil {
@@ -155,14 +156,33 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 						t.Fatalf("upgrade changed %s", filepath.Base(file))
 					}
 				}
-				log, err := os.ReadFile(files.Log)
+				logs, err := applog.Read(t.Context(), files.LogDir, applog.Query{})
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !bytes.HasPrefix(log, previousLog) {
-					t.Fatal("restart truncated application log")
+				currentLog := map[string]bool{}
+				loggedBuild := false
+				for _, entry := range logs.Entries {
+					currentLog[entry.Raw] = true
+					if entry.Message == "application_build" && !previousLog[entry.Raw] {
+						var build struct {
+							Version string `json:"version"`
+						}
+						if err := json.Unmarshal([]byte(entry.Raw), &build); err != nil {
+							t.Fatal(err)
+						}
+						loggedBuild = loggedBuild || build.Version == identities[i].Version
+					}
 				}
-				previousLog = log
+				if !loggedBuild {
+					t.Fatalf("version %s did not write its own application_build log", identities[i].Version)
+				}
+				for entry := range previousLog {
+					if !currentLog[entry] {
+						t.Fatal("upgrade lost an earlier application log record")
+					}
+				}
+				previousLog = currentLog
 			}
 			// Reopen the same real SQLite library after both binaries have read it.
 			cfg.Store, err = cacheproxy.OpenStore(s.DatabasePath)

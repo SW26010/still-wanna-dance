@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -62,55 +61,69 @@ type ReadResult struct {
 
 type logFile struct {
 	file *os.File
-	info os.FileInfo
-	name string
+	segment
 }
 
 var errRotated = errors.New("log files rotated during snapshot")
 
 // openSnapshot captures handles and lengths, then checks their names once more.
 // Appends cannot extend this read; later renames cannot change the captured files.
-func openSnapshot(root *os.Root, base string) (files []logFile, resultErr error) {
+func openSnapshot(root *os.Root) (files []logFile, resultErr error) {
 	defer func() {
 		if resultErr != nil {
 			closeLogs(files)
 		}
 	}()
-	for i := Backups; i >= 0; i-- {
-		name := base
-		if i > 0 {
-			name = fmt.Sprintf("%s.%d", base, i)
-		}
-		f, err := root.Open(name)
+	segments, err := logSegments(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, errRotated
+	}
+	if err != nil {
+		return nil, err
+	}
+	var total int64
+	// Directory entries discover names; their file IDs are unavailable on some
+	// Windows volumes. Compare handle stats with root.Stat below instead.
+	for _, item := range segments {
+		f, err := root.Open(item.name)
 		if errors.Is(err, os.ErrNotExist) {
-			files = append(files, logFile{name: name})
-			continue
+			return files, errRotated
 		}
 		if err != nil {
 			return files, err
 		}
 		info, err := f.Stat()
-		files = append(files, logFile{file: f, info: info, name: name})
+		files = append(files, logFile{file: f, segment: segment{name: item.name, info: info}})
 		if err != nil {
 			return files, err
 		}
-		if !info.Mode().IsRegular() || info.Size() > MaxBytes {
-			return files, fmt.Errorf("invalid log file %s", name)
-		}
-	}
-	for _, file := range files {
-		info, err := root.Stat(file.name)
-		if file.file == nil && errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := validateSegment(files[len(files)-1].segment); err != nil {
 			return files, err
 		}
-		if err != nil || file.file == nil || !os.SameFile(file.info, info) {
-			return files, errRotated
+		total += info.Size()
+		if total > MaxTotalBytes {
+			return files, validateSnapshot(root, files, total)
 		}
 	}
-	return files, nil
+	return files, validateSnapshot(root, files, total)
+}
+
+func validateSnapshot(root *os.Root, files []logFile, total int64) error {
+	// A captured total can include already-deleted segments. Recheck identity
+	// first so rotation uses the existing retry instead of reporting oversize.
+	for _, file := range files {
+		info, err := root.Stat(file.name)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err != nil || !os.SameFile(file.info, info) {
+			return errRotated
+		}
+	}
+	if total > MaxTotalBytes {
+		return errors.New("log snapshot exceeds size limit")
+	}
+	return nil
 }
 
 func closeLogs(files []logFile) {
@@ -148,8 +161,8 @@ func (h *recentEntries) Pop() any {
 
 // Read queries only this application's fixed, bounded log set. It creates no
 // directories or indexes and never borrows the writer or resource engine.
-func Read(ctx context.Context, path string, q Query) (ReadResult, error) {
-	result, err := read(ctx, path, q, ReadLimit)
+func Read(ctx context.Context, dir string, q Query) (ReadResult, error) {
+	result, err := read(ctx, dir, q, ReadLimit)
 	if err != nil {
 		return result, err
 	}
@@ -159,7 +172,7 @@ func Read(ctx context.Context, path string, q Query) (ReadResult, error) {
 	return result, nil
 }
 
-func read(ctx context.Context, path string, q Query, limit int) (ReadResult, error) {
+func read(ctx context.Context, dir string, q Query, limit int) (ReadResult, error) {
 	result := ReadResult{Entries: []Entry{}, Files: []string{}, Limit: limit}
 	if err := q.Validate(); err != nil {
 		return result, err
@@ -167,7 +180,7 @@ func read(ctx context.Context, path string, q Query, limit int) (ReadResult, err
 	if err := ctx.Err(); err != nil {
 		return result, err
 	}
-	root, err := os.OpenRoot(filepath.Dir(path))
+	root, err := os.OpenRoot(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return result, nil
 	}
@@ -175,9 +188,9 @@ func read(ctx context.Context, path string, q Query, limit int) (ReadResult, err
 		return result, err
 	}
 	defer root.Close()
-	files, err := openSnapshot(root, filepath.Base(path))
+	files, err := openSnapshot(root)
 	if errors.Is(err, errRotated) {
-		files, err = openSnapshot(root, filepath.Base(path))
+		files, err = openSnapshot(root)
 	}
 	if err != nil {
 		return result, err
@@ -187,9 +200,6 @@ func read(ctx context.Context, path string, q Query, limit int) (ReadResult, err
 	keyword := strings.ToLower(strings.TrimSpace(q.Event))
 	sequence := 0
 	for _, file := range files {
-		if file.file == nil {
-			continue
-		}
 		result.Files = append(result.Files, file.name)
 		reader := bufio.NewReader(io.NewSectionReader(file.file, 0, file.info.Size()))
 		for line := 1; ; line++ {
@@ -256,8 +266,8 @@ type ExportResult struct {
 
 // Export uses the same bounded file snapshot, filters and ordering as Read,
 // without the display limit. It never writes a temporary file on the server.
-func Export(ctx context.Context, path string, q Query) (ExportResult, error) {
-	result, err := read(ctx, path, q, 0)
+func Export(ctx context.Context, dir string, q Query) (ExportResult, error) {
+	result, err := read(ctx, dir, q, 0)
 	if err != nil {
 		return ExportResult{}, err
 	}

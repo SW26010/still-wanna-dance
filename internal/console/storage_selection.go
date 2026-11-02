@@ -66,7 +66,7 @@ func (c *Console) validateResourcePaths(s Settings) error {
 				return errors.New("数据位置不能覆盖程序配置或辅助文件")
 			}
 		}
-		for _, reserved := range []string{p.StateDir, filepath.Dir(p.Log)} {
+		for _, reserved := range []string{p.StateDir, p.LogDir} {
 			if pathContains(reserved, path) {
 				return errors.New("数据位置不能放在程序状态或日志目录内")
 			}

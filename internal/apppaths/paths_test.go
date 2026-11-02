@@ -9,7 +9,7 @@ import (
 func TestLayoutIsLazyAndSeparatesSiblingConfigurations(t *testing.T) {
 	root := t.TempDir()
 	p := ForConfig(DefaultConfig(filepath.Join(root, "SWD.exe")))
-	if p.Config != filepath.Join(root, "config.json") || p.Root != root || p.DefaultDatabase != filepath.Join("data", "database", "storage.sqlite") || p.DefaultVideo != "videos" || p.Log != filepath.Join(root, "logs", "app.log") {
+	if p.Config != filepath.Join(root, "config.json") || p.Root != root || p.DefaultDatabase != filepath.Join("data", "database", "storage.sqlite") || p.DefaultVideo != "videos" || p.LogDir != filepath.Join(root, "logs") {
 		t.Fatal(p)
 	}
 	for _, name := range []string{"a.json", "b.json", "a.yaml"} {
@@ -17,7 +17,7 @@ func TestLayoutIsLazyAndSeparatesSiblingConfigurations(t *testing.T) {
 		if q.Root != filepath.Join(p.Root, name+".d") || q.DefaultDatabase != filepath.Join(name+".d", "data", "database", "storage.sqlite") || q.DefaultVideo != filepath.Join(name+".d", "videos") {
 			t.Fatal(q)
 		}
-		if q.Terms == p.Terms || q.Log == p.Log || q.Lock == p.Lock || q.State("batch-last-success") == p.State("batch-last-success") {
+		if q.Terms == p.Terms || q.LogDir == p.LogDir || q.Lock == p.Lock || q.State("batch-last-success") == p.State("batch-last-success") {
 			t.Fatal("shared companions", q)
 		}
 	}

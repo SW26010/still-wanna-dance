@@ -28,7 +28,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/logs/export" {
-		result, err := applog.Export(r.Context(), c.files().Log, query)
+		result, err := applog.Export(r.Context(), c.files().LogDir, query)
 		if err != nil {
 			http.Error(w, "日志导出失败，请重新尝试；若仍失败，请检查日志文件和目录权限", http.StatusInternalServerError)
 			return
@@ -40,7 +40,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(result.Data)
 		return
 	}
-	result, err := applog.Read(r.Context(), c.files().Log, query)
+	result, err := applog.Read(r.Context(), c.files().LogDir, query)
 	if err != nil {
 		http.Error(w, "程序日志读取失败，请重新查询；若仍失败，请检查日志文件和目录权限", http.StatusInternalServerError)
 		return

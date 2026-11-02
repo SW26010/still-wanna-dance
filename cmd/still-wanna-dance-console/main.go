@@ -120,18 +120,18 @@ func run() (runErr error) {
 		return err
 	}
 	defer func() { runErr = errors.Join(runErr, work.Close()) }()
-	logPath := apppaths.ForConfig(p).Log
+	logDir := apppaths.ForConfig(p).LogDir
 	var writer *applog.Writer
 	if level != applog.Off {
-		writer, err = applog.Open(logPath, applog.MaxBytes, applog.Backups, func(err error) {
-			message := fmt.Errorf("程序日志写入失败（%s）：%w", logPath, err)
+		writer, err = applog.Open(logDir, applog.MaxBytes, applog.MaxTotalBytes, func(err error) {
+			message := fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
 			fmt.Fprintln(os.Stderr, message)
 			if visibleErrors {
 				go desktop.ShowError(message)
 			}
 		})
 		if err != nil {
-			return fmt.Errorf("无法创建程序日志（%s）：%w", logPath, err)
+			return fmt.Errorf("无法创建程序日志（%s）：%w", logDir, err)
 		}
 	}
 	previousLogger := slog.Default()
@@ -142,7 +142,7 @@ func run() (runErr error) {
 			if level == applog.Off {
 				runErr = fmt.Errorf("程序发生异常（程序日志已关闭）：%v", crash)
 			} else {
-				runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logPath, crash)
+				runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logDir, crash)
 			}
 		}
 		var restart *restartRequest

@@ -3,75 +3,112 @@ package applog
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
+	"time"
 )
 
-const MaxBytes int64 = 5 << 20
-const Backups = 3
+const MaxBytes int64 = 1 << 20
+const MaxTotalBytes int64 = 20 << 20
 
 // Writer must have one process owner (the console's config lock supplies this).
 type Writer struct {
 	mu          sync.Mutex
-	path        string
+	root        *os.Root
+	name        string
 	file        *os.File
 	size, limit int64
-	backups     int
+	budget      int64
 	closed      bool
 	onError     func(error)
 	reported    sync.Once
 }
 
-func Open(path string, limit int64, backups int, onError func(error)) (*Writer, error) {
-	if limit <= 0 || backups < 1 {
+func Open(dir string, limit, budget int64, onError func(error)) (*Writer, error) {
+	if limit <= 0 || limit > MaxBytes || budget < limit {
 		return nil, errors.New("invalid log rotation limits")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
-	w := &Writer{path: path, limit: limit, backups: backups, onError: onError}
-	if err := w.open(); err != nil {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	w := &Writer{root: root, limit: limit, budget: budget, onError: onError}
+	if err := w.open(true); err != nil {
+		w.Close()
 		return nil, err
 	}
 	return w, nil
 }
 
-func (w *Writer) open() error {
-	f, err := os.OpenFile(w.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+func (w *Writer) open(reuse bool) error {
+	files, err := logSegments(w.root)
 	if err != nil {
 		return err
 	}
-	info, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return err
+	if reuse && len(files) != 0 {
+		last := files[len(files)-1]
+		if _, ok := segmentTime(last.name); ok && last.info.Size() < w.limit {
+			w.file, err = w.root.OpenFile(last.name, os.O_APPEND|os.O_WRONLY, 0600)
+			if err != nil {
+				return err
+			}
+			w.name, w.size = last.name, last.info.Size()
+		}
 	}
-	w.file, w.size = f, info.Size()
+	if w.file == nil {
+		at := time.Now().UTC()
+		if len(files) != 0 {
+			if last, ok := segmentTime(files[len(files)-1].name); ok && !at.After(last) {
+				at = last.Add(time.Nanosecond)
+			}
+		}
+		for {
+			w.name = at.Format(segmentLayout)
+			w.file, err = w.root.OpenFile(w.name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if !os.IsExist(err) {
+				break
+			}
+			at = at.Add(time.Nanosecond)
+		}
+		if err != nil {
+			return err
+		}
+		w.size = 0
+	}
+	// Reserve a full current segment, so ordinary appends need no directory scan.
+	total := w.limit
+	for _, file := range files {
+		if file.name != w.name {
+			total += file.info.Size()
+		}
+	}
+	for _, file := range files {
+		if total <= w.budget {
+			break
+		}
+		if file.name == w.name {
+			continue
+		}
+		if err := w.root.Remove(file.name); err != nil && !os.IsNotExist(err) {
+			w.file.Close()
+			w.file = nil
+			return err
+		}
+		total -= file.info.Size()
+	}
 	return nil
 }
 
 func (w *Writer) rotate() error {
-	if err := w.file.Close(); err != nil {
-		w.file = nil
-		return err
-	}
+	err := w.file.Close()
 	w.file = nil
-	oldest := fmt.Sprintf("%s.%d", w.path, w.backups)
-	if err := os.Remove(oldest); err != nil && !os.IsNotExist(err) {
+	if err != nil {
 		return err
 	}
-	for i := w.backups - 1; i >= 0; i-- {
-		source := w.path
-		if i > 0 {
-			source = fmt.Sprintf("%s.%d", w.path, i)
-		}
-		if err := os.Rename(source, fmt.Sprintf("%s.%d", w.path, i+1)); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return w.open()
+	return w.open(false)
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
@@ -90,7 +127,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 		return 0, errors.New("log record exceeds file size limit")
 	}
 	if w.file == nil {
-		if err = w.open(); err != nil {
+		if err = w.open(true); err != nil {
 			return 0, err
 		}
 	}
@@ -107,11 +144,14 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 func (w *Writer) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.closed = true
-	if w.file == nil {
+	if w.closed {
 		return nil
 	}
-	err := w.file.Close()
-	w.file = nil
-	return err
+	w.closed = true
+	var err error
+	if w.file != nil {
+		err = w.file.Close()
+		w.file = nil
+	}
+	return errors.Join(err, w.root.Close())
 }

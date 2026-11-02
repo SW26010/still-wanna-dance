@@ -7,6 +7,40 @@ import { withTemp, run, sha256 } from './release-source.mjs';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
+
+test('Portable log reads support legacy upgrades and discover new segments on every read', {skip:process.platform !== 'win32'}, () => withTemp(temp => {
+  const log = name => JSON.stringify({msg:name})+'\n';
+  fs.writeFileSync(path.join(temp,'app.log'),log('legacy'));
+  fs.writeFileSync(path.join(temp,'app.log.1'),log('older'));
+  for (const name of ['app.log.4','notes.log']) fs.writeFileSync(path.join(temp,name),'unknown files must not be parsed');
+  const result = run('pwsh',['-NoProfile','-NonInteractive','-Command',`
+    $ErrorActionPreference = 'Stop'
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(${quote(path.join(scripts,'test-portable.ps1'))}, [ref]$null, [ref]$parseErrors)
+    if ($parseErrors.Count) { throw 'Portable script did not parse.' }
+    $definition = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Read-ApplicationLogs' }, $false)
+    if (!$definition) { throw 'Portable log reader is missing.' }
+    Invoke-Expression $definition.Extent.Text
+    $directory = ${quote(temp)}
+    $legacy = @(Read-ApplicationLogs $directory)
+    try {
+      Read-ApplicationLogs $directory -RequireTimestamp | Out-Null
+      throw 'Current build accepted only legacy logs.'
+    } catch {
+      if ($_.Exception.Message -notlike 'Expected timestamp-named*') { throw }
+    }
+    [IO.File]::WriteAllText((Join-Path $directory '2026-11-03T00-00-00.000000001Z.log'), ${quote(log('current'))})
+    $first = @(Read-ApplicationLogs $directory -RequireTimestamp)
+    [IO.File]::WriteAllText((Join-Path $directory '2026-11-03T00-00-00.000000002Z.log'), ${quote(log('newer'))})
+    $second = @(Read-ApplicationLogs $directory -RequireTimestamp)
+    @{legacy=@($legacy.msg | Sort-Object);first=$first.Count;second=@($second.msg | Sort-Object)} | ConvertTo-Json -Compress
+  `]);
+  const summary = JSON.parse(result);
+  assert.deepEqual(summary.legacy,['legacy','older']);
+  assert.equal(summary.first,3);
+  assert.deepEqual(summary.second,['current','legacy','newer','older']);
+}));
+
 for (const scenario of ['unknown-file', 'unknown-directory', 'bad-checksum']) {
   test(`Portable preflight rejects ${scenario} before starting an executable`, {skip:process.platform !== 'win32'}, () => withTemp(temp => {
     const input = path.join(temp, 'input'), folder = path.join(input, 'SWD');

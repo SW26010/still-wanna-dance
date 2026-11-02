@@ -19,7 +19,7 @@ import (
 
 func TestLogsAPIReadsWithoutEngineAndValidatesFilters(t *testing.T) {
 	c := testConsole(t)
-	path := c.files().Log
+	path := filepath.Join(c.files().LogDir, "2026-11-02T01-00-00.000000000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -79,9 +79,49 @@ func TestLogsAPIReadsWithoutEngineAndValidatesFilters(t *testing.T) {
 	}
 }
 
+func TestLogsAPIAggregatesLiveSegments(t *testing.T) {
+	c := testConsole(t)
+	writer, err := applog.Open(c.files().LogDir, 256, 8192, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	logger := applog.New(writer, applog.Info)
+	for i := 0; i < 20; i++ {
+		logger.Info("segment_fixture", "index", i)
+	}
+	for _, path := range []string{"/api/logs?event=segment_fixture", "/api/logs/export?event=segment_fixture"} {
+		r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		if w.Code != 200 {
+			t.Fatal("cannot read live segments", w.Code, w.Body.String())
+		}
+		if strings.HasPrefix(path, "/api/logs/export") {
+			if w.Header().Get("X-SWD-Log-Matches") != "20" || strings.Count(w.Body.String(), "[INFO] segment_fixture\n") != 20 {
+				t.Fatal("export lost segment records", w.Body.String())
+			}
+			continue
+		}
+		var result applog.ReadResult
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || result.Matches != 20 || len(result.Files) <= 1 {
+			t.Fatal("query did not combine multiple live segments", result, err)
+		}
+		for _, file := range result.Files {
+			if file == "app.log" {
+				t.Fatal("writer used the removed anchor filename")
+			}
+		}
+	}
+	if c.service != nil {
+		t.Fatal("log reads started the resource engine")
+	}
+}
+
 func TestLogExportAPIUsesAuthenticatedFiltersAndAttachments(t *testing.T) {
 	c := testConsole(t)
-	path := c.files().Log
+	path := filepath.Join(c.files().LogDir, "2026-11-02T01-00-00.000000000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -130,23 +170,23 @@ func TestLogReaderBrowser(t *testing.T) {
 		t.Skip("set SWD_LOG_READER_BROWSER_EVIDENCE for real Console log reader integration")
 	}
 	c := testConsole(t)
-	path := c.files().Log
+	path := filepath.Join(c.files().LogDir, "2026-11-02T02-00-00.000000000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range []struct {
-		suffix string
-		hour   int
-		level  slog.Level
-		msg    string
-	}{{".1", 1, slog.LevelWarn, "fixture_warning"}, {"", 2, slog.LevelInfo, "fixture_info"}, {"", 3, slog.LevelError, "fixture_error"}} {
+		name  string
+		hour  int
+		level slog.Level
+		msg   string
+	}{{"2026-11-02T01-00-00.000000000Z.log", 1, slog.LevelWarn, "fixture_warning"}, {"2026-11-02T02-00-00.000000000Z.log", 2, slog.LevelInfo, "fixture_info"}, {"2026-11-02T02-00-00.000000000Z.log", 3, slog.LevelError, "fixture_error"}} {
 		var output bytes.Buffer
 		record := slog.NewRecord(time.Date(2026, 11, 2, file.hour, 0, 0, 0, time.UTC), file.level, file.msg, 0)
 		record.Add("outcome", "fixture", "precise", int64(9007199254740993), "detail", "<script>literal text</script>\nnot_a_key=inside value", "song_ids", []int{1343, -1}, "path", "C:/logs/"+strings.Repeat("long-path/", 20), "text", "two  spaces")
 		if err := applog.New(&output, applog.Debug).Handler().Handle(t.Context(), record); err != nil {
 			t.Fatal(err)
 		}
-		f, err := os.OpenFile(path+file.suffix, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(filepath.Join(c.files().LogDir, file.name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			t.Fatal(err)
 		}

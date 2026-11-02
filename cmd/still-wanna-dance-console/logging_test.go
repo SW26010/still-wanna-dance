@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
@@ -50,7 +51,7 @@ func TestApplicationCleansBlocksBeforeStartupFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			if failure == "blocked_logs" {
-				if err := os.WriteFile(filepath.Dir(apppaths.ForConfig(config).Log), nil, 0600); err != nil {
+				if err := os.WriteFile(apppaths.ForConfig(config).LogDir, nil, 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -120,13 +121,14 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 			if err := os.Mkdir(skipped, 0700); err != nil {
 				t.Fatal(err)
 			}
-			logPath := apppaths.ForConfig(config).Log
+			logDir := apppaths.ForConfig(config).LogDir
+			existingNames := []string{"app.log", "app.log.1", "2026-11-03T00-00-00.000000000Z.log"}
 			if level == "off" {
-				if err := os.MkdirAll(filepath.Dir(logPath), 0700); err != nil {
+				if err := os.MkdirAll(logDir, 0700); err != nil {
 					t.Fatal(err)
 				}
-				for _, suffix := range []string{"", ".1"} {
-					if err := os.WriteFile(logPath+suffix, []byte("preserve existing log"), 0600); err != nil {
+				for _, name := range existingNames {
+					if err := os.WriteFile(filepath.Join(logDir, name), []byte("preserve existing log"), 0600); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -151,18 +153,22 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				t.Fatalf("cleanup ignored level %s: %s", level, output)
 			}
 			if level == "off" {
-				for _, suffix := range []string{"", ".1"} {
-					data, err := os.ReadFile(logPath + suffix)
+				for _, name := range existingNames {
+					data, err := os.ReadFile(filepath.Join(logDir, name))
 					if err != nil || string(data) != "preserve existing log" {
 						t.Fatal("off modified existing logs", err)
 					}
+				}
+				entries, err := os.ReadDir(logDir)
+				if err != nil || len(entries) != len(existingNames) {
+					t.Fatal("off created or cleaned log files", entries, err)
 				}
 				// A blocked log directory must not stop a subsequent Off startup.
 				other := filepath.Join(t.TempDir(), "config.json")
 				if err := os.WriteFile(other, []byte(`{"schemaVersion":8,"logLevel":"off"}`), 0600); err != nil {
 					t.Fatal(err)
 				}
-				blocked := filepath.Dir(apppaths.ForConfig(other).Log)
+				blocked := apppaths.ForConfig(other).LogDir
 				if err := os.MkdirAll(filepath.Dir(blocked), 0700); err != nil {
 					t.Fatal(err)
 				}
@@ -178,15 +184,15 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				}
 				return
 			}
-			data, err := os.ReadFile(logPath)
+			logs, err := applog.Read(t.Context(), logDir, applog.Query{})
 			if err != nil {
 				t.Fatal(err, string(output))
 			}
 			started, failed := false, false
-			for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+			for _, entry := range logs.Entries {
 				var record map[string]any
-				if err := json.Unmarshal(line, &record); err != nil {
-					t.Fatal(err, string(line))
+				if err := json.Unmarshal([]byte(entry.Raw), &record); err != nil {
+					t.Fatal(err, entry.Raw)
 				}
 				if record["session_id"] == nil || record["pid"] == nil || !strings.HasSuffix(record["time"].(string), "Z") {
 					t.Fatal(record)
@@ -195,7 +201,7 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				failed = failed || record["msg"] == "application_failed"
 			}
 			if !failed || started != (level == "info" || level == "debug" || level == "invalid") {
-				t.Fatalf("incorrect level filter: %s", data)
+				t.Fatalf("incorrect level filter: %+v", logs)
 			}
 		})
 	}

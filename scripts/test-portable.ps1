@@ -44,6 +44,18 @@ function Read-Build($executable) {
     return $value
 }
 
+function Read-ApplicationLogs($directory, [switch]$RequireTimestamp) {
+    $timestampPattern = '^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{9}Z\.log$'
+    $files = @(Get-ChildItem -LiteralPath $directory -File | Where-Object {
+        $_.Name -cmatch $timestampPattern -or $_.Name -cmatch '^app\.log(?:\.[1-3])?$'
+    } | Sort-Object Name)
+    if ($files.Count -eq 0) { throw 'Application logs are missing.' }
+    if ($RequireTimestamp -and @($files | Where-Object { $_.Name -cmatch $timestampPattern }).Count -eq 0) {
+        throw 'Expected timestamp-named application logs from the current build.'
+    }
+    $files | ForEach-Object { Get-Content -LiteralPath $_.FullName -Encoding utf8 } | ForEach-Object { $_ | ConvertFrom-Json }
+}
+
 function Free-Port {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start()
@@ -165,8 +177,7 @@ try {
     if (((Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object) -join '|') -cne 'config.json|config.lock|data|licenses|logs|SWD.exe|videos|work') { throw 'Unexpected default installation layout.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
-    $logPath = Join-Path $folder 'logs/app.log'
-    $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp:(!$PreviousZip))
     $startupEvents = @('application_starting', 'application_build', 'console_ready')
     foreach ($event in $startupEvents) {
         if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 1) { throw "Expected one startup log record: $event" }
@@ -201,7 +212,7 @@ try {
     if (!$restarted) { throw 'Restart did not restore the consent-gated console.' }
     Assert-Identity $process $port $exe[0].FullName $configPath
     if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Restart rewrote persisted defaults.' }
-    $records = @(Get-Content -LiteralPath $logPath | ForEach-Object { $_ | ConvertFrom-Json })
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp:(!$PreviousZip))
     foreach ($event in $startupEvents) {
         if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 2) { throw "Expected two startup log records after restart: $event" }
     }
@@ -227,6 +238,10 @@ try {
     if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Replacement startup rewrote configuration.' }
     $about = Invoke-WebRequest "$url/about"
     if (!$about.Content.Contains('"version":"' + $updatedBuild.version + '"')) { throw 'Replacement did not serve its own build identity.' }
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp)
+    if (@($records | Where-Object { $_.msg -ceq 'application_build' -and $_.version -ceq $updatedBuild.version -and $_.pid -eq $process.Id }).Count -ne 1) {
+        throw 'Replacement did not write its own build identity to the application logs.'
+    }
     $process.Kill()
     $process.WaitForExit()
 
@@ -259,7 +274,7 @@ try {
         Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
         if ($saved.schemaVersion -ne 8 -or $saved.databasePath -cne (Join-Path "$name.d" 'data/database/storage.sqlite') -or $saved.videoDir -cne (Join-Path "$name.d" 'videos')) { throw 'Custom startup did not prepare its independent default library.' }
-        $records = @(Get-Content -LiteralPath (Join-Path "$config.d" 'logs/app.log') | ForEach-Object { $_ | ConvertFrom-Json })
+        $records = @(Read-ApplicationLogs (Join-Path "$config.d" 'logs') -RequireTimestamp)
         if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'data/database/storage.sqlite'))) { throw 'Custom startup did not create its default database.' }

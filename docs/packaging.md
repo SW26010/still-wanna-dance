@@ -54,7 +54,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 用户双击 SWD.exe 显示托盘，默认打开 WebUI；已确认条款时可按设置关闭启动打开，未确认当前条款时仍打开确认入口。自动加速默认关闭，首次确认后由用户点击「开始加速」；启动行为以[配置生命周期](settings-lifecycle.md)为准。同一实际 EXE 和配置重复启动才打开已有实例，不同安装或配置显示冲突及归属。无需 CMD / PS1 启动脚本。仅编译可执行 `./scripts/build-desktop.ps1`，默认输出 `bin/SWD.exe`。
 
-默认配置为 EXE 旁的 `config.json`，首次成功打开即保存 schemaVersion=8。程序日志为 `logs/app.log`，首次启动自动准备 `data/database/storage.sqlite` 与 `videos`；已有资料保护和自定义位置的明确新建遵循[配置生命周期](settings-lifecycle.md)。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1～7 测试配置拒绝打开并保留原文件；已有 v8/v9 数据库可明确接入，v8 在实际打开时迁移，不迁移其他数据库格式或自动搬动旧布局。
+默认配置为 EXE 旁的 `config.json`，首次成功打开即保存 schemaVersion=8。程序日志位于 `logs/`，采用 UTC 创建时间命名的 1 MiB 分片，容量清理见[程序日志](console.md#程序日志)。首次启动自动准备 `data/database/storage.sqlite` 与 `videos`；已有资料保护和自定义位置的明确新建遵循[配置生命周期](settings-lifecycle.md)。自定义 `-config`、多实例隔离、相对路径及外置库约定见[统一存储](storage.md)。无版本和版本 1～7 测试配置拒绝打开并保留原文件；已有 v8/v9 数据库可明确接入，v8 在实际打开时迁移，不迁移其他数据库格式或自动搬动旧布局。
 
 数据库 v9 在打开受支持的 v8 库时[静默一次性迁移](storage.md#v8-到-v9-的静默迁移)；完成后旧 v8 程序不能打开该库，更早数据库格式仍拒绝，配置版本不变。下文既有覆盖升级检查只证明当时格式，本轮迁移见[v9 开发验证](validation/storage-v9-20261101.md)。
 

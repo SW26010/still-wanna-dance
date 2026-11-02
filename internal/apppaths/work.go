@@ -29,12 +29,6 @@ func WorkForConfig(executable, config string) string {
 	return workPath(executable, "console", config)
 }
 
-// CLI instances have no configuration file. Their selected database/video pair
-// identifies the work owner; a desktop instance never shares this namespace.
-func WorkForService(executable, database, videos string) string {
-	return workPath(executable, "service", database, videos)
-}
-
 func workPath(executable, kind string, identities ...string) string {
 	base := filepath.Dir(executable)
 	h := sha256.New()

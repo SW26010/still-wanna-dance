@@ -6,7 +6,7 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[命令行服务](service.md)、[功能范围](scope.md)、[日志](logging.md) |
+| 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[功能范围](scope.md)、[日志](logging.md) |
 | 下载架构与运行参数 | [下载需求与资源管理设计](download-resource-design.md)是规则、接口及验证边界的统一依据；[块调度设计](block-scheduler-design.md)解释实现，[运行规则](download-concurrency.md)汇总参数 |
 | 视频导入、暂停与恢复 | [固定清单、恢复与源文件清理](video-import.md) |
 | 队列与视频保留 | [队列预加载](queue-prefetch.md)、[视频存储预算](cache-retention.md) |
@@ -25,7 +25,7 @@
 | [验证机制](live-acceptance-process.md)、[VRC 台账](live-acceptance-backlog.md)、[非 VRC 跟进](validation-followups.md) | 当前验证分工和真正剩余的场景；不在其他文档重复维护待验清单 |
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | [acceptance/](acceptance/) | 已实际开展的游戏/实网验收报告；新游戏批次使用[报告模板](live-acceptance-report-template.md) |
-| [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；文件名中的 `original-` 指原版调查 |
+| [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；[旧命令行服务手册](history/command-line-service-20261103.md)只适用于移除前版本，文件名中的 `original-` 指原版调查 |
 | [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[等权初始表半衰期回测](research/equal-requester-priority-20261026.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[HTTP/HTTPS、104 地址与 Speedtest 对照](research/issue-21-cf-triad-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
 | 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
 | 曲库改造决策 | [Udon 曲库与资源映射决策](research/udon-catalog-decision-draft-20261029.md)保存目标、实施边界及验证；现行规则回到[曲库设计](song-catalog-design.md)，预置维护见[资源快照](../data/media-seed/README.md) |

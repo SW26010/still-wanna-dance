@@ -1,5 +1,7 @@
 # 持久化职责迁移计划
 
+> 2026-11-03 起独立命令行服务已移除；下文涉及 CLI 的参数、工作区和验收仅描述当时构建。现行入口及规则见[桌面程序](console.md)和[存储契约](storage.md)。
+
 > 2026-11-03 起，程序日志改为 UTC 创建时间命名的 1 MiB 分片及 20 MiB 总预算；下文 `app.log` 和编号轮转的描述只适用于当时实现。现行规则见[程序日志](console.md#程序日志)。
 
 > 当前数据库 v9 已实现，规则见[存储契约](storage.md)，本轮结果见[v9 开发验证](validation/storage-v9-20261101.md)。下文保留此前批次的结果、失败和决策历史；其中旧表、摘要、累计及旧格式全部拒绝规则只适用于当时版本，已由 v9 取代，不作为新实现要求或验证证据。
@@ -41,7 +43,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 ### 首发前兼容清理验证（2026-10-27）
 
-按配置／CLI、资源锁、观测通道的顺序清理：设置不再接受 `socks5` 别名，CLI 使用 `-max-local-validations`；数据库和视频目录按资源独立持锁，删除无产品调用的混合目录检查入口；Monitor、测速与测试夹具统一通过候选接口，移除普通 Transport 分支。吞吐快照改为格式 2，只保存带通道身份的样本，旧格式 1 黄金文件保留用于拒绝且不改写回归。现行边界分别见[服务参数](service.md)、[存储契约](storage.md)与[上游通道](upstream-channels.md)。旧数据保护、hosts 恢复及业务回源容错保持原用途。
+按配置／CLI、资源锁、观测通道的顺序清理：设置不再接受 `socks5` 别名，CLI 使用 `-max-local-validations`；数据库和视频目录按资源独立持锁，删除无产品调用的混合目录检查入口；Monitor、测速与测试夹具统一通过候选接口，移除普通 Transport 分支。吞吐快照改为格式 2，只保存带通道身份的样本，旧格式 1 黄金文件保留用于拒绝且不改写回归。历史服务参数见[旧手册](history/command-line-service-20261103.md)，现行边界见[存储契约](storage.md)与[上游通道](upstream-channels.md)。旧数据保护、hosts 恢复及业务回源容错保持原用途。
 
 完整 `go test -p 1 -tags=no_easytier ./cmd/... ./internal/... -count=1`、同范围 vet、前端构建与产物检查通过；Edge 设置草稿／代理保存／恢复回归 16 项通过。定向 Windows race 覆盖独立锁、候选替换与取消、吞吐持久化和诊断生命周期；`cf_block_experiment` 标签编译通过。实际 CLI 构建的帮助包含新参数，旧参数在解析阶段以退出码 2 拒绝。所有检查使用隔离资源，未迁移用户数据库或视频、未启动游戏或改 hosts，无新增 VRC 专属待验项。
 
@@ -305,7 +307,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | [request-timeline.tsx](../webui/src/request-timeline.tsx)、[vrcx.tsx](../webui/src/vrcx.tsx) | 现按 active `storageDir` 切换查询／预览；改为数据库作用域，VRCX 已有整表替换确认继续保留 |
 | [cache.go](../internal/console/cache.go)、[import.go](../internal/console/import.go) 与设置页导入区域 | 删除、选中项、导入目标及回执依赖旧根／StorageID；改为当前数据库与视频组合，保留文件 Stamp、会话校验与源文件确认 |
 | [app.tsx](../webui/src/app.tsx) 及帮助路径展示 | 显示两个生效位置、备份优先级与内部文件的管理责任；不增加缓存目录管理页 |
-| [CLI main.go](../cmd/still-wanna-dance/main.go)、[acceptance.mjs](../scripts/acceptance.mjs)、[test-portable.ps1](../scripts/test-portable.ps1) | CLI 当前参数为混合 `-storage-dir`，验收脚本固定配置 v6、旧字段和 `videos` 派生路径；按实际新契约修改。Portable 对自定义配置 `.d` 隔离的断言应保留，而非删除以迎合新计划 |
+| 当时的 CLI main.go、[acceptance.mjs](../scripts/acceptance.mjs)、[test-portable.ps1](../scripts/test-portable.ps1) | 当时 CLI 参数为混合 `-storage-dir`，验收脚本固定配置 v6、旧字段和 `videos` 派生路径；按当轮新契约修改。Portable 对自定义配置 `.d` 隔离的断言应保留，而非删除以迎合新计划 |
 
 完成条件：浏览器与隔离真实服务验证位置编辑、重启、缺失／失联、保存失败、条款重试和旧页面操作；默认启动不需要新的快捷方式流程。现行文档与实际实现同步，不把目标规则留在多个相互冲突的位置。
 

@@ -21,7 +21,7 @@
 
 统一检测只接收 Console 已组装的清单、播放地址和资源请求能力。直连访问方式内部复用业务请求已有的推荐顺序及未测候选容错；Monitor 未启动时也能通过现有候选池完成指定缺项。候选发现、固定协议请求和正文校验共用请求期限与尝试预算。代理只提供当前客户端；自动与手动使用同一访问方式。`catalogsync` 和 `upstreamcheck` 不导入 Monitor，不发现、枚举或推荐 Channel。
 
-`internal/upstreamnet` 统一承载独立 DoH、DNS 池与刷新、双栈拨号及 SOCKS5 adapter；命令行与 Console 直接复用它，分别拥有解析器的关闭责任。`upstreamrequest` 继续定义候选池与拨号契约，Console 只组装配置、连接池及应用生命周期。协议测试随网络实现维护；Console 测试通过相同网络契约注入夹具，不读取解析器私有缓存。现有 CF 实验的细粒度观测仅在 `cf_block_experiment` 构建中提供，正式产品不包含实验探针。
+`internal/upstreamnet` 统一承载独立 DoH、DNS 池与刷新、双栈拨号及 SOCKS5 adapter；Console 负责解析器的关闭。`upstreamrequest` 继续定义候选池与拨号契约，Console 只组装配置、连接池及应用生命周期。协议测试随网络实现维护；Console 测试通过相同网络契约注入夹具，不读取解析器私有缓存。现有 CF 实验的细粒度观测仅在 `cf_block_experiment` 构建中提供，正式产品不包含实验探针。
 
 直连候选为 `入口主机 × IP`。代理客户端不实现候选接口、不发布 Channel、不创建 Monitor，也不创建 SWD 目标 DNS 解析器。SOCKS5 始终传递原域名，Mihomo 使用核心自己的解析和出口策略；两者失败都不回退直连。
 

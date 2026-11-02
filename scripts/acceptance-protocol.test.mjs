@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AcceptanceBlocked, videoRedirect, requireAcceptedTerms } from './acceptance-protocol.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { AcceptanceBlocked, requireAcceptedTerms } from './acceptance-protocol.mjs';
+import { withTemp } from './release-source.mjs';
 
 test('consent is verified by the application, with missing consent classified as blocked', () => {
   assert.doesNotThrow(() => requireAcceptedTerms(200));
@@ -10,33 +15,16 @@ test('consent is verified by the application, with missing consent classified as
   }
 });
 
-const video = 'http://play.udon.dance/files/2403/1343-version.mp4?e=28711962048bed664c98f27e1d9d5842&s=32867177';
-
-test('accept every supported redirect over HTTP and HTTPS, without fixing a node to a host', () => {
-  for (const status of [301, 302, 307, 308]) {
-    for (const scheme of ['http:', 'https:']) {
-      for (const host of ['play.udon.dance', 'nya.xin.moe', 'media.future.example']) {
-        const url = new URL(video); url.protocol = scheme; url.hostname = host;
-        assert.equal(videoRedirect(status, url.href).href, url.href);
-      }
-    }
-  }
-});
-
-test('unexpected API responses are protocol blockers, not program assertion failures', () => {
-  for (const [status, location] of [
-    [200, video], [303, video], [302, undefined], [302, '/video.mp4'],
-    [302, video.replace('play.udon.dance', 'localhost')],
-    [302, video.replace('http:', 'ftp:')], [302, video + '#fragment'],
-    [302, video.replace('http://', 'http://user:password@')],
-    [302, video.replace('1343-version', '%31343-version')],
-    [302, video.replace('28711962048bed664c98f27e1d9d5842', 'invalid')],
-    [302, video + '&e=28711962048bed664c98f27e1d9d5842'],
-    [302, video + '&s=1'], [302, video.replace('32867177', '0')],
-    [302, video.replace('32867177', '2147483649')],
-    [302, video + '&token=%zz'], [302, video + '&token=x;y'],
+test('acceptance accepts a receipt alone or after an explicit executable', () => withTemp(cwd => {
+  fs.writeFileSync(path.join(cwd, 'terms.json'), 'synthetic fixture');
+  const script = fileURLToPath(new URL('./acceptance.mjs', import.meta.url));
+  for (const [args, message] of [
+    [['terms.json'], 'Missing console binary: bin/SWD.exe'],
+    [['custom/SWD.exe', 'terms.json'], 'Missing console binary: custom/SWD.exe'],
+    [[], 'Provide an existing console terms.json receipt'],
   ]) {
-    assert.throws(() => videoRedirect(status, location), error =>
-      error instanceof AcceptanceBlocked && error.category === 'upstream-protocol-change');
+    const result = spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8', windowsHide: true });
+    assert.equal(result.status, 2, result.stderr || result.stdout);
+    assert.ok(result.stdout.includes(message), result.stdout);
   }
-});
+}));

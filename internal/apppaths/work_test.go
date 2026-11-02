@@ -26,14 +26,6 @@ func TestWorkOwnershipFollowsExecutableAndSurvivesPortableMove(t *testing.T) {
 	if WorkForConfig(exe, filepath.Join(first, "data", "other.json")) == work {
 		t.Fatal("different configs share block files")
 	}
-	database, videos := filepath.Join(first, "data", "database", "storage.sqlite"), filepath.Join(first, "videos")
-	service := WorkForService(exe, database, videos)
-	if service == work || service == WorkForService(exe, database, videos+"-other") {
-		t.Fatal("CLI work scope ignored its owner")
-	}
-	if filepath.Base(service) != filepath.Base(WorkForService(filepath.Join(moved, "SWD.exe"), filepath.Join(moved, "data", "database", "storage.sqlite"), filepath.Join(moved, "videos"))) {
-		t.Fatal("portable CLI move changed the work owner")
-	}
 	if _, err := os.Stat(first); !os.IsNotExist(err) {
 		t.Fatal("path calculation created files", err)
 	}

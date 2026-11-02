@@ -86,7 +86,7 @@ SQLite 使用纯 Go 驱动 `modernc.org/sqlite`。开发命令：
 go fmt ./cmd/... ./internal/...
 ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./cmd/... ./internal/...
 ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs vet -tags=no_easytier ./cmd/... ./internal/...
-node scripts/go-patches.mjs build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
+node scripts/go-patches.mjs build -tags=no_easytier -o bin/SWD.exe ./cmd/still-wanna-dance-console
 ```
 
 Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也只需在原命令前加这个入口。它保持调用目录和参数，每次在忽略目录 `artifacts/tmp/<随机标识>` 创建独立临时目录，仅为本次命令及子进程设置 `TEMP`、`TMP`、`GOTMPDIR`；正常返回或命令报错后恢复环境并清理本次目录，原样返回命令退出码。无法清理时明确警告并保留路径，不影响测试失败的退出码。测试日志和需要保留的报告放在该临时目录之外。打包脚本的开发检查与正式发布准备也使用同一入口。
@@ -114,7 +114,7 @@ New-Item -ItemType Directory -Force artifacts/storage-full | Out-Null
 
 CF 专用实验的新构建要求显式指定本地网卡配置，统一绑定 API、媒体、Monitor 与 DoH 出站；配置错误或绑定失效不回退其他网卡。实现仅在实验测试文件中，正式 EXE 不读取此配置。配置、原始地址和个人运行偏好放入已忽略的 `local/`、`artifacts/`，仓库只保留通用实现和规则，详见[实验网卡绑定](../experiments/cf-block-paths/network.md)。
 
-入口位于 `cmd/still-wanna-dance`，协议、本地资源和下载管理位于 `internal/cacheproxy`。运行方法见 [命令行服务手册](service.md)。默认本地存储、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版本地视频或证据目录。安装环境不会启动播放网关或修改 hosts。
+桌面入口位于 `cmd/still-wanna-dance-console`，协议、本地资源和下载管理位于 `internal/cacheproxy`。运行方法见 [WebUI 与桌面程序](console.md)。默认本地存储、构建产物及测试覆盖率文件已忽略；测试使用 Go 的独立临时目录，不写入原版本地视频或证据目录。安装环境不会启动播放网关或修改 hosts。
 
 桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。通过补丁入口直接执行 `build` 仍是开发构建，未注入的时间明确留空。
 
@@ -122,26 +122,23 @@ Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目�
 
 2026-10-21 图标验证：普通 `go build -tags=no_easytier` 与桌面构建均通过；用 Win32 资源 API 从两个实际 EXE 读取的九档图标逐字节匹配 `logo.ico`，`PrivateExtractIconsW` 在 16–256 像素九档尺寸均可提取，256 像素提取图已检查。原生图标解码、资源策略的三项回归及生成资源重复构建字节一致性通过。原始核对结果与提取图在忽略目录 `artifacts/exe-icon/`；未检查已有资源管理器窗口的图标缓存刷新行为。
 
-可选实网验收脚本 `scripts/acceptance.mjs` 使用 Node.js 标准库，不增加 Go 服务依赖：
+可选桌面条款凭据检查 `scripts/acceptance.mjs` 使用 Node.js 标准库：
 
 ```powershell
-node scripts/go-patches.mjs build -o bin/still-wanna-dance.exe ./cmd/still-wanna-dance
-node scripts/go-patches.mjs build -o bin/SWD.exe ./cmd/still-wanna-dance-console
-node scripts/acceptance.mjs bin/still-wanna-dance.exe bin/SWD.exe bin/data/state/terms.json
-node --test scripts/acceptance-protocol.test.mjs scripts/acceptance-request.test.mjs
+node scripts/go-patches.mjs build -tags=no_easytier -o bin/SWD.exe ./cmd/still-wanna-dance-console
+node scripts/acceptance.mjs bin/data/state/terms.json
+# 也可显式指定桌面程序
+node scripts/acceptance.mjs bin/SWD.exe bin/data/state/terms.json
+node --test scripts/acceptance-protocol.test.mjs
 ```
 
-两个可执行文件参数分别默认上述路径。脚本在 `test-runs/acceptance-*` 中建立独立命令行服务库和桌面条款检查配置，记录两个程序的 SHA256、响应状态/头、字节数、哈希、耗时和进程日志。CLI 实网检查下载 1343/1344 样本，覆盖直接视频冷下载、跨 Host Range 内容命中、重启 HEAD 复用和播放 API 返回视频。桌面网关的冷／热播放、上游故障时本地 GET/HEAD/Range 复用和无本地视频时失败，由 Go 受控上游集成测试覆盖；脚本不再调用已移除的独立启动接口，也不宣称执行桌面网关实网验收。
-
-验收前须由操作者在当前 Windows 用户下阅读并确认当前条款，第三个参数传入该 `terms.json`。脚本原样复制密文到独立配置，先启动关闭自动加速的桌面程序，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据返回 environment/blocked；缺少桌面程序也会阻塞全部验收，因为不能验证同意。验证成功后才启动服务链路；缺少服务程序阻塞服务链路。
+检查前须由操作者在当前 Windows 用户下阅读并确认当前条款。只传一个参数时，它是 `terms.json`，桌面程序默认使用 `bin/SWD.exe`；传入两个参数时，依次为桌面程序和 `terms.json`。脚本在 `test-runs/acceptance-*` 中建立独立配置，原样复制密文并启动关闭自动加速的桌面程序，通过门禁验证凭据，并核对内嵌条款与当前源码一致；不会解密、伪造或自动点击同意。失效凭据或缺少桌面程序返回 environment/blocked；报告记录程序 SHA256 和结果，进程日志留在测试目录。
 
 条款保护回归在 Windows 可运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test ./internal/console -run Terms -count=1`。Windows 使用真实 DPAPI，包含独立子进程读取和同用户搬迁；Linux 测试进程使用临时认证加密替身，生产代码仍明确拒绝非 Windows 凭据保存。这不替代真实跨用户/跨机器测试，验证范围见 [#15 验收记录](validation/issue-15-validation.md)。
 
-桌面条款检查以 `-no-tray -no-open` 启动，关闭自动加速并使用动态回环控制端口，不占用 80/443。脚本不改 hosts、不读取旧库、不运行原版程序；所有下载和配置均留在测试目录，结束时关闭本次进程。
+桌面条款检查以 `-no-tray -no-open` 启动，关闭自动加速并使用动态回环控制端口，不占用 80/443。脚本不改 hosts、不读取旧库，结束时关闭本次进程。桌面网关的冷／热播放及离线复用由 Go 受控上游集成测试覆盖；[可选实网检查](console.md#http-播放-api-接管与回源)验证产品上游协议，不等同于桌面 EXE 的完整下载验收。
 
-上游预检使用 Node.js `Resolver.resolve4` 直接向配置的 DNS 服务器查询 IPv4，绕过系统 hosts；解析失败不回退系统解析，并过滤回环、内网及本机网卡地址。此查询仍可能受系统 DNS/代理影响，不等同于服务内置 DoH。HTTP/HTTPS 均保留原 Host 与正常 TLS 域名校验，报告记录实际 `remoteAddress`；显式端口的本地请求仍走回环。
-
-上游预检支持 301/302/307/308 返回的合法 HTTP/HTTPS 视频地址，保留原始 Location，视频执行统一使用 HTTP；不跟随 API 的 HTTPS 升级跳转。未知协议/视频格式记为 `upstream-protocol-change`，网络不可达、限流及上游 5xx 记为 `upstream-unavailable`，缺失构建或端口占用记为 `environment`。依赖不满足的链路标为 blocked，其他独立检查继续。`results.json` 的总体 `outcome` 为 passed/failed/blocked，退出码分别为 0/1/2；存在程序检查失败时优先返回 1。blocked 不表示完整验收通过；程序检查失败仍应结合同期上游证据和日志判断，例如下载期间断网或歌曲版本变化，不能只凭退出码归因。
+`results.json` 的总体 `outcome` 为 passed/failed/blocked，退出码分别为 0/1/2；程序检查失败时返回 1。blocked 不表示检查通过，失败原因可结合报告和进程日志判断。
 
 `scripts/game-hosts.ps1` 仅用于人工联合验收：先要求 1343 的 API 热缓存 Range 探测通过，再添加 `api.udon.dance` 映射；Disable 只清理当前验收会话标记的 API 映射。它不会添加两个历史视频域名；旧版操作结果见[验收记录](acceptance/early-service-20260925.md)。日常接入使用 WebUI 或托盘，开发检查不自动执行此脚本。
 

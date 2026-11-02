@@ -44,6 +44,14 @@ func (l *configLease) CleanWorkFiles() error {
 			return err
 		}
 	}
+	// A blocked optional port hint must not prevent the console from starting.
+	// Write will also reject an unsafe slot, leaving it untouched.
+	portPath := p.State("webui-port")
+	if removed, err := workfiles.Clean(portPath); err != nil {
+		slog.Warn("console_port_cleanup_skipped", "path", portPath, "error", err)
+	} else if removed {
+		slog.Info("config_work_cleanup_removed", "path", portPath)
+	}
 	return nil
 }
 

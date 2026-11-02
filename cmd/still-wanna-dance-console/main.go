@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -45,6 +46,7 @@ func main() {
 
 func run() (runErr error) {
 	address := flag.String("listen", desktop.Address, "local WebUI address (port 0 selects an available port)")
+	restartPort := flag.Int("restart-port", 0, "internal preferred WebUI port after restart")
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -65,6 +67,12 @@ func run() (runErr error) {
 	showTerms := flag.Bool("show-terms", false, "print usage terms and exit")
 	showBuild := flag.Bool("build-info", false, "print executable build identity as JSON and exit")
 	flag.Parse()
+	listenExplicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "listen" {
+			listenExplicit = true
+		}
+	})
 	if *showBuild {
 		visibleErrors = false
 		return json.NewEncoder(os.Stdout).Encode(buildinfo.Current())
@@ -79,6 +87,9 @@ func run() (runErr error) {
 	}
 	if flag.NArg() != 0 {
 		return fmt.Errorf("不支持的位置参数")
+	}
+	if *restartPort < 0 || *restartPort > 65535 {
+		return fmt.Errorf("无效的重启 WebUI 端口")
 	}
 	host, _, err := net.SplitHostPort(*address)
 	if err != nil || host != "127.0.0.1" {
@@ -168,7 +179,7 @@ func run() (runErr error) {
 	build := buildinfo.Current()
 	slog.Info("application_build", "kind", build.Kind, "version", build.Version, "vcs.revision", build.Revision,
 		"vcs.modified", build.Dirty, "builtAtUtc", build.BuiltAtUTC, "toolchain", build.Toolchain, "target", build.Target)
-	l, err := net.Listen("tcp4", *address)
+	l, err := listenConsole(*address, p, !listenExplicit, *restartPort)
 	if err != nil {
 		return desktop.PortError(*address, err)
 	}
@@ -219,6 +230,9 @@ func run() (runErr error) {
 		return err
 	}
 	go func() { done <- h.Serve(l); stop() }()
+	if err := saveConsolePort(p, l.Addr()); err != nil {
+		slog.Warn("console_port_save_failed", "error", err)
+	}
 	// Keep the console and tray usable while automatic acceleration waits for UAC.
 	background.Add(2)
 	go func() { defer background.Done(); c.AutoStart() }()
@@ -242,8 +256,15 @@ func run() (runErr error) {
 	if err == nil {
 		if c.ShutdownAction() == console.ShutdownRestart {
 			// Return through every defer before main launches the replacement.
-			// Pin even an ephemeral listener so the existing browser can reconnect.
-			return &restartRequest{args: []string{"-config", p, "-listen", l.Addr().String(), fmt.Sprintf("-no-tray=%t", *noTray), "-no-open"}}
+			args := []string{"-config", p, fmt.Sprintf("-no-tray=%t", *noTray), "-no-open"}
+			if listenExplicit {
+				// Preserve the existing fixed-address behavior for explicit -listen.
+				args = append(args, "-listen", l.Addr().String())
+			} else {
+				// The replacement can reuse this port even if the hint could not be saved.
+				args = append(args, "-restart-port", strconv.Itoa(l.Addr().(*net.TCPAddr).Port))
+			}
+			return &restartRequest{args: args}
 		}
 	}
 	return err

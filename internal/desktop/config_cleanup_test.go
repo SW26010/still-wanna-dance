@@ -28,7 +28,7 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("video-import")}
+	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("video-import"), p.State("webui-port")}
 	for _, target := range owned {
 		put(target)
 		put(filepath.Join(filepath.Dir(target), workfiles.TempName(target)))
@@ -112,5 +112,27 @@ func TestConfigCleanupDoesNotTraverseWorkSlotDirectory(t *testing.T) {
 	}
 	if data, err := os.ReadFile(child); err != nil || string(data) != "keep" {
 		t.Fatal("unsafe directory was traversed or changed", err)
+	}
+}
+
+func TestConfigCleanupPreservesUnsafeOptionalPortSlot(t *testing.T) {
+	p := apppaths.ForConfig(filepath.Join(t.TempDir(), "config.json"))
+	lease, err := LockConfig(p.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	child := filepath.Join(p.StateDir, workfiles.TempName(p.State("webui-port")), "keep")
+	if err := os.MkdirAll(filepath.Dir(child), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(child, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := lease.CleanWorkFiles(); err != nil {
+		t.Fatalf("optional port slot prevented startup: %v", err)
+	}
+	if data, err := os.ReadFile(child); err != nil || string(data) != "keep" {
+		t.Fatal("unsafe port slot was traversed or changed", err)
 	}
 }

@@ -224,6 +224,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
     state/                        # 按需生成，通常无需备份
       terms.json                  # 明确同意后才写入
       channel.key                 # 网络通道身份材料
+      webui-port.json             # 上次成功启动的本地控制端口
       throughput.json
       inventory.json
       batch-last-success.json
@@ -255,7 +256,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 - 主配置不能命名为保留的 `terms.json`、`channel.key`、`config.lock`、`data`、`state`、`logs`、`storage`、`videos`、`work`、`licenses`，也不能使用 `.swd-tmp` 后缀，避免覆盖规范配置和原子写入工作槽。
 - 多个配置选择同一数据库或视频目录时，分别受对应 OS 锁保护；配置隔离不允许绕过资源排他所有权。
 
-配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款、库存/任务/吞吐快照使用每目标固定的 `.<文件名>.swd-tmp` 工作槽，排他创建、同步并原子替换；持有配置实例锁的启动流程只清理本实例已知工作槽。旧引导状态、未知名称和其他配置保留，异常类型拒绝且不递归清理，失败不覆盖已提交文件。通道密钥仅缺失时排他创建，损坏原文保留并降级为临时通道身份；不承诺所有文件构成跨文件事务。
+配置版本独立于软件发行版本。读取拒绝缺失、不支持或未来版本；保存前再次检查磁盘版本，并保留当前版本中的未知字段。设置 API 不能指定磁盘格式版本。配置、条款、库存/任务/吞吐快照及控制端口记录使用每目标固定的 `.<文件名>.swd-tmp` 工作槽，排他创建、同步并原子替换；持有配置实例锁的启动流程只清理本实例已知工作槽。旧引导状态、未知名称和其他配置保留，异常类型拒绝且不递归清理，失败不覆盖已提交文件；控制端口记录是可丢弃的提示，其工作槽无法安全清理或记录无法保存只记录警告，不阻止启动。通道密钥仅缺失时排他创建，损坏原文保留并降级为临时通道身份；不承诺所有文件构成跨文件事务。
 
 默认启动只使用当前配置和资源路径，不探测或迁移历史安装目录与文件。明确传入的配置仍按版本校验，当前默认位置已有资料时不自动建库，未知文件原样保留。
 
@@ -267,6 +268,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `C` | 主设置；首次成功打开和保存设置时写入 | 建议备份，可重新配置；代理密码和节点快照为 CurrentUser DPAPI 密文，换用户/机器可能需重配 |
 | `R/data/state/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 可重建；缺失则重新确认，不是身份或内容授权证明 |
 | `R/data/state/channel.key` | 32 字节密钥，供通道身份使用；仅缺失时生成。损坏时通道可用临时身份 | 可选保留；缺失重建会改变通道身份及 Mihomo 节点名称摘要，原生选择可能需要重选 |
+| `R/data/state/webui-port.json` | 上次成功启动的 WebUI 回环端口；配置实例锁下读取及原子更新 | 可丢弃；缺失或无效时由系统分配，不用于验证实例身份 |
 | `R/data/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
 | `R/data/state/mihomo/` | 核心拥有的工作目录；启用内嵌代理且确认条款后创建，不写原始订阅或明文节点配置。`cache.db` 按原生规则保存组名和所选名称，异常时允许原生重建该文件；启动时打不开则提示并继续运行。完整边界见 [Mihomo 选择缓存](mihomo-dashboard.md#配置和运行)；自动 geo 更新关闭 | 可重建的选择状态，不是节点备份或异常材料保全文件；名称可能含地址，连接参数和凭据仍在主配置的 DPAPI 快照中；同目录其他未知文件不在清理范围内 |
 | `R/data/state/video-import.json` | 一批视频导入的固定清单、结果及成功回执；每项处理后原子保存，失败停止后续处理 | 缺失时可新建任务，旧清理回执不可重建；重启只恢复待继续状态，详见[视频导入与恢复](video-import.md) |
@@ -352,6 +354,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | data/state/inventory.json | schemaVersion=3、databasePath、videoDir、result；result 为 Inventory：catalog（revision/source）、coverageKnown/coveredSongs/unresolvedSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：可选 target、catalog（revision/source）、catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/skipped/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
+| data/state/webui-port.json | `{"port": 1–65535}`；仅保存最近成功启动的 WebUI 端口，缺失、不可读或无效时忽略；端口不可用时使用系统分配的端口。保存失败保留旧记录且不阻止启动，不作为实例发现或身份依据 |
 
 条款凭据按保存顺序从旧到新排列，启动时反向逐条检查，找到当前用户能解密且用途、条款版本、正文摘要及时间有效的第一条即停止。单槽格式错误、损坏、无法解密或条款过时只跳过该槽，不影响其他槽；没有匹配项才要求重新确认。整个封套格式错误、空列表、超过 8 条或超过 64 KiB 均不授予同意；读取不改写文件。允许系统时钟回拨，确认时间不决定槽位顺序，也不证明身份。
 

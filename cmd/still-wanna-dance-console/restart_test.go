@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
@@ -28,6 +29,12 @@ func TestMain(m *testing.M) {
 // listener, shutdown, replacement process and fresh session token. No consent
 // is granted, so neither process probes public upstreams or starts downloads.
 func TestApplicationRestartReleasesConfigAndKeepsAddress(t *testing.T) {
+	t.Run("automatic", func(t *testing.T) { testApplicationRestart(t, false, false) })
+	t.Run("explicit ephemeral", func(t *testing.T) { testApplicationRestart(t, true, false) })
+	t.Run("port hint cannot be saved", func(t *testing.T) { testApplicationRestart(t, false, true) })
+}
+
+func testApplicationRestart(t *testing.T, explicit, blockHint bool) {
 	root := t.TempDir()
 	config := filepath.Join(root, "configuration with spaces.json")
 	// Prepare a real installed configuration before timing process transitions.
@@ -47,13 +54,23 @@ func TestApplicationRestartReleasesConfigAndKeepsAddress(t *testing.T) {
 	if err := work.Close(); err != nil {
 		t.Fatal(err)
 	}
+	if blockHint {
+		path := apppaths.ForConfig(config).State("webui-port")
+		if err := os.MkdirAll(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
 	outputPath := filepath.Join(root, "output.log")
 	output, err := os.Create(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Close()
-	cmd := exec.Command(os.Args[0], "-config", config, "-listen", "127.0.0.1:0", "-no-tray", "-no-open")
+	args := []string{"-config", config, "-no-tray", "-no-open"}
+	if explicit {
+		args = append(args, "-listen", "127.0.0.1:0")
+	}
+	cmd := exec.Command(os.Args[0], args...)
 	cmd.Env = append(os.Environ(), "SWD_RESTART_TEST_APP=1")
 	cmd.Stdout, cmd.Stderr = output, output
 	configureRestartCommand(cmd)

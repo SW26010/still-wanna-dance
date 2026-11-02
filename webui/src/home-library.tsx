@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Link, Card, Title2, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, Tooltip } from '@fluentui/react-components';
+import { Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { useApp, useResource } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, StatusBadge } from './ui';
 import { BlockTimeline } from './block-timeline';
@@ -28,12 +29,12 @@ export function Home({visible}: {visible:boolean}) {
   const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'日志目录可读取，尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'房间队列监控未运行。');
   const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';
-  const stopHint=s.activeSettings.restoreHostsOnStopOrExit?needsExitPreparation?'停止视频服务及队列预加载；尚未取得恢复权限，将保留游戏接入。':'停止视频服务及队列预加载，并恢复本程序的游戏接入；不再请求管理员权限。':'停止视频服务及队列预加载，保留游戏接入。继续播放前请点击「开始加速」。';
+  const accelerationAction=s.running?'停止加速':'开始加速';
   return <div className="page-stack">
     <div className="home-cards"><UpstreamStatus visible={visible}/><Card id="activation" size="small" className="acceleration-card" tabIndex={-1}>
-      <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
+      <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" className={!s.running&&!active(s)?'acceleration-idle':undefined} aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
-        <Tooltip content={s.running?stopHint:activationPermissionHint} relationship="description"><Button appearance="primary" size="large" disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}>{s.running?'停止加速':'开始加速'}</Button></Tooltip></div>
+        <Tooltip content={accelerationAction} relationship="label"><Button className="acceleration-action" appearance="secondary" size="large" icon={s.running?<Stop20Filled aria-hidden="true"/>:<Play20Filled aria-hidden="true"/>} aria-label={accelerationAction} disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}/></Tooltip></div>
       <div className="toolbar condition-strip">
         <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||activationPermissionHint} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
         <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceReason} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>

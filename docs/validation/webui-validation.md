@@ -1195,7 +1195,7 @@ Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过*
 
 ## 2026-10-29 视频导入使用已有曲库
 
-导入的在线更新失败不再直接终止任务，有效性与匹配边界见[本地快照规则](../song-catalog-design.md#本地快照与检查状态2026-10-06)。界面单独提示使用已有清单，详情保留在线错误，不覆盖文件错误或增加文件失败数。
+导入的在线更新失败不再直接终止任务，有效性与匹配边界见[本地快照规则](../song-catalog-design.md#本地快照与当前成员)。界面单独提示使用已有清单，详情保留在线错误，不覆盖文件错误或增加文件失败数。
 
 - 后端回归先复现本地已有有效清单、上游返回 503 时导入数为零；修复后导入及批量清单回退定向检查通过。覆盖 503、无效响应、空库、取消、重复文件、清单已移除歌曲与未知视频的跳过，以及在线重试成功后清除警告；使用临时 SQLite、文件和受控 HTTP 接口，核对实际发布文件内容。
 - Edge 任务错误回归 **5/5 通过**；390px 导入区域截图已检查，警告、文件错误和计数分别显示，详情与 Escape 焦点恢复正常。浏览器使用内存接口，只证明呈现与交互，不代替后端文件验证。
@@ -1378,3 +1378,28 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 - `TestMihomoDashboardAndConsent` 连接隔离真实 Console、原生 Mihomo 和内嵌 zashboard 通过。核对检测与面板同时展示、节点选择及自动故障切换、前进后退、独立窗口、键盘进出 iframe，以及切页／隐藏时关闭面板订阅。人工查看桌面与窄屏截图，检测卡片及面板正常排列，无整页横向溢出。
 
 首次沙箱回归在 Edge 启动时遇到 `TransactNamedPipe` 错误，未进入有效页面检查，停止后在正常用户环境完成上述回归。失败记录、最终输出和截图保存在忽略目录 `artifacts/network-page-20261031/`，其中 `sandbox-browser-error.md` 保留启动失败，`browser.log`、`browser/`、`live.log`、`live/result.json` 保存通过结果。真实联调使用合成节点，主动阻断上游面板的 GitHub 更新查询，其 `Failed to fetch` 记录属于预期，不作为业务网络失败。本轮不验证公网测速结果、真实浏览器缩放或屏幕阅读器，未启动 VRC、修改 hosts 或替换日常程序。
+
+## 2026-11-02 首页加速状态与启停图标
+
+本节按历史顺序保留基于 main `863268c6` 的外观迭代与各自验证，不作为当前界面规则。现行组件与配色见[首页加速状态与按钮](../fluent-ui-migration.md#首页加速状态与按钮)，动作名称与提示见[内容约定](../webui-content.md#内容与交互)。首版使用 Fluent v9 Button 与现有图标包，沿用原有操作和禁用条件，并保留当时的权限、停止策略提示；后续修订如下。
+
+- 前端 build/check、源码与嵌入产物哈希检查、差异格式检查通过，生成资源已同步。
+- 现有加速、授权提示及生命周期入口 Edge 回归 22/22 通过，覆盖启停、失败反馈、策略、按钮与卡片布局稳定及 320px 窄屏；现有 390px 深色各页用例 1/1 通过。已查看浅色运行／停止、320px 停止和 390px 深色首页截图，未运行标题呈主题灰色，图标和布局正常，无页面横向溢出。
+
+首轮沙箱检查因 Edge 启动时 `TransactNamedPipe` 错误未进入页面，失败上下文保留在忽略目录 `artifacts/webui-tests/`；正常用户环境的通过日志及截图在 `artifacts/home-acceleration-20261102/`。以上使用内存 API 夹具，只验证页面展示与交互；没有启动游戏、修改真实 hosts 或替换日常程序，本次无需新增 VRC 验收项。
+
+同轮按外观反馈将未运行标题调为更弱的 colorNeutralForeground4（浅色 #707070、深色 #999999），按钮由 primary 改为 subtle，去掉常驻蓝底并沿用 Fluent 的悬停与焦点反馈。前端 build/check 和既有启停、状态及深色窄屏定向检查 6/6 通过；已查看运行、停止与深色首页截图。结果保存在同一忽略目录的 `refinement.log` 和 `refinement/`，首轮记录及截图保留。
+
+随后按反馈将按钮换为 Fluent 原生 outline：有描边、背景透明，深浅主题中悬停仍透明，图标保持中性色，沿用边框与键盘焦点反馈。Tooltip 改为对应动作名称，移除按钮内的 UAC／停止策略长说明；游戏连接状态、设置和退出说明继续保留。现行要求同步到内容约定与加速页设计，替代本节前两版外观与按钮提示。前端 build/check、产物一致性与差异格式检查通过，现有加速整文件和深色窄屏回归 15/15 通过；已查看两种图标与深色截图。证据在同一忽略目录的 `outline.log` 和 `outline/`，验证仍仅覆盖内存夹具页面。
+
+进一步按明显 hover 反馈的要求，保留 outline 常态，只在此按钮将 colorTransparentBackgroundHover／Pressed 映射到主题 colorBrandBackground2Hover／Pressed；悬停填充淡强调色，按下使用相应按压色，图标保持中性色。Fluent 负责状态、焦点和禁用行为，没有增加交互状态或鼠标事件。此映射替代上一版「悬停仍透明」的外观要求，现行规则见加速页设计。
+
+前端 build/check、产物一致性与差异格式检查通过，现有启停、状态及深色窄屏回归 6/6 通过。另以同一内存 API 夹具在 Edge 观察开始／停止按钮：深浅主题常态与移出后透明，hover／pressed 呈对应主题色；禁用时仍透明，键盘保留原有焦点边框。浏览器模拟 forced-colors 保留系统高亮、禁用色和焦点反馈。截图已查看，结果与计算样式在 `hover/`、`hover-final.log`，回归在 `hover-regression.log` 和 `hover-regression/`。首次定向采集在点击关闭 Tooltip 后未移出鼠标便再次检查提示，失败保留在 `hover.log`；补齐重新移入动作后采集完成，没有据此改动产品提示机制。以上不外推真实 Windows 辅助技术或游戏体验。
+
+后续按实色方案编译预览：hover／pressed 改用 colorBrandBackgroundHover／Pressed，前景使用 colorNeutralForegroundOnBrand；常态仍透明描边，替代上版淡色填充。前端 build/check、哈希及差异检查通过；重新在 Edge 内存夹具核对深浅主题、启停提示、按压、禁用、键盘焦点与 forced-colors，截图及计算样式在 `solid-hover/` 和 `solid-hover.log`。Go 1.27.3 通过标准桌面入口生成 `bin/SWD.exe`，版本 `dev-ui-solid-hover-20261102`；只执行 `-build-info` 核对身份，没有运行真实加速。构建日志及文件 SHA256 在 `solid-desktop-build.log`／`solid-desktop-build.json`。
+
+最后按简化定制要求改为网络按钮同款原生 secondary，首页保留 large 尺寸；删除以上四项颜色映射，仅将此按钮的 colorNeutralBackground1Hover 映射为 colorBrandBackground2Hover。浅色主题原生图标在深蓝底上的对比度约 2.33:1，因此选用不透明的浅主题色，仅改背景即可让两种主题下的图标保持清晰；常态、按下、禁用、图标颜色与焦点沿用 Fluent。此方案替代本节此前的首页按钮外观，现行规则已同步到加速页设计。
+
+前端 build/check、产物哈希与差异格式检查通过；现有启停、状态与深色窄屏回归 6/6 通过。Edge 内存夹具的深浅主题与 forced-colors 采集确认只有正常 hover 使用局部主题背景，按下回到原生按压色，禁用和键盘焦点保持；截图已查看。证据在 `secondary-hover/`、`secondary-hover.log`、`secondary-regression/` 和 `secondary-regression.log`。此前桌面 EXE 仅证明其记录的实色方案，本轮未重建或替换该 EXE。
+
+随后按用户请求，使用 Go 1.27.3 和标准桌面构建入口更新 `bin/SWD.exe`，版本 `dev-ui-secondary-hover-20261102`，包含当前 secondary 方案。资源哈希检查、编译及 `-build-info` 身份核对通过，文件 SHA256 和构建身份保存在 `secondary-desktop-build.json`，日志在 `secondary-desktop-build.log`；仅执行身份查询，没有启动真实加速。

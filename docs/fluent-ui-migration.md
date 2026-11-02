@@ -47,6 +47,12 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 时间轴与需求视图的 Canvas 绘制、视频配色和尺寸保持独立业务规则。需求浮层使用 Fluent 的 fixed 定位、自动限高与避让，与视口坐标锚点一致，避免源详情加载改变高度时使长页面跳动，并让小视口中的操作始终可达。
 
+### 首页加速状态与按钮
+
+加速总状态保留 Title2 字阶；仅“加速未运行”使用 colorNeutralForeground4 弱化灰色，运行、未就绪和处理中的状态保留默认正文色。
+
+启停沿用原生 `Button appearance="secondary" size="large"`，与网络检测使用相同原生外观；未运行与运行时分别使用 Play20Filled、Stop20Filled 图标。仅在此按钮局部将 `--colorNeutralBackground1Hover` 映射到 `var(--colorBrandBackground2Hover)`，让悬停使用不透明的浅主题色并保持原生图标的对比度；常态、按下、禁用、高对比度和键盘焦点样式由 Fluent 提供。动作名称与提示内容见[内容约定](webui-content.md#内容与交互)。
+
 ## 开发与交付
 
 - 源码和锁文件：`webui/src`、`webui/pnpm-lock.yaml`；安装使用 `pnpm --dir webui install --frozen-lockfile`。

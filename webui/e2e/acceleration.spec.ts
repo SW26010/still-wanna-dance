@@ -30,7 +30,7 @@ test('acceleration status distinguishes connection from service without enabling
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
-  await expect(page.locator('#activation').getByRole('button').filter({hasText:/开始加速|停止加速/})).toHaveCount(1);
+  await expect(page.locator('#activation').getByRole('button',{name:'停止加速',exact:true})).toHaveCount(1);
   expect(api.state.queue.desired).toBe(false);
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
@@ -83,7 +83,7 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   await expect(connection).toHaveText('游戏连接：需检查');
   await page.mouse.move(0,0);await page.getByRole('button',{name:'停止加速',exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toContainText('尚未取得恢复权限，将保留游戏接入');
+  await expect(page.getByRole('tooltip')).toHaveText('停止加速');
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('直接退出会保留接入');
   await page.route('**/api/hosts/prepare',route=>route.fulfill({status:400,json:{error:'管理员授权已取消',code:'uac_canceled'}}));
@@ -150,7 +150,7 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   }else await expect(browserHint).toBeHidden();
   await card.screenshot({path:info.outputPath('running-card.png'),animations:'disabled'});
   await page.mouse.move(0,0);await stop.hover();
-  await expect(page.getByRole('tooltip')).toContainText(restore?'恢复本程序的游戏接入':'保留游戏接入');
+  await expect(page.getByRole('tooltip')).toHaveText('停止加速');
   await stop.click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await expect(browserHint).toHaveCount(0);

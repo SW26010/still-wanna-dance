@@ -2,6 +2,16 @@
 
 本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
 
+## 2026-11-02 beta.4 公开交付
+
+正式发行提交为 `158e229a0bd5d1c7b97c8c55e3400c07c750a6df`。[check #40](https://github.com/SW26010/still-wanna-dance/actions/runs/41337327688) 最终成功；[v1.0.0-beta.4](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.4) 于北京时间 2026-11-02 03:47 公开，标记为 Pre-release。tag、正式 EXE 和[发行清单](https://github.com/SW26010/still-wanna-dance/releases/download/v1.0.0-beta.4/still-wanna-dance-v1.0.0-beta.4-release.json)绑定该提交。
+
+此轮并非一次全绿：[首次产品任务](https://github.com/SW26010/still-wanna-dance/actions/runs/41337327688/job/124939806734)的完整浏览器检查为 **401 通过、1 失败**；[PR #43](https://github.com/SW26010/still-wanna-dance/pull/43)记录失败 trace 中 `app.js` 加载报 `net::ERR_NO_BUFFER_SPACE`、应用根节点为空，本机原用例连续 10 次通过后，仅重跑产品任务。重跑的产品检查通过 Edge **402/402**、Node 工具 **63/63**、真实 Console 设置联调及 Go test/vet；复用首次已通过的六组完整 Windows race、其余 Go 包与正式打包结果。历史失败和 trace 保留，不把重跑通过当作已查明所有偶发原因。
+
+正式包完成完整对应源码收集、全新缓存离线独立重建、实际 ZIP 身份与启动检查，以及默认存储、外置库、自定义配置三种布局的持久数据覆盖升级。独立 release job 公开回下载 ZIP、源码、两个校验文件及发行清单，核对与已验证交付的身份、字节数和 SHA256；自动流程复用同一源码附件在打包阶段已完成的独立重建，不声称在公开下载后再次重建或 EXE 逐字节可复现。
+
+PR #43 另记录：用已发布 beta.3、实际公开 beta.4 ZIP 和隔离 v8 数据完成升级，确认 v9，并逐表保持歌曲及媒体关联各 **10,471** 行，以及偏好、使用、清单成员、媒体访问和请求事件。该结果按记录的隔离数据与构建适用，不代表使用了个人数据库或覆盖全部游戏体验。以下本机预演及首轮失败继续保留其当时范围。
+
 ## 2026-11-02 beta.4 本机完整预演
 
 基线为主线 `9f396ff7bc83851648417b1153e371f0821b458a`。独立检出使用仅本地的测试身份 `v0.0.0-beta4-local` 和提交 `01f1e07bf7f1f8eb6811d20db085a811a64cd741`，预演完成时与工作区 18 个变更文件逐字节一致；随后仅补充预检约定和本节证据文档。测试标签及临时提交未推送，不作为 beta.4 正式发行身份。

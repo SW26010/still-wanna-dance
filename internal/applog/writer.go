@@ -50,7 +50,7 @@ func (w *Writer) open(reuse bool) error {
 	}
 	if reuse && len(files) != 0 {
 		last := files[len(files)-1]
-		if _, ok := segmentTime(last.name); ok && last.info.Size() < w.limit {
+		if _, _, ok := segmentID(last.name); ok && last.info.Size() < w.limit {
 			w.file, err = w.root.OpenFile(last.name, os.O_APPEND|os.O_WRONLY, 0600)
 			if err != nil {
 				return err
@@ -59,19 +59,26 @@ func (w *Writer) open(reuse bool) error {
 		}
 	}
 	if w.file == nil {
-		at := time.Now().UTC()
+		at := time.Now().UTC().Truncate(time.Second)
+		var sequence uint64
 		if len(files) != 0 {
-			if last, ok := segmentTime(files[len(files)-1].name); ok && !at.After(last) {
-				at = last.Add(time.Nanosecond)
+			if last, previous, ok := segmentID(files[len(files)-1].name); ok && !at.After(last) {
+				if previous == ^uint64(0) {
+					return errors.New("log segment sequence exhausted")
+				}
+				at, sequence = last, previous+1
 			}
 		}
 		for {
-			w.name = at.Format(segmentLayout)
+			w.name = segmentName(at, sequence)
 			w.file, err = w.root.OpenFile(w.name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 			if !os.IsExist(err) {
 				break
 			}
-			at = at.Add(time.Nanosecond)
+			if sequence == ^uint64(0) {
+				return errors.New("log segment sequence exhausted")
+			}
+			sequence++
 		}
 		if err != nil {
 			return err

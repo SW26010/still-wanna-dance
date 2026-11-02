@@ -45,7 +45,7 @@ function Read-Build($executable) {
 }
 
 function Read-ApplicationLogs($directory, [switch]$RequireTimestamp) {
-    $timestampPattern = '^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{9}Z\.log$'
+    $timestampPattern = '^[0-9]{8}T[0-9]{6}Z(?:-[1-9][0-9]*)?\.log$'
     $files = @(Get-ChildItem -LiteralPath $directory -File | Where-Object {
         $_.Name -cmatch $timestampPattern -or $_.Name -cmatch '^app\.log(?:\.[1-3])?$'
     } | Sort-Object Name)

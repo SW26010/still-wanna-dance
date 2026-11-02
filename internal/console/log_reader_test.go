@@ -19,7 +19,7 @@ import (
 
 func TestLogsAPIReadsWithoutEngineAndValidatesFilters(t *testing.T) {
 	c := testConsole(t)
-	path := filepath.Join(c.files().LogDir, "2026-11-02T01-00-00.000000000Z.log")
+	path := filepath.Join(c.files().LogDir, "20261102T010000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestLogsAPIAggregatesLiveSegments(t *testing.T) {
 
 func TestLogExportAPIUsesAuthenticatedFiltersAndAttachments(t *testing.T) {
 	c := testConsole(t)
-	path := filepath.Join(c.files().LogDir, "2026-11-02T01-00-00.000000000Z.log")
+	path := filepath.Join(c.files().LogDir, "20261102T010000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestLogReaderBrowser(t *testing.T) {
 		t.Skip("set SWD_LOG_READER_BROWSER_EVIDENCE for real Console log reader integration")
 	}
 	c := testConsole(t)
-	path := filepath.Join(c.files().LogDir, "2026-11-02T02-00-00.000000000Z.log")
+	path := filepath.Join(c.files().LogDir, "20261102T020000Z.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestLogReaderBrowser(t *testing.T) {
 		hour  int
 		level slog.Level
 		msg   string
-	}{{"2026-11-02T01-00-00.000000000Z.log", 1, slog.LevelWarn, "fixture_warning"}, {"2026-11-02T02-00-00.000000000Z.log", 2, slog.LevelInfo, "fixture_info"}, {"2026-11-02T02-00-00.000000000Z.log", 3, slog.LevelError, "fixture_error"}} {
+	}{{"20261102T010000Z.log", 1, slog.LevelWarn, "fixture_warning"}, {"20261102T020000Z.log", 2, slog.LevelInfo, "fixture_info"}, {"20261102T020000Z.log", 3, slog.LevelError, "fixture_error"}} {
 		var output bytes.Buffer
 		record := slog.NewRecord(time.Date(2026, 11, 2, file.hour, 0, 0, 0, time.UTC), file.level, file.msg, 0)
 		record.Add("outcome", "fixture", "precise", int64(9007199254740993), "detail", "<script>literal text</script>\nnot_a_key=inside value", "song_ids", []int{1343, -1}, "path", "C:/logs/"+strings.Repeat("long-path/", 20), "text", "two  spaces")

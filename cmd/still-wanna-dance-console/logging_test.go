@@ -122,7 +122,19 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				t.Fatal(err)
 			}
 			logDir := apppaths.ForConfig(config).LogDir
-			existingNames := []string{"app.log", "app.log.1", "2026-11-03T00-00-00.000000000Z.log"}
+			betaNames := []string{"app.log.3", "app.log.2", "app.log.1", "app.log"}
+			betaRecord := []byte("{\"time\":\"2026-11-02T00:00:00Z\",\"level\":\"INFO\",\"msg\":\"beta4_fixture\",\"pid\":123,\"session_id\":\"beta4\"}\n")
+			if level == "info" {
+				if err := os.MkdirAll(logDir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				for _, name := range betaNames {
+					if err := os.WriteFile(filepath.Join(logDir, name), betaRecord, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			existingNames := []string{"app.log", "app.log.1", "20261103T000000Z.log", "2026-11-03T00-00-00.000000000Z.log"}
 			if level == "off" {
 				if err := os.MkdirAll(logDir, 0700); err != nil {
 					t.Fatal(err)
@@ -188,7 +200,19 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err, string(output))
 			}
+			if level == "info" {
+				if len(logs.Files) != len(betaNames)+1 {
+					t.Fatalf("beta4 upgrade did not retain old logs and create a new segment: %v", logs.Files)
+				}
+				for i, name := range betaNames {
+					data, err := os.ReadFile(filepath.Join(logDir, name))
+					if logs.Files[i] != name || err != nil || !bytes.Equal(data, betaRecord) {
+						t.Fatalf("beta4 log was reordered or modified: %s %v", name, err)
+					}
+				}
+			}
 			started, failed := false, false
+			betaRecords := 0
 			for _, entry := range logs.Entries {
 				var record map[string]any
 				if err := json.Unmarshal([]byte(entry.Raw), &record); err != nil {
@@ -199,6 +223,12 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				}
 				started = started || record["msg"] == "application_starting"
 				failed = failed || record["msg"] == "application_failed"
+				if record["msg"] == "beta4_fixture" {
+					betaRecords++
+				}
+			}
+			if level == "info" && betaRecords != len(betaNames) {
+				t.Fatalf("beta4 records were not readable: %d", betaRecords)
 			}
 			if !failed || started != (level == "info" || level == "debug" || level == "invalid") {
 				t.Fatalf("incorrect level filter: %+v", logs)

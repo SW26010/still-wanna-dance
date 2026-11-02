@@ -32,7 +32,7 @@ try {
   const queryResponse=page.waitForResponse(response=>response.url().includes('/api/logs?')&&new URL(response.url()).searchParams.get('event')==='RROR');
   await event.press('Enter');const response=await queryResponse;
   expect(response.ok()).toBe(true);const result=await response.json();
-  expect(result.entries.map(entry=>entry.message)).toEqual(['fixture_error']);expect(result).not.toHaveProperty('events');expect(result.files).toEqual(['2026-11-02T01-00-00.000000000Z.log','2026-11-02T02-00-00.000000000Z.log']);
+  expect(result.entries.map(entry=>entry.message)).toEqual(['fixture_error']);expect(result).not.toHaveProperty('events');expect(result.files).toEqual(['20261102T010000Z.log','20261102T020000Z.log']);
   await expect(rows).toHaveCount(1);
   const contentCell=rows.first().getByRole('cell').nth(3);
   await expect(contentCell).toContainText('9007199254740993');await expect(contentCell).toContainText('<script>literal text</script>');

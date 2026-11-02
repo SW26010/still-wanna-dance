@@ -1,14 +1,16 @@
 package applog
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const segmentLayout = "2006-01-02T15-04-05.000000000Z.log"
+const segmentLayout = "20060102T150405Z"
 
 type segment struct {
 	name string
@@ -26,9 +28,31 @@ func validateSegment(file segment) error {
 	return nil
 }
 
-func segmentTime(name string) (time.Time, bool) {
-	at, err := time.Parse(segmentLayout, name)
-	return at, err == nil && at.Format(segmentLayout) == name
+func segmentName(at time.Time, sequence uint64) string {
+	name := at.UTC().Format(segmentLayout)
+	if sequence != 0 {
+		name += "-" + strconv.FormatUint(sequence, 10)
+	}
+	return name + ".log"
+}
+
+func segmentID(name string) (time.Time, uint64, bool) {
+	if !strings.HasSuffix(name, ".log") {
+		return time.Time{}, 0, false
+	}
+	stamp, suffix, hasSuffix := strings.Cut(strings.TrimSuffix(name, ".log"), "-")
+	at, err := time.Parse(segmentLayout, stamp)
+	if err != nil || at.Format(segmentLayout) != stamp {
+		return time.Time{}, 0, false
+	}
+	if !hasSuffix {
+		return at, 0, true
+	}
+	sequence, err := strconv.ParseUint(suffix, 10, 64)
+	if err != nil || sequence == 0 || strconv.FormatUint(sequence, 10) != suffix {
+		return time.Time{}, 0, false
+	}
+	return at, sequence, true
 }
 
 // Legacy logs remain readable and participate in retention without migration.
@@ -61,7 +85,7 @@ func logSegments(root *os.Root) ([]segment, error) {
 	var files []segment
 	for _, entry := range entries {
 		name := entry.Name()
-		_, current := segmentTime(name)
+		_, _, current := segmentID(name)
 		legacy := legacyOrder(name) != 0
 		if !current && !legacy {
 			continue
@@ -87,7 +111,12 @@ func logSegments(root *os.Root) ([]segment, error) {
 			}
 			return x - y
 		}
-		return strings.Compare(a.name, b.name)
+		aTime, aSequence, _ := segmentID(a.name)
+		bTime, bSequence, _ := segmentID(b.name)
+		if order := aTime.Compare(bTime); order != 0 {
+			return order
+		}
+		return cmp.Compare(aSequence, bSequence)
 	})
 	return files, nil
 }

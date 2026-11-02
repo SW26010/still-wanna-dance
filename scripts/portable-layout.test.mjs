@@ -12,7 +12,7 @@ test('Portable log reads support legacy upgrades and discover new segments on ev
   const log = name => JSON.stringify({msg:name})+'\n';
   fs.writeFileSync(path.join(temp,'app.log'),log('legacy'));
   fs.writeFileSync(path.join(temp,'app.log.1'),log('older'));
-  for (const name of ['app.log.4','notes.log']) fs.writeFileSync(path.join(temp,name),'unknown files must not be parsed');
+  for (const name of ['app.log.4','notes.log','2026-11-03T00-00-00.000000000Z.log','20261103T000000Z-0.log']) fs.writeFileSync(path.join(temp,name),'unknown files must not be parsed');
   const result = run('pwsh',['-NoProfile','-NonInteractive','-Command',`
     $ErrorActionPreference = 'Stop'
     $parseErrors = $null
@@ -29,9 +29,9 @@ test('Portable log reads support legacy upgrades and discover new segments on ev
     } catch {
       if ($_.Exception.Message -notlike 'Expected timestamp-named*') { throw }
     }
-    [IO.File]::WriteAllText((Join-Path $directory '2026-11-03T00-00-00.000000001Z.log'), ${quote(log('current'))})
+    [IO.File]::WriteAllText((Join-Path $directory '20261103T000000Z.log'), ${quote(log('current'))})
     $first = @(Read-ApplicationLogs $directory -RequireTimestamp)
-    [IO.File]::WriteAllText((Join-Path $directory '2026-11-03T00-00-00.000000002Z.log'), ${quote(log('newer'))})
+    [IO.File]::WriteAllText((Join-Path $directory '20261103T000000Z-1.log'), ${quote(log('newer'))})
     $second = @(Read-ApplicationLogs $directory -RequireTimestamp)
     @{legacy=@($legacy.msg | Sort-Object);first=$first.Count;second=@($second.msg | Sort-Object)} | ConvertTo-Json -Compress
   `]);

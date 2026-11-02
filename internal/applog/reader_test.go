@@ -257,26 +257,28 @@ func TestLogSnapshotSurvivesWriterRotation(t *testing.T) {
 func TestReadAndExportCombineSegmentsAndLegacyLogs(t *testing.T) {
 	dir := t.TempDir()
 	at := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
-	names := []string{"app.log", at.Format(segmentLayout), at.Add(time.Second).Format(segmentLayout)}
+	names := []string{"app.log.1", "app.log", segmentName(at, 0), segmentName(at, 1), segmentName(at, 2), segmentName(at, 10), segmentName(at.Add(time.Second), 0)}
 	for i, name := range names {
 		if err := os.WriteFile(filepath.Join(dir, name), logRecord(t, at, slog.LevelInfo, fmt.Sprintf("record_%d", i)), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "unrelated.log"), []byte("ignored"), 0600); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"unrelated.log", "2026-11-03T00-00-00.000000000Z.log", "20261103T000000Z-0.log", "20261103T000000Z-01.log", "20261103T000000Z-18446744073709551616.log"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("ignored"), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	result, err := Read(t.Context(), dir, Query{})
-	if err != nil || !slices.Equal(result.Files, names) || len(result.Entries) != 3 {
+	if err != nil || !slices.Equal(result.Files, names) || len(result.Entries) != len(names) {
 		t.Fatalf("mixed log snapshot: %+v, %v", result, err)
 	}
 	for i, entry := range result.Entries {
-		if entry.Message != fmt.Sprintf("record_%d", 2-i) {
+		if entry.Message != fmt.Sprintf("record_%d", len(names)-1-i) {
 			t.Fatal("segment order lost equal-timestamp write order", entry)
 		}
 	}
 	exported, err := Export(t.Context(), dir, Query{})
-	if err != nil || exported.Matches != 3 {
+	if err != nil || exported.Matches != len(names) {
 		t.Fatal(exported, err)
 	}
 	for _, name := range names {
@@ -289,7 +291,7 @@ func TestReadAndExportCombineSegmentsAndLegacyLogs(t *testing.T) {
 func TestOversizedRotatedSnapshotUsesRetry(t *testing.T) {
 	dir := t.TempDir()
 	at := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
-	names := []string{"app.log.3", "app.log.2", "app.log.1", "app.log", at.Format(segmentLayout)}
+	names := []string{"app.log.3", "app.log.2", "app.log.1", "app.log", segmentName(at, 0)}
 	for i, name := range names {
 		size := MaxBytes
 		if legacyOrder(name) != 0 {
@@ -347,7 +349,7 @@ func TestSnapshotRejectsExcessiveTotalAndWriterReclaimsIt(t *testing.T) {
 	dir := t.TempDir()
 	at := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 21; i++ {
-		path := filepath.Join(dir, at.Add(time.Duration(i)*time.Second).Format(segmentLayout))
+		path := filepath.Join(dir, segmentName(at.Add(time.Duration(i)*time.Second), 0))
 		if err := os.WriteFile(path, nil, 0600); err != nil {
 			t.Fatal(err)
 		}

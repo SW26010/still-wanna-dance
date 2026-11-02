@@ -1,6 +1,6 @@
 # 日志排障与验收证据
 
-桌面程序日志位置、分片和清理规则见[程序日志](console.md#程序日志)：JSON Lines、UTC 创建时间命名、每片 1 MiB、总预算 20 MiB；状态轮询不写日志。`internal/applog` 初始化 UTC 时间、级别、事件名、PID 和会话标识。
+桌面程序日志位置、分片和清理规则见[程序日志](console.md#程序日志)：JSON Lines、UTC 秒级 ISO 8601 基本格式时间戳命名、同秒分片附序号、每片 1 MiB、总预算 20 MiB；状态轮询不写日志。`internal/applog` 初始化 UTC 时间、级别、事件名、PID 和会话标识。
 
 ## WebUI 阅读器
 

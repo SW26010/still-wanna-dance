@@ -10,17 +10,41 @@ import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, typ
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
 import { blockLane, blockY, drawTimeline, hitBlocks, timelineLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
-import { gib, mb } from './types';
+import { gib } from './types';
+import { bootstrap } from './bootstrap';
 
 type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
+const speedUnitKey = 'swd-download-speed-mbps-run';
+
+function readSpeedInBits() {
+  try { return localStorage.getItem(speedUnitKey) === bootstrap.token; }
+  catch { return false; }
+}
 
 export function BlockTimeline({ visible }: { visible: boolean }) {
   const app = useApp(), documentVisible = useDocumentVisible();
   const container = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [speedInBits, setSpeedInBits] = useState(readSpeedInBits);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === speedUnitKey || event.key === null) setSpeedInBits(readSpeedInBits());
+    };
+    addEventListener('storage', sync);
+    return () => removeEventListener('storage', sync);
+  }, []);
+  const toggleSpeedUnit = () => {
+    const next = !speedInBits;
+    setSpeedInBits(next);
+    // The existing token changes on each SWD run; no program settings are saved.
+    try {
+      if (next) localStorage.setItem(speedUnitKey, bootstrap.token);
+      else localStorage.removeItem(speedUnitKey);
+    } catch { /* Keep the in-page choice if browser storage is unavailable. */ }
+  };
   useEffect(() => {
     // A resize/scroll can enqueue multiple transitions for this same element.
     // Apply the latest entry, including when a long panel crosses the viewport.
@@ -31,14 +55,16 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
   const enabled = visible && inView && documentVisible && !app.stopped;
   const { data, connection, speed, cacheBytes } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
+  const taskCounts = data?.running && connection !== 'offline' && !app.stopped ? data : undefined;
+  const speedText = `${(speedInBits ? speed * 8 / 1e6 : speed / 1048576).toFixed(2)} ${speedInBits ? 'Mbps' : 'MiB/s'}`;
   const toggleLabel = expanded ? '收起时间轴视图' : '展开时间轴视图';
   return <div ref={container}><Card size="medium" className="panel block-demand-panel" id="block-demands" tabIndex={-1}>
     <CardHeader header={<div className="block-demand-heading">
-      <Subtitle2 as="h2">视频块需求</Subtitle2>
-      <Text className="block-demand-speed" size={400} weight="semibold" aria-label="总下载速度" title="最近一次约 1 秒采样的网络下载速度">{mb(speed)}/s</Text>
-      <Tooltip content="临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。" relationship="description"><Text className="block-demand-cache" tabIndex={0}>块缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text></Tooltip>
-      {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="正在读取块需求"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '展示已暂停' : connection === 'error' ? '事件连接中断，正在重连。' : connection === 'live' ? '事件已连接' : connection === 'offline' ? '引擎未运行' : '正在连接'}</StatusBadge>}
-      {data&&<Caption1 className="block-demand-capacity">需求占用 {data.used.toLocaleString()} / {data.capacity || 4096} · 执行 {data.active} / 额度 {data.open}</Caption1>}
+      <Subtitle2 as="h2">视频需求</Subtitle2>
+      {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="状态展示：读取中"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '状态展示：已暂停' : connection === 'error' ? '状态展示：重连中' : connection === 'live' ? '状态展示：更新中' : connection === 'offline' ? '状态展示：待启动' : '状态展示：读取中'}</StatusBadge>}
+      <Tooltip content={`切换为 ${speedInBits ? 'MiB/s' : 'Mbps'}；最近一次约 1 秒采样的网络下载速度。`} relationship="description"><Button className="block-demand-speed" size="small" appearance="transparent" aria-label={`总下载速度：${speedText}`} onClick={toggleSpeedUnit}><Text size={400} weight="semibold">{speedText}</Text></Button></Tooltip>
+      <Tooltip content="临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。" relationship="description"><Text className="block-demand-cache" tabIndex={0}>缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text></Tooltip>
+      <Tooltip content="块任务统计当前需求占用的唯一视频块。下载统计执行中的下载任务（含收尾）；分母为当前生效的同时下载数量，播放急需时可临时超出。" relationship="description"><Caption1 className="block-demand-capacity" tabIndex={0}>块任务 {taskCounts ? taskCounts.used.toLocaleString() : '—'} / {data?.capacity || 4096} | 下载 {taskCounts ? taskCounts.active : '—'} / {app.status.data?.activeSettings.downloadConcurrencySoftLimit ?? '—'}</Caption1></Tooltip>
     </div>} action={<Tooltip content={toggleLabel} relationship="label"><Button size="small" appearance="subtle" icon={expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />} aria-label={toggleLabel} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)} /></Tooltip>} />
     {data && <TimelineViewport data={data} active={active} expanded={expanded} />}
   </Card></div>;

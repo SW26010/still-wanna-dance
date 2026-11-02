@@ -43,7 +43,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 设置与统计列通过 CSS Grid `auto-fit` 按实际容器宽度换行，容纳侧栏及嵌套区域；操作栏不另加边框或固定提示高度。表单默认使用 Field 的上方标签布局，避免窄容器挤压标签。曲库搜索／筛选和历史时间筛选使用原生 `orientation="horizontal"`，将标签放到对应输入框左侧，仅在这些区域按标签内容分配列宽，避免默认比例占宽挤压输入框；宽屏同行，窄屏按字段自然换行，其他字段不覆盖组件内部网格。时间筛选使用 Field 的原生 `validationMessage`，错误随内容自然展开，不用绝对定位或空白占位保持结果坐标。轮询中的已有结果仍保持稳定。CardHeader 的 action 保留简短操作，批量控件放入内容区，避免挤压窄屏标题。组件依据为官方 [Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/)、[Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/) 与 [Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage/) 指南。
 
-首页视频块需求使用标准 medium Card、CardHeader、Badge、Slider 与 small 图标 Button；事件连接／暂停状态复用运行状态的 StatusBadge，保持尺寸、图标、主题色和完整状态播报一致，已有完整状态短句无需重复加名称前缀。标题信息和图例／块显示大小各自使用可换行布局，间距使用主题 spacing tokens，不缩小组件内部点击区域。CardHeader 的 action 只放时间轴展开按钮，Tooltip 在悬浮和键盘聚焦时说明动作。依据为官方 [Card 布局](https://fluent2.microsoft.design/components/web/react/core/card/usage)与 [Tooltip 行为](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage)。
+首页视频需求使用标准 medium Card、CardHeader、Badge、Slider 与 small 图标 Button；状态展示徽章复用运行状态的 StatusBadge，保持尺寸、图标、主题色和完整状态播报一致，采用[程序与界面术语](webui-content.md#程序与界面术语)约定的“状态展示：状态”格式。下载速度采用 small transparent Button，以原有 Text 字阶显示数值与单位；按钮支持点击及键盘切换单位，Tooltip 说明动作，具体单位与换算遵循[内容约定](webui-content.md#内容与交互)。标题信息和图例／块显示大小各自使用可换行布局，间距使用主题 spacing tokens，不缩小组件内部点击区域。CardHeader 的 action 只放时间轴展开按钮，Tooltip 在悬浮和键盘聚焦时说明动作。依据为官方 [Card 布局](https://fluent2.microsoft.design/components/web/react/core/card/usage)与 [Tooltip 行为](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage)。
 
 时间轴与需求视图的 Canvas 绘制、视频配色和尺寸保持独立业务规则。需求浮层使用 Fluent 的 fixed 定位、自动限高与避让，与视口坐标锚点一致，避免源详情加载改变高度时使长页面跳动，并让小视口中的操作始终可达。
 

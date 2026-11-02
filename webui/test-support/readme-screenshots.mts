@@ -60,7 +60,7 @@ try {
   await expect(page.locator('.demand-row')).toHaveCount(4);
   await page.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
   await expect(page.locator('.timeline-canvas')).toBeVisible();
-  await expect(page.getByLabel('总下载速度', { exact: true })).toHaveText('6.400 MB/s');
+  await expect(page.getByRole('button', { name: /^总下载速度：/ })).toHaveText('6.10 MiB/s');
   await page.mouse.move(0, 0);
   await page.screenshot({ path: 'docs/images/webui-acceleration.png', animations: 'disabled' });
   await page.goto('/#/library');

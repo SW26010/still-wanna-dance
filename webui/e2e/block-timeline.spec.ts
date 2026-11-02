@@ -42,7 +42,7 @@ async function setup(page: Page, count = 48) {
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
   await page.goto('/#/home');
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
-  const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('事件已连接', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
+  const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('状态展示：更新中', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   const hidePanel = async () => {
     await page.evaluate(() => window.scrollTo(0, 0));
     const top = await panel.evaluate(el => el.getBoundingClientRect().top);
@@ -206,7 +206,7 @@ test('zoom preserves follow or fixed center, dragging fixes the view and click p
   const f = await setup(page); await f.open();
   await f.panel.screenshot({ path: info.outputPath('timeline-overview.png') });
   await f.canvas.scrollIntoViewIfNeeded();
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   const before = Number(await f.viewport.getAttribute('data-span')), rect = (await f.canvas.boundingBox())!;
   const center = () => f.viewport.getAttribute('data-center').then(Number);
   const initialCenter = await center();
@@ -275,7 +275,7 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   expect(await center()).toBe(pausedCenter);
   await expect(f.viewport).toHaveAttribute('data-span', span!);
   await setPageHidden(page, false);
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await f.panel.getByRole('button', { name: '回到现在' }).click();
   await f.panel.getByRole('switch', { name: '分层显示' }).check();
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 80); await page.mouse.wheel(rect.width / 2 - 10, 0);
@@ -497,10 +497,10 @@ test('video colors survive handoff and reconnect, with white handoff borders and
   await f.panel.getByText('需求视图', { exact: true }).click();
   await f.panel.screenshot({ path: info.outputPath('handoff-overview.png') });
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
-  await expect(f.panel).toContainText('事件连接中断');
+  await expect(f.panel).toContainText('状态展示：重连中');
   // A reset with changed identity must keep the established video color too.
   await f.emit({ reset: true, blocks: changed.map(b => ({ ...b, songID: '84' })), demands: [{ ...queue, songID: '84' }], used: 2 });
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await expect(row).toHaveCSS('border-left-color', border);
   expect((await sample()).fill).toEqual(original.fill);
 });
@@ -626,9 +626,9 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
 test('native EventSource reconnect resets old state without a polling endpoint', async ({ page }) => {
   const f = await setup(page); await f.open();
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
-  await expect(f.panel).toContainText('事件连接中断');
+  await expect(f.panel).toContainText('状态展示：重连中');
   await f.emit({ reset: true, blocks: [block(100, f.at)], used: 1 });
-  await expect(f.canvas).toHaveAccessibleName(/1 个块/); await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.canvas).toHaveAccessibleName(/1 个块/); await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   expect(f.calls.filter(c => c.path === 'block-demands/events').length).toBe(2);
 });
 
@@ -636,10 +636,10 @@ test('opening before engine startup waits for its event on the same connection',
   const f = await setup(page);
   await f.emit({ reset: true, running: false, blocks: [], used: 0 });
   await f.panel.getByRole('button', { name: '展开时间轴视图' }).click();
-  await expect(f.panel.getByText('引擎未运行', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：待启动', { exact: true })).toBeVisible();
   await expect.poll(f.totalStreams).toBe(1);
   await f.emit({ reset: true, blocks: f.blocks, used: 44 });
-  await expect(f.panel.getByText('事件已连接', { exact: true })).toBeVisible();
+  await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await expect(f.canvas).toHaveAccessibleName(/48 个块/);
   expect(f.calls.filter(c => c.path === 'block-demands/events')).toHaveLength(1);
 });
@@ -702,7 +702,7 @@ test('offscreen timeline stops painting while demand events continue and unchang
   await expect.poll(async () => (await paints()).timeline).toBeGreaterThan(2);
   const beforeCapacity = await paints();
   await f.emit({ active: 7, open: 17 });
-  await expect(f.panel).toContainText('执行 7 / 额度 17');
+  await expect(f.panel).toContainText('下载 7 / 16');
   expect((await paints()).demands).toBe(beforeCapacity.demands);
   await page.setViewportSize({ width: 1280, height: 240 });
   await f.panel.locator('.demand-block-canvas').first().evaluate(el => el.scrollIntoView({ block: 'start' }));

@@ -13,9 +13,9 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；程序主题选择及系统跟随、窄屏换行和 reduced-motion |
 | 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接 |
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button/ToggleButton、Dialog、MessageBar、ProgressBar |
-| 记录列表 | 曲库和请求历史共用 RecordTable（Table/TableCellLayout）、SortHeader（TableHeaderCell）及 TablePagination（Button/Text），保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；线路检测同样使用 Table，首页需求使用 Canvas 虚拟列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
+| 记录列表 | 曲库和请求历史共用 RecordTable（Table/TableCellLayout）、SortHeader（TableHeaderCell）及 TablePagination（Button/Text），保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；线路检测同样使用 Table，首页需求使用随内容增高的 Canvas 需求列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
-| 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Slider、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
+| 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
 | 文件与目录选择 | 本地路径共用只读 Field/Input，点击或按 Enter／空格打开 Windows IFileDialog，旁边只保留 Fluent“恢复默认”按钮；默认路径用主题次级色，自选路径用正文色，原生窗口复用 SWD ICO。数据库在同一窗口选择已有文件或新文件名；节点文件内容导入沿用浏览器原生 file input |
 | 必要业务逻辑 | 条款门禁、设置草稿、保存后状态同步、全局排序、曲库偏移量与历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
 
@@ -43,9 +43,9 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 设置与统计列通过 CSS Grid `auto-fit` 按实际容器宽度换行，容纳侧栏及嵌套区域；操作栏不另加边框或固定提示高度。表单默认使用 Field 的上方标签布局，避免窄容器挤压标签。曲库搜索／筛选和历史时间筛选使用原生 `orientation="horizontal"`，将标签放到对应输入框左侧，仅在这些区域按标签内容分配列宽，避免默认比例占宽挤压输入框；宽屏同行，窄屏按字段自然换行，其他字段不覆盖组件内部网格。时间筛选使用 Field 的原生 `validationMessage`，错误随内容自然展开，不用绝对定位或空白占位保持结果坐标。轮询中的已有结果仍保持稳定。CardHeader 的 action 保留简短操作，批量控件放入内容区，避免挤压窄屏标题。组件依据为官方 [Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/)、[Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/) 与 [Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage/) 指南。
 
-首页视频需求使用标准 medium Card、CardHeader、Badge、Slider 与 small 图标 Button；状态展示徽章复用运行状态的 StatusBadge，保持尺寸、图标、主题色和完整状态播报一致，采用[程序与界面术语](webui-content.md#程序与界面术语)约定的“状态展示：状态”格式。下载速度采用 small transparent Button，以原有 Text 字阶显示数值与单位；按钮支持点击及键盘切换单位，Tooltip 说明动作，具体单位与换算遵循[内容约定](webui-content.md#内容与交互)。标题信息和图例／块显示大小各自使用可换行布局，间距使用主题 spacing tokens，不缩小组件内部点击区域。CardHeader 的 action 只放时间轴展开按钮，Tooltip 在悬浮和键盘聚焦时说明动作。依据为官方 [Card 布局](https://fluent2.microsoft.design/components/web/react/core/card/usage)与 [Tooltip 行为](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage)。
+首页视频需求使用标准 medium Card、CardHeader、CardPreview、Badge 与 small 图标 Button。Canvas 区域作为末尾 CardPreview，贴合卡片左右与底边，不绘制单独外框或区域分隔线，保留内部内容间距；标题保持 Card 默认内边距，区域圆角由 Card 统一裁切。图例、工具栏与需求列表共用内容区左右内边距；工具栏左侧放标题与时间窗口，右侧将分层、缩放与跟随操作归为可自然换行的一组，使用原生 small Switch（含 small Label）及 small Button，缩放与跟随图标采用 16px 规格。需求行使用 borderRadiusMedium 主题圆角，来源类型使用次级 Caption1 文字。需求矩形四边使用等宽细边框，左右留白对称；列表随需求数量自然增高，不设置内部滚动条或预留滚动条空间，由页面统一滚动。Canvas 区域、需求行及实际绘制的底色共用卡片的 colorNeutralBackground1 主题 token，普通文字、次级文字及网格线分别共用 colorNeutralForeground1、colorNeutralForeground2 和 colorNeutralStroke2；高对比度模式使用系统 Canvas 等颜色。状态展示徽章复用运行状态的 StatusBadge，保持尺寸、图标、主题色和完整状态播报一致，采用[程序与界面术语](webui-content.md#程序与界面术语)约定的“状态展示：状态”格式。下载速度采用 small transparent Button，以原有 Text 字阶显示数值与单位；按钮支持点击及键盘切换单位，Tooltip 说明动作，具体单位与换算遵循[内容约定](webui-content.md#内容与交互)。标题信息和图例各自使用可换行布局，间距使用主题 spacing tokens，不缩小组件内部点击区域。CardHeader 的 action 只放时间轴展开按钮，Tooltip 在悬浮和键盘聚焦时说明动作。依据为官方 [Card 布局](https://fluent2.microsoft.design/components/web/react/core/card/usage)与 [Tooltip 行为](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage)。
 
-时间轴与需求视图的 Canvas 绘制、视频配色和尺寸保持独立业务规则。需求浮层使用 Fluent 的 fixed 定位、自动限高与避让，与视口坐标锚点一致，避免源详情加载改变高度时使长页面跳动，并让小视口中的操作始终可达。
+Canvas 绘制文字读取 Fluent 的字体族、字号和字重，不另写固定像素字号；时间刻度（含「现在」标签）、图例及分层说明使用比正文小的 Caption1 字号（fontSizeBase200），「现在」标签使用同字号的主题半粗字重，其余 Canvas 说明沿用正文字号。卡片内部的「时间轴视图」「需求视图」小标题使用正文 Text（size=300）的半粗字重，低于卡片标题的 Subtitle2 字阶。需求歌曲名使用正文 Text（size=300）的常规字重，需求行标题按正文行高自然排布，仅保留上方小间距；块上方的 Canvas 空间保留读取圆点所需的 12 个 CSS 像素，避免裁切。时间轴与需求视图的 Canvas 绘制、视频配色和尺寸保持独立业务规则。需求浮层使用 Fluent 的 fixed 定位、自动限高与避让，与视口坐标锚点一致，避免源详情加载改变高度时使长页面跳动，并让小视口中的操作始终可达。
 
 ### 首页加速状态与按钮
 

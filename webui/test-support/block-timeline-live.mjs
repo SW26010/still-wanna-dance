@@ -19,7 +19,7 @@ try {
   await expect(cache).toHaveText('缓存 0.0 MiB');
   await expect(canvas).toHaveAccessibleName(/4 个块/);
   await expect(panel.locator('.demand-row')).toHaveCount(1);
-  await expect(panel.locator('.demand-row')).toContainText('GET #');
+  await expect(panel.locator('.demand-row')).toContainText('读取 #');
   await expect(panel.locator('.demand-block-canvas')).toHaveAccessibleName(/视频共 4 块/);
   await expect.poll(() => panel.locator('.timeline-legend').innerText()).toMatch(/正在下载\s+[1-4]/);
   await canvas.focus(); await canvas.press('Home');

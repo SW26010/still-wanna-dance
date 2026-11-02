@@ -44,6 +44,8 @@ test('home uses live demands and unique block counts without download polling or
   await expect(f.panel.getByText('GET → 短期交接', { exact: false })).toHaveCount(0);
   await expect(f.panel.getByRole('button', { name: '展开时间轴视图' })).toHaveAttribute('aria-expanded', 'false');
   await expect(f.panel.locator('.timeline-canvas')).toBeHidden();
+  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   for (const label of ['等待下载', '正在下载', '本地可用', '延续保护']) await expect(f.panel.locator('.timeline-legend')).toContainText(label + ' 1');
   await expect(f.panel.locator('.demand-progress').first()).toHaveText('50%');
   await expect(f.panel.locator('.demand-progress').nth(1)).toHaveText('0%');
@@ -126,7 +128,7 @@ test('accepted exit clears cache display without a closed event from the engine'
   await expect(f.panel.locator('.block-demand-capacity')).toHaveText('块任务 — / 4096 | 下载 — / 16');
 });
 
-test('empty home keeps zero counts visible and legacy activity links reach the demand panel', async ({ page }) => {
+test('empty home keeps a compact summary and legacy activity links reach the demand panel', async ({ page }) => {
   const api = await mockAPI(page);
   api.state.settings.downloadConcurrencySoftLimit = 32;
   api.state.activeSettings.downloadConcurrencySoftLimit = 8;
@@ -148,27 +150,60 @@ test('timeline arrow has a tooltip and keyboard control and opens the axis above
   const collapse = f.panel.getByRole('button', { name: '收起时间轴视图', exact: true });
   await expect(collapse).toHaveAttribute('aria-expanded', 'true');
   await expect(f.panel.locator('.timeline-canvas')).toBeVisible();
+  await expect(f.panel.locator('.block-demand-controls')).toBeVisible();
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+  await expect(f.panel.locator('.demand-view-heading')).toBeVisible();
+  await expect(f.panel.locator('.demand-view-heading')).toHaveText('需求视图2 项需求');
   expect(await f.panel.evaluate(panel => panel.querySelector('#block-timeline-content')!.compareDocumentPosition(panel.querySelector('.block-demand-view')!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
   await f.panel.focus(); await page.mouse.move(0, 0);
   await expect(page.getByRole('tooltip')).toBeHidden();
   await f.panel.screenshot({ path: info.outputPath('compact-timeline-and-demands.png') });
   await collapse.focus(); await page.keyboard.press('Space');
   await expect(f.panel.locator('.timeline-canvas')).toBeHidden();
+  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
+  await expect(f.panel.locator('.demand-row')).toHaveCount(2);
   await expect.poll(f.streams).toBe(1);
 });
 
-test('compact demand rows keep the full canvas visible at minimum and maximum block sizes', async ({ page }) => {
-  const f = await setup(page), slider = f.panel.getByRole('slider', { name: '块显示大小', exact: true });
-  for (const key of ['Home', 'End']) {
-    await slider.focus(); await slider.press(key);
-    const rows = await f.panel.locator('.demand-row').evaluateAll(rows => rows.map(row => ({ bottom: row.getBoundingClientRect().bottom, canvasBottom: row.querySelector('canvas')!.getBoundingClientRect().bottom })));
-    for (const row of rows) expect(row.canvasBottom).toBeLessThan(row.bottom);
+test('fixed blocks remain fully visible in demand rows when the timeline expands', async ({ page }) => {
+  const f = await setup(page);
+  const body = await f.cache.evaluate(el => { const style = getComputedStyle(el); return { fontSize: style.fontSize, fontFamily: style.fontFamily, weight: style.fontWeight }; });
+  for (const expanded of [false, true]) {
+    if (expanded) await f.panel.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
+    await expect(f.panel.getByRole('slider')).toHaveCount(0);
+    await expect(f.panel.locator('.block-timeline')).toHaveAttribute('data-block-size', '16');
+    const rows = await f.panel.locator('.demand-row').evaluateAll(rows => rows.map(row => {
+      const title = row.querySelector('.demand-video-title')!, canvas = row.querySelector('canvas')!, style = getComputedStyle(title);
+      return { bottom: row.getBoundingClientRect().bottom, canvasBottom: canvas.getBoundingClientRect().bottom, canvasHeight: canvas.clientHeight, titleGap: canvas.getBoundingClientRect().top - title.getBoundingClientRect().bottom, fontSize: style.fontSize, fontFamily: style.fontFamily, weight: style.fontWeight };
+    }));
+    for (const row of rows) {
+      expect(row.canvasBottom).toBeLessThan(row.bottom); expect(row.canvasHeight).toBe(34);
+      expect(row.fontSize).toBe(body.fontSize); expect(row.fontFamily).toBe(body.fontFamily); expect(row.weight).toBe(body.weight);
+      expect(row.titleGap).toBeLessThanOrEqual(4);
+    }
   }
 });
 
 for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]) test(`default demand view remains readable at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light', forcedColors: width === 320 ? 'active' : 'none' });
   const f = await setup(page); await f.emit('download-speed', { bytesPerSecond: 1250000 });
+  const expectFlushEdges = async () => {
+    const gaps = await f.panel.evaluate(panel => {
+      const card = panel.getBoundingClientRect(), frame = panel.querySelector('.block-timeline')!.getBoundingClientRect();
+      return [frame.left - card.left, card.right - frame.right, card.bottom - frame.bottom];
+    });
+    for (const gap of gaps) expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+    const row = await f.panel.locator('.demand-row').first().evaluate(row => {
+      const view = row.closest('.block-demand-view')!, bounds = view.getBoundingClientRect(), rect = row.getBoundingClientRect(), style = getComputedStyle(row), padding = getComputedStyle(view);
+      return { leftGap: rect.left - bounds.left, rightGap: bounds.right - rect.right, leftPadding: parseFloat(padding.paddingLeft), rightPadding: parseFloat(padding.paddingRight), borders: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth] };
+    });
+    await info.attach('demand-row-spacing', { body: JSON.stringify(row), contentType: 'application/json' });
+    expect.soft(Math.abs(row.leftGap - row.rightGap), 'Demand rows have equal side spacing').toBeLessThanOrEqual(1);
+    expect.soft(row.leftGap, 'No extra scrollbar space on the left').toBe(row.leftPadding);
+    expect.soft(row.rightGap, 'No extra scrollbar space on the right').toBe(row.rightPadding);
+    expect.soft(new Set(row.borders).size, 'Demand row borders have equal thickness').toBe(1);
+  };
   await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
   await f.cache.focus(); await expect(page.getByRole('tooltip')).toContainText('临时视频块文件总大小');
   await page.keyboard.press('Escape'); await expect(page.getByRole('tooltip')).toBeHidden();
@@ -178,8 +213,10 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
   await expect(eventStatus.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   const statusStyle = (el: Element) => { const s = getComputedStyle(el); return [s.backgroundColor, s.color, s.fontSize, s.borderRadius, el.getBoundingClientRect().height]; };
   for (const name of ['后台程序', '游戏连接']) expect(await eventStatus.evaluate(statusStyle)).toEqual(await page.getByRole('status', { name, exact: true }).evaluate(statusStyle));
-  await expect(f.panel.getByRole('slider', { name: '块显示大小', exact: true })).toBeVisible();
+  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expectFlushEdges();
   const alignment = await f.panel.evaluate(panel => ({
     header: panel.querySelector('.fui-CardHeader__header')!.getBoundingClientRect().right,
     capacity: panel.querySelector('.block-demand-capacity')!.getBoundingClientRect().right,
@@ -188,12 +225,24 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
   if (width >= 1280) {
     const bounds = await f.panel.evaluate(panel => {
       const rect = (selector: string) => { const r = panel.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
-      return { panelBottom: panel.getBoundingClientRect().bottom, title: rect('h2'), speed: rect('.block-demand-speed'), cache: rect('.block-demand-cache'), capacity: rect('.block-demand-capacity'), toggle: rect('button[aria-controls="block-timeline-content"]'), legend: rect('.timeline-legend'), size: rect('.timeline-size-control') };
+      return { panelBottom: panel.getBoundingClientRect().bottom, title: rect('h2'), speed: rect('.block-demand-speed'), cache: rect('.block-demand-cache'), capacity: rect('.block-demand-capacity'), toggle: rect('button[aria-controls="block-timeline-content"]') };
     });
     expect(bounds.panelBottom).toBeLessThanOrEqual(height);
     for (const part of [bounds.speed, bounds.cache, bounds.capacity, bounds.toggle]) { expect(part.top).toBeLessThan(bounds.title.bottom); expect(part.bottom).toBeGreaterThan(bounds.title.top); }
-    expect(bounds.size.top).toBeLessThan(bounds.legend.bottom); expect(bounds.size.bottom).toBeGreaterThan(bounds.legend.top);
     await info.attach('layout', { body: JSON.stringify(bounds, null, 2), contentType: 'application/json' });
   }
   await page.screenshot({ path: info.outputPath('home-demand.png'), fullPage: true, animations: 'disabled' });
+  await f.panel.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
+  await expect(f.panel.locator('.block-demand-controls')).toBeVisible();
+  await expect(f.panel.getByRole('slider')).toHaveCount(0);
+  await expect(f.panel.locator('.demand-view-heading')).toBeVisible();
+  await expect(f.panel.locator('.demand-row')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expectFlushEdges();
+  const lastStrip = f.panel.locator('.demand-block-canvas').last();
+  await lastStrip.scrollIntoViewIfNeeded();
+  await expect.poll(() => lastStrip.evaluate(canvas => canvas.width > 0 && canvas.height > 0)).toBe(true);
+  await expect(eventStatus).toHaveText('状态展示：更新中');
+  await expect(f.speed).toHaveText('1.19 MiB/s');
+  await page.screenshot({ path: info.outputPath('home-demand-expanded.png'), animations: 'disabled' });
 });

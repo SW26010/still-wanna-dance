@@ -4,7 +4,7 @@ import {join} from 'node:path';
 
 const [baseURL,output,videoDir]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+const browser=await chromium.launch({channel:process.platform==='win32'||!process.env.CI?'msedge':'chromium'});
 try {
   const first=await browser.newPage(),second=await browser.newPage(),errors=[];
   for(const page of [first,second])page.on('pageerror',error=>errors.push(error.message));
@@ -58,7 +58,7 @@ try {
   const rejected=second.waitForResponse(response=>new URL(response.url()).pathname==='/api/settings');
   await dialog.getByRole('button',{name:'确认并保存',exact:true}).click();
   expect((await rejected).status()).toBe(400);
-  await expect(second.getByText('目录或视频保留策略已变化，请重新确认后保存。',{exact:true})).toBeVisible();
+  await expect(second.getByRole('tabpanel',{name:'存储',exact:true}).getByText('目录或视频保留策略已变化，请重新确认后保存。',{exact:true})).toBeVisible();
   expect((await status()).settings.videoDir).toBe(initial.settings.videoDir);
   await expect(second.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
   await save.click();

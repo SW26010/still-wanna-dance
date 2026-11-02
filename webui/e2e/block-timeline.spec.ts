@@ -35,7 +35,10 @@ async function setup(page: Page, count = 48) {
   const source: BlockSource = { id: 1, kind: 'get', songID: '42', title: '星河', position: 0, needBy: at, expiresAt: 0, windowClosed: false };
   const detail = async (b: BlockView, sources: BlockSource[] = [source, { ...source, id: 2, kind: 'queue', position: 3 }]) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind: 'block-detail:' + b.id, state: { block: b, sources } } });
   for (const b of blocks.slice(0, 48)) await detail(b, b.inUse ? undefined : []);
-  const streams = async () => (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Promise<Record<string, number>>;
+  const streams = async () => {
+    const active = await (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Record<string, number>;
+    return Object.fromEntries(Object.entries(active).filter(([kind]) => kind === 'blocks' || kind.startsWith('block-detail:')));
+  };
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
   await page.goto('/#/home');
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');

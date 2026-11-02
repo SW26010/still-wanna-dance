@@ -16,8 +16,13 @@ export const repository = 'SW26010/still-wanna-dance';
 export const buildTags = 'no_easytier';
 export const productionFlags = ['-tags=' + buildTags, '-trimpath', '-mod=readonly', '-ldflags', '-s -w -H=windowsgui'];
 export const desktopBuildFlags = identity => [...productionFlags.slice(0, -1), productionFlags.at(-1) + ' ' + identityFlags(identity)];
-export function run(command, args, cwd, env = {}) {
-  return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+export function run(command, args, cwd, env = {}, options = {}) {
+  try {
+    return execFileSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true, ...options });
+  } catch (error) {
+    if (error.stdout) process.stderr.write(error.stdout);
+    throw error;
+  }
 }
 function windowsArchive(action,archive,directory) {
   return run('pwsh',['-NoProfile','-File',fileURLToPath(new URL('./archive-source.ps1',import.meta.url)),'-Action',action,'-Archive',path.resolve(archive),...(directory?['-Directory',path.resolve(directory)]:[])]);

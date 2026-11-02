@@ -10,7 +10,7 @@
 ./scripts/package-portable.ps1 -ReleaseTag v1.2.3
 ```
 
-开发包先运行依赖无关的前端源码/资源清单校验（`scripts/check-webui.mjs`），再通过 `scripts/go-patches.mjs` 对 `./cmd/... ./internal/...` 执行带 `no_easytier` 标签的 Go test 和 vet，失败即停止。正式包在独立干净检出中运行全部 Node 测试和上述 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承外部 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
+开发包先运行依赖无关的前端源码/资源清单校验（`scripts/check-webui.mjs`），再通过 `scripts/go-patches.mjs` 对 `./cmd/... ./internal/...` 执行带 `no_easytier` 标签的 Go test 和 vet，失败即停止。干净 CI 检出使用 `-AllPackages` 将开发包的 Go 测试与 vet 扩展至 `./...`，同时充当 Windows 全包检查；普通本地开发包仍只检查产品目录，避免扫入忽略目录中的实验代码。正式包在独立干净检出中运行全部 Node 测试和上述产品 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承外部 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
 
 ZIP 名允许带版本；ZIP 内固定为：
 
@@ -68,13 +68,15 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 `-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意；首次启动会自动准备默认数据库和视频目录，但不导入或下载媒体。有内容的持久化数据另由下面的集成检查覆盖，不能用首次空库的覆盖结果代替。
 
-[完整 `check` 工作流](../.github/workflows/check.yml)在手动运行或推送 `v[0-9]*` tag 时执行，普通分支 push/PR 不自动运行。它覆盖 Windows/Linux 的前端一致性、浏览器、Node 与 Go 测试、vet/build，以及 Linux race/gofmt；单独的 `repository-artifacts` 通过只证明仓库产物策略检查。
+启动发行工作流前，先完成[发布前本机 Windows 完整预检](development.md#发布前本机-windows-完整预检)；本节维护产物与公开交付规则。
+
+[`check` 工作流](../.github/workflows/check.yml)在 PR、main push、手动运行或推送 `v[0-9]*` tag 时执行 Windows 检查：前端一致性、代表性浏览器交互、真实 Console 双页面设置联调、Node 和 Go 测试、vet、gofmt，以及独立作业中的代表性 race 检查。手动运行或推送版本 tag 时改跑完整浏览器套件和全包 race，并额外构建、检查便携包；PR 和普通 main push 不打包。Windows CI 使用与本机一致的 Edge，以及固定版本并校验哈希的 w64devkit GCC。同一分支或 PR 的新提交会取消过期检查，同一发布 tag 的运行仍串行且不自动取消。`repository-artifacts` 在 Windows 单独检查仓库产物策略。
 
 自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.0.0-beta.1`）。留空只检查并生成 ci 开发包；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
 
-发布运行先生成同一提交的 ci 候选包，再经现有正式入口构建 ZIP、完整源码和校验文件，同时完成源码离线重建、ZIP 冒烟及候选包到正式包的覆盖升级。该候选用于验证当前布局的覆盖过程，不代表历史配置迁移。两平台检查全部成功后，独立发布 job 才取得 `contents: write`，复用标准 Release action 上传五个正式附件到草稿，并核对 GitHub 返回的大小与 SHA256；临时候选包不进入 Release。
+发布运行先生成同一提交的 ci 候选包，再经现有正式入口构建 ZIP、完整源码和校验文件，同时完成源码离线重建、ZIP 冒烟及候选包到正式包的覆盖升级。该候选用于验证当前布局的覆盖过程，不代表历史配置迁移。产品测试、Windows race 和打包并行；三者全部成功后，独立发布 job 才取得 `contents: write`，复用标准 Release action 上传五个正式附件到草稿，并核对 GitHub 返回的大小与 SHA256；临时候选包不进入 Release。测试或打包失败时可分别重跑失败作业，发布作业复用该次成功上传的正式附件。
 
-附件完整后自动发布，并执行无凭据公共 URL 的 `verify-published`，包括回下载、身份/哈希核对和源码独立重建。失败时尝试恢复为草稿，工作流明确失败；只有该步骤成功才表示公开交付完成。带 `-beta` 等后缀的版本自动标为 Pre-release；此流程不设置 Latest。已有相同标签的草稿可复用，已有同名附件不覆盖，内容不符即停止。重跑失败的发布 job 会复用本次 Actions 附件；若重新构建导致附件不同，应检查草稿或使用新版本，不能覆盖已公开的交付。整个流程无需从本机手动上传附件，本地打包脚本仍只负责准备与验证。
+附件完整后自动发布，并从无凭据公共 URL 回下载 ZIP、源码、两个校验文件和发行清单，核对与已验证附件的身份、字节数及 SHA256。正式打包已对同一源码附件完成全新缓存独立重建，公开下载的哈希相同，因此自动流程不再重复重建；单独运行上面的 `verify-published` 仍会重新独立重建。失败时尝试恢复为草稿，工作流明确失败；只有公开附件检查成功才表示公开交付完成。带 `-beta` 等后缀的版本自动标为 Pre-release；此流程不设置 Latest。已有相同标签的草稿可复用，已有同名附件不覆盖，内容不符即停止。重跑失败的发布 job 会复用本次 Actions 附件；若重新构建导致附件不同，应检查草稿或使用新版本，不能覆盖已公开的交付。整个流程无需从本机手动上传附件，本地打包脚本仍只负责准备与验证。
 
 首次正式发布由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 汇总可靠性与公开交付、[#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总最终 Portable 与覆盖升级结果。#23/#24/#25/#27/#30 已完成的基础实现和证据按适用范围复用；发行前仍须对选定提交完成完整 `check`、正式打包、同布局前一候选包到最终 ZIP 的覆盖升级，以及上述公开下载验证。开发和 Windows 剩余范围以[非 VRC 验证跟进](validation-followups.md)为准，游戏剩余场景以 [VRC 台账](live-acceptance-backlog.md)为准；原 LA-033 的网页门禁与条款展示已转浏览器/集成验证，条款变更后的实际确认和跨用户凭据边界归 Windows 验证。最新交付证据见 [#26 验证记录](validation/issue-26-validation.md)，不以历史包的结果替代最终候选。
 

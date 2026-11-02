@@ -7,31 +7,128 @@ on:
         type: string
         default: ''
   push:
+    branches:
+      - main
     tags:
       - 'v[0-9]*'
+  pull_request:
 permissions:
   contents: read
 concurrency:
-  group: check-${{ inputs.release_tag || github.ref_name }}
-  cancel-in-progress: false
+  # Keep release attempts for one tag serialized; cancel superseded branch/PR checks.
+  group: check-${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('{0}-{1}', github.event_name, github.ref_name) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
 env:
   RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 jobs:
   test:
+    runs-on: windows-latest
     env:
-      # Validate the setup-go version; never silently download a newer toolchain.
       GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: webui/package.json
+      - run: pnpm --dir webui install --frozen-lockfile
+      - run: pnpm --dir webui check
+      - name: Representative browser checks
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
+        run: ./scripts/with-test-temp.ps1 pnpm --dir webui exec playwright test e2e/terms-consent.spec.ts e2e/regressions.spec.ts
+      - name: Full browser checks
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: ./scripts/with-test-temp.ps1 pnpm --dir webui test
+      - name: Real Console settings integration
+        shell: pwsh
+        run: |
+          $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $env:GITHUB_WORKSPACE 'artifacts/settings-browser'
+          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webui-failure-windows
+          path: |
+            artifacts/webui-tests
+            artifacts/settings-browser
+          if-no-files-found: ignore
+      - run: ./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs
+      - run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./...
+      - run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs vet -tags=no_easytier ./...
+      - name: Check Go formatting
+        shell: pwsh
+        run: |
+          $unformatted = @(gofmt -l cmd internal)
+          if ($LASTEXITCODE -ne 0 -or $unformatted.Count -ne 0) { $unformatted; throw 'Go files require formatting.' }
+
+  race:
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+        shard: ${{ fromJSON((github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '[0,1,2,3,4,5]' || '[0]') }}
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+      - name: Install pinned Windows GCC
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'w64devkit-x64-2.10.0.7z.exe'
+          Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v2.10.0/w64devkit-x64-2.10.0.7z.exe' -OutFile $archive
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -cne '18D0A4C71A166F8401AB6305781BEC5882B40B5E06BA9807C61CB5F3B3C6325E') { throw 'Windows GCC archive hash mismatch.' }
+          & 7z x $archive "-o$env:RUNNER_TEMP" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract Windows GCC.' }
+          $compiler = Join-Path $env:RUNNER_TEMP 'w64devkit/bin/gcc.exe'
+          if (!(Test-Path -LiteralPath $compiler)) { throw 'Windows GCC is missing.' }
+          "CC=$compiler" >> $env:GITHUB_ENV
+      - name: Race-check cache and Console shard
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: ./scripts/test-race-shard.ps1 -Shard ${{ matrix.shard }} -Shards 6
+      - name: Race-check remaining packages
+        if: matrix.shard == 0 && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+        shell: pwsh
+        run: |
+          $packages = @(node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
+          if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining Go packages.' }
+          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race @packages -count=1 -timeout=45m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Representative race checks
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
+        shell: pwsh
+        run: |
+          $tests = '^(TestAnyTLSStreamConcurrentClose|TestVRChatExitWaitsWithoutPolling|TestVRChatExitWaitsForOtherInstancesAndRestart|TestVRChatExitObservationErrorsRecover|TestHTTPSeekDuringRangeInitialization|TestBlockDemandFollowsActualWaitAndIndependentReaders|TestNetworkConnectivityFullRunsThreeRequestsTogether|TestMixedDemandKeepsDeadlineAndOpportunisticAdmission)$'
+          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race ./internal/blocksched ./internal/cacheproxy ./internal/console ./internal/desktop ./internal/proxyengine/mihomo "-run=$tests" -count=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  package:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Prepare version tag for packaging
-        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
+        if: env.RELEASE_TAG != ''
         shell: pwsh
         run: |
           if ($env:RELEASE_TAG -cnotmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
@@ -53,42 +150,25 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: webui/package.json
-      - run: pnpm --dir webui install --frozen-lockfile
-      - run: pnpm --dir webui check
-      - run: pnpm --dir webui exec playwright install --with-deps chromium
-      # Keep Windows fixtures out of the runner profile's 8.3 TEMP alias.
-      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} pnpm --dir webui test
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: webui-failure-${{ runner.os }}
-          path: artifacts/webui-tests
-      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} node --test scripts/*.test.mjs
-      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} node scripts/go-patches.mjs test -tags=no_easytier ./...
-      - run: ${{ runner.os == 'Windows' && './scripts/with-test-temp.ps1' || '' }} node scripts/go-patches.mjs vet -tags=no_easytier ./...
-      - run: node scripts/go-patches.mjs build -tags=no_easytier ./...
+      - name: Build all Windows Go packages
+        run: node scripts/go-patches.mjs build -tags=no_easytier ./...
         env:
           CGO_ENABLED: '0'
-      - if: runner.os == 'Linux'
-        run: node scripts/go-patches.mjs test -tags=no_easytier -race ./...
-      - if: runner.os == 'Linux'
-        run: test -z "$(gofmt -l cmd internal)"
       - name: Build upgrade candidate
-        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
+        if: env.RELEASE_TAG != ''
         shell: pwsh
-        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -OutputDir artifacts/upgrade-baseline
+        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -OutputDir artifacts/upgrade-baseline -AllPackages
       - name: Build and verify release with candidate overlay upgrade
-        if: runner.os == 'Windows' && env.RELEASE_TAG != ''
+        if: env.RELEASE_TAG != ''
         shell: pwsh
         run: ./scripts/package-portable.ps1 -ReleaseTag $env:RELEASE_TAG -PreviousZip artifacts/upgrade-baseline/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
-      - if: runner.os == 'Windows' && env.RELEASE_TAG == ''
+      - if: env.RELEASE_TAG == ''
         shell: pwsh
-        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }}
-      - if: runner.os == 'Windows' && env.RELEASE_TAG == ''
+        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -AllPackages
+      - if: env.RELEASE_TAG == ''
         shell: pwsh
         run: ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
-      - if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: still-wanna-dance-windows-amd64-portable
           path: |
@@ -99,7 +179,7 @@ jobs:
             artifacts/*-release-notes.md
           if-no-files-found: error
       - name: Retain packaging diagnostics
-        if: runner.os == 'Windows' && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: portable-validation-logs
@@ -109,25 +189,16 @@ jobs:
           if-no-files-found: ignore
 
   release:
-    needs: test
+    needs: [test, race, package]
     if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
     runs-on: windows-latest
     permissions:
       contents: write
-    env:
-      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: false
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: webui/package.json
       - uses: actions/download-artifact@v8
         with:
           name: still-wanna-dance-windows-amd64-portable
@@ -200,10 +271,15 @@ jobs:
             let publishedRelease;
             try {
               ({ data: publishedRelease } = await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, prerelease: process.env.RELEASE_TAG.includes('-'), make_latest: 'false' }));
-              await exec.exec('pwsh', ['-NoProfile', '-File', 'scripts/with-test-temp.ps1', 'node', 'scripts/release.mjs', 'verify-published', '--manifest', path.join('artifacts', names.manifest)]);
+              // The package job already rebuilt these exact bytes independently.
+              await exec.exec('pwsh', ['-NoProfile', '-File', 'scripts/with-test-temp.ps1', 'node', 'scripts/release.mjs', 'verify-published-assets', '--manifest', path.join('artifacts', names.manifest)]);
             } catch (error) {
               // Stop exposing an unverified delivery. Never report it as successful.
-              await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: true });
+              try {
+                await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: true });
+              } catch (rollbackError) {
+                core.error(`Could not restore draft; check the release visibility: ${rollbackError.message}`);
+              }
               throw error;
             }
             await core.summary.addHeading('Release verified').addLink(process.env.RELEASE_TAG, publishedRelease.html_url).write();

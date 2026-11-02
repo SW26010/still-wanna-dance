@@ -145,3 +145,5 @@ WebUI 将响应延迟和吞吐样本分区显示，各自关联采样歌曲和�
 2026-10-24 网络模块拆分验证：独立 DNS 与 SOCKS5 实现移至 `upstreamnet`，保留原解析、双栈、代理认证及半关闭行为；命令行的 `go list -deps` 不再包含 Console、桌面或 Mihomo。DNS 协议回归随实现迁移，Console 的通道、HTTPS、代理和设置隔离测试继续验证实际组装路径。`go test -p 1 -tags=no_easytier ./cmd/... ./internal/...`、同范围 vet 与只读依赖构建通过；Windows race 覆盖 DNS、DoH、SOCKS5、Monitor、吞吐及生命周期锁并发场景。带 `cf_block_experiment` 标签的编译和受控实验夹具通过，独立 CF 并发与本地限速工具测试通过；Mihomo 实验模块同步根模块已有的 Outline SDK 和 SQLite 依赖记录后，普通 probe 回归及 `external_only` 只读编译通过，产品依赖版本未变。
 
 首次并发执行整套检查时，未修改的 cacheproxy 包中 `TestRetainedQueueRefetchAfterEviction/HIT_address_changed_identity` 等待资源解析结束超时；该包不依赖本次调整的 Console、upstreamnet 或 upstreamstate。该用例独立连续运行五次通过，随后整套 Go 测试串行通过，未改动该用例或产品超时。未据复验通过推断首次失败的具体原因。原始失败、复验、race 和实验模块首次只读依赖失败均保留在忽略目录 `artifacts/optimization-audit/`。本轮未重新运行公网性能实验或 VRC，既有实网数据仍只适用于其记录版本和时段。
+
+2026-11-02 beta.4 本机预演再次遇到同一断言失败。隔离对照将预热下载来源保持至队列 HIT 建立，使旧地址的资源协调器继续被共享，3/3 次复现同样超时和旧资源取块；释放预热来源并等待协调器退出后 10/10 次通过。这证明该测试原先没有固定“独立本地 HIT”的前提，不证明 10 月首次失败的具体交错。测试现等待预热来源及其 flight 实际退出后再建立队列 HIT，保留淘汰、地址变化、身份校验和不下载其他内容的断言；产品行为未改。原始失败及受控对照保存在忽略目录 `artifacts/beta4-local-preflight-20261101/`。

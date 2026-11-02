@@ -25,6 +25,8 @@ export function renderReleaseNotes({ tag, revision, assets }) {
 
 解压便携版后，运行 \`SWD/SWD.exe\` 即可。
 
+升级前请退出程序并备份数据。打开 v8 数据库时会迁移至 v9，迁移后旧版不能直接打开该库；详见[存储说明](${docs}/docs/storage.md)。
+
 自行构建请使用上面的完整对应源码附件，具体步骤见[构建说明](${docs}/docs/corresponding-source.md)。
 
 本版本按 GPLv3 分发，历史 MIT 和第三方许可保留于包内 \`licenses/\`。详见[许可与再分发说明](${docs}/LICENSING.md)。
@@ -71,6 +73,14 @@ export function checkDelivery(folder, manifest, sourceAsset, sourceRoot, accepte
   return info;
 }
 
+export function checkPortableArchive({ archive, destination, source, sourceAsset, sourceRoot, executableSHA256, modules, acceptedRisks = [] }) {
+  extractArchive(archive, destination, 'SWD');
+  const folder = path.join(destination, 'SWD');
+  const info = checkDelivery(folder, source, sourceAsset, sourceRoot, acceptedRisks);
+  if (sha256(path.join(folder, 'SWD.exe')) !== executableSHA256 || moduleIdentity(info.modules) !== moduleIdentity(modules)) throw Error('Release/binary identity mismatch');
+  return info;
+}
+
 function compareRebuild(original, built) {
   if (moduleIdentity(original.modules) !== moduleIdentity(built.info.modules)) throw Error('Independent rebuild has different binary dependencies');
 }
@@ -89,13 +99,16 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     run('git', ['-c', 'core.autocrlf=false', 'checkout', '--quiet', '--detach', revision], checkout);
     const nodeTests = fs.readdirSync(path.join(checkout, 'scripts')).filter(f => f.endsWith('.test.mjs')).map(f => 'scripts/' + f);
     console.log('Checking clean release checkout...');
-    run(process.execPath, ['--test', ...nodeTests], checkout);
-    runGo(['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
-    runGo(['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv());
+    // Stream test output so failures written to stdout remain visible in CI.
+    run(process.execPath, ['--test', ...nodeTests], checkout, {}, { stdio: 'inherit' });
+    runGo(['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv(), { stdio: 'inherit' });
+    runGo(['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv(), { stdio: 'inherit' });
     const results = path.join(temp, 'results'); fs.mkdirSync(results);
     console.log('Collecting complete corresponding source...');
     const source = createSource({ root: checkout, tag, outputDir: results });
     const bundle = extractSource(source.archive, path.join(temp, 'unpacked'));
+    const deliveredSource = readJSON(path.join(bundle, 'source-manifest.json'));
+    if (deliveredSource.tag !== tag || deliveredSource.revision !== revision || deliveredSource.toolchain !== source.manifest.toolchain) throw Error('Release/source version mismatch');
     const folder = path.join(temp, 'portable/SWD'), licenses = path.join(folder, 'licenses'); fs.mkdirSync(licenses, { recursive: true });
     const env = goEnv({ GOPROXY: pathToFileURL(path.join(bundle, 'proxy')).href, GOSUMDB: 'off', GONOPROXY: 'none', GONOSUMDB: 'none', GOPRIVATE: '', GOMODCACHE: path.join(temp, 'modules'), GOCACHE: path.join(temp, 'build') });
     console.log('Building pinned desktop executable...');
@@ -106,16 +119,18 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     const record = { schemaVersion: 1, kind: 'formal', tag, revision, sourceURL: sourceAsset.url, sourceSHA256: source.sha256, executableSHA256: sha256(path.join(folder, 'SWD.exe')), acceptedRisks: [] };
     writeJSON(path.join(licenses, 'SOURCE.json'), record);
     fs.writeFileSync(path.join(licenses, 'SOURCE.txt'), `Complete Corresponding Source / 完整对应源码\nVersion: ${tag}\nCommit: ${revision}\nDownload: ${sourceAsset.url}\nSHA256: ${source.sha256}\n\nDownload the source asset from the same official GitHub Release as this ZIP.\nThe automatic GitHub Source code ZIP/TAR is not a substitute. Extract the\nsource asset and follow BUILD.txt (recorded Go toolchain, Node.js 22+, pinned pnpm, tar).\nMirrors must retain notices and provide this matching source with equivalent\naccess. For offline redistribution supply the matching source archive too;\na network-only link is not an offline source-delivery plan. See LICENSING.md.\n`);
-    const info = checkDelivery(folder, source.manifest, sourceAsset, path.join(bundle, 'source'));
+    const info = checkDelivery(folder, deliveredSource, sourceAsset, path.join(bundle, 'source'));
     console.log('Rebuilding independently from delivered source with fresh caches...');
     const built = rebuild({ bundle, output: path.join(temp, 'rebuilt.exe') }); compareRebuild(info, built);
     const zip = path.join(results, names.portable);
     run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/archive-portable.ps1'), '-Folder', folder, '-Zip', zip], checkout);
     fs.writeFileSync(zip + '.sha256', `${sha256(zip)}  ${names.portable}\n`);
+    console.log('Checking packaged ZIP identity and source binding...');
+    checkPortableArchive({ archive: zip, destination: path.join(temp, 'packaged'), source: deliveredSource, sourceAsset, sourceRoot: path.join(bundle, 'source'), executableSHA256: record.executableSHA256, modules: info.modules });
     console.log('Checking actual Portable ZIP in an isolated consent-gated process...');
     // Retain diagnostics in the original repository, outside both temporary roots.
-    run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-smoke')], checkout);
-    if (previousZip) run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable-upgrade.ps1'), '-PreviousZip', previousZip, '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-upgrade')], checkout);
+    run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable.ps1'), '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-smoke')], checkout, {}, { stdio: 'inherit' });
+    if (previousZip) run('pwsh', ['-NoProfile', '-File', path.join(checkout, 'scripts/test-portable-upgrade.ps1'), '-PreviousZip', previousZip, '-Zip', zip, '-EvidenceDir', path.join(root, 'artifacts/portable-upgrade')], checkout, {}, { stdio: 'inherit' });
     const portableAsset = { kind: 'portable', name: names.portable, sha256: sha256(zip), bytes: fs.statSync(zip).size, url: assetURL(tag, names.portable) };
     fs.writeFileSync(zip + '.sha256', `${portableAsset.sha256}  ${names.portable}\n`);
     const manifest = { schemaVersion: 1, kind: 'formal', repository, tag, revision, target: source.manifest.target, toolchain: source.manifest.toolchain, executableSHA256: record.executableSHA256, modules: info.modules, acceptedRisks: [], independentRebuild: { verified: true, executableSHA256: built.executableSHA256, bitReproducible: false }, assets: [portableAsset, sourceAsset] };
@@ -140,10 +155,7 @@ export function verifyRelease({ manifest, directory }) {
     const bundle = extractSource(path.join(directory, sourceAsset.name), path.join(temp, 'source'));
     const source = readJSON(path.join(bundle, 'source-manifest.json'));
     if (source.tag !== manifest.tag || source.revision !== manifest.revision || source.toolchain !== manifest.toolchain) throw Error('Release/source version mismatch');
-    extractArchive(path.join(directory, manifest.assets.find(a => a.kind === 'portable').name), path.join(temp, 'portable'), 'SWD');
-    const folder = path.join(temp, 'portable/SWD');
-    const info = checkDelivery(folder, source, sourceAsset, path.join(bundle, 'source'), manifest.acceptedRisks);
-    if (sha256(path.join(folder, 'SWD.exe')) !== manifest.executableSHA256 || moduleIdentity(info.modules) !== moduleIdentity(manifest.modules)) throw Error('Release/binary identity mismatch');
+    const info = checkPortableArchive({ archive: path.join(directory, manifest.assets.find(a => a.kind === 'portable').name), destination: path.join(temp, 'portable'), source, sourceAsset, sourceRoot: path.join(bundle, 'source'), executableSHA256: manifest.executableSHA256, modules: manifest.modules, acceptedRisks: manifest.acceptedRisks });
     const built = rebuild({ bundle, output: path.join(temp, 'rebuilt.exe') }); compareRebuild(info, built);
     return { tag: manifest.tag, revision: manifest.revision, verified: true, executableSHA256: manifest.executableSHA256 };
   });
@@ -152,12 +164,23 @@ export function verifyRelease({ manifest, directory }) {
 export async function downloadAssets(manifest, directory, fetcher = fetch) {
   checkReleaseManifest(manifest);
   for (const a of manifest.assets) {
+    console.log(`Checking public ${a.kind} asset...`);
     const response = await fetcher(a.url, { signal: AbortSignal.timeout(600000) });
     if (!response.ok || response.status !== 200 || !response.body) throw Error(`Public ${a.kind} asset is unavailable (HTTP ${response.status})`);
     const file = path.join(directory, a.name);
     await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file, { flags: 'wx' }));
     if (fs.statSync(file).size !== a.bytes || sha256(file) !== a.sha256) throw Error(`Downloaded ${a.kind} asset differs from release manifest`);
   }
+  console.log('Checking public checksums and manifest...');
+  for (const a of manifest.assets) {
+    const response = await fetcher(a.url + '.sha256', { signal: AbortSignal.timeout(60000) });
+    if (!response.ok || response.status !== 200 || (await response.text()).trim() !== `${a.sha256}  ${a.name}`) throw Error(`Public ${a.kind} checksum is unavailable or differs`);
+  }
+  const response = await fetcher(assetURL(manifest.tag, releaseNames(manifest.tag).manifest), { signal: AbortSignal.timeout(60000) });
+  if (!response.ok || response.status !== 200) throw Error(`Public release manifest is unavailable (HTTP ${response.status})`);
+  let published;
+  try { published = await response.json(); } catch { throw Error('Public release manifest is not valid JSON'); }
+  if (JSON.stringify(published) !== JSON.stringify(manifest)) throw Error('Public release manifest differs from the verified delivery');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -167,6 +190,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (command === 'create') console.log(JSON.stringify(createRelease({ root: a.root ?? '.', tag: a.tag, outputDir: a.output ?? 'artifacts', previousZip: a['previous-portable'] })));
     else if (command === 'verify') console.log(JSON.stringify(verifyRelease({ manifest: readJSON(a.manifest), directory: a.directory ?? path.dirname(path.resolve(a.manifest)) })));
     else if (command === 'verify-published') await withTemp(async temp => { const manifest = readJSON(a.manifest); await downloadAssets(manifest, temp); console.log(JSON.stringify(verifyRelease({ manifest, directory: temp }))); });
-    else throw Error('Use create --tag vX.Y.Z [--output artifacts], verify --manifest FILE [--directory DIR], or verify-published --manifest FILE');
+    else if (command === 'verify-published-assets') await withTemp(async temp => { const manifest = readJSON(a.manifest); await downloadAssets(manifest, temp); console.log(JSON.stringify({ tag: manifest.tag, revision: manifest.revision, verifiedAssets: true })); });
+    else throw Error('Use create --tag vX.Y.Z [--output artifacts], verify --manifest FILE [--directory DIR], verify-published --manifest FILE, or verify-published-assets --manifest FILE');
   } catch (e) { console.error(e.message); process.exitCode = 1; }
 }

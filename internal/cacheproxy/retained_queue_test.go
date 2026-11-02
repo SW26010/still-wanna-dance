@@ -140,6 +140,23 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 				if _, err := s.PrefetchSong(ctx, "42", videoURL(body)); err != nil {
 					t.Fatal(err)
 				}
+				// A HIT must start with no live coordinator from the warm-up
+				// download; otherwise it can legitimately retain that download's
+				// already resolved address rather than a local-only resource.
+				warm := parsedVideo(t, s, body)
+				for {
+					s.mu.Lock()
+					stopped := s.resourceUses[warm.key] == nil && s.flights[warm.key] == nil
+					s.mu.Unlock()
+					if stopped {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						t.Fatal("warm-up resource did not stop", ctx.Err())
+					case <-time.After(5 * time.Millisecond):
+					}
+				}
 			}
 			if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
 				t.Fatal(err)
@@ -152,11 +169,13 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			expectRetained(t, cfg.videoFile(v.key), true)
 			s.mu.Lock()
 			original := s.prefetchSources["42"]
-			entry := time.Now().Add(500 * time.Millisecond)
+			var entry time.Time
 			s.mu.Unlock()
 			var releaseClock func()
 			if tc.timed {
-				releaseClock = holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
+				// Keep the queued file outside the window until the replacement
+				// is published and eviction has actually completed.
+				releaseClock = holdQueuePlaybackUntil(t, s, time.Now().Add(time.Hour))
 			}
 			if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
 				t.Fatal(err)
@@ -179,6 +198,14 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			expectRetained(t, cfg.videoFile(v.key), false)
 			if calls.Load() != 2 {
 				t.Fatal("future usage downloaded outside its window", calls.Load())
+			}
+			if tc.timed {
+				// Move the playback clock while retaining the queue source, then
+				// let time alone bring the already-evicted resource into range.
+				entry = time.Now().Add(500 * time.Millisecond)
+				nextClock := holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
+				releaseClock()
+				releaseClock = nextClock
 			}
 			changed.Store(tc.changedAddress)
 			if !tc.timed {

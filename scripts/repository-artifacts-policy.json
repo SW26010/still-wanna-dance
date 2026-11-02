@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1217485,
+      "sha256": "a14f67b8141d9585a3a4385d4b261374d30905d42480f86667a028668acacdec",
+      "reason": "Production WebUI generated from webui/src by webui/build.mjs for the upstream connectivity checks at 06c0e23f; embedded in offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1209478,
       "sha256": "7ed2b01965e27e19f51ebe92711a190ae12933df2d9e14a026d959998656a078",
       "reason": "Existing production WebUI at 12c5f044, used for README screenshots and verified by node webui/build.mjs --check against webui/build-manifest.json. Register the missing exact artifact exception; the bundle is unchanged."

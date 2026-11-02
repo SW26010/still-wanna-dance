@@ -6,6 +6,10 @@
 
 ## 已知失败优先处理
 
+- **2026-11-02 beta.4 Windows race 测试时钟**：全量 race 的旧测试快照中，`TestRangeRedirectBudgetSurvivesBodyFailures` 在 SQLite 初始化前启动 3 秒调用期限，初始化耗尽期限后没有任何上游请求；现将该期限移至初始化完成后，保留重定向预算及调用超时断言。`TestRetainedQueueRefetchAfterEviction/published_then_enters_by_time` 在替换文件完成淘汰前就启动 500 毫秒保护窗口；高负载下原文件已受保护，测试仍要求其被淘汰。隔离对照延迟替换响应可使原准备条件失效；保持窗口远期直至淘汰完成，再调整播放时钟，让时间本身带需求进入窗口，慢响应对照 5/5 通过。两组完整定向用例普通模式各重复 10 次、Windows race 各重复 3 次通过；产品超时和淘汰规则未修改。原始失败与对照日志保存在忽略目录 `artifacts/beta4-local-preflight-20261101/`。
+
+- **此前 beta.3 发布检查中的关联观察**：[check #36](https://github.com/SW26010/still-wanna-dance/actions/runs/41229751455) 在 Windows 的 `TestRangeTailReadableWhilePrefixBlocked` 中，前缀受控阻塞时四个尾部读取均在 5 秒后超时；日志只显示首块响应，未见尾块请求。Linux 同轮包括 race 通过，本机原测试重复 30 次、300 次及 `GOMAXPROCS=2` 下 1000 次均通过。隔离副本固定初始化信号与规划的交错后，beta.3 候选 10 次均未在 1.2 秒内调度尾块，追加读取才唤醒；进一步核对资源锁后又复现 3 次。beta.2 的 `a7dbeca4` 对照 3 次也复现，说明缺口早于 beta.3；不能仅凭原 CI 日志断定其必然是该次失败的原因。原 CI 和探针日志保存在 `artifacts/release-v1.0.0-beta.3/windows-check36.log`、`range-initialization-probe.log`、`range-initialization-exact-lock.log`、`range-initialization-beta2.log`，探针源码位于 `artifacts/range-timing-probe/internal/cacheproxy/range_probe_test.go`。首次发布作业跳过，后续检查重跑通过不代表当时缺口已修复；后续修复见下文。
+
 - **Beta 3 未缓存尾部拖动长等待（开发修复）**：[发布说明](https://github.com/SW26010/still-wanna-dance/releases/tag/v1.0.0-beta.3)记录视频开头下载受阻时，拖到未缓存尾部可能等待较久，beta.2 也可复现。2026-11-01 基于主线 `f5d4ac2a` 的受控 Range 上游和真实 HTTP 处理函数（进程内响应记录）复现同类等待：资源初始化在调度计划生成途中完成，协调器仍执行只含首块的旧计划，却关闭了等待初始化通知的分支；尾块读取需求仍在，但要等其他事件或周期定时器再次唤醒。内部读取对照连续 5 次复现，无其他事件时三次约 10 秒后被周期定时器唤醒并收到正确字节。HTTP 入口在固定竞争窗口的 12 次中 6 次等待、6 次由已排队通知及时唤醒；临时令初始化变化后立即重新规划，HTTP 对照 12/12 及时完成。这些次数不代表实际发生概率，也不能证明所有慢 Seek 都由该竞争造成。诊断时生产代码未修改；探针及日志保存在忽略目录 `artifacts/seek-initialization-diagnosis-20261101/`。
 
   临时反向对照的 Windows race 首轮设置 10 次、总限时 45 秒，仅完成 6 次即超时，未报告数据竞态；调整为 3 次、90 秒后通过。受控日志门最初阻塞了 HTTP 自身的日志调用，改用独立诊断门后才得到上述 HTTP 结果；失败及复核记录均保留，不能把前者当成产品复现。

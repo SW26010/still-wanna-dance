@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, Link, Spinner, Title2, Tooltip } from '@fluentui/react-components';
+import { Button, Link, Spinner, Title2, Tooltip, makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter, useThemePreference } from './ui';
 import { AboutPage } from './documents';
@@ -13,6 +13,23 @@ import { exitConnectionMessage } from './types';
 import { HostsAuthorizationNotice, VideoImportSuggestion } from './hosts-notice';
 import { VRCXProvider } from './vrcx';
 
+const useStyles = makeStyles({
+  exitButton: {
+    '@media (forced-colors: none)': {
+      '&:enabled:hover': {
+        backgroundColor: tokens.colorStatusDangerBackground3Hover,
+        color: tokens.colorNeutralForegroundOnBrand,
+        '&:not(:focus-visible)': shorthands.borderColor(tokens.colorStatusDangerBackground3Hover),
+      },
+      '&:enabled:active': {
+        backgroundColor: tokens.colorStatusDangerBackground3Pressed,
+        color: tokens.colorNeutralForegroundOnBrand,
+        '&:not(:focus-visible)': shorthands.borderColor(tokens.colorStatusDangerBackground3Pressed),
+      },
+    },
+  },
+});
+
 const pages = {home:'加速',timeline:'历史',library:'曲库',network:'网络',settings:'设置',about:'关于'};
 type Page = keyof typeof pages;
 const anchors:Record<string,Page>={activation:'home',service:'home',queue:'home',overview:'library',downloads:'home','download-settings':'settings',recent:'timeline',network:'network','network-proxy':'settings','proxy-settings':'settings','network-access':'home','network-tests':'network',batch:'library',preferences:'settings',restoreHostsOnStopOrExit:'settings',prepareAheadSeconds:'settings',videoBudgetGiB:'settings','storage-settings':'settings','video-import':'library','vrcx-import':'library',help:'about',terms:'about',licenses:'about',logs:'about','help-start':'about','help-playback':'about','help-storage':'about','help-stop':'about','help-paths':'about'};
@@ -21,6 +38,7 @@ export function route(hash: string): Page {
   return Object.hasOwn(pages,key) ? key as Page : anchors[key] || 'home';
 }
 export function App() {
+  const styles = useStyles();
   const [accepted,setAccepted]=useState(!bootstrap.termsGate);
   const [anchor,setAnchor]=useState(location.hash.slice(1)||location.pathname.slice(1));
   const [page, setPage] = useState<Page>(() => route(location.hash&&location.hash!=='#main'?location.hash:'#'+location.pathname));
@@ -87,7 +105,7 @@ export function App() {
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
-    <header><Brand/><div className="runtime-controls">{accepted&&runtimeStatus}<Tooltip content={'所有服务和后台任务将停止。'+exitConnectionMessage(s)} relationship="description" positioning="below-end"><Button disabled={model.unavailable} onClick={()=>void model.action('exit')}>退出程序</Button></Tooltip></div></header>
+    <header><Brand/><div className="runtime-controls">{accepted&&runtimeStatus}<Tooltip content={'所有服务和后台任务将停止。'+exitConnectionMessage(s)} relationship="description" positioning="below-end"><Button className={styles.exitButton} disabled={model.unavailable} onClick={()=>void model.action('exit')}>退出程序</Button></Tooltip></div></header>
     <NavigationLayout items={pageLinks()} selected={page}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading"><Title2 as="h1">{pages[page]}</Title2></div>
       {feedback}

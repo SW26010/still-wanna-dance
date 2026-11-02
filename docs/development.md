@@ -93,6 +93,8 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 此入口避开 Windows MXC 默认 `sandbox.{GUID}/AC/Temp` 的重命名权限缺陷（[Microsoft 已确认的问题](https://github.com/microsoft/mxc/issues/1204)），不修改产品文件操作、用户/系统环境变量、ACL 或沙箱设置。换到工作区后 `os.Root.Rename`、硬链接、目录联接、浏览器及子进程仍可能受其他沙箱限制；保留失败证据，按实际权限要求验证，不能把所有失败都归为临时目录问题。强制结束 PowerShell 进程时可能来不及清理，残留目录不复用，也不自动清扫其他调用的目录。
 
+对已确认存在上述限制的本机沙箱，明确依赖受限操作的测试可依照当前审批机制直接在沙箱外以普通用户权限执行，仍使用同一临时目录入口；不要求每次先重复触发已知失败。其他测试照常在沙箱内执行。沙箱、浏览器或工具链变化后，使用相关定向检查重新判断适用范围。
+
 2026-10-19 验证：同一 `TestPublicationAdmissionRanksFullCacheBeforeMerge` 在 MXC 默认临时目录报重命名拒绝，经入口运行通过。`TestAtomicWriteRetainsLastGoodFileAndBoundsWork` 在工作区内仍报 `renameat: The handle is invalid`，沙箱外经同一入口通过。工具回归在沙箱内为 28/29（已有 junction 夹具被拒绝），沙箱外 29/29 通过；新增入口回归覆盖原子替换、参数/工作目录/退出码传递、环境恢复、异常清理及嵌套隔离。原始成功与失败输出保留在忽略目录 `artifacts/windows-test-temp/`，未修改产品代码绕过失败。
 
 2026-10-28 CI 复核：`check` [第 12 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40706434250)的 Ubuntu 全部通过，两平台浏览器套件均通过；Windows Go 测试因 runner 的 `RUNNER~1` 临时目录别名触发存储路径校验，并使 `TestPathIdentity` 的完整路径断言失败。CI 的 Windows 浏览器、Node、Go 测试及 vet 统一接入现有包装器，存储的路径别名保护保持不变。本机在隔离目录构造 8.3 短路径，直接运行 `TestPathIdentity` 和 `TestShutdownClosesPausedReaderAndFlushesUsage` 均复现同样失败；保持该父环境、仅经包装器运行后两项通过。原始对照保留在忽略目录 `artifacts/ci-fix-20261028/windows-short-temp-{before,after}.log`。

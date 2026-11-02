@@ -20,7 +20,7 @@
 
 ## 开关与级别
 
-默认 `info`，记录 Info、Warn、Error；逐块调度细节属于 Debug。桌面在「设置 → 常规 → 程序日志级别」选择，保存为 `logLevel`，重启整个程序后生效；CLI 使用 `-log-level off|error|warn|info|debug`，不读取桌面配置。缺失、null 或空字符串使用 info，其余未知值拒绝。
+默认 `info`，记录 Info、Warn、Error。Info 保留引擎配置、请求和共享任务结果、完整视频发布及其他操作摘要；下载阶段、进度、共享任务关联及逐块调度等过程细节属于 Debug。桌面在「设置 → 常规 → 程序日志级别」选择，保存为 `logLevel`，重启整个程序后生效；CLI 使用 `-log-level off|error|warn|info|debug`，不读取桌面配置。缺失、null 或空字符串使用 info，其余未知值拒绝。
 
 `off` 关闭所有诊断记录。桌面不会为诊断输出创建、打开、写入或轮转日志文件，已有日志保留；用户主动查询阅读器时仍可只读打开已有文件。游戏日志读取、请求历史和运行统计不受影响。其他级别表示最低记录级别，例如 warn 保留警告和错误。关闭日志不会取消进度统计或业务状态采样。
 
@@ -28,39 +28,40 @@
 
 桌面块工作区清理先使用遵守该级别的 stderr logger，清理完成后才打开文件日志。配置读取错误暂存到清理之后处理，避免配置损坏或日志目录不可写时跳过残留块回收；`off` 同样关闭这段清理的诊断记录。
 
-保持同步写入和有界轮转，不增加异步队列。默认低频进度有助于控制开销；Debug 在调度路径记录较多事件，排障后应恢复 Info。当前没有开关前后的性能对照，不能将该设计解释为零开销或帧率保证。
+保持同步写入和有界轮转，不增加异步队列。Debug 在调度路径记录较多事件，排障后应恢复 Info。当前没有开关前后的性能对照，不能将该设计解释为零开销或帧率保证。
 
 ## 如何关联事件
 
 - `session_id`：一次桌面或 CLI 日志会话。桌面的 `application_build` 记录 Go 构建信息中的版本、提交和工作区修改标记（构建器未嵌入时不提供提交）。不同启动不能只靠 PID 区分。
 - `service_id`：一个本地资源引擎实例，重新创建会变。`request_id` 和 `flight_id` 都只在这个实例内有效。
 - `trace_id`：一次播放请求或歌曲预加载操作。队列启动、上游解析、预加载及结束事件使用同一个值；共享地址查询和共享下载分别使用最初创建它们的操作标识。地址查询只继承该标识，取消责任仍由引擎持有，不随单个等待者退出而取消。
-- `resource_key`：视频内容版本的指纹。用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight。
+- `resource_key`：视频内容版本的指纹。Debug 下用 `cache_task_attached` 将每个操作连接到 `(service_id, flight_id)`，再查看这一共享任务的下载日志。同一版本重试会产生新的 flight；Info 可按资源查看结果，但不能总是准确关联到共享任务。
 - `song_id`：曲库列表中的歌曲 ID。多个歌曲可能共用资源，不能把它与资源指纹混为一谈。历史淘汰事件的 `key` 与 `resource_key` 是同一指纹。
 - `host`：请求或下载会话的资源域名；`upstream_host`：建立上游响应时实际选择的域名，可能经过重定向或回退。两者分别记录，不能以重复 JSON 键覆盖原始身份。
 
-例如两个播放请求共享一个下载时，会看到两个不同 `trace_id` 的 `cache_task_attached` 指向同一 flight；下载和发布只记录一次。客户端中断、移出队列不一定中止共享下载，必须分别检查请求结果和 flight 结果。
+例如在 Debug 下，两个播放请求共享一个下载时，会看到两个不同 `trace_id` 的 `cache_task_attached` 指向同一 flight；下载和发布只记录一次。客户端中断、移出队列不一定中止共享下载，必须分别检查请求结果和 flight 结果。
 
 ## 过程和结果
 
 | 事件 | 用途 |
 | --- | --- |
-| `cache_engine_ready` | 引擎配置摘要、启动清理的残留临时文件数；残留不能直接证明上次为何退出 |
+| `cache_engine_ready` | 引擎配置摘要、视频预算及启动清理的残留临时文件数；零预算是正常策略，残留不能直接证明上次为何退出 |
 | `temporary_cleanup_removed` / `temporary_cleanup_skipped` | 回收的暂存路径，或因未知内容、异常类型保留的路径；实际删除失败使引擎启动返回错误 |
 | `config_work_cleanup_removed` / `config_work_cleanup_failed` | 配置锁持有者回收明确的原子写入工作槽；失败阻止 Console 创建 |
 | `vrchat_detected` / `vrchat_exited` | 开启「随 VRChat 退出」后，本次首次检测到游戏、随后确认当前会话内游戏进程均已结束；后者请求正常退出 SWD |
 | `vrchat_process_check_failed` | 游戏进程状态暂时无法确认，不触发退出；持续失败只在开始时记录一次，成功检查后恢复判定 |
 | `snapshot_load_failed` / `monitor_throughput_state_load_failed` | 可重建状态未恢复的原因；不生成连续损坏备份 |
 | `proxy_channel_identity_corrupt` / `proxy_channel_identity_unavailable` | 密钥原文件保留，代理使用临时身份；持久样本关联需恢复原密钥 |
-| `cache_capacity_wait` | 等待正在退出的共享下载会话清理；附着成功后的 `wait_ms` 包含此前等待，不是调度器块席位等待时长 |
-| `request_started` / `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误 |
-| `upstream_response` / `download_first_byte` | 初始化或顺序下载响应的实际上游域名、状态、声明长度（不是每次块请求的响应清单）；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查） |
-| `download_stage` | 阶段变更以及上一阶段耗时：本地视频校验、等待上游响应头、下载并计算哈希、发布文件、数据库登记 |
-| `download_progress` | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件；时钟未推进时速度记为零，字节留待下一次有效采样 |
-| `download_verified` / `download_integrity_failed` | 正文大小和 MD5 是否满足预期；MD5 在读取中计算，因此与下载耗时合并记录 |
+| `cache_capacity_wait` / `cache_task_attached`（Debug） | 等待正在退出的共享下载会话清理及附着结果；`wait_ms` 包含此前等待，不是调度器块席位等待时长 |
+| `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误；`request_started`、`served`、`client_disconnected` 和 `playback_local_hit` 为 Debug |
+| `upstream_response` / `range_unavailable` / `download_first_byte`（Debug） | 初始化或顺序下载响应的实际上游域名、状态、声明长度及回退；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查）。上游响应不是每次块请求的响应清单 |
+| `download_stage`（Debug） | 阶段变更及上一阶段耗时：本地视频校验、块或顺序下载、`hash` 合并校验、发布文件、数据库登记；块下载阶段可能包含调度等待 |
+| `download_progress`（Debug） | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件；时钟未推进时速度记为零，字节留待下一次有效采样 |
+| `download_verified`（Debug） / `download_integrity_failed`（Warn） | 完整视频的大小和 MD5 是否满足预期；`hash` 阶段读取完整块快照、写入发布暂存文件并计算 MD5，与下载阶段分别计时 |
 | `download_published` | 完整校验、正式文件发布和数据库登记均已成功；不能保证该资源随后不会因容量策略被淘汰 |
 | `cache_task_finished` | 共享任务最终阶段、耗时和 `completed` / `failed` / `canceled` / `timeout` / `not_retained` 结果；成功命中也会出现，不能将它单独当作新下载成功 |
-| `prefetch_resolved` / `prefetch_finished` | 共用播放地址查询的结果与耗时、资源域名及 MD5，以及预加载结果；`success=false` 表示本次地址解析失败。解析日志的 song_id 是实际查询歌曲，固定资源反查的歌曲不改变下载操作的歌曲身份；完整 URL 不入日志 |
+| `download_started` / `local_blocks_reused` / `cache_not_retained` / `cache_task_canceled`（Debug） | 下载开始、复用块及任务未保留或取消的细节；最终结果仍见 `cache_task_finished` |
+| `prefetch_resolved` / `prefetch_started`（Debug） / `prefetch_finished`（Info） | 共用播放地址查询的结果与耗时、资源域名及 MD5，以及预加载结果；`success=false` 表示本次地址解析失败。解析日志的 song_id 是实际查询歌曲，固定资源反查的歌曲不改变下载操作的歌曲身份；完整 URL 不入日志 |
 | `queue_updated` | 有序 `song_ids`（保留 -1 占位）、房间重置代数；用于更新队列需求，不记录歌名、玩家或房间原文 |
 | `queue_song_canceled` / `queue_song_discarded` | 队列变化取消等待或旧结果被丢弃；不是下载失败 |
 | `batch_started` / `batch_finished` | 批次开始与结束汇总；结束区分仅扫描、缺失数量、取消和是否处理完列表。扫描完成仍可能存在缺失文件；处理中进度通过运行状态展示 |
@@ -74,9 +75,9 @@
 
 ## 可判定的验收范围
 
-以下过程证据需要至少启用 Info；调度细节需要 Debug。Warn、Error 或关闭模式下缺少过程事件属于级别过滤，不能据此推断业务未发生。旧报告中的 `cache_capacity_rejected`、`batch_progress`、`metadata_sync_url_reject_failed` 属于当时实现，当前版本不再输出。v9 下载失败只影响本次执行与重试，不保存 URL 失效状态；地址规则见[媒体地址模型](song-catalog-design.md#媒体地址模型)。
+以下结果证据需要至少启用 Info；共享任务的精确关联、下载过程和调度细节需要 Debug。日志级别过滤导致事件缺失时，不能据此推断业务未发生。旧报告中的 `cache_capacity_rejected`、`batch_progress`、`metadata_sync_url_reject_failed` 属于当时实现，当前版本不再输出。v9 下载失败只影响本次执行与重试，不保存 URL 失效状态；地址规则见[媒体地址模型](song-catalog-design.md#媒体地址模型)。
 
-1. 本地未命中：沿 trace 找到 flight，确认 `download_verified`、`download_published`；同时请求结果应符合预期状态和字节数。
+1. 本地未命中：核对 `request_finished` 的状态、字节数和结果，并结合 `cache_task_finished` 判断任务结果；仅在预期完整视频持久发布时核对 `download_published`。例如零预算下普通视频的请求可以成功，任务结果为 `not_retained`，无需发布完整视频。需精确关联共享 flight 或查看实际发生的校验细节时启用 Debug，沿 trace 查找 `cache_task_attached` 和 `download_verified`。
 2. 本地视频命中和 Range：核对 `request_finished.cache=HIT`、状态 200/206、范围及实际字节；HEAD 正文为 0 是正常情况。
 3. 异常和中断：200 只表示响应头已发出。最终 `outcome=aborted/failed/canceled` 或写入错误不能算成功。一个小 Range 成功也不能证明整段视频已成功发布。
 4. 队列与回退：以有序队列快照、代数、操作 trace 和实际线路为依据，核对取消、重试和最终结果；`queue_song_ready` 表示当次预加载成功，不保证以后始终留存。

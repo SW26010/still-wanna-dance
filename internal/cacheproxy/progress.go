@@ -90,7 +90,7 @@ func startProgress(log *slog.Logger, size int64, interval time.Duration) *downlo
 				stage, bytes, changed, lastByte := p.stage, p.bytes, p.changed, p.lastByte
 				p.mu.Unlock()
 				now := time.Now()
-				p.log.Info("download_progress", "stage", stage, "bytes", bytes, "expected_bytes", p.size,
+				p.log.Debug("download_progress", "stage", stage, "bytes", bytes, "expected_bytes", p.size,
 					"bytes_per_second", sample.rate(now, bytes),
 					"idle_ms", now.Sub(lastByte).Milliseconds(), "stage_elapsed_ms", now.Sub(changed).Milliseconds(), "elapsed_ms", now.Sub(p.start).Milliseconds())
 			}
@@ -104,7 +104,7 @@ func (p *downloadProgress) setStage(stage string) {
 	previous, elapsed := p.stage, time.Since(p.changed).Milliseconds()
 	p.stage, p.changed = stage, time.Now()
 	p.mu.Unlock()
-	p.log.Info("download_stage", "stage", stage, "previous_stage", previous, "previous_elapsed_ms", elapsed)
+	p.log.Debug("download_stage", "stage", stage, "previous_stage", previous, "previous_elapsed_ms", elapsed)
 }
 
 func (p *downloadProgress) finish(err error) {
@@ -151,7 +151,7 @@ func (r progressReader) Read(b []byte) (int, error) {
 			p.observeBytes(int64(n))
 		}
 		if first {
-			p.log.Info("download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())
+			p.log.Debug("download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())
 		}
 	}
 	return n, err

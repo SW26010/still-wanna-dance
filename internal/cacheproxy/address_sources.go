@@ -70,7 +70,7 @@ func (s *Server) resolvePlaybackLogged(ctx, caller context.Context, id string, l
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(applog.WithTrace(caller)), "song_id", id)
 	started := time.Now()
 	v, err := s.resolvePlaybackVideo(ctx, id)
-	log.Info("prefetch_resolved", "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil,
+	log.Debug("prefetch_resolved", "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil,
 		"resource_key", v.key, "host", v.host, "error", applog.SafeError(err))
 	if err != nil {
 		log.Warn("playback_check_failed", "error", applog.SafeError(err))

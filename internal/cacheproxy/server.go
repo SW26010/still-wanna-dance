@@ -464,7 +464,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		return
 	}
 	log = log.With("resource_key", v.key)
-	log.Info("request_started")
+	log.Debug("request_started")
 	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
 	if r.Method == http.MethodHead {
 		r = r.Clone(r.Context())
@@ -568,7 +568,7 @@ loadVideo:
 		_, err = s.verifiedFile(r.Context(), v)
 		f = &flight{source: "HIT"}
 		if err == nil {
-			log.Info("playback_local_hit", "song_id", v.songID)
+			log.Debug("playback_local_hit", "song_id", v.songID)
 		} else if preview != nil && r.Context().Err() == nil {
 			if err = retry(err); err == nil {
 				goto loadVideo
@@ -585,7 +585,7 @@ loadVideo:
 serveVideo:
 	if err != nil {
 		if r.Context().Err() != nil {
-			log.Info("client_disconnected", "elapsed", time.Since(start))
+			log.Debug("client_disconnected", "elapsed", time.Since(start))
 			return
 		}
 		log.Error("cache_failed", "error", applog.SafeError(err), "elapsed", time.Since(start))
@@ -617,7 +617,7 @@ serveVideo:
 				}
 			}
 			if r.Context().Err() != nil {
-				log.Info("client_disconnected", "cache", "MISS")
+				log.Debug("client_disconnected", "cache", "MISS")
 			} else {
 				log.Error("stream_failed", "error", applog.SafeError(stream.err))
 			}
@@ -630,7 +630,7 @@ serveVideo:
 			panic(http.ErrAbortHandler)
 		}
 		pending.commit()
-		log.Info("served", "cache", "MISS", "elapsed", time.Since(start))
+		log.Debug("served", "cache", "MISS", "elapsed", time.Since(start))
 		return
 	}
 	file, err := s.verifiedFile(r.Context(), v)
@@ -649,10 +649,10 @@ serveVideo:
 	response.sources = &responseSourceCounter{reader: file.sources(s.cfg.BlockSize)}
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {
-		log.Info("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
+		log.Debug("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
 		return
 	}
-	log.Info("served", "cache", f.source, "elapsed", time.Since(start))
+	log.Debug("served", "cache", f.source, "elapsed", time.Since(start))
 }
 
 type responseWriter struct {

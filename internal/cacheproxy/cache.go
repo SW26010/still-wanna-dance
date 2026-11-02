@@ -107,7 +107,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		s.mu.Unlock()
 		if !waitLogged {
-			log.Info("cache_capacity_wait")
+			log.Debug("cache_capacity_wait")
 			waitLogged = true
 		}
 		select {
@@ -145,7 +145,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	}
 	demand.flight = f
 	s.mu.Unlock()
-	log.Info("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
+	log.Debug("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	completed := func() (*flight, *spoolReader, error) {
 		if errors.Is(f.err, ErrNotRetained) && !background {
 			reader, err := s.localBlockReader(ctx, v)
@@ -282,7 +282,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		v = resolved
 		flight.progress.setHost(v.host)
 	}
-	flight.log.Info("download_started", "key", v.key, "size", v.size)
+	flight.log.Debug("download_started", "key", v.key, "size", v.size)
 	flight.ranges = s.reuseLocalResource(v, flight.ranges)
 	if flight.ranges != nil {
 		retained := flight.ranges.bytes()
@@ -290,7 +290,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.bytes = retained
 		flight.progress.mu.Unlock()
 		flight.progress.setHost(flight.ranges.video.host)
-		flight.log.Info("local_blocks_reused", "retained_bytes", retained)
+		flight.log.Debug("local_blocks_reused", "retained_bytes", retained)
 	}
 	publishErr := s.publishScheduled(ctx, path, v, flight)
 	if err := publishErr; err != nil {
@@ -353,9 +353,9 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 		}
 		f.progress.finish(f.err)
 		if errors.Is(f.err, errPreempted) {
-			f.log.Info("cache_task_canceled", "reason", "preempted")
+			f.log.Debug("cache_task_canceled", "reason", "preempted")
 		} else if errors.Is(f.err, ErrNotRetained) {
-			f.log.Info("cache_not_retained")
+			f.log.Debug("cache_not_retained")
 		} else if f.err != nil {
 			f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
 		}

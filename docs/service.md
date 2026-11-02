@@ -97,7 +97,7 @@ FROM song_usage ORDER BY last_demand_at DESC;
 
 `X-SWD-Cache` 保留原协议名，HIT 表示命中完整本地视频，MISS 表示进入下载会话；共享同一次冷下载或复用运行期块的请求仍返回 MISS，不把块复用计为完整本地视频命中。`X-Request-ID` 可与 JSON 日志关联。日志记录请求状态、发送字节数、Range、本地读取来源、下载键和失败原因，不记录完整查询参数。
 
-尚未开始响应时，上游/完整性/发布失败返回 502，后台验证或下载超时返回 504，容量不足/正在关闭/文件变化返回 503，本地响应文件无法打开返回 500。流式响应已经开始后，无法更改状态码，失败会中断连接并记录 `stream_failed`。其他故障见 `cache_failed`、`cache_invalid`、`open_failed`；客户端取消记录 `client_disconnected`。错误响应不会把内部错误详情暴露给播放器。
+尚未开始响应时，上游/完整性/发布失败返回 502，后台验证或下载超时返回 504，容量不足/正在关闭/文件变化返回 503，本地响应文件无法打开返回 500。流式响应已经开始后，无法更改状态码，失败会中断连接并记录 `stream_failed`。其他故障见 `cache_failed`、`cache_invalid`、`open_failed`；客户端取消可查看 `request_finished` 的结果，详细的 `client_disconnected` 为 Debug。错误响应不会把内部错误详情暴露给播放器。
 
 | 参数 | 默认值 |
 | --- | --- |

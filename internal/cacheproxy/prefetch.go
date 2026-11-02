@@ -158,7 +158,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 		finishBudget(resultErr == nil || callerCtx.Err() != nil)
 	}(ctx)
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
-	log.Info("prefetch_started")
+	log.Debug("prefetch_started")
 	demand, releaseDemand, err := s.addPreparation(ctx, v)
 	if err != nil {
 		return "", err

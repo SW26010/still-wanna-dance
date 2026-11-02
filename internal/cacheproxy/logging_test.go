@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +27,7 @@ func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
 				logs := new(logCapture)
 				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
 					cfg.CacheUnlimited = true
-					cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
+					cfg.Logger = slog.New(slog.NewJSONHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 					cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 						if failed {
 							return "", errors.New("lookup unavailable")
@@ -135,7 +136,7 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	logs := new(logCapture)
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
-	cfg.Logger = slog.New(slog.NewJSONHandler(logs, nil))
+	cfg.Logger = slog.New(slog.NewJSONHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(upstream.URL, "http://")
 	}
@@ -145,6 +146,89 @@ func loggingServer(t *testing.T, handler http.HandlerFunc) (*Server, *logCapture
 	}
 	t.Cleanup(func() { s.Close() })
 	return s, logs
+}
+
+func TestDownloadLogLevels(t *testing.T) {
+	for _, unlimited := range []bool{false, true} {
+		for _, level := range []applog.Level{applog.Info, applog.Debug} {
+			t.Run(fmt.Sprintf("unlimited=%v/level=%s", unlimited, level), func(t *testing.T) {
+				bodies := []string{payload, "abcdefghijklmnopqrstuvwxyz0123456789"}
+				logs := new(logCapture)
+				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					for _, candidate := range bodies {
+						if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(candidate))) {
+							body = candidate
+						}
+					}
+					var start, end int64
+					if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil || body == "" || start < 0 || end >= int64(len(body)) {
+						t.Errorf("invalid test request range")
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+					w.WriteHeader(http.StatusPartialContent)
+					io.WriteString(w, body[start:end+1])
+				}, func(cfg *Config) {
+					cfg.Logger = applog.New(logs, level)
+					cfg.CacheUnlimited = unlimited
+					cfg.VideoBudgetBytes = 0
+					cfg.BlockSize = 8
+				})
+				for _, body := range bodies {
+					assertResponse(t, request(s, "GET", videoURL(body), nil), http.StatusOK, body)
+					s.wg.Wait() // The response can finish before the shared task.
+				}
+				s.Close()
+				counts := map[string]int{}
+				records := logs.records(t)
+				t.Logf("two multi-block downloads: %d records", len(records))
+				for _, record := range records {
+					message, severity := fmt.Sprint(record["msg"]), fmt.Sprint(record["level"])
+					counts[message]++
+					if severity == "WARN" || severity == "ERROR" {
+						t.Errorf("unexpected %s for normal downloads: %s", severity, message)
+					}
+					if message == "cache_engine_ready" && (record["video_budget_bytes"] != float64(0) || record["cache_unlimited"] != unlimited) {
+						t.Error("missing configured video budget", record)
+					}
+					if message == "request_finished" && (severity != "INFO" || record["outcome"] != "completed") {
+						t.Error("missing successful request summary", record)
+					}
+					if message == "cache_task_finished" {
+						want := "not_retained"
+						if unlimited {
+							want = "completed"
+						}
+						if severity != "INFO" || record["outcome"] != want {
+							t.Error("missing shared task result", record)
+						}
+					}
+				}
+				for _, event := range []string{"cache_engine_ready", "request_finished", "cache_task_finished"} {
+					want := 2
+					if event == "cache_engine_ready" {
+						want = 1
+					}
+					if counts[event] != want {
+						t.Errorf("%s: got %d, want %d", event, counts[event], want)
+					}
+				}
+				if unlimited && counts["download_published"] != 2 || !unlimited && counts["download_published"] != 0 {
+					t.Error("incorrect published video summaries", counts["download_published"])
+				}
+				for _, event := range []string{"cache_task_attached", "download_started", "download_stage", "download_first_byte", "upstream_response", "request_started", "served", "block_schedule"} {
+					if level == applog.Info && counts[event] != 0 || level == applog.Debug && counts[event] == 0 {
+						t.Errorf("%s: got %d at %s", event, counts[event], level)
+					}
+				}
+				if !unlimited && (level == applog.Info && counts["cache_not_retained"] != 0 || level == applog.Debug && counts["cache_not_retained"] != 2) {
+					t.Errorf("cache_not_retained: got %d at %s", counts["cache_not_retained"], level)
+				}
+			})
+		}
+	}
 }
 
 func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
@@ -237,6 +321,9 @@ func TestLogsSeparateGETDeliveryFromIntegrityFailure(t *testing.T) {
 			t.Fatal("published corrupt data")
 		case "download_integrity_failed":
 			failed = true
+			if r["level"] != "WARN" {
+				t.Fatal("integrity failure is not a warning", r)
+			}
 		case "request_finished":
 			terminal = true
 			if r["outcome"] == "completed" && r["bytes"] != float64(len(payload)) {
@@ -365,42 +452,46 @@ func TestProgressRateSampleKeepsBytesUntilTimeAdvances(t *testing.T) {
 }
 
 func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		logs := new(logCapture)
-		p := startProgress(slog.New(slog.NewJSONHandler(logs, nil)), 10, time.Millisecond)
-		finished := false
-		defer func() {
-			if !finished {
-				p.finish(context.Canceled)
-			}
-		}()
-		p.setStage("download")
-		synctest.Wait()
-		time.Sleep(time.Millisecond)
-		synctest.Wait()
-		found := false
-		for _, r := range logs.records(t) {
-			if r["msg"] == "download_progress" && r["stage"] == "download" {
-				found = true
-				if r["bytes"] != float64(0) || r["bytes_per_second"] != float64(0) {
-					t.Fatal(r)
+	for _, level := range []applog.Level{applog.Info, applog.Debug} {
+		t.Run(level.String(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				logs := new(logCapture)
+				p := startProgress(applog.New(logs, level), 10, time.Millisecond)
+				finished := false
+				defer func() {
+					if !finished {
+						p.finish(context.Canceled)
+					}
+				}()
+				p.setStage("download")
+				synctest.Wait()
+				time.Sleep(time.Millisecond)
+				synctest.Wait()
+				found := false
+				for _, r := range logs.records(t) {
+					if r["msg"] == "download_progress" && r["stage"] == "download" {
+						found = true
+						if r["bytes"] != float64(0) || r["bytes_per_second"] != float64(0) {
+							t.Fatal(r)
+						}
+					}
 				}
-			}
-		}
-		if !found {
-			t.Fatal("no stalled progress")
-		}
-		p.finish(context.DeadlineExceeded)
-		finished = true
-		records := logs.records(t)
-		last := records[len(records)-1]
-		if last["msg"] != "cache_task_finished" || last["outcome"] != "timeout" {
-			t.Fatal(last)
-		}
-		time.Sleep(10 * time.Millisecond)
-		synctest.Wait()
-		if after := logs.records(t); len(after) != len(records) {
-			t.Fatal("progress was reported after the terminal event", after[len(records):])
-		}
-	})
+				if found != (level == applog.Debug) {
+					t.Fatal("unexpected stalled progress at level", level)
+				}
+				p.finish(context.DeadlineExceeded)
+				finished = true
+				records := logs.records(t)
+				last := records[len(records)-1]
+				if last["msg"] != "cache_task_finished" || last["outcome"] != "timeout" {
+					t.Fatal(last)
+				}
+				time.Sleep(10 * time.Millisecond)
+				synctest.Wait()
+				if after := logs.records(t); len(after) != len(records) {
+					t.Fatal("progress was reported after the terminal event", after[len(records):])
+				}
+			})
+		})
+	}
 }

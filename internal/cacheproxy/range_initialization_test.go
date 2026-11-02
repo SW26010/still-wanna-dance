@@ -129,7 +129,7 @@ func TestHTTPSeekDuringRangeInitialization(t *testing.T) {
 	gate := &rangeInitializationGate{attached: make(chan struct{}, 2), stageEntered: make(chan struct{}), release: stageRelease}
 	s, _ := setup(t, nil, func(c *Config) {
 		c.BlockSize = blockSize
-		c.Logger = slog.New(rangeInitializationHandler{Handler: slog.NewTextHandler(io.Discard, nil), gate: gate})
+		c.Logger = slog.New(rangeInitializationHandler{Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}), gate: gate})
 	})
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {

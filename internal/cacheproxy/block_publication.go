@@ -57,7 +57,7 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 		flight.log.Warn("download_integrity_failed", "bytes", n, "expected_bytes", v.size, "size_ok", n == v.size, "checksum_ok", hex.EncodeToString(h.Sum(nil)) == v.key)
 		return fmt.Errorf("%w: %w: merged video integrity mismatch", errUpstreamDownload, errInvalidCache)
 	}
-	flight.log.Info("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
+	flight.log.Debug("download_verified", "bytes", n, "size_ok", true, "checksum_ok", true)
 	return s.commitPublication(reservation, file, path, v, flight)
 }
 

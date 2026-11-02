@@ -124,7 +124,7 @@ func TestImportRecoveryUsesFrozenManifestAndRestoresReceipts(t *testing.T) {
 	if err := c.cleanupImport(task.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	if s := waitImport(t, c); s.Deleted != 1 || s.CleanupAvailable || s.Error != "" {
+	if s := waitImport(t, c); s.Pausing || s.Deleted != 1 || s.CleanupAvailable || s.Error != "" {
 		t.Fatal(s)
 	}
 	if _, err := os.Stat(task.Files[0].File.Source); !os.IsNotExist(err) {
@@ -266,7 +266,7 @@ func TestImportPauseAndExitKeepCurrentFilePending(t *testing.T) {
 			} else if err := c.pauseImport(task.ID); err != nil {
 				t.Fatal(err)
 			}
-			if s := waitImport(t, c); s.Running || !s.Paused || s.Checked != 0 || s.Failed != 0 || s.Error != "" {
+			if s := waitImport(t, c); s.Running || s.Pausing || !s.Paused || s.Checked != 0 || s.Failed != 0 || s.Error != "" {
 				t.Fatal("pause consumed unfinished file", s)
 			}
 			c = restartTestConsole(t, c)

@@ -189,7 +189,7 @@ export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {
         labelSuffix={<ImportSpaceHint source={job.source || source} videoDir={job.videoDir || s.activeSettings.videoDir} unavailable={app.unavailable}/>}/>
       <div className="actions">
         {!job.present && <Button type="submit" disabled={app.unavailable || job.running || selecting || !source.trim()}>扫描并导入</Button>}
-        {job.running && <Button disabled={app.unavailable || job.phase==='正在暂停'} onClick={()=>void app.action('import/pause',{id:job.id})}>暂停</Button>}
+        {job.running && <Button disabled={app.unavailable || job.pausing || app.status.loadedRevision !== app.revision} onClick={()=>void app.action('import/pause',{id:job.id})}>暂停</Button>}
         {job.present && !job.running && <>
           {job.paused && <Button disabled={app.unavailable || job.scopeMismatch} onClick={()=>void app.action('import/resume',{id:job.id})}>继续导入</Button>}
           <Button disabled={app.unavailable} onClick={async()=>{

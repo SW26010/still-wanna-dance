@@ -16,6 +16,7 @@ type ImportStatus struct {
 	ID               uint64 `json:"id"`
 	Present          bool   `json:"present"`
 	Running          bool   `json:"running"`
+	Pausing          bool   `json:"pausing"`
 	Paused           bool   `json:"paused"`
 	ScopeMismatch    bool   `json:"scopeMismatch"`
 	Source           string `json:"source"`
@@ -132,6 +133,7 @@ func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, 
 	c.mu.Lock()
 	c.importCancel, c.importDone = cancel, done
 	c.importStatus.Running = true
+	c.importStatus.Pausing = false
 	c.importStatus.Paused = false
 	c.importStatus.CleanupAvailable = false
 	c.importStatus.Error = ""
@@ -195,9 +197,18 @@ func (c *Console) pauseImport(id uint64) error {
 	if c.closing || id != c.importStatus.ID || !c.importStatus.Running || c.importCancel == nil {
 		return errors.New("本次导入无法暂停，请刷新状态")
 	}
+	c.importStatus.Pausing = true
 	c.importStatus.Phase = "正在暂停"
 	c.importCancel()
 	return nil
+}
+
+func (c *Console) setImportPhase(phase string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.importStatus.Pausing {
+		c.importStatus.Phase = phase
+	}
 }
 
 func (c *Console) discardImport(id uint64, confirmed bool) error {
@@ -239,9 +250,7 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task
 		return errors.New("本地尚无已知资源，未开始导入，请先更新曲库")
 	}
 	if !task.Enumerated {
-		c.mu.Lock()
-		c.importStatus.Phase = "正在枚举视频文件"
-		c.mu.Unlock()
+		c.setImportPhase("正在枚举视频文件")
 		storage, err := filepath.EvalSymlinks(task.VideoDir)
 		if err != nil {
 			return err
@@ -255,9 +264,7 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task
 			return err
 		}
 	}
-	c.mu.Lock()
-	c.importStatus.Phase = "正在校验并导入"
-	c.mu.Unlock()
+	c.setImportPhase("正在校验并导入")
 	for i := range task.Files {
 		item := &task.Files[i]
 		if item.Result != "" && item.Result != "failed" {

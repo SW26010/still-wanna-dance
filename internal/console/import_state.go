@@ -95,6 +95,7 @@ func (c *Console) publishImportTask(task videoImportTask) {
 	status := task.status(c.settings)
 	status.Running = c.importStatus.Running
 	if status.Running {
+		status.Pausing = c.importStatus.Pausing
 		status.Phase = c.importStatus.Phase
 		status.Paused, status.CleanupAvailable = false, false
 	}

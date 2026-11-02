@@ -46,3 +46,93 @@ test('import from another library remains visible and cannot resume or clean',as
   await expect(panel.getByText(/本次导入到完整视频目录/)).toContainText('E:\\Old videos');
   await expect(panel.getByRole('button',{name:'放弃本次',exact:true})).toBeEnabled();
 });
+
+test('pause availability follows the pausing state, independent of displayed text',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.import={id:42,present:true,running:true,phase:'暂停请求处理中',pausing:true};
+  await page.goto('/#video-import');
+  const panel=page.locator('#video-import');
+  const pause=panel.getByRole('button',{name:'暂停',exact:true});
+  await expect(pause).toBeDisabled();
+
+  Object.assign(api.state.import,{pausing:false,phase:'正在暂停'});
+  await page.reload();
+  await expect(pause).toBeEnabled();
+
+  Object.assign(api.state.import,{running:false,pausing:false,paused:true,phase:'导入已暂停，等待继续'});
+  await page.reload();
+  await expect(panel.getByRole('button',{name:'继续导入',exact:true})).toBeEnabled();
+});
+
+test('pause stays unavailable until the accepted request is reflected in status',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.import={id:42,present:true,running:true,phase:'正在校验并导入'};
+  await page.goto('/#video-import');
+  const panel=page.locator('#video-import');
+  const pause=panel.getByRole('button',{name:'暂停',exact:true});
+  await expect(pause).toBeEnabled();
+
+  let release!:()=>void, arrived!:()=>void, pauses=0;
+  const hold=new Promise<void>(resolve=>{release=resolve;});
+  const started=new Promise<void>(resolve=>{arrived=resolve;});
+  await page.route('**/api/status',async route=>{
+    arrived();
+    await hold;
+    try { await route.fulfill({json:api.state}); } catch { /* A stale read may be aborted. */ }
+  });
+  await page.route('**/api/import/pause',async route=>{
+    pauses++;
+    Object.assign(api.state.import,{pausing:true,phase:'正在暂停'});
+    await route.fulfill({json:{ok:true}});
+  });
+  try {
+    await pause.click();
+    await started;
+    await expect(pause).toBeDisabled();
+    expect(pauses).toBe(1);
+  } finally { release(); }
+  await expect(panel.getByRole('status')).toContainText('正在暂停');
+  await expect(pause).toBeDisabled();
+
+  Object.assign(api.state.import,{running:false,pausing:false,paused:true,phase:'导入已暂停，等待继续'});
+  await page.reload();
+  await expect(panel.getByRole('button',{name:'继续导入',exact:true})).toBeEnabled();
+});
+
+test('a rejected pause becomes available again after status refresh',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.import={id:42,present:true,running:true,phase:'正在校验并导入'};
+  await page.route('**/api/import/pause',route=>route.fulfill({status:409,json:{error:'无法暂停，请重试'}}));
+  await page.goto('/#video-import');
+  const pause=page.locator('#video-import').getByRole('button',{name:'暂停',exact:true});
+  await pause.click();
+  await expect(page.getByText('无法暂停，请重试',{exact:true})).toBeVisible();
+  await expect(pause).toBeEnabled();
+});
+
+for(const cleanup of [false,true])test(`pause can finish as ${cleanup?'interrupted cleanup':'completed import'}`,async({page})=>{
+  const api=await mockAPI(page);
+  api.state.import={id:42,present:true,running:true,total:1,checked:1,phase:cleanup?'正在清理已导入的源文件':'正在校验并导入'};
+  await page.route('**/api/import/pause',async route=>{
+    Object.assign(api.state.import,{pausing:true,phase:'正在暂停'});
+    await route.fulfill({json:{ok:true}});
+  });
+  await page.goto('/#video-import');
+  const panel=page.locator('#video-import');
+  const pause=panel.getByRole('button',{name:'暂停',exact:true});
+  await pause.click();
+  await expect(panel.getByRole('status')).toContainText('正在暂停');
+  await expect(pause).toBeDisabled();
+
+  Object.assign(api.state.import,{running:false,pausing:false,paused:false,cleanupAvailable:cleanup,phase:cleanup?'清理已暂停，继续清理需要重新确认':'导入完成'});
+  await page.reload();
+  await expect(pause).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'继续导入',exact:true})).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'结束本次',exact:true})).toBeEnabled();
+  if(cleanup){
+    const clean=panel.getByRole('button',{name:'清除已导入的源文件',exact:true});
+    await expect(clean).toBeDisabled();
+    await panel.getByRole('checkbox',{name:/清除原位置本次成功导入/}).check();
+    await expect(clean).toBeEnabled();
+  }
+});

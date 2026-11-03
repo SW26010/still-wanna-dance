@@ -17,9 +17,7 @@ type downloadExecutor struct {
 	v video
 	f *flight
 
-	waitForBlock     func(int64) func()
-	bindReads        func(int64)
-	initializeRanges func(*localResource)
+	session *downloadSession
 }
 
 // run normally delivers one range. An initial 200 keeps this execution for the
@@ -46,13 +44,7 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 		}
 		e.f.log.Debug("upstream_response", "upstream_host", host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 		if resp.StatusCode != http.StatusPartialContent {
-			if e.bindReads != nil {
-				e.bindReads(block)
-			}
-			e.s.mu.Lock()
-			e.f.sequentialCtx = ctx
-			e.f.sequentialDemand = func(int64) func() { return e.waitForBlock(block) }
-			e.s.mu.Unlock()
+			e.session.beginSequential(ctx, block)
 			e.f.log.Debug("range_unavailable", "upstream_host", host, "fallback", "sequential")
 			stopBody := context.AfterFunc(ctx, func() { resp.Body.Close() })
 			defer stopBody()
@@ -95,7 +87,7 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 		}
 		// Publish the existing resource/spool and initialization signals before
 		// the coordinator can admit other blocks; this block is not ready yet.
-		e.initializeRanges(d)
+		e.session.initialize(d)
 		initial = resp
 	}
 	return e.readRange(ctx, block, initial, p)
@@ -105,18 +97,9 @@ func (e *downloadExecutor) run(ctx context.Context, block int64, p *blocksched.P
 // Incomplete blocks remain in memory and are discarded when execution stops.
 func (e *downloadExecutor) readSequential(ctx context.Context, src io.Reader) error {
 	s, v, flight := e.s, e.v, e.f
-	if flight.ranges == nil {
-		d, err := s.newLocalResource(v, &http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}, flight.log)
-		if err != nil {
-			return err
-		}
-		flight.ranges = d
-	}
-	sp := flight.spool
-	if sp == nil {
-		sp = flight.ranges.makeSpool(flight.sequentialDemand)
-		flight.spool = sp
-		close(flight.streaming)
+	sp, err := e.session.sequentialSpool()
+	if err != nil {
+		return err
 	}
 	flight.progress.setStage("download")
 	reader := contextReader{ctx, progressReader{upstreamReader{src}, flight.progress}}

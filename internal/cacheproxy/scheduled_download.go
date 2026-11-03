@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -65,6 +66,31 @@ func (w *downloadSession) initialize(d *localResource) {
 	w.initOnce.Do(func() { close(w.initialized) })
 }
 
+// Existing readers may already be exposed. Bind their waits and future reads
+// to this execution, then publish its context under the admission lock before
+// opening a new sequential spool.
+func (w *downloadSession) beginSequential(ctx context.Context, block int64) {
+	w.reads.Bind(block)
+	w.s.mu.Lock()
+	w.f.sequentialCtx = ctx
+	w.s.mu.Unlock()
+}
+
+// beginSequential must bind reads first: every missing block uses this spool's
+// ordinary per-block wait, which ReadRequests redirects to the single body.
+func (w *downloadSession) sequentialSpool() (*spool, error) {
+	d := w.f.ranges
+	if d == nil {
+		var err error
+		d, err = w.s.newLocalResource(w.v, &http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}, w.f.log)
+		if err != nil {
+			return nil, err
+		}
+		w.f.ranges = d
+	}
+	return w.exposeLocalReads(d), nil
+}
+
 func (w *downloadSession) rangesInitialized() bool {
 	select {
 	case <-w.initialized:
@@ -76,14 +102,15 @@ func (w *downloadSession) rangesInitialized() bool {
 
 // Existing complete blocks are readable before a replacement response tells us
 // whether its execution is Range or sequential. Readability is not initialization.
-func (w *downloadSession) exposeLocalReads(d *localResource) {
+func (w *downloadSession) exposeLocalReads(d *localResource) *spool {
 	if w.f.spool != nil {
-		return
+		return w.f.spool
 	}
 	if !w.f.discard {
 		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / w.s.cfg.BlockSize) })
 	}
 	close(w.f.streaming)
+	return w.f.spool
 }
 
 // run joins the task and session lifetimes before handing admitted work to the
@@ -101,8 +128,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	executor := downloadExecutor{s: w.s, v: w.v, f: w.f,
-		waitForBlock: w.reads.Wait, bindReads: w.reads.Bind, initializeRanges: w.initialize}
+	executor := downloadExecutor{s: w.s, v: w.v, f: w.f, session: w}
 	return blocksched.Result{Err: executor.run(ctx, block, p)}
 }
 

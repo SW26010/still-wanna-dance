@@ -32,27 +32,26 @@ type video struct {
 	size                   int64
 }
 type flight struct {
-	route            video                   // Resource routing only; never carries a caller's song or origin.
-	discard          bool                    // isolated measurement only; never serves cached media
-	cancel           context.CancelCauseFunc // protected by Server.mu
-	preempted        bool                    // protected by Server.mu; no new readers once cleanup is committed
-	completed        bool                    // protected by Server.mu; published/hit before reader wakeup
-	sequentialCtx    context.Context         // protected by Server.mu; canceled sequential bodies cannot be shared
-	background       bool
-	size             int64
-	monitorSongs     map[string]bool // protected by Server.mu; includes background callers
-	releases         []func()        // attached obtain callers; invoked after flight cleanup
-	sequentialDemand func(int64) func()
-	playbackSongs    map[string]*playbackSong
-	id               uint64
-	log              *slog.Logger
-	progress         *downloadProgress
-	done             chan struct{}
-	streaming        chan struct{}
-	spool            *spool
-	ranges           *localResource // execution reference to engine-owned complete blocks
-	path, source     string
-	err              error
+	route         video                   // Resource routing only; never carries a caller's song or origin.
+	discard       bool                    // isolated measurement only; never serves cached media
+	cancel        context.CancelCauseFunc // protected by Server.mu
+	preempted     bool                    // protected by Server.mu; no new readers once cleanup is committed
+	completed     bool                    // protected by Server.mu; published/hit before reader wakeup
+	sequentialCtx context.Context         // protected by Server.mu; canceled sequential bodies cannot be shared
+	background    bool
+	size          int64
+	monitorSongs  map[string]bool // protected by Server.mu; includes background callers
+	releases      []func()        // attached obtain callers; invoked after flight cleanup
+	playbackSongs map[string]*playbackSong
+	id            uint64
+	log           *slog.Logger
+	progress      *downloadProgress
+	done          chan struct{}
+	streaming     chan struct{}
+	spool         *spool
+	ranges        *localResource // execution reference to engine-owned complete blocks
+	path, source  string
+	err           error
 }
 
 type Server struct {

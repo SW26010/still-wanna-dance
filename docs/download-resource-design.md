@@ -460,7 +460,7 @@ GET、队列预加载和手动补齐在每次新建歌曲需求前检查屏蔽�
 
 [reads.go](../internal/blocksched/reads.go) 的 ReadRequests 持有每个本地 Read 的等待登记，按相同任务键在调度器内部合入实际等待时刻和 Blocking；Requested 只向协调器提供待取块号，OrderRegistration 提供注册顺序。它独立于普通 Need 租约，允许等待先于任务登记、在旧任务清理后接入新任务；会话关闭撤销全部等待并拒绝旧读者重新登记。普通需求撤销只关闭自己的 Demand，不关闭仍有读取等待的 Task；普通租约容量不足时等待容量恢复，也不取消读取持有的执行。已被激进回收的完成块按第一部分第 6 项判断普通缺块重取，不能将 Blocking 当作当前有效需求重新下载的必要条件；仍在运行的会话内真实缺块读取也可重取。已结束会话的顺序 200 读取按第一部分第 7 项处理。
 
-[scheduled_download.go](../internal/cacheproxy/scheduled_download.go) 的 downloadSession 负责需求计划、任务登记与更新、初始化协调、会话取消和发布衔接；其 Run 适配只合并任务与会话上下文，再交给包内 downloadExecutor 执行已获准的工作。[download_execute.go](../internal/cacheproxy/download_execute.go) 集中首次响应与顺序正文处理，[download_range.go](../internal/cacheproxy/download_range.go) 负责 Range 正文、检查、有界重试和完整块提交，继续复用 routes.go 的请求与通道逻辑。执行器使用既有 Server、flight 和本地资源，不持有任务表、不复制资源状态；初始化发布和读取等待通过现有会话机制连接。
+[scheduled_download.go](../internal/cacheproxy/scheduled_download.go) 的 downloadSession 负责需求计划、任务登记与更新、读取开放和初始化协调、会话取消和发布衔接；其 Run 适配只合并任务与会话上下文，再交给包内 downloadExecutor 执行已获准的工作。会话统一创建和开放会话中的读取入口，并在发现顺序响应时绑定既有和后续读取等待、在接入锁下发布顺序执行上下文；已有块开放读取不等于新执行已完成初始化。[download_execute.go](../internal/cacheproxy/download_execute.go) 集中首次响应与顺序正文处理，[download_range.go](../internal/cacheproxy/download_range.go) 负责 Range 正文、检查、有界重试和完整块提交，继续复用 routes.go 的请求与通道逻辑。执行器使用既有 Server、flight 和本地资源，不持有任务表、不复制资源状态；读取开放和初始化通过会话完成。
 
 首次 206 仍先发布 ranges/spool、streaming 与 initialized，再读取该块；初始化通知不表示块已可读。会话在同一轮计划中保留块集合、资源变化通知和初始化视图：如果初始化在计划生成途中完成，会话丢弃初始化前的单块计划并立即重算；如果初始化在计划生成之后完成，普通协调等待仍监听初始化通知。已登记的读者不依赖其他事件或周期刷新。首次顺序 200 可以在一次执行内提交多个块，不发布 Range 初始化通知，也不计为标准块采样。完整块可读后仍须完成响应关闭和写入收尾，Run 返回才释放调度额度。现有超时、取消、强 ETag 与地址绑定、错误分类，以及 Discard 的小缓冲与无存储行为保持不变。
 

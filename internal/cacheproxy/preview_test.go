@@ -508,6 +508,15 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 }
 
 func TestPreviewExistingSequentialBlocksBindEarlierReadersTo200Execution(t *testing.T) {
+	testPreviewSequentialReaders(t, true)
+}
+
+func TestPreviewFreshSequentialReadersShare200Execution(t *testing.T) {
+	testPreviewSequentialReaders(t, false)
+}
+
+func testPreviewSequentialReaders(t *testing.T, existing bool) {
+	t.Helper()
 	body := strings.Repeat("s", int(3*rangeBlockSize))
 	entered, headers, bodyGate := make(chan struct{}, 1), make(chan struct{}), make(chan struct{})
 	var allowHeaders, allowBody sync.Once
@@ -529,17 +538,21 @@ func TestPreviewExistingSequentialBlocksBindEarlierReadersTo200Execution(t *test
 			return
 		}
 		io.WriteString(w, body)
+	}, func(cfg *Config) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(body), nil }
 	})
 	target := seedPreview(t, s, body)
 	r, _ := http.NewRequest("GET", videoURL(body), nil)
 	v, _ := s.parseResolved(r)
-	local, err := s.newLocalResource(v, &http.Response{StatusCode: 200, Header: make(http.Header)}, s.cfg.Logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer local.storage.release()
-	if err := local.storage.store(0, []byte(body[:rangeBlockSize])); err != nil {
-		t.Fatal(err)
+	if existing {
+		local, err := s.newLocalResource(v, &http.Response{StatusCode: 200, Header: make(http.Header)}, s.cfg.Logger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer local.storage.release()
+		if err := local.storage.store(0, []byte(body[:rangeBlockSize])); err != nil {
+			t.Fatal(err)
+		}
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -572,13 +585,20 @@ func TestPreviewExistingSequentialBlocksBindEarlierReadersTo200Execution(t *test
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	second := run(ctx, 2)
 	key1, key2 := downloadTaskKey(v.key, v.size, 1), downloadTaskKey(v.key, v.size, 2)
-	wait(func() bool {
-		obs := s.scheduler.Observation()
-		return obs.Tasks[key1].Readers == 1 && obs.Tasks[key2].Readers == 1
-	})
-	allowHeaders.Do(func() { close(headers) })
+	var second <-chan *httptest.ResponseRecorder
+	if existing {
+		second = run(ctx, 2)
+		wait(func() bool {
+			obs := s.scheduler.Observation()
+			return obs.Tasks[key1].Readers == 1 && obs.Tasks[key2].Readers == 1
+		})
+		allowHeaders.Do(func() { close(headers) })
+	} else {
+		allowHeaders.Do(func() { close(headers) })
+		wait(func() bool { return s.scheduler.Observation().Tasks[key1].Readers == 1 })
+		second = run(ctx, 2)
+	}
 	wait(func() bool {
 		obs := s.scheduler.Observation()
 		return obs.Tasks[key1].Readers == 2 && obs.Tasks[key2].Readers == 0

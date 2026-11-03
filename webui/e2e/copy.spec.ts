@@ -21,7 +21,7 @@ test('key consequences stay near their related choices',async({page})=>{
   await expect(page.getByText('留空保留已有密码；清空用户名可移除认证。',{exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   await expect(page.getByText('检查仅生成草稿；保存后替换整份节点库，重启生效。',{exact:true})).toBeVisible();
-  await navigate(page,'加速');await page.getByRole('button',{name:'开始加速',exact:true}).hover();
+  await navigate(page,'加速');await page.getByRole('status',{name:'游戏连接',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('可能请求 Windows 管理员授权');
 });
 

@@ -2,9 +2,12 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
 for(const width of [320,1280])for(const section of ['settings','about'] as const)test(`route tabs retain keyboard focus in ${section} at ${width}px`,async({page})=>{
-  await mockAPI(page);await page.setViewportSize({width,height:800});await page.goto('/#/'+section);
+  await mockAPI(page);
+  if(section==='about')await page.route('**/api/logs?*',route=>
+    route.request().method()==='GET'?route.fulfill({json:{entries:[],files:[],matches:0,skipped:0,limit:500}}):route.fallback());
+  await page.setViewportSize({width,height:800});await page.goto('/#/'+section);
   const list=page.getByRole('tablist',{name:section==='settings'?'设置分类':'关于内容'});
-  const names=section==='settings'?['常规','存储','预加载与下载','网络']:['介绍','使用帮助','用户协议','许可证与声明'];
+  const names=section==='settings'?['常规','存储','预加载与下载','网络']:['介绍','使用帮助','用户协议','许可证与声明','日志'];
   await list.getByRole('tab',{name:names[0],exact:true}).focus();
   for(let i=1;i<=names.length;i++){
     await page.keyboard.press('ArrowRight');

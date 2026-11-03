@@ -30,40 +30,28 @@ func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resul
 	// including callers that do not already own a request/worker pin.
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	var current string
-	err := s.usage.db.QueryRowContext(ctx, `SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&current)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	promote := current == "" || current == v.key
-	if !promote {
-		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", v.key)
-	}
-	if current != v.key {
-		tx, err := s.usage.db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
+	var promote bool
+	return s.Store.writeMapping(ctx, func() (bool, error) {
+		var current string
+		err := s.usage.db.QueryRowContext(ctx, `SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&current)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return false, err
 		}
-		defer tx.Rollback()
-		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
+		promote = current == "" || current == v.key
+		if !promote {
+			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", v.key)
+		}
+		return current != v.key, nil
+	}, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
 			return err
 		}
 		if promote {
-			if _, err = tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
+			if _, err := tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
  ON CONFLICT(song_id) DO NOTHING`, id, v.key); err != nil {
 				return err
 			}
 		}
-		if err := tx.Commit(); err != nil {
-			return err
-		}
-	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	s.requestRetentionLocked()
-	return nil
+		return nil
+	})
 }

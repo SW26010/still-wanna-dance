@@ -48,79 +48,59 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 			resultErr = s.metadataWriteError(ctx, resultErr)
 		}
 	}()
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	s.observeCatalogVersion(c)
-	tx, err := s.usage.db.BeginTx(ctx, nil)
+	var decisionErr error
+	err = s.writeMapping(ctx, func() (bool, error) {
+		s.observeCatalogVersion(c)
+		return true, nil
+	}, func(tx *sql.Tx) error {
+		duplicate, err := checkSongCatalogState(ctx, tx, c)
+		decisionErr = err
+		if err != nil && !errors.Is(err, ErrCatalogOlder) {
+			return err
+		}
+		// Even an older valid backup can fill holes, without making its
+		// placeholders current members or changing already known mappings.
+		for _, song := range c.Songs {
+			if song.MD5 == "" {
+				continue
+			}
+			if _, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", song.ID); err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, "INSERT INTO media(md5) VALUES (?) ON CONFLICT DO NOTHING", song.MD5); err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT DO NOTHING", song.ID, song.MD5); err != nil {
+				return err
+			}
+		}
+		if errors.Is(decisionErr, ErrCatalogOlder) || duplicate {
+			return nil
+		}
+		if _, err = tx.ExecContext(ctx, "DELETE FROM catalog_members"); err != nil {
+			return err
+		}
+		columns := strings.Split(songColumns, ",")
+		assignments := make([]string, 0, len(columns)-1)
+		for _, col := range columns[1:] {
+			assignments = append(assignments, col+"=excluded."+col)
+		}
+		query := "INSERT INTO songs(" + songColumns + ") VALUES (" + strings.TrimSuffix(strings.Repeat("?,", len(columns)), ",") + ") ON CONFLICT(id) DO UPDATE SET " + strings.Join(assignments, ",")
+		for _, song := range c.Songs {
+			_, err = tx.ExecContext(ctx, query, song.ID, song.Name, song.Artist, song.Dancer, song.PlayerCount, song.Volume, song.Start, song.End, song.Flip, song.DoubleWidth, song.SkipRandom, song.DisablePublic, song.RPE, song.Major, song.GroupName, nullableJSON(song.Tags), nullableJSON(song.ShaderMotion))
+			if err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, "INSERT INTO catalog_members(song_id) VALUES (?)", song.ID); err != nil {
+				return err
+			}
+		}
+		return writeCatalogState(ctx, tx, c.Revision, c.Source)
+	})
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	duplicate, err := checkSongCatalogState(ctx, tx, c)
-	decisionErr := err
-	if err != nil {
-		if !errors.Is(err, ErrCatalogOlder) {
-			return err
-		}
-	}
-	// Even an older valid backup can fill holes, without making its placeholders
-	// current members or changing already known mappings.
-	for _, song := range c.Songs {
-		if song.MD5 == "" {
-			continue
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", song.ID); err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO media(md5) VALUES (?) ON CONFLICT DO NOTHING", song.MD5); err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT DO NOTHING", song.ID, song.MD5); err != nil {
-			return err
-		}
-	}
-	if errors.Is(decisionErr, ErrCatalogOlder) {
-		if err = tx.Commit(); err != nil {
-			return err
-		}
-		s.changed(false)
-		return decisionErr
-	}
-	if duplicate {
-		if err = tx.Commit(); err != nil {
-			return err
-		}
-		s.changed(false)
-		return nil
-	}
-	if _, err = tx.ExecContext(ctx, "DELETE FROM catalog_members"); err != nil {
-		return err
-	}
-	columns := strings.Split(songColumns, ",")
-	assignments := make([]string, 0, len(columns)-1)
-	for _, col := range columns[1:] {
-		assignments = append(assignments, col+"=excluded."+col)
-	}
-	query := "INSERT INTO songs(" + songColumns + ") VALUES (" + strings.TrimSuffix(strings.Repeat("?,", len(columns)), ",") + ") ON CONFLICT(id) DO UPDATE SET " + strings.Join(assignments, ",")
-	for _, song := range c.Songs {
-		_, err = tx.ExecContext(ctx, query, song.ID, song.Name, song.Artist, song.Dancer, song.PlayerCount, song.Volume, song.Start, song.End, song.Flip, song.DoubleWidth, song.SkipRandom, song.DisablePublic, song.RPE, song.Major, song.GroupName, nullableJSON(song.Tags), nullableJSON(song.ShaderMotion))
-		if err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO catalog_members(song_id) VALUES (?)", song.ID); err != nil {
-			return err
-		}
-	}
-	if err := writeCatalogState(ctx, tx, c.Revision, c.Source); err != nil {
-		return err
-	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	s.changed(false)
-	return nil
+	return decisionErr
 }
 
 func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog) (bool, error) {

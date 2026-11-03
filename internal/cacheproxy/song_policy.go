@@ -86,21 +86,13 @@ func (s *Store) SetSongPolicy(ctx context.Context, id int64, policy SongPolicy) 
 		return context.Canceled
 	}
 	defer s.wg.Done()
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	if err := writeSongPolicy(ctx, s.usage.db, id, policy); err != nil {
-		return s.storageError(err)
-	}
-	s.changed(true)
-	return nil
+	return s.writePreference(ctx, func(tx *sql.Tx) error {
+		return writeSongPolicy(ctx, tx, id, policy)
+	})
 }
 
-func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolicy) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
+func writeSongPolicy(ctx context.Context, tx *sql.Tx, id int64, policy SongPolicy) error {
+	var err error
 	if policy == SongNormal {
 		_, err = tx.ExecContext(ctx, "DELETE FROM song_preferences WHERE song_id=?", id)
 	} else {
@@ -110,10 +102,7 @@ func writeSongPolicy(ctx context.Context, db *sql.DB, id int64, policy SongPolic
  ON CONFLICT(song_id) DO UPDATE SET policy=excluded.policy`, id, policy)
 		}
 	}
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	return err
 }
 
 type resourcePolicy struct {

@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"math"
 	"net/http"
@@ -62,34 +63,23 @@ func (s *Store) ObserveSongURL(ctx context.Context, o PlaybackObservation) (resu
 		return err
 	}
 	defer func() { resultErr = s.metadataWriteError(ctx, resultErr) }()
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	s.mappingMu.Lock()
-	defer s.mappingMu.Unlock()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO media_urls(md5,node,url) VALUES (?,?,?)
+	return s.writeMapping(ctx, nil, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, upsertMediaSQL, v.key, v.size); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO media_urls(md5,node,url) VALUES (?,?,?)
  ON CONFLICT(md5,node) DO UPDATE SET url=excluded.url`, v.key, o.Node, o.URL); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO song_media(song_id,md5) VALUES (?,?)
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO song_media(song_id,md5) VALUES (?,?)
  ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, o.SongID, v.key); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	s.changed(false)
-	return nil
+			return err
+		}
+		return nil
+	})
 }
 
 // SongURLs follows the current mapping; reading never changes that mapping.

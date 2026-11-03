@@ -93,9 +93,7 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 				// Remove an ordinary member: its usage ends immediately, while
 				// the head remains valid. The pending third source admits and
 				// the fourth is now resolved without any download completing.
-				c.mu.Lock()
-				c.setQueueSongsLocked([]vrclog.Song{{ID: 100001}, {ID: 100003}, {ID: 100004}}, false)
-				c.mu.Unlock()
+				c.setQueueSongs([]vrclog.Song{{ID: 100001}, {ID: 100003}, {ID: 100004}}, false)
 				wake <- struct{}{}
 				take("100004")
 			}

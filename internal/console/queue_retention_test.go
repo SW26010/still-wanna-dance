@@ -103,9 +103,7 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("download did not start")
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	wake <- struct{}{}
 	c.mu.Lock()
 	waiter := c.queue.waiters[1]
@@ -115,9 +113,7 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	}
 	// Restore its time window before completing the body. A far-future queue
 	// position alone does not protect bytes under a zero retention budget.
-	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	wake <- struct{}{}
 	release.Do(func() { close(finish) })
 	var path string
@@ -145,9 +141,7 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatal("reordering redownloaded queued cache")
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked(nil, true)
-	c.mu.Unlock()
+	c.setQueueSongs(nil, true)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("reset lost fixed local protection", err)
 	}
@@ -176,10 +170,8 @@ func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 		t.Fatal("queue timeout")
 	}
 	wait(1)
-	c.mu.Lock()
 	// A room reset ends the old source; the fixed local grace still applies.
-	c.setQueueSongsLocked([]vrclog.Song{{ID: 2}}, true)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: 2}}, true)
 	wake <- struct{}{}
 	wait(2)
 	path := fixtureVideoPath(testStorageRoot(c.settings), "1", body)
@@ -187,9 +179,7 @@ func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 		t.Fatal("reset lost protected song", err)
 	}
 	before := calls.Load()
-	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	wake <- struct{}{}
 	wait(3)
 	t.Logf("song 1 requeued during protection: API calls before=%d after=%d", before, calls.Load())
@@ -240,9 +230,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	for i := 0; i < 5; i++ {
-		c.mu.Lock()
-		c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
-		c.mu.Unlock()
+		c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 		select {
 		case wake <- struct{}{}:
 		case <-time.After(time.Second):
@@ -252,9 +240,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatal("unchanged queue redownloaded video", calls.Load())
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked(nil, false)
-	c.mu.Unlock()
+	c.setQueueSongs(nil, false)
 	wake <- struct{}{}
 	files, err := filepath.Glob(filepath.Join(c.work.Path(), "download-block-*.part"))
 	if err != nil || len(files) != 1 {
@@ -268,16 +254,12 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("departed queue head lost handoff protection", err)
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked(nil, false)
-	c.mu.Unlock()
+	c.setQueueSongs(nil, false)
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("ordinary empty queue lost handoff", err)
 	}
-	c.mu.Lock()
-	c.setQueueSongsLocked(nil, true)
-	c.mu.Unlock()
+	c.setQueueSongs(nil, true)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("reset removed existing protection tail", err)
 	}

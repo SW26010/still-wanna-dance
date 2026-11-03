@@ -80,10 +80,8 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	}
 	// Delete the resolving song, reorder the queue, and retain an unsupported
 	// entry. Songs 4 and 2 register beyond it; song 5 fails then backs off.
-	c.mu.Lock()
 	// The failure precedes success: song 4 must not hide song 5's retry error.
-	c.setQueueSongsLocked([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
 	once.Do(func() { close(release) })
 	deadline := time.Now().Add(3 * time.Second)
 	for {
@@ -108,9 +106,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	// The unknown placeholder and failed song each retain a playback duration.
 	// Promoting 4 into the window activates its existing demand without another
 	// resolution; the retained failure must still remain visible after success.
-	c.mu.Lock()
-	c.setQueueSongsLocked([]vrclog.Song{{ID: 4}, {ID: -1}, {ID: 5}, {ID: 2}}, false)
-	c.mu.Unlock()
+	c.setQueueSongs([]vrclog.Song{{ID: 4}, {ID: -1}, {ID: 5}, {ID: 2}}, false)
 	deadline = time.Now().Add(3 * time.Second)
 	for {
 		c.mu.Lock()

@@ -64,10 +64,11 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 		}
 		if !wasRunning {
 			c.mu.Lock()
-			if c.httpServer != nil {
+			running := c.httpServer != nil
+			c.mu.Unlock()
+			if running {
 				c.stopLocked()
 			}
-			c.mu.Unlock()
 		}
 		if !wasReady {
 			if rollbackErr := change("rollback"); rollbackErr != nil {
@@ -135,9 +136,9 @@ func (c *Console) disableAcceleration() error {
 			err = fmt.Errorf("加速已停止，但未能恢复游戏直连：%w", hostsErr)
 		}
 	}
+	c.stopLocked()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.stopLocked()
 	c.cdnError = ""
 	c.activation.Phase = "stopped"
 	if err != nil {

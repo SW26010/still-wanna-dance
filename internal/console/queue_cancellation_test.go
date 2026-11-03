@@ -94,7 +94,7 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 				updateSources(ids, reset)
 			}
 			c.mu.Unlock()
-			go func() { c.mu.Lock(); c.setQueueSongsLocked(next, false); c.mu.Unlock(); close(updated) }()
+			go func() { c.setQueueSongs(next, false); close(updated) }()
 			<-updating
 			select {
 			case wake <- struct{}{}:
@@ -115,9 +115,9 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			// keeps a finite handoff and starts according to block deadlines.
 			c.mu.Lock()
 			old := c.queue.waiters[3]
-			songs := []vrclog.Song{{ID: 4}}
-			c.setQueueSongsLocked(songs, change == "room")
 			c.mu.Unlock()
+			songs := []vrclog.Song{{ID: 4}}
+			c.setQueueSongs(songs, change == "room")
 			if old == nil || old.ctx.Err() != context.Canceled {
 				t.Fatal("obsolete waiter was not canceled with queue update")
 			}

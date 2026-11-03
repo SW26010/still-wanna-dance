@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/vrclog"
@@ -30,9 +31,7 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 		}
 	}
 	apply := func(id int64, reset bool, done chan struct{}) {
-		c.mu.Lock()
-		c.setQueueSongsLocked([]vrclog.Song{{ID: id}}, reset)
-		c.mu.Unlock()
+		c.setQueueSongs([]vrclog.Song{{ID: id}}, reset)
 		close(done)
 	}
 	firstDone, secondDone := make(chan struct{}), make(chan struct{})
@@ -86,7 +85,7 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	c.queueCancel = cancel
 	entered, done := make(chan struct{}), make(chan struct{})
 	c.queue.updateSources = func([]int64, bool) { close(entered); <-ctx.Done() }
-	go func() { c.mu.Lock(); c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false); c.mu.Unlock(); close(done) }()
+	go func() { c.setQueueSongs([]vrclog.Song{{ID: 1}}, false); close(done) }()
 	<-entered
 	stopped := make(chan error, 1)
 	go func() { stopped <- c.Close() }()
@@ -103,4 +102,59 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("cancellation did not end update")
 	}
+}
+
+func TestGatewayStopWaitsForQueueWithdrawal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		withdrawing, allowWithdrawal := make(chan struct{}), make(chan struct{})
+		allow := sync.OnceFunc(func() { close(allowWithdrawal) })
+		defer allow()
+		queueDone := make(chan struct{})
+		c := &Console{
+			queueDesired: true,
+			queueCancel:  cancel,
+			queueDone:    queueDone,
+			queue: QueueStatus{updateSources: func(ids []int64, reset bool) {
+				if len(ids) != 0 || !reset {
+					t.Errorf("unexpected withdrawal: %v, reset=%v", ids, reset)
+				}
+				close(withdrawing)
+				<-allowWithdrawal
+			}},
+		}
+		go func() {
+			<-ctx.Done()
+			c.setQueueSongs(nil, true)
+			close(queueDone)
+		}()
+		stopped := make(chan error, 1)
+		go func() { stopped <- c.stop() }()
+		<-withdrawing
+		synctest.Wait()
+		select {
+		case err := <-stopped:
+			t.Fatalf("stop returned before queue withdrawal: %v", err)
+		default:
+		}
+		if !c.mu.TryLock() {
+			t.Fatal("queue withdrawal held the state lock")
+		}
+		desired := c.queueDesired
+		c.mu.Unlock()
+		if desired {
+			t.Fatal("stop did not clear queue intent before waiting")
+		}
+		// Gateway startup uses this same lifecycle lock, so it cannot replace
+		// the queue before the old queue signals completion.
+		if c.lifecycleMu.TryLock() {
+			c.lifecycleMu.Unlock()
+			t.Fatal("another lifecycle operation could overtake withdrawal")
+		}
+		allow()
+		if err := <-stopped; err != nil {
+			t.Fatal(err)
+		}
+	})
 }

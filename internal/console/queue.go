@@ -95,28 +95,22 @@ func queueSongIDs(songs []vrclog.Song) []int64 {
 	return ids
 }
 
-// The caller holds mu on entry and return. Engine protection may wait on a
-// deletion, so release mu before acquiring the independent update lock. This
-// lock serializes state snapshots, protection, initialization and teardown;
-// a later reset cannot overtake an earlier update and then be overwritten.
-func (c *Console) setQueueSongsLocked(songs []vrclog.Song, reset bool) {
-	c.mu.Unlock()
+// Serialize the state change and engine protection without holding mu while
+// protection waits. A later reset must not overtake an earlier update.
+func (c *Console) setQueueSongs(songs []vrclog.Song, reset bool) {
 	c.queueUpdateMu.Lock()
+	defer c.queueUpdateMu.Unlock()
 	c.mu.Lock()
-	c.updateQueueSongsLocked(songs, reset)
-	c.queueUpdateMu.Unlock()
-}
-
-// Both locks are held on entry/return. The log reader keeps queueUpdateMu across
-// one batch of snapshots, so notifications cannot admit an intermediate queue.
-func (c *Console) updateQueueSongsLocked(songs []vrclog.Song, reset bool) {
 	c.queue.setSongs(songs, reset)
 	updateSources := c.queue.updateSources
 	c.mu.Unlock()
+	updateQueueSources(updateSources, songs, reset)
+}
+
+func updateQueueSources(updateSources func([]int64, bool), songs []vrclog.Song, reset bool) {
 	if updateSources != nil {
 		updateSources(queueSongIDs(songs), reset)
 	}
-	c.mu.Lock()
 }
 
 func (q *QueueStatus) songResult(id int64, err error) {
@@ -243,10 +237,10 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 	go func() { defer close(workerDone); c.queueWorker(ctx, engine, wake) }()
 	defer func() {
 		<-workerDone
+		// Clear the old queue before advertising it as stopped. The lifecycle
+		// waits for done before allowing a restart to replace this queue.
+		c.setQueueSongs(nil, true)
 		c.mu.Lock()
-		// Clear the old queue before advertising it as stopped. The helper
-		// releases mu, so a restart must not replace queue/queueCancel yet.
-		c.setQueueSongsLocked(nil, true)
 		c.queue.Running = false
 		c.queue.Current = 0
 		c.queue.Active = nil
@@ -285,30 +279,44 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 				lastActivity = now
 				stale = false
 			}
+			// Include synthetic resets in the same ordered batch, but update
+			// the observed timestamp only for snapshots from the log.
+			updates := events
+			firstEvent := 0
+			if err != nil {
+				updates = make([]vrclog.Event, 0, len(events)+2)
+				updates = append(updates, vrclog.Event{Reset: true})
+				updates = append(updates, events...)
+				firstEvent = 1
+			}
+			eventEnd := len(updates)
+			// An idle log can simply mean VRChat is not running. Withdraw
+			// old work without turning inactivity into a read error.
+			if now.Sub(lastActivity) >= 5*time.Minute && !stale {
+				updates = append(updates, vrclog.Event{Reset: true})
+			}
+			// Keep one update lock across the whole batch so the worker cannot
+			// admit an intermediate queue between successive log snapshots.
 			c.queueUpdateMu.Lock()
 			c.mu.Lock()
 			c.queue.File = logName(tail.Path)
 			c.queue.LogError = ""
 			if err != nil {
 				c.queue.LogError = "日志读取失败：" + err.Error()
-				c.updateQueueSongsLocked(nil, true)
 			}
-			for _, e := range events {
-				c.updateQueueSongsLocked(e.Songs, e.Reset)
-				c.queue.Updated = now
-				ids := make([]int64, len(e.Songs))
-				for i, song := range e.Songs {
-					ids[i] = song.ID
-				}
-				slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", ids, "reset", e.Reset, "generation", c.queue.Generation)
-			}
-			// An idle log can simply mean VRChat is not running. Withdraw
-			// old work without turning inactivity into a read error.
-			if now.Sub(lastActivity) >= 5*time.Minute {
-				if !stale {
+			for i, e := range updates {
+				if i == eventEnd {
 					slog.Warn("vrchat_log_stale")
-					c.updateQueueSongsLocked(nil, true)
 					stale = true
+				}
+				c.queue.setSongs(e.Songs, e.Reset)
+				updateSources := c.queue.updateSources
+				c.mu.Unlock()
+				updateQueueSources(updateSources, e.Songs, e.Reset)
+				c.mu.Lock()
+				if i >= firstEvent && i < eventEnd {
+					c.queue.Updated = now
+					slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", c.queue.Generation)
 				}
 			}
 			c.mu.Unlock()

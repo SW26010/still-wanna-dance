@@ -233,6 +233,7 @@ func (c *Console) autoStart() {
 	}
 }
 
+// Caller holds lifecycleMu, not mu.
 func (c *Console) startLocked() (err error) {
 	if !c.termsAccepted() {
 		return errors.New("请先打开 WebUI 阅读并同意使用条款")
@@ -309,26 +310,29 @@ func (c *Console) failCDN(h *http.Server, err error) {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.httpServer == h {
-		slog.Error("cdn_failed", "error", err)
-		c.cdnError = err.Error()
-		c.stopLocked()
+	if c.httpServer != h {
+		c.mu.Unlock()
+		return
 	}
+	slog.Error("cdn_failed", "error", err)
+	c.cdnError = err.Error()
+	c.mu.Unlock()
+	c.stopLocked()
 }
 
 func (c *Console) stop() error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.stopLocked()
+	c.mu.Lock()
 	c.cdnError = ""
+	c.mu.Unlock()
 	return nil
 }
 
+// Caller holds lifecycleMu, not mu. Queue withdrawal and connection draining
+// may block, so this method owns the short state-lock sections itself.
 func (c *Console) stopLocked() {
-	c.mu.Unlock()
 	c.stopQueueLocked()
 	c.mu.Lock()
 	c.activation.FirstRequest = time.Time{}
@@ -345,7 +349,6 @@ func (c *Console) stopLocked() {
 	}
 	c.videoListener, c.https, c.httpServer = nil, nil, nil
 	c.mu.Unlock()
-	defer c.mu.Lock()
 	if relay != nil {
 		relay.close()
 	}

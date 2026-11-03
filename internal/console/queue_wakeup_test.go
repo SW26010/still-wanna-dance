@@ -171,9 +171,7 @@ func TestQueueChangesWakeIdleWorker(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c, calls := failingQueueWorker(t, nil)
 		for _, reset := range []bool{false, true} {
-			c.mu.Lock()
-			c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, reset)
-			c.mu.Unlock()
+			c.setQueueSongs([]vrclog.Song{{ID: 1}}, reset)
 			synctest.Wait()
 			want := int32(1)
 			if reset {
@@ -198,18 +196,14 @@ func TestQueueRetryDeadlineWithoutWake(t *testing.T) {
 			t.Fatal("retried before deadline", calls.Load())
 		}
 		// An unrelated snapshot must not postpone the absolute retry deadline.
-		c.mu.Lock()
-		c.setQueueSongsLocked([]vrclog.Song{{ID: 1}}, false)
-		c.mu.Unlock()
+		c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 		synctest.Wait()
 		time.Sleep(time.Second)
 		synctest.Wait()
 		if calls.Load() != 2 {
 			t.Fatal("retry deadline did not wake preparation", calls.Load())
 		}
-		c.mu.Lock()
-		c.setQueueSongsLocked(nil, false)
-		c.mu.Unlock()
+		c.setQueueSongs(nil, false)
 		synctest.Wait()
 		time.Sleep(2 * time.Minute)
 		synctest.Wait()
@@ -223,9 +217,7 @@ func TestQueueRetriesEarliestDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c, calls := failingQueueWorker(t, []vrclog.Song{{ID: 1}})
 		time.Sleep(10 * time.Second)
-		c.mu.Lock()
-		c.setQueueSongsLocked([]vrclog.Song{{ID: 1}, {ID: 2}}, false)
-		c.mu.Unlock()
+		c.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: 2}}, false)
 		synctest.Wait()
 		if calls.Load() != 2 {
 			t.Fatal("second song was not attempted", calls.Load())
@@ -241,9 +233,7 @@ func TestQueueRetriesEarliestDeadline(t *testing.T) {
 			}
 		}
 		// Removing the earliest retry must leave the later song's deadline intact.
-		c.mu.Lock()
-		c.setQueueSongsLocked([]vrclog.Song{{ID: 2}}, false)
-		c.mu.Unlock()
+		c.setQueueSongs([]vrclog.Song{{ID: 2}}, false)
 		synctest.Wait()
 		time.Sleep(59 * time.Second)
 		synctest.Wait()

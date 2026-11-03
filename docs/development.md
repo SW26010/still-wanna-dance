@@ -61,6 +61,8 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 
 共享引擎由 Console 持有，入口集中在 [`engine.go`](../internal/console/engine.go)。视频任务和网关在已有 `lifecycleMu` 保护的启动流程中调用 `ensureEngineLocked`，调用时不持有状态锁 `mu`，直接使用返回的引擎；导入先完成目录校验，曲库更新则直接使用已有 Store。任务登记与退出等待仍由各业务生命周期负责。预览通过 `retainEngineRead` 一次取得引擎及释放函数，涵盖首次淘汰前的保护。创建、发布通知与关闭不借用调用方的状态锁；状态读取继续只取得短期快照，不等待引擎 I/O。运行语义以[配置生命周期](settings-lifecycle.md)为准。
 
+网关启停沿用与设置、共享引擎共用的 `lifecycleMu`；启停方法自己取得状态锁，不借用调用方的 `mu`。停止先取消队列并等待来源撤销，再释放网关监听；队列快照和引擎保护由 `queueUpdateMu` 串行化，等待保护更新时不持有状态锁，日志的同批快照保持整体顺序。退出的 `BeginShutdown` 先取消任务，后续 `Close` 再等待清理。
+
 ## Windows 环境
 
 桌面开发需要 Windows amd64、Go 1.27.3+、Node.js 22+、Git 和 PowerShell 7.3+。前端依赖使用 `webui/package.json` 固定的 pnpm。Go 最低版本和依赖选择分别以 `go.mod` 与锁文件为准。

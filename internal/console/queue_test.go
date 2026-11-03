@@ -67,11 +67,12 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.service = engine
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
+	q := &queueTask{}
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	wake := make(chan struct{}, 1)
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	select {
 	case <-first:
@@ -81,14 +82,13 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	// Delete the resolving song, reorder the queue, and retain an unsupported
 	// entry. Songs 4 and 2 register beyond it; song 5 fails then backs off.
 	// The failure precedes success: song 4 must not hide song 5's retry error.
-	c.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
+	q.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: 5}, {ID: 4}, {ID: 2}}, false)
 	once.Do(func() { close(release) })
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		c.mu.Lock()
-		waiting := slices.Contains(c.queue.Active, 4) && slices.Contains(c.queue.Active, 2) && c.queue.Error != ""
-		completed := c.queue.Completed
-		c.mu.Unlock()
+		status := q.snapshot()
+		waiting := slices.Contains(status.Active, 4) && slices.Contains(status.Active, 2) && status.Error != ""
+		completed := status.Completed
 		if waiting {
 			if completed != 0 {
 				t.Fatal("future queue entry downloaded outside its activation window")
@@ -106,12 +106,11 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	// The unknown placeholder and failed song each retain a playback duration.
 	// Promoting 4 into the window activates its existing demand without another
 	// resolution; the retained failure must still remain visible after success.
-	c.setQueueSongs([]vrclog.Song{{ID: 4}, {ID: -1}, {ID: 5}, {ID: 2}}, false)
+	q.setQueueSongs([]vrclog.Song{{ID: 4}, {ID: -1}, {ID: 5}, {ID: 2}}, false)
 	deadline = time.Now().Add(3 * time.Second)
 	for {
-		c.mu.Lock()
-		ready := c.queue.Completed == 1 && c.queue.Error != ""
-		c.mu.Unlock()
+		status := q.snapshot()
+		ready := status.Completed == 1 && status.Error != ""
 		if ready {
 			break
 		}
@@ -160,7 +159,7 @@ func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if c.queue.Running {
+	if c.queue.snapshot().Running {
 		t.Fatal("watcher still running")
 	}
 	if err := c.start(); err == nil {
@@ -169,13 +168,13 @@ func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 }
 
 func TestQueueErrorsFollowSongsAndRoom(t *testing.T) {
-	q := QueueStatus{}
+	q := queueTask{}
 	q.setSongs([]vrclog.Song{{ID: 1}, {ID: 2}, {ID: 3}}, false)
 	q.songResult(1, errors.New("first failed"))
 	q.songResult(2, nil)
 	q.songResult(3, errors.New("third failed"))
 	if len(q.Failures) != 2 || !strings.Contains(q.Error, "first failed") || !strings.Contains(q.Error, "third failed") {
-		t.Fatalf("lost outstanding errors: %+v", q)
+		t.Fatalf("lost outstanding errors: %+v", q.QueueStatus)
 	}
 	q.setSongs([]vrclog.Song{{ID: 3}, {ID: 2}, {ID: 1}}, false)
 	if q.Failures[0].ID != 3 || q.Failures[1].ID != 1 {

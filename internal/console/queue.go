@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,24 +19,33 @@ import (
 )
 
 type QueueStatus struct {
-	Desired    bool              `json:"desired"` // populated from Console user intent in status responses
-	Running    bool              `json:"running"`
-	File       string            `json:"file"`
-	Songs      []vrclog.Song     `json:"songs"`
-	Titles     map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
-	Current    int64             `json:"current"`
-	Active     []int64           `json:"active"`
-	Blocked    []int64           `json:"blocked"`
-	Completed  int               `json:"completed"`
-	Error      string            `json:"error"`
-	Failures   []Failure         `json:"failures"`
-	LogError   string            `json:"logError"`
-	Updated    time.Time         `json:"updated"`
-	Generation uint64            `json:"-"`
-	waiters    map[int64]*queueWaiter
-	prepared   map[int64]bool
+	Desired   bool              `json:"desired"` // populated from Console user intent in status responses
+	Running   bool              `json:"running"`
+	File      string            `json:"file"`
+	Songs     []vrclog.Song     `json:"songs"`
+	Titles    map[string]string `json:"titles,omitempty"` // local catalog, filled for the status response
+	Current   int64             `json:"current"`
+	Active    []int64           `json:"active"`
+	Blocked   []int64           `json:"blocked"`
+	Completed int               `json:"completed"`
+	Error     string            `json:"error"`
+	Failures  []Failure         `json:"failures"`
+	LogError  string            `json:"logError"`
+	Updated   time.Time         `json:"updated"`
+}
 
+// queueTask owns queue state and the ordering between log updates, engine
+// synchronization and preparation. Its zero value is ready to use.
+type queueTask struct {
+	updateMu sync.Mutex // acquired before mu; serializes engine source updates
+	mu       sync.Mutex
+	QueueStatus
+	generation    uint64
+	waiters       map[int64]*queueWaiter
+	prepared      map[int64]bool
 	updateSources func([]int64, bool)
+	cancel        context.CancelFunc
+	done          chan struct{}
 }
 
 type queueWaiter struct {
@@ -44,8 +54,36 @@ type queueWaiter struct {
 	generation uint64
 }
 
-func (q *QueueStatus) wants(id int64, generation uint64) bool {
-	if generation != q.Generation {
+func (q *queueTask) snapshot() QueueStatus {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	status := q.QueueStatus
+	status.Songs = append([]vrclog.Song(nil), status.Songs...)
+	status.Active = append([]int64(nil), status.Active...)
+	status.Blocked = append([]int64(nil), status.Blocked...)
+	status.Failures = append([]Failure(nil), status.Failures...)
+	status.Titles = maps.Clone(status.Titles)
+	return status
+}
+
+// requestStop signals cancellation without waiting for source withdrawal.
+func (q *queueTask) requestStop() <-chan struct{} {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.cancel != nil {
+		q.cancel()
+	}
+	return q.done
+}
+
+func (q *queueTask) stop() {
+	if done := q.requestStop(); done != nil {
+		<-done
+	}
+}
+
+func (q *queueTask) wants(id int64, generation uint64) bool {
+	if generation != q.generation {
 		return false
 	}
 	for _, song := range q.Songs {
@@ -56,12 +94,12 @@ func (q *QueueStatus) wants(id int64, generation uint64) bool {
 	return false
 }
 
-// Call with c.mu held. Reset errors even when the next room has the same IDs.
-func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
-	q.Songs = songs
+// Call with q.mu held. Reset errors even when the next room has the same IDs.
+func (q *queueTask) setSongs(songs []vrclog.Song, reset bool) {
+	q.Songs = append([]vrclog.Song(nil), songs...)
 	q.Blocked = nil
 	if reset {
-		q.Generation++
+		q.generation++
 		q.Failures = nil
 		q.prepared = nil
 	}
@@ -70,7 +108,7 @@ func (q *QueueStatus) setSongs(songs []vrclog.Song, reset bool) {
 	// Reentry checks the current version again; the engine manages protection
 	// from registered usage and its local protection window.
 	for id := range q.prepared {
-		if !q.wants(id, q.Generation) {
+		if !q.wants(id, q.generation) {
 			delete(q.prepared, id)
 		}
 	}
@@ -97,13 +135,13 @@ func queueSongIDs(songs []vrclog.Song) []int64 {
 
 // Serialize the state change and engine protection without holding mu while
 // protection waits. A later reset must not overtake an earlier update.
-func (c *Console) setQueueSongs(songs []vrclog.Song, reset bool) {
-	c.queueUpdateMu.Lock()
-	defer c.queueUpdateMu.Unlock()
-	c.mu.Lock()
-	c.queue.setSongs(songs, reset)
-	updateSources := c.queue.updateSources
-	c.mu.Unlock()
+func (q *queueTask) setQueueSongs(songs []vrclog.Song, reset bool) {
+	q.updateMu.Lock()
+	defer q.updateMu.Unlock()
+	q.mu.Lock()
+	q.setSongs(songs, reset)
+	updateSources := q.updateSources
+	q.mu.Unlock()
 	updateQueueSources(updateSources, songs, reset)
 }
 
@@ -113,7 +151,7 @@ func updateQueueSources(updateSources func([]int64, bool), songs []vrclog.Song, 
 	}
 }
 
-func (q *QueueStatus) songResult(id int64, err error) {
+func (q *queueTask) songResult(id int64, err error) {
 	kept := make([]Failure, 0, len(q.Failures)+1)
 	for _, f := range q.Failures {
 		if f.ID != id {
@@ -129,7 +167,7 @@ func (q *QueueStatus) songResult(id int64, err error) {
 
 // Keep only failures for songs still in the queue, in their current order.
 // This also discards late results from songs removed during a shared download.
-func (q *QueueStatus) refreshErrors() {
+func (q *queueTask) refreshErrors() {
 	byID := make(map[int64]Failure, len(q.Failures))
 	for _, f := range q.Failures {
 		byID[f.ID] = f
@@ -172,14 +210,8 @@ func logName(path string) string {
 func (c *Console) stopQueueLocked() {
 	c.mu.Lock()
 	c.queueDesired = false
-	if c.queueCancel != nil {
-		c.queueCancel()
-	}
-	done := c.queueDone
 	c.mu.Unlock()
-	if done != nil {
-		<-done
-	}
+	c.queue.stop()
 }
 
 // Follow the gateway without making log-directory failures acceleration failures.
@@ -197,12 +229,12 @@ func (c *Console) startGatewayQueueLocked() {
 // The caller holds lifecycleMu. Manual downloads share the demand scheduler.
 func (c *Console) startQueueLocked() error {
 	c.mu.Lock()
-	closing, running, logDir := c.closing, c.queue.Running, c.settings.effectiveVRChatLogDir()
+	closing, logDir := c.closing, c.settings.effectiveVRChatLogDir()
 	c.mu.Unlock()
 	if closing {
 		return errors.New("程序正在退出")
 	}
-	if running {
+	if c.queue.snapshot().Running {
 		return nil
 	}
 	_, err := os.ReadDir(logDir)
@@ -219,34 +251,44 @@ func (c *Console) startQueueLocked() error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.queueCancel = cancel
-	c.queueDone = make(chan struct{})
-	c.queue = QueueStatus{Running: true, File: logName(tail.Path)}
-	slog.Info("queue_started", "file", logName(tail.Path))
-	go c.runQueue(ctx, tail, engine, c.queueDone)
+	c.queue.start(tail, engine)
 	return nil
 }
 
-func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
+// Starts and stops are serialized by the Console lifecycle.
+func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
+	ctx, cancel := context.WithCancel(context.Background())
+	q.mu.Lock()
+	q.cancel = cancel
+	q.done = make(chan struct{})
+	q.QueueStatus = QueueStatus{Running: true, File: logName(tail.Path)}
+	q.generation = 0
+	q.waiters = nil
+	q.prepared = nil
+	q.updateSources = nil
+	done := q.done
+	q.mu.Unlock()
+	slog.Info("queue_started", "file", logName(tail.Path))
+	go q.runQueue(ctx, tail, engine, done)
+}
+
+func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
 	defer close(done)
 	wake := make(chan struct{}, 1)
 	workerDone := make(chan struct{})
-	go func() { defer close(workerDone); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(workerDone); q.queueWorker(ctx, engine, wake) }()
 	defer func() {
 		<-workerDone
 		// Clear the old queue before advertising it as stopped. The lifecycle
 		// waits for done before allowing a restart to replace this queue.
-		c.setQueueSongs(nil, true)
-		c.mu.Lock()
-		c.queue.Running = false
-		c.queue.Current = 0
-		c.queue.Active = nil
-		c.queueCancel = nil
-		slog.Info("queue_stopped", "completed", c.queue.Completed)
-		c.mu.Unlock()
+		q.setQueueSongs(nil, true)
+		q.mu.Lock()
+		q.Running = false
+		q.Current = 0
+		q.Active = nil
+		q.cancel = nil
+		slog.Info("queue_stopped", "completed", q.Completed)
+		q.mu.Unlock()
 	}()
 	ticker := time.NewTicker(vrclog.PollInterval)
 	defer ticker.Stop()
@@ -297,40 +339,40 @@ func (c *Console) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cache
 			}
 			// Keep one update lock across the whole batch so the worker cannot
 			// admit an intermediate queue between successive log snapshots.
-			c.queueUpdateMu.Lock()
-			c.mu.Lock()
-			c.queue.File = logName(tail.Path)
-			c.queue.LogError = ""
+			q.updateMu.Lock()
+			q.mu.Lock()
+			q.File = logName(tail.Path)
+			q.LogError = ""
 			if err != nil {
-				c.queue.LogError = "日志读取失败：" + err.Error()
+				q.LogError = "日志读取失败：" + err.Error()
 			}
 			for i, e := range updates {
 				if i == eventEnd {
 					slog.Warn("vrchat_log_stale")
 					stale = true
 				}
-				c.queue.setSongs(e.Songs, e.Reset)
-				updateSources := c.queue.updateSources
-				c.mu.Unlock()
+				q.setSongs(e.Songs, e.Reset)
+				updateSources := q.updateSources
+				q.mu.Unlock()
 				updateQueueSources(updateSources, e.Songs, e.Reset)
-				c.mu.Lock()
+				q.mu.Lock()
 				if i >= firstEvent && i < eventEnd {
-					c.queue.Updated = now
-					slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", c.queue.Generation)
+					q.Updated = now
+					slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", q.generation)
 				}
 			}
-			c.mu.Unlock()
-			c.queueUpdateMu.Unlock()
+			q.mu.Unlock()
+			q.updateMu.Unlock()
 		}
 	}
 }
 
 // The coordinator admits sources in queue order. Each admitted preparation
 // reports its result independently; completion never holds a song-level slot.
-func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake chan struct{}) {
-	c.queueUpdateMu.Lock()
-	c.mu.Lock()
-	c.queue.updateSources = func(ids []int64, reset bool) {
+func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake chan struct{}) {
+	q.updateMu.Lock()
+	q.mu.Lock()
+	q.updateSources = func(ids []int64, reset bool) {
 		if err := engine.UpdatePrefetchQueue(ids, reset); err != nil {
 			slog.Warn("queue_timing_failed", "error", err)
 		}
@@ -339,12 +381,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		default:
 		}
 	}
-	ids := queueSongIDs(c.queue.Songs)
-	c.mu.Unlock()
+	ids := queueSongIDs(q.Songs)
+	q.mu.Unlock()
 	if err := engine.UpdatePrefetchQueue(ids, false); err != nil {
 		slog.Warn("queue_timing_failed", "error", err)
 	}
-	c.queueUpdateMu.Unlock()
+	q.updateMu.Unlock()
 	type result struct {
 		id         int64
 		generation uint64
@@ -356,19 +398,19 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 	var admission <-chan struct{}
 	var wg sync.WaitGroup
 	defer func() {
-		c.mu.Lock()
-		for _, waiter := range c.queue.waiters {
+		q.mu.Lock()
+		for _, waiter := range q.waiters {
 			waiter.cancel()
 		}
-		c.mu.Unlock()
+		q.mu.Unlock()
 		wg.Wait()
-		c.queueUpdateMu.Lock()
-		c.mu.Lock()
-		c.queue.waiters = nil
-		c.queue.updateSources = nil
-		c.mu.Unlock()
+		q.updateMu.Lock()
+		q.mu.Lock()
+		q.waiters = nil
+		q.updateSources = nil
+		q.mu.Unlock()
 		engine.UpdatePrefetchQueue(nil, true)
-		c.queueUpdateMu.Unlock()
+		q.updateMu.Unlock()
 	}()
 	var generation uint64
 	retry := map[int64]time.Time{}
@@ -387,32 +429,32 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 		}
 		// The visible snapshot can precede the engine's metadata/source update.
 		// Dispatch only after that same serialized update has finished.
-		c.queueUpdateMu.Lock()
-		c.mu.Lock()
-		c.queue.Blocked = nil
-		for _, song := range c.queue.Songs {
+		q.updateMu.Lock()
+		q.mu.Lock()
+		q.Blocked = nil
+		for _, song := range q.Songs {
 			if policies[song.ID] == cacheproxy.SongBlocked {
-				c.queue.Blocked = append(c.queue.Blocked, song.ID)
-				c.queue.songResult(song.ID, nil)
+				q.Blocked = append(q.Blocked, song.ID)
+				q.songResult(song.ID, nil)
 				delete(retry, song.ID)
 			}
 		}
-		if c.queue.Generation != generation {
-			generation = c.queue.Generation
+		if q.generation != generation {
+			generation = q.generation
 			retry = map[int64]time.Time{}
 		}
 		// A successful preparation can later lose its usage on refetch expiry.
 		// Reuse the normal ordered admission once the engine rearms the member.
-		for id := range c.queue.prepared {
+		for id := range q.prepared {
 			if engine.QueueNeedsPreparation(id) {
-				delete(c.queue.prepared, id)
+				delete(q.prepared, id)
 			}
 		}
 		now := time.Now()
 		// Only the unresolved/unadmitted next source waits here. Already
 		// admitted resources keep downloading and reporting independently.
 		if admission != nil {
-			waiter := c.queue.waiters[admitting]
+			waiter := q.waiters[admitting]
 			if waiter == nil || waiter.ctx.Err() != nil {
 				admission, admitting = nil, 0
 			} else {
@@ -422,11 +464,11 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				default:
 					// An earlier newly inserted source takes the pending place;
 					// already admitted sources need no caller replacement.
-					for _, song := range c.queue.Songs {
+					for _, song := range q.Songs {
 						if song.ID == admitting {
 							break
 						}
-						if song.ID > 0 && policies[song.ID] != cacheproxy.SongBlocked && !active[song.ID] && !c.queue.prepared[song.ID] && !now.Before(retry[song.ID]) {
+						if song.ID > 0 && policies[song.ID] != cacheproxy.SongBlocked && !active[song.ID] && !q.prepared[song.ID] && !now.Before(retry[song.ID]) {
 							waiter.cancel()
 							admission, admitting = nil, 0
 							break
@@ -435,12 +477,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				}
 			}
 		}
-		for _, song := range c.queue.Songs {
+		for _, song := range q.Songs {
 			if admission != nil {
 				break
 			}
 			id := song.ID
-			if id <= 0 || policies[id] == cacheproxy.SongBlocked || active[id] || c.queue.prepared[id] || now.Before(retry[id]) {
+			if id <= 0 || policies[id] == cacheproxy.SongBlocked || active[id] || q.prepared[id] || now.Before(retry[id]) {
 				continue
 			}
 			active[id] = true
@@ -450,17 +492,17 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			songCtx, admission = cacheproxy.WithPreparationAdmission(songCtx)
 			admitting = id
 			slog.Info("queue_song_started", "trace_id", applog.TraceID(songCtx), "song_id", id, "generation", gen)
-			if c.queue.waiters == nil {
-				c.queue.waiters = make(map[int64]*queueWaiter)
+			if q.waiters == nil {
+				q.waiters = make(map[int64]*queueWaiter)
 			}
-			c.queue.waiters[id] = &queueWaiter{songCtx, cancel, gen}
+			q.waiters[id] = &queueWaiter{songCtx, cancel, gen}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				wanted := func() bool {
-					c.mu.Lock()
-					defer c.mu.Unlock()
-					return c.queue.wants(id, gen)
+					q.mu.Lock()
+					defer q.mu.Unlock()
+					return q.wants(id, gen)
 				}
 				var err error
 				if !wanted() {
@@ -480,22 +522,22 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 			ids = append(ids, id)
 		}
 		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-		c.queue.Active = ids
-		c.queue.Current = 0
+		q.Active = ids
+		q.Current = 0
 		if len(ids) > 0 {
-			c.queue.Current = ids[0]
+			q.Current = ids[0]
 		}
 		// Already-due entries held behind admission wait for that operation's
 		// signal, rather than repeatedly arming a zero-delay timer.
 		var nextRetry time.Time
-		for _, song := range c.queue.Songs {
+		for _, song := range q.Songs {
 			id, due := song.ID, retry[song.ID]
-			if policies[id] != cacheproxy.SongBlocked && !active[id] && !c.queue.prepared[id] && due.After(now) && (nextRetry.IsZero() || due.Before(nextRetry)) {
+			if policies[id] != cacheproxy.SongBlocked && !active[id] && !q.prepared[id] && due.After(now) && (nextRetry.IsZero() || due.Before(nextRetry)) {
 				nextRetry = due
 			}
 		}
-		c.mu.Unlock()
-		c.queueUpdateMu.Unlock()
+		q.mu.Unlock()
+		q.updateMu.Unlock()
 		retryTimer.Stop()
 		var retryDue <-chan time.Time
 		if !nextRetry.IsZero() {
@@ -515,12 +557,12 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 				admission, admitting = nil, 0
 			}
 			delete(active, r.id)
-			c.mu.Lock()
-			waiter := c.queue.waiters[r.id]
+			q.mu.Lock()
+			waiter := q.waiters[r.id]
 			valid := waiter.ctx.Err() == nil
 			waiter.cancel()
-			delete(c.queue.waiters, r.id)
-			if valid && r.wanted && c.queue.wants(r.id, r.generation) && ctx.Err() == nil {
+			delete(q.waiters, r.id)
+			if valid && r.wanted && q.wants(r.id, r.generation) && ctx.Err() == nil {
 				if errors.Is(r.err, cacheproxy.ErrSongBlocked) {
 					delete(retry, r.id)
 					r.err = nil
@@ -528,18 +570,18 @@ func (c *Console) queueWorker(ctx context.Context, engine *cacheproxy.Server, wa
 					retry[r.id] = time.Now().Add(time.Minute)
 					slog.Warn("queue_song_failed", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id, "error", r.err, "retry_seconds", 60)
 				} else {
-					if c.queue.prepared == nil {
-						c.queue.prepared = make(map[int64]bool)
+					if q.prepared == nil {
+						q.prepared = make(map[int64]bool)
 					}
-					c.queue.prepared[r.id] = true
-					c.queue.Completed++
+					q.prepared[r.id] = true
+					q.Completed++
 					slog.Info("queue_song_ready", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id)
 				}
-				c.queue.songResult(r.id, r.err)
+				q.songResult(r.id, r.err)
 			} else {
 				slog.Info("queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
 			}
-			c.mu.Unlock()
+			q.mu.Unlock()
 		}
 	}
 }

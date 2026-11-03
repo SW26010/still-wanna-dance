@@ -28,13 +28,13 @@ func TestBatchLeavesQueueRunning(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	queueDone := c.queueDone
+	queueDone := queueDoneForTest(&c.queue)
 	if err := c.startBatch(); err != nil {
 		t.Fatal(err)
 	}
 	<-requested
 	c.mu.Lock()
-	batch, queue := c.batch.Running, c.queue.Running
+	batch, queue := c.batch.Running, c.queue.snapshot().Running
 	c.mu.Unlock()
 	if !batch || !queue {
 		t.Fatal("batch interrupted queue")
@@ -45,9 +45,9 @@ func TestBatchLeavesQueueRunning(t *testing.T) {
 	postTaskAction(t, c, "batch/cancel")
 	<-done
 	c.mu.Lock()
-	batch, queue = c.batch.Running, c.queue.Running
+	batch, queue = c.batch.Running, c.queue.snapshot().Running
 	c.mu.Unlock()
-	if batch || !queue || c.queueDone != queueDone {
+	if batch || !queue || queueDoneForTest(&c.queue) != queueDone {
 		t.Fatal("batch cancellation interrupted queue")
 	}
 }
@@ -87,7 +87,7 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				queueDone := c.queueDone
+				queueDone := queueDoneForTest(&c.queue)
 				// An already saved resource needs no video download.
 				if outcome == "complete" {
 					c.checksumURL = api.URL
@@ -133,10 +133,10 @@ func TestBatchDoesNotChangeQueueLifecycle(t *testing.T) {
 				c.mu.Lock()
 				defer c.mu.Unlock()
 				wantRunning := enabled && outcome != "cdn-stop" && outcome != "close"
-				if c.queue.Running != wantRunning || c.batch.Running {
-					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.Running, wantRunning, c.batch.Running)
+				if c.queue.snapshot().Running != wantRunning || c.batch.Running {
+					t.Fatalf("queue running=%v, want %v; batch running=%v", c.queue.snapshot().Running, wantRunning, c.batch.Running)
 				}
-				if wantRunning && c.queueDone != queueDone {
+				if wantRunning && queueDoneForTest(&c.queue) != queueDone {
 					t.Fatal("batch restarted the queue log reader")
 				}
 			})

@@ -22,9 +22,9 @@ func TestBeginShutdownCancelsWorkBeforeWaiting(t *testing.T) {
 	defer cancelImport()
 	defer cancelInventory()
 	workDone := make(chan struct{})
-	c.batchCancel, c.queueCancel = cancelBatch, cancelQueue
+	c.batchCancel, c.queue.cancel = cancelBatch, cancelQueue
 	c.importCancel, c.inventoryCancel = cancelImport, cancelInventory
-	c.batchDone, c.queueDone = workDone, workDone
+	c.batchDone, c.queue.done = workDone, workDone
 	c.importDone, c.inventoryDone = workDone, workDone
 	c.queueDesired = true
 	defer c.Close()

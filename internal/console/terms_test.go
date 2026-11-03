@@ -203,7 +203,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("automatic acceleration should default off and queue following should default on")
 	}
 	c.AutoStart()
-	if c.httpServer != nil || c.service != nil || c.queue.Running || c.queueDesired {
+	if c.httpServer != nil || c.service != nil || c.queue.snapshot().Running || c.queueDesired {
 		t.Fatal("started before acceptance")
 	}
 	if err := c.start(); err == nil {
@@ -246,7 +246,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 		t.Fatal("consent must not start manual diagnostics")
 	default:
 	}
-	if c.service != nil || c.queueCancel != nil {
+	if c.service != nil || queueHasCancelForTest(&c.queue) {
 		t.Fatal("consent started business services")
 	}
 	reloaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)

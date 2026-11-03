@@ -72,7 +72,7 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 			t.Fatal(page)
 		}
 	}
-	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.Running {
+	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.snapshot().Running {
 		t.Fatal("marking started work")
 	}
 	if _, err := os.Stat(libraryPaths(c.settings).VideoDir); !os.IsNotExist(err) {
@@ -199,17 +199,16 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 	if _, err := c.prefetchSong(ctx, engine, 1); err != cacheproxy.ErrSongBlocked {
 		t.Fatal(err)
 	}
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}, {ID: -1}}}
+	q := &queueTask{}
+	q.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: -1}}, false)
 	done, wake := make(chan struct{}), make(chan struct{}, 1)
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	wait := func(predicate func() bool) {
 		t.Helper()
 		deadline := time.Now().Add(3 * time.Second)
 		for {
-			c.mu.Lock()
 			ok := predicate()
-			c.mu.Unlock()
 			if ok {
 				return
 			}
@@ -219,21 +218,20 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 			time.Sleep(time.Millisecond)
 		}
 	}
-	wait(func() bool { return slices.Contains(c.queue.Blocked, 1) })
+	wait(func() bool { return slices.Contains(q.snapshot().Blocked, 1) })
 	for range 3 {
 		wake <- struct{}{}
 		time.Sleep(5 * time.Millisecond)
 	}
-	c.mu.Lock()
-	clean := c.queue.Completed == 0 && len(c.queue.Failures) == 0 && len(c.queue.Songs) == 2
-	c.mu.Unlock()
+	status := q.snapshot()
+	clean := status.Completed == 0 && len(status.Failures) == 0 && len(status.Songs) == 2
 	if !clean || calls.Load() != 0 {
 		t.Fatal("blocked song retried or disappeared", clean, calls.Load())
 	}
 	if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongNormal); err != nil {
 		t.Fatal(err)
 	}
-	wait(func() bool { return c.queue.Completed == 1 })
+	wait(func() bool { return q.snapshot().Completed == 1 })
 	if calls.Load() != 1 {
 		t.Fatal("unblocked preparation was not admitted once", calls.Load())
 	}

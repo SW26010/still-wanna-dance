@@ -29,7 +29,7 @@ func TestAccelerationStopResumePolicies(t *testing.T) {
 					if err := c.DesktopCommand(desktop.StartAcceleration); err != nil {
 						t.Fatal(err)
 					}
-					if !h.status().Ready || c.httpServer == nil || c.queue.Running != queue || c.queueDesired != queue {
+					if !h.status().Ready || c.httpServer == nil || c.queue.snapshot().Running != queue || c.queueDesired != queue {
 						t.Fatal("resume did not follow active policy")
 					}
 					engine, helper := c.service, h.session
@@ -50,7 +50,7 @@ func TestAccelerationStopResumePolicies(t *testing.T) {
 						}
 					}
 					late()
-					if c.httpServer != nil || c.https != nil || c.videoListener != nil || c.queue.Running || c.queueDesired || c.activation.Phase != "stopped" || !c.activation.FirstRequest.IsZero() {
+					if c.httpServer != nil || c.https != nil || c.videoListener != nil || c.queue.snapshot().Running || c.queueDesired || c.activation.Phase != "stopped" || !c.activation.FirstRequest.IsZero() {
 						t.Fatal("stop left gateway, queue or request observation running")
 					}
 					for _, address := range addresses {
@@ -97,7 +97,7 @@ func TestAccelerationStopRestoreFailureStillStopsGateway(t *testing.T) {
 			}
 			before := *launches
 			err := c.disableAcceleration()
-			if err == nil || !strings.Contains(err.Error(), "未能恢复游戏直连") || c.activation.Error != err.Error() || c.activation.ConnectionError != err.Error() || c.activation.Phase != "stopped" || c.httpServer != nil || c.queue.Running || c.queueDesired || readHostsFixture(t, h.path) != owned || *launches != before {
+			if err == nil || !strings.Contains(err.Error(), "未能恢复游戏直连") || c.activation.Error != err.Error() || c.activation.ConnectionError != err.Error() || c.activation.Phase != "stopped" || c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired || readHostsFixture(t, h.path) != owned || *launches != before {
 				t.Fatal("stop hid failure, changed hosts or requested authorization", err)
 			}
 			// Repair the private fixture and retry through the same helper.

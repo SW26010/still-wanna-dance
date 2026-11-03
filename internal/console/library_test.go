@@ -37,7 +37,7 @@ func TestLibraryAPIReadOnlyAndValidation(t *testing.T) {
 			t.Fatal(tc.path, w.Code, w.Body.String())
 		}
 	}
-	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.Running {
+	if c.service != nil || c.httpServer != nil || c.batch.Running || c.queue.snapshot().Running {
 		t.Fatal("viewing library started work")
 	}
 }

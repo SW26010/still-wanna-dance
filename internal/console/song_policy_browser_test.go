@@ -104,7 +104,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	} else {
 		t.Log(string(output))
 	}
-	if resolutions.Load() != 0 || c.batch.Running || c.queue.Running || c.httpServer != nil {
+	if resolutions.Load() != 0 || c.batch.Running || c.queue.snapshot().Running || c.httpServer != nil {
 		t.Fatal("preferences started network or service activity", resolutions.Load())
 	}
 	policies, err := c.service.SongPolicies(t.Context())

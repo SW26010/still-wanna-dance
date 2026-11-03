@@ -92,7 +92,7 @@ func TestPreviewBrowser(t *testing.T) {
 	if downloads.Load() != 1 {
 		t.Fatal("cached preview redownloaded", downloads.Load())
 	}
-	if c.httpServer != nil || c.queue.Running || !c.activation.FirstRequest.IsZero() {
+	if c.httpServer != nil || c.queue.snapshot().Running || !c.activation.FirstRequest.IsZero() {
 		t.Fatal("preview changed game state")
 	}
 	t.Logf("decoded synthetic MP4, seek/pause/replay/navigation/cross-origin passed; upstream requests=%d", downloads.Load())

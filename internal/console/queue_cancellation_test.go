@@ -22,6 +22,7 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 	for _, change := range []string{"remove", "room", "reorder"} {
 		t.Run(change, func(t *testing.T) {
 			c := testConsole(t)
+			q := &queueTask{}
 			body := "queue cancellation video"
 			started := make(chan string, 8)
 			resolved := make(chan string, 8)
@@ -56,11 +57,11 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 				t.Fatal(err)
 			}
 			c.service = engine
-			c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}, {ID: 2}}}
+			q.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: 2}}, false)
 			ctx, cancel := context.WithCancel(context.Background())
 			wake := make(chan struct{}, 1)
 			done := make(chan struct{})
-			go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+			go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 			defer func() { cancel(); <-done }()
 			take := func(ch <-chan string) string {
 				t.Helper()
@@ -77,24 +78,24 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			take(started)
 			take(resolved)
 			take(resolved)
-			c.mu.Lock()
+			q.mu.Lock()
 			next := []vrclog.Song{{ID: 3}}
 			if change == "reorder" {
 				next = []vrclog.Song{{ID: 3}, {ID: 1}, {ID: 2}}
 			}
-			updateSources := c.queue.updateSources
+			updateSources := q.updateSources
 			updating, allowUpdate, updated := make(chan struct{}), make(chan struct{}), make(chan struct{})
 			finishUpdate := sync.OnceFunc(func() { close(allowUpdate) })
 			defer finishUpdate()
-			c.queue.updateSources = func(ids []int64, reset bool) {
+			q.updateSources = func(ids []int64, reset bool) {
 				if len(ids) > 0 && ids[0] == 3 {
 					close(updating)
 					<-allowUpdate
 				}
 				updateSources(ids, reset)
 			}
-			c.mu.Unlock()
-			go func() { c.setQueueSongs(next, false); close(updated) }()
+			q.mu.Unlock()
+			go func() { q.setQueueSongs(next, false); close(updated) }()
 			<-updating
 			select {
 			case wake <- struct{}{}:
@@ -113,11 +114,11 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			}
 			// Resolution/caller replacement must progress immediately. Network work
 			// keeps a finite handoff and starts according to block deadlines.
-			c.mu.Lock()
-			old := c.queue.waiters[3]
-			c.mu.Unlock()
+			q.mu.Lock()
+			old := q.waiters[3]
+			q.mu.Unlock()
 			songs := []vrclog.Song{{ID: 4}}
-			c.setQueueSongs(songs, change == "room")
+			q.setQueueSongs(songs, change == "room")
 			if old == nil || old.ctx.Err() != context.Canceled {
 				t.Fatal("obsolete waiter was not canceled with queue update")
 			}
@@ -131,10 +132,10 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			unblock()
 			deadline := time.Now().Add(3 * time.Second)
 			for {
-				c.mu.Lock()
-				complete := c.queue.Completed == 1 && len(c.queue.waiters) == 0
-				failures := len(c.queue.Failures)
-				c.mu.Unlock()
+				q.mu.Lock()
+				complete := q.Completed == 1 && len(q.waiters) == 0
+				failures := len(q.Failures)
+				q.mu.Unlock()
 				if complete {
 					if failures != 0 {
 						t.Fatal("cancellation recorded as failure")

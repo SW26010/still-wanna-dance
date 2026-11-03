@@ -76,8 +76,8 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			// Existing queue lifecycle intent/cancel handle must remain untouched.
 			c.queueDesired = true
 			c.queue.Running = true
-			c.queueCancel = func() { t.Error("manual target canceled queue") }
-			defer func() { c.queueCancel = nil; c.queue.Running = false }()
+			c.queue.cancel = func() { t.Error("manual target canceled queue") }
+			defer func() { c.queue.cancel = nil; c.queue.Running = false }()
 			c.lastBatch = Batch{Total: 99, Phase: "previous full result"}
 			if err := c.startBatchTarget(cacheproxy.CacheStorageID(fixtureLibraryPaths(filepath.Dir(cfg.VideoDir))), target); err != nil {
 				t.Fatal(err)
@@ -90,8 +90,8 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			case <-time.After(10 * time.Second):
 				t.Fatal("target download stalled")
 			}
-			if lists.Load() != 0 || !c.queueDesired || !c.queue.Running || c.lastBatch.Total != 99 {
-				t.Fatal(lists.Load(), c.queue, c.lastBatch)
+			if lists.Load() != 0 || !c.queueDesired || !c.queue.snapshot().Running || c.lastBatch.Total != 99 {
+				t.Fatal(lists.Load(), c.queue.snapshot(), c.lastBatch)
 			}
 			success := mode == "song" || mode == "resource" || mode == "unresolved"
 			if success {

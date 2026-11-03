@@ -67,10 +67,10 @@ func TestBackgroundModesAdmitNextSongBeforeEarlierDownloadsComplete(t *testing.T
 				done = c.batchDone
 				c.mu.Unlock()
 			} else {
-				c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}, {ID: 2}, {ID: 3}}}
+				c.queue.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: 2}, {ID: 3}}, false)
 				queueDone := make(chan struct{})
 				done = queueDone
-				go func() { defer close(queueDone); c.queueWorker(ctx, engine, make(chan struct{})) }()
+				go func() { defer close(queueDone); c.queue.queueWorker(ctx, engine, make(chan struct{})) }()
 				defer func() { cancel(); <-queueDone }()
 			}
 			seen := map[string]bool{}
@@ -91,7 +91,7 @@ func TestBackgroundModesAdmitNextSongBeforeEarlierDownloadsComplete(t *testing.T
 				c.mu.Lock()
 				complete := c.batch.Checked == 3 && c.batch.Failed == 0
 				if mode == "queue" {
-					complete = c.queue.Completed == 3
+					complete = c.queue.snapshot().Completed == 3
 				}
 				c.mu.Unlock()
 				if complete {

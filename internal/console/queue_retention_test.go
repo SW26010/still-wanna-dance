@@ -83,10 +83,11 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	})
 	var release sync.Once
 	defer release.Do(func() { close(finish) })
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
+	q := &queueTask{}
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	done, wake := make(chan struct{}), make(chan struct{}, 1)
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	wait := func(condition func() bool) {
 		t.Helper()
@@ -103,17 +104,17 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("download did not start")
 	}
-	c.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
+	q.setQueueSongs([]vrclog.Song{{ID: -1}, {ID: -1}, {ID: -1}, {ID: 1}}, false)
 	wake <- struct{}{}
-	c.mu.Lock()
-	waiter := c.queue.waiters[1]
-	c.mu.Unlock()
+	q.mu.Lock()
+	waiter := q.waiters[1]
+	q.mu.Unlock()
 	if waiter == nil || waiter.ctx.Err() != nil {
 		t.Fatal("reordering within the queue canceled preparation")
 	}
 	// Restore its time window before completing the body. A far-future queue
 	// position alone does not protect bytes under a zero retention budget.
-	c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	wake <- struct{}{}
 	release.Do(func() { close(finish) })
 	var path string
@@ -134,14 +135,12 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 		t.Fatal("queued download was evicted", err)
 	}
 	wait(func() bool {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		return c.queue.Completed == 1
+		return q.snapshot().Completed == 1
 	})
 	if downloads.Load() != 1 {
 		t.Fatal("reordering redownloaded queued cache")
 	}
-	c.setQueueSongs(nil, true)
+	q.setQueueSongs(nil, true)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("reset lost fixed local protection", err)
 	}
@@ -149,19 +148,18 @@ func TestQueueReorderKeepsInFlightPreparation(t *testing.T) {
 
 func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 	c, engine, body, calls := queueRetentionFixture(t, int64(len("audit video content")))
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
+	q := &queueTask{}
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	wake := make(chan struct{}, 1)
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	wait := func(n int) {
 		t.Helper()
 		deadline := time.Now().Add(3 * time.Second)
 		for time.Now().Before(deadline) {
-			c.mu.Lock()
-			ok := c.queue.Completed >= n
-			c.mu.Unlock()
+			ok := q.snapshot().Completed >= n
 			if ok {
 				return
 			}
@@ -171,7 +169,7 @@ func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 	}
 	wait(1)
 	// A room reset ends the old source; the fixed local grace still applies.
-	c.setQueueSongs([]vrclog.Song{{ID: 2}}, true)
+	q.setQueueSongs([]vrclog.Song{{ID: 2}}, true)
 	wake <- struct{}{}
 	wait(2)
 	path := fixtureVideoPath(testStorageRoot(c.settings), "1", body)
@@ -179,7 +177,7 @@ func TestQueueReentryDuringProtectionAfterRoomReset(t *testing.T) {
 		t.Fatal("reset lost protected song", err)
 	}
 	before := calls.Load()
-	c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	wake <- struct{}{}
 	wait(3)
 	t.Logf("song 1 requeued during protection: API calls before=%d after=%d", before, calls.Load())
@@ -211,16 +209,15 @@ func TestBatchReportsBudgetStopWithoutDownloading(t *testing.T) {
 
 func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	c, engine, body, calls := queueRetentionFixture(t, 0)
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 1}}}
+	q := &queueTask{}
+	q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	done, wake := make(chan struct{}), make(chan struct{})
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		c.mu.Lock()
-		ready := c.queue.Completed == 1
-		c.mu.Unlock()
+		ready := q.snapshot().Completed == 1
 		if ready {
 			break
 		}
@@ -230,7 +227,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	for i := 0; i < 5; i++ {
-		c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+		q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 		select {
 		case wake <- struct{}{}:
 		case <-time.After(time.Second):
@@ -240,7 +237,7 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatal("unchanged queue redownloaded video", calls.Load())
 	}
-	c.setQueueSongs(nil, false)
+	q.setQueueSongs(nil, false)
 	wake <- struct{}{}
 	files, err := filepath.Glob(filepath.Join(c.work.Path(), "download-block-*.part"))
 	if err != nil || len(files) != 1 {
@@ -254,19 +251,19 @@ func TestQueueDepartureKeepsTemporaryBytesAvailable(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("departed queue head lost handoff protection", err)
 	}
-	c.setQueueSongs(nil, false)
+	q.setQueueSongs(nil, false)
 	time.Sleep(100 * time.Millisecond)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("ordinary empty queue lost handoff", err)
 	}
-	c.setQueueSongs(nil, true)
+	q.setQueueSongs(nil, true)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal("reset removed existing protection tail", err)
 	}
 }
 
 func TestQueueCoalescedDepartureInvalidatesPreparedSong(t *testing.T) {
-	q := QueueStatus{Songs: []vrclog.Song{{ID: 1}}, prepared: map[int64]bool{1: true}}
+	q := queueTask{QueueStatus: QueueStatus{Songs: []vrclog.Song{{ID: 1}}}, prepared: map[int64]bool{1: true}}
 	q.setSongs([]vrclog.Song{{ID: 2}, {ID: 3}, {ID: 4}, {ID: 1}}, false)
 	if !q.prepared[1] {
 		t.Fatal("reordering a queued song discarded preparation")

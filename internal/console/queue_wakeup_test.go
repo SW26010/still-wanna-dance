@@ -42,19 +42,20 @@ func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 
 // The worker has no log reader or external wake producer. Fake time exercises
 // real retry deadlines against an isolated engine without network requests.
-func failingQueueWorker(t *testing.T, songs []vrclog.Song) (*Console, *atomic.Int32) {
+func failingQueueWorker(t *testing.T, songs []vrclog.Song) (*queueTask, *atomic.Int32) {
 	t.Helper()
-	c := &Console{queue: QueueStatus{Running: true, Songs: songs}}
+	q := &queueTask{}
+	q.setQueueSongs(songs, false)
 	engine, calls := failingQueueEngine(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
-	go func() { defer close(done); c.queueWorker(ctx, engine, make(chan struct{}, 1)) }()
+	go func() { defer close(done); q.queueWorker(ctx, engine, make(chan struct{}, 1)) }()
 	t.Cleanup(func() {
 		cancel()
 		<-done
 	})
 	synctest.Wait()
-	return c, calls
+	return q, calls
 }
 
 func TestQueueLogBatchAndStaleReset(t *testing.T) {
@@ -69,11 +70,9 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		if _, err := tail.Poll(time.Now()); err != nil {
 			t.Fatal(err)
 		}
-		c := &Console{queue: QueueStatus{Running: true}}
-		ctx, cancel := context.WithCancel(t.Context())
-		done := make(chan struct{})
-		go c.runQueue(ctx, tail, engine, done)
-		t.Cleanup(func() { cancel(); <-done })
+		q := &queueTask{}
+		q.start(tail, engine)
+		t.Cleanup(q.stop)
 		synctest.Wait()
 		logs := "[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":1}]\n" +
 			"[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":2}]\n"
@@ -82,17 +81,15 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		}
 		time.Sleep(vrclog.PollInterval)
 		synctest.Wait()
-		c.mu.Lock()
-		latest := len(c.queue.Failures) == 1 && c.queue.Failures[0].ID == 2
-		c.mu.Unlock()
+		status := q.snapshot()
+		latest := len(status.Failures) == 1 && status.Failures[0].ID == 2
 		if !latest || calls.Load() != 1 {
 			t.Fatal("log batch admitted an intermediate queue", calls.Load())
 		}
 		time.Sleep(5 * time.Minute)
 		synctest.Wait()
-		c.mu.Lock()
-		cleared := len(c.queue.Songs) == 0 && len(c.queue.Failures) == 0 && c.queue.LogError == "" && c.queue.Running
-		c.mu.Unlock()
+		status = q.snapshot()
+		cleared := len(status.Songs) == 0 && len(status.Failures) == 0 && status.LogError == "" && status.Running
 		if !cleared {
 			t.Fatal("stale log did not withdraw the queue")
 		}
@@ -101,6 +98,38 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		synctest.Wait()
 		if calls.Load() != before {
 			t.Fatal("stale queue kept retrying", calls.Load())
+		}
+	})
+}
+
+func TestQueueRestartClearsPreviousRun(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		engine, calls := failingQueueEngine(t)
+		tail := &vrclog.Tail{Dir: t.TempDir()}
+		if _, err := tail.Poll(time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		q := &queueTask{}
+		t.Cleanup(q.stop)
+		q.start(tail, engine)
+		q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+		synctest.Wait()
+		if status := q.snapshot(); calls.Load() != 1 || len(status.Failures) != 1 {
+			t.Fatal("first run did not record its failure", calls.Load(), status)
+		}
+		q.stop()
+		if status := q.snapshot(); status.Running || len(status.Songs) != 0 || len(status.Failures) != 0 {
+			t.Fatal("stop left the previous queue visible", status)
+		}
+		q.start(tail, engine)
+		synctest.Wait()
+		if status := q.snapshot(); !status.Running || len(status.Songs) != 0 || len(status.Failures) != 0 || calls.Load() != 1 {
+			t.Fatal("restart restored the previous queue", calls.Load(), status)
+		}
+		q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+		synctest.Wait()
+		if calls.Load() != 2 {
+			t.Fatal("previous retry state blocked the new run", calls.Load())
 		}
 	})
 }
@@ -124,17 +153,14 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 				if _, err := tail.Poll(time.Now()); err != nil {
 					t.Fatal(err)
 				}
-				c := &Console{queue: QueueStatus{Running: true}}
-				ctx, cancel := context.WithCancel(t.Context())
-				done := make(chan struct{})
-				go c.runQueue(ctx, tail, engine, done)
-				t.Cleanup(func() { cancel(); <-done })
+				q := &queueTask{}
+				q.start(tail, engine)
+				t.Cleanup(q.stop)
 				synctest.Wait()
 				time.Sleep(6 * time.Minute)
 				synctest.Wait()
-				c.mu.Lock()
-				healthy := c.queue.Running && c.queue.LogError == "" && c.queue.Error == ""
-				c.mu.Unlock()
+				status := q.snapshot()
+				healthy := status.Running && status.LogError == "" && status.Error == ""
 				if !healthy || calls.Load() != 0 {
 					t.Fatal("idle directory was reported as a failure or started work")
 				}
@@ -145,9 +171,8 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 				}
 				time.Sleep(vrclog.DiscoverInterval)
 				synctest.Wait()
-				c.mu.Lock()
-				discovered := c.queue.File == filepath.Base(path) && len(c.queue.Songs) == 1 && c.queue.Songs[0].ID == 1 && c.queue.LogError == ""
-				c.mu.Unlock()
+				status = q.snapshot()
+				discovered := status.File == filepath.Base(path) && len(status.Songs) == 1 && status.Songs[0].ID == 1 && status.LogError == ""
 				if !discovered || calls.Load() != 1 {
 					t.Fatal("new log was not consumed after idle waiting")
 				}
@@ -156,9 +181,8 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 				}
 				time.Sleep(6 * time.Minute)
 				synctest.Wait()
-				c.mu.Lock()
-				readFailed := c.queue.LogError != "" && len(c.queue.Songs) == 0
-				c.mu.Unlock()
+				status = q.snapshot()
+				readFailed := status.LogError != "" && len(status.Songs) == 0
 				if !readFailed {
 					t.Fatal("actual read failure was hidden after the idle timeout")
 				}
@@ -169,9 +193,9 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 
 func TestQueueChangesWakeIdleWorker(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c, calls := failingQueueWorker(t, nil)
+		q, calls := failingQueueWorker(t, nil)
 		for _, reset := range []bool{false, true} {
-			c.setQueueSongs([]vrclog.Song{{ID: 1}}, reset)
+			q.setQueueSongs([]vrclog.Song{{ID: 1}}, reset)
 			synctest.Wait()
 			want := int32(1)
 			if reset {
@@ -186,7 +210,7 @@ func TestQueueChangesWakeIdleWorker(t *testing.T) {
 
 func TestQueueRetryDeadlineWithoutWake(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c, calls := failingQueueWorker(t, []vrclog.Song{{ID: 1}})
+		q, calls := failingQueueWorker(t, []vrclog.Song{{ID: 1}})
 		if calls.Load() != 1 {
 			t.Fatal("initial failure missing", calls.Load())
 		}
@@ -196,14 +220,14 @@ func TestQueueRetryDeadlineWithoutWake(t *testing.T) {
 			t.Fatal("retried before deadline", calls.Load())
 		}
 		// An unrelated snapshot must not postpone the absolute retry deadline.
-		c.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
+		q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 		synctest.Wait()
 		time.Sleep(time.Second)
 		synctest.Wait()
 		if calls.Load() != 2 {
 			t.Fatal("retry deadline did not wake preparation", calls.Load())
 		}
-		c.setQueueSongs(nil, false)
+		q.setQueueSongs(nil, false)
 		synctest.Wait()
 		time.Sleep(2 * time.Minute)
 		synctest.Wait()
@@ -215,9 +239,9 @@ func TestQueueRetryDeadlineWithoutWake(t *testing.T) {
 
 func TestQueueRetriesEarliestDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c, calls := failingQueueWorker(t, []vrclog.Song{{ID: 1}})
+		q, calls := failingQueueWorker(t, []vrclog.Song{{ID: 1}})
 		time.Sleep(10 * time.Second)
-		c.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: 2}}, false)
+		q.setQueueSongs([]vrclog.Song{{ID: 1}, {ID: 2}}, false)
 		synctest.Wait()
 		if calls.Load() != 2 {
 			t.Fatal("second song was not attempted", calls.Load())
@@ -233,7 +257,7 @@ func TestQueueRetriesEarliestDeadline(t *testing.T) {
 			}
 		}
 		// Removing the earliest retry must leave the later song's deadline intact.
-		c.setQueueSongs([]vrclog.Song{{ID: 2}}, false)
+		q.setQueueSongs([]vrclog.Song{{ID: 2}}, false)
 		synctest.Wait()
 		time.Sleep(59 * time.Second)
 		synctest.Wait()

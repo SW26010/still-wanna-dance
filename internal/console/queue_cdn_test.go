@@ -15,11 +15,11 @@ func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if c.queue.Running || c.queueDesired || c.httpServer == nil {
+	if c.queue.snapshot().Running || c.queueDesired || c.httpServer == nil {
 		t.Fatal("disabled queue started")
 	}
 	c.failCDN(c.httpServer, errors.New("listener failed"))
-	if c.queue.Running || c.queueDesired || c.httpServer != nil {
+	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil {
 		t.Fatal("failed gateway left work running")
 	}
 }
@@ -33,14 +33,14 @@ func TestQueueStartsDuringBatch(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if !c.queueDesired || !c.queue.Running {
+	if !c.queueDesired || !c.queue.snapshot().Running {
 		t.Fatal("batch prevented queue startup")
 	}
 }
 
 func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	c := testConsole(t)
-	if err := c.start(); err != nil || !c.queueDesired || c.queue.Running || c.actionErrors["queue"] == "" {
+	if err := c.start(); err != nil || !c.queueDesired || c.queue.snapshot().Running || c.actionErrors["queue"] == "" {
 		t.Fatal("missing failure state")
 	}
 	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
@@ -49,7 +49,7 @@ func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if !c.queue.Running {
+	if !c.queue.snapshot().Running {
 		t.Fatal("retry failed")
 	}
 }
@@ -64,7 +64,7 @@ func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 	c.savedSettings = c.settings
 
 	c.AutoStart()
-	if c.queue.Running || c.queueDesired || c.httpServer != nil {
+	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil {
 		t.Fatal("queue started without its gateway")
 	}
 }
@@ -88,7 +88,7 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 			inspect := func() HostsStatus {
 				checks++
 				if outcome == "activation-rollback" && checks == 3 {
-					if !c.queue.Running {
+					if !c.queue.snapshot().Running {
 						t.Fatal("gateway did not start queue")
 					}
 					return HostsStatus{Message: "fixture final verification failed"}
@@ -101,7 +101,7 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 					t.Fatal("unexpected success")
 				}
 			} else {
-				if err != nil || !c.queue.Running {
+				if err != nil || !c.queue.snapshot().Running {
 					t.Fatal("queue did not follow gateway", err)
 				}
 				if outcome == "stop" {
@@ -110,11 +110,11 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 					c.failCDN(c.httpServer, errors.New("fixture listener failed"))
 				}
 			}
-			if c.httpServer != nil || c.queue.Running || c.queueDesired || len(c.queue.Songs) != 0 || c.queueCancel != nil {
+			if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired || len(c.queue.snapshot().Songs) != 0 || queueHasCancelForTest(&c.queue) {
 				t.Fatal("gateway left queue sources alive")
 			}
 			select {
-			case <-c.queueDone:
+			case <-queueDoneForTest(&c.queue):
 			default:
 				t.Fatal("queue shutdown was not awaited")
 			}

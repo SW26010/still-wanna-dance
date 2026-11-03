@@ -60,10 +60,10 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 			} else {
 				var ctx context.Context
 				ctx, cancel = context.WithCancel(context.Background())
-				c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 100001}, {ID: 100002}, {ID: 100003}, {ID: 100004}}}
+				c.queue.setQueueSongs([]vrclog.Song{{ID: 100001}, {ID: 100002}, {ID: 100003}, {ID: 100004}}, false)
 				queueDone := make(chan struct{})
 				done = queueDone
-				go func() { defer close(queueDone); c.queueWorker(ctx, engine, wake) }()
+				go func() { defer close(queueDone); c.queue.queueWorker(ctx, engine, wake) }()
 			}
 			defer func() { cancel(); <-done }()
 			take := func(want string) {
@@ -93,7 +93,7 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 				// Remove an ordinary member: its usage ends immediately, while
 				// the head remains valid. The pending third source admits and
 				// the fourth is now resolved without any download completing.
-				c.setQueueSongs([]vrclog.Song{{ID: 100001}, {ID: 100003}, {ID: 100004}}, false)
+				c.queue.setQueueSongs([]vrclog.Song{{ID: 100001}, {ID: 100003}, {ID: 100004}}, false)
 				wake <- struct{}{}
 				take("100004")
 			}
@@ -125,16 +125,17 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 	defer engine.Close()
 	// After completed usage expires and a real clock change rearms the member,
 	// the console still remembers success but the engine needs admission again.
-	c.queue = QueueStatus{Running: true, Songs: []vrclog.Song{{ID: 42}}, prepared: map[int64]bool{42: true}}
+	c.queue.setQueueSongs([]vrclog.Song{{ID: 42}}, false)
+	c.queue.prepared = map[int64]bool{42: true}
 	ctx, cancel := context.WithCancel(t.Context())
 	done, wake := make(chan struct{}), make(chan struct{}, 1)
-	go func() { defer close(done); c.queueWorker(ctx, engine, wake) }()
+	go func() { defer close(done); c.queue.queueWorker(ctx, engine, wake) }()
 	defer func() { cancel(); <-done }()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		c.mu.Lock()
+		c.queue.mu.Lock()
 		ready := c.queue.Completed == 1 && c.queue.prepared[42]
-		c.mu.Unlock()
+		c.queue.mu.Unlock()
 		if ready {
 			break
 		}

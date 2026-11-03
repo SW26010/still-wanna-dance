@@ -72,7 +72,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 		if err != nil || policies[42] != cacheproxy.SongFavorite {
 			t.Fatal("retention setting changed the favorite mark", policies, err)
 		}
-		if c.batch.Running || c.queue.Running || c.httpServer != nil {
+		if c.batch.Running || c.queue.snapshot().Running || c.httpServer != nil {
 			t.Fatal("retention setting started background work")
 		}
 	}

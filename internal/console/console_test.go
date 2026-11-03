@@ -50,6 +50,18 @@ func newConsoleWithWorkForTest(t *testing.T, path, address string) (*Console, er
 
 func testConsole(t *testing.T) *Console { return testConsoleWithSeed(t, false) }
 
+func queueDoneForTest(q *queueTask) <-chan struct{} {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.done
+}
+
+func queueHasCancelForTest(q *queueTask) bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.cancel != nil
+}
+
 func testConsoleWithSeed(t *testing.T, seeded bool) *Console {
 	t.Helper()
 	root := t.TempDir()

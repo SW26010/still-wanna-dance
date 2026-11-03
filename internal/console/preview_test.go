@@ -64,7 +64,7 @@ func TestPreviewPrepareHEADAndInitialReadBeforeEviction(t *testing.T) {
 	if w.Code != 200 || w.Header().Get("Content-Length") != fmt.Sprint(len(body)) || w.Body.Len() != 0 {
 		t.Fatal(w.Code, w.Header(), w.Body.String())
 	}
-	if c.service != nil || c.httpServer != nil || c.queue.Running || c.batch.Running {
+	if c.service != nil || c.httpServer != nil || c.queue.snapshot().Running || c.batch.Running {
 		t.Fatal("preparation/HEAD started work")
 	}
 	if _, err := os.Stat(path); err != nil {
@@ -74,7 +74,7 @@ func TestPreviewPrepareHEADAndInitialReadBeforeEviction(t *testing.T) {
 	if w.Code != 206 || w.Body.String() != body[1:6] {
 		t.Fatal("initial retention deleted preview", w.Code, w.Body.String())
 	}
-	if c.service == nil || c.httpServer != nil || c.queue.Running || !c.activation.FirstRequest.IsZero() {
+	if c.service == nil || c.httpServer != nil || c.queue.snapshot().Running || !c.activation.FirstRequest.IsZero() {
 		t.Fatal("preview changed game activation", c.activation)
 	}
 }

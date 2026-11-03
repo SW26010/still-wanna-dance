@@ -27,7 +27,6 @@ import (
 	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
-	"still-wanna-dance/internal/vrclog"
 )
 
 //go:embed assets/storage-benefit.svg
@@ -60,7 +59,6 @@ type Console struct {
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
 	hosts               *hostsController // operations are serialized by lifecycleMu
-	queueUpdateMu       sync.Mutex       // acquire before mu; serializes engine queue protection
 	inventoryMu         sync.Mutex
 	inventory           Inventory
 	inventorySettings   Settings
@@ -95,10 +93,8 @@ type Console struct {
 	importDone          chan struct{}
 	batchCancel         context.CancelFunc
 	batchDone           chan struct{}
-	queue               QueueStatus
+	queue               queueTask
 	queueDesired        bool // queue enable intent; independent of manual downloads
-	queueCancel         context.CancelFunc
-	queueDone           chan struct{}
 	closing             bool
 	client              *http.Client
 	checksumURL         string
@@ -403,10 +399,8 @@ func (c *Console) BeginShutdown() {
 	if c.importCancel != nil {
 		c.importCancel()
 	}
-	if c.queueCancel != nil {
-		c.queueCancel()
-	}
 	c.mu.Unlock()
+	c.queue.requestStop()
 	c.inventoryMu.Lock()
 	if c.inventoryCancel != nil {
 		c.inventoryCancel()
@@ -435,7 +429,7 @@ func (c *Console) Close() error {
 	monitor := c.monitor
 	networkDiagnostics := c.networkDiagnostics
 	monitorManualDone := c.monitorManualDone
-	done, importDone, queueDone := c.batchDone, c.importDone, c.queueDone
+	done, importDone := c.batchDone, c.importDone
 	c.mu.Unlock()
 	c.inventoryMu.Lock()
 	inventoryDone := c.inventoryDone
@@ -456,9 +450,6 @@ func (c *Console) Close() error {
 	}
 	if done != nil {
 		<-done
-	}
-	if queueDone != nil {
-		<-queueDone
 	}
 	if importDone != nil {
 		<-importDone
@@ -586,7 +577,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			VideoImportSuggested: c.videoImportSuggestion,
 			ProxyModeMigrated:    c.proxyModeMigrated,
 			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
-			Import: c.importStatus, Batch: c.batch, Queue: c.queue, LastBatch: c.lastBatch,
+			Import: c.importStatus, Batch: c.batch, Queue: c.queue.snapshot(), LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
 			ProxyNodes:            c.proxyNodesStatusLocked(),
@@ -603,9 +594,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for source, message := range c.actionErrors {
 			result.ActionErrors[source] = message
 		}
-		result.Queue.Songs = append([]vrclog.Song(nil), c.queue.Songs...)
-		result.Queue.Active = append([]int64(nil), c.queue.Active...)
-		result.Queue.Failures = append([]Failure(nil), c.queue.Failures...)
 		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		// Port ownership and running must come from the same snapshot. Binding,
 		// releasing and probing ports share mu; engine I/O never holds it.

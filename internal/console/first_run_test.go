@@ -57,7 +57,7 @@ func TestFirstRunLibraryAvailableWithoutAcceleration(t *testing.T) {
 			if err := json.Unmarshal(call("GET", "/api/songs?policy=favorite", "").Body.Bytes(), &page); err != nil || page.Total != 1 {
 				t.Fatal("fresh library could not save a favorite", page, err)
 			}
-			if c.service != nil || c.httpServer != nil || c.queue.Running || c.batch.Running {
+			if c.service != nil || c.httpServer != nil || c.queue.snapshot().Running || c.batch.Running {
 				t.Fatal("business storage initialization started video work")
 			}
 			if c.localInventory().Catalog.Revision != "20261026000000" {

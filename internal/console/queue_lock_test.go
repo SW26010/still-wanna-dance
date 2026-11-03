@@ -12,6 +12,32 @@ import (
 	"still-wanna-dance/internal/vrclog"
 )
 
+func TestQueueSnapshotIsIndependent(t *testing.T) {
+	q := &queueTask{QueueStatus: QueueStatus{
+		Songs:    []vrclog.Song{{ID: 1}},
+		Active:   []int64{1},
+		Blocked:  []int64{2},
+		Failures: []Failure{{ID: 3, Error: "failed"}},
+		Titles:   map[string]string{"1": "title"},
+	}}
+	want := q.snapshot()
+	got := q.snapshot()
+	got.Songs[0].ID = 10
+	got.Active[0] = 10
+	got.Blocked[0] = 20
+	got.Failures[0].Error = "changed"
+	got.Titles["1"] = "changed"
+	if current := q.snapshot(); !reflect.DeepEqual(current, want) {
+		t.Fatalf("snapshot changed queue state: got %+v, want %+v", current, want)
+	}
+	songs := []vrclog.Song{{ID: 4}}
+	q.setQueueSongs(songs, false)
+	songs[0].ID = 5
+	if got := q.snapshot().Songs[0].ID; got != 4 {
+		t.Fatalf("queue kept the caller's mutable song slice: %d", got)
+	}
+}
+
 func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T) {
 	c := testConsole(t)
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -31,7 +57,7 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 		}
 	}
 	apply := func(id int64, reset bool, done chan struct{}) {
-		c.setQueueSongs([]vrclog.Song{{ID: id}}, reset)
+		c.queue.setQueueSongs([]vrclog.Song{{ID: id}}, reset)
 		close(done)
 	}
 	firstDone, secondDone := make(chan struct{}), make(chan struct{})
@@ -53,9 +79,7 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 	case <-time.After(time.Second):
 		t.Fatal("queue protection blocked status")
 	}
-	c.mu.Lock()
-	id := c.queue.Songs[0].ID
-	c.mu.Unlock()
+	id := c.queue.snapshot().Songs[0].ID
 	if id != 1 {
 		t.Fatal("later reset overtook pending protection", id)
 	}
@@ -71,10 +95,10 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 	if !reflect.DeepEqual(got, []update{{[]int64{1}, false}, {[]int64{2}, true}}) {
 		t.Fatal(got)
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.queue.Songs[0].ID != 2 || c.queue.Generation != 1 {
-		t.Fatal(c.queue)
+	c.queue.mu.Lock()
+	defer c.queue.mu.Unlock()
+	if c.queue.Songs[0].ID != 2 || c.queue.generation != 1 {
+		t.Fatal(c.queue.QueueStatus)
 	}
 }
 
@@ -82,10 +106,10 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	c := testConsole(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c.queueCancel = cancel
+	c.queue.cancel = cancel
 	entered, done := make(chan struct{}), make(chan struct{})
 	c.queue.updateSources = func([]int64, bool) { close(entered); <-ctx.Done() }
-	go func() { c.setQueueSongs([]vrclog.Song{{ID: 1}}, false); close(done) }()
+	go func() { c.queue.setQueueSongs([]vrclog.Song{{ID: 1}}, false); close(done) }()
 	<-entered
 	stopped := make(chan error, 1)
 	go func() { stopped <- c.Close() }()
@@ -114,9 +138,7 @@ func TestGatewayStopWaitsForQueueWithdrawal(t *testing.T) {
 		queueDone := make(chan struct{})
 		c := &Console{
 			queueDesired: true,
-			queueCancel:  cancel,
-			queueDone:    queueDone,
-			queue: QueueStatus{updateSources: func(ids []int64, reset bool) {
+			queue: queueTask{cancel: cancel, done: queueDone, updateSources: func(ids []int64, reset bool) {
 				if len(ids) != 0 || !reset {
 					t.Errorf("unexpected withdrawal: %v, reset=%v", ids, reset)
 				}
@@ -126,7 +148,7 @@ func TestGatewayStopWaitsForQueueWithdrawal(t *testing.T) {
 		}
 		go func() {
 			<-ctx.Done()
-			c.setQueueSongs(nil, true)
+			c.queue.setQueueSongs(nil, true)
 			close(queueDone)
 		}()
 		stopped := make(chan error, 1)

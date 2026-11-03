@@ -15,7 +15,7 @@ import (
 func TestAutoStartSetting(t *testing.T) {
 	c := testConsole(t)
 	c.AutoStart()
-	if c.DesktopState().CDN || c.queue.Running || c.queueDesired || c.hosts.status().Ready {
+	if c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired || c.hosts.status().Ready {
 		t.Fatal("default settings started acceleration or queue prefetch")
 	}
 	s := c.settings
@@ -29,7 +29,7 @@ func TestAutoStartSetting(t *testing.T) {
 	}
 
 	c.AutoStart()
-	if !c.DesktopState().CDN || !c.queue.Running || !c.queueDesired {
+	if !c.DesktopState().CDN || !c.queue.snapshot().Running || !c.queueDesired {
 		t.Fatal("enabled automatic acceleration did not start both services")
 	}
 	if err := c.stop(); err != nil {
@@ -38,7 +38,7 @@ func TestAutoStartSetting(t *testing.T) {
 	c.AutoStart() // repeated calls cannot restart the process attempt
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/", nil))
-	if w.Code != 200 || c.DesktopState().CDN || c.queue.Running || c.queueDesired {
+	if w.Code != 200 || c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired {
 		t.Fatal("opening the web console restarted manually stopped services")
 	}
 	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway || !c.savedSettings.AutoAccelerate || !c.savedSettings.QueueWithGateway {
@@ -59,14 +59,14 @@ func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
 				if err := c.save(s); err != nil {
 					t.Fatal(err)
 				}
-				if c.httpServer != nil || c.queue.Running || c.queueDesired {
+				if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired {
 					t.Fatal("saving startup preferences started services immediately")
 				}
 				c = restartTestConsole(t, c)
 
 				c.AutoStart()
-				if c.settings.AutoAccelerate != gateway || c.DesktopState().CDN != gateway || c.settings.QueueWithGateway != queue || c.queue.Running != (gateway && queue) || c.queueDesired != (gateway && queue) {
-					t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.Running, c.queueDesired)
+				if c.settings.AutoAccelerate != gateway || c.DesktopState().CDN != gateway || c.settings.QueueWithGateway != queue || c.queue.snapshot().Running != (gateway && queue) || c.queueDesired != (gateway && queue) {
+					t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.snapshot().Running, c.queueDesired)
 				}
 			})
 		}
@@ -105,7 +105,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	if c.DesktopState().CDN || c.videoListener != nil || c.https != nil {
 		t.Fatal("failed auto start left CDN partially running")
 	}
-	if c.queue.Running || c.queueDesired || c.hosts.status().Ready {
+	if c.queue.snapshot().Running || c.queueDesired || c.hosts.status().Ready {
 		t.Fatal("failed acceleration left connection or queue running")
 	}
 	r := httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil)
@@ -128,7 +128,7 @@ func TestQueueWithGatewayFailureStillStartsGateway(t *testing.T) {
 	c.settings.AutoAccelerate = true
 
 	c.AutoStart()
-	if !c.DesktopState().CDN || c.queue.Running || !c.queueDesired || c.actionErrors["queue"] == "" {
+	if !c.DesktopState().CDN || c.queue.snapshot().Running || !c.queueDesired || c.actionErrors["queue"] == "" {
 		t.Fatal("queue startup failure affected gateway or was not reported")
 	}
 }

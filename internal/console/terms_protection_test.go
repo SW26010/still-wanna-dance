@@ -132,7 +132,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 			}
 			loaded.settings.AutoAccelerate, loaded.settings.QueueWithGateway = true, true
 			loaded.AutoStart()
-			if loaded.service != nil || loaded.httpServer != nil || loaded.queueCancel != nil {
+			if loaded.service != nil || loaded.httpServer != nil || queueHasCancelForTest(&loaded.queue) {
 				t.Fatal("invalid receipt started services")
 			}
 			w := httptest.NewRecorder()

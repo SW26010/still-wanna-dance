@@ -285,7 +285,7 @@ func TestScanCanRunAlongsideQueue(t *testing.T) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !c.queue.Running || !c.batch.Running || !c.batch.ScanOnly {
+	if !c.queue.snapshot().Running || !c.batch.Running || !c.batch.ScanOnly {
 		t.Fatal("scan and queue should remain running")
 	}
 }

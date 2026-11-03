@@ -80,7 +80,7 @@ func TestLibraryBrowser(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(cfg.VideoDir, key+".mp4")); !os.IsNotExist(err) {
 		t.Fatal("browser deletion did not remove file", err)
 	}
-	if c.httpServer != nil || c.queue.Running {
+	if c.httpServer != nil || c.queue.snapshot().Running {
 		t.Fatal("library started gateway/queue")
 	}
 }

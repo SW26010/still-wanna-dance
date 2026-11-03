@@ -27,8 +27,7 @@ func TestLeaseStopCompletesBeforeCoordinatorRetirement(t *testing.T) {
 		w.jobs[0] = &scheduledBlock{task: task}
 		time.Sleep(time.Second)
 		<-task.Done()
-		initialized := true
-		if whole, err := w.reapCompleted(&initialized); whole || err != nil || len(w.jobs) != 0 {
+		if whole, err := w.reapCompleted(); whole || err != nil || len(w.jobs) != 0 {
 			t.Fatal("completed lease retirement failed a newly attached GET", whole, err, len(w.jobs))
 		}
 	})

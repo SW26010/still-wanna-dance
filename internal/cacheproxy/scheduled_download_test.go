@@ -169,8 +169,7 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 		t.Run(map[bool]string{false: "sequential_published", true: "first_range_only"}[ranged], func(t *testing.T) {
 			w, s := testSession(t)
 			w.initialized = make(chan struct{})
-			// Coordinator snapshots before the worker has received response headers.
-			initialized := false
+			// The worker has not received response headers yet.
 			task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
 				if ranged {
 					w.f.ranges.done[0] = true // Only one of twenty blocks exists.
@@ -184,7 +183,8 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 			w.jobs[0] = &scheduledBlock{task: task}
 
 			<-task.Done() // Worker initialization and completion precede observation.
-			published, err := w.reapCompleted(&initialized)
+			published, err := w.reapCompleted()
+			initialized := w.rangesInitialized()
 			if err != nil || published == ranged || initialized != ranged || len(w.jobs) != 0 {
 				t.Fatalf("published=%v initialized=%v jobs=%d err=%v", published, initialized, len(w.jobs), err)
 			}
@@ -198,4 +198,48 @@ func TestCompletionRechecksRangeInitialization(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSessionWaitObservesInitializationAfterPlan(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.initialized = make(chan struct{})
+		var cancel context.CancelFunc
+		w.ctx, cancel = context.WithCancel(w.ctx)
+		defer cancel()
+		_, release := addTestDemand(t, s, context.Background(), w.v, false)
+		defer release()
+
+		plan, whole, err := w.nextPlan()
+		if err != nil || whole || plan.initialized || len(plan.blocks) != 1 {
+			t.Fatalf("initial plan: initialized=%v blocks=%d whole=%v err=%v", plan.initialized, len(plan.blocks), whole, err)
+		}
+		assertNotification(t, plan.changed, false)
+		select {
+		case <-w.wake:
+			t.Fatal("unexpected pending wake")
+		default:
+		}
+
+		// No other event is needed when initialization follows the plan.
+		close(w.initialized)
+		timer := time.NewTimer(time.Hour)
+		defer timer.Stop()
+		done := make(chan struct{})
+		go func() {
+			w.waitForChanges(timer, plan, time.Time{})
+			close(done)
+		}()
+		synctest.Wait()
+		select {
+		case <-done:
+		default:
+			t.Fatal("initialization did not wake the session")
+		}
+
+		plan, whole, err = w.nextPlan()
+		if err != nil || whole || !plan.initialized || len(plan.blocks) != 20 {
+			t.Fatalf("initialized plan: initialized=%v blocks=%d whole=%v err=%v", plan.initialized, len(plan.blocks), whole, err)
+		}
+	})
 }

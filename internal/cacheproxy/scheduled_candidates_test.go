@@ -198,8 +198,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	first := w.jobs[0].task
 	first.Close()
 	<-first.Done()
-	initialized := true
-	if _, err := w.reapCompleted(&initialized); err != nil || w.jobs[0] != nil {
+	if _, err := w.reapCompleted(); err != nil || w.jobs[0] != nil {
 		t.Fatal("stopped task was not retired before current usage is reconsidered", err)
 	}
 	w.f.ranges.done[0] = true

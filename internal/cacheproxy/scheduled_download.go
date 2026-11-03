@@ -22,6 +22,17 @@ type scheduledBlock struct {
 	nextExpiry time.Time
 	retiring   bool
 }
+
+// A plan keeps the initialization view and notification captured with its
+// blocks. The coordinator must use that same view when deciding how to wait.
+type sessionPlan struct {
+	blocks      map[int64]blockUse
+	changed     <-chan struct{}
+	at          time.Time
+	active      bool
+	initialized bool
+}
+
 type downloadSession struct {
 	s           *Server
 	ctx         context.Context
@@ -52,6 +63,15 @@ func (w *downloadSession) initialize(d *localResource) {
 	w.exposeLocalReads(d)
 	w.f.progress.setStage("range_download")
 	w.initOnce.Do(func() { close(w.initialized) })
+}
+
+func (w *downloadSession) rangesInitialized() bool {
+	select {
+	case <-w.initialized:
+		return true
+	default:
+		return false
+	}
 }
 
 // Existing complete blocks are readable before a replacement response tells us
@@ -103,6 +123,8 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	return nil
 }
 
+// plan projects one initialization view. The running session uses nextPlan to
+// discard this snapshot if initialization changes while it is being built.
 func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
 	w.refetchAt = time.Time{}
 	if !w.nextRenewal().After(now) {
@@ -295,7 +317,7 @@ func maxTime(a, b time.Time) time.Time {
 }
 
 // reapCompleted distinguishes a complete sequential body from a completed range.
-func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
+func (w *downloadSession) reapCompleted() (bool, error) {
 	for block, j := range w.jobs {
 		if j.task == nil {
 			continue
@@ -324,15 +346,9 @@ func (w *downloadSession) reapCompleted(initialized *bool) (bool, error) {
 				return false, err
 			}
 			delete(w.jobs, block)
-			// Headers and the first range can finish after the loop's snapshot.
-			// Observe initialization again after Done before deciding that a
-			// successful task downloaded the entire sequential response.
-			select {
-			case <-w.initialized:
-				*initialized = true
-			default:
-			}
-			if !*initialized && !j.retiring {
+			// Done publishes the executor's initialization before we decide
+			// whether it downloaded an entire sequential response.
+			if !w.rangesInitialized() && !j.retiring {
 				return true, nil
 			} // sequential 200, ready for independent local publication
 			if j.task.Err() == nil && !w.f.discard && w.s.aggressiveBlockReclamation() {
@@ -375,11 +391,60 @@ func (w *downloadSession) releaseResourceWatch() {
 	}
 }
 
+// nextPlan discards a single-block plan if initialization completed while it
+// was being built. Later initialization stays observable through the plan's
+// initialization view during the ordinary coordinator wait.
+func (w *downloadSession) nextPlan() (sessionPlan, bool, error) {
+	for {
+		if w.ctx.Err() != nil {
+			return sessionPlan{}, false, context.Cause(w.ctx)
+		}
+		whole, err := w.reapCompleted()
+		if err != nil || whole {
+			return sessionPlan{}, whole, err
+		}
+		initialized := w.rangesInitialized()
+		now := time.Now()
+		blocks, changed, active := w.plan(now, initialized)
+		if !initialized && w.rangesInitialized() {
+			continue
+		}
+		return sessionPlan{blocks: blocks, changed: changed, at: now, active: active, initialized: initialized}, false, nil
+	}
+}
+
+func (w *downloadSession) waitForChanges(timer *time.Timer, plan sessionPlan, until time.Time) {
+	wait := w.nextRenewal().Sub(plan.at)
+	if w.refetchAt.After(plan.at) {
+		wait = min(wait, w.refetchAt.Sub(plan.at))
+	}
+	if !plan.active && len(plan.blocks) == 0 {
+		wait = min(wait, until.Sub(plan.at))
+	}
+	for _, j := range w.jobs {
+		if j.nextExpiry.After(plan.at) {
+			wait = min(wait, j.nextExpiry.Sub(plan.at))
+		}
+	}
+	timer.Reset(max(time.Millisecond, wait))
+	var init <-chan struct{}
+	if !plan.initialized {
+		init = w.initialized
+	}
+	select {
+	case <-w.ctx.Done():
+	case <-w.wake:
+	case <-plan.changed:
+	case <-w.capacity:
+	case <-timer.C:
+	case <-init:
+	}
+}
+
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
 	w := newDownloadSession(s, ctx, v, f)
 	defer func() { result = w.close(result) }()
-	initialized := f.ranges != nil && (!f.ranges.sequential || f.ranges.complete())
-	if initialized {
+	if f.ranges != nil && (!f.ranges.sequential || f.ranges.complete()) {
 		w.initialize(f.ranges)
 	} else if f.ranges != nil {
 		w.exposeLocalReads(f.ranges)
@@ -387,41 +452,22 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 	timer := time.NewTimer(sourceRenewInterval)
 	defer timer.Stop()
 	for {
-		if ctx.Err() != nil {
-			return context.Cause(ctx)
-		}
-		select {
-		case <-w.initialized:
-			initialized = true
-		default:
-		}
-		whole, err := w.reapCompleted(&initialized)
+		plan, whole, err := w.nextPlan()
 		if err != nil {
 			return err
 		}
 		if whole {
 			break
 		}
-		now := time.Now()
-		plan, changed, active := w.plan(now, initialized)
-		// Initialization can complete while plan uses the earlier single-block
-		// view. Replan so pending readers do not wait for another event.
-		if !initialized {
-			select {
-			case <-w.initialized:
-				continue
-			default:
-			}
-		}
 		// Planning filters completed blocks, so an empty plan can mean the
 		// last range just finished. Check completion after that filtering and
 		// before withdrawing demands; drain task results before hashing.
 		complete := false
-		if initialized {
+		if plan.initialized {
 			complete = f.ranges.complete()
 			if !complete && !f.discard && s.aggressiveBlockReclamation() {
-				complete = len(plan) == 0 && w.refetchAt.IsZero() && w.allFetched()
-				if complete && len(w.jobs) == 0 && !s.preemptFlight(f, changed) {
+				complete = len(plan.blocks) == 0 && w.refetchAt.IsZero() && w.allFetched()
+				if complete && len(w.jobs) == 0 && !s.preemptFlight(f, plan.changed) {
 					continue // A new source invalidated completion based on old work.
 				}
 			}
@@ -444,41 +490,17 @@ func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *
 			}
 			continue
 		}
-		until, retry, err := w.reconcile(plan, now, changed, active)
+		until, retry, err := w.reconcile(plan.blocks, plan.at, plan.changed, plan.active)
 		if err != nil {
 			return err
 		}
 		if retry {
 			continue
 		}
-		if !active && len(plan) == 0 && !until.After(now) {
+		if !plan.active && len(plan.blocks) == 0 && !until.After(plan.at) {
 			return errPreempted
 		}
-		wait := w.nextRenewal().Sub(now)
-		if w.refetchAt.After(now) {
-			wait = min(wait, w.refetchAt.Sub(now))
-		}
-		if !active && len(plan) == 0 {
-			wait = min(wait, until.Sub(now))
-		}
-		for _, j := range w.jobs {
-			if j.nextExpiry.After(now) {
-				wait = min(wait, j.nextExpiry.Sub(now))
-			}
-		}
-		timer.Reset(max(time.Millisecond, wait))
-		var init <-chan struct{}
-		if !initialized {
-			init = w.initialized
-		}
-		select {
-		case <-ctx.Done():
-		case <-w.wake:
-		case <-changed:
-		case <-w.capacity:
-		case <-timer.C:
-		case <-init:
-		}
+		w.waitForChanges(timer, plan, until)
 	}
 	// Hashing and publication stay bounded without charging the preceding
 	// intentional waits between playback-driven block executions.

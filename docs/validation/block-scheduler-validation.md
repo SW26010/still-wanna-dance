@@ -898,3 +898,27 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 固定尾部乱序后，旧断言稳定失败于第 7/8 块；修正后的用例连续 100 次通过（5.925 秒），相关 `go vet` 与 `git diff --check` 通过。原始失败与修复后输出保留在忽略目录 `artifacts/ci-fix-20261028/`。这些验证不产生新的 VRC 专属待验项。
 
 首次整包检查在 Windows 沙箱内因硬链接、目录联接权限被拒及相关子进程夹具失败而未通过，调度器整包通过；原始记录为 `cacheproxy-blocksched-after.log`。随后通过同一 `with-test-temp.ps1` 入口在正常用户权限下重跑，`cacheproxy` 与 `blocksched` 两包通过（56.867／0.197 秒），见 `cacheproxy-blocksched-outside-sandbox.log`；不修改产品文件操作绕过限制。
+
+## 2026-11-03：资源会话计划与初始化视图
+
+资源会话将同一轮块计划、资源变化通知及初始化视图一并用于协调：初始化在规划中完成时重算，规划后完成时仍能唤醒普通协调等待。完成任务时直接观察会话的初始化信号，不再由循环向完成处理传递状态指针。需求、调度、执行及跨下载任务的资源使用职责未改变，现行规则见[下载资源设计](../download-resource-design.md)。
+
+经 Windows 临时目录入口执行：缓存与块调度两包普通测试在正常用户权限下通过（164.605／0.216 秒）；11 项会话、HTTP Range、顺序 200、取消、完成和通知相关用例在正常用户权限下各运行三次 Windows race，通过（142.174 秒）；两包 `go vet` 通过。新增会话级测试验证初始化在规划后发生时无需其他事件即可唤醒并生成多块计划，原有固定规划中竞争的 HTTP 入口回归继续保留。
+
+上述 11 项根据当时运行命令的 `-run` 选择条件还原；输出摘录本身只有汇总结果。命令对 `./internal/cacheproxy` 使用 `-race -tags=no_easytier -count=3 -timeout=5m`，按完整名称匹配以下顶层用例及其子测试：
+
+```text
+TestSessionWaitObservesInitializationAfterPlan
+TestHTTPSeekDuringRangeInitialization
+TestCompletionRechecksRangeInitialization
+TestLeaseStopCompletesBeforeCoordinatorRetirement
+TestExpandedResourceRetainsGlobalMetadataCapacity
+TestReadableBlockDrainsWithoutCancelingSuccessfulExecution
+TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes
+TestScheduledRenewalTimerSurvivesFrequentResourceEvents
+TestPreviewExistingSequentialBlocksBindEarlierReadersTo200Execution
+TestCanceledSessionCannotRestartTask
+TestGETArrivingAfterIdleSnapshotKeepsFlight
+```
+
+首次沙箱整包测试未通过，输出中包含硬链接、目录联接拒绝及相关子进程夹具失败；块调度包通过，截断输出不足以逐项归因。首次沙箱定向 race 因 `ThreadSanitizer: failed to restore address` 中止，没有可定位的数据竞争报告；较小的三项定向 race 在沙箱内通过。上述失败和通过的输出摘录保留在忽略目录 `artifacts/session-coordination-20261103/observed-results.txt`，不将失败计为通过。未启动 VRC，也不将受控测试外推为实际播放验证。

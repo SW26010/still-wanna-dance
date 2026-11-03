@@ -153,8 +153,7 @@ func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
 	if err := task.Err(); err != nil {
 		t.Fatal("successful execution became cancellation", err)
 	}
-	initialized := true
-	if _, err := w.reapCompleted(&initialized); err != nil || !w.finished[0] {
+	if _, err := w.reapCompleted(); err != nil || !w.finished[0] {
 		t.Fatal("completed work was lost before zero-budget reclamation", err)
 	}
 }

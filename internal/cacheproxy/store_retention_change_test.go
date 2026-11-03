@@ -58,6 +58,108 @@ func requireQueueWake(t *testing.T, changed <-chan struct{}, want bool) {
 	}
 }
 
+// Hold the existing usage flush, reached after policy lookup and before the
+// retention decision is applied. This fixture has no real usage worker.
+func requireDecisionBeforeWrite(t *testing.T, s *Server, decision, write func(context.Context) error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	u := s.usage
+	u.mu.Lock()
+	if u.started {
+		u.mu.Unlock()
+		t.Fatal("usage worker is already running")
+	}
+	u.started = true
+	u.mu.Unlock()
+
+	decisionDone := make(chan struct{})
+	var decisionErr error
+	go func() { decisionErr = decision(ctx); close(decisionDone) }()
+	var writeDone chan struct{}
+	var writeErr error
+	var barrier chan struct{}
+	defer func() {
+		u.mu.Lock()
+		u.started = false
+		u.mu.Unlock()
+		if barrier != nil {
+			close(barrier)
+		}
+		// Any flush that observed started=true sent its event under u.mu.
+		select {
+		case event := <-u.events:
+			if event.barrier != nil {
+				close(event.barrier)
+			}
+		default:
+		}
+		for _, done := range []<-chan struct{}{decisionDone, writeDone} {
+			if done != nil {
+				select {
+				case <-done:
+				case <-ctx.Done():
+					t.Error("retention operation did not finish", ctx.Err())
+				}
+			}
+		}
+	}()
+	select {
+	case event := <-u.events:
+		if event.barrier == nil {
+			t.Fatal("usage event did not contain a flush barrier")
+		}
+		barrier = event.barrier
+	case <-decisionDone:
+		t.Fatal("retention decision ended before the usage flush", decisionErr)
+	case <-ctx.Done():
+		t.Fatal("retention decision did not reach the usage flush", ctx.Err())
+	}
+	// The decision has consumed its policy snapshot. The writer probes the
+	// same exclusion before entering its real operation.
+	writeDone = make(chan struct{})
+	attempted := make(chan bool, 1)
+	go func() {
+		acquired := s.retentionRunMu.TryLock()
+		if acquired {
+			s.retentionRunMu.Unlock()
+		}
+		attempted <- acquired
+		writeErr = write(ctx)
+		close(writeDone)
+	}()
+	select {
+	case acquired := <-attempted:
+		if acquired {
+			select {
+			case <-writeDone:
+				t.Fatal("competing write advanced before the decision", writeErr)
+			case <-ctx.Done():
+				t.Fatal("competing write did not finish", ctx.Err())
+			}
+		}
+	case <-ctx.Done():
+		t.Fatal("competing write did not start", ctx.Err())
+	}
+	select {
+	case <-writeDone:
+		t.Fatal("write completed before the retention decision", writeErr)
+	default:
+	}
+	close(barrier)
+	barrier = nil
+	for _, done := range []<-chan struct{}{decisionDone, writeDone} {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			t.Fatal("retention operation did not finish", ctx.Err())
+		}
+	}
+	if decisionErr != nil || writeErr != nil {
+		t.Fatal("retention operation failed", decisionErr, writeErr)
+	}
+}
+
 func TestBusinessWritesNotifyRetentionAndQueue(t *testing.T) {
 	const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	for _, tc := range []struct {
@@ -304,6 +406,71 @@ func TestPreferenceFailureIsRecordedBeforeRetentionResumes(t *testing.T) {
 	requireRetentionWake(t, s, false)
 }
 
+func TestRetentionDecisionExcludesMappingAfterPolicyRead(t *testing.T) {
+	s := retentionChangeEngine(t)
+	const key = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	if err := s.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), key+".mp4")
+	putRetained(t, path, 12)
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 0
+	s.retained = map[string]retainedVideo{key: {path: path, key: key, size: info.Size(), modified: info.ModTime().UnixNano()}}
+	s.retainedBytes = info.Size()
+	requireDecisionBeforeWrite(t, s, func(context.Context) error {
+		s.runRetention(false)
+		return nil
+	}, func(ctx context.Context) error {
+		if err := s.Store.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-video.mp4?e=" + key + "&s=12"}); err != nil {
+			return err
+		}
+		s.retentionMu.Lock()
+		_, retained := s.retained[key]
+		s.retentionMu.Unlock()
+		if retained {
+			return errors.New("mapping write completed before retention applied its decision")
+		}
+		return nil
+	})
+	expectRetained(t, path, false)
+	assertSongResource(t, s, "1", key)
+}
+
+func TestPublicationDecisionExcludesPreferenceAfterPolicyRead(t *testing.T) {
+	s := retentionChangeEngine(t)
+	const key = "cccccccccccccccccccccccccccccccc"
+	if err := s.Store.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-video.mp4?e=" + key + "&s=12"}); err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 24
+	var reservation *publicationReservation
+	defer func() {
+		if reservation != nil {
+			s.releasePublication(reservation)
+		}
+	}()
+	requireDecisionBeforeWrite(t, s, func(ctx context.Context) error {
+		var err error
+		reservation, err = s.reservePublication(ctx, video{key: key, size: 12})
+		return err
+	}, func(ctx context.Context) error {
+		if err := s.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
+			return err
+		}
+		s.retentionMu.Lock()
+		_, published := s.publications[key]
+		s.retentionMu.Unlock()
+		if !published {
+			return errors.New("preference write completed before publication was admitted")
+		}
+		return nil
+	})
+}
+
 func TestMappingWriteSerializesWithRetention(t *testing.T) {
 	s := retentionChangeEngine(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -366,12 +533,12 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 
 func TestPreferenceWriteSerializesWithPublication(t *testing.T) {
 	s := retentionChangeEngine(t)
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
 	const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	if err := s.Store.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-video.mp4?e=" + key + "&s=12"}); err != nil {
+	if err := s.Store.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-video.mp4?e=" + key + "&s=12"}); err != nil {
 		t.Fatal(err)
 	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)

@@ -456,7 +456,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
-		if errors.Is(err, errPlaybackUpstream) || errors.Is(err, ErrLocalStorage) {
+		if errors.Is(err, errPlaybackUpstream) || errors.Is(err, ErrLocalStorage) || errors.Is(err, context.Canceled) {
 			http.Error(w, "playback resolution failed", cacheErrorStatus(err))
 			return
 		}

@@ -172,6 +172,56 @@ func TestSongPreviewTriesSelectedAliasFirst(t *testing.T) {
 	}
 }
 
+func TestPreviewUnknownSizeDuringServerStop(t *testing.T) {
+	started := make(chan struct{})
+	s, _ := setup(t, nil, func(cfg *Config) {
+		cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
+			close(started)
+			<-ctx.Done()
+			return "", ctx.Err()
+		}
+	})
+	target := seedPreview(t, s, payload)
+	if _, err := s.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
+		t.Fatal(err)
+	}
+	target.Size = 0
+	response := make(chan *responseRecorder, 1)
+	go func() { response <- previewResponse(s, target, nil) }()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("preview lookup did not start")
+	}
+	stopped := make(chan error, 1)
+	go func() { stopped <- s.Close() }()
+	var w *responseRecorder
+	select {
+	case w = <-response:
+	case <-time.After(5 * time.Second):
+		t.Fatal("preview did not stop")
+	}
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not stop")
+	}
+	if w.aborted || w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("preview status=%d aborted=%v body=%q", w.Code, w.aborted, w.Body.String())
+	}
+}
+
+func TestPreviewInitialResolutionKeepsValidationStatus(t *testing.T) {
+	s, _ := setup(t, nil, func(cfg *Config) { cfg.MaxFileBytes = int64(len(payload) - 1) })
+	w := previewResponse(s, seedPreview(t, s, payload), nil)
+	if w.aborted || w.Code != http.StatusBadRequest {
+		t.Fatalf("preview status=%d aborted=%v body=%q", w.Code, w.aborted, w.Body.String())
+	}
+}
+
 func TestPreviewStaysOnClickTimeResourceAndRechecksSongPolicy(t *testing.T) {
 	var queries atomic.Int32
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected download") }, func(cfg *Config) {

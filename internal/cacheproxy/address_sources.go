@@ -384,6 +384,11 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		if ctx.Err() != nil {
 			return video{}, ctx.Err()
 		}
+		// The server-owned check may stop before server cancellation reaches
+		// the request's asynchronously canceled context.
+		if err := s.ctx.Err(); err != nil {
+			return video{}, err
+		}
 		if err == nil {
 			if v, ok := accept(v); ok {
 				return v, nil

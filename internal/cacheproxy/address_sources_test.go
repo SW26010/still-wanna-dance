@@ -165,3 +165,74 @@ func TestResourcePreviewKeepsAliasLimit(t *testing.T) {
 		t.Fatalf("queries=%d error=%v", queries.Load(), err)
 	}
 }
+
+func TestResourceAddressServerStopBeforeWaiterCancellation(t *testing.T) {
+	for _, storageFailure := range []bool{false, true} {
+		t.Run(fmt.Sprintf("storage_failure=%v", storageFailure), func(t *testing.T) {
+			started := make(chan struct{})
+			s, _ := setup(t, nil, func(cfg *Config) {
+				cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
+					close(started)
+					<-ctx.Done()
+					if storageFailure {
+						return "", errors.Join(ErrLocalStorage, ctx.Err())
+					}
+					return "", ctx.Err()
+				}
+			})
+			target := seedPreview(t, s, payload)
+			check := s.startPlaybackCheck(t.Context(), "1", video{})
+			select {
+			case <-started:
+			case <-time.After(5 * time.Second):
+				t.Fatal("lookup did not start")
+			}
+			s.cancel()
+			select {
+			case <-check.done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("lookup did not stop")
+			}
+			_, lookupErr := s.waitSongQuery(t.Context(), check)
+			if !errors.Is(lookupErr, context.Canceled) || !storageFailure && !errors.Is(lookupErr, errPlaybackUpstream) {
+				t.Fatalf("lookup error = %v", lookupErr)
+			}
+			// The server-owned lookup can finish before its asynchronous cancellation
+			// reaches the request waiting for a fixed resource's address.
+			addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: "1", preferredCheck: check, batch: true}
+			_, err := addresses.next(t.Context(), s, video{})
+			if !errors.Is(err, context.Canceled) || storageFailure && (!errors.Is(err, ErrLocalStorage) || errors.Is(err, errPlaybackUpstream)) {
+				t.Fatalf("resource address error = %v", err)
+			}
+		})
+	}
+}
+
+func TestResourceAddressRetriesAfterIndependentLookupFailure(t *testing.T) {
+	for _, lookupErr := range []error{context.Canceled, context.DeadlineExceeded, errors.New("API unavailable")} {
+		t.Run(lookupErr.Error(), func(t *testing.T) {
+			calls := make(chan string, 2)
+			s, _ := setup(t, nil, func(cfg *Config) {
+				cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+					calls <- id
+					if id == "1" {
+						return "", fmt.Errorf("lookup failed: %w", lookupErr)
+					}
+					return videoURL(payload), nil
+				}
+			})
+			target := seedPreview(t, s, payload)
+			if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(2)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
+				t.Fatal(err)
+			}
+			addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: "1", batch: true}
+			v, err := addresses.next(t.Context(), s, video{})
+			if err != nil || v.key != target.Resource || len(calls) != 2 || <-calls != "1" || <-calls != "2" {
+				t.Fatalf("address=%+v lookup calls=%d error=%v", v, len(calls), err)
+			}
+		})
+	}
+}

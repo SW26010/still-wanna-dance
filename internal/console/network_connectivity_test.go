@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/upstreamcheck"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
@@ -132,7 +131,7 @@ func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 		closed <- struct{}{}
 	})
 	activateTestProxy(t, c, address, "fixture", "secret")
-	before, settings, business := c.client, c.settings, upstreamrequest.Default.Snapshot().Revision
+	before, settings, business := c.client, c.settings, c.requestChannel.Snapshot().Revision
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +161,7 @@ func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 	if s.Upstream != "proxy" || s.Phase != "canceled" || len(s.Results) != 0 {
 		t.Fatal(s)
 	}
-	if c.client != before || c.settings != settings || upstreamrequest.Default.Snapshot().Revision != business || testDNS(c).queries.Load() != 0 {
+	if c.client != before || c.settings != settings || c.requestChannel.Snapshot().Revision != business || testDNS(c).queries.Load() != 0 {
 		t.Fatal("diagnostic changed business routing or used direct DNS")
 	}
 }
@@ -280,7 +279,7 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 			}
 			return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
 		})
-		before, settings := upstreamrequest.Default.Snapshot(), c.settings
+		before, settings := c.requestChannel.Snapshot(), c.settings
 		if err := c.StartUpstreamServices(); err != nil {
 			t.Fatal(err)
 		}
@@ -329,7 +328,7 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 				t.Fatal("connectivity retained video data", dir, files, err)
 			}
 		}
-		if after := upstreamrequest.Default.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
+		if after := c.requestChannel.Snapshot(); after.Candidates != before.Candidates || after.Revision != before.Revision || c.settings != settings {
 			t.Fatal("diagnostic changed business routing")
 		}
 		if state.Finished.IsZero() || !state.LastResult.Finished.Equal(state.Finished) || state.NextCheck.Sub(state.Finished) != 5*time.Minute || c.monitor != nil {

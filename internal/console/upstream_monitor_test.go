@@ -89,7 +89,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		return response, nil
 	})
 	c.client.Transport = transport
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{transport})
+	c.requestRevision = c.requestChannel.Publish(monitorTestChannels{transport})
 	if err := c.StartUpstreamServices(); err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 		t.Fatal(err)
 	}
 	entered := make(chan struct{}, 1)
-	c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.requestRevision = c.requestChannel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		select {
 		case entered <- struct{}{}:
 		default:
@@ -203,7 +203,7 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("did not start")
 	}
-	c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.requestRevision = c.requestChannel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
 	}))
 	s := waitMonitor(t, c)
@@ -224,12 +224,12 @@ func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
 		t.Run(string(kind), func(t *testing.T) {
 			c := testConsole(t)
 			var calls atomic.Int32
-			c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+			c.requestRevision = c.requestChannel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 				calls.Add(1)
 				return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
 			}))
 			var err error
-			c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{})
+			c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -261,7 +261,7 @@ func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
 		t.Fatal("wrong settings default")
 	}
 	var err error
-	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{})
+	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,13 +292,13 @@ func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
 func TestManualMonitorCheckCanceledOnClose(t *testing.T) {
 	c := testConsole(t)
 	entered := make(chan struct{}, 1)
-	c.requestRevision = upstreamrequest.Default.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
+	c.requestRevision = c.requestChannel.Publish(catalogTransport(func(r *http.Request) (*http.Response, error) {
 		entered <- struct{}{}
 		<-r.Context().Done()
 		return nil, r.Context().Err()
 	}))
 	var err error
-	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{})
+	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 	if err != nil {
 		t.Fatal(err)
 	}

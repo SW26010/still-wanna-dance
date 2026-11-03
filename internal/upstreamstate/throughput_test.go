@@ -261,7 +261,7 @@ func TestConfigurableThroughputInterval(t *testing.T) {
 			}
 		})
 	}
-	if _, err := NewMonitor(Options{Policy: Policy{ThroughputInterval: -time.Minute}}); err == nil {
+	if _, err := NewMonitor(Options{Channel: upstreamrequest.NewChannel(), Policy: Policy{ThroughputInterval: -time.Minute}}); err == nil {
 		t.Fatal("negative interval accepted")
 	}
 }

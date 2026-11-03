@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -47,8 +46,8 @@ func TestBusinessRetryDoesNotResetBudgetOrRewriteMonitor(t *testing.T) {
 				}
 				return resp, nil
 			})
-			c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{measured})
-			m, err := upstreamstate.NewMonitor(upstreamstate.Options{})
+			c.requestRevision = c.requestChannel.Publish(monitorTestChannels{measured})
+			m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 			if err != nil {
 				t.Fatal(err)
 			}

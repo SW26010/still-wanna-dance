@@ -16,16 +16,10 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/upstreamcheck"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func automaticTestConsole(t *testing.T) *Console {
 	t.Helper()
-	// Each fake-clock bubble must own its channel notifications. Restore the
-	// process-global legacy channel only after Console cleanup has drained.
-	previous := upstreamrequest.Default
-	upstreamrequest.Default = upstreamrequest.NewChannel()
-	t.Cleanup(func() { upstreamrequest.Default = previous })
 	c := testConsole(t)
 	c.settings.UpstreamMode = "proxy"
 	return c

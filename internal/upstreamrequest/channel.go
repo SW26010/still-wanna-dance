@@ -8,7 +8,6 @@ import (
 )
 
 var ErrUnavailable = errors.New("upstream request channel is not ready")
-var Default = NewChannel()
 
 type Snapshot struct {
 	Revision   uint64

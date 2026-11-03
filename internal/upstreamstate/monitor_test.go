@@ -317,7 +317,7 @@ func TestRuntimeScheduleAndRequestTimeout(t *testing.T) {
 	if first.IsZero() || !m.Snapshot().Finished.After(first) || m.Snapshot().Policy != p {
 		t.Fatal("constructor policy not applied to periodic checks")
 	}
-	if _, err := NewMonitor(Options{Policy: Policy{Lifetime: -time.Second}}); err == nil {
+	if _, err := NewMonitor(Options{Channel: upstreamrequest.NewChannel(), Policy: Policy{Lifetime: -time.Second}}); err == nil {
 		t.Fatal("negative policy")
 	}
 	m.Close()
@@ -345,6 +345,12 @@ func (t *ownedTransport) Current(target string) []upstreamrequest.Candidate {
 	return candidates
 }
 
+func TestMonitorRequiresChannel(t *testing.T) {
+	if _, err := NewMonitor(Options{}); err == nil {
+		t.Fatal("monitor accepted a missing channel")
+	}
+}
+
 func TestTransportOwnershipAndNoConfigurationLeaks(t *testing.T) {
 	tr := &ownedTransport{}
 	channel := upstreamrequest.NewChannel()
@@ -358,7 +364,7 @@ func TestTransportOwnershipAndNoConfigurationLeaks(t *testing.T) {
 	if tr.closed.Load() {
 		t.Fatal("closed borrowed connection pool")
 	}
-	plain, err := NewMonitor(Options{})
+	plain, err := NewMonitor(Options{Channel: upstreamrequest.NewChannel()})
 	if err != nil {
 		t.Fatal(err)
 	}

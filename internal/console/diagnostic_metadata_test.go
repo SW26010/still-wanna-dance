@@ -11,8 +11,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
@@ -80,7 +78,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 			if upstream == "proxy" {
 				c.client.Transport = noCandidatesTransport{transport}
 			}
-			before := upstreamrequest.Default.Snapshot()
+			before := c.requestChannel.Snapshot()
 			// The completed middle ID leaves the set. Canceling the low ID keeps
 			// the pass position, then the next pass retries high before low.
 			for round, want := range []int64{high, middle, low, high, low, high, high, 0} {
@@ -141,7 +139,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 					}
 				}
 			}
-			if after := upstreamrequest.Default.Snapshot(); before.Candidates != after.Candidates || before.Revision != after.Revision {
+			if after := c.requestChannel.Snapshot(); before.Candidates != after.Candidates || before.Revision != after.Revision {
 				t.Fatal("diagnostic changed business routing")
 			}
 		})

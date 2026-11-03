@@ -16,7 +16,6 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamcheck"
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func seedCalibrationSong(t *testing.T, c *Console) {
@@ -90,7 +89,7 @@ func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 	activateTestProxy(t, c, address, user, password)
 	before, _ := os.ReadFile(c.configPath)
 	saved, active, client := c.savedSettings, c.settings, c.client
-	business := upstreamrequest.Default.Snapshot()
+	business := c.requestChannel.Snapshot()
 	body := []byte("{}")
 	r := httptest.NewRequest("POST", "http://"+c.address+"/api/network/calibration/start", bytes.NewReader(body))
 	r.Header.Set("X-SWD-Token", c.token)
@@ -130,7 +129,7 @@ func TestNetworkCalibrationActiveSOCKS5AndCancellation(t *testing.T) {
 		t.Fatal("canceled result lost upstream or exposed proxy configuration")
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if !bytes.Equal(before, after) || saved != c.savedSettings || active != c.settings || client != c.client || upstreamrequest.Default.Snapshot().Revision != business.Revision || testDNS(c).queries.Load() != 0 {
+	if !bytes.Equal(before, after) || saved != c.savedSettings || active != c.settings || client != c.client || c.requestChannel.Snapshot().Revision != business.Revision || testDNS(c).queries.Load() != 0 {
 		t.Fatal("test changed business configuration/channel or queried direct DNS")
 	}
 }

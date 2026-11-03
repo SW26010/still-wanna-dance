@@ -12,8 +12,7 @@ import (
 )
 
 type Options struct {
-	// Channel selects an application-owned observation scope. Nil uses Default.
-	// Isolated direct-path experiments may supply their own channel.
+	// Channel selects the required application-owned observation scope.
 	// The owner closes its transports.
 	Channel   *upstreamrequest.Channel
 	Resources *upstreamrequest.Resources
@@ -91,11 +90,10 @@ type Monitor struct {
 }
 
 func NewMonitor(o Options) (*Monitor, error) {
-	channel := o.Channel
-	if channel == nil {
-		channel = upstreamrequest.Default
+	if o.Channel == nil {
+		return nil, errors.New("upstream monitor channel is required")
 	}
-	return newMonitor(o, channel)
+	return newMonitor(o, o.Channel)
 }
 
 // Direct monitoring and isolated path experiments use the same implementation.

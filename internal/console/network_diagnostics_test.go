@@ -67,7 +67,7 @@ func TestDiagnosticsBorrowActiveProxyWithoutChannels(t *testing.T) {
 	if _, ok := client.Transport.(upstreamrequest.Candidates); ok {
 		t.Fatal("proxy exposes direct candidate interface")
 	}
-	before := upstreamrequest.Default.Snapshot()
+	before := c.requestChannel.Snapshot()
 	c.mu.Lock()
 	test, err := c.networkCalibrationLocked()
 	c.mu.Unlock()
@@ -78,7 +78,7 @@ func TestDiagnosticsBorrowActiveProxyWithoutChannels(t *testing.T) {
 	if state.Upstream != "proxy" || state.Running || c.monitor != nil {
 		t.Fatal(state)
 	}
-	if after := upstreamrequest.Default.Snapshot(); after.Revision != before.Revision || after.Candidates != before.Candidates {
+	if after := c.requestChannel.Snapshot(); after.Revision != before.Revision || after.Candidates != before.Candidates {
 		t.Fatal("diagnostics published channels")
 	}
 	if testDNS(c).queries.Load() != 0 {

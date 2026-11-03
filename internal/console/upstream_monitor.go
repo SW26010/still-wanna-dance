@@ -15,6 +15,7 @@ func (c *Console) newUpstreamMonitor(o upstreamstate.Options) (*upstreamstate.Mo
 	}
 	o.OnPlaybackURL = c.syncPlaybackURL
 	o.Resources = c.resources
+	o.Channel = c.requestChannel
 	return upstreamstate.NewMonitor(o)
 }
 

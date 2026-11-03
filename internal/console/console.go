@@ -106,6 +106,7 @@ type Console struct {
 	dns                 directResolver
 	upstreamDial        upstreamDialFunc
 	resources           *upstreamrequest.Resources
+	requestChannel      *upstreamrequest.Channel
 	requestRevision     uint64
 	metadata            *catalogsync.Sync
 	monitor             *upstreamstate.Monitor
@@ -148,6 +149,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	c.lifecycle = newApplicationLifecycle()
 	c.dns = dns
 	c.resources = upstreamrequest.NewResources()
+	c.requestChannel = upstreamrequest.NewChannel()
 	loaded, err := loadConfigFile(configPath)
 	if err != nil {
 		return nil, err
@@ -185,7 +187,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 		c.loadSnapshots()
 		c.loadImportTask()
 		if c.settings.UpstreamMode == "direct" {
-			c.requestRevision = upstreamrequest.Default.Publish(c.client.Transport.(upstreamrequest.Candidates))
+			c.requestRevision = c.requestChannel.Publish(c.client.Transport.(upstreamrequest.Candidates))
 		}
 	}
 	if err != nil && c.store != nil {
@@ -378,7 +380,7 @@ func (c *Console) BeginShutdown() {
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	if c.requestRevision != 0 {
-		upstreamrequest.Default.Release(c.requestRevision)
+		c.requestChannel.Release(c.requestRevision)
 	}
 	c.resources.Close()
 	if c.networkDiagnostics != nil {

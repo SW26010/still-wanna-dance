@@ -274,11 +274,6 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 	channel := upstreamrequest.NewChannel()
 	provider := &cfProductProvider{cfexpProvider: &cfexpProvider{api: pool, resource: pool, ordinary: base}, recorder: recorder}
 	channel.Publish(provider)
-	// The experiment is a separate process and all sessions are serial. Use the
-	// actual business resource-registration channel without touching app state.
-	previous := upstreamrequest.Default
-	upstreamrequest.Default = channel
-	defer func() { upstreamrequest.Default = previous }()
 	c := &Console{resources: upstreamrequest.NewResources(), apiBase: "https://api.udon.dance", client: client, settings: Settings{UpstreamMode: "direct"}}
 	var historyTransport http.RoundTripper
 	setupStart, setupBytes := time.Now(), total.Load()
@@ -562,9 +557,6 @@ func TestCFProductRecorderCountsPartialBodiesOnce(t *testing.T) {
 func TestCFProductPrefetchIntegration(t *testing.T) {
 	// Exercise the actual Console API resolution and publication path, including
 	// a failed resource transport that must remain visible after fallback succeeds.
-	previous := upstreamrequest.Default
-	upstreamrequest.Default = upstreamrequest.NewChannel()
-	defer func() { upstreamrequest.Default = previous }()
 	payload := strings.Repeat("x", (1<<20)+31)
 	target := fmt.Sprintf("https://%s/files/2403/1344-fixture.mp4?e=%x&s=%d", cfexpHost, md5.Sum([]byte(payload)), len(payload))
 	var total atomic.Int64

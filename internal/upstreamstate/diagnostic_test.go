@@ -10,7 +10,9 @@ import (
 )
 
 func TestScopedMonitorMeasuresThroughputWithoutPublishing(t *testing.T) {
-	before := upstreamrequest.Default.Snapshot()
+	other := upstreamrequest.NewChannel()
+	other.Publish(&upstreamrequest.Pool{})
+	before := other.Snapshot()
 	channel := upstreamrequest.NewChannel()
 	channel.Publish(transportFunc(func(r *http.Request) (*http.Response, error) {
 		if r.Header.Get("Range") != "" {
@@ -32,8 +34,8 @@ func TestScopedMonitorMeasuresThroughputWithoutPublishing(t *testing.T) {
 			t.Fatalf("missing speed: %+v", r)
 		}
 	}
-	after := upstreamrequest.Default.Snapshot()
+	after := other.Snapshot()
 	if after.Revision != before.Revision || after.Candidates != before.Candidates {
-		t.Fatal("scoped monitor published to default")
+		t.Fatal("scoped monitor changed another channel")
 	}
 }

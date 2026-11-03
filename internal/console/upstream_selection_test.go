@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -32,8 +31,8 @@ func TestBusinessResolutionReservesFallbackDeadline(t *testing.T) {
 		}
 		return resp, nil
 	})
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{measured})
-	m, err := upstreamstate.NewMonitor(upstreamstate.Options{})
+	c.requestRevision = c.requestChannel.Publish(monitorTestChannels{measured})
+	m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,8 +79,8 @@ func TestBusinessResolutionUsesCFAndMeasuredTransport(t *testing.T) {
 		}
 		return resp, nil
 	})
-	c.requestRevision = upstreamrequest.Default.Publish(monitorTestChannels{measured})
-	m, err := upstreamstate.NewMonitor(upstreamstate.Options{})
+	c.requestRevision = c.requestChannel.Publish(monitorTestChannels{measured})
+	m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
 	if err != nil {
 		t.Fatal(err)
 	}

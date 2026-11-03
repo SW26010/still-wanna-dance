@@ -12,7 +12,7 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	c := testConsole(t)
 	testDNS(c).seed("api.udon.dance", "203.0.113.1")
 	target := "https://api.udon.dance/Api/Songs/list"
-	initial := upstreamrequest.Default.Snapshot()
+	initial := c.requestChannel.Snapshot()
 	direct := initial.Candidates.Current(target)
 	if len(direct) != 1 || direct[0].Mode != "direct" {
 		t.Fatal(direct)
@@ -29,7 +29,7 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	if _, err := direct[0].Transport.RoundTrip(r); !errors.Is(err, upstreamrequest.ErrUnavailable) {
 		t.Fatal("old candidate survived config replacement", err)
 	}
-	if upstreamrequest.Default.Snapshot().Candidates != nil {
+	if c.requestChannel.Snapshot().Candidates != nil {
 		t.Fatal("proxy published a direct candidate provider")
 	}
 	if _, ok := c.client.Transport.(upstreamrequest.Candidates); ok {

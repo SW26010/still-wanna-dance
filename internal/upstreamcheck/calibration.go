@@ -14,10 +14,7 @@ import (
 	"still-wanna-dance/internal/playbacksource"
 )
 
-const (
-	calibrationMaxVideos      = 128
-	calibrationPrepareWorkers = 4
-)
+const calibrationPrepareWorkers = 4
 
 // Calibration is an opt-in, isolated diagnostic. It does not start the regular
 // monitor or publish recommendations. Business callbacks select candidates and
@@ -37,12 +34,11 @@ type Calibration struct {
 }
 
 type calibrationLimits struct {
-	duration, interval time.Duration
-	bytes              int64
-	warmup, window     time.Duration
-	prepare            time.Duration
-	reserveVideos      int
-	reserveBytes       int64
+	minimum, duration time.Duration
+	interval          time.Duration
+	warmup, window    time.Duration
+	prepare           time.Duration
+	reserveVideos     int
 }
 
 type CalibrationSample struct {
@@ -105,7 +101,6 @@ type CalibrationStatus struct {
 	CPUPercent          *float64            `json:"cpuPercent"`
 	CPUP95Percent       *float64            `json:"cpuP95Percent"`
 	CPUP99Percent       *float64            `json:"cpuP99Percent"`
-	MaxBytes            int64               `json:"maxBytes"`
 	MaxDurationMS       int64               `json:"maxDurationMS"`
 	PreparedVideos      int                 `json:"preparedVideos"`
 	PreparedBytes       int64               `json:"preparedBytes"`
@@ -136,9 +131,9 @@ type CalibrationOptions struct {
 func NewCalibration(client *http.Client, upstream string, options CalibrationOptions) *Calibration {
 	return &Calibration{client: client, options: options, changed: make(chan struct{}),
 		state: CalibrationStatus{Phase: "idle", Upstream: upstream, Samples: []CalibrationSample{}},
-		limits: calibrationLimits{duration: 20 * time.Second, interval: time.Second, bytes: 1 << 30,
+		limits: calibrationLimits{minimum: 10 * time.Second, duration: 120 * time.Second, interval: time.Second,
 			warmup: time.Second, window: 3 * time.Second, prepare: 30 * time.Second,
-			reserveVideos: 16, reserveBytes: 2 << 30}}
+			reserveVideos: 16}}
 }
 
 // Snapshot and subscription are atomic. A slow consumer can coalesce changes
@@ -180,7 +175,7 @@ func (c *Calibration) Start() error {
 	c.bytes.Store(0)
 	c.state = CalibrationStatus{Finished: c.state.Finished, Revision: c.state.Revision, Run: c.state.Run + 1,
 		Phase: "preparing", Upstream: c.state.Upstream, Running: true, Samples: []CalibrationSample{},
-		MaxBytes: c.limits.bytes, MaxDurationMS: c.limits.duration.Milliseconds()}
+		MaxDurationMS: c.limits.duration.Milliseconds()}
 	c.publishLocked()
 	go c.run(ctx, c.done)
 	return nil
@@ -228,7 +223,7 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample,
 	}
 	var samples []videoSample
 	var preparedBytes int64
-	ready := func() bool { return len(samples) >= c.limits.reserveVideos && preparedBytes >= c.limits.reserveBytes }
+	ready := func() bool { return len(samples) >= c.limits.reserveVideos }
 	seenIDs, seenVideos := make(map[int64]bool), make(map[string]bool)
 	accept := func(address string) bool {
 		sample, err := parseSample(address)
@@ -240,13 +235,13 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample,
 		preparedBytes += sample.size
 		c.mu.Lock()
 		c.state.PreparedVideos, c.state.PreparedBytes = len(samples), preparedBytes
-		c.state.PreparationProgress = min(100, 100*len(samples)/c.limits.reserveVideos, int(100*preparedBytes/c.limits.reserveBytes))
+		c.state.PreparationProgress = min(100, 100*len(samples)/c.limits.reserveVideos)
 		c.publishLocked()
 		c.mu.Unlock()
-		return ready() || len(samples) == calibrationMaxVideos
+		return ready()
 	}
 	for _, saved := range local.URLs {
-		if ctx.Err() != nil || ready() || len(samples) == calibrationMaxVideos {
+		if ctx.Err() != nil || ready() {
 			break
 		}
 		if _, err := parseSample(saved.URL); err != nil {
@@ -254,7 +249,7 @@ func (c *Calibration) prepare(ctx context.Context) (*http.Client, []videoSample,
 		}
 		accept(saved.URL)
 	}
-	if ctx.Err() == nil && !ready() && len(samples) < calibrationMaxVideos && c.options.Playback != nil {
+	if ctx.Err() == nil && !ready() && c.options.Playback != nil {
 		c.prepareSamples(ctx, local.SongIDs, seenIDs, accept)
 	}
 	// The reserve is a preparation target, not a prerequisite for measurement.
@@ -344,7 +339,7 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 			c.state.FullCPUPercent, c.state.CPUPercent, c.state.CPUP95Percent, c.state.CPUP99Percent = nil, nil, nil, nil
 		} else {
 			c.state.Finished = time.Now()
-			if (reason != "time_limit" && reason != "byte_limit" && reason != "samples_exhausted" && reason != "measurement_complete") || c.state.Bytes == 0 {
+			if (reason != "time_limit" && reason != "measurement_complete") || c.state.Bytes == 0 {
 				c.state.Phase = "failed"
 			}
 		}
@@ -362,6 +357,11 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 	}()
 	prep, cancel := context.WithTimeout(ctx, c.limits.prepare)
 	client, samples, err := c.prepare(prep)
+	if len(samples) < c.limits.reserveVideos && prep.Err() == nil {
+		// Preparation can run out of known work before its deadline. The start
+		// contract is still 16 videos or the preparation deadline.
+		<-prep.Done()
+	}
 	cancel()
 	if err != nil || ctx.Err() != nil {
 		if errors.Is(err, errCalibrationPreparationInsufficient) {
@@ -400,7 +400,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			c.state.FullConcurrency = fullOpen
 		}
 		c.state.MeasurementStage = speeds.stage
-		if speeds.stage == "complete" {
+		if speeds.stage == "complete" && now.Sub(started) >= c.limits.minimum {
 			measured.Store(true)
 			cancel() // Stop outstanding media immediately; the owner drains it.
 		}
@@ -422,13 +422,9 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	c.mu.Unlock()
 	// Only the ordinary admission ceiling and the output sink differ. Window,
 	// ranges, retries and the natural growth cadence remain with the loader.
-	var byteLimit atomic.Bool
 	cfg := cacheproxy.DiscardConfig{Transport: client.Transport, ResourceTransports: c.options.ResourceTransports}
 	cfg.ObserveBytes = func(n int64) {
-		if c.bytes.Add(n) >= c.limits.bytes {
-			byteLimit.Store(true)
-			cancel()
-		}
+		c.bytes.Add(n)
 	}
 	cfg.Observe = func(e blocksched.Event) {
 		c.mu.Lock()
@@ -486,10 +482,17 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	defer cpuTicker.Stop()
 	deadline := time.NewTimer(c.limits.duration)
 	defer deadline.Stop()
-	finished := make(chan error, len(samples))
+	type loadResult struct {
+		sample videoSample
+		err    error
+	}
+	finished := make(chan loadResult, len(samples))
 	activeLoads := len(samples)
+	load := func(sample videoSample) {
+		go func() { finished <- loadResult{sample, engine.Load(ctx, sample.url)} }()
+	}
 	for _, sample := range samples {
-		go func() { finished <- engine.Load(ctx, sample.url) }()
+		load(sample)
 	}
 	defer func() {
 		captureCPU() // Freeze before draining canceled bodies and other cleanup.
@@ -509,7 +512,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			c.mu.Lock()
 			stage := speeds.stage
 			c.mu.Unlock()
-			if stage == "complete" {
+			if measured.Load() {
 				return "measurement_complete"
 			}
 			if !released && stage == "ramping" {
@@ -520,7 +523,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 				c.mu.Unlock()
 				engine.SetSoftLimit(cacheproxy.VideoRequestSoftLimit)
 			}
-		case loadErr := <-finished:
+		case result := <-finished:
 			activeLoads--
 			if parent.Err() != nil {
 				return "canceled"
@@ -528,28 +531,24 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 			if measured.Load() {
 				return "measurement_complete"
 			}
-			if byteLimit.Load() {
-				return "byte_limit"
-			}
-			if loadErr != nil {
-				lastFailure = loadErr
+			if result.err != nil {
+				lastFailure = result.err
 				c.mu.Lock()
 				c.state.Failures++
 				c.publishLocked()
 				c.mu.Unlock()
+			} else {
+				// A completed video supplies fresh upstream work again. Never
+				// overlap two loads of the same resource in the discard loader.
+				activeLoads++
+				load(result.sample)
 			}
 			if activeLoads == 0 {
-				if lastFailure != nil {
-					return errorState(lastFailure)
-				}
-				return "samples_exhausted"
+				return errorState(lastFailure)
 			}
 		case <-ctx.Done():
 			if parent.Err() == nil && measured.Load() {
 				return "measurement_complete"
-			}
-			if parent.Err() == nil && byteLimit.Load() {
-				return "byte_limit"
 			}
 			return "canceled"
 		case <-deadline.C:

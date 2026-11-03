@@ -67,7 +67,7 @@ func calibrationForTest(t *testing.T, transport http.RoundTripper, songCount ...
 	c := newTestCalibration(requestClient(transport), "direct", func(context.Context) CalibrationCandidates { return CalibrationCandidates{SongIDs: ids} }, nil)
 	// Download-focused fixtures intentionally contain one short video. Tests
 	// of production preparation restore the real reserve requirements below.
-	c.limits.reserveVideos, c.limits.reserveBytes = 1, 16<<20
+	c.limits.reserveVideos, c.limits.minimum = 1, 0
 	t.Cleanup(func() {
 		c.Close()
 		paths, err := filepath.Glob(filepath.Join(root, "swd-calibration-*"))
@@ -104,6 +104,7 @@ func TestCalibrationFailureAndCancellationPreserveTestTimes(t *testing.T) {
 		<-r.Context().Done()
 		return nil, r.Context().Err()
 	}))
+	c.limits.prepare = 100 * time.Millisecond
 	var finished time.Time
 	for _, failure := range []bool{false, true, false} {
 		fail.Store(failure)
@@ -218,7 +219,7 @@ func TestCalibrationHoldsSingleThenUsesNaturalGrowthAndCancels(t *testing.T) {
 	})
 }
 
-func TestCalibrationDiscardsVideoOnceAndSnapshots(t *testing.T) {
+func TestCalibrationLoopsDiscardedVideoAndSnapshots(t *testing.T) {
 	var mu sync.Mutex
 	ranges := map[string]int{}
 	block := make([]byte, calibrationBlock)
@@ -232,23 +233,23 @@ func TestCalibrationDiscardsVideoOnceAndSnapshots(t *testing.T) {
 		time.Sleep(2 * time.Millisecond) // Keep full-block samples above the platform clock resolution.
 		return calibrationRange(r, io.NopCloser(bytes.NewReader(block))), nil
 	}))
-	// This case checks source exhaustion, not completion of a speed window.
-	c.limits.interval, c.limits.window = 10*time.Millisecond, time.Hour
+	// A short source is reread until the time limit, not treated as exhausted.
+	c.limits.interval, c.limits.window, c.limits.duration = 10*time.Millisecond, time.Hour, 300*time.Millisecond
 	for run := uint64(1); run <= 2; run++ {
 		if err := c.Start(); err != nil {
 			t.Fatal(err)
 		}
 		s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-		if s.Run != run || s.Phase != "completed" || s.Reason != "samples_exhausted" || s.Bytes != 32<<20 || s.Completed != 32 || s.BlockTimeMS <= 0 || len(s.Samples) == 0 || s.SingleSpeedBPS != nil || s.FullSpeedBPS != nil {
-			t.Fatalf("short video not discarded/marked insufficient: %+v", s)
+		if s.Run != run || s.Phase != "completed" || s.Reason != "time_limit" || s.Bytes <= 32<<20 || s.Completed <= 32 || s.BlockTimeMS <= 0 || len(s.Samples) == 0 || s.SingleSpeedBPS != nil || s.FullSpeedBPS != nil {
+			t.Fatalf("short video did not loop until the time limit: %+v", s)
 		}
 		mu.Lock()
 		if len(ranges) != 32 {
 			t.Errorf("ranges = %d", len(ranges))
 		}
 		for key, count := range ranges {
-			if count != int(run) {
-				t.Errorf("repeated range in one load: %s = %d", key, count)
+			if count <= int(run) {
+				t.Errorf("range was not reread from upstream: %s = %d", key, count)
 			}
 		}
 		mu.Unlock()
@@ -272,34 +273,65 @@ func TestCalibrationSequentialFallbackDoesNotCheckIntegrity(t *testing.T) {
 				data[0] = 1
 			}
 			var requests atomic.Int32
+			repeated := make(chan struct{})
 			c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
-				requests.Add(1)
+				if requests.Add(1) == 2 {
+					close(repeated)
+				}
 				return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(data)), Body: io.NopCloser(bytes.NewReader(data))}, nil
 			}))
 			if err := c.Start(); err != nil {
 				t.Fatal(err)
 			}
+			<-repeated
+			c.Cancel()
 			s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-			if s.Phase != "completed" || s.PeakActive != 1 || s.Completed != 0 || requests.Load() != 1 {
+			if s.Phase != "canceled" || s.PeakActive != 1 || s.Completed != 0 || requests.Load() < 2 {
 				t.Fatalf("sequential/integrity behavior changed: %+v requests=%d", s, requests.Load())
 			}
 		})
 	}
 }
 
-func TestCalibrationByteLimitCancelsOrdinaryLoad(t *testing.T) {
-	block := make([]byte, calibrationBlock)
-	c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
-		return calibrationRange(r, io.NopCloser(bytes.NewReader(block))), nil
-	}))
-	c.limits.bytes = 4 << 20
+func TestCalibrationDoesNotStopAtOneGiB(t *testing.T) {
+	reached := make(chan struct{})
+	fixture, _ := calibrationManyVideosSized(t, 1, 2<<30, func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: 2 << 30,
+			Body: io.NopCloser(&calibrationThresholdReader{ctx: r.Context(), reached: reached})}, nil
+	})
+	c := calibrationForTest(t, fixture)
+	c.limits.minimum = 10 * time.Second
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
-	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "completed" || s.Reason != "byte_limit" || s.Bytes < c.limits.bytes || s.Bytes >= 32<<20 || s.Failures != 0 {
-		t.Fatalf("stop boundary failed: %+v", s)
+	select {
+	case <-reached:
+	case <-time.After(10 * time.Second):
+		t.Fatal("did not read past the former byte limit")
 	}
+	s, _ := c.Snapshot()
+	if !s.Running || c.bytes.Load() <= 1<<30 {
+		t.Fatalf("measurement stopped at the former byte limit: %+v", s)
+	}
+	c.Cancel()
+	awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
+}
+
+type calibrationThresholdReader struct {
+	ctx     context.Context
+	reached chan struct{}
+	read    int64
+}
+
+func (r *calibrationThresholdReader) Read(p []byte) (int, error) {
+	if r.read > 1<<30 {
+		close(r.reached)
+		<-r.ctx.Done()
+		return 0, r.ctx.Err()
+	}
+	clear(p)
+	r.read += int64(len(p))
+	return len(p), nil
 }
 
 func TestCalibrationRangeValidation(t *testing.T) {
@@ -363,7 +395,12 @@ func TestCalibrationTimeLimitAndRetirement(t *testing.T) {
 }
 
 func TestCalibrationDoesNotNeedWritableTemporaryStorage(t *testing.T) {
+	var requests atomic.Int32
+	repeated := make(chan struct{})
 	c := calibrationForTest(t, calibrationTransport(func(*http.Request) (*http.Response, error) {
+		if requests.Add(1) == 2 {
+			close(repeated)
+		}
 		return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: 32 << 20,
 			Body: io.NopCloser(io.LimitReader(zeroCalibrationReader{}, 32<<20))}, nil
 	}))
@@ -378,10 +415,13 @@ func TestCalibrationDoesNotNeedWritableTemporaryStorage(t *testing.T) {
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
-	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "completed" || s.Bytes != 32<<20 {
+	<-repeated
+	s, _ := c.Snapshot()
+	if !s.Running || c.bytes.Load() < 32<<20 {
 		t.Fatalf("discard depended on storage: %+v", s)
 	}
+	c.Cancel()
+	awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
 }
 
 type zeroCalibrationReader struct{}
@@ -446,7 +486,7 @@ func calibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 		}
 	}), 9)
 	c.limits.warmup, c.limits.window, c.limits.interval = 50*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
-	c.limits.reserveVideos, c.limits.reserveBytes = 8, 256<<20
+	c.limits.reserveVideos = 8
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -454,8 +494,8 @@ func calibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	if s.Phase != "completed" || s.Reason != "measurement_complete" || s.SingleSpeedBPS == nil || s.FullSpeedBPS == nil || *s.SingleSpeedBPS <= 0 || *s.FullSpeedBPS < 3**s.SingleSpeedBPS || s.PeakActive != 16 || s.PeakOpen != 16 || active.Load() != 0 {
 		t.Fatalf("stages did not finish/drain: %+v active=%d", s, active.Load())
 	}
-	if s.Bytes >= 256<<20 || s.ConcurrencyLimit != 16 {
-		t.Fatal("did not stop excess video work after full sampling")
+	if s.ConcurrencyLimit != 16 {
+		t.Fatal("did not reach the ordinary concurrency ceiling")
 	}
 	if _, available := calibrationCPUTime(); available && (s.CPUPercent == nil || s.CPUP95Percent == nil || s.CPUP99Percent == nil || *s.CPUP99Percent < *s.CPUP95Percent) {
 		t.Fatal("missing/invalid process CPU statistics")
@@ -464,10 +504,8 @@ func calibrationMultipleVideosFinishBothMeasurementStages(t *testing.T) {
 	if catalogs.Load() != 0 {
 		t.Fatalf("measurement requested a catalog: %d", catalogs.Load())
 	}
-	for _, n := range ranges {
-		if n != 1 {
-			t.Fatal("downloaded one range repeatedly")
-		}
+	if len(ranges) == 0 {
+		t.Fatal("no video range was requested")
 	}
 	mu.Unlock()
 	previous := s.LastValid
@@ -529,13 +567,13 @@ func calibrationManyVideosSized(t *testing.T, count int, size int64, resource fu
 	}), &catalogs
 }
 
-func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
+func TestCalibrationPreparationStopsAtVideoCount(t *testing.T) {
 	transport, catalogs := calibrationManyVideos(t, 160, func(*http.Request) (*http.Response, error) {
 		t.Error("preparation downloaded media")
 		return nil, context.Canceled
 	})
 	c := calibrationForTest(t, transport, 160)
-	c.limits.reserveVideos, c.limits.reserveBytes = 16, 2<<30
+	c.limits.reserveVideos = 16
 	client, samples, err := c.prepare(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -550,46 +588,45 @@ func TestCalibrationPreparesExcessMediaMetadata(t *testing.T) {
 		seen[sample.checksum] = true
 		size += sample.size
 	}
-	if len(samples) != calibrationMaxVideos || size < 2*c.limits.bytes || catalogs.Load() != 0 {
-		t.Fatalf("reserve too small or catalog requested: count=%d size=%d catalogs=%d", len(samples), size, catalogs.Load())
+	if len(samples) != 16 || size != 16*16<<20 || catalogs.Load() != 0 {
+		t.Fatalf("preparation did not stop at 16 videos: count=%d size=%d catalogs=%d", len(samples), size, catalogs.Load())
 	}
 }
 
-func TestCalibrationReplenishesMoreThanInitiallyLoadedVideos(t *testing.T) {
-	var mu sync.Mutex
-	requests := map[string]int{}
-	videos := map[string]bool{}
-	transport, catalogs := calibrationManyVideos(t, 12, func(r *http.Request) (*http.Response, error) {
-		var start, end int64
-		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
-		mu.Lock()
-		requests[r.URL.String()+r.Header.Get("Range")]++
-		videos[r.URL.Query().Get("e")] = true
-		mu.Unlock()
-		return &http.Response{StatusCode: 206, ContentLength: end - start + 1,
-			Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/16777216", start, end)}},
-			Body:   io.NopCloser(io.LimitReader(zeroCalibrationReader{}, end-start+1))}, nil
-	})
-	c := calibrationForTest(t, transport, 12)
-	c.limits.window = time.Minute // Exhaust a deliberately short fixture pool before a valid speed.
-	c.limits.reserveVideos, c.limits.reserveBytes = 12, 192<<20
-	if err := c.Start(); err != nil {
-		t.Fatal(err)
-	}
-	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "completed" || s.Reason != "samples_exhausted" || s.Bytes != 12*16<<20 || s.SingleSpeedBPS != nil || s.FullSpeedBPS != nil {
-		t.Fatalf("pool was not consumed exactly once: %+v", s)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(videos) != 12 || len(requests) != 12*16 || catalogs.Load() != 0 {
-		t.Fatalf("did not replenish known videos without catalog requests: videos=%d ranges=%d catalogs=%d", len(videos), len(requests), catalogs.Load())
-	}
-	for _, n := range requests {
-		if n != 1 {
-			t.Fatal("repeated media range")
+func TestCalibrationCyclesPreparedVideos(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		requests := map[string]int{}
+		var active atomic.Int32
+		transport, catalogs := calibrationManyVideosSized(t, 12, calibrationBlock, func(r *http.Request) (*http.Response, error) {
+			mu.Lock()
+			requests[r.URL.Query().Get("e")]++
+			mu.Unlock()
+			active.Add(1)
+			resp := calibrationRangeSized(r, nil, calibrationBlock)
+			resp.Body = &pacedCalibrationBody{ctx: r.Context(), remaining: resp.ContentLength, active: &active}
+			return resp, nil
+		})
+		c := calibrationForTest(t, transport, 12)
+		c.limits.window, c.limits.duration, c.limits.reserveVideos = time.Minute, 8*time.Second, 12
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
 		}
-	}
+		s := waitCalibrationResult(c)
+		if s.Phase != "completed" || s.Reason != "time_limit" || s.Bytes <= 12*calibrationBlock || s.SingleSpeedBPS != nil || s.FullSpeedBPS != nil || active.Load() != 0 {
+			t.Fatalf("prepared videos did not loop until timeout: %+v", s)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if len(requests) != 12 || catalogs.Load() != 0 {
+			t.Fatalf("did not use the complete prepared pool: videos=%d catalogs=%d", len(requests), catalogs.Load())
+		}
+		for _, n := range requests {
+			if n < 2 {
+				t.Fatal("prepared video was not requested again", requests)
+			}
+		}
+	})
 }
 
 func TestCalibrationPreparationDoesNotSampleCPU(t *testing.T) {

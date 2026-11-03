@@ -60,6 +60,7 @@ function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean) {
   return {state,online,message,actionError,pending,intent,toggle,start};
 }
 const valid = (value:unknown):value is number => typeof value==='number' && Number.isFinite(value) && value>=0;
+const speedComplete=(state?:Calibration)=>state?.phase==='completed'&&valid(state.singleSpeedBPS)&&valid(state.fullSpeedBPS);
 const metric = (value?:number|null, factor=1) => valid(value) ? (value*factor).toFixed(2) : '—';
 const connectionNames:Record<ConnectivityOperation,string>={catalog:'歌曲列表',playback_url:'播放地址',resource:'视频下载'};
 const operations=Object.keys(connectionNames) as ConnectivityOperation[];
@@ -99,7 +100,7 @@ export function UpstreamStatus({visible}:{visible:boolean}) {
 function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
   const previous=s?.lastValid;
   const canceled=discard || ['canceling','canceled','failed'].includes(s?.phase || '');
-  const complete=s?.phase==='completed' && valid(s.singleSpeedBPS) && valid(s.fullSpeedBPS);
+  const complete=speedComplete(s);
   const result:Measurement = canceled || (!s?.running && !complete) ? previous || (!canceled ? s || {} : {}) : s || {};
   const live=result===s && s.running && !canceled, singleStage=['single_warmup','single'].includes(s?.measurementStage || '');
   const single=live ? s.liveSingleSpeedBPS ?? s.singleSpeedBPS ?? (singleStage?s.liveSpeedBPS:null) : result.singleSpeedBPS;
@@ -109,7 +110,7 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
   const usable=valid(ratio) && (result!==s || ['running','completed'].includes(s?.phase || ''));
   const advice=usable?(ratio>2?'可用':ratio>1?'不稳定':'不可用'):'', maximum=Math.max(3,Math.ceil(ratio || 0));
   const stages:Record<string,string>={single_warmup:'单连接预热…',single:'单连接测速…',ramping:'逐渐增加连接…',full_warmup:'多连接预热…',full:'多连接测速…',complete:'正在结束…'};
-  const label = canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?'样本不足':previous?'上次有效结果':'尚未测速';
+  const label = canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?previous?'未完成，保留上次结果':'测速未完成':previous?'上次有效结果':'尚未测速';
   return <><p role="status">{label}</p>
     {s?.phase==='failed' && s.reason==='preparation_insufficient' && <Feedback error>可用测速样本不足，请检查曲库与连通性后重试。</Feedback>}
     <div className="metrics"><div>单连接速度 <output><Text block size={600} font="numeric">{metric(single,8/1e6)} Mbps</Text></output></div><div>多连接速度<output><Text block size={600} font="numeric">{metric(full,8/1e6)} Mbps</Text></output></div></div>
@@ -143,7 +144,7 @@ export function Diagnostics({visible}: {visible:boolean}) {
   const entries:Record<string,string>={api:'Udon',kiva:'Kiva',wanna:'WannaInfo',cf:'CF'};
   const reasons:Record<string,string>={timeout:'请求超时',network_error:'网络请求失败',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',origin_timeout:'源站响应超时',http_error:'HTTP 响应异常',local_capacity:'代理连接额度已满',runtime_retired:'代理已退出',channel_unavailable:'连接不可用'};
   const shown=operations.flatMap(operation=>{const entries=rows.filter(row=>row.operation===operation);return entries.length?entries:[{operation}];});
-  const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'');
+  const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'')||(speedState?.phase==='completed'&&!speedComplete(speedState));
   const speedFinished=speedState?.finished, savedSpeedFinished=speedState?.lastValid?.finished;
   const notice=app.stopped?'':[...new Set([connectivity.message,calibration.message].filter(message=>message&&message!=='正在连接检测状态…'))].join('；');
   return <><p className="secondary">检测上游：{upstream}</p>

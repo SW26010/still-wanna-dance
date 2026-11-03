@@ -195,3 +195,16 @@ for (const hasPrevious of [false,true]) test(`canceled retry retains the failed 
     await expect(saved).toHaveText(previous!);
   } else await expect(saved).toHaveCount(0);
 });
+
+for (const hasPrevious of [false,true]) test(`incomplete speed test reports its outcome and keeps previous result ${hasPrevious}`,async({page})=>{
+  const api=await mockAPI(page);
+  Object.assign(api.diagnostics.calibration,{revision:2,phase:'completed',reason:'time_limit',finished:'2026-11-04T13:00:00Z',singleSpeedBPS:750000,fullSpeedBPS:null,lastValid:hasPrevious?{finished:'2026-11-04T12:00:00Z',singleSpeedBPS:500000,fullSpeedBPS:2000000,referenceBitrateBPS:2000000}:undefined});
+  await api.emit('calibration');await page.setViewportSize({width:390,height:844});await page.goto('/#network-tests');
+  await expect(page.getByText(hasPrevious?'未完成，保留上次结果':'测速未完成',{exact:true})).toBeVisible();
+  await expect(page.getByText(/^最后测试：/)).toBeVisible();
+  if(hasPrevious){
+    await expect(page.getByText('16.00 Mbps',{exact:true})).toBeVisible();
+    await expect(page.getByText(/^保留的测速结果：/)).toBeVisible();
+  } else await expect(page.getByText(/^保留的测速结果：/)).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

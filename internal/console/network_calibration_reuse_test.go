@@ -34,11 +34,13 @@ func TestNetworkCalibrationReusesConnectivityPlaybackAccess(t *testing.T) {
 	}
 	for {
 		s, changed := c.networkDiagnostics.calibration.Snapshot()
-		if !s.Running {
-			if s.PreparedVideos != 1 {
-				t.Fatalf("connectivity resolves the same local song through shared fallback but calibration does not: prepared=%d reason=%s", s.PreparedVideos, s.Reason)
-			}
+		if s.PreparedVideos == 1 {
+			c.networkDiagnostics.calibration.Cancel()
+			c.networkDiagnostics.calibration.Close()
 			break
+		}
+		if !s.Running {
+			t.Fatalf("connectivity resolves the same local song through shared fallback but calibration does not: prepared=%d reason=%s", s.PreparedVideos, s.Reason)
 		}
 		<-changed
 	}
@@ -49,9 +51,11 @@ func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 42, Node: "cf",
-		URL: "https://play.udon.dance/files/1/42-video.mp4?e=0000000000000000000000000000002a&s=134217728"}); err != nil {
-		t.Fatal(err)
+	for id := int64(1); id <= 16; id++ {
+		if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: id, Node: "cf",
+			URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=134217728", id, id)}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	var ordinary, first atomic.Int32
 	loaded := make(chan struct{}, 1)

@@ -28,9 +28,13 @@ func TestCalibrationUsesActiveClientAcrossResourceHosts(t *testing.T) {
 	var active atomic.Int32
 	var mu sync.Mutex
 	hosts := map[string]int{}
+	bothHosts := make(chan struct{})
 	fixture, _ := calibrationManyVideosSized(t, 2, calibrationBlock, func(r *http.Request) (*http.Response, error) {
 		mu.Lock()
 		hosts[r.URL.Host]++
+		if len(hosts) == 2 && hosts[r.URL.Host] == 1 {
+			close(bothHosts)
+		}
 		mu.Unlock()
 		active.Add(1)
 		resp := calibrationRangeSized(r, nil, calibrationBlock)
@@ -52,19 +56,21 @@ func TestCalibrationUsesActiveClientAcrossResourceHosts(t *testing.T) {
 		return resp, err
 	})}
 	c := calibrationForTest(t, client, 2)
-	c.limits.reserveVideos, c.limits.reserveBytes = 2, 2*calibrationBlock
-	// Each source is one block; finish both before ending on source exhaustion.
+	c.limits.reserveVideos = 2
+	// Each source is one block; observe both without opening additional lanes.
 	c.limits.warmup, c.limits.window = time.Hour, time.Hour
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
+	<-bothHosts
+	c.Cancel()
 	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-	if s.Phase != "completed" || s.Reason != "samples_exhausted" || s.Bytes != 2*calibrationBlock || s.Failures != 0 || active.Load() != 0 || s.Finished.IsZero() {
+	if s.Phase != "canceled" || s.Failures != 0 || active.Load() != 0 {
 		t.Fatalf("%+v active=%d", s, active.Load())
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if hosts["cf-a.example.com"] != 1 || hosts["cf-b.example.com"] != 1 {
+	if hosts["cf-a.example.com"] < 1 || hosts["cf-b.example.com"] < 1 {
 		t.Fatal("resource hosts did not share the active client", hosts)
 	}
 }

@@ -1109,6 +1109,13 @@
       "bytes": 1241364,
       "sha256": "6e1c365016b23aaa2c8d747519ae28ab701cf34a4914e04fcf8c4204a33eb72a",
       "reason": "Production WebUI rebuilt after merging the exit-button and home-acceleration branches; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1261118,
+      "sha256": "8b038fe7268ad7ce5556c0dca7bd6989e18e3094498e7f4a65963570dda9f5b3",
+      "reason": "Production WebUI generated from webui/src with incomplete speed-test result and retained timestamp feedback; embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

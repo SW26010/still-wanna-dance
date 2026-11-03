@@ -70,7 +70,7 @@ func TestCalibrationPreparesPartialReserveWithoutDownloading(t *testing.T) {
 				return resp, err
 			}), tc.count)
 			defaults := newTestCalibration(nil, "direct", nil, nil).limits
-			c.limits.reserveVideos, c.limits.reserveBytes = defaults.reserveVideos, defaults.reserveBytes
+			c.limits.reserveVideos = defaults.reserveVideos
 			_, samples, err := c.prepare(t.Context())
 			s, _ := c.Snapshot()
 			if err != nil || len(samples) != tc.count || s.PreparedVideos != tc.count || media.Load() != 0 || s.CPUP99Percent != nil {
@@ -104,7 +104,7 @@ func TestCalibrationPreparationParallelismAndDrain(t *testing.T) {
 		}
 		return resp, err
 	}), 160)
-	c.limits.reserveVideos, c.limits.reserveBytes = 16, 2<<30
+	c.limits.reserveVideos = 16
 	synctest.Test(t, func(t *testing.T) {
 		defer c.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -141,7 +141,7 @@ func TestCalibrationPreparationTimeoutAndCancelDrainPartialReserve(t *testing.T)
 					}
 					return base.RoundTrip(r)
 				}), 160)
-				c.limits.reserveVideos, c.limits.reserveBytes, c.limits.prepare = 16, 2<<30, 200*time.Millisecond
+				c.limits.reserveVideos, c.limits.prepare = 16, 200*time.Millisecond
 				if err := c.Start(); err != nil {
 					t.Fatal(err)
 				}
@@ -168,6 +168,7 @@ func TestCalibrationWithoutLocalSourceDoesNotDiscoverSongs(t *testing.T) {
 		return nil, io.EOF
 	})), "direct", nil, nil)
 	defer c.Close()
+	c.limits.prepare = 100 * time.Millisecond
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +195,7 @@ func TestCalibrationPreservesBusinessPriority(t *testing.T) {
 	}))
 	c := newTestCalibration(client, "direct", func(context.Context) CalibrationCandidates { return CalibrationCandidates{SongIDs: ids} }, nil)
 	defer c.Close()
-	c.limits.reserveVideos, c.limits.reserveBytes = 1, 16<<20
+	c.limits.reserveVideos = 1
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
@@ -275,6 +276,7 @@ func TestCalibrationTriesKnownSongsUntilExhausted(t *testing.T) {
 		calls.Add(1)
 		return response(404, ""), nil
 	}), 300)
+	c.limits.prepare = 2 * time.Second
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +330,7 @@ func TestCalibrationLocalCandidatesNeverFetchCatalog(t *testing.T) {
 			original := slices.Clone(tc.local)
 			c := newTestCalibration(requestClient(transport), "direct", func(context.Context) CalibrationCandidates { return CalibrationCandidates{SongIDs: tc.local} }, nil)
 			defer c.Close()
-			c.limits.reserveVideos, c.limits.reserveBytes = 4, 64<<20
+			c.limits.reserveVideos = 4
 			_, samples, err := c.prepare(t.Context())
 			state, _ := c.Snapshot()
 			insufficient := tc.prepared == 0
@@ -426,10 +428,10 @@ func TestCalibrationSavedURLsShareReserveAndFallback(t *testing.T) {
 	}
 	c := newTestCalibration(client, "direct", func(context.Context) CalibrationCandidates { return local }, nil)
 	defer c.Close()
-	c.limits.reserveVideos, c.limits.reserveBytes = 5, 80<<20
+	c.limits.reserveVideos = 5
 	_, samples, err := c.prepare(t.Context())
 	state, _ := c.Snapshot()
-	if err != nil || len(samples) != 6 || state.PreparedBytes != 81<<20 || catalogs.Load() != 0 {
+	if err != nil || len(samples) != 5 || state.PreparedBytes != 65<<20 || catalogs.Load() != 0 {
 		t.Fatalf("saved/live reserve: samples=%d bytes=%d catalogs=%d err=%v", len(samples), state.PreparedBytes, catalogs.Load(), err)
 	}
 	for _, id := range []int64{1, 3, 6} {

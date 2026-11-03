@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
@@ -71,11 +72,26 @@ func TestNetworkCalibrationReusesMetadataPriorityAndPersistence(t *testing.T) {
 		wait, cancel := context.WithTimeout(ctx, 3*time.Second)
 		for {
 			state, changed := c.networkDiagnostics.calibration.Snapshot()
-			if !state.Running {
-				if state.PreparedVideos != 3 || playback.Load() != 2 || state.Reason != "samples_exhausted" || state.Bytes != 384<<20 {
-					t.Fatalf("run %d: prepared=%d requests=%d reason=%s", run, state.PreparedVideos, playback.Load(), state.Reason)
+			if state.PreparedVideos == 3 {
+				if playback.Load() != 2 || state.Phase != "preparing" || state.Bytes != 0 {
+					t.Fatalf("run %d: prepared=%d requests=%d phase=%s", run, state.PreparedVideos, playback.Load(), state.Phase)
+				}
+				c.networkDiagnostics.calibration.Cancel()
+				for state.Running {
+					select {
+					case <-changed:
+					case <-wait.Done():
+						t.Fatal(wait.Err())
+					}
+					state, changed = c.networkDiagnostics.calibration.Snapshot()
+				}
+				if state.Phase != "canceled" {
+					t.Fatalf("run %d did not cancel: %+v", run, state)
 				}
 				break
+			}
+			if !state.Running {
+				t.Fatalf("run %d stopped before preparing local samples: %+v", run, state)
 			}
 			select {
 			case <-changed:
@@ -216,64 +232,67 @@ func TestNetworkCalibrationUsesLocalSongsWithoutCatalogRequests(t *testing.T) {
 func TestNetworkCalibrationAvailableLocalSamplesDoNotSyncCatalog(t *testing.T) {
 	for _, source := range []string{"empty", "known_song", "saved_url"} {
 		t.Run(source, func(t *testing.T) {
-			c := testConsole(t)
-			const target = "http://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=134217728"
-			if source != "empty" {
-				seedCalibrationSong(t, c)
-			}
-			if source == "saved_url" {
+			synctest.Test(t, func(t *testing.T) {
+				c := testConsole(t)
+				defer c.Close()
+				const target = "http://play.udon.dance/files/1/42-video.mp4?e=0123456789abcdef0123456789abcdef&s=134217728"
+				if source != "empty" {
+					seedCalibrationSong(t, c)
+				}
+				if source == "saved_url" {
 
-				if err := c.store.ObserveSongURL(t.Context(), cacheproxy.PlaybackObservation{SongID: 42, URL: target,
-					Node: "cf"}); err != nil {
+					if err := c.store.ObserveSongURL(t.Context(), cacheproxy.PlaybackObservation{SongID: 42, URL: target,
+						Node: "cf"}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				var playback, media, unexpected atomic.Int32
+				c.client.CloseIdleConnections()
+				c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+					if strings.HasPrefix(r.URL.Path, "/files/") {
+						media.Add(1)
+						return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+					}
+					if r.URL.Path != "/Api/Songs/play" {
+						unexpected.Add(1)
+						return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+					}
+					playback.Add(1)
+					return &http.Response{StatusCode: 302, Header: http.Header{"Location": {target}}, Body: io.NopCloser(strings.NewReader(""))}, nil
+				})}
+				before, err := c.store.CatalogStatus(t.Context())
+				if err != nil {
 					t.Fatal(err)
 				}
-			}
-			var playback, media, unexpected atomic.Int32
-			c.client.CloseIdleConnections()
-			c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
-				if strings.HasPrefix(r.URL.Path, "/files/") {
-					media.Add(1)
-					return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+				if err := c.controlNetworkCalibration(false); err != nil {
+					t.Fatal(err)
 				}
-				if r.URL.Path != "/Api/Songs/play" {
-					unexpected.Add(1)
-					return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
-				}
-				playback.Add(1)
-				return &http.Response{StatusCode: 302, Header: http.Header{"Location": {target}}, Body: io.NopCloser(strings.NewReader(""))}, nil
-			})}
-			before, err := c.store.CatalogStatus(t.Context())
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := c.controlNetworkCalibration(false); err != nil {
-				t.Fatal(err)
-			}
-			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-			defer cancel()
-			for {
-				state, changed := c.networkDiagnostics.calibration.Snapshot()
-				if !state.Running {
-					wantPrepared, wantPlayback := 1, int32(0)
-					wantReason, wantMedia := "network_error", int32(1)
-					if source == "empty" {
-						wantPrepared = 0
-						wantReason, wantMedia = "preparation_insufficient", 0
-					} else if source == "known_song" {
-						wantPlayback = 1
+				ctx, cancel := context.WithTimeout(t.Context(), 35*time.Second)
+				defer cancel()
+				for {
+					state, changed := c.networkDiagnostics.calibration.Snapshot()
+					if !state.Running {
+						wantPrepared, wantPlayback := 1, int32(0)
+						wantReason, wantMedia := "network_error", int32(1)
+						if source == "empty" {
+							wantPrepared = 0
+							wantReason, wantMedia = "preparation_insufficient", 0
+						} else if source == "known_song" {
+							wantPlayback = 1
+						}
+						after, err := c.store.CatalogStatus(t.Context())
+						if err != nil || state.Phase != "failed" || state.Reason != wantReason || state.PreparedVideos != wantPrepared || state.Bytes != 0 || playback.Load() != wantPlayback || media.Load() != wantMedia || unexpected.Load() != 0 || before != after || c.service != nil {
+							t.Fatalf("insufficient local candidates changed scope: phase=%s prepared=%d playback=%d unexpected=%d catalog_changed=%t err=%v", state.Phase, state.PreparedVideos, playback.Load(), unexpected.Load(), before != after, err)
+						}
+						break
 					}
-					after, err := c.store.CatalogStatus(t.Context())
-					if err != nil || state.Phase != "failed" || state.Reason != wantReason || state.PreparedVideos != wantPrepared || state.Bytes != 0 || playback.Load() != wantPlayback || media.Load() != wantMedia || unexpected.Load() != 0 || before != after || c.service != nil {
-						t.Fatalf("insufficient local candidates changed scope: phase=%s prepared=%d playback=%d unexpected=%d catalog_changed=%t err=%v", state.Phase, state.PreparedVideos, playback.Load(), unexpected.Load(), before != after, err)
+					select {
+					case <-changed:
+					case <-ctx.Done():
+						t.Fatal(ctx.Err())
 					}
-					break
 				}
-				select {
-				case <-changed:
-				case <-ctx.Done():
-					t.Fatal(ctx.Err())
-				}
-			}
+			})
 		})
 	}
 }

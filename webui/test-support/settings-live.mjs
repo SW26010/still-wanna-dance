@@ -45,6 +45,11 @@ try {
   await expect(second.getByLabel('程序日志级别',{exact:true})).toHaveValue('warn');
   await expect(second.getByRole('checkbox',{name:'随 VRChat 退出',exact:true})).toBeChecked();
   await second.getByRole('tab',{name:'存储',exact:true}).click();
+  await second.getByRole('radio',{name:'限制为',exact:true}).check();
+  await expect(second.getByRole('spinbutton',{name:'视频存储预算（GiB）',exact:true})).toHaveValue('40');
+  await expect(second.getByText('最佳约命中 65% 的歌曲请求',{exact:true})).toBeVisible();
+  await second.getByRole('button',{name:'放弃更改',exact:true}).click();
+  await expect(second.getByRole('radio',{name:'不限制',exact:true})).toBeChecked();
   await second.route('**/api/path/select',route=>route.fulfill({json:{path:videoDir,canceled:false}}));
   await second.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
   await expect(second.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(videoDir);

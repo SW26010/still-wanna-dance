@@ -12,7 +12,7 @@ export function webuiManifest(root) {
     if (e.isSymbolicLink()) throw Error('Unexpected Web UI symlink: ' + name);
     return e.isDirectory() ? walk(name) : [name];
   });
-  const inputs = [...walk('webui/src'), 'LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','webui/build.mjs', 'webui/package.json', 'webui/pnpm-lock.yaml', 'webui/pnpm-workspace.yaml', 'webui/tsconfig.json', 'docs/licenses/fluentui-system-icons-LICENSE', 'scripts/check-webui.mjs'];
+  const inputs = [...walk('webui/src'), 'LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','docs/research/cache-priority/study-data.json','webui/build.mjs', 'webui/package.json', 'webui/pnpm-lock.yaml', 'webui/pnpm-workspace.yaml', 'webui/tsconfig.json', 'docs/licenses/fluentui-system-icons-LICENSE', 'scripts/check-webui.mjs'];
   // Match Git LF blobs on Windows as well as Linux.
   const hashes = names => Object.fromEntries(names.sort().map(name => [name, crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name),'utf8').replaceAll('\r\n','\n')).digest('hex')]));
   return {schemaVersion:1, inputs:hashes(inputs), outputs:hashes([...webuiOutputs])};

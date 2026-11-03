@@ -289,6 +289,9 @@ footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing
 .settings-form .fui-Field { max-width: 100%; }
 .settings-form fieldset { gap: var(--spacingVerticalM); }
 .settings-form .fui-Input:has(input[type=number]) { max-width: 160px; }
+.capacity-budget-row { display: flex; align-items: end; flex-wrap: wrap; gap: var(--spacingVerticalXS) var(--spacingHorizontalS); min-width: 0; }
+.capacity-budget-row > .fui-Field { flex: 0 0 160px; min-width: 0; }
+.capacity-budget-row > .secondary { min-width: 0; padding-bottom: var(--spacingVerticalS); }
 
 .health-table { min-width: 550px; table-layout: fixed; }
 .health-table th:first-child { width: 30%; }

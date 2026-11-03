@@ -7,9 +7,21 @@ import { reviewWebuiBuild } from '../scripts/check-repository-artifacts.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const outdir = path.resolve(root, '../internal/console/assets/webui');
+// Ship only the relevant series from the historical research, without making
+// the browser load the full study or maintaining a second copy of its data.
+const study = JSON.parse(fs.readFileSync(path.resolve(root, '../docs/research/cache-priority/study-data.json'), 'utf8'));
+const budgets = study.byte_budgets_gib, coverage = study.byte_curves.exp_event_60;
+const maxBudgetGiB = study.axis_limits.weekly_candidate_storage_gib_max;
+const lastPoint = budgets.findIndex(value => value >= maxBudgetGiB);
+if (!Number.isFinite(maxBudgetGiB) || lastPoint < 1 || budgets[0] !== 0 ||
+    budgets.slice(0, lastPoint + 1).some((value, index) => !Number.isFinite(value) || index > 0 && value <= budgets[index - 1]) ||
+    coverage.length <= lastPoint || coverage.slice(0, lastPoint + 1).some(value => !Number.isFinite(value) || value < 0 || value > 1)) {
+  throw new Error('Invalid historical storage coverage curve');
+}
+const coverageReference = {maxBudgetGiB, budgets: budgets.slice(0, lastPoint + 1), values: coverage.slice(0, lastPoint + 1)};
 const result = await build({ absWorkingDir: root, entryPoints: { app: 'src/main.tsx' }, outdir, bundle: true, minify: true,
   format: 'esm', target: ['es2022'], jsx: 'automatic', legalComments: 'eof', write: false, metafile: true,
-  define: { 'process.env.NODE_ENV': '"production"' } });
+  define: { 'process.env.NODE_ENV': '"production"', '__VIDEO_COVERAGE_REFERENCE__': JSON.stringify(coverageReference) } });
 const check = process.argv.includes('--check');
 // Include notices for precisely the packages linked into the browser bundle.
 const packages = new Map();

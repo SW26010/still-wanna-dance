@@ -1,6 +1,22 @@
 import { Field, Input, Link, Radio, RadioGroup, Tooltip } from '@fluentui/react-components';
+import { useId } from 'react';
 import { date, gib, type Settings } from './types';
 import { Feedback, Hint } from './ui';
+
+declare const __VIDEO_COVERAGE_REFERENCE__: {maxBudgetGiB: number; budgets: number[]; values: number[]};
+// A 0.01 GiB budget is stored as a whole number of bytes and can round down.
+const minimumBudgetGiB = Math.round(0.01 * 1073741824) / 1073741824;
+
+function estimatedCoverage(value: string) {
+  const budget = Number(value);
+  if (!value.trim() || !Number.isFinite(budget) || budget < minimumBudgetGiB || budget > 8388607) return undefined;
+  const {maxBudgetGiB, budgets, values} = __VIDEO_COVERAGE_REFERENCE__;
+  const referenceBudget = Math.min(budget, maxBudgetGiB);
+  const upper = budgets.findIndex(value => value >= referenceBudget), lower = Math.max(upper - 1, 0);
+  const fraction = upper === lower ? 0 : (referenceBudget - budgets[lower]) / (budgets[upper] - budgets[lower]);
+  const coverage = values[lower] + (values[upper] - values[lower]) * fraction;
+  return `${Math.round(coverage * 100)}%${budget > maxBudgetGiB ? '+' : ''}`;
+}
 
 export function StorageBudgetNotice({settings,usedBytes,checkedAt}: {settings:Pick<Settings,'videoStorageMode'|'videoBudgetBytes'|'retainFavorites'>;usedBytes?:number;checkedAt?:number}) {
   const budget=settings.videoStorageMode==='none'?'不保留普通视频':settings.videoStorageMode==='unlimited'?'不限制':`预算 ${gib(settings.videoBudgetBytes)}`;
@@ -24,6 +40,8 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
   mode: CapacityDraft['videoStorageMode']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
 }) {
   const limited = mode === 'limited';
+  const estimate = limited ? estimatedCoverage(value) : undefined;
+  const estimateId = useId();
   return <div id={anchor} tabIndex={-1} className="form-grid">
     <Field label="是否保留下载的视频"><RadioGroup layout="horizontal" value={mode} disabled={disabled}
       onChange={(_, v) => {
@@ -34,10 +52,14 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
       <Radio value="none" label="不保留" /><Radio value="limited" label="限制为" /><Radio value="unlimited" label="不限制" />
     </RadioGroup></Field>
     <p>{mode==='none'?'普通视频不长期保留；开启“优先保留收藏视频”时，收藏视频仍会保留。':'保存完整视频供下次播放，优先保留常用歌曲。'}</p>
-    <Field label="视频存储预算（GiB）" required={limited}>
-      <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
-        value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({videoBudgetGiB: v.value})} />
-    </Field>
+    <div className="capacity-budget-row">
+      <Field label="视频存储预算（GiB）" required={limited}>
+        <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
+          aria-describedby={estimate === undefined ? undefined : estimateId}
+          value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({videoBudgetGiB: v.value})} />
+      </Field>
+      <span id={estimateId} className="secondary" aria-live="polite">{estimate !== undefined && `最佳约命中 ${estimate} 的歌曲请求`}</span>
+    </div>
     <div className="inline secondary">预算用于完整视频<Hint label="空间占用说明">1 GiB 约为 1.07 GB。使用中的视频、临时文件与优先保留的收藏可能使实际占用超过预算。</Hint></div>
   </div>;
 }

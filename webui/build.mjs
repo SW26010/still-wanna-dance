@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkWebUI, webuiManifest } from '../scripts/check-webui.mjs';
+import { reviewWebuiBuild } from '../scripts/check-repository-artifacts.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const outdir = path.resolve(root, '../internal/console/assets/webui');
@@ -32,5 +33,13 @@ for (const file of result.outputFiles) {
   } else { fs.mkdirSync(path.dirname(file.path), { recursive: true }); fs.writeFileSync(file.path, file.contents); }
 }
 if(check) checkWebUI(path.resolve(root,'..'));
-else fs.writeFileSync(path.join(root,'build-manifest.json'),JSON.stringify(webuiManifest(path.resolve(root,'..')),null,2)+'\n');
+else {
+  const repo = path.resolve(root, '..');
+  const manifest = webuiManifest(repo);
+  fs.writeFileSync(path.join(root, 'build-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  const policy = JSON.parse(fs.readFileSync(path.join(repo, 'scripts/repository-artifacts-policy.json')));
+  const app = result.outputFiles.find(file => file.path === path.join(outdir, 'app.js'));
+  const review = reviewWebuiBuild(app.contents, policy, manifest);
+  if (review) console.log('WebUI artifact registration needs review; the policy was not changed:\n' + JSON.stringify(review, null, 2));
+}
 console.log(`${check ? 'Verified' : 'Built'} embedded Fluent UI assets (${result.outputFiles.reduce((n, f) => n + f.contents.length, 0)} bytes).`);

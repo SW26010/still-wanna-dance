@@ -6,7 +6,7 @@
     "docs/licenses/ZASHBOARD-NOTICES.txt": "1a967de00c3577deb8fea7895d769b5275f38e89bd827401886f312d490b81d5",
     "docs/licenses/fluentui-system-icons-LICENSE": "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f",
     "scripts/check-webui.mjs": "38f6c8835e700135e93541dd3d7e9b442b8bd935c5b95d6f3c00cf6560bc546a",
-    "webui/build.mjs": "86354147e5903ed9f825bd085de47d5446f5410ae28f6797c1e3b52eee125c1e",
+    "webui/build.mjs": "1d14667e3fe1eb503269b1edd0f7c504de443790bc6c26fda784c11c4527e499",
     "webui/package.json": "d1e1ba3408102a6a5b7311ad13daefefe35769fea84d930ae9872da8d87607e6",
     "webui/pnpm-lock.yaml": "6765eaefe1069a5ca877321c9546c50735d864788f0664fa6ed63a644e1a26d7",
     "webui/pnpm-workspace.yaml": "f8374fb59aaf2874eb09ae9b7da311a1f2025595b5279341c1a819c4b85c4611",

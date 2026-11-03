@@ -7,6 +7,8 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const git = (args, cwd, input, maxBuffer = 256 * 1024 * 1024) => execFileSync('git', args, { cwd, input, maxBuffer, windowsHide: true });
 const sha256 = data => createHash('sha256').update(data).digest('hex');
+const webuiApp = 'internal/console/assets/webui/app.js';
+const largeFileError = 'large file requires an exact documented exception';
 
 export function classify(file, bytes, policy) {
   let binary = bytes.subarray(0, 8000).includes(0);
@@ -15,34 +17,77 @@ export function classify(file, bytes, policy) {
   const productIcon = exception?.kind === 'product-icon' && /^internal\/branding\/logo(?:(?:-light)?\.ico|_windows_amd64\.syso)$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
   const readmeScreenshot = exception?.kind === 'readme-screenshot' && /^docs\/images\/webui-(?:acceleration|library|settings-dark)\.png$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes;
   const dashboard = exception?.kind === 'embedded-dashboard' && file === 'internal/dashboard/assets/zashboard.zip' && exception.bytes === bytes.length;
+  const largeText = exception?.kind === 'large-text' && exception.bytes === bytes.length && typeof exception.reason === 'string' && exception.reason.trim().length > 0;
   if (binary && exception?.kind !== 'binary-fixture' && !productIcon && !readmeScreenshot && !dashboard) return { error: 'binary content requires an exact documented product or fixture exception' };
   if (/\.(?:png|jpe?g|webp|gif|ico|zip|gz|7z|exe|dll|mp4|etl|pdf)$/i.test(file) && !productIcon && !readmeScreenshot && !dashboard) return { error: 'generated/binary artifact belongs in an evidence or release archive' };
   if (file.endsWith('.svg') && /<(?:image|script)\b|data\s*:/i.test(bytes.toString())) return { error: 'SVG must be vector-only, without embedded raster or scripts' };
-  if (bytes.length > policy.maxBytes && !exception) return { error: 'large file requires an exact documented exception' };
-  if (bytes.length > policy.warnBytes && !exception) return { warning: 'review whether this belongs in an archive' };
+  const allowed = largeText || productIcon || readmeScreenshot || dashboard || (binary && exception?.kind === 'binary-fixture');
+  if (bytes.length > policy.maxBytes && !allowed) return { error: largeFileError };
+  if (bytes.length > policy.warnBytes && !allowed) return { warning: 'review whether this belongs in an archive' };
   return {};
+}
+
+// The app.js hash does not validate other manifest fields, authorize an exception or prove a rebuild.
+// Callers supply Git-blob bytes (the build caller normalizes its generated text to LF).
+function reviewWebuiArtifact(bytes, policy, sources) {
+  if (classify(webuiApp, bytes, policy).error !== largeFileError) return null;
+  const digest = sha256(bytes);
+  const manifests = sources.map(({ source, manifest }) => {
+    const expected = manifest?.schemaVersion === 1 ? manifest.outputs?.[webuiApp] : undefined;
+    if (manifest === null) return { source, status: 'missing' };
+    if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) return { source, status: 'invalid' };
+    return expected === digest ? { source, status: 'matches' } : { source, status: 'mismatch', manifestSha256: expected };
+  });
+  const review = { sha256: digest, bytes: bytes.length, manifests };
+  if (!manifests.length || manifests.some(m => m.status !== 'matches')) return { ...review, status: 'manifest-review-required' };
+  if (policy.exceptions.some(e => e.path === webuiApp && e.sha256 === digest)) return { ...review, status: 'existing-exception-needs-correction' };
+  return { ...review, status: 'candidate', exception: { path: webuiApp, kind: 'large-text', bytes: bytes.length, sha256: digest, reason: '' } };
+}
+
+export function reviewWebuiBuild(contents, policy, manifest) {
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(contents);
+  return reviewWebuiArtifact(Buffer.from(text.replaceAll('\r\n', '\n')), policy, [{ source: 'working tree', manifest }]);
+}
+
+function historicalWebuiManifests(cwd, commits) {
+  return [...commits].map(commit => {
+    const manifestPath = 'webui/build-manifest.json';
+    if (!git(['ls-tree', '-z', commit, '--', manifestPath], cwd).length) return { source: commit, manifest: null };
+    const contents = git(['show', `${commit}:${manifestPath}`], cwd);
+    try { return { source: commit, manifest: JSON.parse(contents) }; }
+    catch { return { source: commit, manifest: {} }; }
+  });
 }
 
 export function check({ cwd = root, policy, base, head = 'HEAD' }) {
   policy ??= JSON.parse(readFileSync(path.join(cwd, 'scripts/repository-artifacts-policy.json')));
   base ??= policy.historyBaseline;
   git(['merge-base', '--is-ancestor', base, head], cwd);
+  const headCommit = git(['rev-parse', head], cwd).toString().trim();
   const paths = new Map();
-  const add = (oid, file) => { if (!/^0+$/.test(oid)) { const set = paths.get(oid) ?? new Set(); set.add(file); paths.set(oid, set); } };
+  const webuiCommits = new Map();
+  const add = (oid, file, commit) => {
+    if (/^0+$/.test(oid)) return;
+    const set = paths.get(oid) ?? new Set(); set.add(file); paths.set(oid, set);
+    if (file === webuiApp) { const commits = webuiCommits.get(oid) ?? new Set(); commits.add(commit); webuiCommits.set(oid, commits); }
+  };
   // Inspect every added/changed path in every outgoing commit, including files
   // subsequently deleted. Track all paths per blob so renames cannot borrow an
   // unrelated fixture's exception. First-parent merge diffs cover merged files.
-  const changes = git(['log', '--raw', '--no-abbrev', '--no-renames', '--diff-merges=first-parent', '--format=', '-z', `${base}..${head}`], cwd).toString('utf8').split('\0');
+  const changes = git(['log', '--raw', '--no-abbrev', '--no-renames', '--diff-merges=first-parent', '--format=commit:%H', '-z', `${base}..${head}`], cwd).toString('utf8').split('\0');
+  let commit;
   for (let i = 0; i < changes.length; i++) {
+    const revision = changes[i].match(/^commit:([a-f0-9]+)$/);
+    if (revision) { commit = revision[1]; continue; }
     const match = changes[i].trim().match(/^:\d+ (\d+) [a-f0-9]+ ([a-f0-9]+) [A-Z]\d*$/);
-    if (match) { const name = changes[++i]; if (match[1] !== '160000') add(match[2], name); }
+    if (match) { const name = changes[++i]; if (match[1] !== '160000') add(match[2], name, commit); }
   }
   // Also check the final tree so an inaccurate/empty range cannot skip files.
   for (const row of git(['ls-tree', '-rz', head], cwd).toString('utf8').split('\0')) {
     if (!row) continue;
     const [meta, name] = row.split('\t');
     const [, type, oid] = meta.split(' ');
-    if (type === 'blob') add(oid, name);
+    if (type === 'blob') add(oid, name, headCommit);
   }
   const ids = [...paths.keys()];
   const errors = [], warnings = [];
@@ -58,7 +103,11 @@ export function check({ cwd = root, policy, base, head = 'HEAD' }) {
       const bytes = stream.subarray(end + 1, end + 1 + Number(size)); offset = end + 2 + Number(size);
       for (const file of paths.get(oid)) {
         const result = classify(file, bytes, policy);
-        if (result.error) errors.push({ path: file, blob: oid, bytes: bytes.length, reason: result.error });
+        if (result.error) {
+          const error = { path: file, blob: oid, bytes: bytes.length, reason: result.error };
+          if (file === webuiApp && result.error === largeFileError) error.review = reviewWebuiArtifact(bytes, policy, historicalWebuiManifests(cwd, webuiCommits.get(oid)));
+          errors.push(error);
+        }
         if (result.warning) warnings.push({ path: file, blob: oid, bytes: bytes.length, reason: result.warning });
       }
     }
@@ -78,7 +127,7 @@ export function check({ cwd = root, policy, base, head = 'HEAD' }) {
     }
     inspectBatch();
   }
-  return { base, head: git(['rev-parse', head], cwd).toString().trim(), blobs: ids.length, errors, warnings };
+  return { base, head: headCommit, blobs: ids.length, errors, warnings };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

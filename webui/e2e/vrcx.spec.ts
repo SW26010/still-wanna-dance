@@ -9,14 +9,17 @@ async function fixture(page: Page, existing = 0, suggested = false) {
     firstAt:Date.UTC(2025,0,1),lastAt:Date.UTC(2026,0,1),existingSongs:existing,imported:false};
   const calls: {path:string;body:Record<string,unknown>}[] = [];
   await page.route('**/api/vrcx/**',async route => {
-    const path = new URL(route.request().url()).pathname.split('/').at(-1)!, body = route.request().postDataJSON();
+    const req=route.request(),path=new URL(req.url()).pathname.slice('/api/vrcx/'.length);
+    if(req.method()!=='POST'||!['detect','dismiss','preview','apply','discard'].includes(path))return route.fallback();
+    const body=req.postDataJSON();
     calls.push({path,body});
     if(path==='detect')return route.fulfill({json:{path:report.source,found:true,suggested:suggested&&report.existingSongs===0,notify:suggested&&report.existingSongs===0,existingSongs:report.existingSongs}});
     if(path==='dismiss'){suggested=false;return route.fulfill({json:{ok:true}});}
 
     if(path==='preview') return route.fulfill({json:report});
     if(path==='apply'){suggested=false;return route.fulfill({json:{...report,imported:true}});}
-    return route.fulfill({json:{ok:true}});
+    if(path==='discard')return route.fulfill({json:{ok:true}});
+    return route.fallback();
   });
   await page.route('**/api/path/select', route => {
     calls.push({path:'select',body:route.request().postDataJSON()});
@@ -26,6 +29,15 @@ async function fixture(page: Page, existing = 0, suggested = false) {
 }
 async function enable(page: Page) { await page.getByRole('checkbox',{name:'从 VRCX 导入历史偏好',exact:true}).check(); }
 async function inspect(page: Page) { await page.getByRole('button',{name:'读取并预览',exact:true}).click(); }
+
+test('VRCX fixture rejects unrecognized nested operations',async({page})=>{
+  await fixture(page);
+  await page.goto('/about');
+  const status=await page.evaluate(async()=>fetch('/api/vrcx/typo/detect',{
+    method:'POST',headers:{'Content-Type':'application/json','X-SWD-Token':'browser-fixture-token'},body:'{}',
+  }).then(response=>response.status));
+  expect(status).toBe(404);
+});
 
 for (const width of [390,1280]) test(`first library offers VRCX import without reading history at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:950});

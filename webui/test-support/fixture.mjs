@@ -36,7 +36,7 @@ createServer(async (req, res) => {
       const {id,kind}=JSON.parse(raw);for(const stream of streams.get(id+':'+kind)||[])stream.end();
       return res.end('{}');
     }
-    if(p==='/api/block-demands/events'){
+    if(p==='/api/block-demands/events'&&req.method==='GET'){
       const id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default';
       const block=url.searchParams.get('block'),kind=block?'block-detail:'+block:'blocks',key=id+':'+kind;
       const fallback=block?null:{at:Date.now(),running:false,reset:true,capacity:4096,used:0,active:0,open:0,prepareAheadMS:500000,downloadGraceMS:30000,blocks:[],removed:[],demands:[],removedDemands:[]};
@@ -48,7 +48,7 @@ createServer(async (req, res) => {
       res.on('close',()=>streams.get(key)?.delete(res));return;
     }
     const event=p.match(/^\/api\/network\/(connectivity|calibration)\/events$/)||(p==='/api/history/events'?['','history']:null);
-    if(event){
+    if(event&&req.method==='GET'){
       const kind=event[1],id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default',key=id+':'+kind;
       res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
       res.write(`event: ${kind}\ndata: ${JSON.stringify(states.get(key)||(kind==='history'?{closed:false}:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:null,referenceBitrateBPS:2000000}))}\n\n`);
@@ -67,7 +67,7 @@ createServer(async (req, res) => {
     }
     if (p.startsWith('/api/')) {
       if (req.headers['x-swd-token'] !== token) { res.writeHead(403); return res.end('invalid token'); }
-      res.setHeader('Content-Type', 'application/json'); return res.end('{"ok":true}');
+      res.writeHead(404); return res.end('not found');
     }
     // Consent follows the browser session, including the wizard's help popup.
     const gate=url.searchParams.has('gate')||/(?:^|;\s*)fixture-gate=1(?:;|$)/.test(req.headers.cookie||'');

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const [baseURL, phase, output] = process.argv.slice(2);
 await mkdir(output, {recursive:true});
-const browser = await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+const browser = await chromium.launch({channel:process.platform==='win32'||!process.env.CI?'msedge':'chromium'});
 try {
   const page=await browser.newPage({viewport:{width:390,height:850}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -18,19 +18,22 @@ try {
   const restore=page.getByRole('checkbox',{name:'停止加速或退出时恢复游戏直连',exact:true});
   await expect(restore).toBeFocused();
   await expect(restore).toBeInViewport();
+  const save=async()=>{
+    const actions=page.getByRole('region',{name:'设置操作',exact:true});
+    await actions.getByRole('button',{name:'保存设置',exact:true}).click();
+    await expect(actions.getByRole('status')).toHaveText('已生效');
+    await expect(actions.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+    await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
+  };
   if(phase==='default') {
     await expect(restore).toBeChecked();await restore.uncheck();
-    await page.getByRole('button',{name:'保存设置',exact:true}).click();
-    await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
+    await save();
     await page.reload();
     await expect(restore).not.toBeChecked();
   } else {
     await expect(restore).not.toBeChecked();
     await restore.check();
-    await page.getByRole('button',{name:'保存设置',exact:true}).click();
-    await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
+    await save();
   }
   const geometry=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>({tag:e.tagName,classes:e.className,text:e.textContent?.slice(0,80),width:e.getBoundingClientRect().width}))}));
   expect(geometry.scroll,JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport);

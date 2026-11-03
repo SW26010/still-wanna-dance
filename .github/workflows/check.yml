@@ -43,15 +43,16 @@ jobs:
       - run: pnpm --dir webui check
       - name: Representative browser checks
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
-        run: ./scripts/with-test-temp.ps1 pnpm --dir webui exec playwright test e2e/terms-consent.spec.ts e2e/regressions.spec.ts
+        run: ./scripts/with-test-temp.ps1 pnpm --dir webui exec playwright test e2e/api-fixture.spec.ts e2e/terms-consent.spec.ts e2e/regressions.spec.ts
       - name: Full browser checks
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         run: ./scripts/with-test-temp.ps1 pnpm --dir webui test
-      - name: Real Console settings integration
+      - name: Real Console settings and acceleration integration
         shell: pwsh
         run: |
           $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $env:GITHUB_WORKSPACE 'artifacts/settings-browser'
-          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v
+          $env:SWD_HOSTS_BROWSER_EVIDENCE = Join-Path $env:GITHUB_WORKSPACE 'artifacts/hosts-browser'
+          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$' -count=1 -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - if: failure()
         uses: actions/upload-artifact@v4
@@ -60,6 +61,7 @@ jobs:
           path: |
             artifacts/webui-tests
             artifacts/settings-browser
+            artifacts/hosts-browser
           if-no-files-found: ignore
       - run: ./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs
       - run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./...

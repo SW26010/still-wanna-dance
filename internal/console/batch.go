@@ -205,7 +205,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			c.batch.Failures = append(c.batch.Failures, Failure{ID: id, Name: titles[failure.SongID], Error: failure.Err.Error()})
 		}
 		if scanOnly {
-			c.batch.Phase = "正在检查 MD5 文件是否齐备"
+			c.batch.Phase = "正在检查文件是否齐备"
 		} else {
 			c.batch.Phase = "正在解析歌曲并补齐缺失视频"
 		}
@@ -245,8 +245,8 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	} else if scanOnly {
 		c.batch.Phase = "本地检查完成；可通过下载补齐获取缺失视频"
 	} else if target != nil {
-		c.batch.Phase = "所选歌曲或资源已处理完成；同 MD5 共用一份视频"
+		c.batch.Phase = "所选歌曲或资源已处理完成"
 	} else {
-		c.batch.Phase = "当前清单歌曲已处理完成；同 MD5 共用一份视频"
+		c.batch.Phase = "当前清单歌曲已处理完成"
 	}
 }

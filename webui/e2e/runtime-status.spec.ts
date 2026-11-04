@@ -114,7 +114,7 @@ test('queue monitoring stays healthy while waiting and explains its current log 
   const target=badge(page,'房间队列'),tip=page.getByRole('tooltip');
   await healthy(page);const green=await background(badge(page,'视频服务'));
   expect(await background(target)).toBe(green);
-  await target.hover();await expect(tip).toContainText('日志目录可读取，尚未发现 VRChat 日志，等待游戏生成日志。');
+  await target.hover();await expect(tip).toContainText('尚未发现 VRChat 日志，等待游戏生成日志。');
   await expect(target).toHaveAccessibleDescription(/等待游戏生成日志/);
   await page.screenshot({path:info.outputPath('waiting-for-log.png'),animations:'disabled'});
   await page.keyboard.press('Escape');await expect(tip).toBeHidden();

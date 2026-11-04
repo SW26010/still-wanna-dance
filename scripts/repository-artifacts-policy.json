@@ -1137,6 +1137,13 @@
       "bytes": 1261118,
       "sha256": "8b038fe7268ad7ce5556c0dca7bd6989e18e3094498e7f4a65963570dda9f5b3",
       "reason": "Production WebUI generated from webui/src with incomplete speed-test result and retained timestamp feedback; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1256014,
+      "sha256": "a8933ecdc1b96ec5c860a42379039ae30b6a3bd933ad4d0c495e938b8e484c07",
+      "reason": "Production WebUI rebuilt with approved copy reductions and the retained source-video and same-partition import notice; embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

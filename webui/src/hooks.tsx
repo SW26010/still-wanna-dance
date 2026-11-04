@@ -140,7 +140,7 @@ export function useConsole(enabled: boolean, page: string) {
   const confirmation = useConfirmation();
   async function action(path: string, body: unknown = {}): Promise<boolean> {
     if (lock.current || stopped || shutdown.current) return false;
-    if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '导入仍在运行。现在重启会中断导入且不会自动续传。建议等导入结束再重启；确定现在中断并重启吗？')) return false;
+    if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '现在重启会中断导入。')) return false;
     if (lock.current || stopped || shutdown.current) return false;
     lock.current = true; setBusy(true);
     const hosts = path === 'activation/enable';

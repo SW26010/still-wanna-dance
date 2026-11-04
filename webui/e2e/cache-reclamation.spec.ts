@@ -11,7 +11,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   const off = group.getByRole('radio', {name:'关闭', exact:true});
   const save = page.getByRole('button', {name:'保存设置', exact:true});
   await expect(group.getByRole('radio')).toHaveCount(3);
-  await expect(group).toHaveAccessibleDescription('减少缓存占用，可能增加重复下载。');
+  await expect(group).toHaveAccessibleDescription('减少缓存占用，可能重复下载。');
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前关闭）：/)).toBeVisible();
   await page.getByRole('radio', {name:'不保留', exact:true}).check();

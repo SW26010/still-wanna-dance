@@ -25,7 +25,7 @@ for(const width of [390,1280])test(`import pause, resume and discard preserve th
   await expect(panel.getByRole('button',{name:'暂停',exact:true})).toBeVisible();
   await panel.getByRole('button',{name:'暂停',exact:true}).click();
   await panel.getByRole('button',{name:'放弃本次',exact:true}).click();
-  await expect(page.getByRole('dialog')).toContainText('已导入的视频和源文件均保留');
+  await expect(page.getByRole('dialog')).toContainText('视频和源文件均保留');
   await page.getByRole('dialog').getByRole('button',{name:'取消',exact:true}).click();
   expect(api.calls.filter(c=>c.path==='import/discard')).toHaveLength(0);
   await panel.getByRole('button',{name:'放弃本次',exact:true}).click();

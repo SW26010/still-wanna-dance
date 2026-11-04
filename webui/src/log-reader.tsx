@@ -82,7 +82,7 @@ function LogResults({result,queryRevision,loading,error,visible,children,action}
       <Notification message={visible&&error?'日志读取失败，请重新查询。':undefined} body={error} error/>
       {loading&&!result&&<Spinner size="small" label="正在读取日志"/>}
       {result&&result.matches>result.limit&&<Feedback>匹配 {result.matches.toLocaleString()} 条，仅展示最近 {result.limit} 条。请缩小时间范围以查看更早记录。</Feedback>}
-      {!!result?.skipped&&<Feedback>有 {result.skipped} 行暂无法解析，未展示；原始日志文件未修改。</Feedback>}
+      {!!result?.skipped&&<Feedback>有 {result.skipped} 行暂无法解析，未展示。</Feedback>}
     </>}
     <RecordTable className="log-table" label="程序日志记录" regionLabel="程序日志表格" busy={loading}>
       <TableHeader><TableRow><TableHeaderCell className="log-metadata-cell">时间</TableHeaderCell><TableHeaderCell className="log-metadata-cell">级别</TableHeaderCell><TableHeaderCell className="log-metadata-cell">事件</TableHeaderCell><TableHeaderCell>内容</TableHeaderCell></TableRow></TableHeader>

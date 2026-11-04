@@ -9,8 +9,6 @@ test('log level drafts, save and reload keep the active level until restart',asy
   const level=page.getByRole('combobox',{name:'程序日志级别',exact:true});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
   await expect(level).toHaveValue('info');
-  await expect(level).toHaveAccessibleDescription(/保存后重启生效/);
-  await expect(level).toHaveAccessibleDescription(/关闭不会删除已有日志/);
   expect(await level.locator('option').evaluateAll(options=>options.map(option=>option.getAttribute('value')))).toEqual(['off','error','warn','info','debug']);
   await level.selectOption('debug');
   await navigateSettings(page,'网络');await navigateSettings(page,'常规');

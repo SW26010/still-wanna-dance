@@ -74,7 +74,6 @@ for(const width of [1280,390,320])test(`coverage keeps a compact layout and expl
   await summary.screenshot({path:info.outputPath('warning.png'),animations:'disabled'});
   await warning.hover();
   await expect(tooltip).toContainText('资源待识别 2 首');
-  await expect(tooltip).toContainText('已计入当前清单总数，暂未计为已覆盖');
   await expect(warning).toHaveAccessibleDescription(/资源待识别 2 首/);
   const bounds=(await tooltip.boundingBox())!,overview=(await summary.boundingBox())!;
   expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);

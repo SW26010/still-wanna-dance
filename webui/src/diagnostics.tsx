@@ -134,7 +134,7 @@ export function Diagnostics({visible}: {visible:boolean}) {
     const p=kind==='connectivity'?connectivity:calibration;
     const running=p.state?.running || p.intent==='start';
     const disabled=!p.online || p.pending || !!p.intent || p.state?.closed || p.state?.phase==='canceling';
-    const hint=kind==='connectivity'?(running?'停止本次检测，自动检测仍会继续':'立即检测当前上游'):(running?'放弃检测':'使用日常游戏网络环境，暂停其他下载后开始');
+    const hint=kind==='connectivity'?(running?'停止本次检测':'立即检测当前上游'):(running?'放弃检测':'使用日常游戏网络环境，暂停其他下载后开始');
     return <Tooltip relationship="description" showDelay={0} content={hint}><Button icon={p.pending?<Spinner size="tiny"/>:running?<Stop20Filled />:<Play20Filled />} aria-label={(running?'停止并放弃':'开始')+label} disabled={disabled} onClick={()=>void p.toggle()}/></Tooltip>;
   };
   const c=connectivity.state, discard=connectivity.intent==='cancel' || ['canceling','canceled'].includes(c?.phase || '');

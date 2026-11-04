@@ -19,7 +19,7 @@ test('request retention has explicit modes, remembers days, and applies after re
   await days.fill('90');
   await none.check();
   await expect(days).toHaveValue('0');
-  await expect(page.getByText('重启后清理已有请求明细，并停止保留新明细；累计统计不受影响。',{exact:true})).toBeVisible();
+  await expect(page.getByText('重启后清理已有请求明细，并停止保留新明细。',{exact:true})).toBeVisible();
   await unlimited.check();
   await expect(days).toHaveValue('');
   await limited.check();

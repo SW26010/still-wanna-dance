@@ -8,7 +8,7 @@ const localReasons: Record<string,string> = {local_capacity:'本地代理连接�
 export function healthReason(r:HealthResult) { return reasons[r.reason||'']||localReasons[r.localDiagnostic||'']||'网络请求失败'; }
 const operationNames: Record<string,string> = {catalog:'歌曲列表',playback_url:'播放地址解析',resource:'视频资源加载'};
 export function healthImpact(h: Health) {
-  if (h.closed) return '检测已关闭，当前无法判断网络可用性。';
+  if (h.closed) return '检测已关闭。';
   const results = h.results || [];
   const summaries = [
     ['catalog', '歌曲清单', '有可访问来源', '更新可能失败'],
@@ -40,7 +40,7 @@ function HealthRow({row:r,minutes,wait='等待调度信息',context}: {row:Healt
     <TableCell>{speed==null?'—':(speed/1024).toFixed(1)+' KiB/s'}{expired&&<span className="secondary">（已过期）</span>}</TableCell>
     <TableCell><RecordDetails title="线路技术详情"><p className="wrap">{technical}{issuers.length?' · 地址来源：'+issuers.join('；'):''}</p><p>{r.reason&&(reasons[r.reason]||r.reason)}{observation}</p>
       <p>吞吐样本：{speed!=null?(speed/1024).toFixed(1)+' KiB/s'+(song?' · 歌曲 #'+song:'')+' · 测速时间 '+date(at)+(duration!=null?' · 下载 '+(duration/1000).toFixed(2)+' s / '+((bytes || 0)/1048576).toFixed(2)+' MiB':'')+(expired?' · 历史样本（已过期）':''):noData}</p>
-      {r.localDiagnostic&&<p>{localReasons[r.localDiagnostic]||'本次检测未完成'} · {date(r.localObservedAt)}；保留此前观测，未计为节点失败。</p>}
+      {r.localDiagnostic&&<p>{localReasons[r.localDiagnostic]||'本次检测未完成'} · {date(r.localObservedAt)}</p>}
     </RecordDetails></TableCell>
   </TableRow>;
 }
@@ -53,7 +53,7 @@ export function NetworkMonitor() {
   const app = useApp(), s = app.status.data!, h = s.upstreamMonitor || {}, results = h.results || [];
   const minutes = (h.policy?.throughputInterval || 20*60*1e9)/(60*1e9);
   const schedule=[['最近完成',h.finished],['下次检测',h.nextCheck]].filter(([,at])=>dated(at)).map(([label,at])=>`${label}：${date(at)}`).join(' · ');
-  const waits: Record<string,string> = {closed:'监测已关闭',business_busy:'业务正在加载视频，自动测速已暂停',running:'正在依次测量资源通道',preparing:'正在获取歌曲及资源地址',other_manual_check:'等待当前手动检测结束',not_scheduled:'自动调度尚未启动',cooldown:`等待 ${minutes} 分钟间隔到期`,due:'已到期，等待调度',waiting_sample:'等待有效歌曲及资源地址',persistence_error:'保存测速记录失败，自动测速已延期',local_capacity:'本地连接额度已满，本次未取得新样本',runtime_retired:'代理运行时已退出，本次未取得新样本',channel_unavailable:'通道已失效，本次未取得新样本',canceled:'本次测速已取消，保留此前样本'};
+  const waits: Record<string,string> = {closed:'监测已关闭',business_busy:'业务正在加载视频，自动测速已暂停',running:'正在依次测量资源通道',preparing:'正在获取歌曲及资源地址',other_manual_check:'等待当前手动检测结束',not_scheduled:'自动调度尚未启动',cooldown:`等待 ${minutes} 分钟间隔到期`,due:'已到期，等待调度',waiting_sample:'等待有效歌曲及资源地址',persistence_error:'保存测速记录失败，自动测速已延期',local_capacity:'本地连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次测速已取消'};
   return <Panel id="network" title="当前连接" action={<Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking?'检测中…':'检查当前连接'}</Button>}>
     <p role="status">{h.closed?'网络检测已关闭':h.checking?'正在检测…':results.length?healthImpact(h):''}</p>
     {schedule&&<span className="secondary">{schedule}</span>}

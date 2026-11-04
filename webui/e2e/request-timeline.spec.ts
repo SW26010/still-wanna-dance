@@ -45,10 +45,10 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(heading).toBeVisible();
   if(width===1280){
     await heading.hover();
-    await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+    await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源。');
     await page.keyboard.press('Escape');await page.mouse.move(0,0);
     await heading.focus();
-    await expect(heading).toHaveAccessibleDescription('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+    await expect(heading).toHaveAccessibleDescription('统计全部已保留请求的响应来源。');
     await page.keyboard.press('Escape');
   }
   await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
@@ -226,8 +226,8 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(table.getByRole('link',{name:'ID 404',exact:true})).toBeVisible();
   const songHeader=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
   await songHeader.focus();
-  await expect(songHeader).toHaveAccessibleDescription('按请求时记录的歌曲 ID 排序；名称来自当前曲库，完整名称可在详情中查看。');
-  await expect(page.getByRole('tooltip')).toContainText('名称来自当前曲库');
+  await expect(songHeader).toHaveAccessibleDescription('按歌曲 ID 排序。');
+  await expect(page.getByRole('tooltip')).toContainText('按歌曲 ID 排序');
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
   for(const [label,description] of [['交付','已写出字节'],['来源','当前请求等过缺块']] as const){
     const target=table.getByRole('columnheader',{name:label,exact:true}).getByText(label,{exact:true});

@@ -58,7 +58,7 @@ for (const width of [390,1280]) test(`first library offers VRCX import without r
   const action=page.getByRole('button',{name:'导入历史',exact:true});
   await expect(action).toBeVisible();
   expect(calls.map(c=>c.path)).toEqual(['detect']);
-  await expect(page.getByText('检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。仅在本机处理。')).toBeVisible();
+  await expect(page.getByText('检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。')).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await expect(page.getByRole('button',{name:'查找',exact:true})).toBeEnabled();
   await page.screenshot({path:`../artifacts/vrcx-suggestion/suggestion-${width}.png`,animations:'disabled'});
@@ -268,7 +268,7 @@ test('VRCX reads only on explicit preview and empty usage imports without overwr
   await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue('C:\\VRCX\\VRCX.sqlite3');
   expect(calls.map(c=>c.path)).toEqual(['detect']);
   await inspect(page);await expect(page.getByText('4 次 / 2 首',{exact:true})).toBeVisible();
-  await expect(page.getByText(/当前歌曲需求统计为空/)).toBeVisible();
+  await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toBeEnabled();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
   await page.getByRole('button',{name:'导入历史偏好',exact:true}).click();
   await expect(page.getByText('已导入 4 次历史需求、2 首歌曲，跳过 5 条记录。')).toBeVisible();
@@ -279,7 +279,7 @@ test('VRCX reads only on explicit preview and empty usage imports without overwr
 test('VRCX nonempty usage requires second confirmation and cancel leaves it untouched',async({page})=>{
   const {calls}=await fixture(page,3);await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();await enable(page);await inspect(page);
   const action=page.getByRole('button',{name:'导入并覆盖…',exact:true});
-  await action.click();await expect(page.getByRole('dialog')).toContainText('整体被替换，不会与 VRCX 结果累加');
+  await action.click();await expect(page.getByRole('dialog')).toContainText('需求统计将整体被替换');
   await page.getByRole('button',{name:'取消',exact:true}).click();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
   await expect(action).toBeFocused();

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { request, withRequestTimeout } from './api';
 import { Feedback } from './ui';
 import { PathField, samePath, usePathPicker } from './path-picker';
+import { displayStoragePath } from './storage-path';
 import type { Settings, Status } from './types';
 
 type Locations = Pick<Settings, 'databasePath' | 'videoDir' | 'blockCacheDir'>;
@@ -123,13 +124,13 @@ export function StorageLocationFields({section, value, update, disabled, status,
     return message ? `${message.replace(/[。！？.!?]+$/, '')}。请调整后保存。` : undefined;
   }
   return <div className="form-grid">
-    {section === 'storage' && <><PathField label="数据库文件" hint="保存歌曲资料、收藏、历史和累计统计，请优先备份。点击选择已有数据库，或输入新文件名建库。" value={value.databasePath} defaultValue={status.defaultDatabasePath} warning={warning('database')} disabled={locked}
+    {section === 'storage' && <><PathField label="数据库文件" hint="保存歌曲资料、收藏、历史和累计统计，请优先备份。点击选择已有数据库，或输入新文件名建库。" value={value.databasePath} defaultValue={status.defaultDatabasePath} displayValue={displayStoragePath(value.databasePath || status.defaultDatabasePath,status)} warning={warning('database')} disabled={locked}
       onChoose={() => choose('database')} onReset={() => reset('database')}/>
     <Feedback error>{errorField === 'database' && picker.error}</Feedback>
-    <PathField label="完整视频目录" hint="SWD 使用所选目录保存完整视频，首次使用建议新建专用空目录。按视频保留策略管理，按需备份；更换位置不搬移原文件。" value={value.videoDir} defaultValue={status.defaultVideoDir} warning={warning('video')} disabled={locked}
+    <PathField label="完整视频目录" hint="SWD 使用所选目录保存完整视频，首次使用建议新建专用空目录。按视频保留策略管理，按需备份；更换位置不搬移原文件。" value={value.videoDir} defaultValue={status.defaultVideoDir} displayValue={displayStoragePath(value.videoDir || status.defaultVideoDir,status)} warning={warning('video')} disabled={locked}
       onChoose={() => choose('video')} onReset={() => reset('video')}/>
     <Feedback error>{errorField === 'video' && picker.error}</Feedback></>}
-    {section === 'cache' && <><PathField label="临时视频缓存目录" hint="SWD 使用所选目录存放播放和预加载缓存，首次使用建议新建专用空目录。不计入视频预算；与完整视频目录互不包含。" value={value.blockCacheDir} defaultValue={status.defaultBlockCacheDir} isDefault={!value.blockCacheDir} warning={warning('cache')} disabled={locked}
+    {section === 'cache' && <><PathField label="临时视频缓存目录" hint="SWD 使用所选目录存放播放和预加载缓存，首次使用建议新建专用空目录。不计入视频预算；与完整视频目录互不包含。" value={value.blockCacheDir} defaultValue={status.defaultBlockCacheDir} displayValue={displayStoragePath(value.blockCacheDir || status.defaultBlockCacheDir,status)} isDefault={!value.blockCacheDir} warning={warning('cache')} disabled={locked}
       onChoose={() => choose('cache')} onReset={() => reset('cache')}/>
     <Feedback error>{errorField === 'cache' && picker.error}</Feedback></>}
     <p role="status">{message}</p>

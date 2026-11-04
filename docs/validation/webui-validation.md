@@ -1558,3 +1558,13 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 前端 build/check、嵌入资源登记和差异格式检查通过。Edge 内存夹具共 91 项受影响回归通过，覆盖标签键盘操作、字段归属、草稿、保存、路径冲突与异步重检、数值边界和布局；已查看 390px 存储／下载与缓存、1440px 下载与缓存及窄屏深色缓存分组截图。隔离真实 Console／SQLite／Edge 的 `TestStorageLocationsBrowser`、`TestStorageChoicesBrowser` 和 `TestBlockCacheRecoveryBrowser` 通过，覆盖分页面目录选择、冲突拒绝、恢复默认、保存持久化、重建 Console 后生效及缓存故障恢复；原生选择器由隔离替身提供。未重建 EXE、启动游戏或修改 hosts。
 
 初次沙箱内 Edge 启动即退出，后续以普通用户权限完成检查。夹具首次 47/48，剩余一项仍预期同页预算草稿的保存状态，调整到新页面归属后通过。真实位置联调初次因通知自动消失与精确数量断言竞态失败，改为等待通知数量减少后通过；其他两项当轮已通过。原始失败和成功日志保留在忽略目录 `artifacts/settings-reorg/`，最终位置联调日志为 `live-locations-final.log`；夹具不外推为真实服务或 VRC 播放验证。
+
+## 2026-11-04 默认存储路径使用相对形式显示
+
+设置中的默认数据库、完整视频和临时视频缓存位置改为相对路径显示；视频保留确认、视频导入目标及 VRCX 目标／覆盖确认共用同一显示规则。数据库和完整视频相对配置文件目录，临时缓存相对程序目录；其他自选位置保持原路径。草稿、原生选择器请求、保存参数和文件访问仍使用已解析路径。
+
+前端 build/check、嵌入资源登记和差异格式检查通过。普通用户环境 Edge 的存储位置、路径显示、VRCX 和导入空间提示定向回归 66/66 通过，覆盖恢复默认、刷新、自选绝对位置、命名配置默认目录和配置／程序分开时的缓存位置，以及预览／确认显示与请求路径分离；已查看 320px 深色路径字段截图。隔离真实 Console／SQLite／Edge 的 `TestStorageChoicesBrowser` 通过，明确检查初始三个默认位置的相对显示，并覆盖真实保存、冲突检查和恢复默认；原生选择器使用隔离替身。未重建 EXE、启动游戏或修改 hosts。
+
+沙箱内 Edge 在用例启动阶段失败，普通用户环境完成复验。夹具首轮 65/66，剩余一项仍将显示值当作选择器绝对路径；修正该旧断言后 66/66。失败和成功日志分别保留在忽略目录 `artifacts/path-display-browser-sandbox.log`、`artifacts/path-display-browser.log`、`artifacts/path-display-browser-fixed.log`；真实联调日志及截图位于 `artifacts/path-display-storage-live.log` 和 `artifacts/path-display-storage-live/`。夹具结果仅证明界面与请求交互，真实联调使用隔离数据，不外推为个人数据或游戏验证。
+
+随后按用户确认，为默认相对路径显式加上 `.\` 前缀（如 `.\work`、`.\videos`、`.\data\database\storage.sqlite`），其余显示范围和保存语义保持不变。前端 build/check、嵌入资源登记和差异格式检查通过；同组 Edge 回归 66/66 及真实 `TestStorageChoicesBrowser` 联调再次通过，并查看了 390px 真实服务截图中的默认数据库相对路径。增量证据位于忽略目录 `artifacts/path-display-dot-prefix-browser.log`、`artifacts/path-display-dot-prefix-live.log` 和 `artifacts/path-display-dot-prefix-live/`。

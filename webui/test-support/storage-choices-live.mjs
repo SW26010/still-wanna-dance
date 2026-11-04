@@ -1,6 +1,6 @@
 import {chromium,expect} from '@playwright/test';
 import {mkdir,stat} from 'node:fs/promises';
-import {dirname,join} from 'node:path';
+import {dirname,join,sep} from 'node:path';
 
 const [base,databasePath,videoDir,cacheDir,output]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
@@ -12,8 +12,12 @@ try {
   const database=page.getByLabel('数据库文件',{exact:true});
   const video=page.getByLabel('完整视频目录',{exact:true});
   const cache=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
+  await expect(database).toHaveValue('.'+sep+join('data','database','storage.sqlite'));
+  await expect(video).toHaveValue('.'+sep+'videos');
+  await expect(cache).toHaveValue('.'+sep+'work');
   const originalVideo=await video.inputValue(), defaultCache=await cache.inputValue();
-  const invalidCache=join(dirname(defaultCache),'custom'), nestedVideo=join(cacheDir,'nested-videos'), deferredDatabase=join(cacheDir,'new','library.sqlite');
+  const status=await page.evaluate(()=>fetch('/api/status',{headers:{'X-SWD-Token':JSON.parse(document.getElementById('swd-bootstrap').textContent).token}}).then(r=>r.json()));
+  const invalidCache=join(dirname(status.defaultBlockCacheDir),'custom'), nestedVideo=join(cacheDir,'nested-videos'), deferredDatabase=join(cacheDir,'new','library.sqlite');
   const exists=async path=>{try { await stat(path); return true; } catch(error) { if(error.code==='ENOENT') return false; throw error; }};
   const save=page.getByRole('button',{name:'保存设置',exact:true});
 

@@ -10,6 +10,7 @@ import { StorageLocationFields, locationRequestError, locationValidationKey, typ
 import { DirectoryField, samePath } from './path-picker';
 import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
+import { displayStoragePath } from './storage-path';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
@@ -150,7 +151,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
         const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir,blockCacheDir:d.blockCacheDir});
         if (check.confirmVideoPolicy) {
-          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频。':'收藏不提供额外保留保护。'}</p></>, '确认并保存');
+          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{displayStoragePath(d.videoDir,s)}</p><p className="wrap">数据库：{displayStoragePath(d.databasePath,s)||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频。':'收藏不提供额外保留保护。'}</p></>, '确认并保存');
           if (!accepted) return;
           const {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites} = values;
           confirmed = {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites};
@@ -207,8 +208,8 @@ export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {
   useEffect(() => setCleanup(false), [job.id,job.running]);
   return <Panel id="video-import" title="导入视频">{storageBudget}
     <p>导入缺少的视频。请勿修改源视频。</p>
-    <p className="wrap">本次导入到完整视频目录：{job.videoDir || s.activeSettings.videoDir}</p>
-    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。</>)) return; await app.action('import/start',{source:source.trim()}); }}>
+    <p className="wrap">本次导入到完整视频目录：{displayStoragePath(job.videoDir || s.activeSettings.videoDir,s)}</p>
+    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>本次将导入到当前完整视频目录：{displayStoragePath(s.activeSettings.videoDir,s)}。若要使用新目录，请取消并先重启应用。</>)) return; await app.action('import/start',{source:source.trim()}); }}>
       <DirectoryField purpose="import-directory" label="外部目录" value={job.source || source} disabled={app.unavailable || !!job.present || !!job.running} onChange={setSource} onPending={setSelecting}
         labelSuffix={<ImportSpaceHint source={job.source || source} videoDir={job.videoDir || s.activeSettings.videoDir} unavailable={app.unavailable}/>}/>
       <div className="actions">

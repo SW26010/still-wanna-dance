@@ -29,6 +29,19 @@ async function fixture(page: Page, existing = 0, suggested = false) {
 }
 async function inspect(page: Page) { await page.getByRole('button',{name:'读取并预览',exact:true}).click(); }
 
+test('VRCX preview and overwrite confirmation show the default target relatively',async({page})=>{
+  const {report}=await fixture(page,3);
+  await page.goto('/#vrcx-import');
+  await expect(page.getByText('导入到当前数据库：.\\storage\\storage.sqlite',{exact:true})).toBeVisible();
+  await inspect(page);
+  await expect(page.getByText('数据源：'+report.source,{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'导入并覆盖…',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await expect(dialog).toContainText('导入到：.\\storage\\storage.sqlite');
+  await expect(dialog).not.toContainText(report.databasePath);
+  await dialog.getByRole('button',{name:'取消',exact:true}).click();
+});
+
 test('VRCX fixture rejects unrecognized nested operations',async({page})=>{
   await fixture(page);
   await page.goto('/about');

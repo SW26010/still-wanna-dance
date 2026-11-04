@@ -4,6 +4,7 @@ import { APIError, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Notification, Panel } from './ui';
 import { PathField, usePathPicker } from './path-picker';
+import { displayStoragePath } from './storage-path';
 
 interface Preview {
   id: string; source: string; databasePath: string; total: number; recognized: number;
@@ -81,7 +82,7 @@ function useVRCXImport(target: string) {
   async function confirmOverwrite() {
     const p = current.current;
     return !p?.id || p.events <= 0 || !p.existingSongs || app.confirm('覆盖全部歌曲需求统计？',
-      <><p>现有 {p.existingSongs} 首歌曲的需求统计将整体被替换。</p><p>导入到：{p.databasePath}</p></>,
+      <><p>现有 {p.existingSongs} 首歌曲的需求统计将整体被替换。</p><p>导入到：{displayStoragePath(p.databasePath,app.status.data!)}</p></>,
       '强制导入并覆盖');
   }
   async function apply() {
@@ -130,13 +131,13 @@ export function VRCXProvider({target,page,children}:PropsWithChildren<{target:st
 }
 
 export function VRCXImport({model:m}: {model:VRCXModel}) {
-  const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview;
+  const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview, app = useApp();
   return <Panel id="vrcx-import" title="导入 VRCX 历史">
     <Caption1 as="p" className="hint">根据 VRCX 历史，优先下载和保留你常用的歌曲。</Caption1>
     {m.found === false && <p>未找到默认位置的 VRCX 数据库，可选择其他位置或跳过。</p>}
     <PathField label="VRCX 数据库路径" value={m.path} defaultValue={m.defaultPath} isDefault={!m.path} disabled={m.locked}
       onChoose={() => void m.choose()} onReset={m.resetPath}/>
-    <p className="wrap">导入到当前数据库：{m.target}</p>
+    <p className="wrap">导入到当前数据库：{displayStoragePath(m.target,app.status.data!)}</p>
     <div className="actions"><Button type="button" disabled={m.locked} onClick={() => void m.inspect()}>读取并预览</Button></div>
     {p && <div className="content-stack">
       <p className="wrap">数据源：{p.source}</p>

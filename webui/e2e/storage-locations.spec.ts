@@ -72,7 +72,7 @@ test('canceling the database picker preserves drafts and permits another selecti
   await page.goto('/#storage-settings');
   const open=page.getByRole('textbox',{name:'数据库文件',exact:true});
   await open.click(); await expect(open).toBeEnabled();
-  await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue(api.state.settings.databasePath);
+  await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue('.\\storage\\storage.sqlite');
   await open.click();
   await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue('D:\\Existing\\storage.sqlite');
   expect(api.calls.some(c=>c.path==='settings'||c.path==='start')).toBe(false);
@@ -89,7 +89,7 @@ test('explicit database creation only updates the draft until save and restart',
   const videos=page.getByRole('textbox',{name:'完整视频目录',exact:true});
   await expect(db).toBeEnabled(); await expect(videos).toBeEnabled();
   await page.getByRole('textbox',{name:'数据库文件',exact:true}).click();
-  await expect(db).toHaveValue(api.state.defaultDatabasePath);
+  await expect(db).toHaveValue('.\\storage\\storage.sqlite');
   await expect(videos).toHaveValue(api.state.defaultVideoDir);
   expect(api.calls.some(c=>c.path==='settings'||c.path==='start')).toBe(false);
   expect(api.state.activeSettings.databasePath).toBe('');
@@ -142,7 +142,7 @@ test('canceling a new database never creates it or changes the draft',async({pag
   await page.goto('/#storage-settings');
   const create=page.getByRole('textbox',{name:'数据库文件',exact:true});
   await create.click(); await expect(create).toBeEnabled();
-  await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue(api.state.settings.databasePath);
+  await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue('.\\storage\\storage.sqlite');
   expect(api.calls.some(c=>c.path==='storage/prepare-database'||c.path==='settings')).toBe(false);
 });
 
@@ -158,9 +158,10 @@ for(const target of [
   const field=page.getByRole('textbox',{name:target.label,exact:true});
   await expect(field).toHaveAttribute('readonly','');
   const original=await field.inputValue(), chosen='D:\\中文 目录\\选择结果';
+  const initialPath=target.purpose==='block-cache-directory'?api.state.defaultBlockCacheDir:original;
   let calls=0;
   await page.route('**/api/path/select',r=>{
-    expect(r.request().postDataJSON()).toEqual({purpose:target.purpose,path:calls<2?original:chosen});
+    expect(r.request().postDataJSON()).toEqual({purpose:target.purpose,path:calls<2?initialPath:chosen});
     calls++;
     return calls===1?r.fulfill({status:400,body:'选择器暂不可用'}):r.fulfill({json:calls===2?{path:chosen,canceled:false}:{path:'',canceled:true}});
   });
@@ -179,7 +180,7 @@ test('temporary cache location is staged separately and can return to default', 
   await page.goto('/#download-settings');
   const field=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
   const reset=page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true});
-  await expect(field).toHaveValue(api.state.defaultBlockCacheDir);
+  await expect(field).toHaveValue('.\\work');
   await expect(reset).toBeDisabled();
   await choosePath(page,'临时视频缓存目录','E:\\SSD Cache');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
@@ -189,7 +190,7 @@ test('temporary cache location is staged separately and can return to default', 
   expect(api.state.settings.videoDir).toBe(api.state.activeSettings.videoDir);
   expect(api.calls.some(c=>c.path==='storage/check')).toBe(false);
   await reset.click();
-  await expect(field).toHaveValue(api.state.defaultBlockCacheDir);
+  await expect(field).toHaveValue('.\\work');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.state.settings.blockCacheDir).toBe('');
   await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByRole('status')).toHaveText('已生效');
@@ -200,7 +201,7 @@ test('selecting the default cache directory uses the default setting', async ({p
   api.state.settings.blockCacheDir=api.state.activeSettings.blockCacheDir='E:\\SSD Cache';
   await page.goto('/#download-settings');
   await choosePath(page,'临时视频缓存目录',api.state.defaultBlockCacheDir);
-  await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveValue(api.state.defaultBlockCacheDir);
+  await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveValue('.\\work');
   await expect(page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true})).toBeDisabled();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.state.settings.blockCacheDir).toBe('');
@@ -604,7 +605,7 @@ for (const theme of ['light','dark'] as const) test(`path fields are read-only p
   await expect(reset).toBeDisabled();
   const defaultColor=await db.evaluate(e=>getComputedStyle(e).color);
   await db.focus(); await page.keyboard.type('cannotedit');
-  await expect(db).toHaveValue(api.state.defaultDatabasePath);
+  await expect(db).toHaveValue('.\\storage\\storage.sqlite');
   expect(api.calls.some(c=>c.path==='path/select')).toBe(false);
   await page.route('**/api/path/select',r=>{
     expect(r.request().postDataJSON().purpose).toBe('database');
@@ -616,7 +617,7 @@ for (const theme of ['light','dark'] as const) test(`path fields are read-only p
   expect(await db.evaluate(e=>getComputedStyle(e).color)).not.toBe(defaultColor);
   await page.screenshot({path:info.outputPath('path-fields-'+theme+'.png'),fullPage:true});
   await reset.click();
-  await expect(db).toHaveValue(api.state.defaultDatabasePath);
+  await expect(db).toHaveValue('.\\storage\\storage.sqlite');
   await expect(reset).toBeDisabled();
   expect(await db.evaluate(e=>getComputedStyle(e).color)).toBe(defaultColor);
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);

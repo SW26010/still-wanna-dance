@@ -50,7 +50,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		ID        string `json:"id"`
 		Overwrite bool   `json:"overwrite"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := decodeRequest(json.NewDecoder(r.Body), &input); err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "无效的 VRCX 导入请求", http.StatusBadRequest)
 		return
@@ -207,7 +207,7 @@ func (c *Console) vrcxUsageCount(ctx context.Context, databasePath string) (int,
 	closing, active := c.closing, libraryPaths(c.settings).DatabasePath
 	c.mu.Unlock()
 	if closing || databasePath != active {
-		return 0, errors.New("目标数据库已改变，请重新检查")
+		return 0, rejectRequest(errors.New("目标数据库已改变，请重新检查"))
 	}
 	store, err := c.businessStore()
 	if err != nil {
@@ -219,19 +219,19 @@ func (c *Console) vrcxUsageCount(ctx context.Context, databasePath string) (int,
 // Caller holds vrcxMu and lifecycleMu, in that order. Import consumes the checked in-memory preview.
 func (c *Console) importVRCXPreview(ctx context.Context, p *vrcxPreview, overwrite bool) error {
 	if time.Now().After(p.expires) {
-		return errors.New("预览已过期，请重新检查")
+		return rejectRequest(errors.New("预览已过期，请重新检查"))
 	}
 	if p.Imported {
 		return nil
 	}
 	if (p.ExistingSongs > 0 && !overwrite) || (overwrite && p.ExistingSongs == 0) {
-		return errors.New("请先预览已有统计并明确确认整表覆盖")
+		return rejectRequest(errors.New("请先预览已有统计并明确确认整表覆盖"))
 	}
 	c.mu.Lock()
 	activeRoot, closing := libraryPaths(c.settings).DatabasePath, c.closing
 	c.mu.Unlock()
 	if closing || p.DatabasePath != activeRoot {
-		return errors.New("目标数据库已改变，请重新预览")
+		return rejectRequest(errors.New("目标数据库已改变，请重新预览"))
 	}
 	store, err := c.businessStore()
 	if err != nil {
@@ -240,7 +240,7 @@ func (c *Console) importVRCXPreview(ctx context.Context, p *vrcxPreview, overwri
 	err = store.ImportSongUsage(ctx, p.history, overwrite)
 	if err != nil {
 		if errors.Is(err, cacheproxy.ErrSongUsageExists) {
-			return err
+			return rejectRequest(err)
 		}
 		return errVRCXWrite
 	}

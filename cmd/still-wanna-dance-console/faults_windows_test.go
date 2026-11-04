@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -20,9 +23,76 @@ import (
 
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/legal"
+	"still-wanna-dance/internal/workfiles"
 )
+
+func TestFaultOpeningNavigationBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_FAULT_NAVIGATION_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_FAULT_NAVIGATION_BROWSER_EVIDENCE for real fault/navigation integration")
+	}
+	root := t.TempDir()
+	config := filepath.Join(root, "config.json")
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"autoOpenWebUI":false}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	writeAcceptedTerms(t, config)
+	work, err := cacheproxy.OpenWorkDirectory(filepath.Join(root, "work"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer work.Close()
+	ui := httptest.NewUnstartedServer(nil)
+	c, err := console.New(config, ui.Listener.Addr().String(), work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	// Fail an actual settings write without changing the last saved config.
+	if err := os.WriteFile(filepath.Join(root, workfiles.TempName(config)), []byte("occupied"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	logDir := apppaths.ForConfig(config).LogDir
+	if err := os.MkdirAll(filepath.Dir(logDir), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logDir, []byte("not a log directory"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	center := faults.New()
+	c.SetFaultCenter(center)
+	var checks, openings atomic.Int32
+	ui.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/test/fault-openings" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"checks": checks.Load(), "openings": openings.Load(), "connected": c.WebUIConnected()})
+			return
+		}
+		c.ServeHTTP(w, r)
+	})
+	ui.Start()
+	defer ui.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	done := make(chan struct{})
+	defer func() { cancel(); <-done }()
+	go func() {
+		defer close(done)
+		watchFaultOpenings(ctx, center, ui.URL, func() bool {
+			connected := c.WebUIConnected()
+			checks.Add(1)
+			return connected
+		}, func(string) error { openings.Add(1); return nil }, func(err error) { t.Errorf("browser failed: %v", err) })
+	}()
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "fault-navigation-live.mjs"), ui.URL, evidence)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("browser: %v\n%s", err, output)
+	} else {
+		t.Log(string(output))
+	}
+}
 
 func requireUnusedDesktop(t *testing.T) {
 	t.Helper()

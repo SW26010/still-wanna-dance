@@ -77,10 +77,10 @@ func (c *Console) startImport(source string) error {
 	closing, present, videoDir := c.closing, c.importStatus.Present, c.settings.VideoDir
 	c.mu.Unlock()
 	if closing || present {
-		return errors.New("请先结束或放弃当前导入任务")
+		return rejectRequest(errors.New("请先结束或放弃当前导入任务"))
 	}
 	if strings.TrimSpace(source) == "" {
-		return errors.New("请指定外部目录")
+		return rejectRequest(errors.New("请指定外部目录"))
 	}
 	source, err := filepath.Abs(source)
 	if err != nil {
@@ -95,7 +95,7 @@ func (c *Console) startImport(source string) error {
 		return err
 	}
 	if !info.IsDir() {
-		return errors.New("请选择目录")
+		return rejectRequest(errors.New("请选择目录"))
 	}
 	if _, err = cacheproxy.CacheDirectory(videoDir); err != nil {
 		return err
@@ -109,7 +109,7 @@ func (c *Console) startImport(source string) error {
 		return err
 	}
 	if insideImportRoot(storage, source) {
-		return errors.New("请选择完整视频目录之外的来源目录")
+		return rejectRequest(errors.New("请选择完整视频目录之外的来源目录"))
 	}
 	engine, err := c.ensureEngineLocked()
 	if err != nil {
@@ -169,8 +169,10 @@ func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, 
 		c.importStatus = status
 		c.mu.Unlock()
 		if ctx.Err() == nil {
-			var failure error
-			if status.Error != "" {
+			// Keep classification and identity from the worker. Per-file
+			// failures may exist in the retained result without a return error.
+			failure := err
+			if failure == nil && status.Error != "" {
 				failure = errors.New(status.Error)
 			}
 			c.reportFault("task:import", failure)
@@ -186,7 +188,7 @@ func (c *Console) resumeImport(id uint64) error {
 		return err
 	}
 	if !task.status(c.settings).Paused {
-		return errors.New("本次导入已经完成")
+		return rejectRequest(errors.New("本次导入已经完成"))
 	}
 	engine, err := c.ensureEngineLocked()
 	if err != nil {
@@ -202,7 +204,7 @@ func (c *Console) pauseImport(id uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing || id != c.importStatus.ID || !c.importStatus.Running || c.importCancel == nil {
-		return errors.New("本次导入无法暂停，请刷新状态")
+		return rejectRequest(errors.New("本次导入无法暂停，请刷新状态"))
 	}
 	c.importStatus.Pausing = true
 	c.importStatus.Phase = "正在暂停"
@@ -225,7 +227,7 @@ func (c *Console) discardImport(id uint64, confirmed bool) error {
 	valid := !c.closing && c.importStatus.Present && !c.importStatus.Running && id == c.importStatus.ID
 	c.mu.Unlock()
 	if !confirmed || !valid {
-		return errors.New("请确认结束本次导入并刷新状态")
+		return rejectRequest(errors.New("请确认结束本次导入并刷新状态"))
 	}
 	if err := os.Remove(c.files().State("video-import")); err != nil && !os.IsNotExist(err) {
 		return err
@@ -241,10 +243,10 @@ func (c *Console) idleImport(id uint64) (videoImportTask, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing || c.importStatus.Running || c.importTask == nil || id != c.importTask.ID {
-		return videoImportTask{}, errors.New("本次导入不可操作，请刷新状态")
+		return videoImportTask{}, rejectRequest(errors.New("本次导入不可操作，请刷新状态"))
 	}
 	if c.importTask.status(c.settings).ScopeMismatch {
-		return videoImportTask{}, errors.New("本次导入的数据位置与当前生效位置不一致，请恢复原位置后重启，或放弃本次导入")
+		return videoImportTask{}, rejectRequest(errors.New("本次导入的数据位置与当前生效位置不一致，请恢复原位置后重启，或放弃本次导入"))
 	}
 	return c.importTask.clone(), nil
 }
@@ -255,7 +257,7 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task
 		return err
 	}
 	if len(allowed) == 0 {
-		return errors.New("本地尚无已知资源，未开始导入，请先更新曲库")
+		return rejectRequest(errors.New("本地尚无已知资源，未开始导入，请先更新曲库"))
 	}
 	if !task.Enumerated {
 		c.setImportPhase("正在枚举视频文件")
@@ -308,14 +310,14 @@ func (c *Console) cleanupImport(id uint64, confirmed bool) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	if !confirmed {
-		return errors.New("删除不可逆，必须再次确认")
+		return rejectRequest(errors.New("删除不可逆，必须再次确认"))
 	}
 	task, err := c.idleImport(id)
 	if err != nil {
 		return err
 	}
 	if !task.status(c.settings).CleanupAvailable {
-		return errors.New("本次导入不可清理，请刷新状态")
+		return rejectRequest(errors.New("本次导入不可清理，请刷新状态"))
 	}
 	engine, err := c.ensureEngineLocked()
 	if err != nil {

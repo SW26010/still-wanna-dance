@@ -118,7 +118,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	allowed := !c.closing && c.terms.valid()
 	c.mu.Unlock()
 	if !allowed {
-		return proxyImportResult{}, errors.New("请先同意条款，并等待应用就绪")
+		return proxyImportResult{}, rejectRequest(errors.New("请先同意条款，并等待应用就绪"))
 	}
 	parsed, err := mihomo.Import(data)
 	result := proxyImportResult{ImportResult: parsed}
@@ -127,7 +127,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	}
 	snapshot, err := json.Marshal(proxyNodeDocument{Version: proxyNodeDocumentVersion, Nodes: parsed.Nodes})
 	if err != nil || len(snapshot) > mihomo.MaxImportBytes {
-		return result, errors.New("节点快照超过 2 MiB")
+		return result, rejectRequest(errors.New("节点快照超过 2 MiB"))
 	}
 	id := make([]byte, 24)
 	if _, err = rand.Read(id); err != nil {
@@ -136,7 +136,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return result, errors.New("程序正在退出")
+		return result, rejectRequest(errors.New("程序正在退出"))
 	}
 	if c.proxyImports == nil {
 		c.proxyImports = make(map[string]proxyImportDraft)
@@ -147,7 +147,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 		}
 	}
 	if len(c.proxyImports) >= 8 {
-		return result, errors.New("待保存的节点草稿过多，请保存或丢弃已有草稿后再导入")
+		return result, rejectRequest(errors.New("待保存的节点草稿过多，请保存或丢弃已有草稿后再导入"))
 	}
 	result.ID = hex.EncodeToString(id)
 	c.proxyImports[result.ID] = proxyImportDraft{string(snapshot), base.nodeSnapshot, base.nodeSecret, time.Now().Add(2 * time.Hour)}

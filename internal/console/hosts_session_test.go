@@ -443,7 +443,7 @@ func TestHostsRepairClearsOnlyResolvedPermissionError(t *testing.T) {
 			}
 			before, generation := c.activation, c.activationGeneration
 			c.cdnError = "unrelated gateway error"
-			c.recordActionError("/api/queue/start", errors.New("unrelated queue error"))
+			c.recordActionError("queue", errors.New("unrelated queue error"))
 			if !unrelated {
 				launch := h.launch
 				h.launch = func(context.Context) (hostsConnection, error) { return nil, errHostsAuthorizationCanceled }

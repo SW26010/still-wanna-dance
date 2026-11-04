@@ -2,25 +2,48 @@ package console
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/faults"
+	"still-wanna-dance/internal/workfiles"
 )
 
 func TestBatchStopsAtBudget(t *testing.T) {
 	for _, tc := range []struct {
-		unlimited bool
-		limit     int64
-	}{{true, 0}, {false, 0}, {false, 5}, {false, 20}} {
+		unlimited  bool
+		limit      int64
+		failRecord bool
+	}{{true, 0, false}, {false, 0, false}, {false, 5, false}, {false, 20, false}, {false, 0, true}} {
 		limit := tc.limit
 		t.Run(fmt.Sprint(tc), func(t *testing.T) {
 			c := testConsole(t)
+			center := faults.New()
+			c.SetFaultCenter(center)
+			var previous error
+			if !tc.unlimited && limit < 10 && !tc.failRecord {
+				previous = errors.New("previous batch failed")
+				center.Set("task:batch", previous)
+				center.Take()
+			}
+			if tc.failRecord {
+				path := c.files().State("batch-last-attempt")
+				if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(filepath.Dir(path), workfiles.TempName(path)), []byte("occupied"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			defer c.Close()
 			var downloads atomic.Int32
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +98,15 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			}
 			if !tc.unlimited && limit < 10 && (!strings.Contains(c.batch.Phase, "调整视频保留空间") || !c.lastBatch.Updated.IsZero()) {
 				t.Fatalf("wrong stop result: %+v", c.batch)
+			}
+			if open, cause := center.Take(); open != tc.failRecord {
+				t.Fatal("budget result and snapshot failure were not distinguished", cause)
+			}
+			if previous != nil {
+				center.Restore(previous)
+				if open, _ := center.Take(); !open {
+					t.Fatal("budget stop incorrectly recovered an earlier batch fault")
+				}
 			}
 		})
 	}

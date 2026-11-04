@@ -248,7 +248,7 @@ func (c *Console) startQueueLocked() error {
 	closing, logDir := c.closing, c.settings.effectiveVRChatLogDir()
 	c.mu.Unlock()
 	if closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if c.queue.snapshot().Running {
 		return nil

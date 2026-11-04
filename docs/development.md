@@ -59,7 +59,7 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 
 ## Console 路由与共享引擎
 
-普通管理请求在 [`management.go`](../internal/console/management.go) 选择处理函数后统一校验会话 Token 和 Origin；新增普通管理读取入口应登记在该路由组，POST 操作继续由 `serveAction` 分发。业务处理函数不再重复鉴权。将 Go 错误写入管理接口的失败响应时，先通过 `preserveResponseFault` 将原错误交给共享边界，以保留故障去重和取消判断所需的错误链；对外响应文案仍由处理函数决定。条款操作复用同一校验函数，保留同意前可访问的规则；公开读取、媒体签名、SSE 和 WebSocket 仍由各自入口按现有规则处理。回归从 `ServeHTTP` 验证准入及方法错误，不能只测试校验函数。
+普通管理请求在 [`management.go`](../internal/console/management.go) 选择处理函数后统一校验会话 Token 和 Origin；新增普通管理读取入口应登记在该路由组，POST 操作继续由 `serveAction` 分发。业务处理函数不再重复鉴权。将需要通知的运行故障写入管理接口响应时，通过 `preserveResponseFault` 显式保留原错误；HTTP 状态和响应正文只表达接口结果，不决定是否通知。输入、忙碌、过期状态及缺少确认等预期拒绝通过 `rejectRequest` 标记，JSON 请求解码共用 `decodeRequest`，字段校验复用该标记；预期拒绝与取消既不上报，也不清除旧故障。保留错误链用于同因去重和混合错误判断，对外文案和脱敏方式仍由处理函数决定。共用操作分发显式指定业务来源；仅对应操作成功或业务明确解除该故障时清除，不按 URL 第一段合并不同操作。条款操作复用同一校验函数，保留同意前可访问的规则；公开读取、媒体签名、SSE 和 WebSocket 仍由各自入口按现有规则处理。回归从 `ServeHTTP` 验证准入及方法错误，不能只测试校验函数。
 
 共享引擎由 Console 持有，入口集中在 [`engine.go`](../internal/console/engine.go)。视频任务和网关在已有 `lifecycleMu` 保护的启动流程中调用 `ensureEngineLocked`，调用时不持有状态锁 `mu`，直接使用返回的引擎；导入先完成目录校验，曲库更新则直接使用已有 Store。任务登记与退出等待仍由各业务生命周期负责。预览通过 `retainEngineRead` 一次取得引擎及释放函数，涵盖首次淘汰前的保护。创建、发布通知与关闭不借用调用方的状态锁；状态读取继续只取得短期快照，不等待引擎 I/O。运行语义以[配置生命周期](settings-lifecycle.md)为准。
 

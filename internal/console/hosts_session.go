@@ -72,7 +72,7 @@ func newHostsController(path string, launch func(context.Context) (hostsConnecti
 
 func (h *hostsController) change(action string, restore bool) error {
 	if h.closed || action != "rollback" && h.ctx.Err() != nil {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if action == "rollback" {
 		if !h.rollbackReady {
@@ -119,7 +119,7 @@ func (h *hostsController) change(action string, restore bool) error {
 // Normal exit receives the committed policy from Console.Close after saving.
 func (h *hostsController) prepareRestore() error {
 	if h.closed || h.ctx.Err() != nil {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	data, err := os.ReadFile(h.path)
 	if err != nil {

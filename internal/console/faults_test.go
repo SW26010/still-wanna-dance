@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -89,25 +90,34 @@ func TestManagementFailuresUseSharedFaultBoundary(t *testing.T) {
 	if code := get("/api/library?offset=-1"); code != 400 {
 		t.Fatal("expected invalid query", code)
 	}
-	<-center.Wake()
-	if open, err := center.Take(); !open || err == nil {
-		t.Fatal("management failure did not reach the shared center", open, err)
+	if open, err := center.Take(); open {
+		t.Fatal("invalid query requested the WebUI", err)
 	}
-	if code := get("/api/library?offset=-1"); code != 400 {
+	// A real read failure still reports, independently of its HTTP status.
+	database := c.settings.DatabasePath
+	c.settings.DatabasePath = filepath.Join(t.TempDir(), "missing.sqlite")
+	if code := get("/api/library"); code != 400 {
+		t.Fatal("expected database read failure", code)
+	}
+	open, cause := center.Take()
+	if !open || cause == nil {
+		t.Fatal("database failure did not reach the shared center")
+	}
+	if code := get("/api/library?offset=invalid"); code != 400 {
 		t.Fatal(code)
 	}
-	select {
-	case <-center.Wake():
-		t.Fatal("same management incident was reported twice")
-	default:
+	center.Restore(cause)
+	if open, _ := center.Take(); !open {
+		t.Fatal("invalid query cleared an existing database fault")
 	}
+	c.settings.DatabasePath = database
 	if code := get("/api/library?view=songs"); code != 200 {
 		t.Fatal("valid query did not recover", code)
 	}
-	if code := get("/api/library?offset=-1"); code != 400 {
+	c.settings.DatabasePath = filepath.Join(t.TempDir(), "missing-again.sqlite")
+	if code := get("/api/library"); code != 400 {
 		t.Fatal(code)
 	}
-	<-center.Wake()
 	if open, _ := center.Take(); !open {
 		t.Fatal("new management incident was not delivered")
 	}
@@ -186,12 +196,11 @@ func TestManagementRetainsStorageFailureAcrossSources(t *testing.T) {
 		default:
 		}
 	}
-	r := httptest.NewRequest(http.MethodGet, "http://"+c.address+"/api/library?offset=-1", nil)
-	r.Header.Set("X-SWD-Token", c.token)
-	w := httptest.NewRecorder()
-	c.ServeHTTP(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Fatal("unrelated request did not fail", w.Code)
+	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) {
+		return "", errors.New("fixture dialog failure")
+	}
+	if w := call("/api/path/select", `{"purpose":"database"}`); w.Code != http.StatusBadRequest {
+		t.Fatal("unrelated operation did not fail", w.Code)
 	}
 	select {
 	case <-center.Wake():

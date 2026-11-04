@@ -19,7 +19,7 @@ import (
 
 // The only consumer of actionable incidents. Sources publish state rather than
 // opening a browser themselves; normal startup uses the same coalescing path.
-func watchFaultOpenings(ctx context.Context, center *faults.Center, url string, open func(string) error, failed func(error)) {
+func watchFaultOpenings(ctx context.Context, center *faults.Center, url string, connected func() bool, open func(string) error, failed func(error)) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -29,6 +29,11 @@ func watchFaultOpenings(ctx context.Context, center *faults.Center, url string, 
 				return
 			}
 			if want, cause := center.Take(); want {
+				// The existing page already presents faults. Opening the root URL
+				// again can replace its current route and discard an unsaved draft.
+				if connected != nil && connected() {
+					continue
+				}
 				result := make(chan error, 1)
 				go func() { result <- open(url) }()
 				select {
@@ -132,7 +137,7 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 	center := faults.New()
 	center.Set("startup", cause)
 	openErr := make(chan error, 1)
-	go watchFaultOpenings(ctx, center, "http://"+listener.Addr().String(), open, func(err error) {
+	go watchFaultOpenings(ctx, center, "http://"+listener.Addr().String(), view.WebUIConnected, open, func(err error) {
 		openErr <- err
 		cancel()
 	})

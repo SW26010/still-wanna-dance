@@ -286,7 +286,7 @@ func run() (runErr error) {
 		background.Add(1)
 		go func() {
 			defer background.Done()
-			watchFaultOpenings(ctx, incidentCenter, url, openWebUI, func(err error) { go desktop.ShowError(err) })
+			watchFaultOpenings(ctx, incidentCenter, url, c.WebUIConnected, openWebUI, func(err error) { go desktop.ShowError(err) })
 		}()
 	}
 	background.Add(3)

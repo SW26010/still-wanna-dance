@@ -3,7 +3,6 @@ package console
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 )
@@ -39,21 +38,15 @@ func (c *Console) serveManagement(w http.ResponseWriter, r *http.Request) {
 	if c.allowManagement(w, r) {
 		result := &faultResponseWriter{ResponseWriter: w}
 		handler(result, r)
-		var validation *settingsValidationError
-		if errors.As(result.cause, &validation) {
-			return
-		}
 		if !result.reported && r.Context().Err() == nil {
 			source := "request:" + r.Method + ":" + r.URL.Path
-			if result.status >= 400 && result.status != http.StatusNotFound && result.status != http.StatusMethodNotAllowed {
+			// Handlers explicitly preserve operational errors. HTTP status and
+			// response text describe the response, not its desktop severity.
+			if result.cause != nil {
 				var body struct {
 					Error string `json:"error"`
-					Code  string `json:"code"`
 				}
 				_ = json.Unmarshal(result.failure.Bytes(), &body)
-				if body.Code == "uac_canceled" {
-					return
-				}
 				message := body.Error
 				if message == "" {
 					message = strings.TrimSpace(result.failure.String())
@@ -61,10 +54,7 @@ func (c *Console) serveManagement(w http.ResponseWriter, r *http.Request) {
 				if message == "" {
 					message = http.StatusText(result.status)
 				}
-				var failure error = errors.New(message)
-				if result.cause != nil {
-					failure = &responseFault{message: message, cause: result.cause}
-				}
+				failure := &responseFault{message: message, cause: result.cause}
 				c.reportFault(source, failure)
 			} else if result.status < 400 {
 				c.reportFault(source, nil)

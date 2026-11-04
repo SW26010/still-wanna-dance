@@ -14,7 +14,60 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/faults"
 )
+
+func TestImportWithoutKnownMediaDoesNotNotifyFault(t *testing.T) {
+	for _, previous := range []bool{false, true} {
+		t.Run(fmt.Sprint(previous), func(t *testing.T) {
+			c := testConsole(t)
+			center := faults.New()
+			c.SetFaultCenter(center)
+			old := errors.New("previous import failure")
+			if previous {
+				center.Set("task:import", old)
+				center.Take()
+			}
+			if err := c.startImport(t.TempDir()); err != nil {
+				t.Fatal(err)
+			}
+			status := waitImport(t, c)
+			if status.Running || !status.Paused || status.Error != "本地尚无已知资源，未开始导入，请先更新曲库" || status.Checked != 0 {
+				t.Fatalf("empty catalog changed the import result: %+v", status)
+			}
+			if open, cause := center.Take(); open {
+				t.Fatal("empty catalog rejection requested the WebUI", cause)
+			}
+			if previous {
+				center.Restore(old)
+				if open, _ := center.Take(); !open {
+					t.Fatal("empty catalog rejection cleared the previous import fault")
+				}
+			}
+		})
+	}
+}
+
+func TestImportCompletionPreservesOperationalCause(t *testing.T) {
+	c, task := prepareImportRecovery(t, "known")
+	center := faults.New()
+	c.SetFaultCenter(center)
+	c.lifecycleMu.Lock()
+	engine, err := c.ensureEngineLocked()
+	c.lifecycleMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The selected source may disappear before the asynchronous enumeration.
+	task.Source = filepath.Join(t.TempDir(), "missing-source")
+	task.Enumerated = false
+	c.launchImport(engine, task, false)
+	status := waitImport(t, c)
+	open, cause := center.Take()
+	if !open || !errors.Is(cause, os.ErrNotExist) || status.Error != cause.Error() {
+		t.Fatalf("import completion lost its operational cause: open=%v cause=%v status=%+v", open, cause, status)
+	}
+}
 
 func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 	c := testConsole(t)
@@ -47,6 +100,8 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 	if err := c.commitImportTask(task); err != nil {
 		t.Fatal(err)
 	}
+	center := faults.New()
+	c.SetFaultCenter(center)
 	// A temporarily unavailable destination must preserve its source and receipt.
 	missing := receipts[1].Destination
 	if err := os.Rename(missing, missing+".held"); err != nil {
@@ -67,6 +122,10 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 		}
 	}
 	waitCleanup()
+	open, cause := center.Take()
+	if !open || cause == nil {
+		t.Fatal("per-file cleanup failure was not reported", cause)
+	}
 	if c.importTask.Files[0].Receipt != nil || c.importTask.Files[1].Receipt == nil || !c.importStatus.CleanupAvailable || c.importStatus.Deleted != 1 || c.importTask.Files[1].CleanupError == "" {
 		t.Fatalf("failed receipt not retained: %+v, %+v", c.importStatus, c.importTask)
 	}
@@ -83,6 +142,10 @@ func TestImportCleanupRetainsOnlyFailedReceiptsForConfirmedRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitCleanup()
+	center.Restore(cause)
+	if open, _ := center.Take(); open {
+		t.Fatal("successful cleanup retry retained its old fault")
+	}
 	if c.importTask.Files[1].Receipt != nil || c.importStatus.CleanupAvailable || c.importStatus.Deleted != 2 || c.importStatus.Total != 2 || c.importStatus.Checked != 2 || c.importStatus.Error != "" {
 		t.Fatalf("retry did not finish: %+v", c.importStatus)
 	}

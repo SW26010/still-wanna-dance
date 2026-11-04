@@ -31,7 +31,7 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 		policy := cacheproxy.SongPolicy(q.Get("policy"))
 		query := q.Get("q")
 		if err != nil || offset < 0 || offset > 10000000 || policy != "" && !policy.Valid() || !utf8.ValidString(query) || len(utf16.Encode([]rune(query))) > 300 {
-			preserveResponseFault(w, err)
+			preserveResponseFault(w, rejectRequest(err))
 			http.Error(w, "无效查询", http.StatusBadRequest)
 			return
 		}
@@ -48,19 +48,19 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
-		err = decoder.Decode(&input)
+		err = decodeRequest(decoder, &input)
 		id, idErr := strconv.ParseInt(input.ID, 10, 64)
 		if err == nil && (idErr != nil || id <= 0 || !input.Policy.Valid()) {
-			err = errors.New("无效歌曲 ID 或偏好")
+			err = rejectRequest(errors.New("无效歌曲 ID 或偏好"))
 		}
 		if err == nil {
 			c.lifecycleMu.Lock()
 			defer c.lifecycleMu.Unlock()
 			c.mu.Lock()
 			if c.closing {
-				err = errors.New("程序正在退出")
+				err = rejectRequest(errors.New("程序正在退出"))
 			} else if input.StorageID != cacheproxy.DatabaseID(libraryPaths(c.settings).DatabasePath) {
-				err = errors.New("存储目录已切换，请刷新歌曲列表")
+				err = rejectRequest(errors.New("存储目录已切换，请刷新歌曲列表"))
 			}
 			store, storeErr := c.businessStore()
 			c.mu.Unlock()

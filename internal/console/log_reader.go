@@ -17,7 +17,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		if raw := r.URL.Query().Get(field.name); raw != "" {
 			value, err := strconv.ParseInt(raw, 10, 64)
 			if err != nil {
-				preserveResponseFault(w, err)
+				preserveResponseFault(w, rejectRequest(err))
 				http.Error(w, "日志时间范围无效", http.StatusBadRequest)
 				return
 			}
@@ -25,7 +25,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := query.Validate(); err != nil {
-		preserveResponseFault(w, err)
+		preserveResponseFault(w, rejectRequest(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

@@ -691,7 +691,7 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		data, err := io.ReadAll(r.Body)
 		defer clear(data)
 		if err != nil {
-			preserveResponseFault(w, err)
+			preserveResponseFault(w, rejectRequest(err))
 			http.Error(w, "节点内容读取失败或超过 2 MiB", http.StatusBadRequest)
 			return
 		}
@@ -725,6 +725,7 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var err error
+	var source string
 	switch r.URL.Path {
 	case "/api/import/dismiss-suggestion":
 		c.mu.Lock()
@@ -733,10 +734,11 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]bool{"ok": true})
 		return
 	case "/api/proxy/import/discard":
+		source = "proxy-import"
 		var input struct {
 			ID string `json:"id"`
 		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			c.mu.Lock()
 			delete(c.proxyImports, input.ID)
 			c.mu.Unlock()
@@ -746,32 +748,42 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "/api/network/calibration/start":
+		source = "network-calibration"
 		var input struct{}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			err = c.controlNetworkCalibration(false)
 		}
 	case "/api/network/calibration/cancel":
+		source = "network-calibration-cancel"
 		err = c.controlNetworkCalibration(true)
 	case "/api/network/connectivity/start":
+		source = "network-connectivity"
 		var input struct {
 			Operation upstreamcheck.Operation `json:"operation"`
 		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			err = c.controlNetworkConnectivityOperation(false, input.Operation)
 		}
 	case "/api/network/connectivity/cancel":
+		source = "network-connectivity-cancel"
 		err = c.controlNetworkConnectivity(true)
 	case "/api/network/socks5/check":
+		source = "network-socks5"
 		err = c.checkSOCKS5Service()
 	case "/api/upstream/check":
+		source = "upstream"
 		err = c.requestMonitorCheck()
 	case "/api/upstream/check/catalog":
+		source = "upstream-catalog"
 		err = c.requestMonitorCheck(upstreamstate.CheckCatalog)
 	case "/api/upstream/check/playback":
+		source = "upstream-playback"
 		err = c.requestMonitorCheck(upstreamstate.CheckPlayback)
 	case "/api/upstream/check/latency":
+		source = "upstream-latency"
 		err = c.requestMonitorCheck(upstreamstate.CheckLatency)
 	case "/api/upstream/check/throughput":
+		source = "upstream-throughput"
 		err = c.requestMonitorCheck(upstreamstate.CheckThroughput)
 	case "/api/exit", "/api/restart":
 		c.lifecycle.request(ShutdownAction(strings.TrimPrefix(r.URL.Path, "/api/")), func(action ShutdownAction) {
@@ -787,26 +799,29 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	case "/api/import/start":
+		source = "import"
 		var input struct {
 			Source string `json:"source"`
 		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			err = c.startImport(input.Source)
 		}
 	case "/api/import/cleanup":
+		source = "import"
 		var input struct {
 			ID        uint64 `json:"id"`
 			Confirmed bool   `json:"confirmed"`
 		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			err = c.cleanupImport(input.ID, input.Confirmed)
 		}
 	case "/api/import/pause", "/api/import/resume", "/api/import/discard":
+		source = "import"
 		var input struct {
 			ID        uint64 `json:"id"`
 			Confirmed bool   `json:"confirmed"`
 		}
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			switch r.URL.Path {
 			case "/api/import/pause":
 				err = c.pauseImport(input.ID)
@@ -817,43 +832,53 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case "/api/inventory/scan":
+		source = "inventory"
 		c.startInventoryScan()
 	case "/api/batch/scan":
+		source = "batch"
 		err = c.startBatchMode(true)
 	case "/api/activation/enable":
+		source = "activation"
 		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
 	case "/api/activation/disable":
+		source = "activation"
 		err = c.disableAcceleration()
 	case "/api/hosts/prepare":
+		source = "hosts"
 		err = c.prepareHostsRestore()
 	case "/api/settings/theme":
+		source = "settings"
 		var input struct {
 			Theme string `json:"theme"`
 		}
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
-		if err = decoder.Decode(&input); err == nil {
+		if err = decodeRequest(decoder, &input); err == nil {
 			err = c.saveTheme(input.Theme)
 		}
 	case "/api/settings":
+		source = "settings"
 		// Read the bounded request before taking the settings lifecycle lock.
 		var input json.RawMessage
-		if err = json.NewDecoder(r.Body).Decode(&input); err == nil {
+		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
 			err = c.saveSettingsPatch(input)
 		}
 	case "/api/batch/start":
+		source = "batch"
 		err = c.startBatch()
 	case "/api/batch/download":
+		source = "batch"
 		var input struct {
 			StorageID string `json:"storageID"`
 			cacheproxy.DownloadTarget
 		}
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
-		if err = decoder.Decode(&input); err == nil {
+		if err = decodeRequest(decoder, &input); err == nil {
 			err = c.startBatchTarget(input.StorageID, input.DownloadTarget)
 		}
 	case "/api/batch/cancel":
+		source = "batch-cancel"
 		c.mu.Lock()
 		if c.batchCancel != nil {
 			c.batchCancel()
@@ -863,7 +888,7 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", 404)
 		return
 	}
-	c.recordActionError(r.URL.Path, err)
+	c.recordActionError(source, err)
 	if result, ok := w.(*faultResponseWriter); ok {
 		result.reported = true
 	}
@@ -887,14 +912,12 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 
 // Each operation group owns its error; unrelated successes must not erase it.
 // CDN errors are owned by start/stop/failCDN, including automatic and tray calls.
-func (c *Console) recordActionError(path string, err error) {
-	var validation *settingsValidationError
+func (c *Console) recordActionError(source string, err error) {
 	// Rejecting a draft neither creates an operational fault nor proves that
 	// a previous fault recovered. Leave both retained boundaries untouched.
-	if errors.As(err, &validation) {
+	if nonFaultError(err) {
 		return
 	}
-	source := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
 	c.mu.Lock()
 	if err == nil {
 		delete(c.actionErrors, source)

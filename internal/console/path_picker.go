@@ -19,7 +19,7 @@ func (c *Console) servePathPicker(w http.ResponseWriter, r *http.Request) {
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
+	if err := decodeRequest(decoder, &input); err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "无效的路径选择请求", http.StatusBadRequest)
 		return
@@ -49,11 +49,11 @@ func (c *Console) selectPath(ctx context.Context, purpose, initial string) (stri
 	case "log-directory":
 		dialog.Mode, dialog.Title = "folder", "选择 VRChat 日志目录"
 	default:
-		return "", errors.New("无效的路径选择用途")
+		return "", rejectRequest(errors.New("无效的路径选择用途"))
 	}
 	initial = strings.TrimSpace(initial)
 	if len(initial) > 4096 || strings.ContainsRune(initial, 0) {
-		return "", errors.New("无效的路径选择请求")
+		return "", rejectRequest(errors.New("无效的路径选择请求"))
 	}
 	if initial != "" && !filepath.IsAbs(initial) {
 		initial = filepath.Join(filepath.Dir(c.configPath), initial)
@@ -62,7 +62,7 @@ func (c *Console) selectPath(ctx context.Context, purpose, initial string) (stri
 	c.mu.Lock()
 	if c.closing || !c.terms.valid() || c.pathPickerCancel != nil {
 		c.mu.Unlock()
-		return "", errors.New("请先同意条款，或关闭已打开的路径选择窗口")
+		return "", rejectRequest(errors.New("请先同意条款，或关闭已打开的路径选择窗口"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	c.pathPickerCancel = cancel
@@ -85,7 +85,7 @@ func (c *Console) selectPath(ctx context.Context, purpose, initial string) (stri
 		return path, err
 	}
 	if !filepath.IsAbs(path) || len(path) > 4096 || strings.ContainsRune(path, 0) {
-		return "", errors.New("所选路径无效，请重新选择")
+		return "", rejectRequest(errors.New("所选路径无效，请重新选择"))
 	}
 	return filepath.Clean(path), nil
 }

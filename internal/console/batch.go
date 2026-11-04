@@ -53,15 +53,15 @@ func (c *Console) startBatchModeLocked(scanOnly bool) error {
 
 func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadTarget) error {
 	if (target.SongID == "") == (target.Resource == "") {
-		return errors.New("请选择一首歌曲或一个资源")
+		return rejectRequest(errors.New("请选择一首歌曲或一个资源"))
 	}
 	if target.SongID != "" {
 		id, err := strconv.ParseInt(target.SongID, 10, 64)
 		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target.SongID {
-			return errors.New("无效歌曲 ID")
+			return rejectRequest(errors.New("无效歌曲 ID"))
 		}
 	} else if !validLibraryResource(target.Resource) {
-		return errors.New("无效资源")
+		return rejectRequest(errors.New("无效资源"))
 	}
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
@@ -69,7 +69,7 @@ func (c *Console) startBatchTarget(storageID string, target cacheproxy.DownloadT
 	current := cacheproxy.CacheStorageID(libraryPaths(c.settings))
 	c.mu.Unlock()
 	if storageID != current {
-		return errors.New("存储目录已切换，请刷新曲库")
+		return rejectRequest(errors.New("存储目录已切换，请刷新曲库"))
 	}
 	return c.startBatchTargetLocked(false, &target)
 }
@@ -79,10 +79,10 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 	closing, running := c.closing, c.batch.Running
 	c.mu.Unlock()
 	if closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if running {
-		return errors.New("已有批量任务正在运行")
+		return rejectRequest(errors.New("已有批量任务正在运行"))
 	}
 	engine, err := c.ensureEngineLocked()
 	if err != nil {
@@ -144,10 +144,12 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batchCancel = nil
 		c.mu.Unlock()
 		if ctx.Err() == nil || persistenceErr != nil {
-			if ctx.Err() == nil && (!completed || result.Failed > 0 || result.BudgetReached) {
+			if ctx.Err() == nil && ((!completed && !result.BudgetReached) || result.Failed > 0) {
 				persistenceErr = errors.Join(persistenceErr, errors.New(result.Phase))
 			}
-			c.reportFault("task:batch", persistenceErr)
+			if persistenceErr != nil || !result.BudgetReached {
+				c.reportFault("task:batch", persistenceErr)
+			}
 		}
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()

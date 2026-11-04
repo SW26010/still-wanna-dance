@@ -147,6 +147,13 @@ func (c *Console) ShutdownRequested() <-chan struct{} { return c.lifecycle.reque
 func (c *Console) ShutdownAction() ShutdownAction     { return c.lifecycle.snapshot() }
 func (c *Console) RequestExit()                       { c.lifecycle.request(ShutdownExit, nil) }
 
+// WebUIConnected includes hidden tabs and consent/document pages. Reuse their
+// lifecycle subscriptions rather than adding polling or separate presence state.
+func (c *Console) WebUIConnected() bool {
+	clients, _ := c.lifecycle.clientSnapshot()
+	return clients != 0
+}
+
 func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
 	// This read-only notification is also available on the consent page. Native
 	// WebSocket supplies Origin, not the API token header; never put tokens in URLs.

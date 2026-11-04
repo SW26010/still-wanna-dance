@@ -89,7 +89,7 @@ func (c *Console) checkSOCKS5Service() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.settings.UpstreamMode != "proxy" || c.settings.ProxyBackend != "external-socks5" {
-		return errors.New("当前上游未使用外部 SOCKS5")
+		return rejectRequest(errors.New("当前上游未使用外部 SOCKS5"))
 	}
 	if _, err := c.networkCalibrationLocked(); err != nil {
 		return err

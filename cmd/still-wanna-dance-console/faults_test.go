@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,9 +14,80 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
+
+	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/faults"
 )
+
+func TestFaultOpeningKeepsConnectedWebUI(t *testing.T) {
+	server := httptest.NewUnstartedServer(nil)
+	view, err := console.NewRecovery(server.Listener.Addr().String(), desktop.Identity{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Config.Handler = view
+	server.Start()
+	t.Cleanup(func() { view.Close(t.Context()); server.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, server.URL+"/api/lifecycle", &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	var event struct{ Action string }
+	if err := wsjson.Read(ctx, conn, &event); err != nil || event.Action != "running" {
+		t.Fatal("WebUI did not connect", event, err)
+	}
+	center := faults.New()
+	opened := make(chan string, 2)
+	checked := make(chan bool, 2)
+	watchCtx, stop := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	defer func() { stop(); <-done }()
+	go func() {
+		defer close(done)
+		watchFaultOpenings(watchCtx, center, server.URL, func() bool {
+			connected := view.WebUIConnected()
+			checked <- connected
+			return connected
+		}, func(url string) error {
+			opened <- url
+			return nil
+		}, func(err error) { t.Errorf("browser failed: %v", err) })
+	}()
+	center.Set("task", errors.New("task failed while settings page is open"))
+	select {
+	case connected := <-checked:
+		if !connected {
+			t.Fatal("fault did not observe the connected WebUI")
+		}
+	case <-ctx.Done():
+		t.Fatal("fault was not consumed")
+	}
+	select {
+	case url := <-opened:
+		t.Fatalf("fault reopened the home page while WebUI was connected: %s", url)
+	case <-time.After(100 * time.Millisecond):
+	}
+	// Closing the page must allow a later incident to open the WebUI again.
+	_ = conn.CloseNow()
+	for view.WebUIConnected() && ctx.Err() == nil {
+		time.Sleep(time.Millisecond)
+	}
+	if view.WebUIConnected() {
+		t.Fatal("closed WebUI remained connected")
+	}
+	center.Set("another-task", errors.New("new task failed after WebUI closed"))
+	select {
+	case <-opened:
+	case <-ctx.Done():
+		t.Fatal("fault did not open the WebUI after its last page closed")
+	}
+}
 
 func TestFaultOpeningLeavesShutdownFailurePending(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
@@ -23,7 +95,7 @@ func TestFaultOpeningLeavesShutdownFailurePending(t *testing.T) {
 	problem := errors.New("shutdown failure")
 	center.Set("shutdown", problem)
 	cancel()
-	watchFaultOpenings(ctx, center, "http://127.0.0.1:1", func(string) error {
+	watchFaultOpenings(ctx, center, "http://127.0.0.1:1", nil, func(string) error {
 		t.Error("opened a listener after shutdown")
 		return nil
 	}, func(error) { t.Error("reported an unrelated browser failure") })
@@ -40,7 +112,7 @@ func TestFaultOpeningInterruptedByShutdownIsRetained(t *testing.T) {
 	started, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(finished)
-		watchFaultOpenings(ctx, center, "http://127.0.0.1:1", func(string) error {
+		watchFaultOpenings(ctx, center, "http://127.0.0.1:1", nil, func(string) error {
 			close(started)
 			<-release
 			return nil

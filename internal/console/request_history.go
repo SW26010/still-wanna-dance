@@ -40,7 +40,7 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	if raw := r.URL.Query().Get("hideAdjacentCanceled"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
-			preserveResponseFault(w, err)
+			preserveResponseFault(w, rejectRequest(err))
 			http.Error(w, "invalid history filter", http.StatusBadRequest)
 			return
 		}
@@ -53,7 +53,7 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 		if raw := r.URL.Query().Get(field.name); raw != "" {
 			n, err := strconv.ParseInt(raw, 10, 64)
 			if err != nil {
-				preserveResponseFault(w, err)
+				preserveResponseFault(w, rejectRequest(err))
 				http.Error(w, "invalid time range", http.StatusBadRequest)
 				return
 			}
@@ -63,14 +63,14 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil {
-			preserveResponseFault(w, err)
+			preserveResponseFault(w, rejectRequest(err))
 			http.Error(w, "invalid limit", http.StatusBadRequest)
 			return
 		}
 		q.Limit = n
 	}
 	if err := q.Validate(); err != nil {
-		preserveResponseFault(w, err)
+		preserveResponseFault(w, rejectRequest(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -101,7 +101,7 @@ func (c *Console) serveRecentRequests(w http.ResponseWriter, r *http.Request) {
 		var err error
 		limit, err = strconv.Atoi(value)
 		if err != nil || limit < 1 || limit > cacheproxy.MaxRecentRequests {
-			preserveResponseFault(w, err)
+			preserveResponseFault(w, rejectRequest(err))
 			http.Error(w, "invalid limit", http.StatusBadRequest)
 			return
 		}

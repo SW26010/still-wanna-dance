@@ -23,7 +23,7 @@ func invalidSetting(err error, fields ...string) error {
 	for _, field := range fields {
 		messages[field] = err.Error()
 	}
-	return &settingsValidationError{Fields: messages, cause: err}
+	return &settingsValidationError{Fields: messages, cause: rejectRequest(err)}
 }
 
 func storageSettingField(choice string) string {

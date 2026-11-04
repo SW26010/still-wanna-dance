@@ -33,7 +33,7 @@ func (c *Console) saveSettingsPatch(data []byte) error {
 	c.mu.Unlock()
 	input, err := decodeSettingsRequest(data, saved)
 	if err != nil {
-		return err
+		return rejectRequest(err)
 	}
 	return c.saveSettingsLocked(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
 }
@@ -50,7 +50,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	oldSettings := c.savedSettings
 	c.mu.Unlock()

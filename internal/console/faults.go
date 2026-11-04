@@ -33,7 +33,7 @@ func (c *Console) SetFaultCenter(center *faults.Center) {
 }
 
 func (c *Console) reportRetryFault(source string, err error) {
-	if !cancellationOnly(err) {
+	if !nonFaultError(err) {
 		if center := c.faults.Load(); center != nil {
 			center.Retry(source, err)
 		}
@@ -41,8 +41,8 @@ func (c *Console) reportRetryFault(source string, err error) {
 }
 
 func (c *Console) reportFault(source string, err error) {
-	// A deliberate cancellation is not a failed incident or recovery.
-	if cancellationOnly(err) {
+	// Expected rejections and cancellations prove neither failure nor recovery.
+	if nonFaultError(err) {
 		return
 	}
 	if center := c.faults.Load(); center != nil {
@@ -50,9 +50,12 @@ func (c *Console) reportFault(source string, err error) {
 	}
 }
 
-func cancellationOnly(err error) bool {
+func nonFaultError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if _, ok := err.(*requestRejection); ok {
+		return true
 	}
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {
 		children := joined.Unwrap()
@@ -60,14 +63,14 @@ func cancellationOnly(err error) bool {
 			return false
 		}
 		for _, child := range children {
-			if !cancellationOnly(child) {
+			if !nonFaultError(child) {
 				return false
 			}
 		}
 		return true
 	}
 	if child := errors.Unwrap(err); child != nil {
-		return cancellationOnly(child)
+		return nonFaultError(child)
 	}
 	return errors.Is(err, context.Canceled) || errors.Is(err, errHostsAuthorizationCanceled)
 }

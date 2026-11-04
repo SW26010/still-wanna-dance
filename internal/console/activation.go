@@ -27,14 +27,14 @@ func (c *Console) activationPhase(phase string) {
 // Inject only the hosts boundary in tests; service startup uses the real lifecycle.
 func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(string) error) (err error) {
 	if !c.activationMu.TryLock() {
-		return errors.New("正在处理加速，请等待当前操作完成")
+		return rejectRequest(errors.New("正在处理加速，请等待当前操作完成"))
 	}
 	defer c.activationMu.Unlock()
 	// Keep tray, settings and individual hosts operations from interleaving.
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	if !c.termsAccepted() {
-		return errors.New("请先阅读并同意使用条款")
+		return rejectRequest(errors.New("请先阅读并同意使用条款"))
 	}
 	c.mu.Lock()
 	wasRunning := c.httpServer != nil
@@ -122,7 +122,7 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 // helper live until application exit, so resuming can reuse both.
 func (c *Console) disableAcceleration() error {
 	if !c.activationMu.TryLock() {
-		return errors.New("正在处理加速，请等待当前操作完成")
+		return rejectRequest(errors.New("正在处理加速，请等待当前操作完成"))
 	}
 	defer c.activationMu.Unlock()
 	c.lifecycleMu.Lock()
@@ -130,7 +130,7 @@ func (c *Console) disableAcceleration() error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	restore := c.settings.RestoreHostsOnStopOrExit
 	c.activation.Phase, c.activation.Error = "stopping", ""
@@ -178,7 +178,7 @@ func (c *Console) changeHostsLocked(action string) error {
 	closing, restore := c.closing, c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	if closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	return c.hosts.change(action, restore)
 }
@@ -191,7 +191,7 @@ func (c *Console) prepareHostsRestore() error {
 	closing, restore := c.closing, c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
 	if closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if !restore {
 		return nil

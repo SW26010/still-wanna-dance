@@ -36,15 +36,15 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&input)
+	err = decodeRequest(decoder, &input)
 	if err == nil && input.StorageID != cacheproxy.CacheStorageID(root) {
-		err = errors.New("存储目录已切换，请刷新本地视频明细")
+		err = rejectRequest(errors.New("存储目录已切换，请刷新本地视频明细"))
 	}
 	if err == nil {
 		switch r.URL.Path {
 		case "/api/cache/delete":
 			if scanning {
-				err = errors.New("扫描校验正在运行，本地视频受保护；请等待完成或停止扫描")
+				err = rejectRequest(errors.New("扫描校验正在运行，本地视频受保护；请等待完成或停止扫描"))
 			} else if service != nil {
 				result, err = service.DeleteCache(ctx, input.Entries)
 			} else {
@@ -61,7 +61,7 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 			} else if len(input.Entries) == 1 {
 				path, err = cacheproxy.CacheFile(ctx, root, input.Entries[0])
 			} else {
-				err = errors.New("每次只能定位一个文件")
+				err = rejectRequest(errors.New("每次只能定位一个文件"))
 			}
 			if err == nil {
 				err = desktop.OpenCacheLocation(path, len(input.Entries) == 1)

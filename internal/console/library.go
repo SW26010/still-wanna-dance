@@ -34,7 +34,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		valid = valid && validLibraryResource(q.Resource)
 	}
 	if !valid {
-		preserveResponseFault(w, err)
+		preserveResponseFault(w, rejectRequest(err))
 		http.Error(w, "无效查询", 400)
 		return
 	}

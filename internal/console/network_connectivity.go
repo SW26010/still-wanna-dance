@@ -151,7 +151,7 @@ func (c *Console) controlNetworkConnectivity(cancel bool) error {
 
 func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation upstreamcheck.Operation) error {
 	if operation != "" && operation != upstreamcheck.Catalog && operation != upstreamcheck.PlaybackURL && operation != upstreamcheck.Resource {
-		return errors.New("无效的连通性检测项目")
+		return rejectRequest(errors.New("无效的连通性检测项目"))
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -170,7 +170,7 @@ func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation ups
 	}
 	if n.connectivity.Running {
 		if operation != "" || n.connectivity.Operation != "" {
-			return errors.New("连通性检测正在进行，请稍后重试")
+			return rejectRequest(errors.New("连通性检测正在进行，请稍后重试"))
 		}
 		n.connectivityManual = true
 		c.publishNetworkConnectivityLocked()

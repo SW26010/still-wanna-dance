@@ -32,6 +32,7 @@ func NewRecovery(address string, identity desktop.Identity) (*Recovery, error) {
 
 func (r *Recovery) ShutdownRequested() <-chan struct{} { return r.console.ShutdownRequested() }
 func (r *Recovery) RequestExit()                       { r.console.RequestExit() }
+func (r *Recovery) WebUIConnected() bool               { return r.console.WebUIConnected() }
 func (r *Recovery) BeginShutdown()                     { r.console.lifecycle.beginShutdown() }
 func (r *Recovery) Close(ctx context.Context)          { r.console.lifecycle.close(ctx) }
 

@@ -30,7 +30,7 @@ func (c *Console) preparePreview(w http.ResponseWriter, r *http.Request) {
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
+	if err := decodeRequest(decoder, &input); err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "无效预览请求", http.StatusBadRequest)
 		return

@@ -30,7 +30,7 @@ func (c *Console) StartUpstreamServices() error {
 func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 	defer func() { c.reportFault("upstream:start", resultErr) }()
 	if c.closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if !c.upstreamRequested || !c.terms.valid() {
 		return nil
@@ -73,22 +73,22 @@ func (c *Console) requestMonitorCheck(selected ...upstreamstate.CheckKind) error
 		kind = selected[0]
 	}
 	if kind != "" && !upstreamstate.ValidCheckKind(kind) {
-		return errors.New("未知的检测类型")
+		return rejectRequest(errors.New("未知的检测类型"))
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing {
-		return errors.New("程序正在退出")
+		return rejectRequest(errors.New("程序正在退出"))
 	}
 	if c.monitor == nil {
-		return errors.New("上游监测尚未启动")
+		return rejectRequest(errors.New("上游监测尚未启动"))
 	}
 	s := c.monitor.Snapshot()
 	if c.monitorManual || s.Manual || (kind == "" && s.Checking) {
 		return nil
 	}
 	if kind == "" && (time.Since(s.Started) < 10*time.Second || time.Since(c.monitorManualAt) < 10*time.Second) {
-		return errors.New("两轮检测开始至少间隔 10 秒")
+		return rejectRequest(errors.New("两轮检测开始至少间隔 10 秒"))
 	}
 	c.monitorManual, c.monitorManualAt = true, time.Now()
 	done := make(chan struct{})

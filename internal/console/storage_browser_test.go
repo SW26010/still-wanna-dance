@@ -105,3 +105,86 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	}
 	run("automatic")
 }
+
+func TestStorageChoicesBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_STORAGE_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_STORAGE_BROWSER_EVIDENCE for storage browser integration")
+	}
+	config := filepath.Join(t.TempDir(), "config.json")
+	c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Close() })
+	if err := c.acceptTerms(); err != nil {
+		t.Fatal(err)
+	}
+	portable, root := t.TempDir(), t.TempDir()
+	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	cache := filepath.Join(root, "cache")
+	videos := filepath.Join(root, "videos")
+	badVideo := filepath.Join(cache, "nested-videos")
+	badDatabase := filepath.Join(cache, "new", "library.sqlite")
+	database := filepath.Join(root, "database", "library.sqlite")
+	for _, dir := range []string{filepath.Join(portable, "custom"), filepath.Join(portable, "work"), badVideo, videos} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	counts := map[string]int{}
+	c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+		counts[dialog.Title]++
+		switch dialog.Title {
+		case "选择临时视频缓存目录":
+			switch counts[dialog.Title] {
+			case 1:
+				return filepath.Join(portable, "custom"), nil
+			case 3:
+				return root, nil
+			case 4:
+				return filepath.Dir(config), nil
+			case 6:
+				return filepath.Join(portable, "work"), nil
+			}
+			return cache, nil
+		case "选择完整视频目录":
+			if counts[dialog.Title] == 1 {
+				return badVideo, nil
+			}
+			return videos, nil
+		case "选择或新建 SWD 数据库":
+			if counts[dialog.Title] == 1 {
+				return badDatabase, nil
+			}
+			return database, nil
+		default:
+			return "", nil
+		}
+	}
+	ui := httptest.NewUnstartedServer(c)
+	c.address = ui.Listener.Addr().String()
+	ui.Start()
+	defer ui.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "storage-choices-live.mjs"), ui.URL, database, videos, cache, filepath.Join(evidence, "choices"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("browser: %v\n%s", err, output)
+	} else if len(output) != 0 {
+		t.Log(string(output))
+	}
+	if _, err := os.Stat(badDatabase); err != nil {
+		t.Fatal("database was not created after the draft became valid", err)
+	}
+	if c.savedSettings.DatabasePath != database || c.savedSettings.VideoDir != videos || c.savedSettings.BlockCacheDir != cache {
+		t.Fatal("browser did not save the validated choices")
+	}
+	if c.settings.DatabasePath == database || c.settings.VideoDir == videos || c.settings.BlockCacheDir != "" {
+		t.Fatal("browser applied staged choices without restarting")
+	}
+	c = restartTestConsole(t, c)
+	if c.settings.DatabasePath != database || c.settings.VideoDir != videos || c.settings.BlockCacheDir != cache || c.store == nil {
+		t.Fatal("validated choices did not survive restart", c.storeOpenError)
+	}
+}

@@ -42,12 +42,108 @@ func validateStorageLocation(path, defaultPath, portable string) error {
 		return fmt.Errorf("无法确认存储目录：%w", err)
 	}
 	if pathContains(portable, path) || pathContains(root, target) {
-		return fmt.Errorf("请选择程序文件夹之外的位置，或填写默认存储目录")
+		return errors.New("请选择程序文件夹之外的位置，或恢复默认位置")
 	}
 	return nil
 }
 
 func sameResourcePath(a, b string) bool { return cacheproxy.DatabaseID(a) == cacheproxy.DatabaseID(b) }
+
+// Compare the selected roots, not just the disposable workspace underneath the
+// cache root. An unavailable unrelated disk must not prevent another selection;
+// known lexical conflicts are still rejected, and cleanup retains its existing
+// stricter alias and offline checks.
+func selectedPathContains(parent, child string) bool {
+	if parent == "" || child == "" {
+		return false
+	}
+	if pathContains(parent, child) {
+		return true
+	}
+	resolvedParent, parentErr := desktop.CanonicalPath(parent)
+	resolvedChild, childErr := desktop.CanonicalPath(child)
+	return parentErr == nil && childErr == nil && pathContains(resolvedParent, resolvedChild)
+}
+
+func (c *Console) validateStorageChoice(s Settings, choice string) error {
+	cache := s.BlockCacheDir
+	if cache == "" {
+		cache = defaultBlockCacheDir(c.identity.Executable)
+	}
+	switch choice {
+	case "database":
+		if s.DatabasePath != "" {
+			if err := validateStorageLocation(s.DatabasePath, c.defaultDatabasePath(), c.portableDir()); err != nil {
+				return err
+			}
+		}
+		if selectedPathContains(s.VideoDir, s.DatabasePath) {
+			return errors.New("数据库文件不能位于完整视频目录内")
+		}
+		if selectedPathContains(cache, s.DatabasePath) {
+			return errors.New("数据库文件不能位于临时视频缓存目录内")
+		}
+	case "video":
+		if s.VideoDir != "" {
+			if err := validateStorageLocation(s.VideoDir, c.defaultVideoDir(), c.portableDir()); err != nil {
+				return err
+			}
+		}
+		if selectedPathContains(s.VideoDir, cache) || selectedPathContains(cache, s.VideoDir) {
+			return errors.New("完整视频目录与临时视频缓存目录不能相同或互相包含")
+		}
+		if selectedPathContains(s.VideoDir, s.DatabasePath) {
+			return errors.New("完整视频目录不能包含数据库文件")
+		}
+	case "cache":
+		if s.BlockCacheDir != "" {
+			if err := validateStorageLocation(s.BlockCacheDir, defaultBlockCacheDir(c.identity.Executable), c.portableDir()); err != nil {
+				return err
+			}
+		}
+		if selectedPathContains(cache, s.VideoDir) || selectedPathContains(s.VideoDir, cache) {
+			return errors.New("临时视频缓存目录与完整视频目录不能相同或互相包含")
+		}
+		if selectedPathContains(cache, s.DatabasePath) {
+			return errors.New("临时视频缓存目录不能包含数据库文件")
+		}
+	default:
+		return errors.New("无效的存储位置选择")
+	}
+	return nil
+}
+
+// Existing configurations remain usable even when they predate the selection
+// rules. Only changes are checked; unchanged resource pairs are not reclassified
+// by a save of another field.
+func (c *Console) validateChangedStorageChoices(s, old Settings) error {
+	_, err := c.firstInvalidChangedStorageChoice(s, old)
+	return err
+}
+
+func storageChoiceChanged(s, old Settings, choice string) bool {
+	switch choice {
+	case "database":
+		return !sameResourcePath(s.DatabasePath, old.DatabasePath)
+	case "video":
+		return !sameResourcePath(s.VideoDir, old.VideoDir)
+	case "cache":
+		return !sameResourcePath(s.BlockCacheDir, old.BlockCacheDir)
+	default:
+		return false
+	}
+}
+
+func (c *Console) firstInvalidChangedStorageChoice(s, old Settings) (string, error) {
+	for _, choice := range []string{"database", "video", "cache"} {
+		if storageChoiceChanged(s, old, choice) {
+			if err := c.validateStorageChoice(s, choice); err != nil {
+				return choice, err
+			}
+		}
+	}
+	return "", nil
+}
 
 // Pure path validation also runs when loading configuration. Filesystem access
 // belongs to changed selections only; an offline video disk must not prevent

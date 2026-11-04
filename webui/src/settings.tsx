@@ -6,8 +6,8 @@ import { useApp } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
-import { StorageLocationFields } from './storage-directory';
-import { DirectoryField } from './path-picker';
+import { StorageLocationFields, locationRequestError, locationValidationKey, type LocationValidation } from './storage-directory';
+import { DirectoryField, samePath } from './path-picker';
 import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
 
@@ -97,7 +97,8 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
   const [locationError, setLocationError] = useState('');
-  const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); };
+  const [locationValidation, setLocationValidation] = useState<LocationValidation>({});
+  const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); setLocationValidation({}); };
   useEffect(() => {
     if (awaitingRevision !== undefined && app.status.loadedRevision !== undefined && app.status.loadedRevision >= awaitingRevision) {
       setDraft(undefined); setAwaitingRevision(undefined);
@@ -111,22 +112,45 @@ export function SettingsPage({section='application',children}: {section?:Setting
     ? `约 ${prepareAheadSeconds / 4} MB 临时缓存（按 2 Mbps）` : '';
   const update = (patch: Partial<Draft>) => setDraft(value=>({...value, ...patch}));
   const disabled = app.unavailable || pending || syncing || app.status.loadedRevision !== app.revision;
+  const locationChecking = section === 'storage' && !!locationValidation.checked && locationValidation.checked !== locationValidationKey(d,s.settings);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
   const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  const saveButton=<Button type="submit" appearance="primary" disabled={disabled || !dirty || !!d.proxyImportText.trim()}>保存设置</Button>;
+  const saveButton=<Button type="submit" appearance="primary" disabled={disabled || locationChecking || !dirty || !!locationValidation.warning || !!d.proxyImportText.trim()}>保存设置</Button>;
   const restartButton=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} onClick={() => void app.action('restart')}>重启并应用</Button>;
   async function save() {
-    if (!dirty || disabled || d.proxyImportText.trim()) return;
+    if (!dirty || disabled || locationChecking || locationValidation.warning || d.proxyImportText.trim()) return;
     setPending(true); setLocationError('');
     try {
       const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(d);
       const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => value !== saved[key as keyof typeof saved]));
+      if (locationValidation.pendingDatabase) {
+        if (!samePath(locationValidation.pendingDatabase, values.databasePath)) {
+          setLocationValidation(current=>({...current,warning:{field:'database',message:'数据库位置已变化，请重新选择'}}));
+          return;
+        }
+        let preparingDatabase = false;
+        try {
+          const check = await request<{valid:boolean;field?:string;message?:string}>('storage/validate-location', {databasePath:values.databasePath,videoDir:values.videoDir,blockCacheDir:values.blockCacheDir,selection:'database'});
+          if (!check.valid) {
+            const field = check.field === 'video' || check.field === 'cache' ? check.field : 'database';
+            setLocationValidation(current=>({...current,warning:{field,message:check.message || '所选存储位置不可用'}}));
+            return;
+          }
+          preparingDatabase = true;
+          await request('storage/prepare-database', {databasePath:values.databasePath,videoDir:values.videoDir,blockCacheDir:values.blockCacheDir});
+          setLocationValidation(current=>({...current,warning:undefined,pendingDatabase:undefined,databaseError:undefined}));
+        } catch (error) {
+          const message = locationRequestError(error,preparingDatabase);
+          setLocationValidation(current=>({...current,warning:{field:'database',message},databaseError:message}));
+          return;
+        }
+      }
       let confirmed: Pick<Settings,'databasePath'|'videoDir'|'videoStorageMode'|'videoBudgetBytes'|'retainFavorites'> | undefined;
       if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
-        const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir});
+        const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir,blockCacheDir:d.blockCacheDir});
         if (check.confirmVideoPolicy) {
           const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
           if (!accepted) return;
@@ -140,11 +164,11 @@ export function SettingsPage({section='application',children}: {section?:Setting
   }
   const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       <div className="toolbar spread settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
-      <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || !dirty} onClick={discard}>放弃更改</Button>
+      <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationValidation.warning)} onClick={discard}>放弃更改</Button>
       {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
       {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
       {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
-      <StorageLocationFields value={d} update={update} disabled={disabled} status={s} onPending={setPending} />
+      <StorageLocationFields value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
       <span className="secondary">收藏视频可超出预算保留，不会自动下载。</span>

@@ -78,6 +78,9 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 	if err != nil {
 		return err
 	}
+	if err = c.validateChangedStorageChoices(s, oldSettings); err != nil {
+		return err
+	}
 	if err = validateProxyNodeSelection(s); err != nil {
 		return err
 	}

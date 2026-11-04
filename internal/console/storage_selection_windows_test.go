@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -56,5 +57,49 @@ func TestStorageJunctionCannotEnterPortable(t *testing.T) {
 	entries, err := os.ReadDir(portable)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("validation created media: %v %v", entries, err)
+	}
+}
+
+func TestStorageChoicesRejectJunctionAliases(t *testing.T) {
+	c := testConsole(t)
+	root := t.TempDir()
+	portable, cache := filepath.Join(root, "portable"), filepath.Join(root, "cache")
+	for _, path := range []string{portable, cache} {
+		if err := os.Mkdir(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	junction := func(name, target string) string {
+		t.Helper()
+		alias := filepath.Join(root, name)
+		cmd := exec.Command("cmd.exe", "/c", "mklink", "/J", alias, target)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("junction: %s: %v", output, err)
+		}
+		return alias
+	}
+	cacheAlias := junction("cache-alias", cache)
+	portableAlias := junction("portable-alias", portable)
+	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	s := c.settings
+	s.BlockCacheDir = cache
+	s.VideoDir = strings.ToUpper(cache)
+	if err := c.validateStorageChoice(s, "video"); err == nil {
+		t.Fatal("case variation bypassed the selected cache boundary")
+	}
+	s.VideoDir = filepath.Join(cacheAlias, "future-videos")
+	if err := c.validateStorageChoice(s, "video"); err == nil {
+		t.Fatal("video junction bypassed the selected cache boundary")
+	}
+	s.VideoDir = filepath.Join(root, "videos")
+	s.DatabasePath = filepath.Join(cacheAlias, "future", "library.sqlite")
+	if err := c.validateStorageChoice(s, "database"); err == nil {
+		t.Fatal("database junction bypassed the selected cache boundary")
+	}
+	s.DatabasePath = filepath.Join(root, "library.sqlite")
+	s.BlockCacheDir = filepath.Join(portableAlias, "future-cache")
+	if err := c.validateStorageChoice(s, "cache"); err == nil {
+		t.Fatal("junction allowed custom cache inside Portable")
 	}
 }

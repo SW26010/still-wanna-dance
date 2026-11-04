@@ -3,6 +3,7 @@ package console
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -12,8 +13,10 @@ import (
 
 func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		DatabasePath string `json:"databasePath"`
-		VideoDir     string `json:"videoDir"`
+		DatabasePath  string  `json:"databasePath"`
+		VideoDir      string  `json:"videoDir"`
+		BlockCacheDir *string `json:"blockCacheDir"`
+		Selection     string  `json:"selection"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -25,19 +28,44 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	s, old, closing := c.savedSettings, c.savedSettings, c.closing
-	activeDatabase := c.settings.DatabasePath
+	active := c.settings
 	c.mu.Unlock()
 	if closing {
 		http.Error(w, "程序正在退出", 409)
 		return
 	}
 	s.DatabasePath, s.VideoDir = input.DatabasePath, input.VideoDir
+	if input.BlockCacheDir != nil {
+		s.BlockCacheDir = *input.BlockCacheDir
+	}
 	s, err := c.resolveSettings(s)
+	if r.URL.Path == "/api/storage/validate-location" {
+		choice, field := input.Selection, ""
+		if choice != "database" && choice != "video" && choice != "cache" {
+			http.Error(w, "无效的存储位置选择", http.StatusBadRequest)
+			return
+		}
+		if err == nil && storageChoiceChanged(s, old, choice) {
+			field = choice
+			err = c.validateStorageChoice(s, choice)
+		}
+		if err == nil {
+			field, err = c.firstInvalidChangedStorageChoice(s, old)
+		}
+		if err != nil {
+			writeJSON(w, map[string]any{"valid": false, "field": field, "message": err.Error()})
+		} else {
+			writeJSON(w, map[string]bool{"valid": true})
+		}
+		return
+	}
 	if err == nil {
 		switch r.URL.Path {
 		case "/api/storage/check":
 			var confirmation bool
-			confirmation, err = c.inspectLibrarySelection(s, old)
+			if err = c.validateChangedStorageChoices(s, old); err == nil {
+				confirmation, err = c.inspectLibrarySelection(s, old)
+			}
 			if err == nil {
 				writeJSON(w, map[string]bool{"confirmVideoPolicy": confirmation})
 				return
@@ -47,7 +75,14 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 				err = errors.New("请选择要新建的数据库文件位置")
 				break
 			}
-			if err = validateStorageLocation(s.DatabasePath, c.defaultDatabasePath(), c.portableDir()); err != nil {
+			// Re-selecting an existing saved database keeps legacy locations usable;
+			// its file is still inspected below, and new choices remain restricted.
+			if r.URL.Path == "/api/storage/create-database" || storageChoiceChanged(s, old, "database") {
+				if err = c.validateStorageChoice(s, "database"); err != nil {
+					break
+				}
+			}
+			if err = c.validateChangedStorageChoices(s, old); err != nil {
 				break
 			}
 			if r.URL.Path == "/api/storage/prepare-database" {
@@ -62,10 +97,19 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 					err = statErr
 					break
 				}
-				if sameResourcePath(s.DatabasePath, old.DatabasePath) || sameResourcePath(s.DatabasePath, activeDatabase) {
+				if sameResourcePath(s.DatabasePath, old.DatabasePath) || sameResourcePath(s.DatabasePath, active.DatabasePath) {
 					err = errors.New("已配置的数据库文件丢失，请恢复原文件，或选择新的文件名新建数据库")
 					break
 				}
+			}
+			for _, current := range []Settings{active, old} {
+				if err = c.validateStorageChoice(Settings{DatabasePath: s.DatabasePath, VideoDir: current.VideoDir, BlockCacheDir: current.BlockCacheDir}, "database"); err != nil {
+					err = fmt.Errorf("新建数据库前，请先避开已保存或正在使用的位置：%w", err)
+					break
+				}
+			}
+			if err != nil {
+				break
 			}
 			var store *cacheproxy.Store
 			store, err = cacheproxy.CreateStore(s.DatabasePath)

@@ -43,6 +43,7 @@ export async function mockAPI(page: Page) {
     if(match('GET import/space'))data={mode:'unknown',videoDir:state.import.videoDir||state.activeSettings.videoDir};
     if(match('POST exit','POST restart'))data={ok:true,action:path};
     if(match('POST storage/check'))data={confirmVideoPolicy:false};
+    if(match('POST storage/validate-location'))data={valid:true};
     if(match('POST storage/create-database'))data={path:body.databasePath};
     if(match('POST storage/prepare-database'))data={path:body.databasePath,created:!state.settings.databasePath};
     if(match('POST path/select'))data={path:body.path,canceled:!body.path};

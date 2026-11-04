@@ -16,29 +16,34 @@ export function usePathPicker(onPending?: (pending: boolean) => void) {
     addEventListener('pagehide', cancel);
     return () => { mounted.current = false; cancel(); removeEventListener('pagehide', cancel); notify.current?.(false); };
   }, []);
-  async function choose(purpose: PathPurpose, path: string, apply: (path: string, signal: AbortSignal) => void | Promise<void>) {
+  async function run(action: (signal: AbortSignal) => void | Promise<void>) {
     if (controller.current) return;
     const abort = new AbortController(); controller.current = abort;
     setPending(true); notify.current?.(true); setError('');
     try {
-      const result = await request<{path: string; canceled: boolean}>('path/select', {purpose, path}, abort.signal);
-      if (!abort.signal.aborted && !result.canceled) await apply(result.path, abort.signal);
-    } catch (e) { if (!abort.signal.aborted) setError(String(e)); }
+      await action(abort.signal);
+    } catch (e) { if (!abort.signal.aborted) setError(e instanceof Error ? e.message : String(e)); }
     finally {
       controller.current = undefined;
       if (mounted.current) { setPending(false); notify.current?.(false); }
     }
   }
-  return {pending, error, choose};
+  function choose(purpose: PathPurpose, path: string, apply: (path: string, signal: AbortSignal) => void | Promise<void>) {
+    return run(async signal => {
+      const result = await request<{path: string; canceled: boolean}>('path/select', {purpose, path}, signal);
+      if (!signal.aborted && !result.canceled) await apply(result.path, signal);
+    });
+  }
+  return {pending, error, choose, run};
 }
 
 // Keep the selected path readable/copyable; all edits go through the OS dialog.
-export function PathField({label, labelSuffix, value, defaultValue = '', isDefault = samePath(value, defaultValue), hint, disabled, onChoose, onReset}: {
-  label: string; labelSuffix?: ReactNode; value: string; defaultValue?: string; isDefault?: boolean; hint?: string; disabled: boolean;
+export function PathField({label, labelSuffix, value, defaultValue = '', isDefault = samePath(value, defaultValue), hint, warning, disabled, onChoose, onReset}: {
+  label: string; labelSuffix?: ReactNode; value: string; defaultValue?: string; isDefault?: boolean; hint?: string; warning?: string; disabled: boolean;
   onChoose: () => void; onReset: () => void;
 }) {
   const renderLabel: SlotRenderFunction<LabelProps> = (Label, props) => <div className="inline" style={{alignItems:'baseline'}}><Label {...props}>{label}</Label>{labelSuffix}</div>;
-  return <Field label={labelSuffix ? {children: renderLabel} : label} hint={hint}><div className="path-field" data-default={isDefault}>
+  return <Field label={labelSuffix ? {children: renderLabel} : label} hint={hint} validationMessage={warning} validationState={warning ? 'warning' : undefined}><div className="path-field" data-default={isDefault}>
     <Input readOnly disabled={disabled} value={value || defaultValue} placeholder="点击选择…" aria-haspopup="dialog"
       onClick={() => { if (!disabled) onChoose(); }}
       onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!disabled && !event.repeat) onChoose(); } }}/>
@@ -46,7 +51,7 @@ export function PathField({label, labelSuffix, value, defaultValue = '', isDefau
   </div></Field>;
 }
 
-function samePath(value: string, defaultValue: string) {
+export function samePath(value: string, defaultValue: string) {
   const normalize = (path: string) => path.replaceAll('/', '\\').replace(/\\+$/, '').toLowerCase();
   return !value || normalize(value) === normalize(defaultValue);
 }

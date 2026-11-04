@@ -52,7 +52,9 @@ try {
     await expect(page.getByText('游戏连接：已接入',{exact:true})).toBeVisible();
   }
   await page.getByRole('button',{name:'退出程序',exact:true}).click();
-  await expect(page.getByText('正在退出应用并处理游戏连接。',{exact:true})).toBeVisible();
+  const exitNotice=page.getByText('正在退出应用并处理游戏连接。',{exact:true}).filter({visible:true});
+  // A dismissed Toast can retain the same title while its exit animation runs.
+  await expect(exitNotice).toHaveCount(1);
   await page.screenshot({path:join(output,phase+'-exit.png'),animations:'disabled'});
   expect(errors).toEqual([]);
   await writeFile(join(output,phase+'-browser.json'),JSON.stringify({phase,passed:true,errors},null,2));

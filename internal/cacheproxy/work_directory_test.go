@@ -55,6 +55,48 @@ func TestWorkDirectoryCleansBlocksWithoutDatabaseOrVideo(t *testing.T) {
 	}
 }
 
+func TestWorkDirectoryDeferredCleanupRetainsLockAndUnknownFiles(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "work")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	block, unknown := filepath.Join(dir, "download-block-123.part"), filepath.Join(dir, "keep.txt")
+	for _, path := range []string{block, unknown} {
+		if err := os.WriteFile(path, []byte("fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	work, err := OpenWorkDirectoryDeferred(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !work.CleanupPending() {
+		t.Fatal("deferred workspace forgot cleanup")
+	}
+	if _, err := os.Stat(block); err != nil {
+		t.Fatal("deferred open deleted a block", err)
+	}
+	if other, err := OpenWorkDirectory(dir, nil); err == nil {
+		other.Close()
+		t.Fatal("deferred open did not retain the workspace lock")
+	}
+	if err := work.CompleteCleanup(nil); err != nil || work.CleanupPending() {
+		t.Fatal("verified cleanup did not finish", err)
+	}
+	if _, err := os.Stat(block); !os.IsNotExist(err) {
+		t.Fatal("verified cleanup retained the block", err)
+	}
+	if data, err := os.ReadFile(unknown); err != nil || string(data) != "fixture" {
+		t.Fatal("cleanup changed an unknown file", err)
+	}
+	if err := work.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := work.CompleteCleanup(nil); err != os.ErrClosed {
+		t.Fatal("closed workspace allowed cleanup", err)
+	}
+}
+
 func TestPublicationCleanupPreservesBlocksAndUnrecognizedFiles(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"download-block-123.part", "download-publish-123.part", "download-publish-mine.part"} {

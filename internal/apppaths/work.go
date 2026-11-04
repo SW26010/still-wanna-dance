@@ -29,6 +29,21 @@ func WorkForConfig(executable, config string) string {
 	return workPath(executable, "console", config)
 }
 
+// WorkForCacheRoot keeps the existing portable default. A user-selected root
+// gets a dedicated workspace keyed by the absolute configuration identity, so
+// different installations can safely select the same parent directory.
+func WorkForCacheRoot(executable, config, root string) string {
+	if root == "" {
+		return WorkForConfig(executable, config)
+	}
+	identity := filepath.ToSlash(filepath.Clean(config))
+	if runtime.GOOS == "windows" {
+		identity = strings.ToLower(identity)
+	}
+	sum := sha256.Sum256([]byte(identity))
+	return filepath.Join(root, "console-"+hex.EncodeToString(sum[:16]))
+}
+
 func workPath(executable, kind string, identities ...string) string {
 	base := filepath.Dir(executable)
 	h := sha256.New()

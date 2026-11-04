@@ -61,6 +61,11 @@ func (c *Console) validateResourcePaths(s Settings) error {
 		if err := apppaths.ValidateWorkSeparation(c.identity.Executable, path); err != nil {
 			return err
 		}
+		if c.work != nil {
+			if err := workspaceOverlaps(c.work.Path(), []string{path}); err != nil {
+				return err
+			}
+		}
 		for _, reserved := range []string{p.Config, p.Lock, p.Terms, p.ChannelKey} {
 			if sameResourcePath(path, reserved) || sameResourcePath(path, filepath.Join(filepath.Dir(reserved), workfiles.TempName(reserved))) {
 				return errors.New("数据位置不能覆盖程序配置或辅助文件")

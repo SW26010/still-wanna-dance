@@ -4,7 +4,7 @@
 
 > 当前数据库为 v9，配置仍为 v8。媒体地址、清单状态与请求统计按本文及[媒体地址模型](song-catalog-design.md#媒体地址模型)运行；已有 v8 在可写打开入口静默一次性迁移，普通业务只读写 v9。代码与隔离验证见[v9 开发验证](validation/storage-v9-20261101.md)；旧 v8 DDL、二进制样本及历史失败证据保留。
 
-持久化整理的目标原则见[职责与边界](persistence-design.md)，实施步骤见[迁移计划](persistence-migration-plan.md)。数据库与完整视频目录已独立配置，块使用 EXE 旁固定工作区。桌面应用启动时准备默认业务存储，已有配置则严格打开所选数据库，元数据与个人资料操作不依赖视频引擎。桌面配置中的 databasePath、videoDir 首次自动采用默认位置，无需手动建库；自定义位置才需要在设置页选择，保存后重启应用，不自动搬运。初始化与已有资料保护的边界见[配置生命周期](settings-lifecycle.md)。核心引擎只接收已打开的数据库、已有视频目录和应用持有的工作区；不再保留混合根或隐式建库入口。
+持久化整理的目标原则见[职责与边界](persistence-design.md)，实施步骤见[迁移计划](persistence-migration-plan.md)。数据库、完整视频目录和临时块位置可独立配置，块默认使用 EXE 旁工作区。桌面应用启动时准备默认业务存储，已有配置则严格打开所选数据库，元数据与个人资料操作不依赖视频引擎。桌面配置中的 databasePath、videoDir 首次自动采用默认位置，无需手动建库；自定义位置才需要在设置页选择，保存后重启应用，不自动搬运。初始化与已有资料保护的边界见[配置生命周期](settings-lifecycle.md)。核心引擎只接收已打开的数据库、已有视频目录和应用持有的工作区；不再保留混合根或隐式建库入口。
 
 > 当前采用[曲库、资源关联与歌曲需求统计](song-catalog-design.md)模型。SQLite `application_id=0x53574443`（SWDC）、`user_version=9`。v9 将地址改为资源归属，精简清单与请求状态，保留歌曲全部资料及个人需求。v2～v8 冻结 DDL 和样本保留；仅支持本文规定的 v8→v9 转换。
 
@@ -13,7 +13,7 @@
 MD5 文件身份以本页和[曲库设计](song-catalog-design.md)为准，演进背景见[早期 MD5 设计](history/md5-resource-design.md)；下载与本地保护遵循[下载需求与资源管理设计](download-resource-design.md)。无版本旧配置及旧数据库请保留备份，使用独立的新配置和存储目录；不要通过更名或修改版本号复用。
 
 ```text
-EXE/work/<实例>/
+EXE/work/<实例>/ 或 所选缓存目录/<实例>/
   download-block-*.part
   .lock
 所选数据库文件
@@ -72,7 +72,7 @@ Udon 播放 API 固定使用 HTTP；持久化地址不再带 API 身份。完整
 
 资源分数是当前关联歌曲分数之和，孤儿资源为零分。映射改变不立即删除旧文件；容量超限时按分数淘汰，活动请求、下载的必要引用及统一块保护保持有效。有限需求进入本地保护提前窗口后保护数据，最后一份块需求结束后按配置延续（默认 300 秒，0 表示不延续）；任一块受保护则完整文件不可删除，不另设队列专属文件保护。淘汰只删除文件，保留关联和统计。文件发布与数据库提交不是跨资源原子事务，已发布的 MD5 文件即使没有元数据也可命中。
 
-数据库、视频目录和块工作区分别持有 OS 排他锁。可写打开严格验证 v9 或一次性迁移受支持的 v8，只有明确新建使用排他创建初始化结构；引擎借用应用业务存储，取得视频锁后清理发布／导入暂存并执行原有保留策略。固定块工作区先于文件日志和数据库准备并清理。离线删除复用应用业务存储并取得视频锁，不另开第二写连接。备份请正常退出后优先保存数据库及恢复所需伴随文件；完整视频按需保留，临时文件和锁不需备份。
+数据库、视频目录和块工作区分别持有 OS 排他锁。可写打开严格验证 v9 或一次性迁移受支持的 v8，只有明确新建使用排他创建初始化结构；引擎借用应用业务存储，取得视频锁后清理发布／导入暂存并执行原有保留策略。块工作区先于文件日志和数据库准备；配置读取成功时，数据库或视频路径不可解析、无法确认别名，默认和自选工作区均暂缓块清理，在引擎启动前复核所有路径、通过后再清理。配置读取失败的旧有默认工作区清理边界见[配置生命周期](settings-lifecycle.md)。工作区自身不可用时保留设置页面并报告故障，不启动视频引擎。离线删除复用应用业务存储并取得视频锁，不另开第二写连接。备份请正常退出后优先保存数据库及恢复所需伴随文件；完整视频按需保留，临时文件和锁不需备份。
 
 本地视频列表展示当前歌曲关联；请求记录另存请求处理时的明确歌曲 ID 和资源身份，查询时不由当前映射推断或改写历史。列表最近访问保持原语义：长期保存的最后 GET 时间与保留期内 HTTP 请求明细取较新值；清理明细不丢失最后 GET 时间或歌曲需求累计值。
 
@@ -235,12 +235,12 @@ SWD/                              # ZIP 内固定目录，不含版本号
     .swd-tmp/                     # 同卷发布、导入暂存
     .swd.lock
   logs/<UTC秒级时间>[-序号].log    # 每片 1 MiB，总预算 20 MiB
-  work/<实例>/                    # 固定随 EXE，启动持锁清理已知旧块
+  work/<实例>/                    # 默认随 EXE，可单独选择父目录
     .lock
     download-block-*.part
 ```
 
-首次打开未确认条款的应用生成配置、配置锁、日志和固定块工作区，并在未配置且无已有资料时自动准备默认数据库及视频目录。路径解析本身不创建文件，`data/state/` 按功能需要产生。明确建库可创建文件父目录，保存新视频位置可创建缺失目录；保存其他设置不创建或探测未变化的视频位置。只读页面不建媒体库；需要媒体管理时，引擎借用应用已打开的数据库。视频目录缺失或无法读取时，保留旧库存并报错，不将缺失目录当成零库存。系统运行身份和安全清理分别按 #24、#25 已收口，交付文件进一步精简仍由 #26 负责。
+首次打开未确认条款的应用生成配置、配置锁、日志和默认块工作区，并在未配置且无已有资料时自动准备默认数据库及视频目录。路径解析本身不创建文件，`data/state/` 按功能需要产生。明确建库可创建文件父目录，保存新视频位置可创建缺失目录；保存其他设置不创建或探测未变化的视频位置。只读页面不建媒体库；需要媒体管理时，引擎借用应用已打开的数据库。视频目录缺失或无法读取时，保留旧库存并报错，不将缺失目录当成零库存。系统运行身份和安全清理分别按 #24、#25 已收口，交付文件进一步精简仍由 #26 负责。
 
 ### 配置实例与路径解析
 
@@ -251,8 +251,8 @@ SWD/                              # ZIP 内固定目录，不含版本号
 - 默认 `C=<EXE目录>/config.json`，`R=B`，数据库和视频首次自动准备为 `data/database/storage.sqlite` 与 `videos`。
 - 自定义 `-config <目录>/config.json` 同样以该目录为 R；其他文件名采用 `R=C.d`。例如 `profiles/a.json` 的条款与状态放在 `profiles/a.json.d/data/state/`，日志放在 `profiles/a.json.d/logs/`；默认数据库和视频位置分别为 `a.json.d/data/database/storage.sqlite`、`a.json.d/videos`。
 - 同目录 `config.json`、`a.json`、`b.json` 的锁、日志、密钥、确认记录和状态独立。不要把另一个配置嵌套在已有实例的数据根内；共享同一实例根就是共享其附属状态。
-- `-config` 参数本身的相对路径基于启动工作目录；配置内数据库、视频及手动 VRChat 日志的相对路径始终基于 B。保存时位于 B 内的路径转为相对路径，外部路径保留绝对路径。默认 VRChat 日志目录随当前用户环境解析。
-- 工作区始终位于 EXE 旁 `work/`，按规范配置路径区分实例；EXE 内的相对身份使整包移动后仍定位到同一实例区。不建立永久身份文件或新增用户设置。用户数据位置不能与 work 树相互包含。
+- `-config` 参数本身的相对路径基于启动工作目录；配置内数据库、视频、临时缓存及手动 VRChat 日志的相对路径始终基于 B。保存时位于 B 内的路径转为相对路径，外部路径保留绝对路径。默认 VRChat 日志目录随当前用户环境解析。
+- `blockCacheDir` 缺失、null 或空串使用 EXE 旁 `work/<实例>`；自选父目录直接使用其下 `console-<配置身份摘要>`。默认工作区使用 EXE 内相对身份以支持整包移动；自选工作区使用规范配置绝对路径区分不同安装，同一父目录不混用实例。移动配置后自选工作区身份会变化，不迁移临时块。工作区不能与数据库、完整视频、配置、状态或日志重叠，也不建立永久身份文件。
 - 主配置不能命名为保留的 `terms.json`、`channel.key`、`config.lock`、`data`、`state`、`logs`、`storage`、`videos`、`work`、`licenses`，也不能使用 `.swd-tmp` 后缀，避免覆盖规范配置和原子写入工作槽。
 - 多个配置选择同一数据库或视频目录时，分别受对应 OS 锁保护；配置隔离不允许绕过资源排他所有权。
 
@@ -278,8 +278,9 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `R/logs/<UTC秒级时间>[-序号].log` | 启动、退出及操作诊断，每片 1 MiB、总预算 20 MiB，重启续写最新未满片；beta4 的 `app.log[.1-.3]` 只读并参与容量清理，详见[程序日志](console.md#程序日志) | 可选备份，丢失后无法重建历史日志 |
 | `D` 及 SQLite 必要伴随文件、`V/{md5}.mp4` | 应用持有数据库，视频管理另持视频锁，MD5 去重 | 退出后优先备份数据库及必要伴随文件，视频按需备份；完整媒体库备份包含两者，不在运行中只拷主库 |
 | 数据库锁、`V/.swd.lock` | 数据库文件旁 `<文件名>.lock` 与视频目录内 `.swd.lock` 分别排他；不占用父目录锁 | 不必单独备份；保留锁文件不等于仍占用 |
-| `EXE/work/<实例>/download-block-<数字>.part` | 完整块由引擎持有，可跨下载会话复用；退出及发布后最后读取引用释放时删除。启动先取得本工作区锁，再清理已知数字名称的普通块文件；早于日志和数据库打开 | 不备份，不恢复任务；不清扫其他实例和未知文件，发布／导入暂存不在这里 |
-| `EXE/work/<实例>/.lock` | 应用从早期清理到全部引擎停止持续持锁 | 不备份，不通过删锁解锁 |
+| 块工作区 `download-block-<数字>.part` | 完整块由引擎持有，可跨下载会话复用；退出及发布后最后读取引用释放时删除。启动先取得本工作区锁，路径隔离已确认时在日志和数据库打开前清理已知普通块；未确认时延迟清理 | 不备份，不恢复任务；不清扫其他实例和未知文件，发布／导入暂存不在这里 |
+| 块工作区 `.lock` | 应用从早期清理到全部引擎停止持续持锁 | 不备份，不通过删锁解锁 |
+| 配置中的 `pendingBlockCacheCleanup` | 切换缓存位置时原子记录当前工作区父目录；下次启动在持锁和边界检查后仅清理已记录的旧实例块，成功后移除记录。旧盘失联、其他数据路径未核验或清理失败时保留记录，下次启动重试，不创建失联目录 | 仅用于安全清理，不恢复块、任务或其他用户文件 |
 | `V/.swd-tmp/download-publish-<数字>.part` | 合并发布暂存仍在视频卷；媒体独占锁及数据库格式校验通过后清理已知普通暂存文件 | 不备份，不承诺断点续传；符号链接、重解析点和未知名称保留 |
 | `V/.swd-tmp/import-<数字>/video` | 单次导入硬链接或跨卷复制暂存；操作结束只删除自己的 `video` 及空目录，崩溃后仅清理空目录或恰有一个普通 `video` 文件的已知目录，绝不递归删除陌生内容 | 不必备份；合法库启动时按媒体锁及格式校验后清理；源视频和完整本地视频不受影响 |
 | `B/.<配置文件名>.swd-tmp`、`R/data/state/.terms.json.swd-tmp`、`R/data/state/.<状态文件名>.swd-tmp` | 主配置、条款及已登记状态文件的固定原子工作槽（各目标至多一个）；配置锁持有者启动时只清理本实例已知工作槽，不全盘扫描 | 非备份对象；未知文件及旧随机命名不泛化删除，工作槽占用/不安全时拒绝清理并保留最后有效数据 |
@@ -300,7 +301,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 便携包只交付 SWD.exe 桌面入口。
 
-默认布局正常退出后可整体备份 config.json 与 data，精简备份可排除 data/state；外置数据库应另行备份实际 D 和恢复所需伴随文件，不把任意外置父目录当作程序专属目录。建议保留 C；V 中完整视频按需保留，只有完整媒体库备份才包括全部视频。实例状态与日志、EXE 旁的 work 不要求日常备份。升级仅覆盖交付文件，保留 config.json、data、videos、logs、work 和外部资源；修改位置不自动搬运。操作步骤见[便携交付说明](packaging.md#覆盖升级与备份)。
+默认布局正常退出后可整体备份 config.json 与 data，精简备份可排除 data/state；外置数据库应另行备份实际 D 和恢复所需伴随文件，不把任意外置父目录当作程序专属目录。建议保留 C；V 中完整视频按需保留，只有完整媒体库备份才包括全部视频。实例状态与日志、临时块工作区不要求日常备份。升级仅覆盖交付文件，保留 config.json、data、videos、logs、work 和外部资源；修改位置不自动搬运。操作步骤见[便携交付说明](packaging.md#覆盖升级与备份)。
 
 ## 清单内容摘要 v2
 
@@ -345,7 +346,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 文件 | 内部格式、缺失/失效语义 |
 | --- | --- |
-| config.json / 自定义配置 | schemaVersion=8；字段见 Settings：databasePath 数据库文件、videoDir 完整视频目录（首次自动准备默认位置，自定义位置保存后重启），vrchatLogDir（VRChat 日志输入目录，空值自动识别，非空指定目录）、autoAccelerate（默认 false，启用且有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnStopOrExit（默认 true，保存即用于停止加速和本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionMode（none/limited/unlimited，默认 unlimited；[请求明细保留规则](cache-retention.md#请求明细保留期)）、requestRetentionDays（0～36500；limited 要求正数；none 的有效期限为 0，不保留明细；unlimited 独立表示永久保留，天数只记住输入）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveBlockReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、videoBudgetBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadConcurrencySoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、upstreamMode（空→direct，direct/proxy；v8 旧 auto 按[配置生命周期](settings-lifecycle.md)转为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（请求明细永久保留），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
+| config.json / 自定义配置 | schemaVersion=8；字段见 Settings：databasePath 数据库文件、videoDir 完整视频目录（首次自动准备默认位置，自定义位置保存后重启）、blockCacheDir 临时视频缓存父目录（空值使用程序旁默认位置，保存后重启），vrchatLogDir（VRChat 日志输入目录，空值自动识别，非空指定目录）、autoAccelerate（默认 false，启用且有效同意条款后，每进程自动一键加速一次）、autoOpenWebUI（默认 true；条款确认例外与 -no-open 优先级见[配置生命周期](settings-lifecycle.md)）、restoreHostsOnStopOrExit（默认 true，保存即用于停止加速和本次退出，开启前须准备恢复权限）、queueWithGateway（默认 true，队列随网关启停），requestRetentionMode（none/limited/unlimited，默认 unlimited；[请求明细保留规则](cache-retention.md#请求明细保留期)）、requestRetentionDays（0～36500；limited 要求正数；none 的有效期限为 0，不保留明细；unlimited 独立表示永久保留，天数只记住输入）、videoStorageMode（none/limited/unlimited，默认 none，分别保存不保留/限制为/不限制的选择）、retainFavorites（默认 true，收藏完整视频可突破预算保留；关闭后按普通规则取舍，不取消标记或触发下载）、aggressiveBlockReclamation（auto/on/off，显式默认 auto；自动跟随 videoStorageMode，仅 none 开启，on/off 手动覆盖；不改变完整本地视频预算）、videoBudgetBytes（默认 0，保存输入的字节预算；limited 要求正数，none 在运行时使用零预算，unlimited 不限制；不保留时仍保护使用中/队列/交接数据）、prepareAheadSeconds（缺失/0→500，100–16000 秒；建议 200–2000 秒）、localProtectionGraceSeconds（缺失/null→300，整数 0–10000 秒；0=不延续保护）、downloadConcurrencySoftLimit（缺失/null→16，整数 1–64）、downloadGrowIntervalMS（缺失/null→250，整数 0–2000 毫秒；0=关闭缓增）、throughputIntervalMinutes（缺失/0→20，1–1440）、upstreamMode（空→direct，direct/proxy；v8 旧 auto 按[配置生命周期](settings-lifecycle.md)转为 proxy）、proxyBackend（空→external-socks5，external-socks5/mihomo）、外部 SOCKS5 地址与用户名。策略和后端独立，保存后重启生效；历史通道键仍沿用 socks5 前缀。缺失采用构造默认（请求明细永久保留），显式 null 对标量沿用默认；false/合法 0 保留。未知字段以 RawMessage 保留数值精度；格式缺失/未来/旧版本、明文 socks5Password 均拒绝写入 |
 | config.proxySecret | 缺字段=无保存密码。封套 `{version:1, protection:"dpapi-current-user", ciphertext:"<base64>"}`；与整个配置一起原子替换，无第二份凭据文件/明文快照。未知格式、null、损坏或当前用户解密失败=不可用并保留原值；省略设置 API 密码保留密文，明确输入新密码替换，用户名/密码一起清空移除。状态仅返回可用标志和固定诊断，不返回密文/明文 |
 | config.proxyNodes | 可选节点快照，复用 version=1 / dpapi-current-user 封套；解密载荷为 `{version:2,nodes:[原生连接参数]}`。整份文档含服务器及凭据均加密，与 config 同一原子替换；无明文副本。坏/未知封套及旧节点载荷 version=1 保留并提示重新导入，不视为空库；旧载荷不静默改写，原始内容重新导入后采用新身份域并重测。输入限 2 MiB / 2048 条，全部已加载节点交给核心。导入预览只存于本进程内存，草稿最多 8 份、2 小时有效；明确丢弃或替换时释放对应草稿，迟到且已放弃的结果同样释放，离线或页面关闭未送达的清理仍由过期机制兜底；设置保存才替换，失败保留旧快照。展示名保存在受保护快照中；SWD 状态仅含数量及固定诊断，详情由同源代理面板展示 |
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |

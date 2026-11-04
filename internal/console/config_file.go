@@ -48,6 +48,13 @@ func loadConfigFile(path string) (loadedConfig, error) {
 	return loaded, err
 }
 
+// ReadStartupSettings shares the ordinary configuration decoder before the
+// application acquires its workspace. It does not create or open resources.
+func ReadStartupSettings(path string) (Settings, error) {
+	loaded, err := loadConfigFile(path)
+	return loaded.Settings, err
+}
+
 // ReadLogLevel bootstraps logging before Console construction can emit events.
 // The entrypoint holds the config lease; use the same envelope validation and
 // JSON field matching as the full settings load, without opening any resources.
@@ -134,7 +141,34 @@ func updateConfigFile(path string, update func(fields map[string]json.RawMessage
 // Re-read the disk envelope so a future file is never overwritten and unknown
 // fields from this format version survive ordinary settings saves.
 func saveConfigSettings(path string, s Settings) error {
+	return saveConfigSettingsWithCleanup(path, s, nil)
+}
+
+// If a running instance changes its cache location, record its old root in the
+// same atomic config update. A crash before shutdown can then be cleaned on a
+// later startup without scanning arbitrary locations.
+func saveConfigSettingsWithCleanup(path string, s Settings, previousRoot *string) error {
 	return updateConfigFile(path, func(fields map[string]json.RawMessage, _ bool) error {
+		if previousRoot != nil {
+			pending, err := decodePendingBlockCacheCleanup(fields)
+			if err != nil {
+				return err
+			}
+			found := false
+			for _, root := range pending {
+				if sameResourcePath(root, *previousRoot) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				pending = append(pending, *previousRoot)
+			}
+			fields[pendingBlockCacheCleanupKey], err = json.Marshal(pending)
+			if err != nil {
+				return err
+			}
+		}
 		secret, err := storedProxySecret(s)
 		if err != nil {
 			return err

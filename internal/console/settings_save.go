@@ -9,8 +9,14 @@ import (
 // Resource checks and preparation belong to the application, not file decoding.
 func (c *Console) resolveSettings(s Settings) (Settings, error) {
 	s, err := resolveConfigSettings(s, c.configPath)
+	if err == nil && s.BlockCacheDir != "" && sameResourcePath(s.BlockCacheDir, defaultBlockCacheDir(c.identity.Executable)) {
+		s.BlockCacheDir = ""
+	}
 	if err == nil {
 		err = c.validateResourcePaths(s)
+	}
+	if err == nil {
+		err = c.validateBlockCacheSelection(s)
 	}
 	return s, err
 }
@@ -75,6 +81,9 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 	if err = validateProxyNodeSelection(s); err != nil {
 		return err
 	}
+	if err := c.prepareBlockCacheSelection(s, oldSettings); err != nil {
+		return err
+	}
 	if err := c.prepareLibrarySelection(s, oldSettings, confirmVideoPolicy); err != nil {
 		return err
 	}
@@ -83,7 +92,14 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 			return fmt.Errorf("未保存设置：无法准备退出时恢复游戏直连的权限：%w", err)
 		}
 	}
-	if err = saveConfigSettings(c.configPath, s); err != nil {
+	c.mu.Lock()
+	activeCacheDir := c.settings.BlockCacheDir
+	c.mu.Unlock()
+	var previousRoot *string
+	if !sameResourcePath(s.BlockCacheDir, activeCacheDir) {
+		previousRoot = &activeCacheDir
+	}
+	if err = saveConfigSettingsWithCleanup(c.configPath, s, previousRoot); err != nil {
 		return err
 	}
 	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)

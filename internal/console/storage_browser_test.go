@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/apppaths"
+	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 )
 
@@ -29,9 +31,13 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	video := filepath.Join(t.TempDir(), "完整 视频")
 	database := filepath.Join(t.TempDir(), "资料", "library.sqlite")
 	logDir := filepath.Join(t.TempDir(), "游戏日志")
+	cacheDir := t.TempDir()
 	run := func(phase string) {
 		t.Helper()
 		c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+			if dialog.Title == "选择临时视频缓存目录" {
+				return cacheDir, nil
+			}
 			if dialog.Title == "选择 VRChat 日志目录" {
 				return logDir, nil
 			}
@@ -46,7 +52,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 		defer ui.Close()
 		ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "storage-live.mjs"), ui.URL, database, video, evidence, phase, logDir)
+		cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "storage-live.mjs"), ui.URL, database, video, evidence, phase, logDir, cacheDir)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("browser: %v\n%s", err, output)
 		} else {
@@ -54,7 +60,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 		}
 	}
 	run("configure")
-	if c.store == nil || c.service != nil || c.settings.DatabasePath != c.defaultDatabasePath() || c.savedSettings.DatabasePath != database {
+	if c.store == nil || c.service != nil || c.settings.DatabasePath != c.defaultDatabasePath() || c.savedSettings.DatabasePath != database || c.settings.BlockCacheDir != "" || c.savedSettings.BlockCacheDir != cacheDir {
 		t.Fatal("selection activated before restart", c.storeOpenError)
 	}
 	if c.settings.VRChatLogDir != "" || c.savedSettings.VRChatLogDir != logDir || c.settings.DownloadConcurrencySoftLimit != 16 || c.savedSettings.DownloadConcurrencySoftLimit != 32 {
@@ -63,11 +69,20 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
-	c, err = newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
+	identity, err := desktop.NewIdentity(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.store == nil || c.settings.VideoDir != video || c.service != nil {
+	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForCacheRoot(identity.Executable, identity.Config, cacheDir), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { work.Close() })
+	c, err = newConsole(config, "127.0.0.1:0", newFixtureDNS(), work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.store == nil || c.settings.VideoDir != video || c.settings.BlockCacheDir != cacheDir || c.work.Path() != work.Path() || c.service != nil {
 		t.Fatal("restart did not apply independent paths", c.storeOpenError)
 	}
 	run("reopened")

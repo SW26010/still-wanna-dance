@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http/httptest"
 	"strings"
@@ -119,6 +120,27 @@ func TestActivationFailuresAndRetry(t *testing.T) {
 	c.beginVideoRequest(time.Now())()
 	if c.activation.Phase != "stopped" || !c.activation.FirstRequest.IsZero() {
 		t.Fatal("stop did not end detection")
+	}
+}
+
+func TestActivationRejectsKnownBlockCacheFailureBeforeHosts(t *testing.T) {
+	for _, ready := range []bool{false, true} {
+		t.Run(fmt.Sprint("hosts-ready-", ready), func(t *testing.T) {
+			c := testConsole(t)
+			workErr := errors.New("临时缓存盘不可用")
+			c.workOpenError = workErr
+			var actions []string
+			err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: ready} }, func(action string) error {
+				actions = append(actions, action)
+				return nil
+			})
+			if !errors.Is(err, workErr) || len(actions) != 0 {
+				t.Fatalf("known cache failure touched hosts: error=%v actions=%v", err, actions)
+			}
+			if c.activation.Phase != "failed" || c.activation.ConnectionError != "" || !strings.Contains(c.activation.Error, workErr.Error()) || c.cdnError != workErr.Error() {
+				t.Fatal("cache failure was attributed to the connection", c.activation, c.cdnError)
+			}
+		})
 	}
 }
 

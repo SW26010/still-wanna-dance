@@ -30,7 +30,7 @@ func TestPathPickerAuthorizationAndReadOnlySelection(t *testing.T) {
 	calls := 0
 	for _, tc := range []struct{ purpose, mode string }{
 		{"database", "database"}, {"vrcx-database", "open"},
-		{"video-directory", "folder"}, {"import-directory", "folder"}, {"log-directory", "folder"},
+		{"video-directory", "folder"}, {"block-cache-directory", "folder"}, {"import-directory", "folder"}, {"log-directory", "folder"},
 	} {
 		t.Run(tc.purpose, func(t *testing.T) {
 			c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
@@ -62,7 +62,7 @@ func TestPathPickerAuthorizationAndReadOnlySelection(t *testing.T) {
 		t.Fatal("selection created a file", err)
 	}
 	c.terms = termsReceipt{}
-	if w := pathPickerRequest(c, "log-directory", selected, c.token, ""); w.Code != 428 || calls != 5 {
+	if w := pathPickerRequest(c, "log-directory", selected, c.token, ""); w.Code != 428 || calls != 6 {
 		t.Fatal("picker bypassed consent", w.Code, calls)
 	}
 }

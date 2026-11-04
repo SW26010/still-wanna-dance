@@ -45,7 +45,8 @@ type Settings struct {
 	AggressiveBlockReclamation   string `json:"aggressiveBlockReclamation"`
 	DatabasePath                 string `json:"databasePath"`
 	VideoDir                     string `json:"videoDir"`
-	VRChatLogDir                 string `json:"vrchatLogDir"` // empty follows the current user's default
+	BlockCacheDir                string `json:"blockCacheDir"` // empty uses the executable's work directory
+	VRChatLogDir                 string `json:"vrchatLogDir"`  // empty follows the current user's default
 }
 
 // Decode files over these defaults so null/missing scalars retain their defaults,
@@ -85,7 +86,7 @@ func decodeSettingsRequest(data []byte, saved Settings) (settingsRequest, error)
 
 // Relative paths belong to the configuration, independent of the launch directory.
 func resolveConfigSettings(s Settings, configPath string) (Settings, error) {
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		*p = strings.TrimSpace(*p)
 		if *p != "" && !filepath.IsAbs(*p) {
 			*p = filepath.Join(filepath.Dir(configPath), *p)
@@ -97,7 +98,7 @@ func resolveConfigSettings(s Settings, configPath string) (Settings, error) {
 // Keep directories inside the portable folder movable; external stores stay absolute.
 func storedSettings(s Settings, configPath string) Settings {
 	base := filepath.Dir(configPath)
-	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
+	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		if pathContains(base, *p) {
 			if rel, err := filepath.Rel(base, *p); err == nil {
 				*p = rel
@@ -182,7 +183,7 @@ func normalizeSettings(s Settings) (Settings, error) {
 	if s.AggressiveBlockReclamation != "auto" && s.AggressiveBlockReclamation != "on" && s.AggressiveBlockReclamation != "off" {
 		return s, errors.New("激进的缓存回收策略必须为 auto、on 或 off")
 	}
-	for _, path := range []*string{&s.DatabasePath, &s.VideoDir, &s.VRChatLogDir} {
+	for _, path := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		*path = strings.TrimSpace(*path)
 		if *path != "" {
 			var err error

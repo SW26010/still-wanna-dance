@@ -40,6 +40,8 @@ func (c *Console) selectPath(ctx context.Context, purpose, initial string) (stri
 		dialog.Mode, dialog.Title = "open", "选择 VRCX SQLite 数据库"
 	case "video-directory":
 		dialog.Mode, dialog.Title = "folder", "选择完整视频目录"
+	case "block-cache-directory":
+		dialog.Mode, dialog.Title = "folder", "选择临时视频缓存目录"
 	case "import-directory":
 		dialog.Mode, dialog.Title = "folder", "选择视频导入目录"
 	case "log-directory":

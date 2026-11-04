@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -46,5 +47,22 @@ func TestDataLocationsCannotOverlapDisposableWork(t *testing.T) {
 		if err := ValidateWorkSeparation(exe, path); err != nil {
 			t.Fatal("rejected independent data", path, err)
 		}
+	}
+}
+
+func TestCustomWorkRootSeparatesInstallations(t *testing.T) {
+	root := t.TempDir()
+	cache := filepath.Join(root, "ssd")
+	a, b := filepath.Join(root, "a"), filepath.Join(root, "b")
+	first := WorkForCacheRoot(filepath.Join(a, "SWD.exe"), filepath.Join(a, "config.json"), cache)
+	second := WorkForCacheRoot(filepath.Join(b, "SWD.exe"), filepath.Join(b, "config.json"), cache)
+	if first == second || filepath.Dir(first) != cache || filepath.Dir(second) != cache {
+		t.Fatal("selected root did not isolate the installations", first, second)
+	}
+	if !strings.HasPrefix(filepath.Base(first), "console-") || len(filepath.Base(first)) != len("console-")+32 {
+		t.Fatal("selected root did not contain the expected instance directory", first)
+	}
+	if actual := WorkForCacheRoot(filepath.Join(a, "SWD.exe"), filepath.Join(a, "config.json"), ""); actual != WorkForConfig(filepath.Join(a, "SWD.exe"), filepath.Join(a, "config.json")) {
+		t.Fatal("empty selection changed the default workspace", actual)
 	}
 }

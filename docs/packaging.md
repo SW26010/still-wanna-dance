@@ -26,7 +26,7 @@ SWD/
     SOURCE.json
 ```
 
-不交付 config.json、data、videos、logs、work、本机 hosts 或空用户目录。精确交付白名单统一维护于 `scripts/portable-files.json`。使用说明在内置「使用帮助」中；完整条款由 `internal/legal/TERMS.txt` 嵌入，在应用内查看、保存纯文本，也可用 `SWD.exe -show-terms` 导出。ZIP 不再交付 README、条款副本或构建信息 JSON。应用数据位置已经固定，完整树、生命周期及备份范围以[统一存储](storage.md)为准。
+不交付 config.json、data、videos、logs、work、本机 hosts 或空用户目录。精确交付白名单统一维护于 `scripts/portable-files.json`。使用说明在内置「使用帮助」中；完整条款由 `internal/legal/TERMS.txt` 嵌入，在应用内查看、保存纯文本，也可用 `SWD.exe -show-terms` 导出。ZIP 不再交付 README、条款副本或构建信息 JSON。默认布局、可选位置、生命周期及备份范围以[统一存储](storage.md)为准。
 
 产物暂存于 `artifacts/still-wanna-dance-<版本>-windows-amd64-portable/SWD/`，ZIP 和 SHA-256 文件位于 artifacts 根。不指定版本时采用 `dev-日期-时间`；`-OutputDir` 可指定输出目录。遇到同名产物报错，不覆盖已有包。
 

@@ -1,14 +1,14 @@
 import {chromium,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
-const [base,databasePath,videoDir,output,phase,logDir]=process.argv.slice(2);
+const [base,databasePath,videoDir,output,phase,logDir,cacheDir]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
 const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
 try {
   const page=await browser.newPage({viewport:{width:390,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/#storage-settings');
-  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'完整视频目录',exact:true});
+  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'完整视频目录',exact:true}),cache=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
   if(phase==='configure') {
     await expect(db).not.toHaveValue('');
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
@@ -18,10 +18,13 @@ try {
     await expect(page.getByText('数据库已新建。保存设置并重启后使用。',{exact:true})).toBeVisible();
     await page.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
     await expect(videos).toHaveValue(videoDir);
+    await cache.click();
+    await expect(cache).toHaveValue(cacheDir);
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
   } else if(phase==='reopened') {
     await expect(videos).toHaveValue(videoDir);
+    await expect(cache).toHaveValue(cacheDir);
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
     await expect(page.getByText('当前数据库：尚未指定',{exact:false})).toHaveCount(0);
     await page.getByRole('textbox',{name:'数据库文件',exact:true}).click();
@@ -73,6 +76,8 @@ try {
   expect(response.ok()).toBe(true);
   const state=await response.json();
   expect(state.settings.vrchatLogDir).toBe(phase==='configure'?logDir:'');
+  expect(state.settings.blockCacheDir).toBe(cacheDir);
+  expect(state.activeSettings.blockCacheDir).toBe(phase==='configure'?'':cacheDir);
   expect(state.activeSettings.vrchatLogDir).toBe(phase==='reopened'?logDir:'');
   expect(state.activeSettings.downloadConcurrencySoftLimit).toBe(phase==='configure'?16:32);
   if(phase!=='configure') await expect(logs).toHaveValue(state.defaultLogDir);

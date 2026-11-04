@@ -4,7 +4,7 @@ export interface Settings {
   logLevel: 'off' | 'error' | 'warn' | 'info' | 'debug';
 	retainFavorites: boolean;
   aggressiveBlockReclamation: 'auto' | 'on' | 'off';
-  databasePath: string; videoDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
+  databasePath: string; videoDir: string; blockCacheDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number; throughputIntervalMinutes: number;
   prepareAheadSeconds: number; downloadConcurrencySoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
   autoAccelerate: boolean; autoOpenWebUI: boolean; exitWithVRChat: boolean; queueWithGateway: boolean; restoreHostsOnStopOrExit: boolean; vrchatLogDir: string;
@@ -39,12 +39,12 @@ export interface Status {
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
-  storageError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
+  storageError?: string; workError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   proxyNodes?: {saved?: number; loaded?: number; dashboard?: boolean; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
-  defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; portableDir: string; upstreamMonitor?: Health; catalogSync?: {initializing:boolean;checking:boolean;finished?:string;updated?:string;nextCheck?:string;error?:string};
+  defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; defaultBlockCacheDir: string; portableDir: string; upstreamMonitor?: Health; catalogSync?: {initializing:boolean;checking:boolean;finished?:string;updated?:string;nextCheck?:string;error?:string};
 }
 export interface Inventory {
   updated?: string; coverageKnown?: boolean; totalSongs: number; coveredSongs: number; unresolvedSongs?: number; scanning?: boolean; error?: string;

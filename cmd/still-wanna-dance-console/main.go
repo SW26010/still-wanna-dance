@@ -123,14 +123,36 @@ func run() (runErr error) {
 	}
 	defer configLease.Close()
 	level, configErr := console.ReadLogLevel(p)
+	startupSettings, settingsErr := console.ReadStartupSettings(p)
+	if configErr == nil {
+		configErr = settingsErr
+	}
 	// Reclaim disposable blocks before any log/configuration failure can abort
 	// startup. Cleanup respects the configured level before opening file logs.
 	// Retain the work lease until all consumers have stopped.
-	work, err := cacheproxy.OpenWorkDirectory(apppaths.WorkForConfig(exe, p), applog.New(os.Stderr, level))
-	if err != nil {
-		return err
+	workPath := apppaths.WorkForCacheRoot(exe, p, startupSettings.BlockCacheDir)
+	if configErr != nil {
+		// A malformed configuration cannot authorize cleaning a custom path.
+		workPath = apppaths.WorkForConfig(exe, p)
 	}
-	defer func() { runErr = errors.Join(runErr, work.Close()) }()
+	var work *cacheproxy.WorkDirectory
+	var workErr error
+	var inspection console.WorkLocationInspection
+	if configErr == nil {
+		inspection, workErr = console.InspectWorkLocation(exe, p, startupSettings)
+	}
+	if workErr == nil {
+		if inspection.Unresolved != nil {
+			work, workErr = cacheproxy.OpenWorkDirectoryDeferred(workPath, applog.New(os.Stderr, level))
+		} else {
+			work, workErr = cacheproxy.OpenWorkDirectory(workPath, applog.New(os.Stderr, level))
+		}
+	}
+	if workErr != nil {
+		workErr = fmt.Errorf("临时视频缓存目录不可用（%s）：%w", workPath, workErr)
+	} else {
+		defer func() { runErr = errors.Join(runErr, work.Close()) }()
+	}
 	logDir := apppaths.ForConfig(p).LogDir
 	var writer *applog.Writer
 	if level != applog.Off {
@@ -176,6 +198,12 @@ func run() (runErr error) {
 	if err := configLease.CleanWorkFiles(); err != nil {
 		return err
 	}
+	if workErr != nil {
+		slog.Warn("block_cache_unavailable", "error", workErr)
+	} else if inspection.Unresolved != nil {
+		slog.Warn("block_cache_cleanup_deferred", "error", inspection.Unresolved)
+	}
+	console.CleanupPendingBlockCaches(exe, p, startupSettings, work, slog.Default())
 	build := buildinfo.Current()
 	slog.Info("application_build", "kind", build.Kind, "version", build.Version, "vcs.revision", build.Revision,
 		"vcs.modified", build.Dirty, "builtAtUtc", build.BuiltAtUTC, "toolchain", build.Toolchain, "target", build.Target)
@@ -184,7 +212,7 @@ func run() (runErr error) {
 		return desktop.PortError(*address, err)
 	}
 	defer l.Close()
-	c, err := console.New(p, l.Addr().String(), work)
+	c, err := console.NewWithWorkError(p, l.Addr().String(), work, workErr)
 	if err != nil {
 		return err
 	}

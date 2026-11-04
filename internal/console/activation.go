@@ -38,6 +38,7 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 	}
 	c.mu.Lock()
 	wasRunning := c.httpServer != nil
+	settings := c.settings
 	c.activationGeneration++
 	c.activation = Activation{Phase: "checking", Started: time.Now()}
 	c.mu.Unlock()
@@ -52,6 +53,12 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 			c.mu.Unlock()
 		}
 	}()
+	if err = c.prepareWorkLocked(settings); err != nil {
+		c.mu.Lock()
+		c.cdnError = err.Error()
+		c.mu.Unlock()
+		return err
+	}
 	hosts := inspect()
 	if hosts.Conflict {
 		connectionErr = fmt.Errorf("接入检查失败：%s", hosts.Message)

@@ -36,6 +36,7 @@ type Console struct {
 	store                  *cacheproxy.Store
 	storeOpenError         error
 	work                   *cacheproxy.WorkDirectory // Borrowed from the application entry point.
+	workOpenError          error                     // Workspace could not be opened during startup.
 	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
@@ -120,7 +121,17 @@ func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, 
 }
 
 func newConsole(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory) (*Console, error) {
-	if work == nil {
+	return newConsoleWithWorkError(configPath, address, dns, work, nil)
+}
+
+// NewWithWorkError permits the settings UI to recover an unavailable cache
+// location. Video operations remain unavailable until a successful restart.
+func NewWithWorkError(configPath, address string, work *cacheproxy.WorkDirectory, workErr error) (*Console, error) {
+	return newConsoleWithWorkError(configPath, address, nil, work, workErr)
+}
+
+func newConsoleWithWorkError(configPath, address string, dns directResolver, work *cacheproxy.WorkDirectory, workErr error) (*Console, error) {
+	if work == nil && workErr == nil {
 		return nil, errors.New("应用工作目录尚未准备")
 	}
 	identity, err := desktop.NewIdentity(configPath)
@@ -138,7 +149,7 @@ func newConsole(configPath, address string, dns directResolver, work *cacheproxy
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	c := &Console{work: work, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: playbacksource.DefaultBaseURL, checksumURL: cacheproxy.UdonCatalogURL}
+	c := &Console{work: work, workOpenError: workErr, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: playbacksource.DefaultBaseURL, checksumURL: cacheproxy.UdonCatalogURL}
 	c.previewKey = rand.Text()
 	c.identity = identity
 	c.hosts = newHostsController(hostsPath(), launchHostsSession)
@@ -550,6 +561,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			PortOK                bool                 `json:"portOK"`
 			CDNError              string               `json:"cdnError"`
 			StorageError          string               `json:"storageError,omitempty"`
+			WorkError             string               `json:"workError,omitempty"`
 			VRCXImportAvailable   bool                 `json:"vrcxImportAvailable"`
 			VideoImportSuggested  bool                 `json:"videoImportSuggested"`
 			ProxyModeMigrated     bool                 `json:"proxyModeMigrated,omitempty"`
@@ -568,6 +580,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			DefaultLogDir         string               `json:"defaultLogDir"`
 			DefaultDatabasePath   string               `json:"defaultDatabasePath"`
 			DefaultVideoDir       string               `json:"defaultVideoDir"`
+			DefaultBlockCacheDir  string               `json:"defaultBlockCacheDir"`
 			PortableDir           string               `json:"portableDir"`
 			CatalogSync           catalogSyncStatus    `json:"catalogSync"`
 			UpstreamMonitor       upstreamstate.Status `json:"upstreamMonitor"`
@@ -582,7 +595,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
-			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), PortableDir: c.portableDir(),
+			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.portableDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
 			CatalogSync:     c.catalogSyncSnapshotLocked(),
 		}
@@ -608,6 +621,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		c.mu.Unlock()
+		if c.workOpenError != nil {
+			result.WorkError = applog.SafeError(c.workOpenError).Error()
+		}
 		result.Hosts = c.hosts.status()
 		result.VideoImportSuggested = result.VideoImportSuggested && result.Hosts.Ready && !result.Hosts.Managed && !result.Hosts.Conflict
 		if store, err := c.businessStore(); err != nil {

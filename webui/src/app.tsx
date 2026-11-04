@@ -93,9 +93,9 @@ export function App() {
       const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor==='service'||anchor==='network-access'?'activation':anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
-  const fault=s?.storageError||model.status.error;
-  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?(s.activeSettings.databasePath?'存储故障':'待配置'):s?'已连接':'连接中';
-  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>数据库或视频存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}</RecordDetails>}</div>;
+  const fault=s?.storageError||s?.workError||model.status.error;
+  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?(s.activeSettings.databasePath?'存储故障':'待配置'):s?.workError?'存储故障':s?'已连接':'连接中';
+  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>本地存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}{s?.workError&&<><p>临时视频缓存目录不可用，视频服务和下载无法启动。检查磁盘和目录权限，修复后退出并重新打开应用；也可在存储设置中选择其他目录，保存后重启。</p><p className="wrap">原因：{s.workError}</p></>}</RecordDetails>}</div>;
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
     {proxyNotice&&<Notification message="上游连接已改为代理" body="自动选择模式已移除，原代理配置已保留。可在设置中切换为直连。" action={{href:'#network-proxy',label:'网络设置'}}/>}

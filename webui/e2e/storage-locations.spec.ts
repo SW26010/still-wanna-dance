@@ -94,6 +94,7 @@ test('canceling a new database never creates it or changes the draft',async({pag
 
 for(const target of [
   {anchor:'storage-settings',label:'完整视频目录',purpose:'video-directory'},
+  {anchor:'storage-settings',label:'临时视频缓存目录',purpose:'block-cache-directory'},
   {anchor:'download-settings',label:'VRChat 日志目录',purpose:'log-directory'},
   {anchor:'video-import',label:'外部目录',purpose:'import-directory'},
 ])test(`${target.label} uses a native directory picker and preserves the draft on cancel or failure`,async({page})=>{
@@ -117,6 +118,50 @@ for(const target of [
   await button.click(); await expect(button).toBeEnabled(); await expect(field).toHaveValue(chosen);
   expect(api.calls.some(c=>c.path==='settings'||c.path==='import/start')).toBe(false);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('temporary cache location is staged separately and can return to default', async ({page}) => {
+  const api=await mockAPI(page);
+  await page.goto('/#storage-settings');
+  const field=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
+  const reset=page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true});
+  await expect(field).toHaveValue(api.state.defaultBlockCacheDir);
+  await expect(reset).toBeDisabled();
+  await choosePath(page,'临时视频缓存目录','E:\\SSD Cache');
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
+  expect(api.state.settings.blockCacheDir).toBe('E:\\SSD Cache');
+  expect(api.state.activeSettings.blockCacheDir).toBe('');
+  expect(api.state.settings.videoDir).toBe(api.state.activeSettings.videoDir);
+  expect(api.calls.some(c=>c.path==='storage/check')).toBe(false);
+  await reset.click();
+  await expect(field).toHaveValue(api.state.defaultBlockCacheDir);
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect.poll(()=>api.state.settings.blockCacheDir).toBe('');
+  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByRole('status')).toHaveText('已生效');
+});
+
+test('unavailable temporary cache explains how to recover', async ({page}) => {
+  const api=await mockAPI(page);
+  api.state.settings.blockCacheDir=api.state.activeSettings.blockCacheDir='E:\\SSD Cache';
+  api.state.workError='磁盘不可访问';
+  await page.goto('/#storage-settings');
+  await page.getByRole('button',{name:'后台状态'}).click();
+  await expect(page.getByText('临时视频缓存目录不可用，视频服务和下载无法启动。',{exact:false})).toBeVisible();
+  await expect(page.getByText('原因：磁盘不可访问')).toBeVisible();
+  await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).click();
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
+});
+
+test('cache failure explains how to restart after repairing the same directory', async ({page}) => {
+  const api=await mockAPI(page);
+  api.state.settings.blockCacheDir=api.state.activeSettings.blockCacheDir='E:\\SSD Cache';
+  api.state.workError='磁盘不可访问';
+  await page.goto('/#storage-settings');
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'后台状态'}).click();
+  await expect(page.getByText(/修复后退出并重新打开应用/)).toBeVisible();
 });
 
 for (const theme of ['light','dark'] as const) test(`path fields are read-only pickers with default colors and reset at 320px in ${theme}`,async({page},info)=>{

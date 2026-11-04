@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,6 +11,34 @@ import (
 )
 
 var errConsoleClosing = errors.New("程序正在退出")
+
+// Called under lifecycleMu before a video engine can write blocks. A deferred
+// startup cleanup must recheck every resource alias before it deletes files.
+func (c *Console) prepareWorkLocked(settings Settings) error {
+	c.mu.Lock()
+	closing := c.closing
+	c.mu.Unlock()
+	if closing {
+		return errConsoleClosing
+	}
+	if c.workOpenError != nil {
+		return c.workOpenError
+	}
+	if !c.work.CleanupPending() {
+		return nil
+	}
+	if _, err := c.businessStore(); err != nil {
+		return err
+	}
+	inspection, err := InspectWorkLocation(c.identity.Executable, c.configPath, settings)
+	if err != nil {
+		return err
+	}
+	if inspection.Unresolved != nil {
+		return fmt.Errorf("无法确认数据目录与临时缓存的隔离：%w", inspection.Unresolved)
+	}
+	return c.work.CompleteCleanup(slog.Default())
+}
 
 // Task/gateway admission already holds lifecycleMu across its own state change.
 // Call without mu: engine I/O never holds the console state lock.
@@ -48,8 +77,14 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 		}
 		return engine, nil, nil
 	}
+	if c.workOpenError != nil {
+		return nil, nil, c.workOpenError
+	}
 	store, err := c.businessStore()
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := c.prepareWorkLocked(settings); err != nil {
 		return nil, nil, err
 	}
 	cfg := cacheproxy.DefaultConfig()

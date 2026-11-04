@@ -3,7 +3,7 @@ import { Button, Field, Input, type LabelProps, type SlotRenderFunction } from '
 import { request } from './api';
 import { Feedback } from './ui';
 
-type PathPurpose = 'database' | 'vrcx-database' | 'video-directory' | 'import-directory' | 'log-directory';
+type PathPurpose = 'database' | 'vrcx-database' | 'video-directory' | 'block-cache-directory' | 'import-directory' | 'log-directory';
 
 export function usePathPicker(onPending?: (pending: boolean) => void) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
@@ -52,7 +52,7 @@ function samePath(value: string, defaultValue: string) {
 }
 
 export function DirectoryField({purpose, label, labelSuffix, value, defaultValue = '', isDefault, hint, disabled, onChange, onReset, onPending}: {
-  purpose: 'video-directory' | 'import-directory' | 'log-directory'; label: string; value: string; defaultValue?: string; isDefault?: boolean;
+  purpose: 'video-directory' | 'block-cache-directory' | 'import-directory' | 'log-directory'; label: string; value: string; defaultValue?: string; isDefault?: boolean;
   labelSuffix?: ReactNode; hint?: string; disabled: boolean; onChange: (path: string) => void; onReset?: () => void; onPending?: (pending: boolean) => void;
 }) {
   const picker = usePathPicker(onPending);

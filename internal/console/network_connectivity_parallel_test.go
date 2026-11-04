@@ -81,7 +81,7 @@ func TestNetworkConnectivityFullRunsThreeRequestsTogether(t *testing.T) {
 				releaseOnce.Do(func() { close(release) })
 			}
 			select {
-			case <-c.networkDiagnostics.connectivityDone:
+			case <-connectivityDoneForTest(c.networkDiagnostics):
 			case <-time.After(5 * time.Second):
 				t.Fatal("check did not finish")
 			}
@@ -141,7 +141,7 @@ func TestNetworkConnectivityRetriesStaleResourceAfterPlaybackUpdate(t *testing.T
 		t.Fatal(err)
 	}
 	select {
-	case <-c.networkDiagnostics.connectivityDone:
+	case <-connectivityDoneForTest(c.networkDiagnostics):
 	case <-time.After(5 * time.Second):
 		t.Fatal("check did not finish")
 	}

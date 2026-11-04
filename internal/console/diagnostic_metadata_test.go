@@ -101,7 +101,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 					}
 				}
 				select {
-				case <-c.networkDiagnostics.connectivityDone:
+				case <-connectivityDoneForTest(c.networkDiagnostics):
 				case <-time.After(5 * time.Second):
 					t.Fatal("batch did not drain")
 				}

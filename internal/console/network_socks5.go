@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"still-wanna-dance/internal/upstreamnet"
 )
 
 const socks5ServiceInterval = 30 * time.Second
@@ -21,23 +19,21 @@ type socks5ServiceStatus struct {
 	NextCheck     time.Time `json:"nextCheck"`
 }
 
-// Called under c.mu only after consent/startup. State reads never start probes.
-func (c *Console) startSOCKS5ServiceLocked() {
-	n := c.networkDiagnostics
-	s := c.settings
-	if s.UpstreamMode != "proxy" || s.ProxyBackend != "external-socks5" || n.socks5Done != nil {
+// Caller holds n.mu. The optional probe uses the fixed active configuration.
+func (n *networkDiagnostics) startSOCKS5Locked() {
+	if n.options.SOCKS5 == nil || n.socks5Done != nil {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	n.socks5Cancel, n.socks5Done = cancel, make(chan struct{})
 	n.socks5Wake = make(chan struct{}, 1)
 	n.socks5.Checking = true
-	go func() {
+	n.tasks.Go(func() {
 		defer close(n.socks5Done)
 		for {
-			c.mu.Lock()
+			n.mu.Lock()
 			if ctx.Err() != nil {
-				c.mu.Unlock()
+				n.mu.Unlock()
 				return
 			}
 			n.socks5.Checking, n.socks5.NextCheck = true, time.Time{}
@@ -46,19 +42,13 @@ func (c *Console) startSOCKS5ServiceLocked() {
 			case <-n.socks5Wake:
 			default:
 			}
-			c.mu.Unlock()
+			n.mu.Unlock()
 			started := time.Now()
-			var authenticated bool
-			var err error
-			if s.proxySecretError != "" {
-				err = errors.New(unavailableProxySecret)
-			} else {
-				authenticated, err = upstreamnet.CheckSOCKS5Service(ctx, s.SOCKS5Address, s.SOCKS5Username, s.SOCKS5Password)
-			}
+			authenticated, err := n.options.SOCKS5(ctx)
 			finished := time.Now()
-			c.mu.Lock()
+			n.mu.Lock()
 			if ctx.Err() != nil {
-				c.mu.Unlock()
+				n.mu.Unlock()
 				return
 			}
 			n.socks5 = socks5ServiceStatus{State: "available", Authenticated: authenticated, ObservedAt: finished, NextCheck: finished.Add(socks5ServiceInterval)}
@@ -71,7 +61,7 @@ func (c *Console) startSOCKS5ServiceLocked() {
 				ms := float64(finished.Sub(started)) / float64(time.Millisecond)
 				n.socks5.LatencyMS = &ms
 			}
-			c.mu.Unlock()
+			n.mu.Unlock()
 			timer := time.NewTimer(socks5ServiceInterval)
 			select {
 			case <-ctx.Done():
@@ -82,35 +72,23 @@ func (c *Console) startSOCKS5ServiceLocked() {
 				timer.Stop()
 			}
 		}
-	}()
+	})
 }
 
-func (c *Console) checkSOCKS5Service() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.settings.UpstreamMode != "proxy" || c.settings.ProxyBackend != "external-socks5" {
+func (n *networkDiagnostics) checkSOCKS5() error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.connectivity.Closed {
+		return diagnosticsClosed()
+	}
+	if n.options.SOCKS5 == nil {
 		return rejectRequest(errors.New("当前上游未使用外部 SOCKS5"))
 	}
-	if _, err := c.networkCalibrationLocked(); err != nil {
-		return err
-	}
-	n := c.networkDiagnostics
 	if n.socks5Done == nil {
-		c.startSOCKS5ServiceLocked()
+		n.startSOCKS5Locked()
 	} else if !n.socks5.Checking {
 		n.socks5.Checking, n.socks5.NextCheck = true, time.Time{}
 		n.socks5Wake <- struct{}{}
 	}
 	return nil
-}
-
-func (c *Console) socks5ServiceSnapshotLocked() *socks5ServiceStatus {
-	if c.settings.UpstreamMode != "proxy" || c.settings.ProxyBackend != "external-socks5" {
-		return nil
-	}
-	var status socks5ServiceStatus
-	if c.networkDiagnostics != nil {
-		status = c.networkDiagnostics.socks5
-	}
-	return &status
 }

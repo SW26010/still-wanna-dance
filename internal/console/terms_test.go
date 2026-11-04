@@ -218,7 +218,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &current); err != nil || w.Code != 200 || current["text"] != legal.Text || current["sha256"] != legal.Hash() || current["version"] != legal.Version || current["accepted"] != false {
 		t.Fatal("current terms unavailable before acceptance", err)
 	}
-	if c.networkDiagnostics.connectivity.Running {
+	if connectivitySnapshot(c).Running {
 		t.Fatal("viewing terms started diagnosis")
 	}
 	body, _ := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
@@ -235,7 +235,7 @@ func TestTermsGateAndPersistence(t *testing.T) {
 			t.Fatalf("bad acceptance %d", w.Code)
 		}
 	}
-	if c.termsAccepted() || c.networkDiagnostics.connectivity.Running {
+	if c.termsAccepted() || connectivitySnapshot(c).Running {
 		t.Fatal("invalid request accepted or started diagnosis")
 	}
 	if w := request("POST", "/api/terms/accept", string(body), c.token, ""); w.Code != 200 {

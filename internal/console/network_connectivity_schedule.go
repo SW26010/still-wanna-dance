@@ -6,46 +6,46 @@ import (
 	"still-wanna-dance/internal/upstreamcheck"
 )
 
-// Caller holds c.mu. Consent/startup enables automatic lightweight checks;
-// status reads and SSE subscriptions remain inert.
-func (c *Console) startAutomaticConnectivityLocked() error {
-	if _, err := c.networkCalibrationLocked(); err != nil {
-		return err
+// Consent/startup explicitly enables lightweight checks. Construction, status
+// reads and subscriptions remain inert. Repeated starts join the same schedule.
+func (n *networkDiagnostics) startAutomatic() error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.connectivity.Closed {
+		return diagnosticsClosed()
 	}
-	n := c.networkDiagnostics
 	if n.connectivityAuto {
 		return nil
 	}
 	n.connectivityAuto = true
-	c.startSOCKS5ServiceLocked()
+	n.startSOCKS5Locked()
 	if !n.connectivity.Running {
-		c.scheduleConnectivityLocked(0)
-		c.publishNetworkConnectivityLocked()
+		n.scheduleConnectivityLocked(0)
+		n.publishConnectivityLocked()
 	}
 	return nil
 }
 
 // Completion of either connectivity trigger sets the next deadline.
-func (c *Console) scheduleConnectivityLocked(delay time.Duration) {
-	c.scheduleConnectivityAtLocked(time.Now().Add(delay))
+func (n *networkDiagnostics) scheduleConnectivityLocked(delay time.Duration) {
+	n.scheduleConnectivityAtLocked(time.Now().Add(delay))
 }
 
-func (c *Console) scheduleConnectivityAtLocked(due time.Time) {
-	n := c.networkDiagnostics
+func (n *networkDiagnostics) scheduleConnectivityAtLocked(due time.Time) {
 	if n.connectivityTimer != nil {
 		n.connectivityTimer.Stop()
 	}
 	n.connectivity.NextCheck = due
 	n.connectivityTimer = time.AfterFunc(max(0, time.Until(due)), func() {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		if c.closing || n.connectivity.Closed || n.connectivity.Running || !n.connectivity.NextCheck.Equal(due) {
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		if n.connectivity.Closed || n.connectivity.Running || !n.connectivity.NextCheck.Equal(due) {
 			return
 		}
 		var operation upstreamcheck.Operation
 		if n.connectivityRetry > 0 {
 			operation = upstreamcheck.Catalog
 		}
-		c.startConnectivityLocked(operation, false, false)
+		n.startConnectivityLocked(operation, false, false)
 	})
 }

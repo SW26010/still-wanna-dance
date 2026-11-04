@@ -406,26 +406,7 @@ func (c *Console) BeginShutdown() {
 		c.requestChannel.Release(c.requestRevision)
 	}
 	c.resources.Close()
-	if c.networkDiagnostics != nil {
-		if c.networkDiagnostics.socks5Cancel != nil {
-			c.networkDiagnostics.socks5Cancel()
-		}
-		c.networkDiagnostics.socks5.Closed = true
-		c.networkDiagnostics.socks5.Checking = false
-		c.networkDiagnostics.socks5.NextCheck = time.Time{}
-		if c.networkDiagnostics.connectivityTimer != nil {
-			c.networkDiagnostics.connectivityTimer.Stop()
-		}
-		c.networkDiagnostics.connectivity.NextCheck = time.Time{}
-		if c.networkDiagnostics.connectivityCancel != nil {
-			c.networkDiagnostics.connectivityCancel()
-		}
-		c.networkDiagnostics.connectivity.Closed = true
-		c.publishNetworkConnectivityLocked()
-		if c.networkDiagnostics.calibration != nil {
-			c.networkDiagnostics.calibration.Shutdown()
-		}
-	}
+	c.networkDiagnostics.shutdown()
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}

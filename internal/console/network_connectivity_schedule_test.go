@@ -48,9 +48,19 @@ func automaticConnectivityResponse(r *http.Request) *http.Response {
 }
 
 func connectivitySnapshot(c *Console) networkConnectivityStatus {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.networkDiagnostics.connectivity
+	if c.networkDiagnostics == nil {
+		return networkConnectivityStatus{}
+	}
+	state, _ := c.networkDiagnostics.connectivitySnapshot()
+	return state
+}
+
+// Integration checks sometimes need to wait for cleanup and business callbacks
+// after final status publication, rather than just observing Running=false.
+func connectivityDoneForTest(n *networkDiagnostics) <-chan struct{} {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.connectivityDone
 }
 
 func TestAutomaticConnectivityFaultRequiresConsecutiveFailedRounds(t *testing.T) {

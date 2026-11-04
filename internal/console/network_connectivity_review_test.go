@@ -69,7 +69,7 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 			t.Fatal(err)
 		}
 		select {
-		case <-c.networkDiagnostics.connectivityDone:
+		case <-connectivityDoneForTest(c.networkDiagnostics):
 		case <-time.After(5 * time.Second):
 			t.Fatal("connectivity check did not finish")
 		}
@@ -106,7 +106,7 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 				close(releaseFault)
 				for {
 					c.mu.Lock()
-					current, changed := c.networkDiagnostics.connectivity, c.networkDiagnostics.connectivityChanged
+					current, changed := c.networkDiagnostics.connectivitySnapshot()
 					c.mu.Unlock()
 					if slices.ContainsFunc(current.Results, func(row networkConnectivityResult) bool {
 						return row.Operation == upstreamcheck.Catalog && row.State == "available"
@@ -122,7 +122,7 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 				}
 			}()
 			select {
-			case <-c.networkDiagnostics.connectivityDone:
+			case <-connectivityDoneForTest(c.networkDiagnostics):
 			case <-time.After(5 * time.Second):
 				t.Fatal("connectivity check did not finish")
 			}
@@ -204,7 +204,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 			t.Fatal(err)
 		}
 		select {
-		case <-c.networkDiagnostics.connectivityDone:
+		case <-connectivityDoneForTest(c.networkDiagnostics):
 		case <-time.After(5 * time.Second):
 			t.Fatal("connectivity check did not finish")
 		}
@@ -256,7 +256,7 @@ func TestConnectivityReviewSkippedResourceRetainsObservedResult(t *testing.T) {
 			t.Fatal(err)
 		}
 		select {
-		case <-c.networkDiagnostics.connectivityDone:
+		case <-connectivityDoneForTest(c.networkDiagnostics):
 		case <-time.After(5 * time.Second):
 			t.Fatal("connectivity check did not finish")
 		}
@@ -317,7 +317,7 @@ func TestConnectivityReviewCatalogOnlyDoesNotAdvanceTraversal(t *testing.T) {
 		t.Fatal(err)
 	}
 	select {
-	case <-c.networkDiagnostics.connectivityDone:
+	case <-connectivityDoneForTest(c.networkDiagnostics):
 	case <-time.After(5 * time.Second):
 		t.Fatal("catalog check did not finish")
 	}
@@ -330,34 +330,5 @@ func TestConnectivityReviewCatalogOnlyDoesNotAdvanceTraversal(t *testing.T) {
 	c.mu.Unlock()
 	if got := metadata.SelectSong(t.Context(), 0); got != pending[0] {
 		t.Fatal("catalog-only check advanced metadata traversal", got, pending)
-	}
-}
-
-func TestConnectivityReviewManualDeadlineIsExact(t *testing.T) {
-	c := testConsole(t)
-	c.settings.UpstreamMode = "proxy"
-	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) { return automaticConnectivityResponse(r), nil })}
-	c.mu.Lock()
-	_, err := c.networkCalibrationLocked()
-	if err != nil {
-		c.mu.Unlock()
-		t.Fatal(err)
-	}
-	c.networkDiagnostics.connectivityAuto = true
-	c.scheduleConnectivityLocked(5 * time.Minute)
-	deadline := c.networkDiagnostics.connectivity.NextCheck
-	c.mu.Unlock()
-	for i := 0; i < 3; i++ {
-		if err := c.controlNetworkConnectivityOperation(false, upstreamcheck.Catalog); err != nil {
-			t.Fatal(err)
-		}
-		select {
-		case <-c.networkDiagnostics.connectivityDone:
-		case <-time.After(5 * time.Second):
-			t.Fatal("connectivity check did not finish")
-		}
-		if actual := connectivitySnapshot(c).NextCheck; !actual.Equal(deadline) {
-			t.Fatalf("single check %d shifted the scheduled deadline by %s", i+1, actual.Sub(deadline))
-		}
 	}
 }

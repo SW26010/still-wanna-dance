@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useRef, useState, Fragment, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode, type MouseEventHandler } from 'react';
-import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Divider, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type PropsWithChildren, type Ref, type FocusEventHandler, type ReactNode, type MouseEventHandler } from 'react';
+import { FluentProvider, webLightTheme, webDarkTheme, Card, CardHeader, Image, Subtitle1, Subtitle2, Link, MessageBar, MessageBarBody, ProgressBar, NavDrawer, NavDrawerHeader, NavDrawerBody, NavItem, Hamburger, useRestoreFocusTarget } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { Badge, Button, Tooltip, Toaster, Toast, ToastTitle, ToastBody, ToastFooter, ToastTrigger, useToastController, useId, Popover, PopoverTrigger, PopoverSurface } from '@fluentui/react-components';
 import { InfoRegular, DismissRegular, CheckmarkCircleRegular, DismissCircleRegular, WarningRegular, ClockRegular, SubtractCircleRegular } from '@fluentui/react-icons';
@@ -90,18 +90,27 @@ export const sectionHref=(id:string)=>(bootstrap.page==='console'?'#':'/#')+id;
 type NavigationEntry={value:string;label:string;href?:string;disabled?:boolean;onClick?:()=>void};
 export function NavigationLayout({children,items,selected,label='页面导航'}:PropsWithChildren<{items:NavigationEntry[];selected:string;label?:string}>) {
   const [narrow,setNarrow]=useState(()=>matchMedia('(max-width: 640px)').matches), [open,setOpen]=useState(false), [expanded,setExpanded]=useState(true);
+  const layout=useRef<HTMLDivElement>(null);
   const restoreFocusTarget=useRestoreFocusTarget();
+  useLayoutEffect(()=>{
+    const element=layout.current,header=element?.parentElement?.querySelector(':scope > header');
+    if(!element||!header)return;
+    // The shared header can wrap; use its real height rather than a fixed offset.
+    const measure=()=>element.style.setProperty('--navigation-header-height',`${header.getBoundingClientRect().height}px`);
+    const observer=new ResizeObserver(measure);observer.observe(header);measure();
+    return()=>observer.disconnect();
+  },[]);
   useEffect(()=>{
     const media=matchMedia('(max-width: 640px)');
     const change=()=>{setNarrow(media.matches);setOpen(false);};
     media.addEventListener('change',change);return()=>media.removeEventListener('change',change);
   },[]);
-  return <div className="navigation-layout">
+  return <div className="navigation-layout" ref={layout}>
     <div className="navigation-sidebar">
       <div className="navigation-toggle"><Hamburger {...restoreFocusTarget} aria-label={(!narrow&&expanded?'收起':'展开')+label} aria-expanded={narrow?open:expanded} onClick={()=>narrow?setOpen(true):setExpanded(value=>!value)}/></div>
       <NavDrawer className={narrow?undefined:'inline-navigation'} type={narrow?'overlay':'inline'} position="start" open={narrow?open:expanded} selectedValue={selected} onOpenChange={(_,data)=>setOpen(data.open)} onNavItemSelect={()=>setOpen(false)} aria-label={label}>
         {narrow&&<NavDrawerHeader><Hamburger aria-label={'收起'+label} onClick={()=>setOpen(false)}/></NavDrawerHeader>}
-        <NavDrawerBody className="navigation-items">{items.map(item=><Fragment key={item.value}>{item.value==='settings'&&<Divider className="navigation-divider"/>}<NavItem key={item.value} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?'page':undefined} onClick={item.onClick}>{item.label}</NavItem></Fragment>)}</NavDrawerBody>
+        <NavDrawerBody className="navigation-items">{items.map(item=><NavItem key={item.value} className={item.value==='settings'?'navigation-secondary-start':undefined} value={item.value} href={item.href} disabled={item.disabled} aria-current={selected===item.value?'page':undefined} onClick={item.onClick}>{item.label}</NavItem>)}</NavDrawerBody>
       </NavDrawer>
     </div>
     <div className="page-content">{children}</div>

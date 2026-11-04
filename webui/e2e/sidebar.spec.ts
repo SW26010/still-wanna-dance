@@ -11,12 +11,56 @@ test('desktop pages use a left navigation with native links and arrow keys',asyn
     const heading=page.getByRole('heading',{level:1}).first();await expect(heading).toBeVisible();
     const left=await nav.boundingBox(),content=await heading.boundingBox();
     expect(left!.x+left!.width).toBeLessThanOrEqual(content!.x);
-    expect(left!.width).toBeCloseTo(260,1);
+    expect(left!.width).toBeCloseTo(144,1);
     const items=nav.getByRole('link');
     await items.first().focus();await page.keyboard.press('ArrowDown');await expect(items.nth(1)).toBeFocused();
     {await expect(nav.getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','#/settings');}
     await page.screenshot({path:info.outputPath(route.includes('/#')?'console.png':route.slice(1)+'.png'),fullPage:true,animations:'disabled'});
   }
+});
+
+for(const narrow of [false,true])test(`${narrow?'overlay':'desktop'} navigation shrinks its gap before scrolling every entry together`,async({page},info)=>{
+  await mockAPI(page);
+  await page.emulateMedia({colorScheme:narrow?'dark':'light',reducedMotion:'reduce'});
+  await page.setViewportSize({width:narrow?390:1280,height:900});await page.goto('/#/licenses');
+  const nav=page.getByRole('navigation',{name:'页面导航',exact:true});
+  if(narrow)await page.getByRole('button',{name:'展开页面导航',exact:true}).click();
+  const sizes=narrow?[[390,844],[390,360],[320,225]]:[[1280,900],[700,520],[700,380],[700,240]];
+  let sawSpace=false,sawOverflow=false;
+  for(const [width,height] of sizes){
+    await page.setViewportSize({width,height});
+    await expect(nav).toBeVisible();
+    if(!narrow)await expect.poll(()=>page.locator('.navigation-sidebar').evaluate(el=>el.getBoundingClientRect().bottom)).toBeCloseTo(height-24,1);
+    const body=nav.locator('.navigation-items'),links=nav.getByRole('link');
+    await expect(links).toHaveText(['加速','历史','曲库','网络','设置','关于']);
+    await expect(nav.getByRole('separator')).toHaveCount(0);
+    await links.first().focus();
+    const metrics=await body.evaluate(el=>{
+      const items=[...el.querySelectorAll('a')].map(item=>item.getBoundingClientRect());
+      const rect=el.getBoundingClientRect(),style=getComputedStyle(el);
+      return {overflow:el.scrollHeight>el.clientHeight+1,gap:items[4].top-items[3].bottom,normalGap:items[1].top-items[0].bottom,
+        lastBottom:items[5].bottom,bottom:rect.bottom-parseFloat(style.paddingBottom),heights:items.map(item=>item.height)};
+    });
+    expect(metrics.heights).toEqual(Array(6).fill(metrics.heights[0]));
+    expect(metrics.heights[0]).toBeGreaterThanOrEqual(40);
+    if(metrics.overflow){
+      sawOverflow=true;expect(metrics.gap).toBeCloseTo(metrics.normalGap,1);
+    }else{
+      sawSpace ||= metrics.gap>metrics.normalGap+1;
+      expect(metrics.lastBottom).toBeCloseTo(metrics.bottom,1);
+    }
+    for(let i=1;i<6;i++){await page.keyboard.press('ArrowDown');await expect(links.nth(i)).toBeFocused();}
+    if(metrics.overflow){
+      expect(await body.evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
+      const bounds=await body.boundingBox(),last=await links.last().boundingBox(),first=await links.first().boundingBox();
+      expect(last!.y+last!.height).toBeLessThanOrEqual(bounds!.y+bounds!.height+1);
+      expect(first!.y).toBeLessThan(bounds!.y);
+    }
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:info.outputPath(`${width}x${height}.png`),animations:'disabled'});
+    await page.keyboard.press('ArrowDown');await expect(links.first()).toBeFocused();
+  }
+  expect(sawSpace).toBe(true);expect(sawOverflow).toBe(true);
 });
 
 test('narrow left drawer traps focus, restores trigger on Escape, and follows selected routes',async({page},info)=>{

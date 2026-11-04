@@ -168,7 +168,18 @@ try {
     }
     if (!(Test-Path -LiteralPath (Join-Path $folder 'data/database/storage.sqlite')) -or !(Test-Path -LiteralPath (Join-Path $folder 'videos'))) { throw 'Startup did not prepare the default library.' }
     $generated = @(Get-ChildItem -LiteralPath (Join-Path $folder 'data') | ForEach-Object Name | Sort-Object)
-    if (($generated -join '|') -cne 'database') { throw 'Unused feature created state or credentials.' }
+    $portHint = Join-Path $folder 'data/state/webui-port.json'
+    # A previous release can predate port reuse; current standalone packages must
+    # persist only the successful listener port, never unused feature state.
+    $expectPortHint = !$PreviousZip -or (Test-Path -LiteralPath $portHint)
+    $expectedData = if ($expectPortHint) { 'database|state' } else { 'database' }
+    if (($generated -join '|') -cne $expectedData) { throw 'Unused feature created state or credentials.' }
+    if ($expectPortHint) {
+        $stateFiles = @(Get-ChildItem -LiteralPath (Join-Path $folder 'data/state') -Force)
+        if ($stateFiles.Count -ne 1 -or $stateFiles[0].Name -cne 'webui-port.json' -or $stateFiles[0].PSIsContainer) { throw 'Unused feature created state or credentials.' }
+        $hint = Get-Content -LiteralPath $portHint -Raw | ConvertFrom-Json
+        if ((@($hint.PSObject.Properties.Name) -join '|') -cne 'port' -or $hint.port -ne $port) { throw 'WebUI port hint differs from the successful listener.' }
+    }
     $workScopes = @(Get-ChildItem -LiteralPath (Join-Path $folder 'work'))
     if ($workScopes.Count -ne 1 -or !$workScopes[0].PSIsContainer -or $workScopes[0].Name -cnotmatch '^console-[a-f0-9]{32}$') { throw 'Startup did not create one scoped block workspace beside the executable.' }
     $defaultWorkName = $workScopes[0].Name

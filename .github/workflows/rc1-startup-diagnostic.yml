@@ -1,0 +1,54 @@
+name: RC1 startup diagnosis
+on:
+  push:
+    branches: [codex/rc1-startup-diagnosis]
+permissions:
+  contents: read
+jobs:
+  startup:
+    name: startup (${{ matrix.parallelism }})
+    runs-on: windows-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        parallelism: [default, serial]
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Install pinned Windows GCC
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'w64devkit-x64-2.10.0.7z.exe'
+          Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v2.10.0/w64devkit-x64-2.10.0.7z.exe' -OutFile $archive
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -cne '18D0A4C71A166F8401AB6305781BEC5882B40B5E06BA9807C61CB5F3B3C6325E') { throw 'Windows GCC archive hash mismatch.' }
+          & 7z x $archive "-o$env:RUNNER_TEMP" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract Windows GCC.' }
+          "CC=$(Join-Path $env:RUNNER_TEMP 'w64devkit/bin/gcc.exe')" >> $env:GITHUB_ENV
+      - name: Prepare the same race dependencies as the full release
+        run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race ./internal/cacheproxy ./internal/console -run '^$'
+      - name: Diagnose remaining packages with the original deadline
+        shell: pwsh
+        run: |
+          $packages = @(node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
+          if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining packages.' }
+          $budget = if ('${{ matrix.parallelism }}' -eq 'serial') { @('-p=1') } else { @() }
+          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race @budget @packages -count=1 -timeout=45m -json 2>&1 | Tee-Object -FilePath artifacts/startup-diagnostic.jsonl
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rc1-startup-${{ matrix.parallelism }}
+          path: artifacts/startup-diagnostic.jsonl
+          if-no-files-found: ignore

@@ -136,27 +136,50 @@ func TestApplicationBlockCacheStartup(t *testing.T) {
 			client := &http.Client{Timeout: time.Second}
 			defer client.CloseIdleConnections()
 			var address, token string
-			deadline := time.Now().Add(15 * time.Second)
-			for time.Now().Before(deadline) {
-				b, _ := os.ReadFile(outputPath)
-				address = string(urlPattern.Find(b))
-				if address != "" {
-					response, err := client.Get(address + "/")
-					if err == nil {
-						body, _ := io.ReadAll(response.Body)
-						response.Body.Close()
-						if match := tokenPattern.FindSubmatch(body); len(match) == 2 {
-							token = string(match[1])
-							break
+			started := time.Now()
+			waitReady := func(deadline time.Time) {
+				for time.Now().Before(deadline) {
+					b, _ := os.ReadFile(outputPath)
+					address = string(urlPattern.Find(b))
+					if address != "" {
+						response, err := client.Get(address + "/")
+						if err == nil {
+							body, _ := io.ReadAll(response.Body)
+							response.Body.Close()
+							if match := tokenPattern.FindSubmatch(body); len(match) == 2 {
+								token = string(match[1])
+								return
+							}
 						}
 					}
+					time.Sleep(25 * time.Millisecond)
 				}
-				time.Sleep(25 * time.Millisecond)
+			}
+			waitReady(started.Add(15 * time.Second))
+			phases := func() {
+				logs, err := applog.Read(t.Context(), apppaths.ForConfig(config).LogDir, applog.Query{})
+				if err != nil {
+					t.Logf("[DEBUG-rc1-startup] logs: %v", err)
+					return
+				}
+				for _, entry := range logs.Entries {
+					var fields map[string]any
+					if json.Unmarshal([]byte(entry.Raw), &fields) == nil {
+						t.Logf("[DEBUG-rc1-startup] phase time=%v event=%v", fields["time"], fields["msg"])
+					}
+				}
 			}
 			if token == "" {
+				t.Logf("[DEBUG-rc1-startup] original 15s deadline missed after %v", time.Since(started))
+				phases()
+				waitReady(started.Add(45 * time.Second))
+				t.Logf("[DEBUG-rc1-startup] late ready=%t elapsed=%v", token != "", time.Since(started))
+				phases()
 				b, _ := os.ReadFile(outputPath)
 				t.Fatalf("application did not start: %s", b)
 			}
+			t.Logf("[DEBUG-rc1-startup] ready elapsed=%v", time.Since(started))
+			phases()
 			if available {
 				if _, err := os.Stat(block); offlineData && err != nil || !offlineData && !os.IsNotExist(err) {
 					t.Fatal("startup cleaned or retained a block unexpectedly", err)

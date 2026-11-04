@@ -127,7 +127,7 @@ test('a skipped resource check identifies the retained observation and its time'
   expect(await badge.locator('.fui-Badge').evaluate(background)).toEqual(await missing.locator('.fui-Badge').evaluate(background));
   await badge.hover();
   await expect(page.getByRole('tooltip')).toHaveText('本次未检测；上次检测：'+await page.evaluate(value=>new Date(value).toLocaleString(),first));
-  await page.locator('.upstream-card').getByRole('link',{name:'上游',exact:true}).click();
+  await page.locator('.upstream-card').getByRole('link',{name:'网络上游：直连',exact:true}).click();
   const rows=page.locator('.diagnostic-rows p').filter({hasText:'视频下载'});
   await expect(rows.filter({hasText:'未检测（缺少有效样本）'})).toBeVisible();
   await expect(rows.filter({hasText:'example.invalid'})).toContainText('上次结果');
@@ -141,8 +141,11 @@ for(const [mode,backend,label] of [['direct','external-socks5','直连'],['proxy
     Object.assign(api.diagnostics.connectivity,{run:1,revision:2,running:false,phase:'completed',results:initial,lastResult:{finished:later,results:initial}});
     await api.emit('connectivity');await page.goto('/#/home');
     const card=page.locator('.upstream-card');
-    await expect(card.getByRole('heading',{name:'上游：'+label,exact:true})).toBeVisible();
-    await expect(card.getByRole('link',{name:label,exact:true})).toBeVisible();
+    const heading=card.getByRole('heading',{name:'网络上游：'+label,exact:true});
+    const title=heading.getByRole('link',{name:'网络上游：'+label,exact:true});
+    await expect(heading).toBeVisible();
+    await expect(heading.getByRole('link')).toHaveCount(1);
+    await expect(title).toHaveAttribute('href','#/network');
     const catalog=card.getByRole('button',{name:/检测歌曲列表/});
     await expect(catalog).toHaveText('歌曲列表：42 ms');
     await expect(card.getByRole('button',{name:/检测播放地址/})).toHaveText('播放地址：71 ms');
@@ -154,18 +157,20 @@ for(const [mode,backend,label] of [['direct','external-socks5','直连'],['proxy
     await page.keyboard.press('Escape');await page.mouse.move(0,0);await catalog.focus();
     await expect(page.getByRole('tooltip')).toContainText('最后检测：');
     expect(api.calls.filter(call=>call.path==='network/connectivity/start')).toHaveLength(0);
-    const title=card.getByRole('link',{name:'上游',exact:true});
-    if(mode==='direct')await title.click();else {await title.focus();await page.keyboard.press('Enter');}
-    await expect(page).toHaveURL(/#network-tests$/);
+    if(mode==='direct'){
+      for(const fraction of [0.05,0.58,0.95]){
+        const box=(await title.boundingBox())!;
+        await title.click({position:{x:box.width*fraction,y:box.height/2}});
+        await expect(page).toHaveURL(/#\/network$/);
+        if(fraction!==0.95)await navigate(page,'加速');
+      }
+    } else {await title.focus();await page.keyboard.press('Enter');}
+    await expect(page).toHaveURL(/#\/network$/);
+    await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
     await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
     const kiva=page.locator('.diagnostic-rows p').filter({hasText:'歌曲列表 · Kiva'});
     await expect(kiva).toContainText('可连接 · 响应时间 42 ms');
     await expect(kiva.locator('time')).toHaveAttribute('datetime',later);
-    await navigate(page,'加速');
-    const connection=card.getByRole('link',{name:label,exact:true});
-    if(mode==='direct')await connection.click();else {await connection.focus();await page.keyboard.press('Enter');}
-    await expect(page).toHaveURL(/#network-proxy$/);
-    await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
   });
 }
 
@@ -355,7 +360,9 @@ test('a busy check is reported without canceling the existing run',async({page})
 for(const [width,height] of [[320,900],[390,900],[1280,900],[1440,900]])test(`home cards fit at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height});
   await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none'});
-  await mockAPI(page);await page.goto('/#/home');
+  const api=await mockAPI(page);
+  if(width===320)Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:'external-socks5'});
+  await page.goto('/#/home');
   const upstream=page.locator('.upstream-card'),activation=page.locator('#activation');
   await expect(upstream.getByRole('button',{name:/检测歌曲列表/})).toBeVisible();
   const a=(await upstream.boundingBox())!,b=(await activation.boundingBox())!;

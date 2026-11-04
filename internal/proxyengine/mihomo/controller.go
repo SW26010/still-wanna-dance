@@ -110,8 +110,9 @@ func (r *Runtime) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			allowed = strings.HasPrefix(p, "/proxies/") || strings.HasPrefix(p, "/group/") || strings.HasPrefix(p, "/providers/proxies/")
 		}
 	}
-	if req.Method == http.MethodPut && p == "/proxies/"+ProxyGroup {
-		allowed = true
+	if req.Method == http.MethodPut && strings.HasPrefix(p, "/proxies/") {
+		name := strings.TrimPrefix(p, "/proxies/")
+		allowed = r.selectable[name]
 	}
 	if req.Method == http.MethodDelete && (p == "/connections" || strings.HasPrefix(p, "/connections/")) {
 		allowed = true

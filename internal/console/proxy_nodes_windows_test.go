@@ -2,6 +2,7 @@ package console
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ import (
 
 func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	c := testConsole(t)
-	r, err := c.importProxyNodes([]byte(nodeFixture))
+	r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	}
 	// The same config transaction saves settings and the encrypted snapshot.
 	old := c.savedSettings
-	r, _ = c.importProxyNodes([]byte("proxies: [{type: ss, server: replacement.example, port: 1234, cipher: aes-128-gcm, password: replacement}]"))
+	r, _ = c.importProxyNodes(context.Background(), []byte("proxies: [{name: replacement, type: ss, server: replacement.example, port: 1234, cipher: aes-128-gcm, password: replacement}]"))
 	s = old
 	s.nodeImportID = r.ID
 	_, fields, _ = readConfigFile(c.configPath)
@@ -91,13 +92,13 @@ func TestLegacyNodeSnapshotPreservedUntilExplicitReimport(t *testing.T) {
 		t.Fatal("legacy ciphertext changed", err)
 	}
 	c.savedSettings = s
-	result, err := c.importProxyNodes([]byte(nodeFixture))
+	result, err := c.importProxyNodes(context.Background(), []byte(nodeFixture))
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.nodeImportID = result.ID
 	next, err := c.mergeProxyNodes(s, c.savedSettings)
-	if err != nil || nodeDocument(next.nodeSnapshot).Version != proxyNodeDocumentVersion || next.nodeSecretError != "" {
+	if err != nil || next.nodeSnapshot != nodeFixture || next.nodeSecretError != "" {
 		t.Fatal("explicit reimport failed", err)
 	}
 }

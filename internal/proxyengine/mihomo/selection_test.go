@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,20 +32,21 @@ func TestNativeSelectionCacheUsesNamesWithoutGeneratingEndpoints(t *testing.T) {
 		{ID: "stable-v1-" + strings.Repeat("b", 64), Parameters: unnamed},
 	}
 	home := t.TempDir()
-	r, err := NewRuntime(configs, RuntimeOptions{Home: home})
+	r, err := newFixtureRuntime(configs, RuntimeOptions{Home: home})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = r.Close() })
 	names := runtimeProxyNames(t, r)
 	address := fmt.Sprintf("%s:%v", unnamed["server"], unnamed["port"])
-	if !strings.HasPrefix(names[1], "订阅显示名.example:9443 ") || !strings.HasPrefix(names[2], "节点 2 ") || strings.Contains(names[2], address) {
+	if !slices.Contains(names, "订阅显示名.example:9443") || !slices.Contains(names, "节点 2") {
 		t.Fatal("unexpected displayed node names", names)
 	}
-	selectRuntimeProxy(t, r, names[1])
-	if cachefile.Cache().SelectedMap()[ProxyGroup] != names[1] {
+	selectRuntimeProxy(t, r, "订阅显示名.example:9443")
+	if cachefile.Cache().SelectedMap()[ProxyGroup] != "订阅显示名.example:9443" {
 		t.Fatal("native cache did not retain the supplied display name")
 	}
-	selectRuntimeProxy(t, r, names[2])
+	selectRuntimeProxy(t, r, "节点 2")
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +54,7 @@ func TestNativeSelectionCacheUsesNamesWithoutGeneratingEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(cache, []byte(names[2])) {
+	if !bytes.Contains(cache, []byte("节点 2")) {
 		t.Fatal("native cache did not save the selected display name")
 	}
 	for _, parameter := range []string{address, "fixture-user", "fixture-only-secret"} {
@@ -88,7 +90,7 @@ func TestSelectionCacheFailureDoesNotBlockProxy(t *testing.T) {
 				var enabled atomic.Bool
 				enabled.Store(true)
 				configs := []Config{{ID: "stable-v1-" + strings.Repeat("a", 64), Parameters: groupExit(t, "cache-independent-exit", "", &enabled)}}
-				r, err := NewRuntime(configs, RuntimeOptions{Home: home, DisableSelectionPersistence: disabled})
+				r, err := newFixtureRuntime(configs, RuntimeOptions{Home: home, DisableSelectionPersistence: disabled})
 				if err != nil {
 					t.Fatal("selection cache blocked proxy startup", err)
 				}

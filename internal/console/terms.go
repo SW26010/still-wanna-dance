@@ -165,7 +165,7 @@ func (c *Console) acceptTerms() error {
 	c.termsNeedsConfirmation = false
 	c.cancelTermsExitLocked()
 	if c.client != nil {
-		if proxy, ok := c.client.Transport.(*mihomoTransport); ok && proxy.core == nil && c.loadedNodeCount > 0 {
+		if proxy, ok := c.client.Transport.(*mihomoTransport); ok && proxy.core == nil && c.settings.nodeSnapshot != "" {
 			dial, client, err := c.networkFor(c.settings)
 			if err != nil {
 				proxy.startupError = "代理启动失败，请检查节点和日志，修复后重启程序"

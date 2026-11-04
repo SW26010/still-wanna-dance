@@ -288,7 +288,7 @@ func TestConsentSavedWhenMihomoCannotStart(t *testing.T) {
 	}
 	c.terms = termsReceipt{}
 	s := runtimeNodeSettings(t, c, 1)
-	s.nodeSnapshot = `{"version":2,"nodes":[{"type":"unsupported","server":"127.0.0.1","port":1}]}`
+	s.nodeSnapshot = `proxies: [{name: invalid, type: unsupported, server: 127.0.0.1, port: 1}]`
 	dial, client, err := c.networkFor(s)
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +353,7 @@ func TestAutoStartAfterFailedConsentStartup(t *testing.T) {
 	c.terms = termsReceipt{}
 	s := runtimeNodeSettings(t, c, 1)
 	s.AutoAccelerate = true
-	s.nodeSnapshot = `{"version":2,"nodes":[{"type":"unsupported","server":"127.0.0.1","port":1}]}`
+	s.nodeSnapshot = `proxies: [{name: invalid, type: unsupported, server: 127.0.0.1, port: 1}]`
 	dial, client, err := c.networkFor(s)
 	if err != nil {
 		t.Fatal(err)

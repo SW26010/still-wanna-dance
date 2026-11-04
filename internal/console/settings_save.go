@@ -105,7 +105,7 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 	if err = saveConfigSettingsWithCleanup(c.configPath, s, previousRoot); err != nil {
 		return err
 	}
-	nodeCount := len(nodeDocument(s.nodeSnapshot).Nodes)
+	nodeCount := configurationNodeCount(s.nodeSnapshot)
 	c.mu.Lock()
 	c.savedSettings = s
 	c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit

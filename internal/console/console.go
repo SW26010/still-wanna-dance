@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -169,7 +168,7 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	c.settings = loaded.Settings
 	err = c.validateResourcePaths(c.settings)
 	c.savedSettings = c.settings
-	c.loadedNodeCount = len(nodeDocument(c.settings.nodeSnapshot).Nodes)
+	c.loadedNodeCount = configurationNodeCount(c.settings.nodeSnapshot)
 	c.savedNodeCount = c.loadedNodeCount
 	if err == nil {
 		err = c.loadTerms()
@@ -685,26 +684,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
-	// Only this data-only import endpoint has a larger payload allowance.
 	if r.URL.Path == "/api/proxy/import" {
-		r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
-		data, err := io.ReadAll(r.Body)
-		defer clear(data)
-		if err != nil {
-			preserveResponseFault(w, rejectRequest(err))
-			http.Error(w, "节点内容读取失败或超过 2 MiB", http.StatusBadRequest)
-			return
-		}
-		result, err := c.importProxyNodes(data)
-		if err != nil {
-			if writeSettingsValidation(w, err) {
-				return
-			}
-			preserveResponseFault(w, err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		writeJSON(w, result)
+		c.serveProxyImport(w, r)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)

@@ -103,7 +103,7 @@ func readConfigFile(path string) ([]byte, map[string]json.RawMessage, error) {
 			return nil, nil, fmt.Errorf("配置包含已停用的 storageDir；请分别指定 databasePath 和 videoDir，原文件未修改")
 		}
 		if strings.EqualFold(key, "proxyNodes") && key != "proxyNodes" {
-			return nil, nil, fmt.Errorf("节点快照字段必须为 proxyNodes；原文件未修改")
+			return nil, nil, fmt.Errorf("Mihomo 配置字段必须为 proxyNodes；原文件未修改")
 		}
 		if strings.EqualFold(key, "proxySecret") && key != "proxySecret" {
 			return nil, nil, fmt.Errorf("代理凭据字段必须为 proxySecret；原文件未修改")

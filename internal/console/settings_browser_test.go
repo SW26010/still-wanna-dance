@@ -1,17 +1,67 @@
 package console
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"still-wanna-dance/internal/faults"
 )
+
+func TestMihomoConfigurationBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_MIHOMO_CONFIG_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_MIHOMO_CONFIG_BROWSER_EVIDENCE for real configuration import integration")
+	}
+	if !consoleMihomoProcess(t) {
+		return
+	}
+	c := testConsole(t)
+	content := "# preserved original\nproxies: [{name: local, type: ss, server: localhost, port: 1234, cipher: aes-128-gcm, password: private-fixture}]\nproxy-groups: [{name: original, type: select, proxies: [local]}]\n"
+	fixture := filepath.Join(t.TempDir(), "configuration.yaml")
+	if err := os.WriteFile(fixture, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var downloads atomic.Int32
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { downloads.Add(1); io.WriteString(w, content) }))
+	defer source.Close()
+	ui := httptest.NewUnstartedServer(c)
+	c.address = ui.Listener.Addr().String()
+	ui.Start()
+	defer ui.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "mihomo-configuration-live.mjs"), ui.URL, source.URL+"/?private-source-token=secret", fixture, evidence)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("browser: %v\n%s", err, output)
+	} else {
+		t.Log(string(output))
+	}
+	if downloads.Load() != 1 || c.savedSettings.nodeSnapshot != content || c.settings.nodeSnapshot != "" || c.savedSettings.ProxyBackend != "mihomo" {
+		t.Fatal("wrong acquisition or activation boundary")
+	}
+	data, err := os.ReadFile(c.configPath)
+	if err != nil || bytes.Contains(data, []byte("private-fixture")) || bytes.Contains(data, []byte("private-source-token")) || bytes.Contains(data, []byte(source.URL)) {
+		t.Fatal("source or unprotected configuration persisted")
+	}
+	loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loaded.Close()
+	if loaded.settings.nodeSnapshot != content {
+		t.Fatal("restart did not preserve original configuration")
+	}
+}
 
 func TestSettingsValidationBrowser(t *testing.T) {
 	evidence := os.Getenv("SWD_SETTINGS_VALIDATION_BROWSER_EVIDENCE")

@@ -51,7 +51,7 @@ func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {
 		configs = append(configs, Config{ID: fmt.Sprintf("stable-v1-%064x", i+1), Parameters: p})
 	}
 	beforeResolver, beforeTransport := net.DefaultResolver, http.DefaultTransport
-	r, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
+	r, err := newFixtureRuntime(configs, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {
 			t.Fatal("recovery", err)
 		}
 	}
-	if _, err := Normalize(map[string]any{"type": "ss", "server": "127.0.0.1", "port": 1234, "cipher": "aes-128-gcm", "password": "fixture"}); err != nil {
+	if _, err := Validate(context.Background(), fixtureConfiguration(configs), t.TempDir()); err != nil {
 		t.Fatal("preview with active core", err)
 	}
 	pool.CloseIdleConnections()
@@ -102,7 +102,7 @@ func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {
 	if _, err := r.DialContext(context.Background(), "tcp", "business.invalid:80"); err != upstreamrequest.ErrRetired {
 		t.Fatal(err)
 	}
-	if _, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
+	if _, err := newFixtureRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
 		t.Fatal("restarted global runtime")
 	}
 }
@@ -120,7 +120,7 @@ func TestRuntimeSoak(t *testing.T) {
 		p["server"] = "127.0.0.1"
 		configs = append(configs, Config{ID: fmt.Sprintf("stable-v1-%064x", i+1), Parameters: p})
 	}
-	r, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
+	r, err := newFixtureRuntime(configs, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestRuntimeBadCredentialsNeverReachBusiness(t *testing.T) {
 	p := maps.Clone(fixtureNodes[0])
 	p["server"] = "127.0.0.1"
 	p["password"] = "wrong-fixture-password"
-	r, err := NewRuntime([]Config{{ID: "stable-v1-" + strings.Repeat("a", 64), Parameters: p}}, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
+	r, err := newFixtureRuntime([]Config{{ID: "stable-v1-" + strings.Repeat("a", 64), Parameters: p}}, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,11 +194,11 @@ func TestRuntimeFailedStartCannotReinitialize(t *testing.T) {
 		return
 	}
 	configs := []Config{{ID: "stable-v1-" + strings.Repeat("a", 64), Parameters: map[string]any{"type": "invalid", "server": "127.0.0.1", "port": 1234}}}
-	if _, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
+	if _, err := newFixtureRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
 		t.Fatal("invalid core started")
 	}
 	configs[0].Parameters = map[string]any{"type": "ss", "server": "127.0.0.1", "port": 1234, "cipher": "aes-128-gcm", "password": "fixture"}
-	if _, err := NewRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
+	if _, err := newFixtureRuntime(configs, RuntimeOptions{Home: t.TempDir()}); err == nil {
 		t.Fatal("failed core silently retried")
 	}
 }

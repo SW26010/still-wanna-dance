@@ -98,7 +98,7 @@ func TestStrategyGroupSwitchFallbackAndPersistence(t *testing.T) {
 		{ID: "stable-v1-" + strings.Repeat("b", 64), Parameters: groupExit(t, "B", health.Listener.Addr().String(), &b)},
 	}
 	home := t.TempDir()
-	r, err := NewRuntime(configs, RuntimeOptions{Home: home, DialTimeout: time.Second})
+	r, err := newFixtureRuntime(configs, RuntimeOptions{Home: home, DialTimeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestStrategySelectionAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	transient := os.Getenv("SWD_SELECTION_TRANSIENT") == "true"
-	r, err := NewRuntime(configs, RuntimeOptions{Home: home, DisableSelectionPersistence: transient})
+	r, err := newFixtureRuntime(configs, RuntimeOptions{Home: home, DisableSelectionPersistence: transient})
 	if err != nil {
 		t.Fatal(err)
 	}

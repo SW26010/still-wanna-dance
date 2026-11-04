@@ -1,38 +1,36 @@
 # Managed Mihomo endpoint
 
 The root module pins official Mihomo v1.19.32, with no_easytier and no fork.
-Console owns node import, protected configuration and process lifecycle. Runtime
-exposes one dialer through the native SWD selector, defaulting to a native
-fallback group containing all imported nodes. zashboard operates the selector,
-health checks and connections. SWD never ranks or selects individual nodes.
+Console owns original native configuration import, protected storage and lifecycle.
+The runtime adds a SWD selector and native automatic fallback before existing
+groups. Both reference original groups; without groups, native include-all
+covers inline nodes and providers. SWD business dials bypass routing rules.
+Original DNS, hosts, names, policies and references remain native.
 
-The [canonical design](../../../docs/mihomo-dashboard.md) defines configuration,
-consent, control API authority, selection persistence and shutdown. Import stays
-bounded to 2 MiB / 2048 entries and validates native stream capabilities without
-executing imported groups, rules, listeners, files, plugins or system networking.
-Node names stay in protected data; public import diagnostics never contain them.
+The [canonical design](../../../docs/mihomo-dashboard.md) defines the single
+managed override policy. Files, decoded Base64 documents and one-shot URL
+responses share the same bounded native configuration path. Original bytes are
+saved with DPAPI; acquisition URLs are discarded. Legacy node snapshots are
+ordinary invalid configurations. Native cache/resource files may be plaintext;
+SWD does not encrypt or rewrite them.
 
-Runtime installs controlled ParseWithBytes → ApplyConfig once per process.
-Core-owned certificate-validated DoH does not read system hosts. SWD's direct DNS
-and standard library resolver/transport remain independent. No plaintext core
-configuration file is created. A private native controller is authenticated and
-accessed through SWD's limited same-origin reverse proxy. Raw core logs are not
-exposed; native logrus output is permanently discarded before import parsing.
+Full native checking runs in a separate process via a private stdin entry point
+and never calls ApplyConfig. It may load/download native resources but cannot
+change the running core's globals. Startup uses the same override policy and
+ParseRawConfig → ApplyConfig once, after consent. Imported listeners, controller,
+TUN, other network interception and Geo periodic updates are disabled. Core DNS
+retains the imported policy but never reads system hosts. SWD's direct resolver
+and standard library networking remain independent. Raw native output is discarded.
 
-The pinned native selector and statistics memory cache contain data races.
-selector.go synchronizes the native selector; the automatic fallback never
-exposes manual pinning. memory.go streams the native process memory query without
-mutating the shared cache. These compatibility guards retain native selection,
-fallback and tracking; reassess them when upgrading Mihomo.
+selector.go synchronizes native selectors, including original groups. Automatic
+fallback/url-test groups do not expose native manual pinning, whose state is
+unsynchronized in this version. memory.go avoids the native shared statistics
+cache race. Reassess these compatibility guards when upgrading Mihomo.
 
-Mihomo saves and restores selections by their displayed names. Unnamed nodes get
-a generic ordinal rather than an endpoint; imported names may themselves contain
-addresses. A transient identity turns off selection record reads/writes to
-preserve selections in a valid cache; native cache initialization still runs.
-The known cache.db is disposable and may be rebuilt by Mihomo. If it cannot be
-opened, the proxy and manual selection remain usable in memory; Console reports
-that selections cannot be saved. No plaintext native connection configuration
-is created. The canonical design defines the exact cache ownership boundary.
+Mihomo persists selection by original name, without SWD identity suffixes or
+channel.key. Native cache failure remains nonfatal: proxy/manual selection work
+in memory, with a fixed warning. Native shutdown persists its configured state
+before the cache closes. Rule and proxy providers are closed within retirement.
 
 The endpoint owns 160 nonqueued admission slots and a ten-second dial deadline.
 Slots cover native calls, delivered connections and actual Close completion.

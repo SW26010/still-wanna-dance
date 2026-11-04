@@ -3,7 +3,7 @@ import { Button, Checkbox, Field, Input, Select, Textarea, Caption1, Tooltip } f
 import { bootstrap } from './bootstrap';
 import { APIError, decode, request } from './api';
 import { useApp } from './hooks';
-import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } from './ui';
+import { Feedback, Panel, Progress, Hint, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields, locationRequestError, locationValidationKey, type LocationValidation } from './storage-directory';
@@ -16,8 +16,8 @@ import {FieldErrors,ValidationField,inputError} from './field-validation';
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
 type NumberField = typeof numeric[number];
-export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
-export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
+export interface ProxyReport { id: string; nodes: number; groups: number }
+export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   const {videoBudgetBytes, theme: _theme, ...values} = s;
   // The backend supplies complete, normalized settings; drafts only format them.
@@ -26,15 +26,15 @@ export function draftFrom(s: Settings): Draft {
     prepareAheadSeconds: String(s.prepareAheadSeconds),
     downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
     localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
-    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '' };
+    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportSource: 'config' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyReport: _report, socks5Password, ...values } = d;
+  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
   return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function fingerprint(d: Draft) {
-  return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText});
+  return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
 }
 export const releaseImport = async (id: string) => { if (id) try { await request('proxy/import/discard', {id}); } catch { /* Local discard remains available offline; server expiry is the fallback. */ } };
 
@@ -48,7 +48,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
   async function readFile(file?: File) {
     if (!file) return;
     const id = ++generation.current; busy(true); setError('');setErrorField('proxyFile');
-    try { if (file.size > 2 * 1024 * 1024) throw new Error('节点文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text}); }
+    try { if (file.size > 2 * 1024 * 1024) throw new Error('配置文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text,proxyImportSource: 'config'}); }
     catch (e) { if (id === generation.current) setError(String(e)); }
     finally { if (id === generation.current) busy(false); }
   }
@@ -56,7 +56,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
     if (pending || disabled || !d.proxyImportText.trim()) return;
     const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');setErrorField('proxyImportText');
     try {
-      const response = await fetch('/api/proxy/import', {method: 'POST', headers: {'Content-Type':'text/plain', 'X-SWD-Token':bootstrap.token},body: content, signal: AbortSignal.timeout(30000)});
+      const response = await fetch('/api/proxy/import', {method: 'POST', headers: {'Content-Type':'text/plain', 'X-SWD-Token':bootstrap.token,'X-SWD-Import-Source':d.proxyImportSource},body: content, signal: AbortSignal.timeout(100000)});
       const report = await decode<ProxyReport>(response);
       if (id !== generation.current || current.current.proxyImportText !== content) { void releaseImport(report.id || ''); return; }
       void releaseImport(current.current.proxyImportID);
@@ -78,13 +78,16 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
         <Feedback error>{status.socks5CredentialError}</Feedback>
       </> : <>
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>
-        <ValidationField name="proxyImportText" error={errorField==='proxyImportText'?error:undefined} label="粘贴节点内容"><Textarea name="proxyImportText" rows={5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => {setError('');update({proxyImportText: v.value});}} /></ValidationField>
-        <ValidationField error={errorField==='proxyFile'?error:undefined} label="或选择节点文件">{props=><input {...props} type="file" disabled={locked} accept=".yaml,.yml,.txt,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</ValidationField>
-        <Caption1 as="p" className="hint">检查仅生成草稿；保存后替换整份节点库，重启生效。</Caption1>
-        <div className="inline secondary">支持 YAML、URI 与 Base64 列表<Hint label="节点格式说明">最多 2 MiB / 2048 条，仅导入节点配置。</Hint></div>
+        <Field label="配置来源"><Select disabled={locked} value={d.proxyImportSource} onChange={(_,v)=>{setError('');update({proxyImportSource:v.value as Draft['proxyImportSource'],proxyImportText:''});}}>
+          <option value="config">配置文件或内容</option><option value="url">URL</option><option value="base64">Base64</option>
+        </Select></Field>
+        <ValidationField name="proxyImportText" error={errorField==='proxyImportText'?error:undefined} label={d.proxyImportSource==='url'?'配置 URL':d.proxyImportSource==='base64'?'Base64 配置':'配置内容'}><Textarea name="proxyImportText" rows={d.proxyImportSource==='url'?2:5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => {setError('');update({proxyImportText: v.value});}} /></ValidationField>
+        {d.proxyImportSource==='config'&&<ValidationField error={errorField==='proxyFile'?error:undefined} label="选择配置文件">{props=><input {...props} type="file" disabled={locked} accept=".yaml,.yml,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</ValidationField>}
+        <Caption1 as="p" className="hint">保存后替换整份配置，重启生效。URL 仅下载一次，不保存地址。</Caption1>
+        <div className="inline secondary">Mihomo 原生配置<Hint label="配置格式说明">文件或 Base64 解码后的内容须为合法配置，最多 2 MiB。原有组与 DNS 等设置保留，接入设置由 SWD 管理。</Hint></div>
         <div className="actions"><Button disabled={locked || !d.proxyImportText.trim()} onClick={() => void inspect()}>检查并导入到草稿</Button><Button disabled={locked || (!d.proxyImportID && !d.proxyImportText)} onClick={() => { void releaseImport(d.proxyImportID); update({proxyImportID:'',proxyImportText:'',proxyReport:undefined}); }}>清除本次导入草稿</Button></div>
-        {d.proxyReport && <><p>本次接受 {d.proxyReport.accepted} 个，重复跳过 {d.proxyReport.skipped} 个，失败 {d.proxyReport.failed} 个。{!d.proxyReport.id && '没有有效节点。请修改内容或清除本次草稿。'}</p><RecordDetails title="逐条导入结果"><ul>{d.proxyReport.items.map(row => <li key={row.index}>第 {row.index} 条 · {row.protocol} · {({accepted:'接受',skipped:'跳过',failed:'失败'}[row.status] || row.status)} {row.reason}</li>)}</ul></RecordDetails></>}
-        <span className="secondary">已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
+        {d.proxyReport && <p>配置检查通过：{d.proxyReport.nodes} 个内置节点，{d.proxyReport.groups} 个原有代理组。</p>}
+        <span className="secondary">配置内置节点：已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
       </>}
     </>}
   </div>;
@@ -123,7 +126,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
         const message=isInput(input)?inputError(input):'';
         if(message)next[name]=message;else delete next[name];
       }
-      if('proxyImportID' in patch)delete next.proxyImportText;
+      if('proxyImportID' in patch||'proxyImportSource' in patch)delete next.proxyImportText;
       if('upstreamMode' in patch||'proxyBackend' in patch)for(const name of ['socks5Address','socks5Username','socks5Password','proxyImportText'])delete next[name];
       if('requestRetentionMode' in patch)delete next.requestRetentionDays;
       if('videoStorageMode' in patch)delete next.videoBudgetBytes;

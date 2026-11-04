@@ -3,9 +3,7 @@ package mihomo
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -19,6 +17,7 @@ import (
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
+	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/tunnel"
@@ -30,12 +29,6 @@ const defaultConnections = 160
 const runtimeCloseBudget = 3 * time.Second
 const ProxyGroup = "SWD"
 const automaticGroup = "自动故障切换"
-
-// Config contains immutable connection parameters and a keyed stable identity.
-type Config struct {
-	ID         string
-	Parameters map[string]any
-}
 
 var (
 	ErrConfig = errors.New("mihomo: unsupported or invalid node configuration")
@@ -49,7 +42,7 @@ type RuntimeOptions struct {
 	// Owned application directory; never the subscription's config directory.
 	Home        string
 	DialTimeout time.Duration
-	// A temporary identity must not replace a selection made with the durable key.
+	// Imported false is retained; a caller may additionally disable persistence.
 	DisableSelectionPersistence bool
 }
 
@@ -61,34 +54,19 @@ type Runtime struct {
 	controller              *controller
 	closers                 []io.Closer
 	selectionCacheAvailable bool // Immutable result of opening the native cache at startup.
+	selectionCache          io.Closer
 	once                    sync.Once
 	done                    chan struct{}
+	selectable              map[string]bool
 }
 
-func NewRuntime(configs []Config, options RuntimeOptions) (*Runtime, error) {
-	if len(configs) == 0 || options.Home == "" || !filepath.IsAbs(options.Home) || options.DialTimeout < 0 {
+func NewRuntime(data []byte, options RuntimeOptions) (*Runtime, error) {
+	if options.Home == "" || !filepath.IsAbs(options.Home) || options.DialTimeout < 0 {
 		return nil, ErrConfig
 	}
-	nodes := make([]map[string]any, 0, len(configs))
-	ids := make(map[string]bool)
-	var names []string
-	for i, cfg := range configs {
-		if !upstreamrequest.PersistentProxyID(cfg.ID) || ids[cfg.ID] {
-			return nil, ErrConfig
-		}
-		ids[cfg.ID] = true
-		p, err := nativeParameters(cfg.Parameters)
-		if err != nil {
-			return nil, ErrConfig
-		}
-		label, _ := cfg.Parameters["name"].(string)
-		if label == "" {
-			label = fmt.Sprintf("节点 %d", i+1)
-		}
-		name := label + " [" + cfg.ID[len("stable-v1-"):len("stable-v1-")+12] + "]"
-		p["name"] = name
-		names = append(names, name)
-		nodes = append(nodes, p)
+	raw, entry, err := managedConfiguration(data, !options.DisableSelectionPersistence)
+	if err != nil {
+		return nil, err
 	}
 	if !runtimeStarted.CompareAndSwap(false, true) {
 		return nil, errors.New("mihomo: runtime already used; restart application")
@@ -108,24 +86,27 @@ func NewRuntime(configs []Config, options RuntimeOptions) (*Runtime, error) {
 			}
 		}
 	}
-	data, _ := json.Marshal(runtimeConfig(nodes, names, !options.DisableSelectionPersistence))
-	defer clear(data)
-	parsed, err := executor.ParseWithBytes(data)
+	parsed, err := config.ParseRawConfig(raw)
 	if err != nil {
 		return nil, ErrConfig
 	}
-	r := &Runtime{done: make(chan struct{})}
-	for _, p := range parsed.Proxies {
+	r := &Runtime{done: make(chan struct{}), selectable: make(map[string]bool)}
+	for name, p := range parsed.Proxies {
 		// All references, including native providers, share this Proxy. Install
 		// guards before ApplyConfig publishes it or restores cached selections.
 		if proxy, ok := p.(*adapter.Proxy); ok {
 			switch group := proxy.Adapter().(type) {
 			case *outboundgroup.Selector:
 				proxy.ProxyAdapter = &synchronizedSelector{Selector: group}
+				r.selectable[name] = name != "GLOBAL"
 			case *outboundgroup.Fallback:
 				// The automatic group is never manually pinned. Hide SelectAble so
 				// group delay checks cannot mutate its otherwise immutable selected
 				// field concurrently with native fallback reads.
+				proxy.ProxyAdapter = struct{ outboundgroup.ProxyGroup }{group}
+			case *outboundgroup.URLTest:
+				// Native automatic groups keep their automatic policy. Avoid the
+				// same unsynchronized manual pin state as native Fallback.
 				proxy.ProxyAdapter = struct{ outboundgroup.ProxyGroup }{group}
 			}
 		}
@@ -136,15 +117,20 @@ func NewRuntime(configs []Config, options RuntimeOptions) (*Runtime, error) {
 			r.closers = append(r.closers, c)
 		}
 	}
+	for _, p := range parsed.RuleProviders {
+		if c, ok := p.(io.Closer); ok {
+			r.closers = append(r.closers, c)
+		}
+	}
 	executor.ApplyConfig(parsed, true)
 	if cache := cachefile.Cache(); cache.DB != nil {
 		r.selectionCacheAvailable = true
-		r.closers = append(r.closers, cache)
+		r.selectionCache = cache
 	} else {
 		// Native selection still works in memory when the optional cache is nil.
 		slog.Warn("mihomo_selection_cache_unavailable", "path", filepath.Join(options.Home, "cache.db"))
 	}
-	p := tunnel.Proxies()[ProxyGroup]
+	p := tunnel.Proxies()[entry]
 	if p == nil {
 		_ = r.Close()
 		return nil, ErrConfig
@@ -171,25 +157,6 @@ func NewRuntime(configs []Config, options RuntimeOptions) (*Runtime, error) {
 		return nil, err
 	}
 	return r, nil
-}
-
-func runtimeConfig(nodes []map[string]any, names []string, persistSelection bool) map[string]any {
-	// Literal-IP DoH avoids bootstrap/system hosts, with normal certificate
-	// verification. This is core-owned DNS; SWD's existing directDNS is untouched.
-	dns := []string{"https://223.5.5.5/dns-query", "https://1.1.1.1/dns-query"}
-	return map[string]any{
-		"mode": "rule", "log-level": "silent", "allow-lan": false, "find-process-mode": "off",
-		"port": 0, "socks-port": 0, "mixed-port": 0, "redir-port": 0, "tproxy-port": 0,
-		"tun": map[string]any{"enable": false}, "sniffer": map[string]any{"enable": false}, "ntp": map[string]any{"enable": false},
-		"geo-auto-update": false, "profile": map[string]any{"store-selected": persistSelection, "store-fake-ip": false},
-		"dns":     map[string]any{"enable": true, "listen": "", "ipv6": false, "use-hosts": false, "use-system-hosts": false, "enhanced-mode": "redir-host", "default-nameserver": dns, "nameserver": dns, "proxy-server-nameserver": dns},
-		"proxies": nodes, "rules": []string{"MATCH,REJECT"},
-		"proxy-groups": []map[string]any{
-			{"name": "GLOBAL", "type": "select", "proxies": []string{ProxyGroup}, "hidden": true},
-			{"name": ProxyGroup, "type": "select", "proxies": append([]string{automaticGroup}, names...)},
-			{"name": automaticGroup, "type": "fallback", "proxies": names, "url": "https://www.gstatic.com/generate_204", "interval": 300, "lazy": true},
-		},
-	}
 }
 
 func (r *Runtime) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
@@ -220,12 +187,16 @@ func (r *Runtime) Close() error {
 				wg.Add(1)
 				go func() { defer wg.Done(); _ = c.Close() }()
 			}
-			wg.Add(1)
-			go func() { defer wg.Done(); executor.Shutdown() }()
 			for _, done := range pending {
 				<-done
 			}
 			wg.Wait()
+			// Native shutdown may persist the configured fake-IP pool. Keep its
+			// cache open until that native write finishes.
+			executor.Shutdown()
+			if r.selectionCache != nil {
+				_ = r.selectionCache.Close()
+			}
 			close(r.done)
 		}()
 	})

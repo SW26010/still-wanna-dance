@@ -1,6 +1,7 @@
 package console
 
 import (
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,11 +73,11 @@ func TestChannelIdentityFailedPreparationRemainsTemporaryUntilRestart(t *testing
 	}
 }
 
-// File-layout checks exercise the identity still used by native Mihomo nodes.
+// File-layout checks verify the instance key independently of proxy configuration.
 func testNodeIdentity(c *Console) (string, error) {
 	key, _, err := c.channelIdentityKey()
 	defer clear(key)
-	return nodeIdentity(key, map[string]any{"type": "ss", "server": "localhost", "port": float64(1080), "cipher": "aes-128-gcm", "password": "fixture"}), err
+	return hex.EncodeToString(key), err
 }
 
 func TestExternalProxyDoesNotReadOrCreateChannelIdentity(t *testing.T) {

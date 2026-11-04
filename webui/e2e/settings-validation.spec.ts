@@ -74,10 +74,10 @@ test('server validation keeps the Mihomo draft and marks its field after a faile
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByRole('textbox',{name:'粘贴节点内容',exact:true})).toHaveAttribute('aria-invalid','true');
+  await expect(page.getByRole('textbox',{name:'配置内容',exact:true})).toHaveAttribute('aria-invalid','true');
   await expect(page).toHaveURL(/#network-proxy$/);
   expect(api.state.settings.upstreamMode).toBe('direct');
-  await page.getByRole('button',{name:'粘贴节点内容：错误',exact:true}).hover();
+  await page.getByRole('button',{name:'配置内容：错误',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('请先导入至少一个');
   await expect(page.getByRole('combobox',{name:'代理后端',exact:true})).toHaveValue('mihomo');
 });

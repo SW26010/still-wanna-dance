@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -37,11 +36,11 @@ func consoleMihomoProcess(t *testing.T) bool {
 
 func runtimeNodeSettings(t *testing.T, c *Console, count int) Settings {
 	t.Helper()
-	doc := proxyNodeDocument{Version: proxyNodeDocumentVersion}
+	var nodes []map[string]any
 	for i := range count {
-		doc.Nodes = append(doc.Nodes, map[string]any{"type": "ss", "server": "127.0.0.1", "port": float64(10000 + i), "cipher": "aes-128-gcm", "password": "fixture-only"})
+		nodes = append(nodes, map[string]any{"name": fmt.Sprintf("node-%d", i), "type": "ss", "server": "127.0.0.1", "port": float64(10000 + i), "cipher": "aes-128-gcm", "password": "fixture-only"})
 	}
-	b, _ := json.Marshal(doc)
+	b, _ := json.Marshal(map[string]any{"proxies": nodes})
 	s := c.settings
 	s.UpstreamMode, s.ProxyBackend, s.nodeSnapshot = "proxy", "mihomo", string(b)
 	return s
@@ -74,7 +73,7 @@ func TestMihomoMissingNodesRespectsMode(t *testing.T) {
 	}
 }
 
-func TestMihomoTemporaryIdentityWarning(t *testing.T) {
+func TestMihomoConfigurationDoesNotUseChannelIdentity(t *testing.T) {
 	c := testConsole(t)
 	path := c.files().ChannelKey
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -83,18 +82,16 @@ func TestMihomoTemporaryIdentityWarning(t *testing.T) {
 	if err := os.WriteFile(path, []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	c.terms = termsReceipt{} // Warning is available without starting a native core.
+	c.terms = termsReceipt{}
 	s := runtimeNodeSettings(t, c, 1)
 	_, client, err := c.networkFor(s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Transport.(interface{ Retire() }).Retire()
-	c.client.Transport.(interface{ Retire() }).Retire()
-	c.client = client
-	status := c.proxyNodesStatusLocked()
-	if !strings.Contains(status.ActiveError, "节点选择不会保存") {
-		t.Fatal("missing temporary identity warning", status)
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "broken" {
+		t.Fatal("native proxy touched channel identity")
 	}
 }
 
@@ -140,7 +137,8 @@ func TestConsoleMihomoProtocolsColdHTTP(t *testing.T) {
 			// Keep real controlled DNS resolution bypassed only for the local
 			// proxy fixture; the destination remains a remote-resolved hostname.
 			node["server"] = "127.0.0.1"
-			doc, _ := json.Marshal(proxyNodeDocument{Version: proxyNodeDocumentVersion, Nodes: []map[string]any{node}})
+			node["name"] = "local-fixture"
+			doc, _ := json.Marshal(map[string]any{"proxies": []map[string]any{node}})
 			s := c.settings
 			s.ProxyBackend, s.UpstreamMode, s.nodeSnapshot = "mihomo", "proxy", string(doc)
 			_, client, err := c.networkFor(s)

@@ -16,12 +16,12 @@ try {
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   const save=page.getByRole('button',{name:'保存设置',exact:true});
-  const textarea=page.getByRole('textbox',{name:'粘贴节点内容',exact:true});
+  const textarea=page.getByRole('textbox',{name:'配置内容',exact:true});
   const before=await textarea.boundingBox();
   await save.click();
   await expect(textarea).toHaveAttribute('aria-invalid','true');
-  const error=page.getByRole('button',{name:'粘贴节点内容：错误',exact:true});
-  await error.hover();await expect(page.getByRole('tooltip')).toContainText('请先导入至少一个');
+  const error=page.getByRole('button',{name:'配置内容：错误',exact:true});
+  await error.hover();await expect(page.getByRole('tooltip')).toContainText('请先导入有效的 Mihomo 配置');
   expect(await textarea.boundingBox()).toEqual(before);
   expect((await state()).settings).toEqual(initial.settings);
   await page.screenshot({path:join(output,'mihomo-rejected.png'),fullPage:true});

@@ -48,11 +48,13 @@ test('Mihomo preview stays a draft and clearing it releases only that preview',a
   const api=await mockAPI(page);await page.goto('/#network-proxy');
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
-  await page.getByRole('textbox',{name:'粘贴节点内容',exact:true}).fill('fixture-node');
-  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
-  await page.route('**/api/proxy/import',r=>r.fulfill({json:{id:'preview-1',accepted:1,skipped:0,failed:0,items:[{index:1,status:'accepted',protocol:'ss'}]}}));
+  await page.getByRole('textbox',{name:'配置内容',exact:true}).fill('fixture-node');
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'配置内容',exact:true})).toHaveAttribute('aria-invalid','true');
+  expect(api.calls.some(c=>c.path==='settings')).toBe(false);
+  await page.route('**/api/proxy/import',r=>r.fulfill({json:{id:'preview-1',nodes:1,groups:0}}));
   await page.getByRole('button',{name:'检查并导入到草稿'}).click();
-  await expect(page.getByText(/接受 1 个/)).toBeVisible();expect(api.calls.some(c=>c.path==='settings')).toBe(false);
+  await expect(page.getByText(/配置检查通过/)).toBeVisible();expect(api.calls.some(c=>c.path==='settings')).toBe(false);
   await page.getByRole('button',{name:'清除本次导入草稿'}).click();
   await expect.poll(()=>api.calls.find(c=>c.path==='proxy/import/discard')?.body).toEqual({id:'preview-1'});
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('external-socks5');

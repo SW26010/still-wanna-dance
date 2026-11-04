@@ -1,10 +1,12 @@
 # 第三方声明核对
 
+2026-11-05 RC1 更新检查使用已锁定的 `golang.org/x/mod v0.41.0/semver`，该模块由仅参与模块图变为实际链接进 EXE。核对模块缓存和 Go h1、根 BSD-3-Clause LICENSE、PATENTS 及 semver 的 Go Authors 2018 版权头；没有新增内嵌构件或生成输入。将原许可和专利授权全文、实际模块身份及文件 SHA256 补入声明清单，并同步 WebUI 内嵌声明。版本未变，既有完整对应源码收集入口按实际编译依赖包含该模块。
+
 2026-10-28 为修补桌面入口可达的网络和标准库问题，将 Go 最低版本提高到 1.27.3，`golang.org/x/net` 更新至 v0.60.0；模块选择同时要求 crypto v0.57.0、sys v0.48.0、text v0.42.0、sync v0.23.0，以及仅模块图涉及的 term v0.46.0、mod v0.41.0、tools v0.49.0。逐项比较新旧完整模块，根 LICENSE 与 PATENTS 字节未变，未新增版权主体、特殊许可头、嵌入指令或生成入口；text 的规范化表与同模块生成器一起更新。实际交付清单中的五项版本、Go h1 和总声明哈希已同步，原 BSD 全文及保守版权清单保留，WebUI 内嵌声明重新生成。验证及未执行的正式打包、离线重建范围见[发布前修复记录](../validation/release-readiness-20261028.md)。
 
 2026-10-14 Windows race 回归复现 SQLite 查询取消后文件句柄残留，驱动由 `v1.39.1` 更新到包含[上游修复 !81](https://gitlab.com/cznic/sqlite/-/merge_requests/81)的 `v1.40.1`（`d33e568298f6d0da40718843d3562d716f7c4f1b`）。完整模块差异仅为驱动修复、可选 pre-update hook 和测试/作者记录，SQLite 3.50.4 生成引擎、依赖图及原 LICENSE 哈希不变；新增 `convert.go` 来源于 Go database/sql，其版权和 BSD 许可补入第三方声明。生成器归档仍按同一路径从新提交导出，SHA256 更新为 `d6b2789d5b21d17c1878f2ad2056bfec1f56ede34f57791b53b5fb34daa95e25`；SQLite C 原始源码归档不变。以下历史版本和失败证据保留。
 
-`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：116 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
+`reviewed-modules.json` 固定 Windows 桌面入口与已固定的 Mihomo adapter 依赖并集：117 个模块。每项包含模块版本、Go h1、原许可文件路径与 SHA256；整个根 `THIRD-PARTY-NOTICES.txt` 的 LF 文本另有 SHA256。构建从实际 EXE 读取模块身份；新增、升级、replacement、声明内容变化而未复核时失败。Go runtime/标准库许可按实际构建工具链追加。
 
 2026-10-27 退出通知直接使用模块图中已锁定的 `github.com/coder/websocket v1.8.12`，不升级版本。已核对模块 ZIP 的根 ISC `LICENSE.txt`、Go／汇编源码及生成标记，补入原许可全文、模块 h1 和许可文件哈希。没有额外内嵌二进制；`stringer.go` 标明的生成命令和枚举源码位于同一模块中。当前 EXE 的依赖声明检查通过；本次未执行发行打包或离线源码重建。
 

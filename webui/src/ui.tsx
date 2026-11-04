@@ -124,10 +124,6 @@ export function DocumentLayout({ children }: PropsWithChildren) {
     <header><Brand /><span>SWD WebUI</span></header>
     <NavigationLayout items={pageLinks()} selected={isDocumentPage(bootstrap.page)?'about':bootstrap.page}>
     <main id="main" tabIndex={-1}>{children}</main>
-    <DocumentFooter page={bootstrap.page}/>
     </NavigationLayout>
   </div>;
-}
-export function DocumentFooter({page}:{page:string}) {
-  return page==='help'?<footer><Link href={pageHref('home')}>返回首页</Link></footer>:null;
 }

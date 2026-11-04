@@ -37,16 +37,16 @@ test('invalid fields stay visible and receive native validation focus',async({pa
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
 });
 
-test('help contents locate questions without requiring a status connection',async({page})=>{
+test('help sections and direct anchors work without requiring a status connection',async({page})=>{
   await mockAPI(page);
   await page.route('**/api/status',r=>r.fulfill({status:503,body:'offline'}));
   await page.goto('/help');
-  const toc=page.getByRole('navigation',{name:'帮助目录',exact:true});
-  for(const [name,id] of [['播放失败','help-playback'],['空间不足与视频保留','help-storage'],['停止与卸载','help-stop'],['日志与当前路径','help-paths']]){
-    await toc.getByRole('link',{name,exact:true}).click();
-    await expect(page.locator('#'+id)).toBeFocused();
-    await expect(page.locator('#'+id)).toBeInViewport();
+  for(const name of ['开始使用','播放失败','空间不足与视频保留','停止与卸载','日志与当前路径']){
+    await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
   }
+  await page.goto('/#help-paths');
+  await expect(page.locator('#help-paths')).toBeFocused();
+  await expect(page.locator('#help-paths')).toBeInViewport();
   await page.reload();
   await expect(page.locator('#help-paths')).toBeFocused();
   await navigate(page,'关于');

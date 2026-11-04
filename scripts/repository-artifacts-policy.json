@@ -1144,6 +1144,13 @@
       "bytes": 1256014,
       "sha256": "a8933ecdc1b96ec5c860a42379039ae30b6a3bd933ad4d0c495e938b8e484c07",
       "reason": "Production WebUI rebuilt with approved copy reductions and the retained source-video and same-partition import notice; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1253638,
+      "sha256": "2674ae7e0815a88b8a2dbfec878f9877754dc14be0b38f56ec70d0caf31b9c49",
+      "reason": "Production WebUI rebuilt after removing the VRCX import enable checkbox, simplifying introduction, help and terms content, and linking help directly to video demands; embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

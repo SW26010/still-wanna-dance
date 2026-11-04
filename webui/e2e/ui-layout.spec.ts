@@ -18,7 +18,7 @@ for(const [width,height] of [[1440,1000],[900,1200],[390,2000]])test(`short page
 
 for(const width of [390,800,1440])test(`settings and network show their controls without nested disclosure at ${width}px`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:1000});await page.goto('/#/settings');
-  for(const tab of ['常规','存储','预加载与下载','网络']){
+  for(const tab of ['常规','存储','下载与缓存','网络']){
     await page.getByRole('tab',{name:tab,exact:true}).click();
     await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeVisible();
     await expect(page.locator('.fui-Accordion')).toHaveCount(0);

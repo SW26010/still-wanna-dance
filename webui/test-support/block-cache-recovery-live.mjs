@@ -8,7 +8,7 @@ const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'}
 try {
   const page=await browser.newPage({viewport:{width:390,height:900}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(base+'/#storage-settings');
+  await page.goto(base+'/#download-settings');
   await page.getByRole('button',{name:'后台状态'}).click();
   await expect(page.getByText('临时视频缓存目录不可用，视频服务和下载无法启动。',{exact:false})).toBeVisible();
   await expect(page.getByText(/修复后退出并重新打开应用/)).toBeVisible();

@@ -25,7 +25,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await expect(restore).toBeChecked();
   expect(calls.some(call=>call.path==='settings')).toBe(false);
   await page.screenshot({path:info.outputPath('exit-settings.png'),animations:'disabled'});
-  await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
 });
 

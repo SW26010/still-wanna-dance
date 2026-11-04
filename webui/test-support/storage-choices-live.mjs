@@ -8,9 +8,9 @@ const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'}
 try {
   const page=await browser.newPage({viewport:{width:390,height:900}}), errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(base+'/#storage-settings');
-  const database=page.getByRole('textbox',{name:'数据库文件',exact:true});
-  const video=page.getByRole('textbox',{name:'完整视频目录',exact:true});
+  await page.goto(base+'/#download-settings');
+  const database=page.getByLabel('数据库文件',{exact:true});
+  const video=page.getByLabel('完整视频目录',{exact:true});
   const cache=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
   const originalVideo=await video.inputValue(), defaultCache=await cache.inputValue();
   const invalidCache=join(dirname(defaultCache),'custom'), nestedVideo=join(cacheDir,'nested-videos'), deferredDatabase=join(cacheDir,'new','library.sqlite');
@@ -54,10 +54,13 @@ try {
   await cache.click();
   await expect(cache).toHaveValue(cacheDir);
 
+  await save.click();
+  await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
+  await page.getByRole('tab',{name:'存储',exact:true}).click();
   await video.click();
   await expect(page.getByText('完整视频目录与临时视频缓存目录不能相同或互相包含',{exact:false})).toBeVisible();
   await expect(video).toHaveValue(nestedVideo);
-  await expect(cache).toHaveValue(cacheDir);
+  await expect(page.getByLabel('临时视频缓存目录',{exact:true})).toHaveValue(cacheDir);
   await expect(save).toBeDisabled();
   await page.screenshot({path:join(output,'warning-video.png'),fullPage:true});
 
@@ -72,8 +75,12 @@ try {
   await expect(page.getByText('数据库文件不能位于临时视频缓存目录内',{exact:false})).toBeVisible();
   expect(await exists(deferredDatabase)).toBe(false);
 
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).click();
   await expect(cache).toHaveValue(defaultCache);
+  await save.click();
+  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await page.getByRole('tab',{name:'存储',exact:true}).click();
   await expect(page.getByText('数据库文件不能位于临时视频缓存目录内',{exact:false})).toHaveCount(0);
   expect(await exists(deferredDatabase)).toBe(false);
   await expect(save).toBeEnabled();
@@ -81,6 +88,7 @@ try {
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
   expect(await exists(deferredDatabase)).toBe(true);
 
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await cache.click();
   await expect(page.getByText('临时视频缓存目录与完整视频目录不能相同或互相包含',{exact:false})).toBeVisible();
   await expect(cache).toHaveValue(dirname(cacheDir));
@@ -89,21 +97,26 @@ try {
   await cache.click();
   await expect(cache).not.toHaveValue(dirname(cacheDir));
   await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await page.getByRole('tab',{name:'存储',exact:true}).click();
   await database.click();
   await expect(database).toHaveValue(databasePath);
   await expect(page.getByText('数据库已新建。保存设置并重启后使用。',{exact:true})).toBeVisible();
 
-  const containingCache=await cache.inputValue();
+  const containingCache=await page.getByLabel('临时视频缓存目录',{exact:true}).inputValue();
   await page.getByRole('button',{name:'完整视频目录：恢复默认',exact:true}).click();
   await expect(page.getByText('完整视频目录与临时视频缓存目录不能相同或互相包含',{exact:false})).toBeVisible();
   await expect(video).toHaveValue(originalVideo);
-  await expect(cache).toHaveValue(containingCache);
+  await expect(page.getByLabel('临时视频缓存目录',{exact:true})).toHaveValue(containingCache);
   await expect(save).toBeDisabled();
-  await cache.click();
-  await expect(cache).toHaveValue(cacheDir);
-  await expect(page.getByText('完整视频目录与临时视频缓存目录不能相同或互相包含',{exact:false})).toHaveCount(0);
   await video.click();
   await expect(video).toHaveValue(videoDir);
+  await save.click();
+  await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
+  await cache.click();
+  await expect(cache).toHaveValue(cacheDir);
   await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).click();
   await expect(cache).toHaveValue(defaultCache);
   await cache.click();

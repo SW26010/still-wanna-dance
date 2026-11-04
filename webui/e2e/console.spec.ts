@@ -11,7 +11,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await navigate(page,'加速');
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toBeVisible();
-  await navigateSettings(page,'预加载与下载'); await expect(m).toHaveValue('100');
+  await navigateSettings(page,'下载与缓存'); await expect(m).toHaveValue('100');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings.prepareAheadSeconds).toBe(100); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
@@ -41,7 +41,7 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await rows.nth(1).getByRole('button',{name:'资源 key2 的详情',exact:true}).click();
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：无记录');await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
-  await navigateSettings(page,'预加载与下载'); await navigate(page,'曲库');
+  await navigateSettings(page,'下载与缓存'); await navigate(page,'曲库');
   await expect(rows.first().getByRole('button',{name:'删除本地视频',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
 });

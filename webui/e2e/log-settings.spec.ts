@@ -21,7 +21,7 @@ test('log level drafts, save and reload keep the active level until restart',asy
   expect(api.state.settings.logLevel).toBe('off');
   expect(api.state.activeSettings.logLevel).toBe('info');
   await page.reload();await expect(level).toHaveValue('off');
-  await navigateSettings(page,'预加载与下载');
+  await navigateSettings(page,'下载与缓存');
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('600');
   await saveSettings(page,'待重启');
   expect(api.state.settings.logLevel).toBe('off');

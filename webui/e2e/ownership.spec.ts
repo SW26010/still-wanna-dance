@@ -30,7 +30,7 @@ test('video import, storage and coverage are found from local videos',async({pag
 test('separate settings locations save only their own draft and preserve the others',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true}).fill('777');
-  await page.getByRole('tab',{name:'常规',exact:true}).click();await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
+  await page.getByRole('tab',{name:'常规',exact:true}).click();await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await navigate(page,'曲库');
   await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
@@ -40,7 +40,7 @@ test('separate settings locations save only their own draft and preserve the oth
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
   await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByText('其他页面仍有未保存配置，请保存或放弃后再重启。')).toBeVisible();
   expect(api.state.settings.prepareAheadSeconds).not.toBe(777);
-  await navigateSettings(page,'预加载与下载');
+  await navigateSettings(page,'下载与缓存');
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
   await saveSettings(page,'待重启');
   expect(api.state.settings.videoBudgetBytes).toBe(20*2**30);

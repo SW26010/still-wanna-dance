@@ -1165,6 +1165,13 @@
       "bytes": 1253668,
       "sha256": "42be4a8ea920f6c127b02174186f97a528efac6c7f2fbca7306d75fc4792fe0b",
       "reason": "Production WebUI rebuilt after merging interface copy and history import cleanup with the fault recovery UI; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1253713,
+      "sha256": "78cd9a3b42c53afa0c54e85cc5a522fa54baaa274e97bb7b2ff4a436b01df8cb",
+      "reason": "Reviewed generated Fluent UI bundle: move temporary cache location, reclamation and local protection settings to Download and cache; remove duplicate active storage paths."
     }
   ]
 }

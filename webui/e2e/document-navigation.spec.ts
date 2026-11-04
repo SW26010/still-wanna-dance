@@ -18,7 +18,7 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
     else if(width>640)await expect(page.locator('#main')).toBeFocused();
     expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
   }
-  await navigateSettings(page,'预加载与下载');await expect(draft).toHaveValue('777');
+  await navigateSettings(page,'下载与缓存');await expect(draft).toHaveValue('777');
   await page.goBack();
   await expect(page.getByRole('tab',{name:'常规',exact:true})).toHaveAttribute('aria-selected','true');
   await page.goForward();
@@ -43,7 +43,7 @@ test('document tabs and body links preserve navigation and drafts',async({page})
   await page.getByRole('link',{name:'视频需求',exact:true}).click();
   await expect(page.locator('#block-demands')).toBeFocused();
   await expect(page.locator('#block-demands')).toBeInViewport();
-  await navigateSettings(page,'预加载与下载');
+  await navigateSettings(page,'下载与缓存');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
 });
@@ -160,7 +160,7 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
   await page.goForward();
   await expect(target).toBeFocused();
-  await navigateSettings(page,'预加载与下载');
+  await navigateSettings(page,'下载与缓存');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('777');
 });
 

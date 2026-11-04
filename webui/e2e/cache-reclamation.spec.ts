@@ -1,10 +1,11 @@
 import {test, expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigate} from './navigation';
+import {navigate,navigateSettings} from './navigation';
+import {saveSettings} from './settings-actions';
 
 test('reclamation strategy follows storage only in auto and survives save, discard and navigation', async ({page}, info) => {
   const api = await mockAPI(page);
-  await page.goto('/#storage-settings');
+  await page.goto('/#download-settings');
   const group = page.getByRole('radiogroup', {name:'激进的缓存回收策略', exact:true});
   const auto = group.getByRole('radio', {name:'自动（默认）', exact:true});
   const on = group.getByRole('radio', {name:'开启', exact:true});
@@ -14,16 +15,25 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await expect(group).toHaveAccessibleDescription('减少缓存占用，可能重复下载。');
   await expect(auto).toBeChecked();
   await expect(page.getByText(/^自动（当前关闭）：/)).toBeVisible();
+  await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
+  await saveSettings(page,'待重启');
+  await navigateSettings(page,'下载与缓存');
   await expect(page.getByText(/^自动（当前开启）：/)).toBeVisible();
   await off.check();
+  await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
+  await saveSettings(page,'待重启');
+  await navigateSettings(page,'下载与缓存');
   await expect(off).toBeChecked();
   await on.check();
+  await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
+  await saveSettings(page,'已生效');
+  await navigateSettings(page,'下载与缓存');
   await expect(on).toBeChecked();
   await navigate(page, '曲库');
-  await navigate(page, '曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
+  await navigateSettings(page,'下载与缓存');
   await expect(on).toBeChecked();
   await save.click();
   await expect(save).toBeDisabled();
@@ -40,7 +50,10 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await page.reload();
   await expect(off).toBeChecked();
   await auto.check();
+  await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
+  await saveSettings(page,'待重启');
+  await navigateSettings(page,'下载与缓存');
   await save.click();
   await expect(save).toBeDisabled();
   expect(api.state.settings.aggressiveBlockReclamation).toBe('auto');
@@ -50,5 +63,5 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await page.setViewportSize({width:390,height:844});
   await page.emulateMedia({colorScheme:'dark'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.getByRole('group', {name:'本地存储', exact:true}).screenshot({path:info.outputPath('reclamation-settings.png'),animations:'disabled'});
+  await page.getByRole('group', {name:'视频缓存', exact:true}).screenshot({path:info.outputPath('reclamation-settings.png'),animations:'disabled'});
 });

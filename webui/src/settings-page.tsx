@@ -12,7 +12,7 @@ export function settingsTab(anchor:string):SettingsSection {
 }
 function Settings({anchor,networkForm,onTabSelect}:{anchor:string;networkForm:ReactNode;onTabSelect:(anchor:string)=>void}) {
   const tab=settingsTab(anchor);
-  return <><TabList aria-label="设置分类" selectedValue={tab} onTabSelect={(_,v)=>onTabSelect(({application:'/settings',storage:'storage-settings',downloads:'download-settings',network:'network-proxy'} as const)[v.value as SettingsSection])}>{Object.entries({application:'常规',storage:'存储',downloads:'预加载与下载',network:'网络'}).map(([value,label])=><Tab id={'settings-tab-'+value} aria-controls={'settings-panel-'+value} key={value} value={value}>{label}</Tab>)}</TabList>
+  return <><TabList aria-label="设置分类" selectedValue={tab} onTabSelect={(_,v)=>onTabSelect(({application:'/settings',storage:'storage-settings',downloads:'download-settings',network:'network-proxy'} as const)[v.value as SettingsSection])}>{Object.entries({application:'常规',storage:'存储',downloads:'下载与缓存',network:'网络'}).map(([value,label])=><Tab id={'settings-tab-'+value} aria-controls={'settings-panel-'+value} key={value} value={value}>{label}</Tab>)}</TabList>
     {(['application','storage','downloads'] as const).map(section=><div id={'settings-panel-'+section} key={section} role="tabpanel" aria-labelledby={'settings-tab-'+section} hidden={tab!==section}><SettingsPage section={section}/></div>)}
     <div id="settings-panel-network" role="tabpanel" aria-labelledby="settings-tab-network" hidden={tab!=='network'}>{networkForm}</div>
   </>;

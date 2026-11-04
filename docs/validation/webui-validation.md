@@ -1550,3 +1550,11 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 将 `codex/home-acceleration-controls`（`db285103`）合并到 `main`（`df98aca6`）。条款页冲突按既有精简要求移除确认提示及返回链接；保留 main 的故障恢复退出逻辑，重新构建嵌入资源、清单并登记对应产物哈希。
 
 前端 build/check、产物登记与差异格式检查通过。普通用户环境 Edge 的文档导航、帮助、设置／关于结构和条款门禁夹具回归 38/38 通过；隔离真实 Console 的 `TestVRCXBrowser` 首次运行／重开两种模式通过，覆盖导入、刷新持久化及覆盖确认。`TestApplicationRecoveryAfterInvalidConfiguration` 两类损坏配置的真实浏览器回归通过，覆盖状态失败反馈、条款页真实性和退出；Console 的 `TestRecovery.*`、`TestBatch.*` 与 `TestMD5BatchTriesSharedSongIDs` 定向回归通过。浏览器证据位于忽略目录 `artifacts/merge-worktree3/`；沿用已确认的 Windows 沙箱限制，在普通用户环境运行。未重建桌面发行包、启动游戏或修改系统 hosts，无需新增 VRC 验收项。
+
+## 2026-11-04 设置中的下载与缓存归位
+
+移除存储页重复的当前数据库、当前完整视频目录和当前临时视频缓存目录摘要；「预加载与下载」改名为「下载与缓存」，临时视频缓存目录、激进的缓存回收策略和本地延续保护时长移入该页。目录选择和校验继续复用同一实现，分页面保留草稿，按其他页面最新已保存的位置校验；缓存回收自动状态随已保存的视频保留方式更新。同步帮助、故障恢复文案、现行文档及浏览器入口。
+
+前端 build/check、嵌入资源登记和差异格式检查通过。Edge 内存夹具共 91 项受影响回归通过，覆盖标签键盘操作、字段归属、草稿、保存、路径冲突与异步重检、数值边界和布局；已查看 390px 存储／下载与缓存、1440px 下载与缓存及窄屏深色缓存分组截图。隔离真实 Console／SQLite／Edge 的 `TestStorageLocationsBrowser`、`TestStorageChoicesBrowser` 和 `TestBlockCacheRecoveryBrowser` 通过，覆盖分页面目录选择、冲突拒绝、恢复默认、保存持久化、重建 Console 后生效及缓存故障恢复；原生选择器由隔离替身提供。未重建 EXE、启动游戏或修改 hosts。
+
+初次沙箱内 Edge 启动即退出，后续以普通用户权限完成检查。夹具首次 47/48，剩余一项仍预期同页预算草稿的保存状态，调整到新页面归属后通过。真实位置联调初次因通知自动消失与精确数量断言竞态失败，改为等待通知数量减少后通过；其他两项当轮已通过。原始失败和成功日志保留在忽略目录 `artifacts/settings-reorg/`，最终位置联调日志为 `live-locations-final.log`；夹具不外推为真实服务或 VRC 播放验证。

@@ -110,7 +110,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     ? `约 ${prepareAheadSeconds / 4} MB 临时缓存（按 2 Mbps）` : '';
   const update = (patch: Partial<Draft>) => setDraft(value=>({...value, ...patch}));
   const disabled = app.unavailable || pending || syncing || app.status.loadedRevision !== app.revision;
-  const locationChecking = section === 'storage' && !!locationValidation.checked && locationValidation.checked !== locationValidationKey(d,s.settings);
+  const locationChecking = (section === 'storage' || section === 'downloads') && !!locationValidation.checked && locationValidation.checked !== locationValidationKey(d,s.settings);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
@@ -160,19 +160,17 @@ export function SettingsPage({section='application',children}: {section?:Setting
     } catch (e) { setLocationError(String(e)); }
     finally { setPending(false); }
   }
-  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'预加载与下载设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
+  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'下载与缓存设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       <div className="toolbar spread settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
       <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationValidation.warning)} onClick={discard}>放弃更改</Button>
       {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
       {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
       {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
-      <StorageLocationFields value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
+      <StorageLocationFields section="storage" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
       <span className="secondary">收藏视频可超出预算保留，不会自动下载。</span>
-      <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
-      {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
-      </div></fieldset>}
+      </fieldset>}
       {section==='application'&&<><Field label="主题" hint="自动保存并立即应用，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
       <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip></fieldset>
@@ -183,7 +181,12 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
 </>}
-      {section==='downloads'&&<><Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
+      {section==='downloads'&&<><fieldset disabled={disabled}><legend>视频缓存</legend>
+      <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
+      <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
+      {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
+      </div></fieldset>
+      <Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
 
       {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64,'建议 16 路；播放急需时可临时超出。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'建议 250 ms；0 表示关闭缓增。')}

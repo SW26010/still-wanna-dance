@@ -19,7 +19,7 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
     await input.fill(reset);
   }
   await limit.fill('64');await interval.fill('0');
-  await navigateSettings(page,'网络');await navigateSettings(page,'预加载与下载');
+  await navigateSettings(page,'网络');await navigateSettings(page,'下载与缓存');
   await expect(limit).toHaveValue('64');await expect(interval).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings).toMatchObject({downloadConcurrencySoftLimit:64,downloadGrowIntervalMS:0});
@@ -36,7 +36,7 @@ test('download settings validate bounds, preserve zero and explain CPU cost',asy
 });
 
 test('local protection grace preserves zero, validates bounds and waits for restart',async({page},testInfo)=>{
-  const api=await mockAPI(page);await page.goto('/#storage-settings');
+  const api=await mockAPI(page);await page.goto('/#download-settings');
   const grace=page.getByRole('spinbutton',{name:'本地延续保护时长（秒）'});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
   await expect(grace).toHaveValue('300');
@@ -46,7 +46,7 @@ test('local protection grace preserves zero, validates bounds and waits for rest
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
   }
   await grace.fill('0');
-  await navigateSettings(page,'网络');await navigate(page,'曲库');await page.getByRole('link',{name:'视频存储预算',exact:true}).click();
+  await navigateSettings(page,'网络');await navigate(page,'曲库');await navigateSettings(page,'下载与缓存');
   await expect(grace).toHaveValue('0');
   await save.click();await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings.localProtectionGraceSeconds).toBe(0);

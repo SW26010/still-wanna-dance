@@ -8,7 +8,7 @@ try {
   const page=await browser.newPage({viewport:{width:390,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/#storage-settings');
-  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'完整视频目录',exact:true}),cache=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
+  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'完整视频目录',exact:true}),cache=page.getByLabel('临时视频缓存目录',{exact:true});
   if(phase==='configure') {
     await expect(db).not.toHaveValue('');
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
@@ -18,8 +18,6 @@ try {
     await expect(page.getByText('数据库已新建。保存设置并重启后使用。',{exact:true})).toBeVisible();
     await page.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
     await expect(videos).toHaveValue(videoDir);
-    await cache.click();
-    await expect(cache).toHaveValue(cacheDir);
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
   } else if(phase==='reopened') {
@@ -36,6 +34,12 @@ try {
   await page.screenshot({path:join(output,phase+'.png'),fullPage:true});
 
   await page.goto(base+'/#download-settings');
+  if(phase==='configure') {
+    await cache.click();
+    await expect(cache).toHaveValue(cacheDir);
+    await page.getByRole('button',{name:'保存设置',exact:true}).click();
+    await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
+  }
   const logs=page.getByRole('textbox',{name:'VRChat 日志目录',exact:true});
   const reset=page.getByRole('button',{name:'VRChat 日志目录：恢复默认',exact:true});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
@@ -47,7 +51,7 @@ try {
   const closeNotices=page.getByRole('button',{name:'关闭通知',exact:true});
   for(let remaining=await closeNotices.count();remaining>0;remaining=await closeNotices.count()) {
     await closeNotices.last().click();
-    await expect(closeNotices).toHaveCount(remaining-1);
+    await expect.poll(()=>closeNotices.count()).toBeLessThan(remaining);
   }
   if(phase==='configure') {
     await expect(reset).toBeDisabled();

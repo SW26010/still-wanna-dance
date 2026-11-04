@@ -7,7 +7,7 @@ for(const width of [320,1280])for(const section of ['settings','about'] as const
     route.request().method()==='GET'?route.fulfill({json:{entries:[],files:[],matches:0,skipped:0,limit:500}}):route.fallback());
   await page.setViewportSize({width,height:800});await page.goto('/#/'+section);
   const list=page.getByRole('tablist',{name:section==='settings'?'设置分类':'关于内容'});
-  const names=section==='settings'?['常规','存储','预加载与下载','网络']:['介绍','使用帮助','用户协议','许可证与声明','日志'];
+  const names=section==='settings'?['常规','存储','下载与缓存','网络']:['介绍','使用帮助','用户协议','许可证与声明','日志'];
   await list.getByRole('tab',{name:names[0],exact:true}).focus();
   for(let i=1;i<=names.length;i++){
     await page.keyboard.press('ArrowRight');
@@ -27,7 +27,17 @@ for(const width of [320,1280])for(const section of ['settings','about'] as const
 test('six primary pages and section links reach their current owners',async({page})=>{
   await mockAPI(page);await page.goto('/#/settings');
   await expect(page.getByRole('navigation',{name:'页面导航'}).getByRole('link')).toHaveText(['加速','历史','曲库','网络','设置','关于']);
-  for(const name of ['常规','存储','预加载与下载','网络'])await expect(page.getByRole('tablist',{name:'设置分类'}).getByRole('tab',{name,exact:true})).toBeVisible();
+  for(const name of ['常规','存储','下载与缓存','网络'])await expect(page.getByRole('tablist',{name:'设置分类'}).getByRole('tab',{name,exact:true})).toBeVisible();
+  await page.getByRole('tab',{name:'存储',exact:true}).click();
+  for(const label of ['数据库文件','完整视频目录'])await expect(page.getByRole('textbox',{name:label,exact:true})).toBeVisible();
+  for(const text of ['当前数据库：','当前完整视频目录：','当前临时视频缓存目录：'])await expect(page.getByText(text,{exact:false})).toHaveCount(0);
+  await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('radiogroup',{name:'激进的缓存回收策略',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('spinbutton',{name:'本地延续保护时长（秒）',exact:true})).toHaveCount(0);
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toBeVisible();
+  await expect(page.getByRole('radiogroup',{name:'激进的缓存回收策略',exact:true})).toBeVisible();
+  await expect(page.getByRole('spinbutton',{name:'本地延续保护时长（秒）',exact:true})).toBeVisible();
   for(const [hash,title,field] of [['#storage-settings','设置','优先保留收藏视频'],['#prepareAheadSeconds','设置','提前准备时间（秒）'],['#service','加速',''],['#/library?view=resources','曲库',''],['#queue','加速',''],['#recent','历史','']]){
     await page.evaluate(hash=>{location.hash=hash;},hash);
     await expect(page.getByRole('heading',{level:1,name:title,exact:true})).toBeVisible();
@@ -53,7 +63,7 @@ test('tab drafts survive and saves merge only the submitted section',async({page
   await expect.poll(()=>calls.filter(c=>c.path==='settings').length).toBe(1);
   expect(calls.filter(c=>c.path==='settings')[0].body).toEqual({autoOpenWebUI:false});
   expect(state.settings.autoOpenWebUI).toBe(false);expect(state.settings.prepareAheadSeconds).toBe(500);
-  await page.getByRole('tab',{name:'预加载与下载',exact:true}).click();
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('900');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='settings').length).toBe(2);

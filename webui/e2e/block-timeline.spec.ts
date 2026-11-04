@@ -527,7 +527,8 @@ test('video colors survive handoff and reconnect, with white handoff borders and
 });
 
 test('handoff follows GET and fitted demand blocks keep earlier positions on top in both views', async ({ page }, info) => {
-  await page.setViewportSize({ width: 1280, height: 1100 });
+  // Keep the fitted pitch below the 16px block size so these blocks overlap.
+  await page.setViewportSize({ width: 900, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await setup(page);
   const first = block(0, f.at + 120000, { totalBlocks: 64 });
@@ -596,7 +597,7 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
 });
 
 for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the full overlap stack and top block in ${view}, while pinned details stay fixed`, async ({ page }, info) => {
-  await page.setViewportSize({ width: 1280, height: 1100 });
+  await page.setViewportSize({ width: view === 'demand' ? 900 : 1280, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await setup(page, 0);
   const first = block(0, f.at + 120000, { state: 'available', totalBlocks: 64 });

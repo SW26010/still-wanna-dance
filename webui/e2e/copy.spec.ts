@@ -1,16 +1,6 @@
 import {navigate} from './navigation';
-import {test,expect,type Page} from '@playwright/test';
+import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import baseline from './baseline-copy.json' with {type:'json'};
-
-// The migration snapshot remains historical evidence. UX revisions deliberately
-// change prose; protect material consequences instead of every old sentence.
-const compact=(value:string)=>value.replace(/\s/g,'');
-async function textWithDetails(page:Page) {
-  const closed=page.locator('.fui-AccordionHeader button[aria-expanded="false"]:visible');
-  while(await closed.count())await closed.first().click();
-  return compact(await page.locator('body').innerText());
-}
 
 test('key consequences stay near their related choices',async({page})=>{
   await mockAPI(page);await page.goto('/#storage-settings');
@@ -20,15 +10,19 @@ test('key consequences stay near their related choices',async({page})=>{
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await expect(page.getByText('留空保留已有密码；清空用户名可移除认证。',{exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
-  await expect(page.getByText('检查仅生成草稿；保存后替换整份节点库，重启生效。',{exact:true})).toBeVisible();
+  await expect(page.locator('#network-proxy').getByText('运行配置保存后重启生效。',{exact:true})).toBeVisible();
   await navigate(page,'加速');await page.getByRole('status',{name:'游戏连接',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('可能请求 Windows 管理员授权');
 });
 
 test('license attribution and explicit consent remain available',async({page})=>{
   await mockAPI(page);await page.goto('/about');
-  const text=await textWithDetails(page);
-  for(const paragraph of baseline.paragraphs['about.html'].filter(p=>!p.includes('准备歌曲')&&!p.includes('下载管理')))expect(text).toContain(compact(paragraph));
+  await expect(page.getByText('把视频准备交给 Still Wanna Dance，把时间留给跳舞。',{exact:true})).toBeVisible();
+  await page.getByRole('tab',{name:'许可证与声明',exact:true}).click();
+  const licenses=page.getByRole('tabpanel',{name:'许可证与声明',exact:true});
+  for(const text of ['GNU GPLv3','GPL-3.0-only','历史 MIT 授权仍有效','软件许可不授予视频、音乐等内容的权利'])await expect(licenses).toContainText(text);
+  await expect(licenses.getByRole('link',{name:'软件许可证原文',exact:true})).toHaveAttribute('href','/assets/webui/software-license.txt');
+  await expect(licenses.getByRole('link',{name:'程序第三方声明原文',exact:true})).toHaveAttribute('href','/assets/webui/third-party-notices.txt');
   await navigate(page,'使用条款');
   await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');
 });

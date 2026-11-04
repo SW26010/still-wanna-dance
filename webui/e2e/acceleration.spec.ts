@@ -126,7 +126,7 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   const api=await mockAPI(page);
   Object.assign(api.state.activeSettings,{restoreHostsOnStopOrExit:restore,queueWithGateway:queue});
   Object.assign(api.state.settings,{restoreHostsOnStopOrExit:!restore,queueWithGateway:!queue});
-  // Two cards now share the row; 1440px leaves enough card width for the hint.
+  // The hint follows its card's 30rem container threshold, not viewport width.
   await page.setViewportSize({width:restore?1440:320,height:900});await page.goto('/');
   const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
   await expect(browserHint).toHaveCount(0);
@@ -145,7 +145,7 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
     expect(hintBox.x).toBeGreaterThan(titleBox.x+titleBox.width);
     expect(hintBox.y).toBeGreaterThanOrEqual(titleBox.y);
     expect(hintBox.y+hintBox.height).toBeLessThanOrEqual(titleBox.y+titleBox.height);
-    await page.setViewportSize({width:1280,height:900});await expect(browserHint).toBeHidden();
+    await page.setViewportSize({width:390,height:900});await expect(browserHint).toBeHidden();
     await page.setViewportSize({width:1440,height:900});await expect(browserHint).toBeVisible();
   }else await expect(browserHint).toBeHidden();
   await card.screenshot({path:info.outputPath('running-card.png'),animations:'disabled'});

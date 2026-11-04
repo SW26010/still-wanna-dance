@@ -49,7 +49,7 @@ for(const theme of ['light','dark'] as const)test(`SOCKS5 service observations u
   await expectWithClock(page,()=>refresh.isEnabled()).toBe(true);
   await page.route('**/api/network/socks5/check',route=>route.fulfill({status:409,json:{error:'检测请求失败'}}));
   await refresh.click();
-  await expect(page.getByText(/检测未确认：/)).toBeVisible();
+  await expect(page.getByRole('listitem',{name:/检测未确认：/})).toBeVisible();
   // Lost status reads must not leave a reassuring success badge.
   await page.route('**/api/status',route=>route.fulfill({status:503,body:'offline'}));
   await expectWithClock(page,()=>panel.textContent()).toContain('服务：待确认');

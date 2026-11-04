@@ -90,7 +90,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
 }
 
 export type SettingsSection = 'application' | 'storage' | 'downloads' | 'network';
-export function SettingsPage({section='application',children}: {section?:SettingsSection;children?:(form:ReactNode,draft:Draft)=>ReactNode}) {
+export function SettingsPage({section='application',children}: {section?:SettingsSection;children:(form:ReactNode,actions:ReactNode)=>ReactNode}) {
   const app = useApp(), s = app.status.data!;
   const theme=useThemePreference();
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
@@ -117,7 +117,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
   const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  const saveButton=<Button type="submit" appearance="primary" disabled={disabled || locationChecking || !dirty || !!locationValidation.warning || !!d.proxyImportText.trim()}>保存设置</Button>;
+  const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty || !!locationValidation.warning || !!d.proxyImportText.trim()}>保存设置</Button>;
   const restartButton=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} onClick={() => void app.action('restart')}>重启并应用</Button>;
   async function save() {
     if (!dirty || disabled || locationChecking || locationValidation.warning || d.proxyImportText.trim()) return;
@@ -161,12 +161,12 @@ export function SettingsPage({section='application',children}: {section?:Setting
     } catch (e) { setLocationError(String(e)); }
     finally { setPending(false); }
   }
-  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'} title={{application:'应用设置',storage:'数据与视频存储',downloads:'下载与缓存设置',network:'代理设置'}[section]}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
-      <div className="toolbar spread settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
+  const actions = <div className="settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
       <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationValidation.warning)} onClick={discard}>放弃更改</Button>
       {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
-      {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>
-      {section==='storage'&&<fieldset disabled={disabled}><legend>本地存储</legend>
+      {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>;
+  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form id={'settings-form-'+section} className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
+      {section==='storage'&&<fieldset disabled={disabled} aria-label="本地存储">
       <StorageLocationFields section="storage" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
@@ -179,7 +179,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放。</span></fieldset>
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
-      {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
+      {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
 </>}
       {section==='downloads'&&<><fieldset disabled={disabled}><legend>视频缓存</legend>
@@ -198,7 +198,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset></>}
       <span className="secondary">运行配置保存后重启生效。</span>
     </form></Panel>;
-  return children?children(form,d):form;
+  return children(form,actions);
 }
 
 export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {

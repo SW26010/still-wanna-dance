@@ -30,8 +30,10 @@ fieldset { border: 0; margin: 0; padding: 0; }
 legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); font-weight: var(--fontWeightSemibold); padding: 0; margin-bottom: var(--spacingVerticalL); }
 .settings-form { gap: var(--spacingVerticalL); }
 .panel:has(.settings-form) { overflow: visible; }
-.settings-actions { position: sticky; top: var(--spacingVerticalS); z-index: 2; background: var(--colorNeutralBackground1); }
-.settings-actions .actions { margin: 0; gap: var(--spacingHorizontalS); }
+.settings-header { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); position: sticky; top: var(--spacingVerticalS); z-index: 2; background: var(--colorNeutralBackground2); }
+.settings-header > .fui-TabList { flex-wrap: wrap; }
+.settings-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--spacingHorizontalS); margin-inline-start: auto; }
+.settings-actions .actions { margin: 0; gap: var(--spacingHorizontalS); justify-content: flex-end; }
 .settings-actions > p { margin: 0; }
 .settings-form :is(input, select, textarea, [tabindex="-1"]) { scroll-margin-top: 12rem; }
 .form-grid .fui-Field { max-width: 680px; }

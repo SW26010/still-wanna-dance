@@ -110,8 +110,8 @@ export function NavigationLayout({children,items,selected,label='页面导航'}:
 export function pageLinks() {
   return [...consolePages.map(([value,label])=>({value,label,href:pageHref(value)})),{value:'about',label:'关于',href:pageHref('about')}];
 }
-export function Panel({ title, children, id, ref, onFocusCapture, action }: PropsWithChildren<{ title: string; id?: string; ref?:Ref<HTMLDivElement>; onFocusCapture?:FocusEventHandler<HTMLDivElement>; action?:ReactNode }>) {
-  return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}><CardHeader header={<Subtitle2 as="h2">{title}</Subtitle2>} action={action ? { children: action } : undefined} /><div className="content-stack">{children}</div></Card>;
+export function Panel({ title, children, id, ref, onFocusCapture, action }: PropsWithChildren<{ title?: string; id?: string; ref?:Ref<HTMLDivElement>; onFocusCapture?:FocusEventHandler<HTMLDivElement>; action?:ReactNode }>) {
+  return <Card size="large" className="panel" id={id} ref={ref} onFocusCapture={onFocusCapture} tabIndex={id ? -1 : undefined}>{title && <CardHeader header={<Subtitle2 as="h2">{title}</Subtitle2>} action={action ? { children: action } : undefined} />}<div className="content-stack">{children}</div></Card>;
 }
 export function Feedback({ children, error = false }: PropsWithChildren<{ error?: boolean }>) {
   return children ? <MessageBar layout="multiline" intent={error ? 'error' : 'info'}><MessageBarBody>{children}</MessageBarBody></MessageBar> : null;

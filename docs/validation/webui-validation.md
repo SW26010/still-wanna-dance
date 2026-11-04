@@ -1568,3 +1568,13 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 沙箱内 Edge 在用例启动阶段失败，普通用户环境完成复验。夹具首轮 65/66，剩余一项仍将显示值当作选择器绝对路径；修正该旧断言后 66/66。失败和成功日志分别保留在忽略目录 `artifacts/path-display-browser-sandbox.log`、`artifacts/path-display-browser.log`、`artifacts/path-display-browser-fixed.log`；真实联调日志及截图位于 `artifacts/path-display-storage-live.log` 和 `artifacts/path-display-storage-live/`。夹具结果仅证明界面与请求交互，真实联调使用隔离数据，不外推为个人数据或游戏验证。
 
 随后按用户确认，为默认相对路径显式加上 `.\` 前缀（如 `.\work`、`.\videos`、`.\data\database\storage.sqlite`），其余显示范围和保存语义保持不变。前端 build/check、嵌入资源登记和差异格式检查通过；同组 Edge 回归 66/66 及真实 `TestStorageChoicesBrowser` 联调再次通过，并查看了 390px 真实服务截图中的默认数据库相对路径。增量证据位于忽略目录 `artifacts/path-display-dot-prefix-browser.log`、`artifacts/path-display-dot-prefix-live.log` 和 `artifacts/path-display-dot-prefix-live/`。
+
+## 2026-11-04 设置页标题与顶部操作区
+
+移除常规、存储、下载与缓存、网络四页卡片内重复的分类标题；当前页的生效状态、保存、放弃更改、重启操作移到顶部页签同行右侧，空间不足时自然换行并保持右对齐。各页表单持续挂载，草稿与保存、校验、重启逻辑沿用原机制，保存按钮通过原生 form 属性关联对应表单。
+
+前端 build/check、仓库产物策略和差异格式检查通过。普通用户环境 Edge 定向回归 19/19 通过，覆盖独立草稿、导航保留、保存、放弃、数值校验、重启限制及窄屏导航。额外核对四页 1440px 同行右对齐、320px 无横向溢出和无重复卡片标题，并查看宽窄屏截图，采集脚本与截图位于忽略目录 artifacts/settings-layout-*。沙箱内首轮 Edge 因命名管道错误在启动阶段退出；结束该轮检查后在普通用户环境复验通过。检查使用内存接口，仅验证界面及请求交互；本轮界面检查未启动游戏或修改 hosts。
+
+随后按用户要求去除存储页的“本地存储”和网络页的“网络连接”可见分组标题，分组无障碍名称保留。重新 build/check 通过，Edge 对四页的 1440px／320px 布局复核及两个标题无正文文本检查均通过。
+
+按用户要求另行通过 scripts/build-desktop.ps1 编译 bin/SWD.exe，版本 dev-settings-layout；嵌入资源校验、桌面构建及 -build-info 检查通过。

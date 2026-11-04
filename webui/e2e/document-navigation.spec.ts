@@ -28,19 +28,21 @@ for(const width of [390,1280])test(`all navigation stays in one document and pre
   expect(errors).toEqual([]);
 });
 
-test('document body and footer links preserve navigation and drafts',async({page})=>{
+test('document tabs and body links preserve navigation and drafts',async({page})=>{
   const api=await mockAPI(page);api.state.running=true;
   await page.goto('/#prepareAheadSeconds');
   await page.getByRole('spinbutton',{name:/提前准备时间/}).fill('888');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin);
   await navigate(page,'关于');
   await expect(page.getByRole('heading',{level:1})).toHaveText('关于');
-  await page.getByRole('link',{name:'使用条款与内容权利声明',exact:true}).click();
+  await page.getByRole('tab',{name:'用户协议',exact:true}).click();
   await expect(page.getByRole('button',{name:/恢复.*直连|停止播放网关/})).toHaveCount(0);
-  await page.getByRole('link',{name:'返回首页',exact:true}).click();
+  await navigate(page,'加速');
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   await navigate(page,'帮助');
-  await page.getByRole('link',{name:'返回首页',exact:true}).click();
+  await page.getByRole('link',{name:'视频需求',exact:true}).click();
+  await expect(page.locator('#block-demands')).toBeFocused();
+  await expect(page.locator('#block-demands')).toBeInViewport();
   await navigateSettings(page,'预加载与下载');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toHaveValue('888');
   expect(await page.evaluate(()=>performance.timeOrigin)).toBe(originalDocument);
@@ -88,7 +90,7 @@ test('direct document URLs load content before status, normalize once, and survi
   await page.route('**/api/status',route=>route.fulfill({status:503,body:'status unavailable'}));
   const documents:string[]=[];
   page.on('request',request=>{if(request.resourceType()==='document')documents.push(request.url());});
-  for(const [path,title] of [['help','帮助'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
+  for(const [path,title] of [['help','开始使用'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
     const count=documents.length;
     await page.goto('/'+path);
     await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();

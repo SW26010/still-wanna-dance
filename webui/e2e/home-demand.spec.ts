@@ -56,13 +56,13 @@ test('home uses live demands and unique block counts without download polling or
   const before = await paints(); expect(before.axis).toBe(0); expect(before.rows).toBeGreaterThan(0);
   await expect(f.cache).toHaveText('缓存 —');
   await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
-  await expect(f.cache).toHaveAccessibleDescription('临时视频块文件总大小，含等待读取结束后删除的块；不含完整视频、合并暂存、数据库和日志。');
+  await expect(f.cache).toHaveAccessibleDescription('临时视频块文件总大小。');
   await f.emit('download-speed', { bytesPerSecond: 2000000 }); await expect(f.speed).toHaveText('1.91 MiB/s');
   await expect(f.speed).toHaveAccessibleName('总下载速度：1.91 MiB/s');
-  await expect(f.speed).toHaveAccessibleDescription('切换为 Mbps；最近一次约 1 秒采样的网络下载速度。');
+  await expect(f.speed).toHaveAccessibleDescription('切换为 Mbps');
   await f.speed.click(); await expect(f.speed).toHaveText('16.00 Mbps');
   await expect(f.speed).toHaveAccessibleName('总下载速度：16.00 Mbps');
-  await expect(f.speed).toHaveAccessibleDescription('切换为 MiB/s；最近一次约 1 秒采样的网络下载速度。');
+  await expect(f.speed).toHaveAccessibleDescription('切换为 MiB/s');
   await f.speed.press('Enter'); await expect(f.speed).toHaveText('1.91 MiB/s');
   expect(await paints()).toEqual(before);
   await setPageHidden(page, true); await expect.poll(f.streams).toBe(0);

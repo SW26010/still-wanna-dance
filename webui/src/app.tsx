@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button, Link, Spinner, Title2, Tooltip, makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
-import { Brand, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, DocumentFooter, useThemePreference } from './ui';
+import { Brand, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, useThemePreference } from './ui';
 import { AboutPage } from './documents';
 import { Home } from './home-library';
 import { SettingsAndNetwork } from './settings-page';
@@ -113,7 +113,6 @@ export function App() {
       </VRCXProvider>}
       <div hidden={page!=='about'}><AboutPage visible={accepted&&page==='about'} anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}}/></div>
       </main>
-    <DocumentFooter page={page==='about'&&anchor.includes('help')?'help':page}/>
     </NavigationLayout>{model.dialog}{!accepted&&<TermsConsent onAccepted={()=>setAccepted(true)}/> }
   </div></ConsoleContext.Provider>;
 }

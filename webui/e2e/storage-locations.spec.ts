@@ -111,7 +111,7 @@ test('existing videos require a reviewable policy decision and cancellation pres
   const dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('不保留普通视频');
   await expect(dialog).toContainText('可能被删除');
-  await expect(dialog).toContainText('换数据库不会带入原数据库的收藏');
+  await expect(dialog).toContainText('优先保留收藏视频');
   await dialog.getByRole('button',{name:'取消',exact:true}).click();
   expect(api.state.settings.databasePath).toBe(original);
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);

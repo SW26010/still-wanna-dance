@@ -3,7 +3,6 @@ import {mockAPI, choosePath} from './api';
 import { navigate } from './navigation';
 import {saveSettings} from './settings-actions';
 
-const description = '最多为下载完成的视频保留多少空间。1 GiB 约为 1.07 GB。';
 
 test('video budget shows the historical estimate as the draft changes', async ({page}, info) => {
   const api = await mockAPI(page);
@@ -86,7 +85,6 @@ test('settings preserve all three storage choices and the entered budget across 
   const limited = page.getByRole('radio', {name:'限制为', exact:true});
   const unlimited = page.getByRole('radio', {name:'不限制', exact:true});
   await expect(page.getByRole('radiogroup', {name:'是否保留下载的视频',exact:true}).getByRole('radio')).toHaveCount(3);
-  await page.getByRole('button',{name:'空间占用说明',exact:true}).focus(); await expect(page.getByRole('tooltip')).toContainText('1 GiB'); await input.focus();
   await expect(unlimited).toBeChecked();
   await expect(input).toBeDisabled();
   await none.check();
@@ -148,9 +146,8 @@ test('no retention overrides the remembered budget while favorites can still be 
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),notice=panel.locator('.fui-MessageBar');
     await expect(panel).toContainText('本地视频：已用 2.000 GiB / 不保留普通视频');
-    await expect(notice).toContainText('收藏视频仍可保留');
+    await expect(notice).toHaveCount(0);
     await expect(panel.getByRole('link',{name:'前往设置',exact:true})).toHaveAttribute('href','#videoBudgetGiB');
-    await expect(notice.getByRole('link')).toHaveCount(0);
   }
   await navigate(page,'加速');await expect(page.getByRole('heading',{name:'视频需求',exact:true})).toBeVisible();
 });
@@ -163,8 +160,7 @@ for(const width of [320,390,1280])test(`empty storage keeps actions and settings
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),notice=panel.locator('.fui-MessageBar');
     await expect(panel).toContainText('本地视频：已用 0.000 GiB / 不保留普通视频');
-    await expect(notice).toContainText('保存后重启生效');
-    await expect(notice).not.toContainText('收藏视频仍可保留');
+    await expect(notice).toHaveCount(0);
     await panel.scrollIntoViewIfNeeded();await panel.screenshot({path:info.outputPath(`${id}-${width}.png`),animations:'disabled'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await panel.getByRole('link',{name:'前往设置',exact:true}).click();await expect(page.locator('#videoBudgetGiB')).toBeFocused();
@@ -183,8 +179,7 @@ test('storage summaries use the active budget, allow over-budget actions and exp
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),summary=panel.getByText('本地视频：已用 2.000 GiB / 预算 1.000 GiB',{exact:true});
     await expect(summary).toBeVisible();await expect(panel.locator('.fui-MessageBar')).toHaveCount(0);
-    await summary.focus();await expect(page.getByRole('tooltip')).toContainText('同一资源只计一次');
-    await expect(page.getByRole('tooltip')).toContainText('不含临时文件和数据库');
+    await summary.focus();await expect(page.getByRole('tooltip')).toContainText('仅统计已保存的完整视频');
     await expect(page.getByRole('tooltip')).toContainText('最后检查时间：');
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
     for(const width of [1280,390]){

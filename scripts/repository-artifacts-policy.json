@@ -1144,6 +1144,27 @@
       "bytes": 1261118,
       "sha256": "8b038fe7268ad7ce5556c0dca7bd6989e18e3094498e7f4a65963570dda9f5b3",
       "reason": "Production WebUI generated from webui/src with incomplete speed-test result and retained timestamp feedback; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1256014,
+      "sha256": "a8933ecdc1b96ec5c860a42379039ae30b6a3bd933ad4d0c495e938b8e484c07",
+      "reason": "Production WebUI rebuilt with approved copy reductions and the retained source-video and same-partition import notice; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1253638,
+      "sha256": "2674ae7e0815a88b8a2dbfec878f9877754dc14be0b38f56ec70d0caf31b9c49",
+      "reason": "Production WebUI rebuilt after removing the VRCX import enable checkbox, simplifying introduction, help and terms content, and linking help directly to video demands; embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1253668,
+      "sha256": "42be4a8ea920f6c127b02174186f97a528efac6c7f2fbca7306d75fc4792fe0b",
+      "reason": "Production WebUI rebuilt after merging interface copy and history import cleanup with the fault recovery UI; embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

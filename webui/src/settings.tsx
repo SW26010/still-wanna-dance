@@ -12,7 +12,7 @@ import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
-const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC），以准备恢复权限；退出时不再请求。';
+const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id?: string; accepted: number; skipped: number; failed: number; items: {index: number; protocol?: string; status: string; reason?: string}[] }
 export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyReport?: ProxyReport };
@@ -67,7 +67,6 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
       <option value="direct">直连（内置 DNS）</option><option value="proxy">代理</option></Select></Field>
 
     {d.upstreamMode && d.upstreamMode !== 'direct' && <>
-      <span className="secondary">代理用于 SWD 的上游请求及接入 SWD 的 HTTPS 转发</span>
       <Field label="代理后端"><Select disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></Field>
       {d.proxyBackend !== 'mihomo' ? <>
         <Field label="SOCKS5 地址" required hint="代理软件的主机:端口。"><Input disabled={locked} required value={d.socks5Address} onChange={(_, v) => update({socks5Address: v.value})} placeholder="127.0.0.1:7891" autoComplete="off" /></Field>
@@ -75,14 +74,13 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
         <Field label="SOCKS5 密码" hint="留空保留已有密码；清空用户名可移除认证。"><Input type="password" disabled={locked} value={d.socks5Password || ''} onChange={(_, v) => update({socks5Password: v.value})} autoComplete="new-password" /></Field>
         <Feedback error>{status.socks5CredentialError}</Feedback>
       </> : <>
-        <p>粘贴代理节点或选择文件，检查后再保存。</p>
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>
         <Field label="粘贴节点内容" validationMessage={d.proxyImportText.trim() ? '请先检查节点内容，或清除本次导入草稿。' : undefined} validationState="none"><Textarea rows={5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => update({proxyImportText: v.value})} /></Field>
         <Field label="或选择节点文件">{props => <input {...props} type="file" disabled={locked} accept=".yaml,.yml,.txt,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</Field>
         <Caption1 as="p" className="hint">检查仅生成草稿；保存后替换整份节点库，重启生效。</Caption1>
-        <div className="inline secondary">支持 YAML、URI 与 Base64 列表<Hint label="节点格式说明">最多 2 MiB / 2048 条，仅导入节点配置；不导入代理组、链式代理或系统网络选项，不自动更新订阅。</Hint></div>
+        <div className="inline secondary">支持 YAML、URI 与 Base64 列表<Hint label="节点格式说明">最多 2 MiB / 2048 条，仅导入节点配置。</Hint></div>
         <div className="actions"><Button disabled={locked || !d.proxyImportText.trim()} onClick={() => void inspect()}>检查并导入到草稿</Button><Button disabled={locked || (!d.proxyImportID && !d.proxyImportText)} onClick={() => { void releaseImport(d.proxyImportID); update({proxyImportID:'',proxyImportText:'',proxyReport:undefined}); }}>清除本次导入草稿</Button></div>
-        {d.proxyReport && <><p>本次接受 {d.proxyReport.accepted} 个，重复跳过 {d.proxyReport.skipped} 个，失败 {d.proxyReport.failed} 个。{d.proxyReport.id ? '草稿 2 小时有效。' : '没有有效节点，不会替换已有节点库。请修改内容或清除本次草稿。'}</p><RecordDetails title="逐条导入结果"><ul>{d.proxyReport.items.map(row => <li key={row.index}>第 {row.index} 条 · {row.protocol} · {({accepted:'接受',skipped:'跳过',failed:'失败'}[row.status] || row.status)} {row.reason}</li>)}</ul></RecordDetails></>}
+        {d.proxyReport && <><p>本次接受 {d.proxyReport.accepted} 个，重复跳过 {d.proxyReport.skipped} 个，失败 {d.proxyReport.failed} 个。{!d.proxyReport.id && '没有有效节点。请修改内容或清除本次草稿。'}</p><RecordDetails title="逐条导入结果"><ul>{d.proxyReport.items.map(row => <li key={row.index}>第 {row.index} 条 · {row.protocol} · {({accepted:'接受',skipped:'跳过',failed:'失败'}[row.status] || row.status)} {row.reason}</li>)}</ul></RecordDetails></>}
         <span className="secondary">已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
       </>}
     </>}
@@ -152,7 +150,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       if (d.databasePath !== s.settings.databasePath || d.videoDir !== s.settings.videoDir) {
         const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:d.databasePath,videoDir:d.videoDir,blockCacheDir:d.blockCacheDir});
         if (check.confirmVideoPolicy) {
-          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频，收藏以所选数据库中的记录为准。':'收藏不提供额外保留保护。'}换数据库不会带入原数据库的收藏。</p></>, '确认并保存');
+          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{d.videoDir}</p><p className="wrap">数据库：{d.databasePath||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{d.videoStorageMode==='none'?'不保留普通视频':d.videoStorageMode==='unlimited'?'不限制视频空间':d.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{d.retainFavorites?'优先保留收藏视频。':'收藏不提供额外保留保护。'}</p></>, '确认并保存');
           if (!accepted) return;
           const {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites} = values;
           confirmed = {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites};
@@ -175,13 +173,13 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
       {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
       </div></fieldset>}
-      {section==='application'&&<><Field label="主题" hint="自动保存并立即应用于网页和托盘图标，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
+      {section==='application'&&<><Field label="主题" hint="自动保存并立即应用，无需重启。"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
-      <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip><span className="secondary">下次启动生效；接入时可能需要管理员授权。</span></fieldset>
-      <fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/><span className="secondary">保存后重启生效。检测到 VRChat 运行后，游戏退出时自动退出 SWD，停止所有下载和导入。</span>
-      <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放；开启并保存时可能需要管理员授权。</span></fieldset>
+      <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip></fieldset>
+      <fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/>
+      <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放。</span></fieldset>
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
-      <Field label="程序日志级别" hint="保存后重启生效。Debug 用于详细排障；关闭不会删除已有日志。"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
+      <Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
       {section==='network'&&<>      <fieldset><legend>网络连接</legend><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
       {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
 </>}
@@ -205,10 +203,9 @@ export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {
   const [selecting, setSelecting] = useState(false);
   useEffect(() => setCleanup(false), [job.id,job.running]);
   return <Panel id="video-import" title="导入视频">{storageBudget}
-    <p>离线扫描子文件夹，校验并导入已知资源中缺少的视频。导入后请勿修改源视频。</p>
+    <p>导入缺少的视频。请勿修改源视频。</p>
     <p className="wrap">本次导入到完整视频目录：{job.videoDir || s.activeSettings.videoDir}</p>
-    <p>支持暂停和重启后继续，未完成文件从头处理。清单固定，新增文件留到下一批，变化的源文件跳过。</p>
-    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>已保存的新的数据位置尚未生效。本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。仍要导入当前目录吗？</>)) return; await app.action('import/start',{source:source.trim()}); }}>
+    <form className="form-grid" onSubmit={async e => { e.preventDefault(); if ((s.settings.videoDir !== s.activeSettings.videoDir || s.settings.databasePath !== s.activeSettings.databasePath) && !await app.confirm('新的数据位置尚未生效', <>本次将导入到当前完整视频目录：{s.activeSettings.videoDir}。若要使用新目录，请取消并先重启应用。</>)) return; await app.action('import/start',{source:source.trim()}); }}>
       <DirectoryField purpose="import-directory" label="外部目录" value={job.source || source} disabled={app.unavailable || !!job.present || !!job.running} onChange={setSource} onPending={setSelecting}
         labelSuffix={<ImportSpaceHint source={job.source || source} videoDir={job.videoDir || s.activeSettings.videoDir} unavailable={app.unavailable}/>}/>
       <div className="actions">
@@ -218,17 +215,17 @@ export function ImportPanel({storageBudget}: {storageBudget:ReactNode}) {
           {job.paused && <Button disabled={app.unavailable || job.scopeMismatch} onClick={()=>void app.action('import/resume',{id:job.id})}>继续导入</Button>}
           <Button disabled={app.unavailable} onClick={async()=>{
             const id=job.id;
-            if(await app.confirm('结束本次导入？','将清除本次任务记录及剩余的源文件清理回执。已导入的视频和源文件均保留，之后可开始新一批导入。')) await app.action('import/discard',{id,confirmed:true});
+            if(await app.confirm('结束本次导入？','将清除本次任务记录。视频和源文件均保留。')) await app.action('import/discard',{id,confirmed:true});
           }}>{job.paused || job.scopeMismatch || !job.total?'放弃本次':'结束本次'}</Button>
         </>}
       </div>
     </form>{(job.running||!!job.total)&&<Progress value={job.checked} max={job.total} label="视频文件处理进度" />}
-    <p role="status">{job.phase?`${job.phase} · ${job.checked || 0}/${job.total || 0} 个视频 · 已导入 ${job.imported || 0} · 跳过 ${job.skipped || 0} · 失败 ${job.failed || 0} · 已清除 ${job.deleted || 0}`:'尚未开始'}</p>
+    <p role="status">{job.phase?`${job.phase} · ${job.checked || 0}/${job.total || 0} 个视频 · 已导入 ${job.imported || 0} · 跳过 ${job.skipped || 0} · 失败 ${job.failed || 0} · 已清除 ${job.deleted || 0}`:''}</p>
     <Feedback error>{job.error || s.actionErrors?.import}</Feedback>
     {job.detail && <p className="secondary wrap">{job.detail}</p>}
     {job.cleanupAvailable && !job.running && <><Checkbox checked={cleanup} onChange={(_, v) => setCleanup(!!v.checked)} label="清除原位置本次成功导入的资源（默认保留）" disabled={app.unavailable} /><Button disabled={app.unavailable || !cleanup} onClick={async () => {
       const id = job.id;
-      if (await app.confirm('永久删除源视频？', '不可逆操作：将永久删除原位置本次成功导入的源视频，不进入回收站。仅在目标视频仍完整且源文件未改变时删除。确定继续吗？')) { setCleanup(false); await app.action('import/cleanup',{id,confirmed:true}); }
+      if (await app.confirm('永久删除源视频？', '将永久删除原位置本次成功导入的源视频，不进入回收站。')) { setCleanup(false); await app.action('import/cleanup',{id,confirmed:true}); }
     }}>清除已导入的源文件</Button></>}
   </Panel>;
 }

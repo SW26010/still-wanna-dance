@@ -132,5 +132,5 @@ test('about groups help, agreement and offline license links',async({page})=>{
   await page.getByRole('tab',{name:'许可证与声明'}).click();
   for(const [name,path] of [['软件许可证原文','software-license.txt'],['程序第三方声明原文','third-party-notices.txt'],['WebUI 第三方声明原文','webui-notices.txt']])await expect(page.getByRole('link',{name,exact:true})).toHaveAttribute('href','/assets/webui/'+path);
   await page.getByRole('tab',{name:'用户协议'}).click();await expect(page.getByRole('article',{name:'完整使用条款'})).toBeVisible();
-  await page.getByRole('tab',{name:'使用帮助'}).click();await expect(page.getByRole('navigation',{name:'帮助目录'})).toBeVisible();
+  await page.getByRole('tab',{name:'使用帮助'}).click();await expect(page.getByRole('heading',{name:'开始使用',exact:true})).toBeVisible();
 });

@@ -1,6 +1,6 @@
 import { Link, Title2, Card, Tab, TabList, Tooltip } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
-import { DocumentLayout, Panel, isDocumentPage, pageHref, type DocumentPage } from './ui';
+import { DocumentLayout, Panel, isDocumentPage, type DocumentPage } from './ui';
 import { HelpContent } from './help-content';
 import { LogReader } from './log-reader';
 
@@ -14,7 +14,7 @@ function aboutTab(anchor:string) {return anchor.includes('logs')?'logs':anchor.i
 export function AboutPage({anchor,paths,onTabSelect,visible}:{anchor:string;paths:Record<string,string>;onTabSelect:(anchor:string)=>void;visible:boolean}) {
   const tab=aboutTab(anchor);
   return <><TabList style={{flexWrap:'wrap'}} selectedValue={tab} onTabSelect={(_,v)=>onTabSelect(({intro:'/about',help:'/help',terms:'/terms',licenses:'/licenses',logs:'/logs'} as Record<string,string>)[String(v.value)])} aria-label="关于内容"><Tab id="about-intro" aria-controls="about-panel" value="intro">介绍</Tab><Tab id="about-help" aria-controls="about-panel" value="help">使用帮助</Tab><Tab id="about-terms" aria-controls="about-panel" value="terms">用户协议</Tab><Tab id="about-licenses" aria-controls="about-panel" value="licenses">许可证与声明</Tab><Tab id="about-logs" aria-controls="about-panel" value="logs">日志</Tab></TabList>
-    <div id="about-panel" role="tabpanel" aria-labelledby={'about-'+tab} tabIndex={0}>{tab==='intro'?<About heading="h2"/>:tab==='help'?<HelpContent paths={paths} heading="h2"/>:tab==='terms'?<Terms heading="h2"/>:tab==='licenses'?<Panel title="许可证与第三方声明"><p>软件发行采用 GNU GPLv3，自有新贡献为 GPL-3.0-only；历史 MIT 授权仍有效。第三方组件按各自声明保留授权，软件许可不授予视频、音乐等内容的权利。</p><ul><li><Link href="/assets/webui/software-license.txt" target="_blank" rel="noopener">软件许可证原文</Link></li><li><Link href="/assets/webui/third-party-notices.txt" target="_blank" rel="noopener">程序第三方声明原文</Link></li><li><Link href="/assets/webui/webui-notices.txt" target="_blank" rel="noopener">WebUI 第三方声明原文</Link></li><li><Link href="/assets/webui/zashboard-notices.txt" target="_blank" rel="noopener">zashboard 与附带资源声明</Link></li></ul><p>发行包的 licenses/ 还包含实际构建工具链声明及 SOURCE.txt 对应源码说明。重新分发时保留整个目录；离线分发同时附上匹配的完整对应源码。</p></Panel>:null}<div hidden={tab!=='logs'}><LogReader visible={visible&&tab==='logs'}/></div></div></>;
+    <div id="about-panel" role="tabpanel" aria-labelledby={'about-'+tab} tabIndex={0}>{tab==='intro'?<About heading="h2"/>:tab==='help'?<HelpContent paths={paths} heading={null}/>:tab==='terms'?<Terms heading="h2"/>:tab==='licenses'?<Panel title="许可证与第三方声明"><p>软件发行采用 GNU GPLv3，自有新贡献为 GPL-3.0-only；历史 MIT 授权仍有效。第三方组件按各自声明保留授权，软件许可不授予视频、音乐等内容的权利。</p><ul><li><Link href="/assets/webui/software-license.txt" target="_blank" rel="noopener">软件许可证原文</Link></li><li><Link href="/assets/webui/third-party-notices.txt" target="_blank" rel="noopener">程序第三方声明原文</Link></li><li><Link href="/assets/webui/webui-notices.txt" target="_blank" rel="noopener">WebUI 第三方声明原文</Link></li><li><Link href="/assets/webui/zashboard-notices.txt" target="_blank" rel="noopener">zashboard 与附带资源声明</Link></li></ul><p>发行包的 licenses/ 还包含实际构建工具链声明及 SOURCE.txt 对应源码说明。重新分发时保留整个目录；离线分发同时附上匹配的完整对应源码。</p></Panel>:null}<div hidden={tab!=='logs'}><LogReader visible={visible&&tab==='logs'}/></div></div></>;
 }
 function About({heading='h1'}:{heading?:'h1'|'h2'}={}) {
   const build = bootstrap.build;
@@ -37,11 +37,10 @@ function About({heading='h1'}:{heading?:'h1'|'h2'}={}) {
       <dt>目标平台</dt><dd>{build.target}</dd><dt>Go 工具链</dt><dd>{build.toolchain}</dd>
     </dl></Panel>}
     <Panel title="特别感谢"><ul><li>华年忆梦</li><li>逻辑XR</li><li>小新喵</li></ul></Panel>
-    <p><Link href={pageHref('terms')}>使用条款与内容权利声明</Link> · 当前软件发行采用 GNU GPLv3（自有新贡献 GPL-3.0-only），历史 MIT 授权仍有效，第三方视频、音乐等内容不在授权范围内。</p>
     <small>© 2026 Still Wanna Dance contributors. GNU GPLv3.</small></>;
 }
 function Terms({heading='h1'}:{heading?:'h1'|'h2'}={}) {
-  return <><Title2 as={heading}>使用条款与内容权利声明</Title2><p>{!bootstrap.recovery&&'本机已确认当前条款。'}<Link href={pageHref('home')}>返回首页</Link></p><p>软件许可不等于内容授权。</p>
+  return <><Title2 as={heading}>使用条款与内容权利声明</Title2>
     <p>条款版本：{bootstrap.terms?.version} · <Link href="/terms.txt" target="_blank" rel="noopener">查看／保存纯文本</Link></p>
     <Card role="article" appearance="outline" size="large" className="terms-text" tabIndex={0} aria-label="完整使用条款">{bootstrap.terms?.text}</Card>
     </>;

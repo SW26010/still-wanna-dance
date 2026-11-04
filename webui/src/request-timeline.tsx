@@ -17,7 +17,7 @@ const milliseconds=(value:string)=>value?new Date(value).getTime():undefined;
 const deliveredBytes=(value:number)=>value<1e6?`${value.toLocaleString()} B`:mb(value);
 const ms=(value:number|null)=>value==null?'—':`${value.toLocaleString(undefined,{maximumFractionDigits:1})} ms`;
 
-const sourceExplanation='当前请求等过缺块的整块算下载，直接复用运行期块算缓存，读取已发布完整文件算本地视频。每块有正文写出才计入一次，按当时块大小折算，尾块按实际大小；不等于实际传输字节或节省的流量。';
+const sourceExplanation='当前请求等过缺块的整块算下载，直接复用运行期块算缓存，读取已发布完整文件算本地视频。';
 function SourceShares({sources,details=false}:{sources:ResponseSources|null|undefined;details?:boolean}) {
   if(!sources)return <span>未知</span>;
   const total=sources.downloadBytes+sources.cacheBytes+sources.localBytes;
@@ -33,7 +33,7 @@ function ResponseSourceSummary({visible}:{visible:boolean}) {
   const sources=useResource<ResponseSources>('response-sources',visible&&!app.stopped,app.revision,30000,true);
   return (<section aria-label="响应来源统计">
       <div className="inline history-summary">
-        <div className="inline history-summary-heading"><Tooltip content="统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。" relationship="description"><Text as="h2" tabIndex={0}>响应来源</Text></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
+        <div className="inline history-summary-heading"><Tooltip content="统计全部已保留请求的响应来源。" relationship="description"><Text as="h2" tabIndex={0}>响应来源</Text></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
         {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
       {sources.error&&<MessageBar intent="error"><MessageBarBody>来源统计读取失败，请重试。{sources.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
@@ -56,7 +56,7 @@ export function RequestTimeline({visible}:{visible:boolean}) {
     <ResponseSourceSummary key={storage} visible={visible}/>
     <section aria-label="首正文等待时间">
       <div className="inline history-summary">
-        <div className="inline history-summary-heading"><Tooltip content={<>最近 72 小时<br/>收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本；不等于游戏起播时间。</>} relationship="description"><Text as="h2" tabIndex={0}>首正文等待时间</Text></Tooltip><Tooltip content="刷新首正文统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
+        <div className="inline history-summary-heading"><Tooltip content={<>最近 72 小时<br/>收到请求至写出首个视频字节。P50 为中位数，P95 覆盖 95% 的样本。</>} relationship="description"><Text as="h2" tabIndex={0}>首正文等待时间</Text></Tooltip><Tooltip content="刷新首正文统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
         {([['等待下载',latency.data?.blocking,'首字节前等待过缺失的视频块。'],['缓存／本地',latency.data?.ready,'首字节前直接读取可用的视频块或完整视频。']] as const).map(([name,g,hint])=><Tooltip key={name} content={`${hint} 有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'暂无数据'}</span></span></Tooltip>)}
       </div>
       <Notification message={visible&&latency.error?'首正文统计读取失败，请重试。':undefined} error/>
@@ -96,7 +96,7 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
     <Notification message={visible?(history.error?'历史读取失败，请重新查询。':connectionError||undefined):undefined} error/>
     {history.loading&&!history.data&&!connectionError&&<Spinner size="small" label="正在读取历史"/>}
     <RecordTable busy={history.loading} regionLabel="请求历史表格" label="请求历史列表">
-      <TableHeader><TableRow><SortHeader column="time" label="收到时间" sort={sort} onSortChange={onSortChange} defaultDirection="descending" disabled={disabled}/><SortHeader column="song" label="请求歌曲" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column" description="按请求时记录的歌曲 ID 排序；名称来自当前曲库，完整名称可在详情中查看。"/><SortHeader column="resource" label="视频资源" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column"/><TableHeaderCell>结果</TableHeaderCell><DescriptionHeader label="交付">已写出字节占本次响应范围的比例。</DescriptionHeader><DescriptionHeader label="来源">{sourceExplanation}</DescriptionHeader><TableHeaderCell>详情</TableHeaderCell></TableRow></TableHeader>
+      <TableHeader><TableRow><SortHeader column="time" label="收到时间" sort={sort} onSortChange={onSortChange} defaultDirection="descending" disabled={disabled}/><SortHeader column="song" label="请求歌曲" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column" description="按歌曲 ID 排序。"/><SortHeader column="resource" label="视频资源" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column"/><TableHeaderCell>结果</TableHeaderCell><DescriptionHeader label="交付">已写出字节占本次响应范围的比例。</DescriptionHeader><DescriptionHeader label="来源">{sourceExplanation}</DescriptionHeader><TableHeaderCell>详情</TableHeaderCell></TableRow></TableHeader>
       <TableBody>{history.data?.requests.map(r=><TableRow key={history.data!.storageID+':'+r.id}>
         <TableCell><TableCellLayout description={r.completedAt==null?'结束：未知':date(r.completedAt)}>{date(r.at)}</TableCellLayout></TableCell>
         <TableCell className="table-fill-column">{r.songID?<TableCellLayout appearance="primary" truncate description={<Link href={songHref(r.songID)}>ID {r.songID}</Link>}>{r.songTitle||'未知名称'}</TableCellLayout>:'未知'}</TableCell>

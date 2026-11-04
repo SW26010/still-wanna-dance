@@ -22,6 +22,6 @@ export function RequestRetentionFields({ mode, value, disabled, onChange }: {
       <Input type="number" min="1" max="36500" step="1" required={limited} disabled={disabled || !limited}
         value={limited ? value : mode === 'none' ? '0' : ''} onChange={(_, v) => onChange({requestRetentionDays:v.value})} />
     </Field>
-    <span className="secondary">{mode === 'none' ? '重启后清理已有请求明细，并停止保留新明细；累计统计不受影响。' : '用于「历史」页面的请求明细，不影响累计统计和日志。'}</span>
+    <span className="secondary">{mode === 'none' ? '重启后清理已有请求明细，并停止保留新明细。' : ''}</span>
   </div>;
 }

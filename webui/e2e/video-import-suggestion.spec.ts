@@ -15,7 +15,7 @@ for(const width of [1280,390])test(`first-run import suggestion waits for consen
   await expect(notice).toHaveCount(0);
   await page.getByRole('button',{name:'同意完整条款',exact:true}).click();
   await expect(notice).toBeVisible();
-  await expect(notice).toContainText('原视频会保留，同一分区无需重复存储。');
+  await expect(notice).toContainText('可以导入 SWD 复用，减少重复下载。原视频会保留，同一分区无需重复存储。');
   await expect(page.locator('#main').getByRole('listitem',suggestion)).toHaveCount(0);
   const box=await notice.boundingBox();
   expect(box!.y).toBeGreaterThan(450);

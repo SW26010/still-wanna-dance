@@ -255,7 +255,7 @@ test('protected files stay saved while preference toggles switch, clear and reta
 test('unavailable videos leave song preferences usable and availability unknown',async({page})=>{
   const {calls}=await libraryFixture(page,'测试视频盘已断开');
   await page.goto('/#/library');
-  await expect(page.getByRole('group').filter({hasText:'视频目录不可用，本地视频状态未知。歌曲资料仍可查看。'})).toBeVisible();
+  await expect(page.getByRole('group').filter({hasText:'视频目录不可用，本地视频状态未知。'})).toBeVisible();
   const songs=page.getByRole('table',{name:'曲库歌曲'});
   await expect(songs.getByText('未知',{exact:true})).toHaveCount(3);
   await expect(songs.getByText('未保存',{exact:true})).toHaveCount(0);
@@ -356,7 +356,7 @@ test('compact rows, tooltip and operation feedback keep the table in place',asyn
   await expect(rows).toHaveCount(13);
   const before=await table.boundingBox();
   expect((await rows.nth(1).boundingBox())!.height).toBeLessThanOrEqual(72);
-  for(const [target,description] of [[table.getByRole('button',{name:'按热度排序',exact:true}),'随时间衰减'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'收藏仅作标记']] as const){
+  for(const [target,description] of [[table.getByRole('button',{name:'按热度排序',exact:true}),'随时间衰减'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'屏蔽会拒绝新的播放和下载请求']] as const){
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
     await page.mouse.move(0,0);await target.focus();

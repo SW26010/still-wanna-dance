@@ -17,7 +17,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
     const pickedPage = snapshot;
     if (!pickedPage || disabled || app.unavailable || pending) return;
     if (action === 'delete') {
-      if (!await app.confirm('确认删除选中的本地视频文件？', <><p>删除无法撤销；共用该文件的歌曲需要重新下载。歌曲资料和统计保留，正在使用的文件会跳过。</p><ul>{picked.map(e => <li key={e.key}>{cacheLabel(e)} · {gib(e.bytes)} · 影响 {e.songCount} 首已知关联歌曲</li>)}</ul></>, '确认删除')) return;
+      if (!await app.confirm('确认删除选中的本地视频文件？', <><p>删除无法撤销；共用该文件的歌曲需要重新下载。</p><ul>{picked.map(e => <li key={e.key}>{cacheLabel(e)} · {gib(e.bytes)} · 影响 {e.songCount} 首已知关联歌曲</li>)}</ul></>, '确认删除')) return;
       const current = currentPage.current;
       if (!current || current.storageID !== pickedPage.storageID || picked.some(entry => {
         const latest = current.resources[entry.key]?.local;
@@ -68,7 +68,7 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
   const initializationError=initializing?(s.storageError||catalogError):'';
   const initializationDetail=initializing?[initializationError,sync?.checking?'正在获取完整歌曲清单。':`程序会自动重试${dated(sync?.nextCheck)?'，下次尝试：'+date(sync?.nextCheck):''}。`].filter(Boolean).join(' '):'';
   const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
-  const coverageWarning=videoError?'无法检查本地视频，暂时无法计算覆盖率。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首，已计入当前清单总数，暂未计为已覆盖。`:v&&!known&&!catalogBusy?(catalogError||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单，暂时无法计算覆盖率。请更新曲库。')):undefined;
+  const coverageWarning=videoError?'无法检查本地视频。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首。`:v&&!known&&!catalogBusy?(catalogError||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单。请更新曲库。')):undefined;
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">

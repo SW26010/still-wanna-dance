@@ -37,7 +37,7 @@ test('offline video import reports file failures without a catalog refresh',asyn
   const panel=page.locator('#video-import');
   await expect(panel.getByRole('status')).toContainText('已导入 1 · 跳过 0 · 失败 1');
   await expect(panel.getByText('unreadable.mp4：源视频无法读取',{exact:true})).toBeVisible();
-  await expect(panel).toContainText('离线扫描子文件夹');
+  await expect(panel).toContainText('导入缺少的视频');
   await expect(panel.getByText(/在线曲库更新失败/)).toHaveCount(0);
   expect(api.calls.some(c=>c.path==='inventory/scan')).toBe(false);
   await panel.screenshot({path:info.outputPath('offline-import-failure.png')});

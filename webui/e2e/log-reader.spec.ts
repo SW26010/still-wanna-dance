@@ -207,7 +207,7 @@ test('log range validation, limited results, invalid lines, empty and retry',asy
   await page.route('**/api/logs?*',route=>{count++;return route.fulfill(failed?{status:500,body:'fixture read failure'}:{json:result});});
   await page.goto('/#/logs');
   await expect(page.getByText('匹配 750 条，仅展示最近 500 条。请缩小时间范围以查看更早记录。',{exact:true})).toBeVisible();
-  await expect(page.getByText('有 2 行暂无法解析，未展示；原始日志文件未修改。',{exact:true})).toBeVisible();
+  await expect(page.getByText('有 2 行暂无法解析，未展示。',{exact:true})).toBeVisible();
   await page.getByLabel('开始时间',{exact:true}).fill('2026-11-02T11:00');
   await page.getByLabel('结束时间',{exact:true}).fill('2026-11-02T09:00');
   await page.getByRole('button',{name:'查询日志',exact:true}).click();

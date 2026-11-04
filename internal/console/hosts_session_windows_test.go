@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	winio "github.com/tailscale/go-winio"
+	"golang.org/x/sys/windows"
 )
 
 func TestHostsElevationPreservesNativeShellErrors(t *testing.T) {
@@ -140,22 +140,26 @@ func TestWindowsHostsPipeRejectsWrongParentAndInvalidNames(t *testing.T) {
 		}
 	}
 	pipe := hostsPipePrefix + "01234567890123456789012345678901"
-	l, err := winio.ListenPipe(pipe, nil)
+	name, err := windows.UTF16PtrFromString(pipe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
-	done := make(chan struct{})
-	go func() {
-		conn, err := l.Accept()
-		if err == nil {
-			defer conn.Close()
-			<-done
+	// This native pipe is connectable immediately. The rejected client only
+	// checks the kernel-reported PID; no data transfer or asynchronous Accept is
+	// needed, and cleanup cannot race Accept with the immediate disconnect.
+	l, err := windows.CreateNamedPipe(name, windows.PIPE_ACCESS_DUPLEX, windows.PIPE_TYPE_BYTE|windows.PIPE_WAIT, 1, 0, 0, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := windows.CloseHandle(l); err != nil {
+			t.Error(err)
 		}
 	}()
-	defer close(done)
 	if conn, err := dialHostsParent(pipe, uint32(os.Getpid()+1)); err == nil {
 		conn.Close()
 		t.Fatal("wrong server process accepted")
+	} else if err.Error() != "hosts 助手连接的进程身份不匹配" {
+		t.Fatalf("peer identity was not checked: %v", err)
 	}
 }

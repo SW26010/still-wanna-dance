@@ -45,6 +45,6 @@ func (c *Console) scheduleConnectivityAtLocked(due time.Time) {
 		if n.connectivityRetry > 0 {
 			operation = upstreamcheck.Catalog
 		}
-		c.startConnectivityLocked(operation, false)
+		c.startConnectivityLocked(operation, false, false)
 	})
 }

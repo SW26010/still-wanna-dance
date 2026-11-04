@@ -105,7 +105,7 @@ export function App() {
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
-    <header><Brand/><div className="runtime-controls">{accepted&&runtimeStatus}<Tooltip content={'所有服务和后台任务将停止。'+exitConnectionMessage(s)} relationship="description" positioning="below-end"><Button className={styles.exitButton} disabled={model.unavailable} onClick={()=>void model.action('exit')}>退出程序</Button></Tooltip></div></header>
+    <header><Brand/><div className="runtime-controls">{accepted&&runtimeStatus}<Tooltip content={'所有服务和后台任务将停止。'+exitConnectionMessage(s)} relationship="description" positioning="below-end"><Button className={styles.exitButton} disabled={bootstrap.recovery?model.busy||model.stopped:model.unavailable} onClick={()=>void model.action('exit')}>退出程序</Button></Tooltip></div></header>
     <NavigationLayout items={pageLinks()} selected={page}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading"><Title2 as="h1">{pages[page]}</Title2></div>
       {feedback}

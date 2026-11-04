@@ -124,14 +124,17 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 			result.Phase = "任务已停止，上次成功结果保留。已开始的共享下载可能继续完成。"
 		}
 		successful := target == nil && completed && ctx.Err() == nil && result.Total > 0 && result.Checked == result.Total && result.Failed == 0
+		var persistenceErr error
 		if successful {
 			result.Updated = time.Now()
 			if err := c.writeSnapshot("batch-last-success", libraryPaths(settings), result); err != nil {
 				result.Phase += "；本次成功结果未能保存，当前仍可查看：" + err.Error()
+				persistenceErr = errors.Join(persistenceErr, err)
 			}
 		}
 		if err := c.writeSnapshot("batch-last-attempt", libraryPaths(settings), result); err != nil {
 			result.Phase += "；本次任务记录未能保存，当前仍可查看：" + err.Error()
+			persistenceErr = errors.Join(persistenceErr, err)
 		}
 		c.mu.Lock()
 		if successful {
@@ -140,6 +143,12 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		c.batch = result
 		c.batchCancel = nil
 		c.mu.Unlock()
+		if ctx.Err() == nil || persistenceErr != nil {
+			if ctx.Err() == nil && (!completed || result.Failed > 0 || result.BudgetReached) {
+				persistenceErr = errors.Join(persistenceErr, errors.New(result.Phase))
+			}
+			c.reportFault("task:batch", persistenceErr)
+		}
 		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 

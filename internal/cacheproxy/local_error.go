@@ -44,6 +44,9 @@ func (s *Server) storageError(err error) error {
 	s.mu.Lock()
 	if s.storageFailure == nil {
 		s.storageFailure = err
+		if s.storageFailed != nil {
+			close(s.storageFailed)
+		}
 		// A terminal storage failure affects every pending admission and
 		// continuing resource, including those with no active download.
 		s.notifyCapacityLocked()
@@ -54,6 +57,10 @@ func (s *Server) storageError(err error) error {
 	s.mu.Unlock()
 	return err
 }
+
+// LocalFailureDone closes on the engine's first retained local storage fault.
+// Database failures are published separately by Store.FailureDone.
+func (s *Server) LocalFailureDone() <-chan struct{} { return s.storageFailed }
 
 // StorageError reports a storage failure retained for this engine lifetime.
 func (s *Server) StorageError() error {

@@ -124,6 +124,7 @@ type CalibrationOptions struct {
 	Playback           func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)
 	OnPlaybackURL      func(context.Context, PlaybackURLResponse)
 	ResourceTransports func(string) []http.RoundTripper
+	OnFinish           func(CalibrationStatus)
 }
 
 // Candidates supplies fresh observations per run. Saved URLs precede live
@@ -327,7 +328,6 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 		// Drain idle connections without retiring the shared upstream runtime.
 		c.client.CloseIdleConnections()
 		c.mu.Lock()
-		defer c.mu.Unlock()
 		c.state.Running, c.state.Active = false, 0
 		c.state.Bytes = c.bytes.Load()
 		c.state.Phase, c.state.Reason = "completed", reason
@@ -353,6 +353,11 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 		slog.Info("network_calibration_finished", "upstream", c.state.Upstream, "phase", c.state.Phase,
 			"reason", c.state.Reason, "prepared_videos", c.state.PreparedVideos,
 			"prepared_bytes", c.state.PreparedBytes, "downloaded_bytes", c.state.Bytes)
+		result := c.state
+		c.mu.Unlock()
+		if c.options.OnFinish != nil {
+			c.options.OnFinish(result)
+		}
 		close(done)
 	}()
 	prep, cancel := context.WithTimeout(ctx, c.limits.prepare)

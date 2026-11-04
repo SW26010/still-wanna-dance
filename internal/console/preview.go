@@ -31,6 +31,7 @@ func (c *Console) preparePreview(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&input); err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, "无效预览请求", http.StatusBadRequest)
 		return
 	}
@@ -128,6 +129,7 @@ func (c *Console) servePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func previewError(w http.ResponseWriter, err error) {
+	preserveResponseFault(w, err)
 	status := http.StatusBadRequest
 	if errors.Is(err, cacheproxy.ErrSongBlocked) {
 		status = http.StatusForbidden

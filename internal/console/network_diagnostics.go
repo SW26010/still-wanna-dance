@@ -14,6 +14,7 @@ type networkDiagnostics struct {
 	connectivityCancel  context.CancelFunc
 	connectivityDone    chan struct{}
 	connectivityAuto    bool
+	connectivityManual  bool
 	connectivityRetry   time.Duration
 	connectivityTimer   *time.Timer
 	connectivitySample  int64

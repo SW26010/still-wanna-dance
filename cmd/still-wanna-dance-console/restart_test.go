@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -18,6 +20,34 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if os.Getenv("SWD_DESKTOP_RECOVERY_TEST_APP") == "1" {
+		openWebUI = func(url string) error {
+			fmt.Printf("DESKTOP_OPEN_URL=%s\n", url)
+			if os.Getenv("SWD_DESKTOP_RECOVERY_OPEN_FAIL") == "1" {
+				return fmt.Errorf("fixture browser unavailable")
+			}
+			return nil
+		}
+		main()
+		os.Exit(0)
+	}
+	if os.Getenv("SWD_RECOVERY_TEST_APP") == "1" {
+		err := run()
+		if err == nil {
+			fmt.Fprintln(os.Stderr, "expected startup failure")
+			os.Exit(2)
+		}
+		fmt.Fprintf(os.Stderr, "STARTUP_FAILURE=%s\n", err)
+		identity, _ := desktop.NewIdentity(flagValue("config"))
+		if failure := serveFailureUI(context.Background(), err, identity, "127.0.0.1:0", nil, func(url string) error {
+			fmt.Printf("RECOVERY_URL=%s\n", url)
+			return nil
+		}, nil); failure != nil {
+			fmt.Fprintln(os.Stderr, failure)
+			os.Exit(3)
+		}
+		os.Exit(0)
+	}
 	if os.Getenv("SWD_RESTART_TEST_APP") == "1" {
 		main()
 		os.Exit(0)

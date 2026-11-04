@@ -27,7 +27,8 @@ func (c *Console) StartUpstreamServices() error {
 	c.upstreamRequested = true
 	return c.startUpstreamServicesLocked()
 }
-func (c *Console) startUpstreamServicesLocked() error {
+func (c *Console) startUpstreamServicesLocked() (resultErr error) {
+	defer func() { c.reportFault("upstream:start", resultErr) }()
 	if c.closing {
 		return errors.New("程序正在退出")
 	}

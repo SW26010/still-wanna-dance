@@ -169,6 +169,7 @@ type State struct {
 	CDN, Batch           bool
 	Ready, Activating    bool
 	TermsAccepted        bool
+	Unavailable          bool
 	NeedsExitPreparation bool
 }
 type Item struct {
@@ -184,10 +185,10 @@ func Menu(s State, busy bool) []Item {
 	if s.CDN {
 		command, label = StopAcceleration, "停止加速"
 	}
-	if !s.TermsAccepted {
+	if !s.TermsAccepted && !s.Unavailable {
 		label = "开始加速（需先同意条款）"
 	}
-	return []Item{{OpenConsole, "打开 WebUI", false}, {0, "", false}, {command, label, !s.TermsAccepted || busy}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
+	return []Item{{OpenConsole, "打开 WebUI", false}, {0, "", false}, {command, label, s.Unavailable || !s.TermsAccepted || busy}, {0, "", false}, {Exit, "退出 Still Wanna Dance", false}}
 }
 
 type Options struct {
@@ -195,6 +196,10 @@ type Options struct {
 	Open    bool
 	State   func() State
 	Command func(int) error
+	// CommandReportsErrors means Command sends failures to the application-wide
+	// fault notifier, which owns browser opening and its native fallback.
+	CommandReportsErrors bool
+	ReportFault          func(string, error)
 	// RequestExit records an explicit tray/window/session exit before cleanup starts.
 	// Context cancellation alone must not be reported as a planned exit.
 	RequestExit func()

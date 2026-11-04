@@ -128,6 +128,8 @@ func TestRotationFailureReportedOnceAndRecovers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer w.Close()
+	var transitions []error
+	w.SetFaultObserver(func(err error) { transitions = append(transitions, err) })
 	if _, err := w.Write([]byte("old\n")); err != nil {
 		t.Fatal(err)
 	}
@@ -150,6 +152,9 @@ func TestRotationFailureReportedOnceAndRecovers(t *testing.T) {
 	if _, err := w.Write([]byte("new\n")); err != nil {
 		t.Fatal(err)
 	}
+	if len(transitions) != 2 || transitions[0] == nil || transitions[1] != nil {
+		t.Fatalf("write failure/recovery transitions: %v", transitions)
+	}
 	files := testSegments(t, dir)
 	if len(files) != 1 {
 		t.Fatal("failed to recover retention", files)
@@ -157,6 +162,15 @@ func TestRotationFailureReportedOnceAndRecovers(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join(dir, files[0].name))
 	if err != nil || string(b) != "new\n" {
 		t.Fatal(string(b), err)
+	}
+	if err := os.Mkdir(blocker, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("new\n")); err == nil {
+		t.Fatal("a new rotation failure was not detected")
+	}
+	if len(transitions) != 3 || transitions[2] == nil || reports != 1 {
+		t.Fatalf("new incident or legacy once-only callback changed: %v %d", transitions, reports)
 	}
 }
 

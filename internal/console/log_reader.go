@@ -17,6 +17,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		if raw := r.URL.Query().Get(field.name); raw != "" {
 			value, err := strconv.ParseInt(raw, 10, 64)
 			if err != nil {
+				preserveResponseFault(w, err)
 				http.Error(w, "日志时间范围无效", http.StatusBadRequest)
 				return
 			}
@@ -24,12 +25,14 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := query.Validate(); err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if r.URL.Path == "/api/logs/export" {
 		result, err := applog.Export(r.Context(), c.files().LogDir, query)
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, "日志导出失败，请重新尝试；若仍失败，请检查日志文件和目录权限", http.StatusInternalServerError)
 			return
 		}
@@ -42,6 +45,7 @@ func (c *Console) serveLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := applog.Read(r.Context(), c.files().LogDir, query)
 	if err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, "程序日志读取失败，请重新查询；若仍失败，请检查日志文件和目录权限", http.StatusInternalServerError)
 		return
 	}

@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -158,6 +159,9 @@ func (c *Console) startInventory(refreshCatalog bool) {
 		if result.Error != "" && !result.CoverageKnown {
 			c.inventory.Error = result.Error
 			c.inventory.CoverageKnown = false
+			if refreshCatalog {
+				c.reportFault("task:inventory", errors.New(result.Error))
+			}
 			return
 		}
 		saved := result
@@ -166,6 +170,13 @@ func (c *Console) startInventory(refreshCatalog bool) {
 			result.Error = "本次扫描已完成，但无法保存结果；退出后将丢失本次结果：" + err.Error()
 		}
 		c.inventory = result
+		if refreshCatalog {
+			var failure error
+			if result.Error != "" {
+				failure = errors.New(result.Error)
+			}
+			c.reportFault("task:inventory", failure)
+		}
 	}()
 }
 

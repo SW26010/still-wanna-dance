@@ -20,11 +20,13 @@ func (c *Console) servePathPicker(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&input); err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, "无效的路径选择请求", http.StatusBadRequest)
 		return
 	}
 	path, err := c.selectPath(r.Context(), input.Purpose, input.Path)
 	if err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

@@ -34,6 +34,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		valid = valid && validLibraryResource(q.Resource)
 	}
 	if !valid {
+		preserveResponseFault(w, err)
 		http.Error(w, "无效查询", 400)
 		return
 	}
@@ -48,6 +49,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	page, err := cacheproxy.ReadLibraryPage(ctx, root, q)
 	if err != nil {
+		preserveResponseFault(w, err)
 		w.WriteHeader(400)
 		writeJSON(w, map[string]string{"error": err.Error()})
 		return

@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"still-wanna-dance/internal/applog"
@@ -23,6 +24,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogsync"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -33,6 +35,7 @@ import (
 var assets embed.FS
 
 type Console struct {
+	faults                 atomic.Pointer[faults.Center]
 	store                  *cacheproxy.Store
 	storeOpenError         error
 	work                   *cacheproxy.WorkDirectory // Borrowed from the application entry point.
@@ -236,7 +239,9 @@ func (c *Console) autoStart() {
 	enabled := c.settings.AutoAccelerate
 	c.mu.Unlock()
 	if enabled {
-		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+		err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+		c.reportFault("action:activation", err)
+		if err != nil {
 			slog.Error("auto_acceleration_failed", "error", err)
 		}
 	}
@@ -297,6 +302,7 @@ func (c *Console) startLocked() (err error) {
 	c.mu.Lock()
 	c.httpServer = h
 	c.cdnError = ""
+	c.reportFault("service", nil)
 	c.mu.Unlock()
 	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
@@ -326,6 +332,7 @@ func (c *Console) failCDN(h *http.Server, err error) {
 	slog.Error("cdn_failed", "error", err)
 	c.cdnError = err.Error()
 	c.mu.Unlock()
+	c.reportFault("service", err)
 	c.stopLocked()
 }
 
@@ -336,6 +343,7 @@ func (c *Console) stop() error {
 	c.mu.Lock()
 	c.cdnError = ""
 	c.mu.Unlock()
+	c.reportFault("service", nil)
 	return nil
 }
 
@@ -675,11 +683,13 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		data, err := io.ReadAll(r.Body)
 		defer clear(data)
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, "节点内容读取失败或超过 2 MiB", http.StatusBadRequest)
 			return
 		}
 		result, err := c.importProxyNodes(data)
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -841,6 +851,9 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.recordActionError(r.URL.Path, err)
+	if result, ok := w.(*faultResponseWriter); ok {
+		result.reported = true
+	}
 	if err != nil {
 		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -861,7 +874,6 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 func (c *Console) recordActionError(path string, err error) {
 	source := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if err == nil {
 		delete(c.actionErrors, source)
 	} else {
@@ -870,6 +882,8 @@ func (c *Console) recordActionError(path string, err error) {
 		}
 		c.actionErrors[source] = err.Error()
 	}
+	c.mu.Unlock()
+	c.reportFault("action:"+source, err)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -22,6 +22,16 @@ type Writer struct {
 	closed      bool
 	onError     func(error)
 	reported    sync.Once
+	onFault     func(error)
+	faultActive bool
+}
+
+// SetFaultObserver observes write-failure and recovery transitions. The
+// callback must be fast and must not log or call back into this writer.
+func (w *Writer) SetFaultObserver(observe func(error)) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.onFault = observe
 }
 
 func Open(dir string, limit, budget int64, onError func(error)) (*Writer, error) {
@@ -121,6 +131,12 @@ func (w *Writer) rotate() error {
 func (w *Writer) Write(p []byte) (n int, err error) {
 	w.mu.Lock()
 	defer func() {
+		if failed := err != nil; failed != w.faultActive {
+			w.faultActive = failed
+			if w.onFault != nil {
+				w.onFault(err)
+			}
+		}
 		w.mu.Unlock()
 		if err != nil && w.onError != nil {
 			w.reported.Do(func() { w.onError(err) })

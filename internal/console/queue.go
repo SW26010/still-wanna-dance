@@ -46,6 +46,22 @@ type queueTask struct {
 	updateSources func([]int64, bool)
 	cancel        context.CancelFunc
 	done          chan struct{}
+	logFault      func(error) // protected by mu; observes retry results only
+}
+
+func (q *queueTask) setLogFaultObserver(observe func(error)) {
+	q.mu.Lock()
+	q.logFault = observe
+	q.mu.Unlock()
+}
+
+func (q *queueTask) observeLogFault(err error) {
+	q.mu.Lock()
+	observe := q.logFault
+	q.mu.Unlock()
+	if observe != nil {
+		observe(err)
+	}
 }
 
 type queueWaiter struct {
@@ -274,6 +290,7 @@ func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
 
 func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
 	defer close(done)
+	defer q.observeLogFault(nil)
 	wake := make(chan struct{}, 1)
 	workerDone := make(chan struct{})
 	go func() { defer close(workerDone); q.queueWorker(ctx, engine, wake) }()
@@ -363,6 +380,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 			}
 			q.mu.Unlock()
 			q.updateMu.Unlock()
+			q.observeLogFault(err)
 		}
 	}
 }

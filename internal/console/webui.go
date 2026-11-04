@@ -48,6 +48,12 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 	if page == "console" || page == "terms" {
 		data["terms"] = map[string]string{"text": legal.Text, "version": legal.Version}
 	}
+	serveWebUIPage(w, title, c.token, data)
+}
+
+// Both the regular application and the limited startup-failure server use the
+// same embedded page and assets. The latter never manufactures valid settings.
+func serveWebUIPage(w http.ResponseWriter, title, token string, data map[string]any) {
 	// Marshal escapes HTML metacharacters including </script> in paths/text.
 	encoded, err := json.Marshal(data)
 	if err != nil {
@@ -58,7 +64,7 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 	_ = webUITemplate.Execute(w, struct {
 		Title, Token string
 		Data         template.JS
-	}{title, c.token, template.JS(encoded)})
+	}{title, token, template.JS(encoded)})
 }
 
 func serveWebUIAsset(w http.ResponseWriter, r *http.Request) bool {

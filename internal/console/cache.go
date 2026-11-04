@@ -73,6 +73,7 @@ func (c *Console) cacheAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
+		preserveResponseFault(w, err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": err.Error()})

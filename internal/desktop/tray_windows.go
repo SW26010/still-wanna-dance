@@ -104,7 +104,7 @@ func Run(ctx context.Context, o Options) error {
 	callback := syscall.NewCallback(func(hwnd uintptr, msg uint32, w, l uintptr) (result uintptr) {
 		defer func() {
 			if problem := recover(); problem != nil {
-				ShowError(fmt.Errorf("托盘操作失败：%v", problem))
+				t.reportFault("tray:operation", fmt.Errorf("托盘操作失败：%v", problem))
 			}
 		}()
 		return t.dispatch(hwnd, msg, w, l)
@@ -164,6 +164,14 @@ func Run(ctx context.Context, o Options) error {
 		}
 		user32.NewProc("TranslateMessage").Call(uintptr(unsafe.Pointer(&msg)))
 		user32.NewProc("DispatchMessageW").Call(uintptr(unsafe.Pointer(&msg)))
+	}
+}
+
+func (t *tray) reportFault(source string, err error) {
+	if t.options.ReportFault != nil {
+		t.options.ReportFault(source, err)
+	} else if err != nil {
+		ShowError(err)
 	}
 }
 
@@ -288,17 +296,13 @@ func (t *tray) quit(requestExit bool) {
 func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 	if t.taskbar != 0 && msg == t.taskbar {
 		t.added = false
-		if err := t.addIcon(); err != nil {
-			ShowError(err)
-		}
+		t.reportFault("tray:registration", t.addIcon())
 		return 0
 	}
 	switch msg {
 	case wmSettingChange, wmThemeChanged:
 		if !t.closing && t.lightIcon != 0 {
-			if err := t.updateIcon(usesLightTheme(t.options.State().Theme)); err != nil {
-				ShowError(err)
-			}
+			t.reportFault("tray:theme", t.updateIcon(usesLightTheme(t.options.State().Theme)))
 		}
 		return 0
 	case 0x11:
@@ -337,6 +341,8 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 			if t.lightIcon != 0 {
 				if err := t.updateIcon(usesLightTheme(state.Theme)); err != nil {
 					slog.Warn("tray_icon_update_failed", "error", err)
+				} else if t.added {
+					t.reportFault("tray:theme", nil)
 				}
 			}
 			t.updateTip(state)
@@ -387,7 +393,7 @@ func (t *tray) command(id int) {
 		err := t.options.Command(id)
 		// A modal error may remain open after the operation has already finished.
 		t.busy.Store(false)
-		if err != nil {
+		if err != nil && !t.options.CommandReportsErrors {
 			ShowError(err)
 		}
 	}()

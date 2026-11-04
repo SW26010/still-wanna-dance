@@ -34,6 +34,7 @@ func (c *Console) DesktopState() desktop.State {
 
 func (c *Console) DesktopCommand(id int) (err error) {
 	defer func() {
+		c.reportFault("action:activation", err)
 		if err != nil {
 			slog.Error("tray_action_failed", "command", id, "error", err)
 		} else {

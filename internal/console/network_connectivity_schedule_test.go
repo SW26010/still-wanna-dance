@@ -2,6 +2,7 @@ package console
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/upstreamcheck"
 )
 
@@ -49,6 +51,73 @@ func connectivitySnapshot(c *Console) networkConnectivityStatus {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.networkDiagnostics.connectivity
+}
+
+func TestAutomaticConnectivityFaultRequiresConsecutiveFailedRounds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := automaticTestConsole(t)
+		center := faults.New()
+		c.SetFaultCenter(center)
+		var unavailable atomic.Bool
+		unavailable.Store(true)
+		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+			if unavailable.Load() {
+				return nil, errors.New("isolated network failure")
+			}
+			return automaticConnectivityResponse(r), nil
+		})}
+		if err := c.StartUpstreamServices(); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		runNext := func() {
+			t.Helper()
+			next := connectivitySnapshot(c).NextCheck
+			if next.IsZero() {
+				t.Fatal("automatic check was not rescheduled")
+			}
+			time.Sleep(time.Until(next))
+			synctest.Wait()
+		}
+		assertQuiet := func() {
+			t.Helper()
+			select {
+			case <-center.Wake():
+				t.Fatal("temporary automatic failure opened the WebUI")
+			default:
+			}
+		}
+		assertQuiet()
+		runNext()
+		assertQuiet()
+		runNext()
+		select {
+		case <-center.Wake():
+			if open, err := center.Take(); !open || err == nil {
+				t.Fatal("persistent automatic failure did not request WebUI", open, err)
+			}
+		default:
+			t.Fatal("three failed rounds were not reported")
+		}
+		unavailable.Store(false)
+		runNext()
+		assertQuiet()
+		unavailable.Store(true)
+		runNext()
+		assertQuiet()
+		runNext()
+		assertQuiet()
+		runNext()
+		select {
+		case <-center.Wake():
+			if open, err := center.Take(); !open || err == nil {
+				t.Fatal("failure after recovery did not request WebUI", open, err)
+			}
+		default:
+			t.Fatal("failure after recovery was not reported")
+		}
+		c.BeginShutdown()
+	})
 }
 
 func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {

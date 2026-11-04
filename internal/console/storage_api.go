@@ -21,6 +21,7 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&input); err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, "无效的数据位置请求", 400)
 		return
 	}
@@ -125,5 +126,6 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	preserveResponseFault(w, err)
 	http.Error(w, err.Error(), 400)
 }

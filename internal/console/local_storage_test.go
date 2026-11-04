@@ -12,9 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/faults"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func consoleStorageError(t *testing.T, c *Console) string {
@@ -57,6 +59,12 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			}
 			defer engine.Close()
 			c.service = engine
+			center := faults.New()
+			c.SetFaultCenter(center)
+			watchCtx, cancelWatch := context.WithCancel(t.Context())
+			watchDone := make(chan struct{})
+			go func() { defer close(watchDone); c.WatchFaults(watchCtx) }()
+			defer func() { cancelWatch(); <-watchDone }()
 			if mode == "write" {
 				dir := filepath.Join(cfg.VideoDir, ".swd-tmp")
 				if err := os.Remove(dir); err != nil {
@@ -83,6 +91,14 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 				if _, err := c.prefetchSong(context.Background(), engine, id); !errors.Is(err, cacheproxy.ErrLocalStorage) {
 					t.Fatal(err)
 				}
+			}
+			select {
+			case <-center.Wake():
+				if open, err := center.Take(); !open || err == nil {
+					t.Fatalf("storage fault did not request WebUI: %v %v", open, err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("storage fault required browser status polling")
 			}
 			if _, err := c.resolvePlayback(context.Background(), "42"); !errors.Is(err, cacheproxy.ErrLocalStorage) {
 				t.Fatal(err)

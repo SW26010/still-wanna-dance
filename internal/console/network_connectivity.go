@@ -41,6 +41,37 @@ type networkConnectivityResult struct {
 	retryPrevious *networkConnectivityResult
 }
 
+// Only completed current observations count: one usable route recovers the
+// operation even if another route failed. Retried or retained rows stay quiet.
+func connectivityFaults(rows []networkConnectivityResult, selected upstreamcheck.Operation) map[upstreamcheck.Operation]error {
+	type outcome struct{ failed, available bool }
+	observed := make(map[upstreamcheck.Operation]outcome)
+	for _, row := range rows {
+		if row.Retained || selected != "" && row.Operation != selected {
+			continue
+		}
+		state := observed[row.Operation]
+		switch row.State {
+		case "available":
+			state.available = true
+		case "failed":
+			state.failed = true
+		default:
+			continue
+		}
+		observed[row.Operation] = state
+	}
+	result := make(map[upstreamcheck.Operation]error, len(observed))
+	for operation, state := range observed {
+		if state.failed && !state.available {
+			result[operation] = errors.New("连通性检测失败")
+		} else {
+			result[operation] = nil
+		}
+	}
+	return result
+}
+
 // Keep real observations when a later run cannot attempt the same operation.
 // The retained marker distinguishes history from the current run.
 func retainUnobservedConnectivity(results, previous []networkConnectivityResult) []networkConnectivityResult {
@@ -141,21 +172,23 @@ func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation ups
 		if operation != "" || n.connectivity.Operation != "" {
 			return errors.New("连通性检测正在进行，请稍后重试")
 		}
+		n.connectivityManual = true
 		c.publishNetworkConnectivityLocked()
 		return nil // Full checks join the existing full round.
 	}
-	c.startConnectivityLocked(operation, operation != "")
+	c.startConnectivityLocked(operation, operation != "", true)
 	return nil
 }
 
 // Caller holds c.mu. All triggers share progress, publication and cancellation.
-func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, keepSchedule bool) {
+func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, keepSchedule, manual bool) {
 	n := c.networkDiagnostics
 	if n.connectivityTimer != nil {
 		n.connectivityTimer.Stop()
 	}
 	ctx, stop := context.WithCancel(context.Background())
 	n.connectivityCancel = stop
+	n.connectivityManual = manual
 	previous := n.connectivity
 	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: c.settings.UpstreamMode, Operation: operation, Running: true, Phase: "running", Initializing: previous.Initializing}
 	if keepSchedule {
@@ -211,6 +244,14 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 				n.connectivity.Results = retainUnobservedConnectivity(n.connectivity.Results, previous.LastResult.Results)
 			}
 			n.connectivity.LastResult = &networkConnectivityRecord{Finished: n.connectivity.Finished, Results: slices.Clone(n.connectivity.Results)}
+			for checked, failure := range connectivityFaults(n.connectivity.Results, operation) {
+				source := "network:connectivity:" + string(checked)
+				if n.connectivityManual {
+					c.reportFault(source, failure)
+				} else {
+					c.reportRetryFault(source, failure)
+				}
+			}
 			if ready {
 				n.connectivityRetry = 0
 			} else if !keepSchedule {

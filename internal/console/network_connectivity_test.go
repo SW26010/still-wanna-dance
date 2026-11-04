@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -13,13 +14,110 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/upstreamcheck"
 )
+
+func TestConnectivityFaultsIgnoreRecoveredAndRetainedRoutes(t *testing.T) {
+	rows := []networkConnectivityResult{
+		{Operation: upstreamcheck.Catalog, State: "failed"},
+		{Operation: upstreamcheck.Catalog, State: "available"},
+		{Operation: upstreamcheck.PlaybackURL, State: "failed"},
+		{Operation: upstreamcheck.Resource, State: "failed", Retained: true},
+	}
+	faults := connectivityFaults(rows, "")
+	if len(faults) != 2 || faults[upstreamcheck.Catalog] != nil || faults[upstreamcheck.PlaybackURL] == nil {
+		t.Fatalf("misclassified fallback or retained observations: %v", faults)
+	}
+	selected := connectivityFaults(rows, upstreamcheck.Catalog)
+	if len(selected) != 1 || selected[upstreamcheck.Catalog] != nil {
+		t.Fatalf("partial check changed another operation: %v", selected)
+	}
+}
+
+func TestManualConnectivityFailureNotifiesWithoutBrowserPolling(t *testing.T) {
+	c := testConsole(t)
+	c.settings.UpstreamMode = "proxy"
+	center := faults.New()
+	c.SetFaultCenter(center)
+	c.client.Transport = noCandidatesTransport{catalogTransport(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("isolated network failure")
+	})}
+	if err := c.controlNetworkConnectivityOperation(false, upstreamcheck.Catalog); err != nil {
+		t.Fatal(err)
+	}
+	c.mu.Lock()
+	done := c.networkDiagnostics.connectivityDone
+	c.mu.Unlock()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("connectivity check did not finish")
+	}
+	select {
+	case <-center.Wake():
+		if open, err := center.Take(); !open || err == nil {
+			t.Fatal("final check failure did not request WebUI", open, err)
+		}
+	default:
+		t.Fatal("final check failure was not reported")
+	}
+}
+
+func TestManualConnectivityJoinReportsAutomaticRoundFailure(t *testing.T) {
+	c := automaticTestConsole(t)
+	center := faults.New()
+	c.SetFaultCenter(center)
+	started, release := make(chan struct{}, 1), make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+	c.client.Transport = noCandidatesTransport{catalogTransport(func(*http.Request) (*http.Response, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-release
+		return nil, errors.New("isolated network failure")
+	})}
+	c.mu.Lock()
+	_, err := c.networkCalibrationLocked()
+	if err == nil {
+		c.startConnectivityLocked("", false, false)
+	}
+	done := c.networkDiagnostics.connectivityDone
+	c.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("automatic check did not start")
+	}
+	if err := c.controlNetworkConnectivity(false); err != nil {
+		t.Fatal(err)
+	}
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("joined check did not finish")
+	}
+	select {
+	case <-center.Wake():
+		if open, err := center.Take(); !open || err == nil {
+			t.Fatal("joined check failure did not request WebUI", open, err)
+		}
+	default:
+		t.Fatal("manual request joining an automatic check lost its failure")
+	}
+}
 
 func TestNetworkConnectivityEventsManualCancelDiscardAndShutdown(t *testing.T) {
 	c := testConsole(t)

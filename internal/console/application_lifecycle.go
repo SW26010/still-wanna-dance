@@ -22,14 +22,15 @@ const (
 // A single immutable decision drives the owner, acknowledgements and observers.
 // Closing the transport without a decision does not claim a planned exit.
 type applicationLifecycle struct {
-	once      sync.Once
-	action    ShutdownAction // published by closing requested; never changed again
-	requested chan struct{}
-	mu        sync.Mutex
-	closing   bool
-	stop      chan struct{}
-	drained   chan struct{}
-	clients   map[context.Context]context.CancelFunc
+	once          sync.Once
+	action        ShutdownAction // published by closing requested; never changed again
+	requested     chan struct{}
+	mu            sync.Mutex
+	closing       bool
+	stop          chan struct{}
+	drained       chan struct{}
+	clients       map[context.Context]context.CancelFunc
+	clientChanged chan struct{}
 }
 
 func newApplicationLifecycle() *applicationLifecycle {
@@ -70,6 +71,7 @@ func (l *applicationLifecycle) attach(ctx context.Context, cancel context.Cancel
 		return false
 	}
 	l.clients[ctx] = cancel
+	l.notifyClientsLocked()
 	return true
 }
 
@@ -77,9 +79,36 @@ func (l *applicationLifecycle) detach(ctx context.Context) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.clients, ctx)
+	l.notifyClientsLocked()
 	if l.closing && len(l.clients) == 0 {
 		close(l.drained)
 	}
+}
+
+func (l *applicationLifecycle) notifyClientsLocked() {
+	if l.clientChanged != nil {
+		close(l.clientChanged)
+		l.clientChanged = make(chan struct{})
+	}
+}
+
+func (l *applicationLifecycle) clientSnapshot() (int, <-chan struct{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.clientChanged == nil {
+		l.clientChanged = make(chan struct{})
+	}
+	return len(l.clients), l.clientChanged
+}
+
+func (l *applicationLifecycle) requestExitIfUnattended() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.clients) != 0 || l.closing {
+		return false
+	}
+	l.request(ShutdownExit, nil)
+	return true
 }
 
 func (l *applicationLifecycle) beginShutdown() {

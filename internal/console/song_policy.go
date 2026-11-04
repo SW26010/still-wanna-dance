@@ -31,6 +31,7 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 		policy := cacheproxy.SongPolicy(q.Get("policy"))
 		query := q.Get("q")
 		if err != nil || offset < 0 || offset > 10000000 || policy != "" && !policy.Valid() || !utf8.ValidString(query) || len(utf16.Encode([]rune(query))) > 300 {
+			preserveResponseFault(w, err)
 			http.Error(w, "无效查询", http.StatusBadRequest)
 			return
 		}
@@ -74,6 +75,7 @@ func (c *Console) songPolicyAPI(w http.ResponseWriter, r *http.Request) {
 		result = map[string]bool{"ok": err == nil}
 	}
 	if err != nil {
+		preserveResponseFault(w, err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": err.Error()})

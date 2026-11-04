@@ -275,6 +275,9 @@ func (s *Store) failureDone() <-chan struct{} {
 	return s.failed
 }
 
+// FailureDone closes when the store retains its first terminal I/O failure.
+func (s *Store) FailureDone() <-chan struct{} { return s.failureDone() }
+
 func (s *Store) storageError(err error) error {
 	s.rememberFailure(err)
 	return err

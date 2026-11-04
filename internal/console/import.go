@@ -168,6 +168,13 @@ func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, 
 		}
 		c.importStatus = status
 		c.mu.Unlock()
+		if ctx.Err() == nil {
+			var failure error
+			if status.Error != "" {
+				failure = errors.New(status.Error)
+			}
+			c.reportFault("task:import", failure)
+		}
 	}()
 }
 
@@ -226,6 +233,7 @@ func (c *Console) discardImport(id uint64, confirmed bool) error {
 	c.mu.Lock()
 	c.importTask, c.importStatus = nil, ImportStatus{}
 	c.mu.Unlock()
+	c.reportFault("task:import", nil)
 	return nil
 }
 

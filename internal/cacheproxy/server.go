@@ -65,6 +65,7 @@ type Server struct {
 	cancel           context.CancelFunc
 	mu               sync.Mutex
 	storageFailure   error // protected by mu; prevents new downloads until restart
+	storageFailed    chan struct{}
 	flights          map[string]*flight
 	resourceUses     map[string]*resourceUse  // protected by mu; completed Range work with continuing usage
 	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
@@ -192,7 +193,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 		return dial(ctx, network, address)
 	}
 
-	s := &Server{Store: store, cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock,
+	s := &Server{Store: store, cfg: cfg, ctx: ctx, cancel: cancel, unlock: unlock, storageFailed: make(chan struct{}),
 		requests:      new(requestActivity),
 		rangeBuffers:  make(chan []byte, cfg.DownloadConcurrencySoftLimit),
 		versionPins:   make(map[string]int),

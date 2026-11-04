@@ -30,6 +30,7 @@ func (c *Console) serveDownloads(w http.ResponseWriter, r *http.Request) {
 		result.Running = c.httpServer != nil
 		c.mu.Unlock()
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, "活动下载读取失败，请稍后重试", http.StatusInternalServerError)
 			return
 		}

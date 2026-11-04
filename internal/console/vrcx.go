@@ -51,6 +51,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		Overwrite bool   `json:"overwrite"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		preserveResponseFault(w, err)
 		http.Error(w, "无效的 VRCX 导入请求", http.StatusBadRequest)
 		return
 	}
@@ -76,6 +77,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/api/vrcx/dismiss" {
 		if err := c.dismissVRCXSuggestion(); err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, "无法保存忽略选择，请重试", http.StatusInternalServerError)
 			return
 		}
@@ -108,6 +110,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		history := &cacheproxy.SongUsageImport{}
 		summary, err := vrcx.Read(ctx, path, history.Observe)
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -115,6 +118,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		existing, err := c.vrcxUsageCount(ctx, root)
 		c.lifecycleMu.Unlock()
 		if err != nil {
+			preserveResponseFault(w, err)
 			http.Error(w, "无法读取目标歌曲统计，请检查存储后重试；未导入", http.StatusConflict)
 			return
 		}
@@ -125,6 +129,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 		if p.Events > 0 {
 			var token [24]byte
 			if _, err = rand.Read(token[:]); err != nil {
+				preserveResponseFault(w, err)
 				http.Error(w, "无法创建导入预览，请重试", http.StatusInternalServerError)
 				return
 			}
@@ -156,6 +161,7 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	if err := c.importVRCXPreview(ctx, p, input.Overwrite); err != nil {
+		preserveResponseFault(w, err)
 		status := http.StatusConflict
 		if errors.Is(err, errVRCXWrite) {
 			status = http.StatusInternalServerError

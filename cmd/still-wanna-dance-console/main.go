@@ -24,10 +24,12 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/console"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/legal"
 )
 
 var visibleErrors = runtime.GOOS == "windows"
+var openWebUI = desktop.OpenBrowser
 
 func main() {
 	err := run()
@@ -38,7 +40,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if visibleErrors {
-			desktop.ShowError(err)
+			if recoveryErr := recoverApplication(err); recoveryErr != nil {
+				if errors.Is(recoveryErr, err) {
+					desktop.ShowError(recoveryErr)
+				} else {
+					desktop.ShowError(errors.Join(err, recoveryErr))
+				}
+			}
 		}
 		os.Exit(1)
 	}
@@ -82,6 +90,7 @@ func run() (runErr error) {
 		return nil
 	}
 	visibleErrors = runtime.GOOS == "windows" && !*noTray && *hostsSession == ""
+	incidentCenter := faults.New()
 	if *hostsSession != "" {
 		return console.RunHostsSession(*hostsSession, uint32(*hostsParent))
 	}
@@ -159,12 +168,17 @@ func run() (runErr error) {
 		writer, err = applog.Open(logDir, applog.MaxBytes, applog.MaxTotalBytes, func(err error) {
 			message := fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
 			fmt.Fprintln(os.Stderr, message)
-			if visibleErrors {
-				go desktop.ShowError(message)
-			}
 		})
 		if err != nil {
 			return fmt.Errorf("无法创建程序日志（%s）：%w", logDir, err)
+		}
+		if visibleErrors {
+			writer.SetFaultObserver(func(err error) {
+				if err != nil {
+					err = fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
+				}
+				incidentCenter.Set("logging", err)
+			})
 		}
 	}
 	previousLogger := slog.Default()
@@ -216,6 +230,7 @@ func run() (runErr error) {
 	if err != nil {
 		return err
 	}
+	c.SetFaultCenter(incidentCenter)
 	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
 	var background sync.WaitGroup
@@ -225,6 +240,7 @@ func run() (runErr error) {
 	shutdown := func() {
 		closeOnce.Do(func() {
 			slog.Info("application_stopping")
+			stop()
 			c.BeginShutdown()
 			background.Wait()
 			// Let the exit acknowledgement finish before closing connections.
@@ -262,14 +278,25 @@ func run() (runErr error) {
 		slog.Warn("console_port_save_failed", "error", err)
 	}
 	// Keep the console and tray usable while automatic acceleration waits for UAC.
-	background.Add(2)
+	url := "http://" + l.Addr().String()
+	if !*noTray {
+		if !*noOpen && c.OpenWebUIOnLaunch() {
+			incidentCenter.Open()
+		}
+		background.Add(1)
+		go func() {
+			defer background.Done()
+			watchFaultOpenings(ctx, incidentCenter, url, openWebUI, func(err error) { go desktop.ShowError(err) })
+		}()
+	}
+	background.Add(3)
 	go func() { defer background.Done(); c.AutoStart() }()
 	go func() { defer background.Done(); c.WatchVRChat() }()
-	url := "http://" + l.Addr().String()
+	go func() { defer background.Done(); c.WatchFaults(ctx) }()
 	slog.Info("console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance WebUI：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
-		err = desktop.Run(ctx, desktop.Options{URL: url, Open: !*noOpen && c.OpenWebUIOnLaunch(), State: c.DesktopState, Command: c.DesktopCommand, RequestExit: c.RequestExit, Shutdown: shutdown, EndSession: endSession})
+		err = desktop.Run(ctx, desktop.Options{URL: url, State: c.DesktopState, Command: c.DesktopCommand, CommandReportsErrors: true, ReportFault: incidentCenter.Set, RequestExit: c.RequestExit, Shutdown: shutdown, EndSession: endSession})
 	} else {
 		<-ctx.Done()
 	}
@@ -280,6 +307,14 @@ func run() (runErr error) {
 	}
 	if shutdownErr != nil {
 		return shutdownErr
+	}
+	if !*noTray {
+		// A terminal fault can be published while background tasks drain after
+		// the normal listener has begun shutting down. Present it through the
+		// independent WebUI rather than silently discarding it with the process.
+		if _, pending := incidentCenter.Take(); pending != nil {
+			return pending
+		}
 	}
 	if err == nil {
 		if c.ShutdownAction() == console.ShutdownRestart {

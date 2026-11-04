@@ -170,6 +170,7 @@ func (c *Console) acceptTerms() error {
 			if err != nil {
 				proxy.startupError = "代理启动失败，请检查节点和日志，修复后重启程序"
 				c.termsStartupFailed = true
+				c.reportFault("upstream:start", err)
 				return fmt.Errorf("%w: %v", errTermsStartup, err)
 			}
 			c.upstreamDial, c.client = dial, client
@@ -296,10 +297,12 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 				writeJSON(w, map[string]any{"ok": true, "warning": "条款已保存，但代理或网络监测启动失败；请检查设置和日志，修复后重启程序。"})
 				return true
 			}
+			c.reportFault("terms:accept", err)
 			slog.Error("terms_accept_failed", "error", err)
 			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true
 		}
+		c.reportFault("terms:accept", nil)
 		writeJSON(w, map[string]bool{"ok": true})
 		// Consent is already durable. Do not hold the response open during UAC.
 		go c.autoStart()

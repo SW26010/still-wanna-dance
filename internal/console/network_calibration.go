@@ -26,6 +26,13 @@ func (c *Console) networkCalibrationLocked() (*upstreamcheck.Calibration, error)
 			Candidates: c.calibrationCandidates, SelectSong: c.metadataLocked().SelectSongExcept,
 			Playback: c.connectivityAccess().Playback, OnPlaybackURL: c.syncPlaybackURL,
 			ResourceTransports: c.resourceTransports,
+			OnFinish: func(result upstreamcheck.CalibrationStatus) {
+				if result.Phase == "failed" {
+					c.reportFault("task:calibration", errors.New("网络测速未完成"))
+				} else if result.Phase == "completed" {
+					c.reportFault("task:calibration", nil)
+				}
+			},
 		})
 	}
 	return c.networkDiagnostics.calibration, nil

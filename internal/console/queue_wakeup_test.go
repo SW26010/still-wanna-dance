@@ -11,8 +11,68 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/vrclog"
 )
+
+func TestQueuePersistentLogFailureUsesFaultCenter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		engine, _ := failingQueueEngine(t)
+		dir := t.TempDir()
+		path := filepath.Join(dir, "output_log_2026-10-24_00-00-00.txt")
+		if err := os.WriteFile(path, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		tail := &vrclog.Tail{Dir: dir}
+		if _, err := tail.Poll(time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		center := faults.New()
+		q := &queueTask{}
+		q.setLogFaultObserver(func(err error) { center.Retry("queue:log", err) })
+		q.start(tail, engine)
+		t.Cleanup(q.stop)
+		synctest.Wait()
+		time.Sleep(2 * vrclog.PollInterval)
+		synctest.Wait()
+		select {
+		case <-center.Wake():
+			t.Fatal("a retrying log failure was reported too early")
+		default:
+		}
+		time.Sleep(vrclog.PollInterval)
+		synctest.Wait()
+		select {
+		case <-center.Wake():
+			if open, err := center.Take(); !open || err == nil {
+				t.Fatal("persistent log failure did not request WebUI", open, err)
+			}
+		default:
+			t.Fatal("persistent log failure was not reported")
+		}
+		if err := os.WriteFile(path, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(vrclog.PollInterval)
+		synctest.Wait()
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(3 * vrclog.PollInterval)
+		synctest.Wait()
+		select {
+		case <-center.Wake():
+			if open, err := center.Take(); !open || err == nil {
+				t.Fatal("new log incident after recovery was not reported", open, err)
+			}
+		default:
+			t.Fatal("new log incident did not wake the fault center")
+		}
+	})
+}
 
 func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 	t.Helper()

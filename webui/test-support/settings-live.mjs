@@ -66,6 +66,8 @@ try {
   await expect(second.getByRole('tabpanel',{name:'存储',exact:true}).getByText('目录或视频保留策略已变化，请重新确认后保存。',{exact:true})).toBeVisible();
   expect((await status()).settings.videoDir).toBe(initial.settings.videoDir);
   await expect(second.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
+  await expect(second.getByRole('checkbox',{name:'优先保留收藏视频',exact:true})).toBeDisabled();
+  await expect(second.getByRole('checkbox',{name:'优先保留收藏视频',exact:true})).toBeChecked();
   await save.click();
   await expect(dialog).toContainText('不保留普通视频');
   // A concurrent unrelated edit must not invalidate this new confirmation.

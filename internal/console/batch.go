@@ -109,7 +109,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	c.mu.Lock()
 	scanOnly, settings, target := c.batch.ScanOnly, c.settings, c.batch.Target
 	c.mu.Unlock()
-	fill := s.NewDownloadFill(ctx, scanOnly, settings.RetainFavorites)
+	fill := s.NewDownloadFill(ctx, scanOnly, settings.retainFavoritesEnabled())
 
 	defer func() {
 		c.lifecycleMu.Lock()
@@ -231,7 +231,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	if result.BudgetReached {
 		c.mu.Lock()
 		c.batch.Phase = "视频存储预算不足，已停止普通补齐。"
-		if settings.RetainFavorites {
+		if settings.retainFavoritesEnabled() {
 			c.batch.Phase += "本轮可处理的收藏已继续处理。"
 		}
 		c.batch.Phase += "调整视频保留空间后可再次补齐。"

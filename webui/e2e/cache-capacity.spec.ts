@@ -135,7 +135,7 @@ test('settings preserve all three storage choices and the entered budget across 
 });
 
 
-test('no retention overrides the remembered budget while favorites can still be filled', async ({page}) => {
+test('no retention overrides the remembered budget and keeps manual actions available', async ({page}) => {
   const api = await mockAPI(page);
   api.state.activeSettings.videoStorageMode = 'none';
   await page.goto('/#/library?view=resources');

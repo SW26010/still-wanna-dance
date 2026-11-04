@@ -81,7 +81,8 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 }
 
 func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
-	c := testConsole(t) // no engine; the active storage budget is zero
+	c := testConsole(t) // no engine; the existing video exceeds the active budget
+	c.settings.VideoStorageMode, c.settings.VideoBudgetBytes = "limited", 1
 	cfg := fixtureCacheConfig()
 	cfg.CacheUnlimited = true
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
@@ -238,16 +239,19 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 }
 
 func TestBatchContinuesFavoritesAfterBudgetStopAndSkipsBlockedSharedSong(t *testing.T) {
-	for _, retain := range []bool{true, false} {
-		t.Run(fmt.Sprint(retain), func(t *testing.T) { testBatchFavoriteRetention(t, retain) })
+	for _, mode := range []string{"none", "limited"} {
+		for _, retain := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/%t", mode, retain), func(t *testing.T) { testBatchFavoriteRetention(t, mode, retain) })
+		}
 	}
 }
 
-func testBatchFavoriteRetention(t *testing.T, retain bool) {
+func testBatchFavoriteRetention(t *testing.T, mode string, retain bool) {
 	c := testConsole(t)
-	c.settings.RetainFavorites = retain
+	c.settings.VideoStorageMode, c.settings.RetainFavorites = mode, retain
+	c.settings.VideoBudgetBytes = 1
 	// IDs outside the initial priority list keep deterministic descending order:
-	// ordinary hits the zero budget first; favorite has a blocked shared ID.
+	// ordinary exceeds the budget first; favorite has a blocked shared ID.
 	bodies := map[int]string{9000003: "ordinary", 9000002: "favorite", 9000001: "favorite"}
 	var mu sync.Mutex
 	queries := map[int]int{}
@@ -273,8 +277,11 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.CacheUnlimited = false
-	cfg.RetainFavorites = retain
-	cfg.VideoBudgetBytes = 0
+	cfg.RetainFavorites = c.settings.retainFavoritesEnabled()
+	cfg.VideoBudgetBytes = 1
+	if mode == "none" {
+		cfg.VideoBudgetBytes = 0
+	}
 	cfg.AggressiveBlockReclamation = "off"
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
@@ -302,14 +309,17 @@ func testBatchFavoriteRetention(t *testing.T, retain bool) {
 	mu.Lock()
 	defer mu.Unlock()
 	wantDownloads := 0
-	if retain {
+	if mode == "limited" && retain {
 		wantDownloads = 1
 	}
 	if int(downloads.Load()) != wantDownloads || queries[9000003] != 1 || queries[9000002] != wantDownloads || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != wantDownloads || !c.batch.BudgetReached {
 		t.Fatal(queries, downloads.Load(), c.batch)
 	}
 	path := filepath.Join(cfg.VideoDir, fmt.Sprintf("%x.mp4", md5.Sum([]byte("favorite"))))
-	if !retain {
+	if wantDownloads == 0 {
+		if strings.Contains(c.batch.Phase, "收藏已继续处理") {
+			t.Fatal("disabled favorite retention advertised a budget exception", c.batch.Phase)
+		}
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatal("disabled retention published favorite beyond budget", err)
 		}

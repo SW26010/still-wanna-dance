@@ -25,11 +25,13 @@ func TestSongPreferencesBrowser(t *testing.T) {
 		t.Skip("set SWD_SONG_BROWSER_EVIDENCE for real console browser verification")
 	}
 	c := testConsole(t)
+	c.settings.VideoStorageMode, c.settings.VideoBudgetBytes = "limited", 1
+	c.savedSettings = c.settings
 	var resolutions atomic.Int32
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited = false
-	cfg.VideoBudgetBytes = 0
+	cfg.VideoBudgetBytes = 1
 	cfg.AggressiveBlockReclamation = "off"
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		resolutions.Add(1)

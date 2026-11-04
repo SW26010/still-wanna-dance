@@ -62,6 +62,11 @@ func defaultSettings() Settings {
 	}
 }
 
+// Keep the saved preference when video retention is disabled.
+func (s Settings) retainFavoritesEnabled() bool {
+	return s.VideoStorageMode != "none" && s.RetainFavorites
+}
+
 // Settings requests update only submitted fields. Decode over the latest saved
 // settings under the lifecycle lock; omitted/null scalars retain their values,
 // while explicit false, zero and empty strings still reach normal validation.

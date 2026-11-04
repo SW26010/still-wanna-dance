@@ -97,7 +97,7 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg.VideoDir = libraryPaths(settings).VideoDir
 	cfg.VideoBudgetBytes = settings.VideoBudgetBytes
 	cfg.CacheUnlimited = settings.VideoStorageMode == "unlimited"
-	cfg.RetainFavorites = settings.RetainFavorites
+	cfg.RetainFavorites = settings.retainFavoritesEnabled()
 	cfg.AggressiveBlockReclamation = settings.AggressiveBlockReclamation
 	if settings.VideoStorageMode == "none" {
 		cfg.VideoBudgetBytes = 0

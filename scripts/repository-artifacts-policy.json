@@ -1186,6 +1186,13 @@
       "bytes": 1253713,
       "sha256": "78cd9a3b42c53afa0c54e85cc5a522fa54baaa274e97bb7b2ff4a436b01df8cb",
       "reason": "Reviewed generated Fluent UI bundle: move temporary cache location, reclamation and local protection settings to Download and cache; remove duplicate active storage paths."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1254509,
+      "sha256": "34d7791943db7e6a0c385b72b02311767fd5dbc424db52010c625a0d92dbea3d",
+      "reason": "Reviewed production Fluent UI bundle: disable the favorite-retention checkbox in no-retention mode while preserving its value and all existing interface copy. Embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

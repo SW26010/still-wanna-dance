@@ -273,6 +273,7 @@ func run() (runErr error) {
 	if err := c.StartUpstreamServices(); err != nil {
 		return err
 	}
+	c.StartUpdateCheck()
 	go func() { done <- h.Serve(l); stop() }()
 	if err := saveConsolePort(p, l.Addr()); err != nil {
 		slog.Warn("console_port_save_failed", "error", err)

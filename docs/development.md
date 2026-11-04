@@ -27,6 +27,8 @@ Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_
 
 加速启停与退出策略的真实浏览器联调可设置 `SWD_HOSTS_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestHostsPolicyBrowser$' -count=1 -v`。测试使用回环网关和私有 hosts 文件，不修改系统 hosts。Windows CI 同时运行此检查和上述设置联调。
 
+更新检查的真实 Console 与浏览器联调可设置 `SWD_UPDATE_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestUpdateBrowser$' -count=1 -v`；GitHub 响应受控，检查启动通知、多个页面、刷新和手动检查。另可设置 `SWD_UPDATE_GITHUB_LIVE=1` 并运行 `TestUpdatePublicGitHub`，通过产品直连网络访问公开 Release 接口，不启动游戏或修改 hosts。
+
 ## 测试维护与 CI 修复
 
 目标是平衡发现真实问题的效果与长期维护成本，让失败容易复现和定位。测试数量、模拟数量和单次全绿都不能单独证明验证质量；选择能判断具体风险的最小可靠检查，验证分工以[实机验收机制](live-acceptance-process.md)为准。

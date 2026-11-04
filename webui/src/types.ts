@@ -32,10 +32,15 @@ export interface Health {
   results?: HealthResult[]; finished?: string; nextCheck?: string; nextThroughput?: string;
   throughputStatus?: string; throughputSaveFailed?: boolean; policy?: { throughputInterval?: number };
 }
+export interface UpdateStatus {
+  checking: boolean; result: 'unknown' | 'current' | 'available'; reason?: 'failed' | 'not_found' | 'version';
+  checkedAt?: string; latestVersion?: string; releaseURL?: string; startupNotice?: boolean;
+}
 export interface Status {
   vrcxImportAvailable: boolean;
   videoImportSuggested: boolean;
   proxyModeMigrated?: boolean;
+  update?: UpdateStatus;
   running: boolean; settings: Settings; activeSettings: Settings; restartRequired: boolean;
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;

@@ -278,7 +278,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		return err
 	}
 	applyRetentionPriorities(videos, priorities)
-	sort.Slice(videos, func(i, j int) bool { return lowerRetentionPriority(videos[i], videos[j]) })
+	sort.Slice(videos, func(i, j int) bool { return lowerRetentionPriority(videos[i], videos[j], policies, limit) })
 	planned := total
 	for _, item := range videos {
 		if planned <= limit {
@@ -287,7 +287,7 @@ func (s *Server) trimCachePass(reconcile bool) error {
 		s.retentionMu.Lock()
 		// Active block protection outranks historical scores and does not count as
 		// planned reclamation. Ordinary in-flight pins still defer eviction.
-		if policies[item.key].favorite || s.videoProtectedLocked(item.key) {
+		if s.videoProtectedLocked(item.key) {
 			s.retentionMu.Unlock()
 			continue
 		}

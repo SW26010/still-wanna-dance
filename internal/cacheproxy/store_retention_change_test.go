@@ -486,9 +486,23 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 0
-	s.retained = map[string]retainedVideo{key: {path: path, key: key, size: info.Size(), modified: info.ModTime().UnixNano()}}
-	s.retainedBytes = info.Size()
+	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 12
+	const ordinary = "dddddddddddddddddddddddddddddddd"
+	seedPrioritySong(t, s, "9000001", ordinary)
+	if err := s.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+		t.Fatal(err)
+	}
+	ordinaryPath := filepath.Join(filepath.Dir(path), ordinary+".mp4")
+	putRetained(t, ordinaryPath, 12)
+	ordinaryInfo, err := os.Stat(ordinaryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.retained = map[string]retainedVideo{
+		key:      {path: path, key: key, size: info.Size(), modified: info.ModTime().UnixNano()},
+		ordinary: {path: ordinaryPath, key: ordinary, size: ordinaryInfo.Size(), modified: ordinaryInfo.ModTime().UnixNano()},
+	}
+	s.retainedBytes = info.Size() + ordinaryInfo.Size()
 
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
@@ -529,6 +543,7 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 		t.Fatal("retention did not finish", ctx.Err())
 	}
 	expectRetained(t, path, true)
+	expectRetained(t, ordinaryPath, false)
 }
 
 func TestPreferenceWriteSerializesWithPublication(t *testing.T) {

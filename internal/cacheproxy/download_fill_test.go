@@ -93,6 +93,45 @@ func TestDownloadFillUsesBlockedSelectedSongAsAddressHint(t *testing.T) {
 	}
 }
 
+func TestDownloadFillFavoriteOrderIncludesUnselectedAliasesAndUnresolvedSongs(t *testing.T) {
+	for _, retain := range []bool{false, true} {
+		t.Run(fmt.Sprint(retain), func(t *testing.T) {
+			s, _ := setup(t, nil, func(c *Config) { c.RetainFavorites = retain })
+			shared, unresolved, ordinary := videoKey("shared"), videoKey("unresolved"), videoKey("ordinary")
+			local := fillTestCatalog(t, s, []CatalogSong{
+				{ID: 9000001, MD5: shared}, {ID: 9000002},
+				{ID: 9000003, MD5: ordinary}, {ID: 9000004, MD5: shared},
+			})
+			// The selected ordinary alias inherits its resource's favorite priority.
+			delete(local.Files.References, "9000004")
+			for _, id := range []int64{9000002, 9000004} {
+				if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+					t.Fatal(err)
+				}
+			}
+			setRetentionLimit(t, s, 10)
+			keys := map[int64]string{9000001: shared, 9000002: unresolved, 9000003: ordinary}
+			var attempts []int64
+			result, err := s.NewDownloadFill(t.Context(), false, retain).Run(local, func(ctx context.Context, id int64) (string, error) {
+				attempts = append(attempts, id)
+				finish, err := s.reserveBatchVideo(ctx, video{key: keys[id], size: 5})
+				if err != nil {
+					return "", err
+				}
+				finish(true)
+				return "MISS", nil
+			}, nil)
+			want := []int64{9000003, 9000002, 9000001}
+			if retain {
+				want = []int64{9000002, 9000001, 9000003}
+			}
+			if err != nil || !reflect.DeepEqual(attempts, want) || !result.BudgetReached || result.Downloaded != 2 || result.Failed != 0 {
+				t.Fatalf("attempts=%v result=%+v error=%v", attempts, result, err)
+			}
+		})
+	}
+}
+
 func TestDownloadFillDoesNotResolveUnselectedAliases(t *testing.T) {
 	const firstID, nextID = int64(9000100), int64(9000001)
 	staleLookup, nextLookup := make(chan string, 1), make(chan struct{}, 1)

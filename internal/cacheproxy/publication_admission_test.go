@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -97,6 +98,61 @@ func TestPublicationReservationCanBeDisplacedAndReleased(t *testing.T) {
 		t.Fatal("abandoned publication leaked its reservation", err)
 	}
 	s.releasePublication(third)
+}
+
+func TestFavoritePublicationSharesBudgetAndRankingWithEviction(t *testing.T) {
+	for _, retain := range []bool{false, true} {
+		t.Run(fmt.Sprint(retain), func(t *testing.T) {
+			s, cfg := setup(t, nil, func(c *Config) { c.RetainFavorites = retain })
+			f, v := completedRangeFlight(t, s, payload)
+			oldKey := videoKey("hot ordinary")
+			seedPrioritySong(t, s, "9000001", v.key)
+			seedPrioritySong(t, s, "9000002", oldKey)
+			if err := s.usage.write([]usageEvent{{songID: "9000002", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.SetSongPolicy(t.Context(), 9000001, SongFavorite); err != nil {
+				t.Fatal(err)
+			}
+			putRetained(t, cfg.videoFile(oldKey), len(payload))
+			setRetentionLimit(t, s, v.size)
+			err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f)
+			if retain && err != nil || !retain && !errors.Is(err, ErrNotRetained) {
+				t.Fatal(err)
+			}
+			s.runRetention(false)
+			expectRetained(t, cfg.videoFile(v.key), retain)
+			expectRetained(t, cfg.videoFile(oldKey), !retain)
+			if retainedBytes(s) != v.size {
+				t.Fatal("replacement exceeded budget", retainedBytes(s))
+			}
+		})
+	}
+}
+
+func TestFavoritePublicationReservationsCannotAccumulatePastBudget(t *testing.T) {
+	s, _ := setup(t, nil)
+	setRetentionLimit(t, s, 10)
+	low, high := video{key: videoKey("low favorite"), size: 10}, video{key: videoKey("high favorite"), size: 10}
+	for id, key := range map[int64]string{9000001: low.key, 9000002: high.key} {
+		seedPrioritySong(t, s, fmt.Sprint(id), key)
+		if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, err := s.reservePublication(t.Context(), low)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.releasePublication(first)
+	second, err := s.reservePublication(t.Context(), high)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.releasePublication(second)
+	if !errors.Is(context.Cause(first.ctx), ErrNotRetained) {
+		t.Fatal("lower ranked favorite reservation bypassed budget")
+	}
 }
 
 func TestPublicationRechecksProtectionBeforeRename(t *testing.T) {

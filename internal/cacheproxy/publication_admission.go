@@ -35,7 +35,7 @@ func (s *Server) reservePublication(ctx context.Context, v video) (*publicationR
 	if err != nil {
 		return nil, err
 	}
-	if policies[v.key].blocked || !policies[v.key].favorite && !unlimited && (limit == 0 || v.size > limit) {
+	if policies[v.key].blocked || !unlimited && (limit == 0 || v.size > limit) {
 		return nil, ErrNotRetained
 	}
 	var priorities map[string]ResourcePriority
@@ -96,13 +96,12 @@ func (s *Server) selectPublicationsLocked(priorities map[string]ResourcePriority
 		}
 	}
 	applyRetentionPriorities(videos, priorities)
-	sort.Slice(videos, func(i, j int) bool { return lowerRetentionPriority(videos[i], videos[j]) })
+	sort.Slice(videos, func(i, j int) bool {
+		return lowerRetentionPriority(videos[i], videos[j], policies, s.cfg.VideoBudgetBytes)
+	})
 	for _, item := range videos {
 		if total <= s.cfg.VideoBudgetBytes {
 			break
-		}
-		if policies[item.key].favorite {
-			continue
 		}
 		if _, exists := s.retained[item.key]; exists && s.videoProtectedLocked(item.key) {
 			continue

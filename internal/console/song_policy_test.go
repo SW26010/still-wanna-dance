@@ -81,8 +81,8 @@ func TestSongPolicyAPIReadAuthValidationAndPersistence(t *testing.T) {
 }
 
 func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
-	c := testConsole(t) // no engine; the existing video exceeds the active budget
-	c.settings.VideoStorageMode, c.settings.VideoBudgetBytes = "limited", 1
+	c := testConsole(t) // no engine; marking must not run startup cleanup
+	c.settings.VideoStorageMode, c.settings.VideoBudgetBytes = "limited", int64(len("previously saved ordinary video"))
 	cfg := fixtureCacheConfig()
 	cfg.CacheUnlimited = true
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
@@ -238,25 +238,34 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 	}
 }
 
-func TestBatchContinuesFavoritesAfterBudgetStopAndSkipsBlockedSharedSong(t *testing.T) {
+func TestBatchPrioritizesFavoritesWithinBudgetAndSkipsBlockedSharedSong(t *testing.T) {
 	for _, mode := range []string{"none", "limited"} {
 		for _, retain := range []bool{true, false} {
-			t.Run(fmt.Sprintf("%s/%t", mode, retain), func(t *testing.T) { testBatchFavoriteRetention(t, mode, retain) })
+			for _, limit := range []int64{1, 8} {
+				t.Run(fmt.Sprintf("%s/%t/%d", mode, retain, limit), func(t *testing.T) { testBatchFavoriteRetention(t, mode, retain, limit) })
+			}
 		}
 	}
 }
 
-func testBatchFavoriteRetention(t *testing.T, mode string, retain bool) {
+func testBatchFavoriteRetention(t *testing.T, mode string, retain bool, limit int64) {
 	c := testConsole(t)
 	c.settings.VideoStorageMode, c.settings.RetainFavorites = mode, retain
-	c.settings.VideoBudgetBytes = 1
+	c.settings.VideoBudgetBytes = limit
 	// IDs outside the initial priority list keep deterministic descending order:
-	// ordinary exceeds the budget first; favorite has a blocked shared ID.
+	// favorites rank before ordinary when enabled; one shared ID is blocked.
 	bodies := map[int]string{9000003: "ordinary", 9000002: "favorite", 9000001: "favorite"}
 	var mu sync.Mutex
 	queries := map[int]int{}
 	var downloads atomic.Int32
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); fmt.Fprint(w, "favorite") }))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloads.Add(1)
+		if strings.Contains(r.URL.Path, "9000003-") {
+			fmt.Fprint(w, "ordinary")
+		} else {
+			fmt.Fprint(w, "favorite")
+		}
+	}))
 	defer origin.Close()
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/catalog" {
@@ -278,7 +287,7 @@ func testBatchFavoriteRetention(t *testing.T, mode string, retain bool) {
 	cfg.ResolvePlayback = c.resolvePlayback
 	cfg.CacheUnlimited = false
 	cfg.RetainFavorites = c.settings.retainFavoritesEnabled()
-	cfg.VideoBudgetBytes = 1
+	cfg.VideoBudgetBytes = limit
 	if mode == "none" {
 		cfg.VideoBudgetBytes = 0
 	}
@@ -309,14 +318,25 @@ func testBatchFavoriteRetention(t *testing.T, mode string, retain bool) {
 	mu.Lock()
 	defer mu.Unlock()
 	wantDownloads := 0
-	if mode == "limited" && retain {
+	if mode == "limited" && limit >= 8 {
 		wantDownloads = 1
 	}
-	if int(downloads.Load()) != wantDownloads || queries[9000003] != 1 || queries[9000002] != wantDownloads || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != wantDownloads || !c.batch.BudgetReached {
+	wantOrdinary, wantFavorite := 1, 0
+	if mode == "limited" && retain {
+		wantOrdinary, wantFavorite = 0, 1
+	}
+	if wantDownloads == 1 {
+		wantOrdinary, wantFavorite = 1, 1
+	}
+	if int(downloads.Load()) != wantDownloads || queries[9000003] != wantOrdinary || queries[9000002] != wantFavorite || queries[9000001] != 0 || c.batch.Failed != 0 || c.batch.Skipped != 1 || c.batch.Downloaded != wantDownloads || !c.batch.BudgetReached {
 		t.Fatal(queries, downloads.Load(), c.batch)
 	}
+	if strings.Contains(c.batch.Phase, "收藏已继续处理") {
+		t.Fatal("batch advertised a budget exception", c.batch.Phase)
+	}
+
 	path := filepath.Join(cfg.VideoDir, fmt.Sprintf("%x.mp4", md5.Sum([]byte("favorite"))))
-	if wantDownloads == 0 {
+	if wantDownloads == 0 || !retain {
 		if strings.Contains(c.batch.Phase, "收藏已继续处理") {
 			t.Fatal("disabled favorite retention advertised a budget exception", c.batch.Phase)
 		}

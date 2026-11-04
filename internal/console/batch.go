@@ -230,11 +230,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	}
 	if result.BudgetReached {
 		c.mu.Lock()
-		c.batch.Phase = "视频存储预算不足，已停止普通补齐。"
-		if settings.retainFavoritesEnabled() {
-			c.batch.Phase += "本轮可处理的收藏已继续处理。"
-		}
-		c.batch.Phase += "调整视频保留空间后可再次补齐。"
+		c.batch.Phase = "视频存储预算不足，已停止补齐。调整视频保留空间后可再次补齐。"
 		c.mu.Unlock()
 		return
 	}

@@ -40,7 +40,15 @@ func applyRetentionPriorities(videos []retainedVideo, priorities map[string]Reso
 	}
 }
 
-func lowerRetentionPriority(a, b retainedVideo) bool {
+func lowerRetentionPriority(a, b retainedVideo, policies map[string]resourcePolicy, limit int64) bool {
+	// An individually oversized file cannot be retained, even if favored.
+	// Remove it before sacrificing smaller files that do fit the budget.
+	if (a.size > limit) != (b.size > limit) {
+		return a.size > limit
+	}
+	if policies[a.key].favorite != policies[b.key].favorite {
+		return !policies[a.key].favorite
+	}
 	if a.score != b.score {
 		return a.score < b.score
 	}

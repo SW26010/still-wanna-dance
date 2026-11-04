@@ -114,14 +114,14 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 	expectRetained(t, cfg.videoFile(key), true)
 }
 
-func TestFavoritePublicationBypassesBudgetWithoutChangingScores(t *testing.T) {
-	for _, limit := range []int64{0, 1} {
+func TestFavoritePublicationRespectsBudgetWithoutChangingScores(t *testing.T) {
+	for _, limit := range []int64{0, 1, int64(len(payload))} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
 			s, cfg := setup(t, nil, func(c *Config) { c.AggressiveBlockReclamation = "off" })
 			f, v := completedRangeFlight(t, s, payload)
 			seedPrioritySong(t, s, "1", v.key)
 			seedPrioritySong(t, s, "2", v.key)
-			ctx := context.Background()
+			ctx := t.Context()
 			before, err := s.retentionPriorities(ctx)
 			if err != nil {
 				t.Fatal(err)
@@ -133,13 +133,22 @@ func TestFavoritePublicationBypassesBudgetWithoutChangingScores(t *testing.T) {
 				t.Fatal(err)
 			}
 			setRetentionLimit(t, s, limit)
-			if err := s.publishBlocks(ctx, cfg.videoFile(v.key), v, f); err != nil {
+			err = s.publishBlocks(ctx, cfg.videoFile(v.key), v, f)
+			wantSaved := limit >= v.size
+			if wantSaved && err != nil || !wantSaved && !errors.Is(err, ErrNotRetained) {
 				t.Fatal(err)
 			}
+			if !wantSaved && (f.progress.stage == "hash" || s.StorageError() != nil) {
+				t.Fatal("denied favorite entered validation or faulted storage")
+			}
 			s.runRetention(false)
-			expectRetained(t, cfg.videoFile(v.key), true)
+			expectRetained(t, cfg.videoFile(v.key), wantSaved)
 			after, err := s.retentionPriorities(ctx)
-			if err != nil || before[v.key] != after[v.key] || retainedBytes(s) != v.size {
+			var wantBytes int64
+			if wantSaved {
+				wantBytes = v.size
+			}
+			if err != nil || before[v.key] != after[v.key] || retainedBytes(s) != wantBytes {
 				t.Fatal("favorite changed scores or accounting", after, err)
 			}
 		})
@@ -189,27 +198,88 @@ func TestSongPolicyRetentionBelowBudgetRespectsSharingAndPins(t *testing.T) {
 
 func TestFavoriteRetentionUsesRemainingBudgetAndUnmarkRestoresEviction(t *testing.T) {
 	s, cfg := setup(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	favorite, ordinary := videoKey("favorite"), videoKey("ordinary")
-	seedPrioritySong(t, s, "1", favorite)
-	seedPrioritySong(t, s, "2", ordinary)
-	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+	seedPrioritySong(t, s, "9000001", favorite)
+	seedPrioritySong(t, s, "9000002", ordinary)
+	if err := s.SetSongPolicy(ctx, 9000001, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	putRetained(t, cfg.videoFile(favorite), 12)
-	putRetained(t, cfg.videoFile(ordinary), 1)
+	putRetained(t, cfg.videoFile(favorite), 6)
+	putRetained(t, cfg.videoFile(ordinary), 4)
 	setRetentionLimit(t, s, 10)
+	s.runRetention(false)
+	expectRetained(t, cfg.videoFile(ordinary), true)
+	setRetentionLimit(t, s, 6)
 	s.runRetention(false)
 	expectRetained(t, cfg.videoFile(favorite), true)
 	expectRetained(t, cfg.videoFile(ordinary), false)
-	if retainedBytes(s) != 12 {
-		t.Fatal(retainedBytes(s))
-	}
-	if err := s.SetSongPolicy(ctx, 1, SongNormal); err != nil {
+	putRetained(t, cfg.videoFile(ordinary), 4)
+	if err := s.SetSongPolicy(ctx, 9000001, SongNormal); err != nil {
 		t.Fatal(err)
 	}
+	s.runRetention(true)
+	expectRetained(t, cfg.videoFile(favorite), false)
+	expectRetained(t, cfg.videoFile(ordinary), true)
+}
+
+func TestFavoriteRetentionOverBudgetKeepsMarksAndRespectsProtection(t *testing.T) {
+	for _, protect := range []bool{false, true} {
+		t.Run(fmt.Sprint(protect), func(t *testing.T) {
+			s, cfg := setup(t, nil)
+			low, high := videoKey("low favorite"), videoKey("high favorite")
+			for id, key := range map[int64]string{9000001: low, 9000002: high} {
+				seedPrioritySong(t, s, fmt.Sprint(id), key)
+				if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+					t.Fatal(err)
+				}
+				putRetained(t, cfg.videoFile(key), 6)
+			}
+			if protect {
+				s.retentionMu.Lock()
+				if s.protection == nil {
+					s.protection = make(map[string]map[int64]blockProtection)
+				}
+				s.protection[low] = map[int64]blockProtection{0: {until: time.Now().Add(time.Hour)}}
+				s.protection[high] = map[int64]blockProtection{0: {until: time.Now().Add(time.Hour)}}
+				s.retentionMu.Unlock()
+			}
+			setRetentionLimit(t, s, 6)
+			s.runRetention(false)
+			expectRetained(t, cfg.videoFile(high), true)
+			expectRetained(t, cfg.videoFile(low), protect)
+			if protect {
+				s.retentionMu.Lock()
+				delete(s.protection, low)
+				delete(s.protection, high)
+				s.retentionMu.Unlock()
+				s.runRetention(false)
+				expectRetained(t, cfg.videoFile(low), false)
+			}
+			if retainedBytes(s) != 6 {
+				t.Fatal(retainedBytes(s))
+			}
+			policies, err := s.SongPolicies(t.Context())
+			if err != nil || policies[9000001] != SongFavorite || policies[9000002] != SongFavorite {
+				t.Fatal(policies, err)
+			}
+		})
+	}
+}
+
+func TestOversizedFavoriteDoesNotEvictOrdinaryVideoThatFits(t *testing.T) {
+	s, cfg := setup(t, nil)
+	favorite, ordinary := videoKey("oversized favorite"), videoKey("ordinary")
+	seedPrioritySong(t, s, "1", favorite)
+	if err := s.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
+		t.Fatal(err)
+	}
+	putRetained(t, cfg.videoFile(favorite), 12)
+	putRetained(t, cfg.videoFile(ordinary), 4)
+	setRetentionLimit(t, s, 10)
 	s.runRetention(false)
 	expectRetained(t, cfg.videoFile(favorite), false)
+	expectRetained(t, cfg.videoFile(ordinary), true)
 }
 
 func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
@@ -223,7 +293,15 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			if policy == SongNormal {
-				setRetentionLimit(t, s, 0)
+				ordinary := videoKey("competing ordinary")
+				seedPrioritySong(t, s, "9000001", ordinary)
+				if err := s.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+					t.Fatal(err)
+				}
+				putRetained(t, cfg.videoFile(ordinary), len(payload))
+				s.pinVideo(video{key: ordinary})
+				defer s.releaseVideo(video{key: ordinary})
+				setRetentionLimit(t, s, v.size)
 			}
 			r, err := s.reservePublication(ctx, v)
 			if err != nil {
@@ -250,20 +328,17 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 	}
 }
 
-func TestFavoriteBatchReservationContinuesAfterStopAndCountsSharedBytesOnce(t *testing.T) {
+func TestFavoriteBatchReservationRespectsBudgetAndCountsSharedBytesOnce(t *testing.T) {
 	s, _ := setup(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	key := videoKey(payload)
 	seedPrioritySong(t, s, "1", key)
 	seedPrioritySong(t, s, "2", key)
 	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	setRetentionLimit(t, s, 0)
+	setRetentionLimit(t, s, 36)
 	ctx = s.withBatchBudget(ctx)
-	if _, err := s.reserveBatchVideo(ctx, video{key: "ordinary", size: 1}); !errors.Is(err, ErrBatchBudget) {
-		t.Fatal(err)
-	}
 	for range 2 {
 		finish, err := s.reserveBatchVideo(ctx, video{key: key, size: 36})
 		if err != nil {
@@ -274,6 +349,18 @@ func TestFavoriteBatchReservationContinuesAfterStopAndCountsSharedBytesOnce(t *t
 	b := ctx.Value(batchBudgetKey{}).(*batchBudget)
 	if len(b.entries) != 1 || b.entries[key].size != 36 {
 		t.Fatal(b.entries)
+	}
+	if _, err := s.reserveBatchVideo(ctx, video{key: "ordinary", size: 1}); !errors.Is(err, ErrBatchBudget) {
+		t.Fatal(err)
+	}
+	if _, err := s.reserveBatchVideo(ctx, video{key: key, size: 36}); !errors.Is(err, ErrBatchBudget) {
+		t.Fatal("favorite bypassed stopped budget", err)
+	}
+	for _, limit := range []int64{0, 1} {
+		setRetentionLimit(t, s, limit)
+		if _, err := s.reserveBatchVideo(s.withBatchBudget(t.Context()), video{key: key, size: 36}); !errors.Is(err, ErrBatchBudget) {
+			t.Fatal("favorite bypassed insufficient budget", limit, err)
+		}
 	}
 }
 
@@ -300,7 +387,7 @@ func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testi
 	writeTestFile(t, cfg.videoFile(key), payload)
 	s.runRetention(true)
 	expectRetained(t, cfg.videoFile(key), false)
-	// Disabling the exception must not turn a shared favorite into a blocked
+	// Disabling the priority must not turn a shared favorite into a blocked
 	// resource: sufficient ordinary budget still permits publication.
 	setRetentionLimit(t, s, v.size)
 	r, err := s.reservePublication(ctx, v)

@@ -73,14 +73,16 @@ func (f *DownloadFill) RunResource(key string) (DownloadFillResult, error) {
 }
 
 type fillResource struct {
-	md5   string
-	ids   []string
-	score float64
+	md5      string
+	ids      []string
+	score    float64
+	favorite bool
 }
 
 type fillCandidatesKey struct{}
 
-func (s *Server) fillResources(ctx context.Context, references map[string]string) (result []*fillResource, resultErr error) {
+func (f *DownloadFill) fillResources(ctx context.Context, references map[string]string) (result []*fillResource, resultErr error) {
+	s := f.server
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
@@ -89,6 +91,18 @@ func (s *Server) fillResources(ctx context.Context, references map[string]string
 	priorities, err := s.retentionPriorities(ctx)
 	if err != nil {
 		return nil, err
+	}
+	var policies map[string]resourcePolicy
+	var songPolicies map[int64]SongPolicy
+	if f.retainFavorites && !f.scanOnly {
+		policies, err = s.resourcePolicies(ctx)
+		if err != nil {
+			return nil, err
+		}
+		songPolicies, err = s.SongPolicies(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	grouped := map[string]*fillResource{}
 	var unresolved []int64
@@ -104,15 +118,17 @@ func (s *Server) fillResources(ctx context.Context, references map[string]string
 	}
 	for id, key := range references {
 		groupKey, score := key, priorities[key].Score
+		favorite := policies[key].favorite
 		if key == "" {
 			// Unknown resources share no identity; resolve each song separately.
 			groupKey = "song:" + id
 			n, _ := strconv.ParseInt(id, 10, 64)
 			score = songPriorities[n]
+			favorite = songPolicies[n] == SongFavorite
 		}
 		if grouped[groupKey] == nil {
 			// Retained mappings still contribute to shared-resource priority.
-			grouped[groupKey] = &fillResource{md5: key, score: score}
+			grouped[groupKey] = &fillResource{md5: key, score: score, favorite: favorite}
 		}
 		grouped[groupKey].ids = append(grouped[groupKey].ids, id)
 	}
@@ -127,6 +143,9 @@ func (s *Server) fillResources(ctx context.Context, references map[string]string
 		jobs = append(jobs, job)
 	}
 	sort.Slice(jobs, func(i, j int) bool {
+		if jobs[i].favorite != jobs[j].favorite {
+			return jobs[i].favorite
+		}
 		if jobs[i].score != jobs[j].score {
 			return jobs[i].score > jobs[j].score
 		}
@@ -144,7 +163,7 @@ func (s *Server) fillResources(ctx context.Context, references map[string]string
 func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, int64) (string, error), progress func(DownloadFillResult)) (DownloadFillResult, error) {
 	s, ctx := f.server, f.ctx
 	var result DownloadFillResult
-	jobs, err := s.fillResources(ctx, local.Files.References)
+	jobs, err := f.fillResources(ctx, local.Files.References)
 	if err != nil {
 		return result, err
 	}
@@ -174,17 +193,15 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 		if !f.scanOnly {
 			var policies map[int64]SongPolicy
 			policies, err = s.SongPolicies(ctx)
-			favorite := false
 			if err == nil {
 				for _, id := range job.ids {
 					n, _ := strconv.ParseInt(id, 10, 64)
 					if policies[n] == SongBlocked {
 						skip(id)
 					}
-					favorite = favorite || f.retainFavorites && policies[n] == SongFavorite
 				}
 			}
-			if len(ids) == 0 || budgetStopped.Load() && !favorite && err == nil {
+			if len(ids) == 0 || budgetStopped.Load() && err == nil {
 				return
 			}
 		}

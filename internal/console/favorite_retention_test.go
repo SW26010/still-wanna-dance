@@ -72,13 +72,13 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 				if c.settings.RetainFavorites != retain || c.settings.VideoStorageMode != mode || c.settings.VideoBudgetBytes != next.VideoBudgetBytes {
 					t.Fatal("restart lost saved preferences")
 				}
-				wantSaved := mode == "unlimited" || mode == "limited" && retain
+				wantSaved := mode == "unlimited"
 				if data, err := os.ReadFile(file); wantSaved {
 					if err != nil || string(data) != body {
-						t.Fatal("enabled retention lost favorite file", err)
+						t.Fatal("unlimited retention lost favorite file", err)
 					}
 				} else if !os.IsNotExist(err) {
-					t.Fatal("disabled retention kept the file", err)
+					t.Fatal("budgeted retention kept an oversized favorite", err)
 				}
 				policies, err := c.service.SongPolicies(t.Context())
 				if err != nil || policies[42] != cacheproxy.SongFavorite {

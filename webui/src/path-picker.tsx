@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Input, type LabelProps, type SlotRenderFunction } from '@fluentui/react-components';
 import { request } from './api';
 import { Feedback } from './ui';
+import { ValidationField } from './field-validation';
 
 type PathPurpose = 'database' | 'vrcx-database' | 'video-directory' | 'block-cache-directory' | 'import-directory' | 'log-directory';
 
@@ -38,17 +39,19 @@ export function usePathPicker(onPending?: (pending: boolean) => void) {
 }
 
 // Keep the selected path readable/copyable; all edits go through the OS dialog.
-export function PathField({label, labelSuffix, value, defaultValue = '', displayValue, isDefault = samePath(value, defaultValue), hint, warning, disabled, onChoose, onReset}: {
-  label: string; labelSuffix?: ReactNode; value: string; defaultValue?: string; displayValue?: string; isDefault?: boolean; hint?: string; warning?: string; disabled: boolean;
+export function PathField({label, labelSuffix, name, value, defaultValue = '', displayValue, isDefault = samePath(value, defaultValue), hint, warning, disabled, onChoose, onReset}: {
+  label: string; name?:string; labelSuffix?: ReactNode; value: string; defaultValue?: string; displayValue?: string; isDefault?: boolean; hint?: string; warning?: string; disabled: boolean;
   onChoose: () => void; onReset: () => void;
 }) {
   const renderLabel: SlotRenderFunction<LabelProps> = (Label, props) => <div className="inline" style={{alignItems:'baseline'}}><Label {...props}>{label}</Label>{labelSuffix}</div>;
-  return <Field label={labelSuffix ? {children: renderLabel} : label} hint={hint} validationMessage={warning} validationState={warning ? 'warning' : undefined}><div className="path-field" data-default={isDefault}>
-    <Input readOnly disabled={disabled} value={displayValue ?? (value || defaultValue)} placeholder="点击选择…" aria-haspopup="dialog"
+  const control=<div className="path-field" data-default={isDefault}>
+    <Input name={name} readOnly disabled={disabled} value={displayValue ?? (value || defaultValue)} placeholder="点击选择…" aria-haspopup="dialog"
       onClick={() => { if (!disabled) onChoose(); }}
       onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!disabled && !event.repeat) onChoose(); } }}/>
     <Button type="button" disabled={disabled || isDefault} aria-label={`${label}：恢复默认`} onClick={onReset}>恢复默认</Button>
-  </div></Field>;
+  </div>;
+  return labelSuffix || !name && !warning ? <Field label={labelSuffix?{children:renderLabel}:label} hint={hint}>{control}</Field>
+    : <ValidationField name={name} label={label} hint={hint} error={warning}>{control}</ValidationField>;
 }
 
 export function samePath(value: string, defaultValue: string) {

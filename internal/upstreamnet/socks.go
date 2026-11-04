@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -43,10 +44,34 @@ func (c *socks5Conn) CloseWrite() error { return c.transport.CloseWrite() }
 func ValidateSOCKS5Address(address string) error {
 	host, port, err := net.SplitHostPort(address)
 	n, portErr := strconv.Atoi(port)
-	if err != nil || host == "" || strings.ContainsAny(host, "/@?# \\\t\r\n") || portErr != nil || n < 1 || n > 65535 {
+	if err != nil || !validSOCKS5Host(host, strings.HasPrefix(address, "[")) || port == "" || strings.Trim(port, "0123456789") != "" || portErr != nil || n < 1 || n > 65535 {
 		return errors.New("SOCKS5 地址必须为主机:端口，例如 127.0.0.1:7891（无需 socks5:// 前缀）")
 	}
 	return nil
+}
+
+func validSOCKS5Host(host string, bracketed bool) bool {
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return ip.Is6() == bracketed
+	}
+	if bracketed || host == "" || len(host) > 253 {
+		return false
+	}
+	// A dotted numeric host must be a valid IPv4 address, not a DNS fallback.
+	if strings.Contains(host, ".") && strings.Trim(host, "0123456789.") == "" {
+		return false
+	}
+	for _, label := range strings.Split(strings.TrimSuffix(host, "."), ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, c := range label {
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // NewSOCKS5Dialer delegates destination DNS and connection establishment to the

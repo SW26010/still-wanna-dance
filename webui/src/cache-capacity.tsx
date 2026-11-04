@@ -1,6 +1,7 @@
 import { Field, Input, Link, Radio, RadioGroup, Tooltip } from '@fluentui/react-components';
 import { useId } from 'react';
 import { date, gib, type Settings } from './types';
+import {ValidationField} from './field-validation';
 
 declare const __VIDEO_COVERAGE_REFERENCE__: {maxBudgetGiB: number; budgets: number[]; values: number[]};
 // A 0.01 GiB budget is stored as a whole number of bytes and can round down.
@@ -51,11 +52,11 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
     </RadioGroup></Field>
     <p>{mode==='none'?'普通视频不长期保留。':'保存完整视频供下次播放，优先保留常用歌曲。'}</p>
     <div className="capacity-budget-row">
-      <Field label="视频存储预算（GiB）" required={limited}>
-        <Input type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
+      <ValidationField name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
+        <Input name="videoBudgetBytes" type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
           aria-describedby={estimate === undefined ? undefined : estimateId}
           value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({videoBudgetGiB: v.value})} />
-      </Field>
+      </ValidationField>
       <span id={estimateId} className="secondary" aria-live="polite">{estimate !== undefined && `最佳约命中 ${estimate} 的歌曲请求`}</span>
     </div>
   </div>;

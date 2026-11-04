@@ -16,7 +16,7 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 		err = c.validateResourcePaths(s)
 	}
 	if err == nil {
-		err = c.validateBlockCacheSelection(s)
+		err = invalidSetting(c.validateBlockCacheSelection(s), "blockCacheDir")
 	}
 	return s, err
 }

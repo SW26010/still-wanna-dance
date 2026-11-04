@@ -127,5 +127,8 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	preserveResponseFault(w, err)
+	if writeSettingsValidation(w, err) {
+		return
+	}
 	http.Error(w, err.Error(), 400)
 }

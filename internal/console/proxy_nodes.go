@@ -46,7 +46,7 @@ type proxyNodeStatus struct {
 
 func validateProxyNodeSelection(s Settings) error {
 	if s.ProxyBackend == "mihomo" && s.UpstreamMode != "direct" && s.nodeSnapshot == "" && s.nodeSecretError == "" {
-		return errors.New("请先导入至少一个受支持的 Mihomo 节点")
+		return invalidSetting(errors.New("请先导入至少一个受支持的 Mihomo 节点"), "proxyImportText")
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (c *Console) importProxyNodes(data []byte) (proxyImportResult, error) {
 	parsed, err := mihomo.Import(data)
 	result := proxyImportResult{ImportResult: parsed}
 	if err != nil || parsed.Accepted == 0 {
-		return result, err
+		return result, invalidSetting(err, "proxyImportText")
 	}
 	snapshot, err := json.Marshal(proxyNodeDocument{Version: proxyNodeDocumentVersion, Nodes: parsed.Nodes})
 	if err != nil || len(snapshot) > mihomo.MaxImportBytes {
@@ -163,10 +163,10 @@ func (c *Console) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
 	draft, exists := c.proxyImports[s.nodeImportID]
 	c.mu.Unlock()
 	if !exists || time.Now().After(draft.Expires) {
-		return s, errors.New("节点导入草稿已过期，请重新导入")
+		return s, invalidSetting(errors.New("节点导入草稿已过期，请重新导入"), "proxyImportText")
 	}
 	if old.nodeSnapshot != draft.BaseSnapshot || old.nodeSecret != draft.BaseSecret {
-		return s, errors.New("已保存节点已在别处改变，请重新导入")
+		return s, invalidSetting(errors.New("已保存节点已在别处改变，请重新导入"), "proxyImportText")
 	}
 	s.nodeSnapshot, s.nodeSecret, s.nodeSecretError = draft.Snapshot, "", ""
 	return s, nil

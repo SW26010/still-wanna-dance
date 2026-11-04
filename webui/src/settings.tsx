@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Button, Checkbox, Field, Input, Select, Textarea, Caption1, Tooltip } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
-import { decode, request } from './api';
+import { APIError, decode, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress, Hint, RecordDetails, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
@@ -11,6 +11,7 @@ import { DirectoryField, samePath } from './path-picker';
 import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
 import { displayStoragePath } from './storage-path';
+import {FieldErrors,ValidationField,inputError} from './field-validation';
 
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
@@ -40,19 +41,20 @@ export const releaseImport = async (id: string) => { if (id) try { await request
 type FormProps = { draft: Draft; update: (values: Partial<Draft>) => void; disabled: boolean; status: Status };
 export function NetworkFields({ draft: d, update, disabled, status, onPending }: FormProps & {onPending: (pending: boolean) => void}) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
+  const [errorField,setErrorField]=useState<'proxyImportText'|'proxyFile'>('proxyImportText');
   const generation = useRef(0), current = useRef(d); current.current = d;
   useEffect(() => () => { generation.current++; }, []);
   const busy = (value: boolean) => { setPending(value); onPending(value); };
   async function readFile(file?: File) {
     if (!file) return;
-    const id = ++generation.current; busy(true); setError('');
+    const id = ++generation.current; busy(true); setError('');setErrorField('proxyFile');
     try { if (file.size > 2 * 1024 * 1024) throw new Error('节点文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text}); }
     catch (e) { if (id === generation.current) setError(String(e)); }
     finally { if (id === generation.current) busy(false); }
   }
   async function inspect() {
     if (pending || disabled || !d.proxyImportText.trim()) return;
-    const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');
+    const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');setErrorField('proxyImportText');
     try {
       const response = await fetch('/api/proxy/import', {method: 'POST', headers: {'Content-Type':'text/plain', 'X-SWD-Token':bootstrap.token},body: content, signal: AbortSignal.timeout(30000)});
       const report = await decode<ProxyReport>(response);
@@ -70,14 +72,14 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
     {d.upstreamMode && d.upstreamMode !== 'direct' && <>
       <Field label="代理后端"><Select disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}><option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></Field>
       {d.proxyBackend !== 'mihomo' ? <>
-        <Field label="SOCKS5 地址" required hint="代理软件的主机:端口。"><Input disabled={locked} required value={d.socks5Address} onChange={(_, v) => update({socks5Address: v.value})} placeholder="127.0.0.1:7891" autoComplete="off" /></Field>
-        <Field label="SOCKS5 用户名（可选）" ><Input disabled={locked} value={d.socks5Username} onChange={(_, v) => update({socks5Username: v.value})} autoComplete="off" /></Field>
-        <Field label="SOCKS5 密码" hint="留空保留已有密码；清空用户名可移除认证。"><Input type="password" disabled={locked} value={d.socks5Password || ''} onChange={(_, v) => update({socks5Password: v.value})} autoComplete="new-password" /></Field>
+        <ValidationField name="socks5Address" label="SOCKS5 地址" required hint="代理软件的主机:端口。"><Input name="socks5Address" disabled={locked} required value={d.socks5Address} onChange={(_, v) => update({socks5Address: v.value})} placeholder="127.0.0.1:7891" autoComplete="off" /></ValidationField>
+        <ValidationField name="socks5Username" label="SOCKS5 用户名（可选）"><Input name="socks5Username" disabled={locked} value={d.socks5Username} onChange={(_, v) => update({socks5Username: v.value})} autoComplete="off" /></ValidationField>
+        <ValidationField name="socks5Password" label="SOCKS5 密码" hint="留空保留已有密码；清空用户名可移除认证。"><Input name="socks5Password" type="password" disabled={locked} value={d.socks5Password || ''} onChange={(_, v) => update({socks5Password: v.value})} autoComplete="new-password" /></ValidationField>
         <Feedback error>{status.socks5CredentialError}</Feedback>
       </> : <>
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>
-        <Field label="粘贴节点内容" validationMessage={d.proxyImportText.trim() ? '请先检查节点内容，或清除本次导入草稿。' : undefined} validationState="none"><Textarea rows={5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => update({proxyImportText: v.value})} /></Field>
-        <Field label="或选择节点文件">{props => <input {...props} type="file" disabled={locked} accept=".yaml,.yml,.txt,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</Field>
+        <ValidationField name="proxyImportText" error={errorField==='proxyImportText'?error:undefined} label="粘贴节点内容"><Textarea name="proxyImportText" rows={5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => {setError('');update({proxyImportText: v.value});}} /></ValidationField>
+        <ValidationField error={errorField==='proxyFile'?error:undefined} label="或选择节点文件">{props=><input {...props} type="file" disabled={locked} accept=".yaml,.yml,.txt,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</ValidationField>
         <Caption1 as="p" className="hint">检查仅生成草稿；保存后替换整份节点库，重启生效。</Caption1>
         <div className="inline secondary">支持 YAML、URI 与 Base64 列表<Hint label="节点格式说明">最多 2 MiB / 2048 条，仅导入节点配置。</Hint></div>
         <div className="actions"><Button disabled={locked || !d.proxyImportText.trim()} onClick={() => void inspect()}>检查并导入到草稿</Button><Button disabled={locked || (!d.proxyImportID && !d.proxyImportText)} onClick={() => { void releaseImport(d.proxyImportID); update({proxyImportID:'',proxyImportText:'',proxyReport:undefined}); }}>清除本次导入草稿</Button></div>
@@ -85,7 +87,6 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
         <span className="secondary">已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
       </>}
     </>}
-    <Feedback error>{error}</Feedback>
   </div>;
 }
 
@@ -96,11 +97,13 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const [draft, setDraft] = useState<Partial<Draft>>(), [pending, setPending] = useState(false);
   const [awaitingRevision, setAwaitingRevision] = useState<number>();
   const [locationError, setLocationError] = useState('');
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const formRef=useRef<HTMLFormElement>(null);
   const [locationValidation, setLocationValidation] = useState<LocationValidation>({});
-  const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); setLocationValidation({}); };
+  const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); setLocationValidation({}); setErrors({});setLocationError(''); };
   useEffect(() => {
     if (awaitingRevision !== undefined && app.status.loadedRevision !== undefined && app.status.loadedRevision >= awaitingRevision) {
-      setDraft(undefined); setAwaitingRevision(undefined);
+      setDraft(undefined); setAwaitingRevision(undefined);setErrors({});
     }
   }, [awaitingRevision, app.status.loadedRevision]);
   const syncing = awaitingRevision !== undefined;
@@ -109,18 +112,61 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const prepareAheadSeconds = Number(d.prepareAheadSeconds);
   const prepareAheadEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
     ? `约 ${prepareAheadSeconds / 4} MB 临时缓存（按 2 Mbps）` : '';
-  const update = (patch: Partial<Draft>) => setDraft(value=>({...value, ...patch}));
+  const update = (patch: Partial<Draft>) => {
+    setDraft(value=>({...value,...patch}));
+    setErrors(previous=>{
+      const next={...previous};
+      for(const key of Object.keys(patch)) {
+        const name=key==='videoBudgetGiB'?'videoBudgetBytes':key;
+        if(!(name in next))continue;
+        const input=formRef.current?.elements.namedItem(name);
+        const message=isInput(input)?inputError(input):'';
+        if(message)next[name]=message;else delete next[name];
+      }
+      if('proxyImportID' in patch)delete next.proxyImportText;
+      if('upstreamMode' in patch||'proxyBackend' in patch)for(const name of ['socks5Address','socks5Username','socks5Password','proxyImportText'])delete next[name];
+      if('requestRetentionMode' in patch)delete next.requestRetentionDays;
+      if('videoStorageMode' in patch)delete next.videoBudgetBytes;
+      return next;
+    });
+  };
+  function isInput(value:unknown):value is HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement {
+    return value instanceof HTMLInputElement||value instanceof HTMLSelectElement||value instanceof HTMLTextAreaElement;
+  }
+  function validateBlur(target:EventTarget) {
+    if(!isInput(target)||!target.name)return;
+    // Backend/combined errors survive focus changes; only an edit or a new
+    // validation result can clear them. Read-only paths have their own check.
+    if(target instanceof HTMLInputElement&&target.readOnly)return;
+    const message=inputError(target);
+    if(!message&&target.name!=='socks5Address'&&!(target instanceof HTMLInputElement&&target.type==='number'))return;
+    setErrors(previous=>{const next={...previous};if(message)next[target.name]=message;else delete next[target.name];return next;});
+  }
   const disabled = app.unavailable || pending || syncing || app.status.loadedRevision !== app.revision;
   const locationChecking = (section === 'storage' || section === 'downloads') && !!locationValidation.checked && locationValidation.checked !== locationValidationKey(d,s.settings);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
-  const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <Field label={label} hint={hint} required><Input id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></Field>;
-  const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty || !!locationValidation.warning || !!d.proxyImportText.trim()}>保存设置</Button>;
-  const restartButton=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} onClick={() => void app.action('restart')}>重启并应用</Button>;
+  const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <ValidationField name={key} label={label} hint={hint} required><Input name={key} id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></ValidationField>;
+  const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
+  const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
+  const restartHint=restartNeedsSaving
+    ? [...app.dirtySettings].some(value=>value!==section)?'其他页面仍有未保存配置，请保存或放弃后再重启。':'请先保存或放弃本页更改，再重启。'
+    : s.settings.autoAccelerate?'重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。':undefined;
+  const restartAction=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} disabledFocusable={restartNeedsSaving} onClick={() => void app.action('restart')}>重启并应用</Button>;
+  const restartButton=restartHint?<Tooltip content={restartHint} relationship="description">{restartAction}</Tooltip>:restartAction;
   async function save() {
-    if (!dirty || disabled || locationChecking || locationValidation.warning || d.proxyImportText.trim()) return;
+    if (!dirty || disabled || locationChecking) return;
+    const checked:Record<string,string>={};
+    for(const input of Array.from(formRef.current?.elements||[]))if(isInput(input)&&input.name){const error=inputError(input);if(error)checked[input.name]=error;}
+    setErrors(checked);
+    if(Object.keys(checked).length) {
+      const first=formRef.current?.elements.namedItem(Object.keys(checked)[0]);
+      if(isInput(first))first.focus();
+      return;
+    }
+    if(locationValidation.warning)return;
     setPending(true); setLocationError('');
     try {
       const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(d);
@@ -157,15 +203,20 @@ export function SettingsPage({section='application',children}: {section?:Setting
           confirmed = {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites};
         }
       }
-      if (await app.action('settings', {...patch,confirmVideoPolicy:confirmed})) setAwaitingRevision(app.revision + 1);
-    } catch (e) { setLocationError(String(e)); }
+      if (await app.action('settings', {...patch,confirmVideoPolicy:confirmed},error=>{
+        if(error.code!=='settings_validation'||!error.fields||!Object.keys(error.fields).some(name=>formRef.current?.elements.namedItem(name)))return false;
+        setErrors(error.fields);return true;
+      })) setAwaitingRevision(app.revision + 1);
+    } catch (e) {
+      if(e instanceof APIError&&e.code==='settings_validation'&&e.fields)setErrors(e.fields);
+      else setLocationError(String(e));
+    }
     finally { setPending(false); }
   }
   const actions = <div className="settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
       <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationValidation.warning)} onClick={discard}>放弃更改</Button>
-      {s.settings.autoAccelerate?<Tooltip content="重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。" relationship="description">{restartButton}</Tooltip>:restartButton}</div>
-      {s.restartRequired&&[...app.dirtySettings].some(value=>value!==section)&&<p>其他页面仍有未保存配置，请保存或放弃后再重启。</p>}</div>;
-  const form = <Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form id={'settings-form-'+section} className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
+      {restartButton}</div></div>;
+  const form = <FieldErrors.Provider value={errors}><Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback><form ref={formRef} noValidate onBlurCapture={e=>validateBlur(e.target)} id={'settings-form-'+section} className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       {section==='storage'&&<fieldset disabled={disabled} aria-label="本地存储">
       <StorageLocationFields section="storage" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
@@ -197,7 +248,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset></>}
       <span className="secondary">运行配置保存后重启生效。</span>
-    </form></Panel>;
+    </form></Panel></FieldErrors.Provider>;
   return children(form,actions);
 }
 

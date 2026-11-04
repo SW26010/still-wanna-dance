@@ -75,3 +75,7 @@ Canvas 绘制文字读取 Fluent 的字体族、字号和字重，不另写固�
 设置四类和关于五类内容采用标准 TabList/Tab/tabpanel，网络页常驻连通性检测、下载速度测试及当前连接模式对应的内容，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；程序主题在网页中采用同一 FluentProvider，不另造主题样式系统。
 
 2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#当前界面规则)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。
+
+## 设置字段的校验反馈（2026-11-04）
+
+按本项目交互约定，设置页使用共用 `ValidationField`：保留 Field 的 `validationState=error`、`aria-invalid`、描述关联及错误播报，`validationMessage` 仅作视觉隐藏的无障碍说明；控件旁固定 24px 图标槽位，使用 Fluent `ErrorCircleRegular` 与 Tooltip。错误原因只在 hover／键盘聚焦图标时可见，不增加文字行；这是项目要求的组合方式，不宣称为 Fluent 官方默认校验模式。原生 file input 通过 Field 的 render props 接收标签与错误关联；只读路径框同样可高亮。设置表单使用 `noValidate` 关闭原生气泡，仍依据输入的 `required/min/max/step` 与 ValidityState 校验，不改变数值范围。历史与日志的时间筛选保留原有字段下方错误，未纳入本次设置页修改。

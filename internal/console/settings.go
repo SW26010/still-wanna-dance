@@ -116,77 +116,77 @@ func storedSettings(s Settings, configPath string) Settings {
 func normalizeSettings(s Settings) (Settings, error) {
 	level, err := applog.ParseLevel(s.LogLevel)
 	if err != nil {
-		return s, err
+		return s, invalidSetting(err, "logLevel")
 	}
 	s.LogLevel = level.String()
 	if s.Theme == "" {
 		s.Theme = "system"
 	}
 	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
-		return s, errors.New("主题必须为 system、light 或 dark")
+		return s, invalidSetting(errors.New("主题必须为 system、light 或 dark"), "theme")
 	}
 	if s.ThroughputIntervalMinutes == 0 {
 		s.ThroughputIntervalMinutes = 20
 	}
 	if s.ThroughputIntervalMinutes < 1 || s.ThroughputIntervalMinutes > 1440 {
-		return s, errors.New("自动吞吐检测间隔必须为 1～1440 分钟")
+		return s, invalidSetting(errors.New("自动吞吐检测间隔必须为 1～1440 分钟"), "throughputIntervalMinutes")
 	}
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"
 	}
 	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" {
-		return s, errors.New("上游连接必须是 direct 或 proxy")
+		return s, invalidSetting(errors.New("上游连接必须是 direct 或 proxy"), "upstreamMode")
 	}
 	if s.ProxyBackend == "" {
 		s.ProxyBackend = "external-socks5"
 	}
 	if s.ProxyBackend != "external-socks5" && s.ProxyBackend != "mihomo" {
-		return s, errors.New("代理后端必须是 external-socks5 或 mihomo")
+		return s, invalidSetting(errors.New("代理后端必须是 external-socks5 或 mihomo"), "proxyBackend")
 	}
 	s.SOCKS5Address = strings.TrimSpace(s.SOCKS5Address)
 	if s.UpstreamMode != "direct" && s.ProxyBackend == "external-socks5" {
 		if err := upstreamnet.ValidateSOCKS5Address(s.SOCKS5Address); err != nil {
-			return s, err
+			return s, invalidSetting(err, "socks5Address")
 		}
 		if err := upstreamnet.ValidateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
-			return s, err
+			return s, invalidSetting(err, "socks5Username", "socks5Password")
 		}
 	}
 	if s.PrepareAheadSeconds == 0 {
 		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
 	}
 	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
-		return s, errors.New("提前准备时间 M 必须为 100～16000 秒")
+		return s, invalidSetting(errors.New("提前准备时间 M 必须为 100～16000 秒"), "prepareAheadSeconds")
 	}
 	if s.DownloadConcurrencySoftLimit < 1 || s.DownloadConcurrencySoftLimit > cacheproxy.MaxDownloadConcurrencySoftLimit {
-		return s, errors.New("下载并发上限（软）必须为 1～64")
+		return s, invalidSetting(errors.New("下载并发上限（软）必须为 1～64"), "downloadConcurrencySoftLimit")
 	}
 	if s.DownloadGrowIntervalMS < 0 || s.DownloadGrowIntervalMS > int(cacheproxy.MaxDownloadGrowInterval/time.Millisecond) {
-		return s, errors.New("并发增长间隔必须为 0～2000 毫秒")
+		return s, invalidSetting(errors.New("并发增长间隔必须为 0～2000 毫秒"), "downloadGrowIntervalMS")
 	}
 	if s.LocalProtectionGraceSeconds < 0 || s.LocalProtectionGraceSeconds > int(cacheproxy.MaxLocalProtectionGrace/time.Second) {
-		return s, errors.New("本地延续保护时长必须为 0～10000 秒")
+		return s, invalidSetting(errors.New("本地延续保护时长必须为 0～10000 秒"), "localProtectionGraceSeconds")
 	}
 	if s.RequestRetentionDays < 0 || s.RequestRetentionDays > 36500 {
-		return s, errors.New("请求明细保留天数必须为 0～36500")
+		return s, invalidSetting(errors.New("请求明细保留天数必须为 0～36500"), "requestRetentionDays")
 	}
 	if s.RequestRetentionMode != "none" && s.RequestRetentionMode != "limited" && s.RequestRetentionMode != "unlimited" {
-		return s, errors.New("请求明细保留选项必须为 none、limited 或 unlimited")
+		return s, invalidSetting(errors.New("请求明细保留选项必须为 none、limited 或 unlimited"), "requestRetentionMode")
 	}
 	if s.RequestRetentionMode == "limited" && s.RequestRetentionDays == 0 {
-		return s, errors.New("选择「保留指定天数」时，请求明细保留天数必须大于 0")
+		return s, invalidSetting(errors.New("选择「保留指定天数」时，请求明细保留天数必须大于 0"), "requestRetentionDays")
 	}
 	if s.VideoBudgetBytes < 0 {
-		return s, errors.New("视频存储预算不能为负数")
+		return s, invalidSetting(errors.New("视频存储预算不能为负数"), "videoBudgetBytes")
 	}
 	if s.VideoStorageMode != "none" && s.VideoStorageMode != "limited" && s.VideoStorageMode != "unlimited" {
-		return s, errors.New("视频保留选项必须为 none、limited 或 unlimited")
+		return s, invalidSetting(errors.New("视频保留选项必须为 none、limited 或 unlimited"), "videoStorageMode")
 	}
 	if s.VideoStorageMode == "limited" && s.VideoBudgetBytes == 0 {
-		return s, errors.New("选择「限制为」时，视频存储预算必须大于 0")
+		return s, invalidSetting(errors.New("选择「限制为」时，视频存储预算必须大于 0"), "videoBudgetBytes")
 	}
 	if s.AggressiveBlockReclamation != "auto" && s.AggressiveBlockReclamation != "on" && s.AggressiveBlockReclamation != "off" {
-		return s, errors.New("激进的缓存回收策略必须为 auto、on 或 off")
+		return s, invalidSetting(errors.New("激进的缓存回收策略必须为 auto、on 或 off"), "aggressiveBlockReclamation")
 	}
 	for _, path := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		*path = strings.TrimSpace(*path)

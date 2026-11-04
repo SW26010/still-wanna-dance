@@ -63,7 +63,9 @@ try {
   const rejected=second.waitForResponse(response=>new URL(response.url()).pathname==='/api/settings');
   await dialog.getByRole('button',{name:'确认并保存',exact:true}).click();
   expect((await rejected).status()).toBe(400);
-  await expect(second.getByRole('tabpanel',{name:'存储',exact:true}).getByText('目录或视频保留策略已变化，请重新确认后保存。',{exact:true})).toBeVisible();
+  await second.getByRole('button',{name:'完整视频目录：错误',exact:true}).hover();
+  await expect(second.getByRole('tooltip')).toHaveText('目录或视频保留策略已变化，请重新确认后保存。');
+  await second.mouse.move(0,0);
   expect((await status()).settings.videoDir).toBe(initial.settings.videoDir);
   await expect(second.getByRole('radio',{name:'不保留',exact:true})).toBeChecked();
   await expect(second.getByRole('checkbox',{name:'优先保留收藏视频',exact:true})).toBeDisabled();

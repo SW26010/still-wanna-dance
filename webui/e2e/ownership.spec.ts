@@ -38,7 +38,9 @@ test('separate settings locations save only their own draft and preserve the oth
   await page.getByRole('spinbutton',{name:/视频存储预算/}).fill('20');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
-  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByText('其他页面仍有未保存配置，请保存或放弃后再重启。')).toBeVisible();
+  await page.getByRole('button',{name:'重启并应用',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('其他页面仍有未保存配置，请保存或放弃后再重启。');
+  await page.mouse.move(0,0);
   expect(api.state.settings.prepareAheadSeconds).not.toBe(777);
   await navigateSettings(page,'下载与缓存');
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');

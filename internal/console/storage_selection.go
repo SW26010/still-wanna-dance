@@ -138,7 +138,7 @@ func (c *Console) firstInvalidChangedStorageChoice(s, old Settings) (string, err
 	for _, choice := range []string{"database", "video", "cache"} {
 		if storageChoiceChanged(s, old, choice) {
 			if err := c.validateStorageChoice(s, choice); err != nil {
-				return choice, err
+				return choice, invalidSetting(err, storageSettingField(choice))
 			}
 		}
 	}
@@ -150,35 +150,36 @@ func (c *Console) firstInvalidChangedStorageChoice(s, old Settings) (string, err
 // saving unrelated settings or opening the business database.
 func (c *Console) validateResourcePaths(s Settings) error {
 	p := c.files()
-	for _, path := range []string{s.DatabasePath, s.VideoDir} {
+	for _, location := range []struct{ field, path string }{{"databasePath", s.DatabasePath}, {"videoDir", s.VideoDir}} {
+		path := location.path
 		if path == "" {
 			continue
 		}
 		if err := apppaths.ValidateWorkSeparation(c.identity.Executable, path); err != nil {
-			return err
+			return invalidSetting(err, location.field)
 		}
 		if c.work != nil {
 			if err := workspaceOverlaps(c.work.Path(), []string{path}); err != nil {
-				return err
+				return invalidSetting(err, location.field)
 			}
 		}
 		for _, reserved := range []string{p.Config, p.Lock, p.Terms, p.ChannelKey} {
 			if sameResourcePath(path, reserved) || sameResourcePath(path, filepath.Join(filepath.Dir(reserved), workfiles.TempName(reserved))) {
-				return errors.New("数据位置不能覆盖程序配置或辅助文件")
+				return invalidSetting(errors.New("数据位置不能覆盖程序配置或辅助文件"), location.field)
 			}
 		}
 		for _, reserved := range []string{p.StateDir, p.LogDir} {
 			if pathContains(reserved, path) {
-				return errors.New("数据位置不能放在程序状态或日志目录内")
+				return invalidSetting(errors.New("数据位置不能放在程序状态或日志目录内"), location.field)
 			}
 		}
 	}
 	if s.VideoDir != "" && pathContains(s.VideoDir, p.Config) {
-		return errors.New("完整视频目录不能包含程序配置")
+		return invalidSetting(errors.New("完整视频目录不能包含程序配置"), "videoDir")
 	}
 	if s.DatabasePath != "" {
 		_, err := libraryPaths(s).Resolve()
-		return err
+		return invalidSetting(err, "databasePath", "videoDir")
 	}
 	return nil
 }
@@ -190,18 +191,18 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 	videoChanged := !sameResourcePath(s.VideoDir, old.VideoDir)
 	if databaseChanged && s.DatabasePath != "" {
 		if err := validateStorageLocation(s.DatabasePath, c.defaultDatabasePath(), c.portableDir()); err != nil {
-			return false, err
+			return false, invalidSetting(err, "databasePath")
 		}
 		if err := cacheproxy.CheckDatabaseSelection(s.DatabasePath); err != nil {
-			return false, fmt.Errorf("请选择已有的有效数据库，或先明确新建：%w", err)
+			return false, invalidSetting(fmt.Errorf("请选择已有的有效数据库，或先明确新建：%w", err), "databasePath")
 		}
 	}
 	if videoChanged && s.VideoDir != "" {
 		if err := validateStorageLocation(s.VideoDir, c.defaultVideoDir(), c.portableDir()); err != nil {
-			return false, err
+			return false, invalidSetting(err, "videoDir")
 		}
 		if err := workfiles.CheckFutureDir(s.VideoDir); err != nil {
-			return false, err
+			return false, invalidSetting(err, "videoDir")
 		}
 	}
 	if s.VideoDir == "" || (!databaseChanged && !videoChanged) {
@@ -244,14 +245,14 @@ func (v videoPolicyConfirmation) matches(s Settings) bool {
 
 func (c *Console) prepareLibrarySelection(s, old Settings, confirmed *videoPolicyConfirmation) error {
 	if confirmed != nil && !confirmed.matches(s) {
-		return errors.New("目录或视频保留策略已变化，请重新确认后保存。")
+		return invalidSetting(errors.New("目录或视频保留策略已变化，请重新确认后保存。"), "videoDir")
 	}
 	required, err := c.inspectLibrarySelection(s, old)
 	if err != nil {
 		return err
 	}
 	if required && confirmed == nil {
-		return errors.New("请先确认此视频目录将按当前数据库的收藏与视频保留策略管理，再保存设置")
+		return invalidSetting(errors.New("请先确认此视频目录将按当前数据库的收藏与视频保留策略管理，再保存设置"), "videoDir")
 	}
 	if s.VideoDir != "" && !sameResourcePath(s.VideoDir, old.VideoDir) {
 		if err := os.MkdirAll(s.VideoDir, 0700); err != nil {

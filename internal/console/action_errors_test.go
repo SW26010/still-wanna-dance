@@ -19,9 +19,12 @@ func TestActionErrorsAreScopedAndClearOnRetry(t *testing.T) {
 		c.ServeHTTP(w, r)
 		return w.Code
 	}
-	if post(`{"videoStorageMode":"invalid"}`) != 400 {
-		t.Fatal("expected invalid settings failure")
+	// Field validation is returned to its form, without a retained global error.
+	if post(`{"videoStorageMode":"invalid"}`) != 400 || c.actionErrors["settings"] != "" {
+		t.Fatal("field validation was retained as an action failure")
 	}
+	// An operational failure still owns the settings action until a successful retry.
+	c.recordActionError("/api/settings", errors.New("configuration write failure"))
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
 	var status struct {

@@ -23,9 +23,10 @@ test('native node file picker rejects oversize files and can reread the same fil
   await page.goto('/#network-proxy');
   await page.getByRole('combobox', {name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox', {name:'代理后端',exact:true}).selectOption('mihomo');
-  const picker = page.getByLabel('或选择节点文件'), draft = page.getByRole('textbox', {name:'粘贴节点内容',exact:true});
+  const picker = page.getByLabel('或选择节点文件',{exact:true}), draft = page.getByRole('textbox', {name:'粘贴节点内容',exact:true});
   await picker.setInputFiles({name:'too-large.yaml',mimeType:'text/yaml',buffer:Buffer.alloc(2*1024*1024+1)});
-  await expect(page.getByText(/节点文件超过 2 MiB/)).toBeVisible();
+  await page.getByRole('button',{name:'或选择节点文件：错误',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toContainText('节点文件超过 2 MiB');
   await expect(draft).toHaveValue('');
   const file = {name:'nodes.yaml',mimeType:'text/yaml',buffer:Buffer.from('proxies: []')};
   await picker.setInputFiles(file); await expect(draft).toHaveValue('proxies: []');

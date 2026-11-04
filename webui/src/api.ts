@@ -10,15 +10,18 @@ export function withRequestTimeout(signal: AbortSignal) {
 }
 
 export class APIError extends Error {
-  constructor(message: string, public status: number, public code?: string) { super(message); }
+  constructor(message: string, public status: number, public code?: string, public fields?:Record<string,string>) { super(message); }
 }
 export async function decode<T>(response: Response): Promise<T> {
   const text = await response.text();
   if (!response.ok) {
     let message = text.trim();
     let code: string|undefined;
-    try { const data=JSON.parse(text);message=data.error||message;code=typeof data.code==='string'?data.code:undefined; } catch { /* Plain-text HTTP error. */ }
-    throw new APIError(message || `HTTP ${response.status}`, response.status, code);
+    let fields:Record<string,string>|undefined;
+    try { const data=JSON.parse(text);message=data.error||message;code=typeof data.code==='string'?data.code:undefined;
+      if(data.fields&&typeof data.fields==='object'&&!Array.isArray(data.fields))fields=Object.fromEntries(Object.entries(data.fields).filter((entry):entry is [string,string]=>typeof entry[1]==='string'));
+    } catch { /* Plain-text HTTP error. */ }
+    throw new APIError(message || `HTTP ${response.status}`, response.status, code, fields);
   }
   return JSON.parse(text) as T;
 }

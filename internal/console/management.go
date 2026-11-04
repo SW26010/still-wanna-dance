@@ -39,6 +39,10 @@ func (c *Console) serveManagement(w http.ResponseWriter, r *http.Request) {
 	if c.allowManagement(w, r) {
 		result := &faultResponseWriter{ResponseWriter: w}
 		handler(result, r)
+		var validation *settingsValidationError
+		if errors.As(result.cause, &validation) {
+			return
+		}
 		if !result.reported && r.Context().Err() == nil {
 			source := "request:" + r.Method + ":" + r.URL.Path
 			if result.status >= 400 && result.status != http.StatusNotFound && result.status != http.StatusMethodNotAllowed {

@@ -138,7 +138,7 @@ export function useConsole(enabled: boolean, page: string) {
   useLifecycle(shutdown.current!==null,status.data,action=>{void acceptShutdown(action);});
   const refresh = () => { setRevision(v => v + 1); };
   const confirmation = useConfirmation();
-  async function action(path: string, body: unknown = {}): Promise<boolean> {
+  async function action(path: string, body: unknown = {}, onError?:(error:APIError)=>boolean): Promise<boolean> {
     if (lock.current || stopped || shutdown.current) return false;
     if (path === 'restart' && status.data?.import.running && !await confirmation.confirm('导入仍在运行', '现在重启会中断导入。')) return false;
     if (lock.current || stopped || shutdown.current) return false;
@@ -156,6 +156,7 @@ export function useConsole(enabled: boolean, page: string) {
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {
       if(shutdown.current)return true;
+      if(e instanceof APIError&&onError?.(e)){setMessage('');return false;}
       if (path === 'restart' && !(e instanceof APIError)) {
         setStopped(true); setMessage('重启响应未确认，正在等待新进程…');
         await waitForRestart();return false;

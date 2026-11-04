@@ -1,5 +1,9 @@
 import {expect, type Page} from '@playwright/test';
 
+export function fieldError(page:Page,message:string) {
+  return page.locator('.fui-Field').filter({has:page.locator('.field-error-description').filter({hasText:message})}).getByRole('button',{name:/：错误$/});
+}
+
 export async function saveSettings(page:Page, state:'待重启'|'已生效') {
   const actions=page.getByRole('region',{name:'设置操作',exact:true});
   await actions.getByRole('button',{name:'保存设置',exact:true}).click();

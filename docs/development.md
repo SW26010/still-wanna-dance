@@ -21,6 +21,8 @@ pnpm --dir webui check
 
 前端构建与检查统一启用 TypeScript `noUnusedLocals`、`noUnusedParameters`，移除失去用途的声明和参数。设置保存的真实双页面、持久化与重启回归可设置 `SWD_SETTINGS_BROWSER_EVIDENCE` 为隔离输出目录，再通过上述临时目录入口执行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsSeparateBrowsers$' -count=1 -v`；测试固定第二个页面的旧状态快照以检查部分更新，并覆盖目录确认期间的策略变化、拒绝后重新确认及无关字段合并。原生选择器用隔离目录替代，检查与保存均经过真实 Console，不启动网关或修改 hosts。
 
+设置字段校验的真实 Console 联调可设置 `SWD_SETTINGS_VALIDATION_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsValidationBrowser$' -count=1 -v`，验证缺少节点的拒绝不落盘、不产生桌面打开通知，以及合法 SOCKS5 设置保存后保持待重启边界。只使用隔离配置，不启动代理或网关。
+
 加速启停与退出策略的真实浏览器联调可设置 `SWD_HOSTS_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestHostsPolicyBrowser$' -count=1 -v`。测试使用回环网关和私有 hosts 文件，不修改系统 hosts。Windows CI 同时运行此检查和上述设置联调。
 
 ## 测试维护与 CI 修复

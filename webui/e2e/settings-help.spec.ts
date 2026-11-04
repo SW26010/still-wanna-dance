@@ -2,6 +2,37 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import {navigate} from './navigation';
 
+for(const width of [320,1280])test(`unsaved changes explain blocked restart without moving toolbar (${width})`,async({page},info)=>{
+  const api=await mockAPI(page);
+  Object.assign(api.state.settings,{logLevel:'debug',autoAccelerate:true});
+  api.state.restartRequired=true;
+  await page.setViewportSize({width,height:800});
+  await page.goto('/#/settings');
+  const actions=page.getByRole('region',{name:'设置操作',exact:true});
+  const restart=actions.getByRole('button',{name:'重启并应用',exact:true});
+  const before=await actions.boundingBox(),buttonBefore=await restart.boundingBox();
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
+  await page.getByRole('spinbutton',{name:'同时下载数量',exact:true}).fill('17');
+  await page.getByRole('tab',{name:'常规',exact:true}).click();
+  await expect(restart).toBeDisabled();
+  // Tab focus can scroll a narrow page; compare both states at the same offset.
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+  expect(await actions.boundingBox()).toEqual(before);
+  expect(await restart.boundingBox()).toEqual(buttonBefore);
+  await restart.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('其他页面仍有未保存配置，请保存或放弃后再重启。');
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  await restart.focus();await expect(page.getByRole('tooltip')).toContainText('未保存配置');
+  await page.keyboard.press('Enter');
+  expect(api.calls.some(call=>call.path==='restart')).toBe(false);
+  await page.screenshot({path:info.outputPath('blocked-restart.png')});
+  await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
+  await page.getByRole('button',{name:'放弃更改',exact:true}).click();
+  await page.getByRole('tab',{name:'常规',exact:true}).click();
+  await expect(restart).toBeEnabled();await restart.hover();
+  await expect(page.getByRole('tooltip')).toContainText('管理员授权');
+});
+
 for(const width of [320,390,1280])test(`settings actions stay visible while editing and saving (${width})`,async({page},info)=>{
   const api=await mockAPI(page);
   await page.setViewportSize({width,height:800});
@@ -23,7 +54,7 @@ for(const width of [320,390,1280])test(`settings actions stay visible while edit
   await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveValue('777');
 });
 
-test('invalid fields stay visible and receive native validation focus',async({page})=>{
+test('invalid fields stay visible and receive validation focus without a native bubble',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
 
 

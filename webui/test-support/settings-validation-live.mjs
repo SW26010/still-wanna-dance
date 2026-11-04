@@ -1,0 +1,44 @@
+import {chromium,expect} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {join} from 'node:path';
+
+const [base,output]=process.argv.slice(2);
+await mkdir(output,{recursive:true});
+const browser=await chromium.launch({channel:process.platform==='win32'||!process.env.CI?'msedge':'chromium'});
+try {
+  const page=await browser.newPage(),errors=[],posts=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/settings')posts.push(r.postDataJSON());});
+  await page.goto(base+'/#network-proxy');
+  const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
+  const state=async()=>{const r=await page.request.get(base+'/api/status',{headers:{'X-SWD-Token':token}});expect(r.ok()).toBe(true);return r.json();};
+  const initial=await state();
+  await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
+  await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
+  const save=page.getByRole('button',{name:'保存设置',exact:true});
+  const textarea=page.getByRole('textbox',{name:'粘贴节点内容',exact:true});
+  const before=await textarea.boundingBox();
+  await save.click();
+  await expect(textarea).toHaveAttribute('aria-invalid','true');
+  const error=page.getByRole('button',{name:'粘贴节点内容：错误',exact:true});
+  await error.hover();await expect(page.getByRole('tooltip')).toContainText('请先导入至少一个');
+  expect(await textarea.boundingBox()).toEqual(before);
+  expect((await state()).settings).toEqual(initial.settings);
+  await page.screenshot({path:join(output,'mihomo-rejected.png'),fullPage:true});
+  await textarea.focus();await save.focus();
+  await expect(error).toBeVisible();
+  await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('external-socks5');
+  const address=page.getByRole('textbox',{name:'SOCKS5 地址',exact:true});
+  await address.fill('%%%:7891');await save.click();
+  await expect(address).toHaveAttribute('aria-invalid','true');
+  expect(posts).toHaveLength(1);
+  await address.fill('localhost:7891');await save.click();
+  await expect(page.getByRole('region',{name:'设置操作',exact:true}).getByRole('status')).toHaveText('待重启');
+  const final=await state();
+  expect(final.settings.socks5Address).toBe('localhost:7891');
+  expect(final.activeSettings).toEqual(initial.activeSettings);
+  expect(final.actionErrors?.settings).toBeUndefined();
+  expect(errors).toEqual([]);
+  await writeFile(join(output,'result.json'),JSON.stringify({passed:true,rejectedWithoutPersistence:true,activeUnchanged:true,posts:posts.length,pageErrors:errors},null,2));
+  console.log('Real Console: missing nodes rejected without persistence; format validation, hover reason and valid save passed.');
+}finally{await browser.close();}

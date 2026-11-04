@@ -697,6 +697,9 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err := c.importProxyNodes(data)
 		if err != nil {
+			if writeSettingsValidation(w, err) {
+				return
+			}
 			preserveResponseFault(w, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -866,6 +869,9 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
+		if writeSettingsValidation(w, err) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		failure := map[string]string{"error": err.Error()}
@@ -882,6 +888,12 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 // Each operation group owns its error; unrelated successes must not erase it.
 // CDN errors are owned by start/stop/failCDN, including automatic and tray calls.
 func (c *Console) recordActionError(path string, err error) {
+	var validation *settingsValidationError
+	// Rejecting a draft neither creates an operational fault nor proves that
+	// a previous fault recovered. Leave both retained boundaries untouched.
+	if errors.As(err, &validation) {
+		return
+	}
 	source := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
 	c.mu.Lock()
 	if err == nil {

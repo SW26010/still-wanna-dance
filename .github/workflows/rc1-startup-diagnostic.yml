@@ -43,7 +43,7 @@ jobs:
         run: |
           $packages = @(node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
           if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining packages.' }
-          $budget = if ('${{ matrix.parallelism }}' -eq 'serial') { @('-p=1') } else { @() }
+          [string[]]$budget = if ('${{ matrix.parallelism }}' -eq 'serial') { @('-p=1') } else { @() }
           ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race @budget @packages -count=1 -timeout=45m -json 2>&1 | Tee-Object -FilePath artifacts/startup-diagnostic.jsonl
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,6 +42,9 @@ func TestProxyConfigurationSourcesShareOriginalDraft(t *testing.T) {
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/proxy/import", strings.NewReader(input))
 		r.Header.Set("X-SWD-Token", c.token)
 		r.Header.Set("X-SWD-Import-Source", source)
+		if source == "config" {
+			r.Header.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "机场配置.yaml"}))
+		}
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
 		var result proxyImportResult
@@ -48,6 +52,10 @@ func TestProxyConfigurationSourcesShareOriginalDraft(t *testing.T) {
 			t.Fatalf("%s source rejected: %d %s", source, w.Code, w.Body.String())
 		}
 		draft := c.proxyImports[result.ID]
+		wantName := map[string]string{"config": "机场配置.yaml", "base64": "Base64 配置", "url": "URL 配置"}[source]
+		if result.Name != wantName || result.ImportedAt.IsZero() || draft.Info.Name != wantName || !draft.Info.ImportedAt.Equal(result.ImportedAt) {
+			t.Fatal("source display metadata was not staged")
+		}
 		if draft.Snapshot != content || strings.Contains(w.Body.String(), "private") || c.savedSettings.nodeSnapshot != "" {
 			t.Fatal("source was stored or original configuration changed")
 		}

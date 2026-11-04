@@ -74,7 +74,7 @@ test('diagnostics use the active configuration while preserving the unsaved prox
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).not.toBeVisible();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).not.toBeVisible();
-  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
+  await navigate(page,'网络');
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).not.toBeVisible();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).not.toBeVisible();

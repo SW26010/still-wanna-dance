@@ -23,7 +23,7 @@ pnpm --dir webui check
 
 设置字段校验的真实 Console 联调可设置 `SWD_SETTINGS_VALIDATION_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsValidationBrowser$' -count=1 -v`，验证缺少节点的拒绝不落盘、不产生桌面打开通知，以及合法 SOCKS5 设置保存后保持待重启边界。只使用隔离配置，不启动代理或网关。
 
-Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_EVIDENCE` 为隔离输出目录，再运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestMihomoConfigurationBrowser$' -count=1 -v`，覆盖文件、Base64、一次性 URL 下载、原文加密保存、刷新清空来源、待重启及重新加载。只使用回环配置服务器、隔离数据和测试节点，不修改系统 hosts。
+Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_EVIDENCE` 为隔离输出目录，再运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestMihomoConfigurationBrowser$' -count=1 -v`，覆盖浏览器文件选择、文件／URL 的保存时自动检查、Base64 显式检查复用、检查失败不保存、原文加密／展示元数据普通保存、摘要刷新重载及待重启。只使用回环配置服务器、隔离数据和测试节点，不修改系统 hosts。
 
 加速启停与退出策略的真实浏览器联调可设置 `SWD_HOSTS_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestHostsPolicyBrowser$' -count=1 -v`。测试使用回环网关和私有 hosts 文件，不修改系统 hosts。Windows CI 同时运行此检查和上述设置联调。
 

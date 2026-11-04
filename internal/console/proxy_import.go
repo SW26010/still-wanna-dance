@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -86,7 +87,18 @@ func (c *Console) serveProxyImport(w http.ResponseWriter, r *http.Request) {
 		writeSettingsValidation(w, invalidSetting(err, "proxyImportText"))
 		return
 	}
-	result, err := c.importProxyNodes(r.Context(), data)
+	name := "Mihomo 配置"
+	switch r.Header.Get("X-SWD-Import-Source") {
+	case "url":
+		name = "URL 配置"
+	case "base64":
+		name = "Base64 配置"
+	default:
+		if _, params, err := mime.ParseMediaType(r.Header.Get("Content-Disposition")); err == nil && params["filename"] != "" {
+			name = params["filename"]
+		}
+	}
+	result, err := c.importProxyNodes(r.Context(), data, name)
 	if err != nil {
 		if writeSettingsValidation(w, err) {
 			return

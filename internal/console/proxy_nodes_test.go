@@ -18,7 +18,7 @@ const nodeFixture = "proxies: [{name: private-node, type: ss, server: private.ex
 func TestProxyImportDraftPrivateBoundedAndStale(t *testing.T) {
 	c := testConsole(t)
 	before, _ := os.ReadFile(c.configPath)
-	r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture))
+	r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil || r.ID == "" || r.Nodes != 1 {
 		t.Fatalf("import: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestUnavailableProxyNodesPreserveEnvelope(t *testing.T) {
 func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 	c := testConsole(t)
 	before, _ := os.ReadFile(c.configPath)
-	retained, err := c.importProxyNodes(context.Background(), []byte(nodeFixture))
+	retained, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 		t.Fatal("discard bypassed authorization")
 	}
 	for range 12 {
-		r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture))
+		r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 		if err != nil || r.ID == "" {
 			t.Fatal("discard did not release quota", err)
 		}
@@ -148,11 +148,11 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 	}
 	// Releasing abandoned drafts does not remove the cap on genuinely live ones.
 	for range 7 {
-		if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture)); err != nil {
+		if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture)); err == nil {
+	if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err == nil {
 		t.Fatal("live draft quota disappeared")
 	}
 	after, _ := os.ReadFile(c.configPath)
@@ -164,7 +164,7 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 func TestProxyImportPreservesExactOriginalConfiguration(t *testing.T) {
 	c := testConsole(t)
 	input := "# original comment\nproxies: [{name: one, type: ss, server: localhost, port: 1234, cipher: aes-128-gcm, password: private}]\nproxy-groups: [{name: original, type: select, proxies: [one]}]\n"
-	r, err := c.importProxyNodes(context.Background(), []byte(input))
+	r, err := c.importProxyNodes(context.Background(), []byte(input), "fixture.yaml")
 	if err != nil || r.Nodes != 1 || r.Groups != 1 {
 		t.Fatal("configuration import failed", err)
 	}

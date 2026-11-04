@@ -27,12 +27,19 @@ func TestMihomoConfigurationBrowser(t *testing.T) {
 	}
 	c := testConsole(t)
 	content := "# preserved original\nproxies: [{name: local, type: ss, server: localhost, port: 1234, cipher: aes-128-gcm, password: private-fixture}]\nproxy-groups: [{name: original, type: select, proxies: [local]}]\n"
-	fixture := filepath.Join(t.TempDir(), "configuration.yaml")
+	fixture := filepath.Join(t.TempDir(), "机场配置.yaml")
 	if err := os.WriteFile(fixture, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var downloads atomic.Int32
-	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { downloads.Add(1); io.WriteString(w, content) }))
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloads.Add(1)
+		if r.URL.Path == "/invalid" {
+			io.WriteString(w, "not a configuration")
+			return
+		}
+		io.WriteString(w, content)
+	}))
 	defer source.Close()
 	ui := httptest.NewUnstartedServer(c)
 	c.address = ui.Listener.Addr().String()
@@ -46,7 +53,7 @@ func TestMihomoConfigurationBrowser(t *testing.T) {
 	} else {
 		t.Log(string(output))
 	}
-	if downloads.Load() != 1 || c.savedSettings.nodeSnapshot != content || c.settings.nodeSnapshot != "" || c.savedSettings.ProxyBackend != "mihomo" {
+	if downloads.Load() != 2 || c.savedSettings.nodeSnapshot != content || c.settings.nodeSnapshot != "" || c.savedSettings.ProxyBackend != "mihomo" || c.savedSettings.nodeInfo.Name != "URL 配置" || c.savedSettings.nodeInfo.ImportedAt.IsZero() {
 		t.Fatal("wrong acquisition or activation boundary")
 	}
 	data, err := os.ReadFile(c.configPath)
@@ -58,7 +65,7 @@ func TestMihomoConfigurationBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer loaded.Close()
-	if loaded.settings.nodeSnapshot != content {
+	if loaded.settings.nodeSnapshot != content || loaded.settings.nodeInfo != c.savedSettings.nodeInfo {
 		t.Fatal("restart did not preserve original configuration")
 	}
 }

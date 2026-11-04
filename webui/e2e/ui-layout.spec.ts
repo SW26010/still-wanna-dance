@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
-import {navigateSettings} from './navigation';
+import {navigate,navigateSettings} from './navigation';
 
 for(const [width,height] of [[1440,1000],[900,1200],[390,2000]])test(`short pages have no document overflow at ${width}x${height}`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height});await page.goto('/#/licenses');
@@ -26,14 +26,15 @@ for(const width of [390,800,1440])test(`settings and network show their controls
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:info.outputPath(tab+'.png'),fullPage:true,animations:'disabled'});
   }
-  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
+  await expect(page.getByRole('link',{name:'检测当前连接',exact:true})).toHaveCount(0);
+  await navigate(page,'网络');
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));
   await page.screenshot({path:info.outputPath('network.png'),fullPage:true,animations:'disabled'});
   await navigateSettings(page,'网络');
   await expect(page.getByRole('tab',{name:'网络',exact:true})).toBeFocused();
-  await page.getByRole('link',{name:'检测当前连接',exact:true}).click();
+  await page.goto('/#network-tests');
   await expect(page.locator('#network-tests')).toBeFocused();
   await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'下载速度测试',exact:true})).toBeVisible();

@@ -15,6 +15,7 @@ import (
 
 type Settings struct {
 	nodeSnapshot                 string
+	nodeInfo                     proxyConfigurationInfo
 	nodeSecret                   string
 	nodeSecretError              string
 	nodeImportID                 string // transient request only; cleared before publish

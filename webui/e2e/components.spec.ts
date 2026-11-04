@@ -23,16 +23,17 @@ test('native node file picker rejects oversize files and can reread the same fil
   await page.goto('/#network-proxy');
   await page.getByRole('combobox', {name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox', {name:'代理后端',exact:true}).selectOption('mihomo');
-  const picker = page.getByLabel('选择配置文件',{exact:true}), draft = page.getByRole('textbox', {name:'配置内容',exact:true});
+  const picker = page.getByLabel('选择配置文件',{exact:true}), draft = page.getByRole('textbox', {name:'导入配置文件',exact:true});
   await picker.setInputFiles({name:'too-large.yaml',mimeType:'text/yaml',buffer:Buffer.alloc(2*1024*1024+1)});
-  await page.getByRole('button',{name:'选择配置文件：错误',exact:true}).hover();
+  await page.getByRole('button',{name:'导入配置文件：错误',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('配置文件超过 2 MiB');
   await expect(draft).toHaveValue('');
   const file = {name:'nodes.yaml',mimeType:'text/yaml',buffer:Buffer.from('proxies: []')};
-  await picker.setInputFiles(file); await expect(draft).toHaveValue('proxies: []');
-  await page.getByRole('button', {name:'清除本次导入草稿'}).click();
+  await picker.setInputFiles(file); await expect(draft).toHaveValue('nodes.yaml');
+  await page.getByRole('combobox',{name:'配置来源',exact:true}).selectOption('url');
+  await page.getByRole('combobox',{name:'配置来源',exact:true}).selectOption('config');
   await expect(draft).toHaveValue('');
-  await picker.setInputFiles(file); await expect(draft).toHaveValue('proxies: []');
+  await picker.setInputFiles(file); await expect(draft).toHaveValue('nodes.yaml');
   expect(api.calls.some(c=>c.path==='proxy/import'||c.path==='settings')).toBe(false);
 });
 

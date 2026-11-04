@@ -1,5 +1,5 @@
 import {type ReactNode} from 'react';
-import {Link,Tab,TabList} from '@fluentui/react-components';
+import {Tab,TabList} from '@fluentui/react-components';
 import {SettingsPage,type SettingsSection} from './settings';
 import {Network} from './network';
 
@@ -24,7 +24,7 @@ export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabS
   return <SettingsPage section="network">{(form,actions)=>{
     return <>
     <div hidden={!settingsVisible}><Settings anchor={anchor} onTabSelect={onTabSelect} networkActions={actions} networkForm={<div id="network-proxy" tabIndex={-1}>
-      {form}<Link href="#network-tests">检测当前连接</Link>
+      {form}
     </div>}/></div>
     <div hidden={!networkVisible}><Network visible={networkVisible}/></div>
   </>;}}</SettingsPage>;

@@ -42,7 +42,6 @@ export function socks5AddressError(value:string) {
 export function inputError(input:HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement) {
   if(input.disabled)return '';
   if(input.name==='socks5Address')return socks5AddressError(input.value);
-  if(input.name==='proxyImportText'&&input.value.trim())return '请先检查配置内容，或清除本次导入草稿';
   if(input.validity.valueMissing)return '请输入此项内容';
   if(input.validity.badInput)return '请输入有效数字';
   if(input instanceof HTMLInputElement) {

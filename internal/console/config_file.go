@@ -210,6 +210,14 @@ func saveConfigSettingsWithCleanup(path string, s Settings, previousRoot *string
 		}
 		if nodes != nil {
 			fields["proxyNodes"] = nodes
+			if s.nodeSecretError == "" && (s.nodeInfo.Name != "" || !s.nodeInfo.ImportedAt.IsZero()) {
+				fields["proxyConfigInfo"], err = json.Marshal(s.nodeInfo.proxyConfigurationMetadata)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			delete(fields, "proxyConfigInfo")
 		}
 		fields["schemaVersion"], err = json.Marshal(configSchemaVersion)
 		if err != nil {

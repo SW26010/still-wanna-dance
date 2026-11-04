@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Button, Checkbox, Field, Input, Select, Textarea, Caption1, Tooltip } from '@fluentui/react-components';
+import { Button, Checkbox, Field, Input, Select, Tooltip } from '@fluentui/react-components';
 import { bootstrap } from './bootstrap';
 import { APIError, decode, request } from './api';
 import { useApp } from './hooks';
-import { Feedback, Panel, Progress, Hint, useThemePreference } from './ui';
+import { Feedback, Panel, Progress, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
 import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields, locationRequestError, locationValidationKey, type LocationValidation } from './storage-directory';
@@ -16,8 +16,8 @@ import {FieldErrors,ValidationField,inputError} from './field-validation';
 const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
 type NumberField = typeof numeric[number];
-export interface ProxyReport { id: string; nodes: number; groups: number }
-export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
+export interface ProxyReport { id: string; nodes: number; groups: number; name: string; importedAt?: string }
+export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { proxyImportID: string; proxyImportText: string; proxyImportName: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   const {videoBudgetBytes, theme: _theme, ...values} = s;
   // The backend supplies complete, normalized settings; drafts only format them.
@@ -26,45 +26,63 @@ export function draftFrom(s: Settings): Draft {
     prepareAheadSeconds: String(s.prepareAheadSeconds),
     downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
     localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
-    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportSource: 'config' };
+    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportName: '', proxyImportSource: 'config' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
+  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
   return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function fingerprint(d: Draft) {
-  return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
+  return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText, proxyImportName: d.proxyImportName, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
 }
 export const releaseImport = async (id: string) => { if (id) try { await request('proxy/import/discard', {id}); } catch { /* Local discard remains available offline; server expiry is the fallback. */ } };
 
+function hasProxyImport(d: Draft) {
+  return d.proxyImportSource==='config'?!!d.proxyImportName:!!d.proxyImportText.trim();
+}
+// Explicit import and Save settings share this request and draft transition.
+async function importProxyConfiguration(d: Draft): Promise<ProxyReport> {
+  const headers:Record<string,string>={'Content-Type':'text/plain','X-SWD-Token':bootstrap.token,'X-SWD-Import-Source':d.proxyImportSource};
+  if(d.proxyImportSource==='config'&&d.proxyImportName)headers['Content-Disposition']="attachment; filename*=UTF-8''"+encodeURIComponent(d.proxyImportName).replaceAll("'",'%27');
+  return decode<ProxyReport>(await fetch('/api/proxy/import',{method:'POST',headers,body:d.proxyImportText,signal:AbortSignal.timeout(100000)}));
+}
+function importedProxyDraft(report:ProxyReport) {
+  return {proxyImportID:report.id,proxyImportText:'',proxyImportName:'',proxyReport:report};
+}
+
 type FormProps = { draft: Draft; update: (values: Partial<Draft>) => void; disabled: boolean; status: Status };
-export function NetworkFields({ draft: d, update, disabled, status, onPending }: FormProps & {onPending: (pending: boolean) => void}) {
+export function NetworkFields({ draft: d, update, disabled, status, onPending, checking }: FormProps & {onPending: (pending: boolean) => void;checking:boolean}) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
-  const [errorField,setErrorField]=useState<'proxyImportText'|'proxyFile'>('proxyImportText');
+  const fileInput=useRef<HTMLInputElement>(null);
+  useEffect(()=>setError(''),[d.proxyImportID,d.proxyImportText,d.proxyImportSource,d.proxyBackend,d.upstreamMode]);
   const generation = useRef(0), current = useRef(d); current.current = d;
   useEffect(() => () => { generation.current++; }, []);
   const busy = (value: boolean) => { setPending(value); onPending(value); };
   async function readFile(file?: File) {
     if (!file) return;
-    const id = ++generation.current; busy(true); setError('');setErrorField('proxyFile');
-    try { if (file.size > 2 * 1024 * 1024) throw new Error('配置文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text,proxyImportSource: 'config'}); }
+    const id = ++generation.current; busy(true); setError('');
+    try { if (file.size > 2 * 1024 * 1024) throw new Error('配置文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text,proxyImportName:file.name,proxyImportSource: 'config'}); }
     catch (e) { if (id === generation.current) setError(String(e)); }
     finally { if (id === generation.current) busy(false); }
   }
   async function inspect() {
-    if (pending || disabled || !d.proxyImportText.trim()) return;
-    const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');setErrorField('proxyImportText');
+    if (pending || disabled || !hasProxyImport(d)) return;
+    const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');
     try {
-      const response = await fetch('/api/proxy/import', {method: 'POST', headers: {'Content-Type':'text/plain', 'X-SWD-Token':bootstrap.token,'X-SWD-Import-Source':d.proxyImportSource},body: content, signal: AbortSignal.timeout(100000)});
-      const report = await decode<ProxyReport>(response);
+      const report = await importProxyConfiguration(d);
       if (id !== generation.current || current.current.proxyImportText !== content) { void releaseImport(report.id || ''); return; }
       void releaseImport(current.current.proxyImportID);
-      update({proxyImportID: report.id || '', proxyImportText: report.id ? '' : content, proxyReport: report});
+      update(importedProxyDraft(report));
     } catch (e) { if (id === generation.current) setError(String(e)); }
     finally { if (id === generation.current) busy(false); }
   }
   const locked = disabled || pending;
+  const info=d.proxyReport||status.proxyNodes?.configuration;
+  const summary=info
+    ? [info.name||'名称未记录',info.nodes+' 个节点',info.groups+' 个代理组',info.importedAt?'导入于 '+new Date(info.importedAt).toLocaleString('zh-CN',{hour12:false}):'导入时间未记录'].join(' · ')
+    : status.proxyNodes?.error?'配置不可用':'未导入配置';
+  const chooseFile=()=>{if(!locked)fileInput.current?.click();};
   return <div className="form-grid">
     <Field label="上游连接"><Select disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({upstreamMode: v.value})}>
       <option value="direct">直连（内置 DNS）</option><option value="proxy">代理</option></Select></Field>
@@ -78,16 +96,20 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending }:
         <Feedback error>{status.socks5CredentialError}</Feedback>
       </> : <>
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>
-        <Field label="配置来源"><Select disabled={locked} value={d.proxyImportSource} onChange={(_,v)=>{setError('');update({proxyImportSource:v.value as Draft['proxyImportSource'],proxyImportText:''});}}>
-          <option value="config">配置文件或内容</option><option value="url">URL</option><option value="base64">Base64</option>
-        </Select></Field>
-        <ValidationField name="proxyImportText" error={errorField==='proxyImportText'?error:undefined} label={d.proxyImportSource==='url'?'配置 URL':d.proxyImportSource==='base64'?'Base64 配置':'配置内容'}><Textarea name="proxyImportText" rows={d.proxyImportSource==='url'?2:5} disabled={locked} value={d.proxyImportText} onChange={(_, v) => {setError('');update({proxyImportText: v.value});}} /></ValidationField>
-        {d.proxyImportSource==='config'&&<ValidationField error={errorField==='proxyFile'?error:undefined} label="选择配置文件">{props=><input {...props} type="file" disabled={locked} accept=".yaml,.yml,.json" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ''; }} />}</ValidationField>}
-        <Caption1 as="p" className="hint">保存后替换整份配置，重启生效。URL 仅下载一次，不保存地址。</Caption1>
-        <div className="inline secondary">Mihomo 原生配置<Hint label="配置格式说明">文件或 Base64 解码后的内容须为合法配置，最多 2 MiB。原有组与 DNS 等设置保留，接入设置由 SWD 管理。</Hint></div>
-        <div className="actions"><Button disabled={locked || !d.proxyImportText.trim()} onClick={() => void inspect()}>检查并导入到草稿</Button><Button disabled={locked || (!d.proxyImportID && !d.proxyImportText)} onClick={() => { void releaseImport(d.proxyImportID); update({proxyImportID:'',proxyImportText:'',proxyReport:undefined}); }}>清除本次导入草稿</Button></div>
-        {d.proxyReport && <p>配置检查通过：{d.proxyReport.nodes} 个内置节点，{d.proxyReport.groups} 个原有代理组。</p>}
-        <span className="secondary">配置内置节点：已保存 {status.proxyNodes?.saved || 0} 个 · 已加载 {status.proxyNodes?.loaded || 0} 个</span>
+        <Field label="当前配置文件"><Tooltip content={summary} relationship="description"><Input readOnly value={summary} /></Tooltip></Field>
+        <ValidationField name="proxyImportText" error={error} label="导入配置文件">{props=><div className="mihomo-import-row">
+          <Select id="mihomo-import-source" aria-label="配置来源" aria-labelledby="" disabled={locked} value={d.proxyImportSource} onChange={(_,v)=>{setError('');update({proxyImportSource:v.value as Draft['proxyImportSource'],proxyImportText:'',proxyImportName:''});}}>
+            <option value="config">文件</option><option value="base64">Base64</option><option value="url">URL</option>
+          </Select>
+          <Input {...props} name="proxyImportText" readOnly={d.proxyImportSource==='config'} disabled={locked}
+            value={d.proxyImportSource==='config'?d.proxyImportName:d.proxyImportText}
+            placeholder={d.proxyImportSource==='config'?'点击选择文件':d.proxyImportSource==='url'?'输入配置 URL':'输入 Base64'}
+            onClick={()=>{if(d.proxyImportSource==='config')chooseFile();}}
+            onKeyDown={e=>{if(d.proxyImportSource==='config'&&(e.key==='Enter'||e.key===' ')){e.preventDefault();chooseFile();}}}
+            onChange={(_,v)=>{setError('');update({proxyImportText:v.value});}} />
+          <Button disabled={locked||!hasProxyImport(d)} onClick={()=>void inspect()}>{pending||checking?'处理中':'导入'}</Button>
+          <input ref={fileInput} type="file" aria-label="选择配置文件" hidden disabled={locked} accept=".yaml,.yml,.json" onChange={e=>{void readFile(e.target.files?.[0]);e.target.value='';}} />
+        </div>}</ValidationField>
       </>}
     </>}
   </div>;
@@ -126,7 +148,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
         const message=isInput(input)?inputError(input):'';
         if(message)next[name]=message;else delete next[name];
       }
-      if('proxyImportID' in patch||'proxyImportSource' in patch)delete next.proxyImportText;
+      if('proxyImportID' in patch||'proxyImportSource' in patch||'proxyImportText' in patch)delete next.proxyImportText;
       if('upstreamMode' in patch||'proxyBackend' in patch)for(const name of ['socks5Address','socks5Username','socks5Password','proxyImportText'])delete next[name];
       if('requestRetentionMode' in patch)delete next.requestRetentionDays;
       if('videoStorageMode' in patch)delete next.videoBudgetBytes;
@@ -172,7 +194,14 @@ export function SettingsPage({section='application',children}: {section?:Setting
     if(locationValidation.warning)return;
     setPending(true); setLocationError('');
     try {
-      const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(d);
+      let ready=d;
+      if(section==='network'&&d.upstreamMode==='proxy'&&d.proxyBackend==='mihomo'&&hasProxyImport(d)) {
+        const report=await importProxyConfiguration(d);
+        void releaseImport(d.proxyImportID);
+        const imported=importedProxyDraft(report);
+        ready={...d,...imported};update(imported);
+      }
+      const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(ready);
       const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => value !== saved[key as keyof typeof saved]));
       if (locationValidation.pendingDatabase) {
         if (!samePath(locationValidation.pendingDatabase, values.databasePath)) {
@@ -233,7 +262,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放。</span></fieldset>
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
-      {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} />
+      {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} checking={pending&&hasProxyImport(d)} />
       {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
 </>}
       {section==='downloads'&&<><fieldset disabled={disabled}><legend>视频缓存</legend>

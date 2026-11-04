@@ -110,6 +110,8 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 	c.savedSettings = s
 	c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
 	c.settings.Theme = s.Theme
+	// Display metadata is saved immediately and does not require a core restart.
+	c.settings.nodeInfo = s.nodeInfo
 	c.savedNodeCount = nodeCount
 	delete(c.proxyImports, importID)
 	c.mu.Unlock()

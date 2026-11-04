@@ -75,6 +75,12 @@ type Console struct {
 	loadedNodeCount     int
 	autoStartOnce       sync.Once
 	autoStartPending    bool // protected by mu; startup deferred until consent succeeds
+	updateAutoRequested bool // update checking is deferred until consent and network setup
+	updateAutoStarted   bool
+	update              updateStatus
+	updateNotice        string
+	updateCancel        context.CancelFunc
+	updateDone          chan struct{}
 	configPath          string
 	token               string
 	previewKey          string // Process-local media signing key, never exposed to WebUI.
@@ -391,32 +397,16 @@ func (c *Console) BeginShutdown() {
 	if c.pathPickerCancel != nil {
 		c.pathPickerCancel()
 	}
+	if c.updateCancel != nil {
+		c.updateCancel()
+	}
 	c.cancelTermsExitLocked()
 	c.queueDesired = false
 	if c.requestRevision != 0 {
 		c.requestChannel.Release(c.requestRevision)
 	}
 	c.resources.Close()
-	if c.networkDiagnostics != nil {
-		if c.networkDiagnostics.socks5Cancel != nil {
-			c.networkDiagnostics.socks5Cancel()
-		}
-		c.networkDiagnostics.socks5.Closed = true
-		c.networkDiagnostics.socks5.Checking = false
-		c.networkDiagnostics.socks5.NextCheck = time.Time{}
-		if c.networkDiagnostics.connectivityTimer != nil {
-			c.networkDiagnostics.connectivityTimer.Stop()
-		}
-		c.networkDiagnostics.connectivity.NextCheck = time.Time{}
-		if c.networkDiagnostics.connectivityCancel != nil {
-			c.networkDiagnostics.connectivityCancel()
-		}
-		c.networkDiagnostics.connectivity.Closed = true
-		c.publishNetworkConnectivityLocked()
-		if c.networkDiagnostics.calibration != nil {
-			c.networkDiagnostics.calibration.Shutdown()
-		}
-	}
+	c.networkDiagnostics.shutdown()
 	if c.batchCancel != nil {
 		c.batchCancel()
 	}
@@ -453,6 +443,7 @@ func (c *Console) Close() error {
 	monitor := c.monitor
 	networkDiagnostics := c.networkDiagnostics
 	monitorManualDone := c.monitorManualDone
+	updateDone := c.updateDone
 	done, importDone := c.batchDone, c.importDone
 	c.mu.Unlock()
 	c.inventoryMu.Lock()
@@ -468,6 +459,9 @@ func (c *Console) Close() error {
 	}
 	if monitorManualDone != nil {
 		<-monitorManualDone
+	}
+	if updateDone != nil {
+		<-updateDone
 	}
 	if inventoryDone != nil {
 		<-inventoryDone
@@ -598,6 +592,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			PortableDir           string               `json:"portableDir"`
 			CatalogSync           catalogSyncStatus    `json:"catalogSync"`
 			UpstreamMonitor       upstreamstate.Status `json:"upstreamMonitor"`
+			Update                updateStatus         `json:"update"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired:      c.savedSettings != c.settings,
@@ -613,6 +608,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.portableDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
 			CatalogSync:     c.catalogSyncSnapshotLocked(),
+			Update:          c.updateSnapshotLocked(),
 		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
@@ -689,6 +685,14 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if r.URL.Path == "/api/update/check" {
+		c.serveUpdateCheck(w, r)
+		return
+	}
+	if r.URL.Path == "/api/update/notice" {
+		c.serveUpdateNotice(w)
+		return
+	}
 	if r.URL.Path == "/api/path/select" {
 		c.servePathPicker(w, r)
 		return

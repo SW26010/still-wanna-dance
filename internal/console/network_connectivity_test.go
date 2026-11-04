@@ -53,7 +53,7 @@ func TestManualConnectivityFailureNotifiesWithoutBrowserPolling(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.mu.Lock()
-	done := c.networkDiagnostics.connectivityDone
+	done := connectivityDoneForTest(c.networkDiagnostics)
 	c.mu.Unlock()
 	select {
 	case <-done:
@@ -86,11 +86,13 @@ func TestManualConnectivityJoinReportsAutomaticRoundFailure(t *testing.T) {
 		return nil, errors.New("isolated network failure")
 	})}
 	c.mu.Lock()
-	_, err := c.networkCalibrationLocked()
+	n, err := c.networkDiagnosticsLocked()
 	if err == nil {
-		c.startConnectivityLocked("", false, false)
+		n.mu.Lock()
+		n.startConnectivityLocked("", false, false)
+		n.mu.Unlock()
 	}
-	done := c.networkDiagnostics.connectivityDone
+	done := connectivityDoneForTest(c.networkDiagnostics)
 	c.mu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -249,12 +251,12 @@ func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	select {
-	case <-c.networkDiagnostics.connectivityDone:
+	case <-connectivityDoneForTest(c.networkDiagnostics):
 	case <-ctx.Done():
 		t.Fatal("check did not drain")
 	}
 	c.mu.Lock()
-	s := c.networkDiagnostics.connectivity
+	s := connectivitySnapshot(c)
 	c.mu.Unlock()
 	if s.Upstream != "proxy" || s.Phase != "canceled" || len(s.Results) != 0 {
 		t.Fatal(s)
@@ -275,10 +277,10 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	c.mu.Lock()
-	previous := c.networkDiagnostics.connectivity.LastResult.Results
-	previousTime := c.networkDiagnostics.connectivity.LastResult.Finished
+	previous := connectivitySnapshot(c).LastResult.Results
+	previousTime := connectivitySnapshot(c).LastResult.Finished
 	c.mu.Unlock()
 	if len(previous) != 5 || previous[0].State != "failed" || previousTime.IsZero() {
 		t.Fatal("complete result not retained", previous)
@@ -295,9 +297,9 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	c.mu.Lock()
-	result := c.networkDiagnostics.connectivity
+	result := connectivitySnapshot(c)
 	c.mu.Unlock()
 	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastResult.Results) != 5 || result.LastResult.Results[0].State != "failed" || !result.LastResult.Finished.Equal(previousTime) {
 		t.Fatal("cancel lost completed results", result)
@@ -321,7 +323,7 @@ func TestNetworkConnectivityScopedRequestsNeverJoinAnotherRun(t *testing.T) {
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	for len(started) > 0 {
 		<-started
 	}
@@ -341,7 +343,7 @@ func TestNetworkConnectivityScopedRequestsNeverJoinAnotherRun(t *testing.T) {
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 }
 
 func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
@@ -383,7 +385,7 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 		}
 		synctest.Wait()
 		c.mu.Lock()
-		state := c.networkDiagnostics.connectivity
+		state := connectivitySnapshot(c)
 		c.mu.Unlock()
 		if state.Phase != "completed" || len(state.Results) != 5 || len(state.LastResult.Results) != 5 {
 			t.Fatal(state)
@@ -452,9 +454,9 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 		if err := c.controlNetworkConnectivity(false); err != nil {
 			t.Fatal(err)
 		}
-		<-c.networkDiagnostics.connectivityDone
+		<-connectivityDoneForTest(c.networkDiagnostics)
 		c.mu.Lock()
-		failed := c.networkDiagnostics.connectivity
+		failed := connectivitySnapshot(c)
 		c.mu.Unlock()
 		if failed.Run <= state.Run || failed.Finished.Before(state.Finished) || failed.LastResult.Finished.IsZero() {
 			t.Fatal("failed run lost test time", failed)
@@ -491,7 +493,7 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	if c.service != nil {
 		t.Fatal("canceled batch initialized storage")
 	}

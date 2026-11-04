@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-30",
-  "noticesSHA256": "4e14074fd7d8863612890a949356ee0a9e8989cf91c2015bd0c63b3028470b89",
+  "reviewedAt": "2026-11-05",
+  "noticesSHA256": "36ba2380548d95110e0bc282d46c9bd330d5f3faac80b2f87fd8d53c2193278e",
   "modules": [
     {
       "path": "github.com/andybalholm/brotli",
@@ -1444,6 +1444,21 @@
         {
           "path": "LICENSE",
           "sha256": "a66b5c17a29c5b28713fc55662593eb22fab1332d0060bdae5ff8c890e821c67"
+        }
+      ]
+    },
+    {
+      "path": "golang.org/x/mod",
+      "version": "v0.41.0",
+      "sum": "h1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=",
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+        },
+        {
+          "path": "PATENTS",
+          "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc"
         }
       ]
     }

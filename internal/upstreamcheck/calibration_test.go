@@ -220,6 +220,10 @@ func TestCalibrationHoldsSingleThenUsesNaturalGrowthAndCancels(t *testing.T) {
 }
 
 func TestCalibrationLoopsDiscardedVideoAndSnapshots(t *testing.T) {
+	synctest.Test(t, calibrationLoopsDiscardedVideoAndSnapshots)
+}
+
+func calibrationLoopsDiscardedVideoAndSnapshots(t *testing.T) {
 	var mu sync.Mutex
 	ranges := map[string]int{}
 	block := make([]byte, calibrationBlock)
@@ -230,7 +234,7 @@ func TestCalibrationLoopsDiscardedVideoAndSnapshots(t *testing.T) {
 		mu.Lock()
 		ranges[r.Header.Get("Range")]++
 		mu.Unlock()
-		time.Sleep(2 * time.Millisecond) // Keep full-block samples above the platform clock resolution.
+		time.Sleep(2 * time.Millisecond) // Give each full-block sample a nonzero virtual duration.
 		return calibrationRange(r, io.NopCloser(bytes.NewReader(block))), nil
 	}))
 	// A short source is reread until the time limit, not treated as exhausted.

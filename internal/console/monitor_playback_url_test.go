@@ -211,7 +211,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	assertRequests(5404, 6, 2)
 	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
 		t.Fatal("Udon-only song was not scheduled", pending)
@@ -220,7 +220,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	<-c.networkDiagnostics.connectivityDone
+	<-connectivityDoneForTest(c.networkDiagnostics)
 	assertRequests(42, 9, 3)
 	if pending := c.metadataSongCandidates(context.Background()); len(pending) != 0 {
 		t.Fatal("metadata still incomplete", pending)

@@ -2,41 +2,12 @@ package console
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/upstreamcheck"
 )
-
-// Caller holds c.mu. Reading diagnostic state never starts a network request.
-func (c *Console) networkCalibrationLocked() (*upstreamcheck.Calibration, error) {
-	if c.closing {
-		return nil, rejectRequest(errors.New("程序正在退出"))
-	}
-	if !c.terms.valid() {
-		return nil, rejectRequest(errors.New("请先阅读并同意使用条款"))
-	}
-	if c.networkDiagnostics == nil {
-		c.networkDiagnostics = &networkDiagnostics{}
-	}
-	if c.networkDiagnostics.calibration == nil {
-		c.networkDiagnostics.calibration = upstreamcheck.NewCalibration(c.client, c.settings.UpstreamMode, upstreamcheck.CalibrationOptions{
-			Candidates: c.calibrationCandidates, SelectSong: c.metadataLocked().SelectSongExcept,
-			Playback: c.connectivityAccess().Playback, OnPlaybackURL: c.syncPlaybackURL,
-			ResourceTransports: c.resourceTransports,
-			OnFinish: func(result upstreamcheck.CalibrationStatus) {
-				if result.Phase == "failed" {
-					c.reportFault("task:calibration", errors.New("网络测速未完成"))
-				} else if result.Phase == "completed" {
-					c.reportFault("task:calibration", nil)
-				}
-			},
-		})
-	}
-	return c.networkDiagnostics.calibration, nil
-}
 
 // The application keeps this Store open until diagnostics stop. Query it only
 // during preparation; subscribing to results must not read storage or network.
@@ -64,15 +35,11 @@ func (c *Console) calibrationCandidates(ctx context.Context) upstreamcheck.Calib
 func (c *Console) controlNetworkCalibration(cancel bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	test, err := c.networkCalibrationLocked()
+	n, err := c.networkDiagnosticsLocked()
 	if err != nil {
 		return err
 	}
-	if cancel {
-		test.Cancel()
-		return nil
-	}
-	return test.Start()
+	return n.controlCalibration(cancel)
 }
 
 func (c *Console) serveNetworkCalibrationEvents(w http.ResponseWriter, r *http.Request) {
@@ -81,14 +48,14 @@ func (c *Console) serveNetworkCalibrationEvents(w http.ResponseWriter, r *http.R
 		return
 	}
 	c.mu.Lock()
-	test, err := c.networkCalibrationLocked()
+	n, err := c.networkDiagnosticsLocked()
 	c.mu.Unlock()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	serveDiagnosticEvents(w, r, "calibration", func() diagnosticEventSnapshot {
-		state, changed := test.Snapshot()
+		state, changed := n.calibrationSnapshot()
 		return diagnosticEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
 	})
 }

@@ -80,8 +80,12 @@ func TestCustomConfigurationsKeepIndependentStateAfterMove(t *testing.T) {
 			other.Close()
 			t.Fatal("same config not locked")
 		}
-		c.Close()
-		lease.Close()
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := lease.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 	moved := filepath.Join(root, "moved")
 	if err := os.Rename(old, moved); err != nil {

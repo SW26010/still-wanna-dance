@@ -162,11 +162,12 @@ func TestNetworkCalibrationUsesLocalSongsWithoutCatalogRequests(t *testing.T) {
 				return &http.Response{StatusCode: 503, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
 			})}
 			c.mu.Lock()
-			calibration, err := c.networkCalibrationLocked()
+			n, err := c.networkDiagnosticsLocked()
 			c.mu.Unlock()
 			if err != nil {
 				t.Fatal(err)
 			}
+			calibration := n.calibration
 			// Opening the result stream can precede catalog updates. Selection must read
 			// the current database when the user starts a run, not at construction.
 			catalog := cacheproxy.Catalog{Source: cacheproxy.UdonCatalogURL, Revision: "20261030000000"}

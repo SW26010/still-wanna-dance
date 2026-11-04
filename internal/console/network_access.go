@@ -13,21 +13,11 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-func (c *Console) connectivityCachedSong(ctx context.Context) int64 {
-	c.mu.Lock()
-	previous := c.networkDiagnostics.connectivitySample
-	c.mu.Unlock()
+func (c *Console) connectivityCachedSong(ctx context.Context, previous int64) int64 {
 	store, err := c.businessStore()
 	var id int64
 	if err == nil {
 		id, err = store.CatalogSampleSong(ctx, previous)
-	}
-	if err == nil && id > 0 {
-		c.mu.Lock()
-		if ctx.Err() == nil {
-			c.networkDiagnostics.connectivitySample = id
-		}
-		c.mu.Unlock()
 	}
 	if err != nil && ctx.Err() == nil {
 		slog.Warn("connectivity_catalog_sample_failed", "error", applog.SafeError(err))

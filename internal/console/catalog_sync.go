@@ -75,7 +75,7 @@ func (c *Console) catalogSyncSnapshotLocked() catalogSyncStatus {
 		s.Error = c.metadata.CatalogError()
 	}
 	if n := c.networkDiagnostics; n != nil {
-		v := n.connectivity
+		v, _ := n.connectivitySnapshot()
 		s.Initializing, s.Checking = v.Initializing && !v.Closed, v.Running
 		s.Finished, s.NextCheck = v.Finished, v.NextCheck
 		if s.Error == "" && s.Initializing && !s.Finished.IsZero() {

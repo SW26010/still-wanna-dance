@@ -156,10 +156,13 @@ func TestSOCKS5ServiceActiveConfigurationAndStatus(t *testing.T) {
 	c.savedSettings.SOCKS5Address = "127.0.0.1:1"
 	c.savedSettings.SOCKS5Password = "saved-secret"
 	c.mu.Lock()
-	if _, err := c.networkCalibrationLocked(); err != nil {
+	n, err := c.networkDiagnosticsLocked()
+	if err != nil {
 		t.Fatal(err)
 	}
-	c.startSOCKS5ServiceLocked()
+	if err := n.checkSOCKS5(); err != nil {
+		t.Fatal(err)
+	}
 	c.mu.Unlock()
 	defer func() { c.BeginShutdown(); c.networkDiagnostics.close() }()
 	select {
@@ -218,9 +221,11 @@ func TestSOCKS5ServiceOnlyExternalProxy(t *testing.T) {
 		c := testConsole(t)
 		c.settings.UpstreamMode, c.settings.ProxyBackend = mode, "mihomo"
 		c.mu.Lock()
-		c.networkDiagnostics = &networkDiagnostics{}
-		c.startSOCKS5ServiceLocked()
-		if c.networkDiagnostics.socks5Done != nil || c.socks5ServiceSnapshotLocked() != nil {
+		n, err := c.networkDiagnosticsLocked()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := n.checkSOCKS5(); err == nil || c.socks5ServiceSnapshotLocked() != nil {
 			t.Error("started for", mode)
 		}
 		c.mu.Unlock()

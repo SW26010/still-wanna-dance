@@ -35,7 +35,11 @@ func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 	if !c.upstreamRequested || !c.terms.valid() {
 		return nil
 	}
-	if err := c.startAutomaticConnectivityLocked(); err != nil {
+	n, err := c.networkDiagnosticsLocked()
+	if err != nil {
+		return err
+	}
+	if err := n.startAutomatic(); err != nil {
 		return err
 	}
 	if c.settings.UpstreamMode != "direct" {

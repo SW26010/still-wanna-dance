@@ -3,7 +3,7 @@ import { Button, Card, Link, Spinner, Tooltip, Text, Subtitle2, Caption1, tokens
 import { GaugeChart } from '@fluentui/react-charts';
 import { ArrowSync20Regular, Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { APIError, request } from './api';
-import { RecordDetails, Feedback, Notification, Panel, StatusBadge } from './ui';
+import { RecordDetails, Feedback, Notification, Panel, StatusBadge, pageHref } from './ui';
 import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
 
@@ -82,7 +82,7 @@ export function UpstreamStatus({visible}:{visible:boolean}) {
   });
   const oldest=observations.map(item=>item.row?.observedAt).filter((at):at is string=>dated(at)).sort((a,b)=>new Date(a).getTime()-new Date(b).getTime())[0];
   return <Card size="small" className="upstream-card">
-    <div className="toolbar spread upstream-heading"><Subtitle2 as="h2"><Link appearance="subtle" href="#network-tests">上游</Link>：<Link appearance="subtle" href="#network-proxy">{upstreamName(app.status.data)}</Link></Subtitle2><Tooltip content="重新检测上游" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={disabled} disabledFocusable={busy} onClick={()=>void connectivity.start()}/></Tooltip></div>
+    <div className="toolbar spread upstream-heading"><Subtitle2 as="h2"><Link appearance="subtle" href={pageHref('network')}>网络上游：{upstreamName(app.status.data)}</Link></Subtitle2><Tooltip content="重新检测上游" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={disabled} disabledFocusable={busy} onClick={()=>void connectivity.start()}/></Tooltip></div>
     <div ref={setTooltipBelow} className="toolbar upstream-badges">{observations.map(({operation,checking,row,retained})=>{
       const unknown=!connectivity.online||!!app.status.error||app.stopped;
       const previousState=row?.state==='available'?'可连接':row?.state==='failed'?'连接失败':'尚未检测';

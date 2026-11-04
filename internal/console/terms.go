@@ -177,6 +177,7 @@ func (c *Console) acceptTerms() error {
 			proxy.Retire()
 		}
 	}
+	c.startPendingUpdateCheckLocked()
 	if err := c.startUpstreamServicesLocked(); err != nil {
 		c.termsStartupFailed = true
 		return fmt.Errorf("%w: %v", errTermsStartup, err)

@@ -106,7 +106,10 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 			}}
 			// Use the production application adapter without starting Monitor.
 			c.mu.Lock()
-			err := c.startAutomaticConnectivityLocked()
+			n, err := c.networkDiagnosticsLocked()
+			if err == nil {
+				err = n.startAutomatic()
+			}
 			c.mu.Unlock()
 			if err != nil {
 				t.Fatal(err)

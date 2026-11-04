@@ -39,6 +39,11 @@ export async function mockAPI(page: Page) {
     };
     let data: unknown = {ok:true};
     if (match('GET status')) data = state;
+    if (match('POST update/check')) data=state.update||{checking:false,result:'unknown',reason:'failed'};
+    if (match('POST update/notice')) {
+      data={version:state.update?.startupNotice?state.update.latestVersion:undefined};
+      if(state.update)state.update.startupNotice=false;
+    }
     if(match('POST import/dismiss-suggestion'))state.videoImportSuggested=false;
     if(match('GET import/space'))data={mode:'unknown',videoDir:state.import.videoDir||state.activeSettings.videoDir};
     if(match('POST exit','POST restart'))data={ok:true,action:path};

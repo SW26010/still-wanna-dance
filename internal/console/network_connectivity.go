@@ -3,7 +3,6 @@ package console
 import (
 	"context"
 	"errors"
-	"net/http"
 	"slices"
 	"time"
 
@@ -92,8 +91,7 @@ func retainUnobservedConnectivity(results, previous []networkConnectivityResult)
 	return results
 }
 
-func (c *Console) publishNetworkConnectivityLocked() {
-	n := c.networkDiagnostics
+func (n *networkDiagnostics) publishConnectivityLocked() {
 	n.connectivity.Revision++
 	if n.connectivityChanged != nil {
 		close(n.connectivityChanged)
@@ -101,10 +99,9 @@ func (c *Console) publishNetworkConnectivityLocked() {
 	n.connectivityChanged = make(chan struct{})
 }
 
-func (c *Console) connectivityRow(ctx context.Context, row networkConnectivityResult) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	n := c.networkDiagnostics
+func (n *networkDiagnostics) connectivityRow(ctx context.Context, row networkConnectivityResult) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if ctx.Err() != nil || n.connectivity.Closed {
 		return
 	}
@@ -120,7 +117,7 @@ func (c *Console) connectivityRow(ctx context.Context, row networkConnectivityRe
 		rows[i] = row
 	}
 	n.connectivity.Results = rows
-	c.publishNetworkConnectivityLocked()
+	n.publishConnectivityLocked()
 }
 
 func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
@@ -145,26 +142,20 @@ func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
 	return row
 }
 
-func (c *Console) controlNetworkConnectivity(cancel bool) error {
-	return c.controlNetworkConnectivityOperation(cancel, "")
-}
-
-func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation upstreamcheck.Operation) error {
+func (n *networkDiagnostics) controlConnectivity(cancel bool, operation upstreamcheck.Operation) error {
 	if operation != "" && operation != upstreamcheck.Catalog && operation != upstreamcheck.PlaybackURL && operation != upstreamcheck.Resource {
 		return rejectRequest(errors.New("无效的连通性检测项目"))
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	_, err := c.networkCalibrationLocked()
-	if err != nil {
-		return err
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.connectivity.Closed {
+		return diagnosticsClosed()
 	}
-	n := c.networkDiagnostics
 	if cancel {
 		if n.connectivity.Running {
 			n.connectivity.Phase = "canceling"
 			n.connectivityCancel()
-			c.publishNetworkConnectivityLocked()
+			n.publishConnectivityLocked()
 		}
 		return nil
 	}
@@ -173,16 +164,15 @@ func (c *Console) controlNetworkConnectivityOperation(cancel bool, operation ups
 			return rejectRequest(errors.New("连通性检测正在进行，请稍后重试"))
 		}
 		n.connectivityManual = true
-		c.publishNetworkConnectivityLocked()
+		n.publishConnectivityLocked()
 		return nil // Full checks join the existing full round.
 	}
-	c.startConnectivityLocked(operation, operation != "", true)
+	n.startConnectivityLocked(operation, operation != "", true)
 	return nil
 }
 
-// Caller holds c.mu. All triggers share progress, publication and cancellation.
-func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, keepSchedule, manual bool) {
-	n := c.networkDiagnostics
+// Caller holds n.mu. All triggers share progress, publication and cancellation.
+func (n *networkDiagnostics) startConnectivityLocked(operation upstreamcheck.Operation, keepSchedule, manual bool) {
 	if n.connectivityTimer != nil {
 		n.connectivityTimer.Stop()
 	}
@@ -190,7 +180,7 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 	n.connectivityCancel = stop
 	n.connectivityManual = manual
 	previous := n.connectivity
-	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: c.settings.UpstreamMode, Operation: operation, Running: true, Phase: "running", Initializing: previous.Initializing}
+	n.connectivity = networkConnectivityStatus{Finished: previous.Finished, LastResult: previous.LastResult, Revision: previous.Revision, Run: previous.Run + 1, Upstream: n.options.Upstream, Operation: operation, Running: true, Phase: "running", Initializing: previous.Initializing}
 	if keepSchedule {
 		n.connectivity.NextCheck = previous.NextCheck
 	}
@@ -201,29 +191,26 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 			}
 		}
 	}
-	c.publishNetworkConnectivityLocked()
+	n.publishConnectivityLocked()
 	done := make(chan struct{})
 	n.connectivityDone = done
-	client, metadata := c.client, c.metadataLocked()
-	go func() {
+	n.tasks.Go(func() {
 		defer close(done)
 		defer stop()
-		ready := c.catalogReady(ctx)
-		c.mu.Lock()
-		n.connectivity.Initializing = !ready
-		c.publishNetworkConnectivityLocked()
-		c.mu.Unlock()
-		upstreamcheck.CheckConnectivity(ctx, c.connectivityAccess(), upstreamcheck.ConnectivityBusiness{
-			OnCatalog: c.syncCatalogs, RememberSample: metadata.RememberSample, SelectSong: metadata.SelectSong, OnPlaybackURL: c.syncPlaybackURL,
-			CachedSong: c.connectivityCachedSong, CachedResource: c.connectivityCachedResource,
-		}, operation, func(r upstreamcheck.Result) { c.connectivityRow(ctx, connectivityResult(r)) })
+		ready := n.options.CatalogReady(ctx)
+		n.mu.Lock()
+		if ctx.Err() == nil && !n.connectivity.Closed {
+			n.connectivity.Initializing = !ready
+			n.publishConnectivityLocked()
+		}
+		n.mu.Unlock()
+		upstreamcheck.CheckConnectivity(ctx, n.options.Access, n.options.Business, operation, func(r upstreamcheck.Result) { n.connectivityRow(ctx, connectivityResult(r)) })
 		if ctx.Err() == nil {
-			ready = c.catalogReady(ctx)
+			ready = n.options.CatalogReady(ctx)
 		}
 		// Cancel unused dials retained by net/http after request cancellation.
-		client.CloseIdleConnections()
-		c.mu.Lock()
-		defer c.mu.Unlock()
+		n.options.Client.CloseIdleConnections()
+		n.mu.Lock()
 		n.connectivity.Running = false
 		delay := 5 * time.Minute
 		if ctx.Err() != nil {
@@ -244,14 +231,6 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 				n.connectivity.Results = retainUnobservedConnectivity(n.connectivity.Results, previous.LastResult.Results)
 			}
 			n.connectivity.LastResult = &networkConnectivityRecord{Finished: n.connectivity.Finished, Results: slices.Clone(n.connectivity.Results)}
-			for checked, failure := range connectivityFaults(n.connectivity.Results, operation) {
-				source := "network:connectivity:" + string(checked)
-				if n.connectivityManual {
-					c.reportFault(source, failure)
-				} else {
-					c.reportRetryFault(source, failure)
-				}
-			}
 			if ready {
 				n.connectivityRetry = 0
 			} else if !keepSchedule {
@@ -261,34 +240,25 @@ func (c *Console) startConnectivityLocked(operation upstreamcheck.Operation, kee
 		}
 		if n.connectivityAuto && !n.connectivity.Closed {
 			if keepSchedule && !previous.NextCheck.IsZero() {
-				c.scheduleConnectivityAtLocked(previous.NextCheck)
+				n.scheduleConnectivityAtLocked(previous.NextCheck)
 			} else {
-				c.scheduleConnectivityLocked(delay)
+				n.scheduleConnectivityLocked(delay)
 			}
 		}
-		c.publishNetworkConnectivityLocked()
-	}()
-}
-
-func (c *Console) serveNetworkConnectivityEvents(w http.ResponseWriter, r *http.Request) {
-	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+c.address {
-		http.Error(w, "invalid origin", 403)
-		return
-	}
-	c.mu.Lock()
-	_, err := c.networkCalibrationLocked()
-	if err == nil && c.networkDiagnostics.connectivityChanged == nil {
-		c.networkDiagnostics.connectivityChanged = make(chan struct{})
-	}
-	c.mu.Unlock()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
-	serveDiagnosticEvents(w, r, "connectivity", func() diagnosticEventSnapshot {
-		c.mu.Lock()
-		state, changed := c.networkDiagnostics.connectivity, c.networkDiagnostics.connectivityChanged
-		c.mu.Unlock()
-		return diagnosticEventSnapshot{state: state, revision: state.Revision, closed: state.Closed, changed: changed}
+		n.publishConnectivityLocked()
+		var failures map[upstreamcheck.Operation]error
+		if ctx.Err() == nil {
+			failures = connectivityFaults(n.connectivity.Results, operation)
+		}
+		report := n.options.ReportRetryFault
+		if n.connectivityManual {
+			report = n.options.ReportFault
+		}
+		n.mu.Unlock()
+		if report != nil {
+			for checked, failure := range failures {
+				report("network:connectivity:"+string(checked), failure)
+			}
+		}
 	})
 }

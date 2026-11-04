@@ -23,7 +23,7 @@ func runFollowupConnectivity(t *testing.T, c *Console) networkConnectivityStatus
 		t.Fatal(err)
 	}
 	select {
-	case <-c.networkDiagnostics.connectivityDone:
+	case <-connectivityDoneForTest(c.networkDiagnostics):
 	case <-time.After(5 * time.Second):
 		t.Fatal("connectivity check did not finish")
 	}

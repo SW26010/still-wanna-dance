@@ -27,6 +27,8 @@ Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_
 
 加速启停与退出策略的真实浏览器联调可设置 `SWD_HOSTS_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestHostsPolicyBrowser$' -count=1 -v`。测试使用回环网关和私有 hosts 文件，不修改系统 hosts。Windows CI 同时运行此检查和上述设置联调。
 
+更新检查的真实 Console 与浏览器联调可设置 `SWD_UPDATE_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestUpdateBrowser$' -count=1 -v`；GitHub 响应受控，检查启动通知、多个页面、刷新和手动检查。另可设置 `SWD_UPDATE_GITHUB_LIVE=1` 并运行 `TestUpdatePublicGitHub`，通过产品直连网络访问公开 Release 接口，不启动游戏或修改 hosts。
+
 ## 测试维护与 CI 修复
 
 目标是平衡发现真实问题的效果与长期维护成本，让失败容易复现和定位。测试数量、模拟数量和单次全绿都不能单独证明验证质量；选择能判断具体风险的最小可靠检查，验证分工以[实机验收机制](live-acceptance-process.md)为准。
@@ -66,6 +68,8 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 共享引擎由 Console 持有，入口集中在 [`engine.go`](../internal/console/engine.go)。视频任务和网关在已有 `lifecycleMu` 保护的启动流程中调用 `ensureEngineLocked`，调用时不持有状态锁 `mu`，直接使用返回的引擎；导入先完成目录校验，曲库更新则直接使用已有 Store。任务登记与退出等待仍由各业务生命周期负责。预览通过 `retainEngineRead` 一次取得引擎及释放函数，涵盖首次淘汰前的保护。创建、发布通知与关闭不借用调用方的状态锁；状态读取继续只取得短期快照，不等待引擎 I/O。运行语义以[配置生命周期](settings-lifecycle.md)为准。
 
 网关启停沿用与设置、共享引擎共用的 `lifecycleMu`；启停方法自己取得状态锁，不借用调用方的 `mu`。停止先取消队列并等待来源撤销，再释放网关监听。队列任务自行持有状态、取消和完成信号，以及状态锁和更新锁；展示侧读取独立的状态快照，Console 保留网关随动意图和应用级启停协调。队列状态变更与引擎保护同步由任务的更新锁串行化，等待保护更新时不持有状态锁，日志的同批快照保持整体顺序。退出的 `BeginShutdown` 先取消任务，后续 `Close` 再等待清理。
+
+网络诊断的职责和退出顺序以[上游检测与测速](upstream-channels.md#上游检测与测速)为准。生命周期测试直接构造 `networkDiagnostics`，注入既有请求和业务能力的夹具，以 `testing/synctest` 验证退避、截止时间、独立取消与退出等待，无需准备 Console、数据库或条款。Console 集成测试继续验证条款准入、当前生效配置、真实代理请求、响应复用及状态流；读取诊断状态通过快照方法，不以 Console 的锁保护诊断内部字段。
 
 ## Windows 环境
 

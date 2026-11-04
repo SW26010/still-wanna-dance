@@ -1242,6 +1242,20 @@
       "bytes": 1241405,
       "sha256": "c0c87013ca98bc5f16edb323279c462d5049dff7dad06c30089e44f3088bbb6c",
       "reason": "Generated offline Fluent WebUI for the two-row Mihomo configuration summary/import form, native browser file picker and shared explicit/automatic import validation on settings save; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1241343,
+      "sha256": "d0aadfa9f5adb7e45bc2473f7e9ab114c095dd6bc1ac61edaf8fe5123ee3fa00",
+      "reason": "Generated offline Fluent WebUI with the home network upstream title linking to the network page; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1243357,
+      "sha256": "7784443c5ff26e54017c281938442835a7ce54731321f4bbf0c8812a9acc340e",
+      "reason": "Merged production Fluent WebUI retaining stable release update checks and the unified home network upstream title navigation; rebuilt from merged source and verified against webui/build-manifest.json."
     }
   ]
 }

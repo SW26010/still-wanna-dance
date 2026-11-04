@@ -29,6 +29,21 @@ func TestApplicationBlockCacheStartup(t *testing.T) {
 			root := t.TempDir()
 			config, cache := filepath.Join(root, "config.json"), filepath.Join(root, "selected-cache")
 			settings := map[string]any{"schemaVersion": 8, "blockCacheDir": cache}
+			if !offlineData {
+				// Library creation is fixture setup, outside the child readiness
+				// deadline for these block-workspace lifecycle checks.
+				paths := apppaths.ForConfig(config)
+				store, err := cacheproxy.CreateStore(filepath.Join(root, paths.DefaultDatabase))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := store.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.MkdirAll(filepath.Join(root, paths.DefaultVideo), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if defaultCache {
 				cache = ""
 				delete(settings, "blockCacheDir")

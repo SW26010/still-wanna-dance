@@ -7,8 +7,13 @@ import (
 	"still-wanna-dance/internal/upstreamcheck"
 )
 
-// Diagnostics borrow the application's active client. They own only their runs.
+// Diagnostics use the application's active network configuration and own only
+// their checks; business clients and connections remain application-owned.
 type networkDiagnostics struct {
+	socks5              socks5ServiceStatus
+	socks5Cancel        context.CancelFunc
+	socks5Done          chan struct{}
+	socks5Wake          chan struct{}
 	connectivity        networkConnectivityStatus
 	connectivityChanged chan struct{}
 	connectivityCancel  context.CancelFunc
@@ -28,10 +33,16 @@ func (n *networkDiagnostics) close() {
 	if n.connectivityCancel != nil {
 		n.connectivityCancel()
 	}
+	if n.socks5Cancel != nil {
+		n.socks5Cancel()
+	}
 	if n.calibration != nil {
 		n.calibration.Close()
 	}
 	if n.connectivityDone != nil {
 		<-n.connectivityDone
+	}
+	if n.socks5Done != nil {
+		<-n.socks5Done
 	}
 }

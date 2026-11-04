@@ -399,6 +399,12 @@ func (c *Console) BeginShutdown() {
 	}
 	c.resources.Close()
 	if c.networkDiagnostics != nil {
+		if c.networkDiagnostics.socks5Cancel != nil {
+			c.networkDiagnostics.socks5Cancel()
+		}
+		c.networkDiagnostics.socks5.Closed = true
+		c.networkDiagnostics.socks5.Checking = false
+		c.networkDiagnostics.socks5.NextCheck = time.Time{}
 		if c.networkDiagnostics.connectivityTimer != nil {
 			c.networkDiagnostics.connectivityTimer.Stop()
 		}
@@ -583,6 +589,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			HTTPSPortOwner        *desktop.Owner       `json:"httpsPortOwner,omitempty"`
 			SOCKS5PasswordSet     bool                 `json:"socks5PasswordSet"`
 			SOCKS5CredentialError string               `json:"socks5CredentialError,omitempty"`
+			SOCKS5Service         *socks5ServiceStatus `json:"socks5Service,omitempty"`
 			ProxyNodes            proxyNodeStatus      `json:"proxyNodes"`
 			Activation            Activation           `json:"activation"`
 			DefaultLogDir         string               `json:"defaultLogDir"`
@@ -601,6 +608,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue.snapshot(), LastBatch: c.lastBatch,
 			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
 			SOCKS5CredentialError: c.savedSettings.proxySecretError,
+			SOCKS5Service:         c.socks5ServiceSnapshotLocked(),
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.portableDir(),
@@ -750,6 +758,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		}
 	case "/api/network/connectivity/cancel":
 		err = c.controlNetworkConnectivity(true)
+	case "/api/network/socks5/check":
+		err = c.checkSOCKS5Service()
 	case "/api/upstream/check":
 		err = c.requestMonitorCheck()
 	case "/api/upstream/check/catalog":

@@ -17,6 +17,7 @@ func (c *Console) startAutomaticConnectivityLocked() error {
 		return nil
 	}
 	n.connectivityAuto = true
+	c.startSOCKS5ServiceLocked()
 	if !n.connectivity.Running {
 		c.scheduleConnectivityLocked(0)
 		c.publishNetworkConnectivityLocked()

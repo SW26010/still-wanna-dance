@@ -1200,6 +1200,13 @@
       "bytes": 1254509,
       "sha256": "34d7791943db7e6a0c385b72b02311767fd5dbc424db52010c625a0d92dbea3d",
       "reason": "Reviewed production Fluent UI bundle: disable the favorite-retention checkbox in no-retention mode while preserving its value and all existing interface copy. Embedded for offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1256780,
+      "sha256": "eaa88333f639bfd0729c097a9e4b86a3f85993d6a4b431299a315567795678b2",
+      "reason": "Reviewed production Fluent UI bundle: show active SOCKS5 endpoint and service negotiation/authentication status with the shared refresh button style, timing and failures. Embedded for offline Go builds and verified against webui/build-manifest.json."
     }
   ]
 }

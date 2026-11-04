@@ -42,6 +42,7 @@ export interface Status {
   storageError?: string; workError?: string; actionErrors?: Record<string,string>; batch: Job; lastBatch: Job; import: ImportJob;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; error?: string};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
+  socks5Service?: {checking:boolean;closed:boolean;state:string;error?:string;authenticated:boolean;latencyMS:number|null;observedAt:string;nextCheck:string};
   proxyNodes?: {saved?: number; loaded?: number; dashboard?: boolean; error?: string; activeError?: string};
   activation?: {phase?: string; error?: string; connectionError?: string; started?: string; readyAt?: string; firstRequest?: string};
   defaultLogDir: string; defaultDatabasePath: string; defaultVideoDir: string; defaultBlockCacheDir: string; portableDir: string; upstreamMonitor?: Health; catalogSync?: {initializing:boolean;checking:boolean;finished?:string;updated?:string;nextCheck?:string;error?:string};

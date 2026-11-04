@@ -1,9 +1,41 @@
 import {useEffect,useRef,useState} from 'react';
-import {Link,Spinner,Subtitle2} from '@fluentui/react-components';
+import {Button,Caption1,Link,Spinner,Subtitle2,Text,Tooltip} from '@fluentui/react-components';
+import {ArrowSync20Regular} from '@fluentui/react-icons';
+import {request} from './api';
 import {Diagnostics} from './diagnostics';
 import {NetworkMonitor} from './monitor';
 import {useApp} from './hooks';
-import {Feedback} from './ui';
+import {Feedback,Notification,Panel,StatusBadge} from './ui';
+import {date,dated} from './types';
+
+function SOCKS5Service() {
+  const app=useApp(),service=app.status.data?.socks5Service;
+  const [pending,setPending]=useState(false),[waiting,setWaiting]=useState<{observedAt?:string}>(),[error,setError]=useState('');
+  useEffect(()=>{if(waiting&&service?.observedAt!==waiting.observedAt)setWaiting(undefined);},[service?.observedAt,waiting]);
+  const busy=pending||!!waiting||!!service?.checking;
+  async function check() {
+    if(busy||app.unavailable)return;
+    setPending(true);setWaiting({observedAt:service?.observedAt});setError('');
+    try {await request('network/socks5/check',{});}
+    catch(e) {setWaiting(undefined);setError('检测未确认：'+String(e));}
+    finally {setPending(false);app.status.refresh();}
+  }
+  const unknown=app.stopped||!!app.status.error||!!service?.closed;
+  const state=unknown?'待确认':busy?'检测中':service?.state==='available'?'可用':service?.state==='failed'?'检查失败':'尚未检测';
+  const description=unknown?'无法确认当前服务状态':busy?'正在协商与认证':service?.error|| (service?.state==='available'?(service.authenticated?'协商与认证通过':'协商通过，服务无需认证'):'等待自动检查');
+  return <Panel title="SOCKS5 服务" action={<Tooltip content="重新检测 SOCKS5 服务" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={app.unavailable||unknown||busy} disabledFocusable={busy} onClick={()=>void check()}/></Tooltip>}>
+    <Text className="wrap">{app.status.data?.activeSettings.socks5Address}</Text>
+    <div className="toolbar"><StatusBadge label="服务" color={unknown?'informative':busy?'brand':service?.state==='available'?'success':service?.state==='failed'?'danger':'informative'} description={description}>{state}</StatusBadge>
+      {!unknown&&!busy&&service?.latencyMS!=null&&<Text>{Math.round(service.latencyMS)} ms</Text>}
+    </div>
+    {!unknown&&!busy&&service?.state==='available'&&<Text>{service.authenticated?'协商与认证通过':'协商通过，服务无需认证'}</Text>}
+    <Feedback error>{!unknown&&!busy?service?.error:undefined}</Feedback>
+    <div className="toolbar secondary"><Caption1>最后检查：{dated(service?.observedAt)?<time dateTime={service?.observedAt}>{date(service?.observedAt)}</time>:'—'}</Caption1>
+      {!unknown&&dated(service?.nextCheck)&&<Caption1>下次检查：<time dateTime={service?.nextCheck}>{date(service?.nextCheck)}</time></Caption1>}
+    </div>
+    <Notification message={error} error/>
+  </Panel>;
+}
 
 function DashboardFrame() {
   const [loaded,setLoaded]=useState(false);
@@ -40,6 +72,7 @@ export function Network({visible}:{visible:boolean}) {
   const mihomo=status.activeSettings.upstreamMode==='proxy'&&status.activeSettings.proxyBackend==='mihomo';
   return <div id={!direct?'network':undefined} tabIndex={!direct?-1:undefined} className="page-stack">
     <section id="network-tests" tabIndex={-1}>{visible&&<Diagnostics visible={visible}/>}</section>
+    {!direct&&!mihomo&&<SOCKS5Service/>}
     {direct&&<NetworkMonitor/>}
     {mihomo&&visible&&<MihomoDashboard/>}
   </div>;

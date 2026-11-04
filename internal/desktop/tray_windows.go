@@ -400,12 +400,15 @@ func (t *tray) command(id int) {
 }
 
 func (t *tray) showMenu() {
+	state := t.options.State()
+	restoreTheme := applyMenuTheme(usesLightTheme(state.Theme))
+	defer restoreTheme()
 	menu, _, _ := user32.NewProc("CreatePopupMenu").Call()
 	if menu == 0 {
 		return
 	}
 	defer user32.NewProc("DestroyMenu").Call(menu)
-	for _, item := range Menu(t.options.State(), t.busy.Load()) {
+	for _, item := range Menu(state, t.busy.Load()) {
 		flags := uintptr(0)
 		if item.ID == 0 {
 			flags = 0x800

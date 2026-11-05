@@ -86,6 +86,15 @@ func TestConnectivityRetryCanceledByStorageFailureKeepsCurrentResourceObservatio
 	if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 900001, Node: "cf", URL: oldURL}); err != nil {
 		t.Fatal(err)
 	}
+	// Prepare the later catalog fault before any diagnostic writer starts.
+	db, err := sql.Open("sqlite", c.settings.DatabasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TRIGGER reject_catalog_retry BEFORE UPDATE ON catalog_state WHEN NEW.revision='20261101000000' BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
+		t.Fatal(err)
+	}
 	var failStorage atomic.Bool
 	retryStarted := make(chan struct{})
 	var retryOnce sync.Once
@@ -118,19 +127,14 @@ func TestConnectivityRetryCanceledByStorageFailureKeepsCurrentResourceObservatio
 		return resp, nil
 	})}
 	previous := runFollowupConnectivity(t, c)
+	if err := c.metadata.CatalogError(); err != "" {
+		t.Fatal("baseline catalog failed", err)
+	}
 	i := slices.IndexFunc(previous.Results, func(r networkConnectivityResult) bool {
 		return r.Operation == upstreamcheck.Resource && r.State == "available"
 	})
 	if i < 0 {
 		t.Fatal("missing previous resource observation", previous.Results)
-	}
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER reject_catalog_retry BEFORE DELETE ON catalog_members BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
-		t.Fatal(err)
 	}
 	failStorage.Store(true)
 	current := runFollowupConnectivity(t, c)

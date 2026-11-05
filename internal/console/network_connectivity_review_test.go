@@ -18,6 +18,16 @@ import (
 func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testing.T) {
 	c := testConsole(t)
 	c.settings.UpstreamMode = "proxy"
+	// Install the fault before diagnostics can write through their connection.
+	// The first catalog stays healthy; only the later revision must roll back.
+	db, err := sql.Open("sqlite", c.settings.DatabasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TRIGGER reject_catalog BEFORE UPDATE ON catalog_state WHEN NEW.revision='20261101000000' BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
+		t.Fatal(err)
+	}
 	var failCatalog atomic.Bool
 	var playback, resource atomic.Int32
 	playbackStarted, resourceStarted := make(chan struct{}, 1), make(chan struct{}, 1)
@@ -75,18 +85,13 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 		}
 	}
 	run()
+	if err := c.metadata.CatalogError(); err != "" {
+		t.Fatal("baseline catalog failed", err)
+	}
 	before := connectivitySnapshot(c)
 	counts := [2]int32{playback.Load(), resource.Load()}
 	if counts[0] == 0 || counts[1] == 0 {
 		t.Fatal("fixture needs previous observations", before.Results)
-	}
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER reject_catalog BEFORE DELETE ON catalog_members BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
-		t.Fatal(err)
 	}
 	failCatalog.Store(true)
 	for attempt := range 2 {

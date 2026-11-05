@@ -69,7 +69,7 @@ func assertPreviewUncounted(t *testing.T, s *Server, target PreviewTarget) {
 
 func TestPreviewColdHotAndNoGameEffects(t *testing.T) {
 	var upstream, activation, queries atomic.Int32
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		upstream.Add(1)
 		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
 	}, func(cfg *Config) {
@@ -78,17 +78,19 @@ func TestPreviewColdHotAndNoGameEffects(t *testing.T) {
 		cfg.ResolvePlayback = func(context.Context, string) (string, error) { queries.Add(1); return videoURL(payload), nil }
 	})
 	target := seedPreview(t, s, payload)
-	for range 2 {
-		assertResponse(t, previewResponse(s, target, map[string]string{"Range": "bytes=2-9"}), 206, payload[2:10])
+	for _, cache := range []string{"MISS", "HIT"} {
+		w := previewResponse(s, target, map[string]string{"Range": "bytes=2-9"})
+		assertResponse(t, w, 206, payload[2:10])
+		if got := w.Header().Get("X-SWD-Cache"); got != cache {
+			t.Fatalf("preview cache=%q, want %q", got, cache)
+		}
+		s.wg.Wait() // Response completion precedes shared publication.
 	}
 	assertPreviewUncounted(t, s, target)
 	if upstream.Load() == 0 || queries.Load() != 1 || activation.Load() != 0 {
 		t.Fatalf("upstream=%d queries=%d activation=%d", upstream.Load(), queries.Load(), activation.Load())
 	}
 	// Known complete files must be readable without any URL refresh.
-	if err := os.WriteFile(cfg.videoFile(target.Resource), []byte(payload), 0600); err != nil {
-		t.Fatal(err)
-	}
 	assertResponse(t, previewResponse(s, target, nil), 200, payload)
 	if queries.Load() != 1 {
 		t.Fatal("local preview refreshed upstream")

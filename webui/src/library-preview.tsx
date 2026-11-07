@@ -25,7 +25,7 @@ export function LibraryPreview({storageID,target,onClose}:{storageID:string;targ
   },[storageID,target]);
   return <Dialog open onOpenChange={(_,data)=>{if(!data.open)onClose();}}>
     <DialogSurface className="library-preview"><DialogBody>
-      <DialogTitle>预览 · {target.label}</DialogTitle>
+      <DialogTitle>预览 · <span className={target.label===target.resource?'resource-id':undefined}>{target.label}</span></DialogTitle>
       <DialogContent>
         <video ref={video} controls playsInline preload="none" aria-label="曲库预览播放器" onLoadedData={()=>setLoading(false)} onError={event=>{
           if(!event.currentTarget.getAttribute('src'))return;

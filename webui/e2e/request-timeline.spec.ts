@@ -80,7 +80,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
   const sources={downloadBytes:1048576,cacheBytes:2097152,localBytes:1048576};
   await page.route('**/api/response-sources',r=>r.fulfill({json:sources}));
-  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3)],hasMore:false,nextCursor:''}}));
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3),...(['downloadBytes','cacheBytes','localBytes'] as const).map((key,i)=>({...record(i+4),sources:{downloadBytes:0,cacheBytes:0,localBytes:0,[key]:100}}))],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   const summary=page.getByRole('region',{name:'响应来源统计'});
   const heading=summary.getByRole('heading',{name:'响应来源',exact:true});
@@ -98,6 +98,25 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();
   const row=page.getByRole('row').filter({has:page.getByRole('link',{name:'ID 42',exact:true})});
   await expect(row).toContainText('下载 25%');await expect(row).toContainText('缓存 50%');
+  await expect(row).toContainText('本地 25%');
+  const rows=page.getByRole('table',{name:'请求历史列表'}).locator('tbody tr');
+  await expect(rows.nth(1).getByRole('cell').nth(5)).toHaveText('—');
+  await expect(rows.nth(2).getByRole('cell').nth(5)).toHaveText('未知');
+  for(const [index,label] of ['下载','缓存','本地'].entries())await expect(rows.nth(index+3).getByRole('cell').nth(5)).toHaveText(label);
+  const shares=row.getByRole('cell').nth(5);
+  expect(await shares.getByText('本地 25%',{exact:true}).evaluate(el=>el.getBoundingClientRect().top)).toBeGreaterThan(await shares.getByText('下载 25%',{exact:true}).evaluate(el=>el.getBoundingClientRect().top));
+  const delivery=row.getByRole('cell').nth(4);
+  await expect(delivery).toHaveText('50%');
+  await delivery.getByText('50%',{exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('已写出 50 B / 应交付 100 B');
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  const resource=row.getByRole('link',{name:'a'.repeat(12)+'…',exact:true});
+  await resource.focus();await expect(page.getByRole('tooltip')).toHaveText('a'.repeat(32));
+  await expect(resource).toHaveAttribute('href','#/library?resource='+'a'.repeat(32));
+  await page.keyboard.press('Escape');
+  await row.getByRole('button',{name:'请求 1 的明细',exact:true}).hover();
+  await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toContainText('a'.repeat(32));
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
   await page.getByRole('button',{name:'全部保留期',exact:true}).click();await expect(summary).toContainText('缓存 50%');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));
@@ -228,7 +247,11 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);
-  await expect(page.getByRole('row').filter({hasText:'处理异常'}).getByText('0 B',{exact:true})).toBeVisible();
+  const delivery=page.getByRole('row').filter({hasText:'处理异常'}).getByRole('cell').nth(4);
+  await expect(delivery).toHaveText('—');
+  await delivery.getByText('—',{exact:true}).focus();
+  await expect(page.getByRole('tooltip')).toHaveText('已写出 0 B / 应交付未知');
+  await page.keyboard.press('Escape');
   for(let n=2;n<=12;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
     await expect(page.getByText(`第 ${n} 页 · 50 条`,{exact:true})).toBeVisible();
@@ -257,6 +280,9 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await page.keyboard.press('Escape');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true});
   await expect(table.getByRole('columnheader')).toHaveCount(7);
+  await expect(table.getByRole('columnheader',{name:'详情',exact:true})).toHaveText('');
+  expect((await table.locator('tbody tr').first().getByRole('cell').last().boundingBox())!.width).toBeLessThan(60);
+  await expect(table.locator('tbody tr').first().getByRole('link').nth(1)).toHaveCSS('font-family',/Consolas|monospace/);
   const songCell=table.locator('tbody tr').first().getByRole('cell').nth(1),songName=songCell.getByText(title,{exact:true});
   await expect(songName).toBeVisible();
   expect(await songName.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);

@@ -1284,6 +1284,13 @@
       "bytes": 1245027,
       "sha256": "fb53c71218c0e7c02b24301fc85f8b307362bd541cdc91c4730e03b5e00451e0",
       "reason": "Generated offline Fluent WebUI restoring the directly visible HTTP status beneath each history result, retaining shared result labels and accessible explanations; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1246416,
+      "sha256": "2fea19b034687951b6ab8acd7203dd3b4dac355e4c88e4a5c05b194aec84a65b",
+      "reason": "Generated offline Fluent WebUI with hover details, separate associated songs, compact history resource identities, delivery tooltips, source shares, monospace resource IDs and fixed MD5 columns; verified against webui/build-manifest.json."
     }
   ]
 }

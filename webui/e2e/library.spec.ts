@@ -102,9 +102,12 @@ for(const width of [320,390])test(`long record details remain inside the viewpor
   await page.setViewportSize({width,height:800});await page.goto('/#/library');
   const trigger=page.getByRole('button',{name:'歌曲 2 的详情',exact:true});
   await trigger.evaluate(el=>el.scrollIntoView({block:'center',inline:'end'}));
-  await trigger.click();
+  await trigger.hover();
   const detail=page.getByRole('group',{name:'歌曲 2 的详情',exact:true});
   await expect(detail).toBeVisible();
+  await detail.hover();await expect(detail).toBeVisible();
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  await trigger.focus();await page.keyboard.press('Enter');
   await expect(detail.getByRole('link')).toBeFocused();
   await expect.poll(async()=>{const box=(await detail.boundingBox())!;return box.x>=0&&box.x+box.width<=width&&box.y>=0&&box.y+box.height<=800;}).toBe(true);
   await expect(detail.getByRole('heading')).toBeInViewport();
@@ -274,7 +277,7 @@ test('historical object links retain exact identity and explain missing objects'
   await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
   expect(queries.at(-1)?.get('song')).toBe('999');
   await page.goBack();
-  await page.getByRole('link',{name:'c'.repeat(32),exact:true}).click();
+  await page.getByRole('link',{name:'c'.repeat(12)+'…',exact:true}).click();
   await expect(page.getByRole('tab',{name:'按资源'})).toHaveAttribute('aria-selected','true');
   await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
   expect(queries.at(-1)?.get('resource')).toBe('c'.repeat(32));
@@ -293,7 +296,25 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   await page.keyboard.press('Escape');
   await page.screenshot({path:info.outputPath('library-actions.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('tab',{name:'按资源'}).click();
-  await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
+  const resources=page.getByRole('table',{name:'曲库资源'});
+  await expect(resources.getByRole('columnheader',{name:'关联歌曲',exact:true})).toBeVisible();
+  const resourceCell=resources.locator('tbody tr').first().getByRole('cell').first(),md5=resourceCell.getByText(key,{exact:true});
+  await expect(md5).toHaveCSS('font-family',/Consolas|monospace/);
+  expect(await md5.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  const cellWidth=(await resourceCell.boundingBox())!.width;
+  expect(cellWidth-(await md5.boundingBox())!.width).toBeLessThanOrEqual(20);
+  if(width===1280){
+    const widths=()=>resources.locator('tbody tr').first().getByRole('cell').evaluateAll(cells=>cells.map(cell=>cell.getBoundingClientRect().width));
+    const before=await widths();await page.setViewportSize({width:1480,height:900});const after=await widths();
+    for(const index of [0,2,3,4])expect(Math.abs(after[index]-before[index])).toBeLessThan(1);
+    expect(after[1]-before[1]).toBeGreaterThan(190);
+    await page.setViewportSize({width,height:900});
+  }
+  expect((await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).boundingBox())!.width).toBeLessThan(48);
+  await expect(resources.locator('tbody tr').first().getByRole('cell').nth(1)).toContainText('共同视频一 / 共同视频二');
+  await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).hover();
+  await expect(page.getByRole('group',{name:`资源 ${key} 的详情`,exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('library.png'),fullPage:true});
 });

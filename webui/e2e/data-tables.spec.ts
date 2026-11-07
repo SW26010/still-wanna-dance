@@ -108,3 +108,19 @@ test('resource headers use server sorting and can restore demand order',async({p
   await expect.poll(()=>queries.at(-1)?.get('direction')).toBe('descending');
   await expect(page.getByRole('button',{name:'恢复默认排序',exact:true})).toHaveCount(0);
 });
+
+for(const [path,label] of [['library','曲库歌曲'],['timeline','请求历史列表']])test(`${label} shrinks names before overflowing at medium width`,async({page},info)=>{
+  const api=await mockAPI(page);
+  for(const file of api.files)file.songs[0].title='长歌曲名称'.repeat(30);
+  await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'长歌曲名称'.repeat(30),resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'canceled',sources:{downloadBytes:1,cacheBytes:1,localBytes:1}}],hasMore:false,nextCursor:''}}));
+  await page.setViewportSize({width:1050,height:900});await page.goto('/#/'+path);
+  const table=page.getByRole('table',{name:label,exact:true});await expect(table.locator('tbody tr').first()).toBeVisible();
+  const metrics=await table.evaluate(el=>({table:el.getBoundingClientRect().width,available:el.parentElement!.clientWidth,name:el.querySelector('tbody td:nth-child(2)')!.getBoundingClientRect().width}));
+  expect(metrics.table).toBeLessThanOrEqual(metrics.available+1);
+  await page.screenshot({path:info.outputPath('medium-width.png'),animations:'disabled'});
+  await page.setViewportSize({width:900,height:900});
+  const narrowName=await table.locator('tbody td').nth(1).evaluate(el=>el.getBoundingClientRect().width);
+  expect(narrowName).toBeLessThan(metrics.name);
+  expect(narrowName).toBeLessThanOrEqual(144);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(900);
+});

@@ -61,6 +61,7 @@ test('block details use engine byte offsets for custom sizes and tails', async (
   const popup = page.getByRole('group', { name: '块需求详情' });
   await expect(popup).toContainText('1,048,576 – 1,048,698');
   await expect(popup).toContainText('块 3/3');
+  await expect(popup.getByText('fixture-resource',{exact:true})).toHaveCSS('font-family',/Consolas|monospace/);
 });
 
 test('timeline subscribes only while visible and restores a fresh snapshot', async ({ page }) => {

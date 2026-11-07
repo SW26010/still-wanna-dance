@@ -381,7 +381,7 @@ function BlockProperties({ id, block, active }: { id: string; block?: BlockView;
   const b = detail?.block || block;
   if (!b) return <p>这个块已退出当前视图。</p>;
   return <div className="timeline-properties">
-    <p className="timeline-block-title">{videoLabel(b)} <Badge appearance="tint" color={b.state === 'available' ? 'success' : 'informative'}>{blockStateNames[b.state]}</Badge></p>
+    <p className="timeline-block-title"><span className={!b.title&&!b.songID?'resource-id':undefined}>{videoLabel(b)}</span> <Badge appearance="tint" color={b.state === 'available' ? 'success' : 'informative'}>{blockStateNames[b.state]}</Badge></p>
     <dl className="timeline-properties-grid">
       <dt>视频内编号</dt><dd>{blockNumber(b)}{b.totalBlocks <= 0 && '（总数未知）'}{b.songID && ` · 歌曲 ${b.songID}`}</dd>
       <dt>need-by</dt><dd>{b.needBy ? absoluteTime(b.needBy) : '无有限期限'}</dd>
@@ -396,6 +396,6 @@ function BlockProperties({ id, block, active }: { id: string; block?: BlockView;
     {b.opportunistic && b.inUse && <Caption1 as="p">同时允许机会下载。</Caption1>}
     <Text weight="semibold" className="timeline-source-heading">需求来源 · {b.sources}</Text>
     {error ? <Feedback error>来源连接中断，正在重连。</Feedback> : detail === undefined ? <Spinner size="tiny" label="读取来源" /> : detail === null ? <p>需求已结束。</p> : detail.sources.length ? <ul className="timeline-sources">{detail.sources.map(source => <li key={source.id}><strong>{sourceName(source)}</strong>{(source.title || source.songID) && <span>{source.title || `歌曲 ${source.songID}`}</span>}<span>need-by：{source.needBy ? absoluteTime(source.needBy) : '无期限'}{source.windowClosed ? ' · 尚未入窗' : ''}</span>{source.expiresAt > 0 && <span>交接截止：{absoluteTime(source.expiresAt)}</span>}</li>)}</ul> : <p className="hint">已无使用需求，本地数据仍在延续保护期。</p>}
-    <Caption1 as="p" className="timeline-resource">资源 {b.resource}</Caption1>
+    <Caption1 as="p" className="timeline-resource">资源 <span className="resource-id">{b.resource}</span></Caption1>
   </div>;
 }

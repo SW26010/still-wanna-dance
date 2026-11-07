@@ -60,7 +60,7 @@ func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
 	var ordinary, first atomic.Int32
 	loaded := make(chan struct{}, 1)
 	c.client.CloseIdleConnections()
-	c.client = &http.Client{Transport: &coldBusinessChannels{ready: true,
+	channels := &coldBusinessChannels{
 		RoundTripper: catalogTransport(func(*http.Request) (*http.Response, error) {
 			ordinary.Add(1)
 			return nil, io.EOF
@@ -79,7 +79,9 @@ func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
 				return nil, r.Context().Err()
 			})},
 		},
-	}}
+	}
+	channels.ready.Store(true)
+	c.client = &http.Client{Transport: channels}
 	if err := c.controlNetworkCalibration(false); err != nil {
 		t.Fatal(err)
 	}

@@ -49,8 +49,10 @@ type Sample struct {
 	Size                int64
 }
 
-// Result describes only this request, including bounded candidate retries.
+// Result describes this request, including bounded candidate retries.
+// Selected marks the catalog accepted by the enclosing connectivity check.
 type Result struct {
+	Selected                            bool
 	Operation                           Operation
 	Route, State, Stage, Scheme         string
 	Err                                 error

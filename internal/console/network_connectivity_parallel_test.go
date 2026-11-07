@@ -32,7 +32,7 @@ func TestNetworkConnectivityFullRunsThreeRequestsTogether(t *testing.T) {
 			if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 900001, Node: "cf", URL: cached}); err != nil {
 				t.Fatal(err)
 			}
-			started, canceled := make(chan upstreamcheck.Operation, 3), make(chan upstreamcheck.Operation, 3)
+			started, canceled := make(chan upstreamcheck.Operation, 6), make(chan upstreamcheck.Operation, 6)
 			release := make(chan struct{})
 			var releaseOnce sync.Once
 			defer releaseOnce.Do(func() { close(release) })
@@ -56,7 +56,7 @@ func TestNetworkConnectivityFullRunsThreeRequestsTogether(t *testing.T) {
 				t.Fatal(err)
 			}
 			seen := make(map[upstreamcheck.Operation]bool)
-			for range 3 {
+			for range 6 {
 				select {
 				case op := <-started:
 					seen[op] = true
@@ -87,7 +87,7 @@ func TestNetworkConnectivityFullRunsThreeRequestsTogether(t *testing.T) {
 			}
 			state = connectivitySnapshot(c)
 			if cancelRun {
-				if state.Phase != "canceled" || len(state.Results) != 0 || len(canceled) != 3 {
+				if state.Phase != "canceled" || len(state.Results) != 0 || len(canceled) != 6 {
 					t.Fatal("cancel did not drain every request", state, len(canceled))
 				}
 				return

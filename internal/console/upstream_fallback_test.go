@@ -20,7 +20,7 @@ import (
 type coldBusinessChannels struct {
 	http.RoundTripper
 	channels []upstreamrequest.Candidate
-	ready    bool
+	ready    atomic.Bool
 }
 
 // The real Pool sees an empty DNS cache until it requests address discovery.
@@ -107,8 +107,8 @@ func TestColdCatalogCancellationStopsDiscovery(t *testing.T) {
 	c.client.Transport, c.checksumURL = channels, "https://catalog.invalid/list"
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := c.fetchCatalogSnapshot(ctx); !errors.Is(err, context.Canceled) || channels.ready {
-		t.Fatalf("ready=%v err=%v", channels.ready, err)
+	if _, err := c.fetchCatalogSnapshot(ctx); !errors.Is(err, context.Canceled) || channels.ready.Load() {
+		t.Fatalf("ready=%v err=%v", channels.ready.Load(), err)
 	}
 }
 
@@ -116,11 +116,11 @@ func (p *coldBusinessChannels) Candidates(ctx context.Context, _ string) ([]upst
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	p.ready = true
+	p.ready.Store(true)
 	return p.channels, nil
 }
 func (p *coldBusinessChannels) Current(string) []upstreamrequest.Candidate {
-	if !p.ready {
+	if !p.ready.Load() {
 		return nil
 	}
 	return p.channels

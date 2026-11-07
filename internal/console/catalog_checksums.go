@@ -12,6 +12,7 @@ import (
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
@@ -30,25 +31,27 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Sto
 			sources = append(sources, catalogmeta.SourceURL(route))
 		}
 	}
-	var failures []error
-	for _, source := range sources {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
+	err := upstreamcheck.FetchCatalog(ctx, sources, func(ctx context.Context, source string) (cacheproxy.Catalog, error) {
 		candidate, err := c.fetchCatalogSource(ctx, source)
-		if err == nil {
-			err = store.SyncCatalog(ctx, candidate)
+		if err != nil && ctx.Err() == nil {
+			slog.Warn("catalog_source_failed", "source", source, "error", err)
+			err = catalogSourceError(source, err)
 		}
-		if err == nil || errors.Is(err, cacheproxy.ErrCatalogOlder) {
-			return ctx.Err()
+		return candidate, err
+	}, func(candidate cacheproxy.Catalog) error {
+		err := store.SyncCatalog(ctx, candidate)
+		if errors.Is(err, cacheproxy.ErrCatalogOlder) {
+			return nil
 		}
-		if errors.Is(err, cacheproxy.ErrLocalStorage) {
-			return err
-		}
-		failures = append(failures, catalogSourceError(source, err))
-		slog.Warn("catalog_source_failed", "source", source, "error", err)
+		return err
+	})
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
-	return errors.Join(catalogRefreshError(failures), ctx.Err())
+	if err != nil && !errors.Is(err, cacheproxy.ErrLocalStorage) {
+		return catalogRefreshError([]error{err})
+	}
+	return err
 }
 
 func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog, error) {

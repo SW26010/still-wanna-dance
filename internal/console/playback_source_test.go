@@ -18,7 +18,8 @@ func TestPlaybackJoinedChannelFailuresRetainGatewayTimeout(t *testing.T) {
 	c := testConsole(t)
 	refused := errors.New("connection refused")
 	var calls atomic.Int32
-	channels := &coldBusinessChannels{ready: true}
+	channels := &coldBusinessChannels{}
+	channels.ready.Store(true)
 	for i, cause := range []error{refused, context.DeadlineExceeded, nil} {
 		channels.channels = append(channels.channels, upstreamrequest.Candidate{
 			ID: []string{"refused", "timeout", "unavailable"}[i], Host: "api.udon.dance", Mode: "direct",

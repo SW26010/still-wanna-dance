@@ -40,7 +40,7 @@ func TestCatalogInitializationPublishesFirstCoverage(t *testing.T) {
 	if !v.CoverageKnown || v.TotalSongs != 1 || v.CoveredSongs != 0 || v.Updated.IsZero() {
 		t.Fatalf("first successful automatic catalog did not publish coverage: %+v", v)
 	}
-	if catalogCalls.Load() != 1 || c.service != nil || c.monitor != nil || testDNS(c).queries.Load() != 0 {
+	if catalogCalls.Load() != 4 || c.service != nil || c.monitor != nil || testDNS(c).queries.Load() != 0 {
 		t.Fatalf("catalog initialization escaped its scope: calls=%d engine=%v monitor=%v DNS=%d", catalogCalls.Load(), c.service != nil, c.monitor != nil, testDNS(c).queries.Load())
 	}
 }

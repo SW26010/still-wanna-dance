@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"sort"
-	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamcheck"
@@ -22,7 +21,6 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	type candidate struct {
 		full             *cacheproxy.Catalog
 		revision, source string
-		at               time.Time
 	}
 	var candidates []candidate
 	var failures []error
@@ -47,9 +45,6 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		default:
 			continue
 		}
-		if err == nil {
-			v.at, err = cacheproxy.ParseCatalogTime(v.revision)
-		}
 		if err != nil {
 			slog.Warn("catalog_sync_invalid", "source", response.Source, "error", err)
 			failures = append(failures, catalogSourceError(response.Source, err))
@@ -63,10 +58,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	}
 	// Offer newer versions first, preferring HTTPS Udon at the same version.
 	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].at.Equal(candidates[j].at) {
-			return cacheproxy.IsPrimaryCatalog(candidates[i].source) && !cacheproxy.IsPrimaryCatalog(candidates[j].source)
-		}
-		return candidates[i].at.After(candidates[j].at)
+		return cacheproxy.CatalogPrecedes(*candidates[i].full, *candidates[j].full)
 	})
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()

@@ -36,6 +36,7 @@ type networkConnectivityResult struct {
 	LatencyMS  *float64                `json:"latencyMS"`
 	ObservedAt time.Time               `json:"observedAt"`
 	Retained   bool                    `json:"retained,omitempty"`
+	Selected   bool                    `json:"selected,omitempty"`
 	// Retain this round's completed resource observation while retrying it.
 	retryPrevious *networkConnectivityResult
 }
@@ -121,7 +122,7 @@ func (n *networkDiagnostics) connectivityRow(ctx context.Context, row networkCon
 }
 
 func connectivityResult(r upstreamcheck.Result) networkConnectivityResult {
-	row := networkConnectivityResult{Operation: r.Operation, Entry: r.Route, State: "failed", Reason: r.State, Scheme: r.Scheme}
+	row := networkConnectivityResult{Operation: r.Operation, Entry: r.Route, State: "failed", Reason: r.State, Scheme: r.Scheme, Selected: r.Selected}
 	if r.State == "available" {
 		row.State = "available"
 		row.Reason = ""

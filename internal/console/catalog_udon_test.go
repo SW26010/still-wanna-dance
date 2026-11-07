@@ -6,9 +6,12 @@ import (
 	"io"
 	"net/http"
 	"slices"
-	"still-wanna-dance/internal/cacheproxy"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+
+	"still-wanna-dance/internal/cacheproxy"
 )
 
 func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
@@ -25,14 +28,12 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			c.checksumURL = cacheproxy.UdonCatalogURL
-			accepted := false
+			var accepted atomic.Bool
 			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
-				if accepted {
-					t.Error("storage failure caused another network request", r.URL)
-				}
 				code, body := 503, []byte("")
 				if r.URL.Host == failedSource {
-					accepted, code = true, 200
+					accepted.Store(true)
+					code = 200
 					body = monitorNames("20261003000000", "udon").Body
 					if failedSource != "api.udon.dance" {
 						body = monitorFull("kiva", "20261003000000", "backup", strings.Repeat("a", 32)).Body
@@ -41,7 +42,7 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 				return &http.Response{StatusCode: code, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
 			})}
 			err = c.refreshLocalCatalog(t.Context(), c.store)
-			if !accepted || !errors.Is(err, cacheproxy.ErrLocalStorage) || !strings.Contains(err.Error(), "catalog write rejected") {
+			if !accepted.Load() || !errors.Is(err, cacheproxy.ErrLocalStorage) || !strings.Contains(err.Error(), "catalog write rejected") {
 				t.Fatal(err)
 			}
 			var count int
@@ -52,7 +53,7 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 	}
 }
 
-func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
+func TestRefreshCatalogSourcesRunTogether(t *testing.T) {
 	for _, scenario := range []string{"healthy-udon", "http-backup", "invalid-udon", "udon-failed", "kiva-failed", "all-failed", "older-backup"} {
 		t.Run(scenario, func(t *testing.T) {
 			c := testConsole(t)
@@ -72,14 +73,17 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 				}
 			}
 			var calls []string
+			var callsMu sync.Mutex
 			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+				callsMu.Lock()
 				calls = append(calls, r.URL.Scheme+"://"+r.URL.Host)
+				callsMu.Unlock()
 				code, scheme := 200, "https"
 				body := monitorFull("kiva", "20261004000000", "backup", strings.Repeat("a", 32)).Body
 				switch r.URL.Host {
 				case "api.udon.dance":
 					body = monitorNames("20261003000000", "udon").Body
-					if len(calls) == 2 {
+					if r.URL.Scheme == "http" {
 						scheme = "http"
 					}
 					if scenario == "invalid-udon" {
@@ -88,11 +92,11 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 						code = 503
 					}
 				case "x.kiva.moe":
-					if scenario == "kiva-failed" || scenario == "all-failed" {
+					if scenario == "kiva-failed" || scenario == "all-failed" || scenario == "http-backup" {
 						code = 503
 					}
 				case "wanna.kiva.moe":
-					if scenario == "all-failed" {
+					if scenario == "all-failed" || scenario == "http-backup" {
 						code = 503
 					}
 				default:
@@ -107,17 +111,13 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 			if (err != nil) != (scenario == "all-failed") {
 				t.Fatal(err)
 			}
-			wantCalls, wantRevision := []string{"https://api.udon.dance"}, "20261003000000"
-			if scenario != "healthy-udon" {
-				wantCalls = append(wantCalls, "http://api.udon.dance")
-			}
+			wantCalls := []string{"https://api.udon.dance", "http://api.udon.dance", "https://x.kiva.moe", "https://wanna.kiva.moe"}
+			wantRevision := "20261003000000"
 			if scenario != "healthy-udon" && scenario != "http-backup" {
-				wantCalls = append(wantCalls, "https://x.kiva.moe")
 				wantRevision = "20261004000000"
 			}
-			if scenario == "kiva-failed" || scenario == "all-failed" {
-				wantCalls = append(wantCalls, "https://wanna.kiva.moe")
-			}
+			slices.Sort(calls)
+			slices.Sort(wantCalls)
 			if scenario == "all-failed" {
 				wantRevision = "20261001000000"
 			}
@@ -138,7 +138,7 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 				t.Fatal(err)
 			}
 			if (mappings > 0) != (scenario != "healthy-udon" && scenario != "http-backup" && scenario != "all-failed") {
-				t.Fatal("healthy Udon should not request backup mappings; fallback must retain them", mappings)
+				t.Fatal("only the selected catalog supplies mappings", mappings)
 			}
 		})
 	}

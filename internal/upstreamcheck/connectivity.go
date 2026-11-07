@@ -2,11 +2,8 @@ package upstreamcheck
 
 import (
 	"context"
-	"errors"
 	"sync"
 
-	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/playbacksource"
 )
 
@@ -22,7 +19,8 @@ type ConnectivityAccess struct {
 // Selection and persistence are business decisions, not network health signals.
 type ConnectivityBusiness struct {
 	// OnCatalog reports acceptance separately from a local execution failure.
-	// Rejected content permits a backup; storage/cancellation errors stop the run.
+	// It receives the selected valid catalog, or invalid bodies for error feedback.
+	// Storage/cancellation errors stop the run.
 	OnCatalog      func(context.Context, []CatalogResponse) (bool, error)
 	RememberSample func(context.Context, int64)
 	SelectSong     func(context.Context, int64) int64
@@ -46,40 +44,7 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 		}
 	}
 	checking := func(op Operation, route string) { emit(Result{Operation: op, Route: route, State: "checking"}) }
-	checkCatalog := func() (int64, error) {
-		var sampleSong int64
-		var catalogResponses []CatalogResponse
-		accepted := false
-		for _, route := range catalogmeta.SourceIDs() {
-			if ctx.Err() != nil {
-				return 0, ctx.Err()
-			}
-			if accepted {
-				emit(Result{Operation: Catalog, Route: route, State: "skipped"})
-				continue
-			}
-			checking(Catalog, route)
-			result, id, response := access.Catalog(ctx, route)
-			emit(result)
-			if len(response.Body) > 0 {
-				var err error
-				catalogResponses = append(catalogResponses, response)
-				accepted, err = business.OnCatalog(ctx, catalogResponses)
-				if err != nil {
-					if ctx.Err() != nil || errors.Is(err, cacheproxy.ErrLocalStorage) {
-						return 0, err
-					}
-				}
-				if accepted {
-					sampleSong = id
-				}
-			}
-		}
-		if sampleSong > 0 && ctx.Err() == nil && business.RememberSample != nil {
-			business.RememberSample(ctx, sampleSong)
-		}
-		return sampleSong, nil
-	}
+	checkCatalog := func() (int64, error) { return checkCatalogs(ctx, access, business, emit) }
 	if operation == Catalog {
 		_, _ = checkCatalog()
 		return
@@ -100,12 +65,22 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 	samples := make(chan resourceSample, len(playbacksource.Entries()))
 	var workers sync.WaitGroup
 	if full {
+		remember := business.RememberSample
+		business.RememberSample = func(ctx context.Context, id int64) {
+			if remember != nil {
+				remember(ctx, id)
+			}
+			catalogDone <- catalogResult{id: id}
+		}
 		workers.Go(func() {
 			id, err := checkCatalog()
 			if err != nil {
 				cancel()
 			}
-			catalogDone <- catalogResult{id, err}
+			select {
+			case catalogDone <- catalogResult{id, err}:
+			default:
+			}
 		})
 	}
 	if wantResource {

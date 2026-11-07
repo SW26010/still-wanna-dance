@@ -26,7 +26,7 @@ func waitConnectivitySignal[T any](t *testing.T, ctx context.Context, ch <-chan 
 func TestConnectivityFullStartsThreeChecksTogetherWithCachedSamples(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	started := make(chan Operation, 3)
+	started := make(chan Operation, 6)
 	release, done := make(chan struct{}), make(chan struct{})
 	defer func() {
 		select {
@@ -48,7 +48,7 @@ func TestConnectivityFullStartsThreeChecksTogetherWithCachedSamples(t *testing.T
 			case <-ctx.Done():
 				return Result{}, 0, CatalogResponse{}
 			}
-			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte("valid")}
+			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte(catalogFixture)}
 		},
 		Playback: func(ctx context.Context, id int64, route playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
 			started <- PlaybackURL
@@ -83,7 +83,7 @@ func TestConnectivityFullStartsThreeChecksTogetherWithCachedSamples(t *testing.T
 		CheckConnectivity(ctx, access, business, "", func(r Result) { results = append(results, r) })
 	}()
 	seen := map[Operation]bool{}
-	for range 3 {
+	for range 6 {
 		seen[waitConnectivitySignal(t, ctx, started)] = true
 	}
 	if !seen[Catalog] || !seen[PlaybackURL] || !seen[Resource] {
@@ -108,8 +108,8 @@ func TestConnectivityFullStartsThreeChecksTogetherWithCachedSamples(t *testing.T
 func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	catalogStarted, playbackStarted, resourceStarted := make(chan struct{}, 1), make(chan struct{}, 1), make(chan struct{}, 1)
-	releaseCatalog, releasePlayback, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	catalogStarted, playbackStarted, resourceStarted := make(chan struct{}, 4), make(chan struct{}, 1), make(chan struct{}, 1)
+	releaseCatalog, releaseBackups, releasePlayback, done := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
 	sample, err := parseSample(connectivityCachedURL)
 	if err != nil {
 		t.Fatal(err)
@@ -117,12 +117,16 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 	access := ConnectivityAccess{
 		Catalog: func(ctx context.Context, route string) (Result, int64, CatalogResponse) {
 			catalogStarted <- struct{}{}
+			release := releaseCatalog
+			if route != "api" {
+				release = releaseBackups
+			}
 			select {
-			case <-releaseCatalog:
+			case <-release:
 			case <-ctx.Done():
 				return Result{}, 0, CatalogResponse{}
 			}
-			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte("valid")}
+			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte(catalogFixture)}
 		},
 		Playback: func(ctx context.Context, id int64, route playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
 			playbackStarted <- struct{}{}
@@ -165,6 +169,12 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 	}
 	close(releasePlayback)
 	waitConnectivitySignal(t, ctx, resourceStarted)
+	select {
+	case <-done:
+		t.Fatal("remaining catalogs must finish naturally")
+	default:
+	}
+	close(releaseBackups)
 	waitConnectivitySignal(t, ctx, done)
 }
 
@@ -180,7 +190,7 @@ func TestConnectivityFullRetriesFailedCachedResourceWithFreshAddress(t *testing.
 	var urls []string
 	access := ConnectivityAccess{
 		Catalog: func(_ context.Context, route string) (Result, int64, CatalogResponse) {
-			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte("valid")}
+			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte(catalogFixture)}
 		},
 		Playback: func(ctx context.Context, id int64, route playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
 			select {

@@ -223,7 +223,7 @@ func TestNetworkConnectivityConsentOriginAndToken(t *testing.T) {
 
 func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 	c := testConsole(t)
-	connected, closed := make(chan struct{}, 1), make(chan struct{}, 1)
+	connected, closed := make(chan struct{}, 4), make(chan struct{}, 4)
 	address := socksPeerWithAuth(t, "fixture", "secret", func(conn net.Conn, target string) {
 		connected <- struct{}{}
 		socksReply(conn, 0)
@@ -235,18 +235,22 @@ func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case <-connected:
-	case <-time.After(3 * time.Second):
-		t.Fatal("active proxy not used")
+	for range 4 {
+		select {
+		case <-connected:
+		case <-time.After(3 * time.Second):
+			t.Fatal("active proxy not used by every catalog source")
+		}
 	}
 	if err := c.controlNetworkConnectivity(true); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case <-closed:
-	case <-time.After(time.Second):
-		t.Fatal("proxy connection retained after cancellation")
+	for range 4 {
+		select {
+		case <-closed:
+		case <-time.After(time.Second):
+			t.Fatal("proxy connection retained after cancellation")
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -269,7 +273,7 @@ func TestNetworkConnectivityUsesActiveSOCKS5AndCancelsConnection(t *testing.T) {
 func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c := testConsole(t)
 	stubNetworkDiagnostics(t, c)
-	started := make(chan struct{}, 1)
+	started := make(chan struct{}, 4)
 	// A failed connectivity conclusion is still a valid completed check.
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
@@ -391,19 +395,13 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 			t.Fatal(state)
 		}
 		for _, row := range state.Results {
-			if row.Operation == upstreamcheck.Catalog && row.Entry != "api" {
-				if row.State != "skipped" {
-					t.Fatal(row)
-				}
-				continue
-			}
 			if row.State != "available" || row.LatencyMS == nil {
 				t.Fatal("missing successful summary", row)
 			}
 		}
-		// One list, the CF playback entry, one deduplicated resource host. Storage
+		// Four lists, the CF playback entry, one deduplicated resource host. Storage
 		// initialization must not fetch any of those responses a second time.
-		if requests.Load() != 3 {
+		if requests.Load() != 6 {
 			t.Fatal("unexpected upstream request count", requests.Load())
 		}
 		db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))
@@ -473,9 +471,10 @@ func TestNetworkConnectivityCanceledCatalogDoesNotInitializeStorage(t *testing.T
 	c := testConsole(t)
 	stubNetworkDiagnostics(t, c)
 	entered := make(chan struct{})
+	var enteredOnce sync.Once
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Host == "api.udon.dance" {
-			close(entered)
+			enteredOnce.Do(func() { close(entered) })
 			<-r.Context().Done()
 			return nil, r.Context().Err()
 		}

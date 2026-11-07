@@ -22,6 +22,14 @@ func IsPrimaryCatalog(source string) bool {
 	return source == UdonCatalogURL
 }
 
+// CatalogPrecedes compares validated revisions; equal-priority ties are stable.
+func CatalogPrecedes(a, b Catalog) bool {
+	if a.Revision != b.Revision {
+		return a.Revision > b.Revision
+	}
+	return IsPrimaryCatalog(a.Source) && !IsPrimaryCatalog(b.Source)
+}
+
 func nullableJSON(raw json.RawMessage) any {
 	if raw == nil {
 		return nil

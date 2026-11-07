@@ -87,7 +87,7 @@ func diagnosticTestOptions() networkDiagnosticsOptions {
 		Access: upstreamcheck.ConnectivityAccess{
 			Catalog: func(_ context.Context, route string) (upstreamcheck.Result, int64, upstreamcheck.CatalogResponse) {
 				return upstreamcheck.Result{Operation: upstreamcheck.Catalog, Route: route, State: "available"}, 1,
-					upstreamcheck.CatalogResponse{Body: []byte("fixture")}
+					upstreamcheck.CatalogResponse{Route: route, Body: monitorNames("20261107000000", "fixture").Body}
 			},
 		},
 		Business: upstreamcheck.ConnectivityBusiness{
@@ -193,7 +193,7 @@ func TestNetworkDiagnosticsManualDeadlineIsExact(t *testing.T) {
 func TestNetworkDiagnosticsShutdownSignalsBeforeCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		options := diagnosticTestOptions()
-		started, release := make(chan struct{}, 2), make(chan struct{})
+		started, release := make(chan struct{}, 5), make(chan struct{})
 		probe := func(ctx context.Context) {
 			started <- struct{}{}
 			<-ctx.Done()
@@ -208,8 +208,9 @@ func TestNetworkDiagnosticsShutdownSignalsBeforeCleanup(t *testing.T) {
 		if err := n.startAutomatic(); err != nil {
 			t.Fatal(err)
 		}
-		<-started
-		<-started
+		for range 5 { // Four catalogs and the independent SOCKS5 probe.
+			<-started
+		}
 		state, changed := n.connectivitySnapshot()
 		_, speedChanged := n.calibrationSnapshot()
 		n.shutdown()

@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
-for(const [endpoint,label] of [['response-sources','刷新来源统计'],['latency','刷新首正文统计']] as const)test(`${label} rotates during the request and settles after success or failure`,async({page})=>{
+for(const [endpoint,label] of [['response-sources','刷新来源统计'],['latency','刷新响应时间统计']] as const)test(`${label} rotates during the request and settles after success or failure`,async({page})=>{
   await mockAPI(page);
   await page.clock.install();await page.emulateMedia({reducedMotion:'no-preference'});
   let reads=0,hold=false,fail=false,release=()=>{};

@@ -142,14 +142,14 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   const result=populated?page.getByRole('link',{name:'ID 42',exact:true}):page.getByText('当前筛选条件下暂无请求记录。',{exact:true});
   await expect(result).toBeVisible();
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),position=await table.boundingBox();
-  await expect(page.getByRole('button',{name:'刷新首正文统计',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeEnabled();
   await page.clock.fastForward(30100);await expect.poll(()=>latencyReads).toBe(2);expect(reads).toBe(1);
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
   await expect(result).toBeVisible({timeout:1000});
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'按收到时间排序',exact:true})).toBeEnabled({timeout:1000});
-  await expect(page.getByRole('button',{name:'刷新首正文统计',exact:true})).toBeDisabled({timeout:1000});
+  await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeDisabled({timeout:1000});
   expect(await table.boundingBox()).toEqual(position);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
 });
@@ -242,8 +242,8 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.clock.install();await page.goto('/#recent');
   await expect(page.getByRole('heading',{level:1,name:'历史'})).toBeVisible();
   await expect(page.getByText('P50 10 ms · P95 80 ms',{exact:true})).toBeVisible();
-  await page.getByRole('heading',{name:'首正文等待时间',exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toContainText('最近 72 小时');
+  await page.getByRole('heading',{name:'响应时间',exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('从收到请求到首次返回视频正文的时间');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);
@@ -271,7 +271,8 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   const title='星河 · 很长的歌曲名称 / '.repeat(15);
   await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),songTitle:title},record(2),{...record(3),completedAt:null,resource:'',outcome:'aborted'},{...record(4),songID:'404',outcome:'playback_info_failed'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
-  await expect(page.getByText('暂无数据',{exact:true})).toHaveCount(2);
+  await expect(page.getByRole('region',{name:'响应时间',exact:true}).getByText('—',{exact:true})).toHaveCount(2);
+  await expect(page.getByRole('region',{name:'响应来源统计',exact:true}).getByText('—',{exact:true})).toBeVisible();
   await expect(page.getByText('结束：未知',{exact:true})).toBeVisible();
   const outcome=page.getByRole('table',{name:'请求历史列表',exact:true}).locator('tbody tr').nth(2).getByText('处理异常',{exact:true});
   await expect(outcome).toBeVisible();

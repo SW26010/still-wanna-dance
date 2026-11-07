@@ -1375,6 +1375,13 @@
       "bytes": 1275452,
       "sha256": "80f3fa2b59dca936ba40756f24632450073191104a69def37f51f8f3fddf14c1",
       "reason": "Production WebUI with clear VRCX import copy, compact previews and removal of the duplicate shortcut; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1277521,
+      "sha256": "f6fac2ec24f0c0c27c127ecde3be6fba5b0b5ea91414a69d0ea7631d1a4daa12",
+      "reason": "Production WebUI with history summary typography, response-time wording and empty placeholders; generated and verified by webui/build.mjs for offline embedding."
     }
   ]
 }

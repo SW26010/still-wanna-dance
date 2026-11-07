@@ -1403,6 +1403,34 @@
       "bytes": 1278347,
       "sha256": "aa103785656b1ec102b444280658a9b59adc89a76775223986d792282a0dc57b",
       "reason": "Production WebUI with feature highlights matching the README introduction; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "docs/images/webui-acceleration.png",
+      "kind": "readme-screenshot",
+      "bytes": 118821,
+      "sha256": "5d9fbefba5c0262408dc7691e8f33c78bc33cbbf19f1047890fe41ccba3d35cf",
+      "reason": "Current dark-theme acceleration page with successful upstream badges and a layered timeline; synthetic progress respects the 500-second startup window, timed-before-untimed ordering and 16 execution slots. Rendered by webui/test-support/readme-screenshots.mts for both README previews (2026-11-08); no private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-library.png",
+      "kind": "readme-screenshot",
+      "bytes": 82780,
+      "sha256": "0709737d06d15b0539f78aaa7dab2c76ccb8cebb9f4a4dd97f75db8f11655284",
+      "reason": "Current dark-theme production WebUI captured with fictional songs, example paths and memory-only state by webui/test-support/readme-screenshots.mts for the Chinese and English README previews (2026-11-08); no private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-settings-dark.png",
+      "kind": "readme-screenshot",
+      "bytes": 51102,
+      "sha256": "0b5342af460626498e6354b7f4a5aaf46c8ff0eae94e03d0612421e27d869b8a",
+      "reason": "Current dark-theme production WebUI captured with fictional songs, example paths and memory-only state by webui/test-support/readme-screenshots.mts for the Chinese and English README previews (2026-11-08); no private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-acceleration.png",
+      "kind": "readme-screenshot",
+      "bytes": 119712,
+      "sha256": "b72965c0ae5dfd1233e2001a1eebd6fcb1c2b19bcef4d373490235b58c2c52c0",
+      "reason": "README acceleration screenshot with the first 12 GET blocks already delivered: their use demands have ended and local blocks remain in the 300-second protection tail. Captured from the production WebUI with synthetic data by webui/test-support/readme-screenshots.mts (2026-11-08); no private data or performance evidence."
     }
   ]
 }

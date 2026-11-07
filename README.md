@@ -42,7 +42,7 @@ Still Wanna Dance（SWD）是面向 VRChat WannaDance 的视频加速与管理�
 
 **加速：一眼查看游戏接入、下载进度和接下来要准备的视频。**
 
-![暗色 WebUI 加速页：游戏连接、视频块时间轴和四项播放及队列需求](docs/images/webui-acceleration.png)
+![暗色 WebUI 加速页：上游与游戏连接、分层视频块时间轴，以及播放、队列和手动下载的无期限需求](docs/images/webui-acceleration.png)
 
 <details>
 <summary>更多界面：曲库与存储设置</summary>
@@ -51,9 +51,9 @@ Still Wanna Dance（SWD）是面向 VRChat WannaDance 的视频加速与管理�
 
 ![暗色 WebUI 曲库页：搜索、收藏、本地保存状态和逐曲操作](docs/images/webui-library.png)
 
-**存储设置：视频目录、空间预算与收藏保留。**
+**存储设置：管理视频目录、查看预算对应的预计请求命中率，并优先保留收藏视频。**
 
-![暗色 WebUI 存储设置：数据库、视频目录、存储预算与保留策略](docs/images/webui-settings-dark.png)
+![暗色 WebUI 存储设置：数据库与视频目录、存储预算及命中率估算、优先保留收藏视频](docs/images/webui-settings-dark.png)
 
 </details>
 

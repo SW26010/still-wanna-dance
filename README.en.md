@@ -39,7 +39,7 @@ A **[global block scheduler driven by playback timing](docs/block-scheduler-desi
 
 **Acceleration: connection status, download progress, and upcoming video demands.**
 
-![Dark WebUI acceleration page showing connection status, a block timeline, and four playback and queue demands](docs/images/webui-acceleration.png)
+![Dark WebUI acceleration page showing upstream and game connections, a layered block timeline, playback and queue demands, and a manual download without a deadline](docs/images/webui-acceleration.png)
 
 <details>
 <summary>More screenshots: library and storage settings</summary>
@@ -48,9 +48,9 @@ A **[global block scheduler driven by playback timing](docs/block-scheduler-desi
 
 ![Dark WebUI library page showing song search, favorites, local availability, and per-song actions](docs/images/webui-library.png)
 
-**Storage settings: video location, budget, and favorite retention.**
+**Storage settings: manage video locations, estimate request coverage for your budget, and prioritize keeping favorites.**
 
-![Dark WebUI storage settings showing database and video locations, budget, and retention options](docs/images/webui-settings-dark.png)
+![Dark WebUI storage settings showing database and video locations, a storage budget with estimated request coverage, and priority retention for favorites](docs/images/webui-settings-dark.png)
 
 </details>
 

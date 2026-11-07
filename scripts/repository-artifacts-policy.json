@@ -1396,6 +1396,13 @@
       "bytes": 1277594,
       "sha256": "79d3bafb6cdaa2092c75542afd9475e37fcf21389d4f39f26aa0a4e5340ac0bb",
       "reason": "Production WebUI with aligned log and cache directory controls using shared validation fields; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1278347,
+      "sha256": "aa103785656b1ec102b444280658a9b59adc89a76775223986d792282a0dc57b",
+      "reason": "Production WebUI with feature highlights matching the README introduction; generated and verified by webui/build.mjs for offline embedding."
     }
   ]
 }

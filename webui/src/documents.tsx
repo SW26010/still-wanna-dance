@@ -31,12 +31,14 @@ function About({heading='h1',update,refreshUpdate,updateUnavailable=false}:{head
     catch { setManualResult({checking:false,result:'unknown',reason:'failed'}); }
     finally { setChecking(false);refreshUpdate(); }
   }
-  return <><Title2 as={heading}>Load failed? But I still wanna dance!</Title2><p>Still Wanna Dance 是面向 VRChat WannaDance 的本地视频存储与预加载工具。</p>
-    <Panel title="从准备到开跳"><p>把视频准备交给 Still Wanna Dance，把时间留给跳舞。</p><dl>
-      <dt>提前准备</dt><dd>根据房间队列预加载即将播放的歌曲，也可以在「曲库」中使用「下载缺失视频」。</dd>
-      <dt>重复利用</dt><dd>已保存的本地视频可在后续播放时复用，减少重复下载。</dd>
-      <dt>轻松管理</dt><dd>查看下载进度与本地视频占用，设置视频存储预算，让本地空间保持有序。</dd>
-    </dl></Panel>
+  return <><Title2 as={heading}>Load failed? But I still wanna dance!</Title2><p>Still Wanna Dance（SWD）是面向 VRChat WannaDance 的视频加速与管理工具，提前准备播放内容，减少重复下载与播放等待。</p>
+    <Panel><ul>
+      <li><strong>全局调度</strong>：根据播放需求动态调整下载优先级，优先保障紧急任务，避免预加载对当前播放的资源争用。</li>
+      <li><strong>本地复用</strong>：重复播放优先读取本地视频，按存储预算优先保留常用歌曲，减少重复下载与带宽消耗。</li>
+      <li><strong>曲库管理</strong>：集中管理本地视频与歌曲收藏、屏蔽，结合请求历史与响应统计掌握实际使用情况。</li>
+      <li><strong>灵活连接</strong>：支持直连、外部 SOCKS5 或内嵌 Mihomo，按需配置上游连接，减少对系统网络环境的影响和依赖。</li>
+      <li><strong>轻量界面</strong>：通过 WebUI 完成日常管理，关闭浏览器即可释放界面资源，后台加速与预加载持续运行。</li>
+    </ul></Panel>
     {build && <Panel title="版本与构建" action={<Tooltip content="在 GitHub 查看项目（新标签页）" relationship="label">
       <Link href="https://github.com/SW26010/still-wanna-dance" target="_blank" rel="noopener noreferrer" appearance="subtle" style={{display:'flex'}}>
         {/* GitHub Octicons mark-github-16; MIT notice in THIRD-PARTY-NOTICES.txt. */}

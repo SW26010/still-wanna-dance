@@ -22,7 +22,7 @@ test('key consequences stay near their related choices',async({page})=>{
 
 test('license attribution and explicit consent remain available',async({page})=>{
   await mockAPI(page);await page.goto('/about');
-  await expect(page.getByText('把视频准备交给 Still Wanna Dance，把时间留给跳舞。',{exact:true})).toBeVisible();
+  await expect(page.getByText('Still Wanna Dance（SWD）是面向 VRChat WannaDance 的视频加速与管理工具，提前准备播放内容，减少重复下载与播放等待。',{exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'许可证与声明',exact:true}).click();
   const licenses=page.getByRole('tabpanel',{name:'许可证与声明',exact:true});
   for(const text of ['GNU GPLv3','GPL-3.0-only','历史 MIT 授权仍有效','软件许可不授予视频、音乐等内容的权利'])await expect(licenses).toContainText(text);

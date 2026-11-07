@@ -23,7 +23,7 @@
     "webui/src/cache.tsx": "d9b5e977bee7992e1c3f588028d6dafe9bbc2227b2547f19ad1c14432f4b15a7",
     "webui/src/data-table.tsx": "de4cdfb5d0f1c1dedd144f5593980258a00e6133b65affd17723ae1460b281f4",
     "webui/src/diagnostics.tsx": "64bb023ab14195c5e745a5b46de03fe085c2c1edd14fdbf0829c82ec55d5ddd1",
-    "webui/src/documents.tsx": "b17ccb17af6e9f988e68f9f70a9f40f4c1e673a59011a9a7ac1b2200ccf081b6",
+    "webui/src/documents.tsx": "474c03989aff36dc0a9dd57a5aa64c8e630ea9e539384ed22c51193b1301ae3a",
     "webui/src/field-validation.tsx": "894025a60378cb608331303df9c9dcf35ff48cd6d2731b3de8f0d2de6581bcd8",
     "webui/src/help-content.tsx": "840b4918c0be153313961f3c1b51766d66eb1e05329440d37acc7dc8d0923a73",
     "webui/src/home-library.tsx": "d116aed203b74d00809e41680e8bb123162ba81e47ca00afc83f1eeba93ad3ee",
@@ -57,7 +57,7 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "9a7af6de1e3261e37db2a025c1c6a6defc2c0a386f4a38098b2d8073fd21f072",
     "internal/console/assets/webui/app.css": "0241bcf7308b16b5d39ece0a38438b5e842920499fe420c59e2fea42c1c8dbaa",
-    "internal/console/assets/webui/app.js": "79d3bafb6cdaa2092c75542afd9475e37fcf21389d4f39f26aa0a4e5340ac0bb",
+    "internal/console/assets/webui/app.js": "aa103785656b1ec102b444280658a9b59adc89a76775223986d792282a0dc57b",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "36ba2380548d95110e0bc282d46c9bd330d5f3faac80b2f87fd8d53c2193278e",
     "internal/console/assets/webui/webui-notices.txt": "9a7af6de1e3261e37db2a025c1c6a6defc2c0a386f4a38098b2d8073fd21f072",

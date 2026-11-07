@@ -1368,6 +1368,13 @@
       "bytes": 1275386,
       "sha256": "584d04c27663ef402d9ee73090febbd0b52d02f5b1527690f440802b4ebdd436",
       "reason": "Production WebUI with library text tooltips, concise metadata and single local-status badges; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1275452,
+      "sha256": "80f3fa2b59dca936ba40756f24632450073191104a69def37f51f8f3fddf14c1",
+      "reason": "Production WebUI with clear VRCX import copy, compact previews and removal of the duplicate shortcut; generated and verified by webui/build.mjs for offline embedding."
     }
   ]
 }

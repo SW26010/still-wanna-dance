@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { Button, Caption1, useRestoreFocusTarget } from '@fluentui/react-components';
+import { Button, useRestoreFocusTarget } from '@fluentui/react-components';
 import { APIError, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Notification, Panel } from './ui';
@@ -82,7 +82,7 @@ function useVRCXImport(target: string) {
   async function confirmOverwrite() {
     const p = current.current;
     return !p?.id || p.events <= 0 || !p.existingSongs || app.confirm('覆盖全部歌曲需求统计？',
-      <><p>现有 {p.existingSongs} 首歌曲的需求统计将整体被替换。</p><p>导入到：{displayStoragePath(p.databasePath,app.status.data!)}</p></>,
+      <><p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计，不会与原统计累加。</p><p>导入到：{displayStoragePath(p.databasePath,app.status.data!)}</p></>,
       '强制导入并覆盖');
   }
   async function apply() {
@@ -133,7 +133,7 @@ export function VRCXProvider({target,page,children}:PropsWithChildren<{target:st
 export function VRCXImport({model:m}: {model:VRCXModel}) {
   const restoreFocusTarget = useRestoreFocusTarget(), p = m.preview, app = useApp();
   return <Panel id="vrcx-import" title="导入 VRCX 历史">
-    <Caption1 as="p" className="hint">根据 VRCX 历史，优先下载和保留你常用的歌曲。</Caption1>
+    <p>读取 VRCX 中的 WannaDance 播放记录，计算歌曲需求分，用于安排视频下载和保留顺序。</p>
     {m.found === false && <p>未找到默认位置的 VRCX 数据库，可选择其他位置或跳过。</p>}
     <PathField label="VRCX 数据库路径" value={m.path} defaultValue={m.defaultPath} isDefault={!m.path} disabled={m.locked}
       onChoose={() => void m.choose()} onReset={m.resetPath}/>
@@ -141,7 +141,7 @@ export function VRCXImport({model:m}: {model:VRCXModel}) {
     <div className="actions"><Button type="button" disabled={m.locked} onClick={() => void m.inspect()}>读取并预览</Button></div>
     {p && <div className="content-stack">
       <p className="wrap">数据源：{p.source}</p>
-      <dl>
+      <dl className="vrcx-preview-summary">
         <div><dt>可识别 WannaDance 事件</dt><dd>{p.recognized}</dd></div>
         <div><dt>去重后有效需求 / 歌曲</dt><dd>{p.events} 次 / {p.songs} 首</dd></div>
         <div><dt>时间范围</dt><dd>{p.events ? new Date(p.firstAt).toLocaleString()+' ～ '+new Date(p.lastAt).toLocaleString() : '无有效记录'}</dd></div>
@@ -149,10 +149,10 @@ export function VRCXImport({model:m}: {model:VRCXModel}) {
       </dl>
       {p.imported ? <p role="status">已导入 {p.events} 次历史需求、{p.songs} 首歌曲，跳过 {p.skipped} 条记录。</p>
         : !p.events ? <Feedback>没有有效历史需求，原统计保持不变。</Feedback>
-        : <>{!!p.existingSongs&&<p>已有 {p.existingSongs} 首歌曲的需求统计。导入须确认整体覆盖。</p>}
-          <Button {...restoreFocusTarget} type="button" appearance="primary" disabled={m.locked} onClick={() => void m.apply()}>{p.existingSongs ? '导入并覆盖…' : '导入历史偏好'}</Button></>}
+        : <>{!!p.existingSongs&&<p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计，不会与原统计累加。</p>}
+          <Button {...restoreFocusTarget} type="button" appearance="primary" disabled={m.locked} onClick={() => void m.apply()}>{p.existingSongs ? '导入并覆盖…' : '导入需求记录'}</Button></>}
     </div>}
-    <p role="status">{m.pending ? '正在处理 VRCX 历史偏好…' : ''}</p>
+    <p role="status">{m.pending ? '正在处理 VRCX 历史…' : ''}</p>
     <Feedback error>{m.message}</Feedback>
     <Feedback error>{m.pickerError}</Feedback>
   </Panel>;

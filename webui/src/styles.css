@@ -199,6 +199,11 @@ form.actions { align-items: flex-end; }
 .library-search .fui-Input { width: 18rem; min-width: 0; max-width: 100%; }
 .search-field { max-width: 100%; }
 .library-page > .panel { margin-block: 0; }
+.vrcx-preview-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--spacingVerticalM) var(--spacingHorizontalXL); }
+.vrcx-preview-summary > div { min-width: 0; overflow-wrap: anywhere; }
+.vrcx-preview-summary dt { margin: 0; }
+.vrcx-preview-summary dd { margin: var(--spacingVerticalXS) 0 0; }
+@media (max-width:640px) { .vrcx-preview-summary { grid-template-columns: minmax(0,1fr); } }
 .library-summary { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacingHorizontalL); }
 .library-actions { margin-inline-start: auto; justify-content: flex-end; }
 .summary-values { gap: var(--spacingHorizontalXXXL); }

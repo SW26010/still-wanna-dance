@@ -119,7 +119,7 @@ for(const condition of ['missing','existing','unavailable'] as const)test(`start
   if(condition==='unavailable')await page.route('**/api/vrcx/detect',r=>r.fulfill({status:500,body:'无法检查目标歌曲统计'}));
   const detected=page.waitForResponse('**/api/vrcx/detect');
   await page.goto('/');await detected;
-  await navigate(page,'曲库');await expect(page.getByRole('button',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
+  await navigate(page,'曲库');await expect(page.getByRole('heading',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
   await expect(page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toHaveCount(0);
   expect(calls.some(c=>c.path==='preview'||c.path==='apply')).toBe(false);
@@ -133,7 +133,7 @@ test('ignoring VRCX suggestion survives navigation and reload without reading th
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toHaveCount(0);
   await expect(page.locator('#library-browser')).toBeFocused();
   await navigate(page,'加速');await navigate(page,'曲库');await page.reload();
-  await expect(page.getByRole('button',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
   await expect.poll(()=>calls.filter(c=>c.path==='detect').length).toBe(2);
   expect(calls.map(c=>c.path)).toEqual(['detect','dismiss','detect']);
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toHaveCount(0);
@@ -160,7 +160,7 @@ test('the normal status refresh removes the suggestion when the first demand is 
   await page.getByRole('button',{name:'查找',exact:true}).click();
   api.state.vrcxImportAvailable=false;
   await expect(suggestion).toHaveCount(0,{timeout:10000});
-  await expect(page.getByRole('button',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'导入 VRCX 历史',exact:true})).toBeVisible();
   expect(calls.map(c=>c.path)).toEqual(['detect']);
 });
 
@@ -211,9 +211,9 @@ test('unconfirmed quick import keeps its preview token for an explicit idempoten
     return attempts.length===1?r.abort():r.fulfill({json:{...report,imported:true}});
   });
   await page.goto('/#/library');await page.getByRole('button',{name:'导入历史',exact:true}).click();
-  await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'导入需求记录',exact:true})).toBeVisible();
   await expect(page.locator('#vrcx-import').getByText(/导入结果尚未确认/)).toBeVisible();
-  await page.getByRole('button',{name:'导入历史偏好',exact:true}).click();
+  await page.getByRole('button',{name:'导入需求记录',exact:true}).click();
   await expect(page.getByText(/已导入 4 次历史需求/)).toBeVisible();
   expect(attempts).toEqual([{id:'preview-1',overwrite:false},{id:'preview-1',overwrite:false}]);
   expect(calls.filter(c=>c.path==='preview')).toHaveLength(1);
@@ -235,19 +235,19 @@ test('missing or empty history after detection never writes statistics',async({p
 test('VRCX keeps the selected database and preview across module jumps and page navigation',async({page})=>{
   const {calls}=await fixture(page,3);
   await page.goto('/#/library');
-  const history=page.getByRole('button',{name:'导入 VRCX 历史',exact:true});
+  const history=page.locator('#vrcx-import');
   await expect(history).toBeVisible();
   await expect.poll(()=>calls.map(c=>c.path)).toEqual(['detect']);
-  await history.click();
+  await history.scrollIntoViewIfNeeded();
   await page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}).click();
   const path=page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}), preview=page.getByText('4 次 / 2 首',{exact:true});
   await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await inspect(page);await expect(preview).toBeVisible();
   await page.getByRole('button',{name:'导入视频',exact:true}).click();await expect(preview).toBeVisible();
-  await history.click();await expect(preview).toBeVisible();
+  await history.scrollIntoViewIfNeeded();await expect(preview).toBeVisible();
   await page.evaluate(()=>{location.hash='/library?view=resources';});
   await expect(page.getByRole('table',{name:'曲库资源',exact:true})).toBeVisible();
-  await history.click();await expect(preview).toBeVisible();await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
+  await history.scrollIntoViewIfNeeded();await expect(preview).toBeVisible();await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await navigate(page,'加速');await navigate(page,'曲库');
   await expect(path).toHaveValue('D:\\custom\\VRCX.sqlite3');
   await expect(preview).toBeVisible();
@@ -274,23 +274,23 @@ test('restoring the default VRCX path discards the custom preview without import
 });
 
 test('VRCX reads only on explicit preview and empty usage imports without overwrite',async({page})=>{
-  const {calls}=await fixture(page);await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();
+  const {calls}=await fixture(page);await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();
   await expect(page.locator('#vrcx-import').getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue('C:\\VRCX\\VRCX.sqlite3');
   expect(calls.map(c=>c.path)).toEqual(['detect']);
   await inspect(page);await expect(page.getByText('4 次 / 2 首',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'导入需求记录',exact:true})).toBeEnabled();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
-  await page.getByRole('button',{name:'导入历史偏好',exact:true}).click();
+  await page.getByRole('button',{name:'导入需求记录',exact:true}).click();
   await expect(page.getByText('已导入 4 次历史需求、2 首歌曲，跳过 5 条记录。')).toBeVisible();
   expect(calls.filter(c=>c.path==='apply')).toEqual([{path:'apply',body:{id:'preview-1',overwrite:false}}]);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('VRCX nonempty usage requires second confirmation and cancel leaves it untouched',async({page})=>{
-  const {calls}=await fixture(page,3);await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();await inspect(page);
+  const {calls}=await fixture(page,3);await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();await inspect(page);
   const action=page.getByRole('button',{name:'导入并覆盖…',exact:true});
-  await action.click();await expect(page.getByRole('dialog')).toContainText('需求统计将整体被替换');
+  await action.click();await expect(page.getByRole('dialog')).toContainText('不会与原统计累加');
   await page.getByRole('button',{name:'取消',exact:true}).click();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
   await expect(action).toBeFocused();
@@ -302,13 +302,13 @@ test('VRCX nonempty usage requires second confirmation and cancel leaves it unto
 test('VRCX default missing, file selection, empty history and parse failures stay skippable',async({page})=>{
   const {report,calls}=await fixture(page);
   await page.route('**/api/vrcx/detect',r=>r.fulfill({json:{path:'',found:false,existingSongs:0}}));
-  await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();
+  await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();
   await expect(page.getByText(/未找到默认位置/)).toBeVisible();
   await page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'VRCX 数据库路径',exact:true})).toHaveValue('D:\\custom\\VRCX.sqlite3');
   Object.assign(report,{id:'',events:0,songs:0});
   await inspect(page);await expect(page.getByText('没有有效历史需求，原统计保持不变。')).toBeVisible();
-  await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'导入需求记录',exact:true})).toHaveCount(0);
   await page.route('**/api/vrcx/preview',r=>r.fulfill({status:400,body:'所选 VRCX 数据库缺少 created_at 或 video_url 字段'}));
   await inspect(page);await expect(page.getByText(/缺少 created_at/)).toBeVisible();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
@@ -317,20 +317,25 @@ test('VRCX default missing, file selection, empty history and parse failures sta
 test('VRCX rechecks changed target statistics and never silently retries with overwrite',async({page})=>{
   const {calls}=await fixture(page);
   await page.route('**/api/vrcx/apply',r=>r.fulfill({status:409,body:'已有歌曲需求统计；请重新预览并明确确认整表覆盖'}));
-  await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();await inspect(page);
-  await page.getByRole('button',{name:'导入历史偏好',exact:true}).click();
+  await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();await inspect(page);
+  await page.getByRole('button',{name:'导入需求记录',exact:true}).click();
   await expect(page.getByText(/已有歌曲需求统计；请重新预览/)).toBeVisible();
-  await expect(page.getByRole('button',{name:'导入历史偏好',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'导入需求记录',exact:true})).toHaveCount(0);
   expect(calls.filter(c=>c.path==='preview')).toHaveLength(1);
 });
 
-for (const width of [390,1280]) test(`VRCX preview layout at ${width}px`,async({page})=>{
+for (const width of [390,1280]) test(`VRCX preview layout at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:width===390?'dark':'light'});
   const {report}=await fixture(page,7);
   report.source='C:\\'+('very-long-source-directory\\'.repeat(8))+'VRCX.sqlite3';
-  await page.goto('/#/library');await page.getByRole('button',{name:'导入 VRCX 历史',exact:true}).click();await inspect(page);
+  await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();await inspect(page);
   await expect(page.getByText('4 次 / 2 首',{exact:true})).toBeVisible();
+  const groups=page.locator('.vrcx-preview-summary > div');
+  const first=(await groups.nth(0).boundingBox())!,second=(await groups.nth(1).boundingBox())!;
+  if(width===1280){expect(Math.abs(first.y-second.y)).toBeLessThan(1);expect(second.x).toBeGreaterThan(first.x);}
+  else expect(second.y).toBeGreaterThanOrEqual(first.y+first.height);
   await page.getByRole('button',{name:'导入并覆盖…',exact:true}).scrollIntoViewIfNeeded();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`../artifacts/issue28-vrcx-${width}.png`,fullPage:false});
+  await page.locator('#vrcx-import').screenshot({path:info.outputPath('vrcx-card.png')});
 });

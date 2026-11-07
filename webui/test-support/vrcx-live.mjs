@@ -41,7 +41,7 @@ try {
   await expect(page.getByText(/已有 2 首歌曲的需求统计/)).toBeVisible();
   const action=page.getByRole('button',{name:'导入并覆盖…',exact:true});
   await action.click();
-  await expect(page.getByRole('dialog')).toContainText('整体被替换');
+  await expect(page.getByRole('dialog')).toContainText('不会与原统计累加');
   await page.screenshot({path:join(output,'confirm.png'),animations:'disabled'});
   await page.getByRole('button',{name:'取消',exact:true}).click();
   await expect(action).toBeFocused();

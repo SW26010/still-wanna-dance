@@ -60,7 +60,8 @@ for(const width of [390,1280])test(`library buttons locate persistent modules wi
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     if(width>640)await expect(page.locator('#main')).toBeFocused();
     if(visit===0)await page.screenshot({path:`../artifacts/library-toolbar-layout/top-${width}.png`,animations:'disabled'});
-    for(const [name,id] of [['导入 VRCX 历史','vrcx-import'],['导入视频','video-import'],['下载视频','batch']]){
+    await expect(page.getByRole('button',{name:'导入 VRCX 历史',exact:true})).toHaveCount(0);
+    for(const [name,id] of [['导入视频','video-import'],['下载视频','batch']]){
       const button=page.getByRole('button',{name,exact:true}),target=page.locator('#'+id);
       await button.scrollIntoViewIfNeeded();
       if(width>640){

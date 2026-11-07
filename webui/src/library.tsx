@@ -97,7 +97,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     <Notification message={visible&&downloads.error?'下载状态暂时无法读取。':undefined} error/>
     {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。<p className="wrap">{page.data.videoError}</p></Feedback>}
     <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}
-      actions={<><Button onClick={()=>focusSection('vrcx-import')}>导入 VRCX 历史</Button><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
+      actions={<><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
     <section id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>
         <p>检测到 VRCX 历史，可用于安排歌曲下载与保留顺序。</p>

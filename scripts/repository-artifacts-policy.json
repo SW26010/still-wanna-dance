@@ -1256,6 +1256,13 @@
       "bytes": 1243357,
       "sha256": "7784443c5ff26e54017c281938442835a7ce54731321f4bbf0c8812a9acc340e",
       "reason": "Merged production Fluent WebUI retaining stable release update checks and the unified home network upstream title navigation; rebuilt from merged source and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1243259,
+      "sha256": "afd4295ed1c4907e205a969d779dc09dc2d472a3a88129e6f4ccae44620ec765",
+      "reason": "Generated offline Fluent WebUI with the theme field hint removed from general settings; verified against webui/build-manifest.json."
     }
   ]
 }

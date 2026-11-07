@@ -32,7 +32,6 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.CacheUnlimited = false
 	cfg.VideoBudgetBytes = int64(len("saved"))
-	cfg.AggressiveBlockReclamation = "off"
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 		resolutions.Add(1)
 		return "", fmt.Errorf("unexpected resolution")

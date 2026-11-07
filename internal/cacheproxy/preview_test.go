@@ -344,7 +344,6 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 			}, func(cfg *Config) {
 				cfg.CacheUnlimited = false
 				cfg.VideoBudgetBytes = 0
-				cfg.AggressiveBlockReclamation = "off"
 				cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 					t.Error("cached blocks triggered API")
 					return "", fmt.Errorf("offline")

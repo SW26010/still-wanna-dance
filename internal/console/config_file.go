@@ -131,6 +131,12 @@ func updateConfigFile(path string, update func(fields map[string]json.RawMessage
 	if err := update(fields, exists); err != nil {
 		return err
 	}
+	// Retired overrides are ignored on load and removed only on a successful write.
+	for key := range fields {
+		if strings.EqualFold(key, "aggressiveBlockReclamation") {
+			delete(fields, key)
+		}
+	}
 	data, err := json.MarshalIndent(fields, "", "  ")
 	if err != nil {
 		return err

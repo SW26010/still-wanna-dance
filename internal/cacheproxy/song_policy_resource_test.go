@@ -30,7 +30,6 @@ func TestBlockingDoesNotCancelAdmittedPlayback(t *testing.T) {
 		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(payload))
 	}, func(c *Config) {
 		c.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
-		c.AggressiveBlockReclamation = "off"
 	})
 	seedPrioritySong(t, s, "1", videoKey(payload))
 	// Unblock the handler even when an assertion fails, before engine cleanup.
@@ -117,7 +116,7 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 func TestFavoritePublicationRespectsBudgetWithoutChangingScores(t *testing.T) {
 	for _, limit := range []int64{0, 1, int64(len(payload))} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
-			s, cfg := setup(t, nil, func(c *Config) { c.AggressiveBlockReclamation = "off" })
+			s, cfg := setup(t, nil)
 			f, v := completedRangeFlight(t, s, payload)
 			seedPrioritySong(t, s, "1", v.key)
 			seedPrioritySong(t, s, "2", v.key)
@@ -399,7 +398,7 @@ func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testi
 
 func TestBlockedTemporaryCleanupReusesProtectionWithoutFavoriteExpansion(t *testing.T) {
 	w, s := testSession(t)
-	s.cfg.AggressiveBlockReclamation = "off"
+	s.cfg.VideoBudgetBytes = rangeBlockSize
 	d := reclamationResource(t, s, w.v)
 	s.retentionMu.Lock()
 	if s.versionPins == nil {
@@ -420,7 +419,7 @@ func TestBlockedTemporaryCleanupReusesProtectionWithoutFavoriteExpansion(t *test
 		t.Fatal("blocked temporary data survived")
 	}
 	d = reclamationResource(t, s, w.v)
-	s.cfg.AggressiveBlockReclamation = "on"
+	s.cfg.VideoBudgetBytes = 0
 	s.reclaimBlocksWithPolicies(map[string]resourcePolicy{w.v.key: {favorite: true}})
 	if d.has(0) {
 		t.Fatal("favorite added temporary protection")

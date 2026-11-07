@@ -88,7 +88,9 @@
 本次只调整前端交互，浏览器测试使用内存 API；真实配置持久化与运行预算映射复用上一节验证，不据此宣称新增实际文件选择器或进程重启验收。未启动游戏或修改 hosts，无新增 VRC 待验项。
 
 
-## 2026-10-20 激进的缓存回收策略
+## 2026-10-20 激进的缓存回收策略（历史）
+
+> 2026-11-08 已移除独立配置，固定采用原 auto 行为；本节及后续相关设置验证描述当时版本，不作为当前设置约束。现行规则见[本地资源管理](../download-resource-design.md#6-本地资源管理的存储与外部契约)。
 
 本节取代此前固定“仅零预算积极回收”的现行约束；前文的历史测试和失败记录保留。初版设置与使用引导共用“激进的缓存回收策略”：自动（默认）／开启／关闭。显式保存 aggressiveCacheReclamation=auto/on/off；auto 根据有效视频存储预算计算，只有“不保留”开启，“限制为”（包括预算已满）和“不限制”关闭，记住的容量输入不改变结果。手动选择不随预算变化，初版恢复引导本页默认回到 auto；引导入口和恢复默认行为已由下方“使用引导移除回收策略选项”替代。沿用正式术语与用户指定说明。
 
@@ -111,3 +113,15 @@
 前端 build/check、浏览器测试源码严格类型检查及差异格式检查通过。通过隔离临时目录运行 Edge 的 cache-reclamation、cache-capacity、setup 共 16 项内存 API 场景，全部通过；覆盖 auto/on/off 的隐藏字段保留、恢复默认、预算切换、前后导航、校验与应用载荷、待生效策略核对，以及原设置页交互。已查看 390px 浅色引导和深色设置截图，无横向溢出。首轮沙箱内 Edge 启动时报管道关闭，未进入页面断言且测试进程未正常结束，已中止；沙箱外同组检查通过。原始日志为 `artifacts/setup-reclamation-removal-browser-initial.log`、`artifacts/setup-reclamation-removal-browser.log`，错误上下文与截图在 `artifacts/setup-reclamation-removal/`。
 
 本轮仅调整前端入口、草稿恢复与核对展示，不改后端配置或回收机制；内存 API 结果不外推为真实进程保存／重启验证，上方既有环境缺口保持原状态。本次无需新增 VRC 待验场景。
+
+## 2026-11-08 移除独立回收配置
+
+移除设置界面、设置 API／状态快照和引擎配置中的 `aggressiveBlockReclamation`，块回收固定采用原 auto 行为；本节替代上方三选项及手动覆盖的现行约束，历史记录保留。旧文件中的值及大小写别名读取时忽略，读取不改写文件，在下一次成功配置写入时清除；其他未知字段和配置格式版本不变。现行规则见[本地资源管理](../download-resource-design.md#6-本地资源管理的存储与外部契约)。
+
+- 定向 Go 检查通过：零预算、正预算、预算已满及不限矩阵，块保护／读取引用、GET／队列重取、屏蔽清理；旧值 on/off/auto、无效字符串及布尔值均被忽略，普通设置保存和偏好写入均清除字段及大小写别名，未知大整数精度保留，首次创建不写旧字段。证据：`artifacts/cache-reclamation-targeted.log`。
+- 前端类型检查、构建与产物一致性检查、相关两个 Go 包的 vet 通过。Edge 内存夹具的 settings-structure／cache-capacity 共 20 项通过，覆盖下载与缓存页移除控件及现有存储选择、保存与草稿。证据：`artifacts/cache-reclamation-browser-native.log`、`artifacts/cache-reclamation-vet.log`。
+- 开发首轮有过期测试引用导致编译失败，修正后定向检查通过。沙箱内的整包及浏览器检查未正常结束，已停止；首次沙箱外浏览器重跑遇到旧夹具端口占用，停止旧测试后同组通过。完整 Go 回归首次采用的三分钟包级总时限不足，到期时正在执行后续用例，无断言失败；该轮不计通过。保留 `artifacts/cache-reclamation-tests.log`、`artifacts/cache-reclamation-browser.log` 和 `artifacts/cache-reclamation-tests-native.log`。
+
+本次不改变默认保护／回收规则，无新增必须依赖 VRC 的验收场景；浏览器结果只证明夹具所覆盖的界面行为，真实配置读写由 Go 检查覆盖。
+
+完整 Go 回归最终通过：`internal/cacheproxy`（205.317 秒）及 `internal/console`，使用仓库默认测试时限和隔离临时目录入口，证据为 `artifacts/cache-reclamation-tests-final.log`。

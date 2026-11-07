@@ -36,7 +36,7 @@ test('six primary pages and section links reach their current owners',async({pag
   await expect(page.getByRole('spinbutton',{name:'延续保护时间（秒）',exact:true})).toHaveCount(0);
   await page.getByRole('tab',{name:'下载与缓存',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toBeVisible();
-  await expect(page.getByRole('radiogroup',{name:'激进的缓存回收策略',exact:true})).toBeVisible();
+  await expect(page.getByRole('radiogroup',{name:'激进的缓存回收策略',exact:true})).toHaveCount(0);
   await expect(page.getByRole('spinbutton',{name:'延续保护时间（秒）',exact:true})).toBeVisible();
   for(const [hash,title,field] of [['#storage-settings','设置','优先保留收藏视频'],['#prepareAheadSeconds','设置','提前准备时间（秒）'],['#service','加速',''],['#/library?view=resources','曲库',''],['#queue','加速',''],['#recent','历史','']]){
     await page.evaluate(hash=>{location.hash=hash;},hash);

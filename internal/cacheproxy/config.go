@@ -71,9 +71,6 @@ type Config struct {
 	// RetainFavorites ranks favorite resources ahead of ordinary videos within the budget.
 	// It affects retention only, never creates download demand.
 	RetainFavorites bool
-	// AggressiveBlockReclamation controls unprotected block cache reclamation:
-	// auto follows the video budget; on and off explicitly override it.
-	AggressiveBlockReclamation string
 	// RequestRetentionDays bounds request details; zero disables detail retention.
 	// Unlimited retention is explicit and takes precedence over the day limit.
 	RequestRetentionDays      int
@@ -95,7 +92,6 @@ func DefaultConfig() Config {
 		CacheUnlimited:               false,
 		VideoBudgetBytes:             0,
 		RetainFavorites:              true,
-		AggressiveBlockReclamation:   "auto",
 		RequestRetentionUnlimited:    true,
 		Origins:                      make(map[string]string),
 		DownloadTimeout:              10 * time.Minute,
@@ -115,9 +111,6 @@ func (c Config) validate() error {
 	// detects oversized responses). Reject sizes that cannot fit a Go buffer.
 	if c.BlockSize < 0 || uint64(c.BlockSize) >= uint64(^uint(0)>>1) {
 		return errors.New("block size must be nonnegative and fit a buffer with one extra byte")
-	}
-	if c.AggressiveBlockReclamation != "auto" && c.AggressiveBlockReclamation != "on" && c.AggressiveBlockReclamation != "off" {
-		return errors.New("aggressive cache reclamation must be auto, on or off")
 	}
 	if c.DownloadConcurrencySoftLimit < 1 || c.DownloadConcurrencySoftLimit > MaxDownloadConcurrencySoftLimit {
 		return errors.New("download soft limit must be between 1 and 64")

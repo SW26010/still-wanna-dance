@@ -29,9 +29,9 @@ export function StorageBudgetNotice({settings,usedBytes,checkedAt}: {settings:Pi
   </div>;
 }
 
-export type CapacityDraft = Pick<Settings, 'videoStorageMode' | 'aggressiveBlockReclamation'> & { videoBudgetGiB: string };
+export type CapacityDraft = Pick<Settings, 'videoStorageMode'> & { videoBudgetGiB: string };
 export function capacityPayload(d: CapacityDraft) {
-  return {videoStorageMode: d.videoStorageMode, aggressiveBlockReclamation: d.aggressiveBlockReclamation, videoBudgetBytes: Math.round(Number(d.videoBudgetGiB) * 1073741824)};
+  return {videoStorageMode: d.videoStorageMode, videoBudgetBytes: Math.round(Number(d.videoBudgetGiB) * 1073741824)};
 }
 export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }: {
   mode: CapacityDraft['videoStorageMode']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
@@ -58,15 +58,4 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
       <Radio value="unlimited" label="不限制" />
     </RadioGroup></Field>
   </div>;
-}
-export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {
-  mode: CapacityDraft['videoStorageMode']; reclamation: CapacityDraft['aggressiveBlockReclamation']; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void;
-}) {
-  return <Field hint={<span aria-live="polite">{reclamation === 'auto' ? `自动：不保留视频时开启。当前${mode === 'none' ? '开启' : '关闭'}` : reclamation === 'on' ? '可能导致没有完整的视频保存到本地' : '可能导致大量缓存未及时回收'}</span>} label={<Tooltip content="减少缓存占用，可能重复下载" relationship="description"><span tabIndex={0}>激进的缓存回收策略</span></Tooltip>}>
-      <RadioGroup layout="horizontal" value={reclamation} disabled={disabled} onChange={(_, v) => {
-        if (v.value === 'auto' || v.value === 'on' || v.value === 'off') onChange({aggressiveBlockReclamation: v.value});
-      }}>
-        <Radio value="auto" label="自动（默认）" /><Radio value="on" label="开启" /><Radio value="off" label="关闭" />
-      </RadioGroup>
-    </Field>;
 }

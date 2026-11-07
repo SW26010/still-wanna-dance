@@ -291,7 +291,6 @@ func testBatchFavoriteRetention(t *testing.T, mode string, retain bool, limit in
 	if mode == "none" {
 		cfg.VideoBudgetBytes = 0
 	}
-	cfg.AggressiveBlockReclamation = "off"
 	cfg.Origins["play.udon.dance"] = strings.TrimPrefix(origin.URL, "http://")
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {

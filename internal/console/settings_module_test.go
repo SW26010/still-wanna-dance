@@ -57,7 +57,7 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 			}
 			active := c.settings
 			fields := map[string]any{
-				"requestRetentionMode": "unlimited", "videoStorageMode": "none", "aggressiveBlockReclamation": "auto",
+				"requestRetentionMode": "unlimited", "videoStorageMode": "none",
 				"databasePath": active.DatabasePath, "videoDir": active.VideoDir,
 			}
 			if variant != "missing" {

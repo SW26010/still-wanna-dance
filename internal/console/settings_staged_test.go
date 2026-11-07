@@ -34,7 +34,6 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	active, engine, client := c.settings, c.service, c.client
 	next := active
 	next.PrepareAheadSeconds = 120
-	next.AggressiveBlockReclamation = "off"
 	next.DownloadConcurrencySoftLimit, next.DownloadGrowIntervalMS = 64, 0
 	next.LocalProtectionGraceSeconds = 0
 	setTestLibraryPaths(&next, filepath.Join(t.TempDir(), "new-cache"))
@@ -66,9 +65,6 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	}
 	if status.Settings.LocalProtectionGraceSeconds != 0 || status.ActiveSettings.LocalProtectionGraceSeconds != 300 {
 		t.Fatalf("incorrect local protection settings snapshots: %s", w.Body.String())
-	}
-	if status.Settings.AggressiveBlockReclamation != "off" || status.ActiveSettings.AggressiveBlockReclamation != "auto" {
-		t.Fatalf("incorrect reclamation settings snapshots: %s", w.Body.String())
 	}
 	if err := c.stop(); err != nil {
 		t.Fatal(err)

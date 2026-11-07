@@ -2,6 +2,8 @@
 
 日期：2026-10-31，北京时间。源码基线 `996e07ab4fd66842f1b464e67ad7e8400ff89cc9`，验证对象为未提交工作区。用户已接受 HTTP 清单的安全代价，并确认 Kiva/WannaInfo 暂保留完整清单兜底、改为按需尝试。现行规则以[上游通道](../upstream-channels.md#业务请求的协议策略)和[曲库设计](../song-catalog-design.md#清单同步与增改不删)为准；实施前证据见[评估记录](../research/fixed-upstream-protocol-assessment-20261031.md)。本记录替代旧 HTTPS 优先规则，历史实测结果保留。
 
+> 历史范围：2026-11-07 起，歌曲清单改为 HTTPS Udon 主来源，HTTP Udon 与 Kiva/WannaInfo 为同级备用；以下保留 10-31 的实现与验证结果，当前规则见[上游通道](../upstream-channels.md#业务请求的协议策略)。播放 API 和资源下载的固定 HTTP 策略不受本次清单调整影响。
+
 ## 实现与边界
 
 - Udon 清单、播放 API 与已验证资源的执行固定 HTTP；Kiva/WannaInfo 固定 HTTPS。删除自动升降级、降级资格分类、Session 批内协议记忆、OriginScheme 配置及 Monitor 的跨协议推荐逻辑。CLI、Console、丢弃下载测速及探测共用固定规则。

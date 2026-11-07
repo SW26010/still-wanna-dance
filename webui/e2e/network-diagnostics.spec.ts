@@ -9,12 +9,16 @@ test('a single check after the first full check is canceled still lists all proj
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
   await navigate(page,'加速');
   await page.locator('.upstream-card').getByRole('button',{name:/检测歌曲列表/}).click();
-  const results=[{operation:'catalog',entry:'api',state:'available',latencyMS:42,observedAt:'2026-10-30T12:00:00Z'}];
+  const results=[
+    {operation:'catalog',entry:'api',state:'failed',scheme:'https',reason:'timeout',observedAt:'2026-10-30T12:00:00Z'},
+    {operation:'catalog',entry:'api-http',state:'available',scheme:'http',latencyMS:42,observedAt:'2026-10-30T12:00:00Z'},
+  ];
   Object.assign(api.diagnostics.connectivity,{revision:api.diagnostics.connectivity.revision+1,running:false,phase:'completed',results,lastResult:{finished:'2026-10-30T12:00:00Z',results}});
   await api.emit('connectivity');
   await navigate(page,'网络');
   const rows=page.locator('.diagnostic-rows');
-  await expect(rows).toContainText('歌曲列表 · Udon：可连接');
+  await expect(rows).toContainText('歌曲列表 · Udon：连接失败 · 请求超时 · HTTPS');
+  await expect(rows).toContainText('歌曲列表 · Udon HTTP：可连接 · 响应时间 42 ms · HTTP');
   await expect(rows).toContainText('播放地址：尚未检测');
   await expect(rows).toContainText('视频下载：尚未检测');
 });

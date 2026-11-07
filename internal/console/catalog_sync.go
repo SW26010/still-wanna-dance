@@ -7,13 +7,16 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/catalogsync"
 )
 
 func catalogSourceError(source string, err error) error {
 	name := "清单来源"
 	switch {
-	case cacheproxy.IsUdonCatalog(source):
+	case source == catalogmeta.UdonHTTPURL:
+		name = "备用来源 Udon HTTP"
+	case cacheproxy.IsPrimaryCatalog(source):
 		name = "主来源 Udon"
 	case source == cacheproxy.KivaCatalogURL:
 		name = "备用来源 Kiva"

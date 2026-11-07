@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"net/url"
 	"strings"
 	"time"
 
@@ -18,10 +17,9 @@ const UdonCatalogURL = catalogmeta.UdonURL
 const KivaCatalogURL = catalogmeta.KivaURL
 const WannaCatalogURL = catalogmeta.WannaURL
 
-// Recognize Udon in persisted catalogs written before the fixed HTTP policy.
-func IsUdonCatalog(source string) bool {
-	u, err := url.Parse(source)
-	return err == nil && strings.EqualFold(u.Hostname(), "api.udon.dance") && u.Path == "/Api/Songs/list"
+// Only HTTPS Udon takes precedence over same-version backup metadata.
+func IsPrimaryCatalog(source string) bool {
+	return source == UdonCatalogURL
 }
 
 func nullableJSON(raw json.RawMessage) any {
@@ -124,11 +122,8 @@ func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog) (bool, er
 		return false, ErrCatalogOlder
 	}
 	if candidateTime.Equal(previousTime) {
-		if IsUdonCatalog(c.Source) && !IsUdonCatalog(previousSource) {
+		if IsPrimaryCatalog(c.Source) && !IsPrimaryCatalog(previousSource) {
 			return false, nil
-		}
-		if !IsUdonCatalog(c.Source) && IsUdonCatalog(previousSource) {
-			return true, nil
 		}
 
 		return true, nil
@@ -154,9 +149,6 @@ func (s *Store) observeCatalogVersion(c Catalog) {
 		s.catalogObservations = make(map[string]catalogObservation)
 	}
 	key := c.Source
-	if IsUdonCatalog(key) {
-		key = UdonCatalogURL
-	}
 	at := c.ObservedAt
 	if at.IsZero() {
 		at = time.Now()

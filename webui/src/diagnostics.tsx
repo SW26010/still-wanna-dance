@@ -141,7 +141,7 @@ export function Diagnostics({visible}: {visible:boolean}) {
   const rows=discard?c?.lastResult?.results||[]:c?.results||[];
   const finished=discard?c?.lastResult?.finished:c?.finished;
   const upstream=upstreamName(app.status.data);
-  const entries:Record<string,string>={api:'Udon',kiva:'Kiva',wanna:'WannaInfo',cf:'CF'};
+  const entries:Record<string,string>={api:'Udon','api-http':'Udon HTTP',kiva:'Kiva',wanna:'WannaInfo',cf:'CF'};
   const reasons:Record<string,string>={timeout:'请求超时',network_error:'网络请求失败',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',origin_timeout:'源站响应超时',http_error:'HTTP 响应异常',local_capacity:'代理连接额度已满',runtime_retired:'代理已退出',channel_unavailable:'连接不可用'};
   const shown=operations.flatMap(operation=>{const entries=rows.filter(row=>row.operation===operation);return entries.length?entries:[{operation}];});
   const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'')||(speedState?.phase==='completed'&&!speedComplete(speedState));

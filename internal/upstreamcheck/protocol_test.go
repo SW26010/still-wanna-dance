@@ -17,7 +17,7 @@ func TestProbesUseFixedProtocolsAndPreserveEvidence(t *testing.T) {
 	for _, route := range routeIDs(Catalog) {
 		o, id, _ := probeCatalogData(context.Background(), []*http.Client{client}, DefaultPolicy(), route)
 		want := "https"
-		if route == "api" {
+		if route == "api-http" {
 			want = "http"
 		}
 		if o.state != "available" || o.scheme != want || id <= 0 {
@@ -32,7 +32,7 @@ func TestProbesUseFixedProtocolsAndPreserveEvidence(t *testing.T) {
 	if o.state != "available" || o.scheme != "http" {
 		t.Fatal(o)
 	}
-	if strings.Join(calls, ",") != "http,https,https,http,http" {
+	if strings.Join(calls, ",") != "https,http,https,https,http,http" {
 		t.Fatal(calls)
 	}
 }

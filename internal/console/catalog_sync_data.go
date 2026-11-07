@@ -40,7 +40,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		var v candidate
 		var err error
 		switch response.Route {
-		case "api", "kiva", "wanna":
+		case "api", "api-http", "kiva", "wanna":
 			var full cacheproxy.Catalog
 			full, err = cacheproxy.ParseCatalog(response.Body, response.Source)
 			v.full, v.revision = &full, full.Revision
@@ -61,10 +61,10 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	if (len(candidates) == 0 && len(failures) == 0) || ctx.Err() != nil {
 		return usable, ctx.Err()
 	}
-	// Offer newer versions first, preferring canonical Udon at the same version.
+	// Offer newer versions first, preferring HTTPS Udon at the same version.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].at.Equal(candidates[j].at) {
-			return cacheproxy.IsUdonCatalog(candidates[i].source) && !cacheproxy.IsUdonCatalog(candidates[j].source)
+			return cacheproxy.IsPrimaryCatalog(candidates[i].source) && !cacheproxy.IsPrimaryCatalog(candidates[j].source)
 		}
 		return candidates[i].at.After(candidates[j].at)
 	})

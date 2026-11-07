@@ -25,7 +25,7 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Sto
 		}
 	}()
 	sources := []string{c.checksumURL}
-	if cacheproxy.IsUdonCatalog(c.checksumURL) {
+	if cacheproxy.IsPrimaryCatalog(c.checksumURL) {
 		for _, route := range catalogmeta.SourceIDs()[1:] {
 			sources = append(sources, catalogmeta.SourceURL(route))
 		}

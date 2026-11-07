@@ -282,7 +282,7 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	previous := connectivitySnapshot(c).LastResult.Results
 	previousTime := connectivitySnapshot(c).LastResult.Finished
 	c.mu.Unlock()
-	if len(previous) != 5 || previous[0].State != "failed" || previousTime.IsZero() {
+	if len(previous) != 6 || previous[0].State != "failed" || previousTime.IsZero() {
 		t.Fatal("complete result not retained", previous)
 	}
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -301,7 +301,7 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c.mu.Lock()
 	result := connectivitySnapshot(c)
 	c.mu.Unlock()
-	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastResult.Results) != 5 || result.LastResult.Results[0].State != "failed" || !result.LastResult.Finished.Equal(previousTime) {
+	if result.Phase != "canceled" || len(result.Results) != 0 || len(result.LastResult.Results) != 6 || result.LastResult.Results[0].State != "failed" || !result.LastResult.Finished.Equal(previousTime) {
 		t.Fatal("cancel lost completed results", result)
 	}
 }
@@ -387,7 +387,7 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 		c.mu.Lock()
 		state := connectivitySnapshot(c)
 		c.mu.Unlock()
-		if state.Phase != "completed" || len(state.Results) != 5 || len(state.LastResult.Results) != 5 {
+		if state.Phase != "completed" || len(state.Results) != 6 || len(state.LastResult.Results) != 6 {
 			t.Fatal(state)
 		}
 		for _, row := range state.Results {

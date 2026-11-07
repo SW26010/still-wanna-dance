@@ -11,12 +11,12 @@ import (
 )
 
 func TestConnectivityCatalogFallbackStopsAfterAcceptance(t *testing.T) {
-	for _, accepted := range []string{"api", "kiva", "wanna", "none", "local-error"} {
+	for _, accepted := range []string{"api", "api-http", "kiva", "wanna", "none", "local-error"} {
 		t.Run(accepted, func(t *testing.T) {
 			var requested, delivered []string
 			client := requestClient(transportFunc(func(r *http.Request) (*http.Response, error) {
 				want := "https"
-				if r.URL.Host == "api.udon.dance" {
+				if len(requested) == 2 {
 					want = "http"
 				}
 				if r.URL.Scheme != want {
@@ -48,16 +48,18 @@ func TestConnectivityCatalogFallbackStopsAfterAcceptance(t *testing.T) {
 					skipped = append(skipped, r.Route)
 				}
 			})
-			want := []string{"api", "kiva", "wanna"}
+			want := []string{"api", "api-http", "kiva", "wanna"}
 			if accepted == "api" || accepted == "local-error" {
 				want = want[:1]
-			} else if accepted == "kiva" {
+			} else if accepted == "api-http" {
 				want = want[:2]
+			} else if accepted == "kiva" {
+				want = want[:3]
 			}
 			if !slices.Equal(requested, want) || !slices.Equal(delivered, want) {
 				t.Fatal(requested, delivered, want)
 			}
-			if accepted != "local-error" && len(skipped) != 3-len(want) {
+			if accepted != "local-error" && len(skipped) != 4-len(want) {
 				t.Fatal(skipped)
 			}
 		})

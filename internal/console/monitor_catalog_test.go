@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -19,6 +20,27 @@ func monitorFull(route, revision, name, md5 string) upstreamstate.CatalogRespons
 
 func monitorNames(revision, name string) upstreamstate.CatalogResponse {
 	return upstreamstate.CatalogResponse{Route: "api", Source: "https://api.udon.dance/Api/Songs/list", Body: []byte(fmt.Sprintf(`{"time":%q,"groups":{"contents":[{"songInfos":[{"id":1,"name":%q},{"id":2,"name":"new song"}]}]}}`, revision, name))}
+}
+
+func TestCatalogSyncAcceptsHTTPBackupAndPrefersHTTPS(t *testing.T) {
+	c := testConsole(t)
+	backup := monitorNames("20261107000000", "http backup")
+	backup.Route, backup.Source = "api-http", catalogmeta.UdonHTTPURL
+	if usable, err := c.syncCatalogs(t.Context(), []upstreamstate.CatalogResponse{backup}); !usable || err != nil {
+		t.Fatal("HTTP fallback was not accepted", usable, err)
+	}
+	status, err := c.store.CatalogStatus(t.Context())
+	if err != nil || status.Source != backup.Source {
+		t.Fatal(status, err)
+	}
+	primary := monitorNames("20261107000000", "https primary")
+	if usable, err := c.syncCatalogs(t.Context(), []upstreamstate.CatalogResponse{backup, primary}); !usable || err != nil {
+		t.Fatal(usable, err)
+	}
+	status, err = c.store.CatalogStatus(t.Context())
+	if err != nil || status.Source != primary.Source {
+		t.Fatal("HTTPS source did not replace same-version HTTP", status, err)
+	}
 }
 
 func TestMonitorCatalogOrderingAndExistingWatermarks(t *testing.T) {

@@ -9,7 +9,49 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/catalogmeta"
 )
+
+func TestCatalogHTTPSAuthorityAndEqualBackupPriority(t *testing.T) {
+	sources := []string{UdonCatalogURL, catalogmeta.UdonHTTPURL, KivaCatalogURL, WannaCatalogURL}
+	for _, previous := range sources {
+		for _, incoming := range sources {
+			t.Run(previous+"->"+incoming, func(t *testing.T) {
+				s, _ := setup(t, nil)
+				before, after := "previous", "incoming"
+				catalog := Catalog{Revision: "20261107000000", Source: previous, Songs: []CatalogSong{{ID: 1, Name: &before}}}
+				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+					t.Fatal(err)
+				}
+				catalog.Source, catalog.Songs[0].Name = incoming, &after
+				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+					t.Fatal(err)
+				}
+				wantSource, wantName := previous, before
+				if incoming == UdonCatalogURL && previous != UdonCatalogURL {
+					wantSource, wantName = incoming, after
+				}
+				status, err := s.CatalogStatus(t.Context())
+				if err != nil || status.Source != wantSource {
+					t.Fatal(status, err)
+				}
+				var name string
+				if err := s.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&name); err != nil || name != wantName {
+					t.Fatal(name, err)
+				}
+				catalog.Revision = "20261108000000"
+				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+					t.Fatal(err)
+				}
+				status, err = s.CatalogStatus(t.Context())
+				if err != nil || status.Source != incoming || status.Revision != catalog.Revision {
+					t.Fatal("newer version must still win", status, err)
+				}
+			})
+		}
+	}
+}
 
 func TestCatalogNewerBackupWarningNeedsObservedUdon(t *testing.T) {
 	s, _ := setup(t, nil)

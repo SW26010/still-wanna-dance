@@ -1291,6 +1291,13 @@
       "bytes": 1246416,
       "sha256": "2fea19b034687951b6ab8acd7203dd3b4dac355e4c88e4a5c05b194aec84a65b",
       "reason": "Generated offline Fluent WebUI with hover details, separate associated songs, compact history resource identities, delivery tooltips, source shares, monospace resource IDs and fixed MD5 columns; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1246439,
+      "sha256": "5fe568d014e287b27e4dab1ee7e6227202bbbc20c0f3824cd8800d5f77c7b573",
+      "reason": "Generated offline Fluent WebUI naming the HTTP Udon catalog fallback separately from the primary HTTPS source; verified against webui/build-manifest.json."
     }
   ]
 }

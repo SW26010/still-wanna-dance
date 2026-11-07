@@ -53,7 +53,7 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 }
 
 func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
-	for _, scenario := range []string{"healthy-udon", "invalid-udon", "udon-failed", "kiva-failed", "all-failed", "older-backup"} {
+	for _, scenario := range []string{"healthy-udon", "http-backup", "invalid-udon", "udon-failed", "kiva-failed", "all-failed", "older-backup"} {
 		t.Run(scenario, func(t *testing.T) {
 			c := testConsole(t)
 			c.settings.UpstreamMode = "proxy"
@@ -73,15 +73,18 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 			}
 			var calls []string
 			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
-				calls = append(calls, r.URL.Host)
+				calls = append(calls, r.URL.Scheme+"://"+r.URL.Host)
 				code, scheme := 200, "https"
 				body := monitorFull("kiva", "20261004000000", "backup", strings.Repeat("a", 32)).Body
 				switch r.URL.Host {
 				case "api.udon.dance":
-					scheme, body = "http", monitorNames("20261003000000", "udon").Body
+					body = monitorNames("20261003000000", "udon").Body
+					if len(calls) == 2 {
+						scheme = "http"
+					}
 					if scenario == "invalid-udon" {
 						body = []byte("{}")
-					} else if scenario != "healthy-udon" {
+					} else if scenario != "healthy-udon" && !(scenario == "http-backup" && scheme == "http") {
 						code = 503
 					}
 				case "x.kiva.moe":
@@ -104,13 +107,16 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 			if (err != nil) != (scenario == "all-failed") {
 				t.Fatal(err)
 			}
-			wantCalls, wantRevision := []string{"api.udon.dance"}, "20261003000000"
+			wantCalls, wantRevision := []string{"https://api.udon.dance"}, "20261003000000"
 			if scenario != "healthy-udon" {
-				wantCalls = append(wantCalls, "x.kiva.moe")
+				wantCalls = append(wantCalls, "http://api.udon.dance")
+			}
+			if scenario != "healthy-udon" && scenario != "http-backup" {
+				wantCalls = append(wantCalls, "https://x.kiva.moe")
 				wantRevision = "20261004000000"
 			}
 			if scenario == "kiva-failed" || scenario == "all-failed" {
-				wantCalls = append(wantCalls, "wanna.kiva.moe")
+				wantCalls = append(wantCalls, "https://wanna.kiva.moe")
 			}
 			if scenario == "all-failed" {
 				wantRevision = "20261001000000"
@@ -131,7 +137,7 @@ func TestRefreshCatalogBackupsAreOnDemand(t *testing.T) {
 			if err := db.QueryRow("SELECT COUNT(*) FROM song_media").Scan(&mappings); err != nil {
 				t.Fatal(err)
 			}
-			if (mappings > 0) != (scenario != "healthy-udon" && scenario != "all-failed") {
+			if (mappings > 0) != (scenario != "healthy-udon" && scenario != "http-backup" && scenario != "all-failed") {
 				t.Fatal("healthy Udon should not request backup mappings; fallback must retain them", mappings)
 			}
 		})

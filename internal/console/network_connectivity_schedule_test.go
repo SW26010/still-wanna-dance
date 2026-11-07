@@ -377,7 +377,7 @@ func TestManualConnectivityItemSharesResultsWithoutDelayingAutomaticCheck(t *tes
 		}
 		synctest.Wait()
 		previous := connectivitySnapshot(c)
-		if previous.Running || previous.Initializing || len(previous.Results) != 5 {
+		if previous.Running || previous.Initializing || len(previous.Results) != 6 {
 			t.Fatal(previous)
 		}
 		deadline := previous.NextCheck

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -56,15 +57,23 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				}
 			}))
 			defer good.Close()
+			goodHTTPS := httptest.NewTLSServer(good.Config.Handler)
+			defer goodHTTPS.Close()
 			healthy := good.Client().Transport.(*http.Transport).Clone()
-			healthy.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
-				return (&net.Dialer{}).DialContext(ctx, network, good.Listener.Addr().String())
+			healthy.TLSClientConfig = goodHTTPS.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			healthy.TLSClientConfig.ServerName = "127.0.0.1"
+			healthy.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+				target := good.Listener.Addr().String()
+				if strings.HasSuffix(address, ":443") {
+					target = goodHTTPS.Listener.Addr().String()
+				}
+				return (&net.Dialer{}).DialContext(ctx, network, target)
 			}
 			defer healthy.CloseIdleConnections()
 			failed := healthy.Clone()
 			defer failed.CloseIdleConnections()
 			if failure == "disconnect" {
-				// TCP succeeds, then the peer closes during HTTP exchange.
+				// TCP succeeds, then the peer closes during TLS or HTTP exchange.
 				bad, err := net.Listen("tcp", "127.0.0.1:0")
 				if err != nil {
 					t.Fatal(err)
@@ -96,8 +105,14 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 					}
 				}))
 				defer bad.Close()
-				failed.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
-					return (&net.Dialer{}).DialContext(ctx, network, bad.Listener.Addr().String())
+				badHTTPS := httptest.NewTLSServer(bad.Config.Handler)
+				defer badHTTPS.Close()
+				failed.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+					target := bad.Listener.Addr().String()
+					if strings.HasSuffix(address, ":443") {
+						target = badHTTPS.Listener.Addr().String()
+					}
+					return (&net.Dialer{}).DialContext(ctx, network, target)
 				}
 			}
 			c.client.Transport = &coldBusinessChannels{RoundTripper: failed, channels: []upstreamrequest.Candidate{
@@ -121,7 +136,7 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 			}
 			status, err := c.store.CatalogStatus(ctx)
 			wantRejected := int32(3)
-			if err != nil || status.Revision != "20261031000000" || catalogs.Load() != 1 || playback.Load() != 1 || rejected.Load() != wantRejected {
+			if err != nil || status.Source != cacheproxy.UdonCatalogURL || status.Revision != "20261031000000" || catalogs.Load() != 1 || playback.Load() != 1 || rejected.Load() != wantRejected {
 				t.Fatalf("catalog=%+v err=%v catalog requests=%d playback=%d rejected=%d", status, err, catalogs.Load(), playback.Load(), rejected.Load())
 			}
 			if resources.Load() != 1 {

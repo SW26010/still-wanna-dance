@@ -15,14 +15,14 @@ import (
 // isolated library. Reads one video byte; never starts the gateway or VRC.
 func TestLiveFixedUpstreamProtocols(t *testing.T) {
 	if os.Getenv("SWD_LIVE_FIXED_PROTOCOL") != "1" {
-		t.Skip("opt-in live HTTP policy check")
+		t.Skip("opt-in live fixed protocol check")
 	}
 	c := testConsole(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 	access := c.connectivityAccess()
 	catalog, _, response := access.Catalog(ctx, "api")
-	if catalog.State != "available" || catalog.Scheme != "http" {
+	if catalog.State != "available" || catalog.Scheme != "https" {
 		t.Fatalf("catalog: state=%s scheme=%s error=%v", catalog.State, catalog.Scheme, applog.SafeError(catalog.Err))
 	}
 	c.syncCatalogs(ctx, []upstreamcheck.CatalogResponse{response})
@@ -30,7 +30,7 @@ func TestLiveFixedUpstreamProtocols(t *testing.T) {
 	if err != nil || status.Revision != catalog.CatalogTime {
 		t.Fatal("catalog not stored", status, err)
 	}
-	t.Logf("Udon HTTP catalog: status=%d bytes=%d revision=%s", catalog.HTTP, len(response.Body), catalog.CatalogTime)
+	t.Logf("Udon HTTPS catalog: status=%d bytes=%d revision=%s", catalog.HTTP, len(response.Body), catalog.CatalogTime)
 	const song = 6254
 	playback, sample, address := access.Playback(ctx, song, playbacksource.Entries()[0])
 	if playback.State != "available" || playback.Scheme != "http" || sample == nil || address.API != playbacksource.DefaultAPI {

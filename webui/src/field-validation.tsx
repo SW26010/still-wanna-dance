@@ -44,6 +44,13 @@ export function inputError(input:HTMLInputElement|HTMLSelectElement|HTMLTextArea
   if(input.name==='socks5Address')return socks5AddressError(input.value);
   if(input.validity.valueMissing)return '请输入此项内容';
   if(input.validity.badInput)return '请输入有效数字';
+  if(input.name==='videoBudgetBytes') {
+    const value=Number(input.value);
+    if(!input.value.trim())return '请输入此项内容';
+    if(!Number.isFinite(value))return '请输入有效数字';
+    if(value<Math.round(0.01*1073741824)/1073741824||value>8388607)return '请输入 0.01～8388607 范围内的数值';
+    if(Math.abs(value*100-Math.round(value*100))>0.000001)return '最多输入两位小数';
+  }
   if(input instanceof HTMLInputElement) {
     if(input.validity.rangeUnderflow||input.validity.rangeOverflow)return `请输入 ${input.min}～${input.max} 范围内的数值`;
     if(input.validity.stepMismatch)return input.step==='1'?'请输入整数':`请输入以 ${input.step} 为步长的数值`;

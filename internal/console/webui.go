@@ -6,7 +6,9 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
+	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/buildinfo"
 	"still-wanna-dance/internal/legal"
 )
@@ -34,6 +36,15 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 	c.mu.Unlock()
 	if page == "console" || page == "about" {
 		data["build"] = buildinfo.Current()
+	}
+	if page == "console" {
+		defaults := defaultSettings()
+		data["settingsDefaults"] = map[string]int{
+			"prepareAheadSeconds":          int(blocksched.DefaultPrepareAhead / time.Second),
+			"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
+			"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,
+			"localProtectionGraceSeconds":  defaults.LocalProtectionGraceSeconds,
+		}
 	}
 	if page == "console" || page == "help" {
 		c.mu.Lock()

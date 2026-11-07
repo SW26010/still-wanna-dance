@@ -5,7 +5,7 @@ import {saveSettings} from './settings-actions';
 test('request retention has explicit modes, remembers days, and applies after restart', async ({page}, info) => {
   const api = await mockAPI(page);
   await page.goto('/#preferences');
-  const group = page.getByRole('radiogroup', {name:'是否保留历史请求明细',exact:true});
+  const group = page.getByRole('radiogroup', {name:'历史请求明细',exact:true});
   const none = group.getByRole('radio', {name:'不保留',exact:true});
   const limited = group.getByRole('radio', {name:'保留指定天数',exact:true});
   const unlimited = group.getByRole('radio', {name:'永久保留',exact:true});
@@ -19,11 +19,11 @@ test('request retention has explicit modes, remembers days, and applies after re
   await days.fill('90');
   await none.check();
   await expect(days).toHaveValue('0');
-  await expect(page.getByText('重启后清理已有请求明细，并停止保留新明细。',{exact:true})).toBeVisible();
   await unlimited.check();
   await expect(days).toHaveValue('');
   await limited.check();
   await expect(days).toHaveValue('90');
+  expect((await days.locator('..').boundingBox())!.width).toBeLessThanOrEqual(100);
   await saveSettings(page,'待重启');
   expect(api.state.settings).toMatchObject({requestRetentionMode:'limited',requestRetentionDays:90});
   expect(api.state.activeSettings).toMatchObject({requestRetentionMode:'unlimited',requestRetentionDays:0});
@@ -56,7 +56,7 @@ test('request retention has explicit modes, remembers days, and applies after re
 test('limited request retention requires positive whole days and can recover to unlimited', async ({page}) => {
   const api = await mockAPI(page);
   await page.goto('/#preferences');
-  const group = page.getByRole('radiogroup', {name:'是否保留历史请求明细',exact:true});
+  const group = page.getByRole('radiogroup', {name:'历史请求明细',exact:true});
   const days = page.getByRole('spinbutton', {name:'请求明细保留天数',exact:true});
   await group.getByRole('radio', {name:'保留指定天数',exact:true}).check();
   await expect(days).toHaveValue('30');

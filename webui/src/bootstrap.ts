@@ -1,5 +1,7 @@
-import type { ThemePreference } from './types';
+import type { Settings, ThemePreference } from './types';
+export type DownloadNumberField = 'prepareAheadSeconds' | 'downloadConcurrencySoftLimit' | 'downloadGrowIntervalMS' | 'localProtectionGraceSeconds';
 export interface Bootstrap {
+  settingsDefaults: Pick<Settings, DownloadNumberField>;
   theme?: ThemePreference;
   page: 'about' | 'help' | 'terms' | 'console';
   token: string;

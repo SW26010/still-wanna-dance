@@ -1,5 +1,6 @@
-import { Field, Input, Link, Radio, RadioGroup, Tooltip } from '@fluentui/react-components';
-import { useId } from 'react';
+import { Field, Link, Radio, RadioGroup, SpinButton, Tooltip } from '@fluentui/react-components';
+import { useId, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { date, gib, type Settings } from './types';
 import {ValidationField} from './field-validation';
 
@@ -32,46 +33,46 @@ export type CapacityDraft = Pick<Settings, 'videoStorageMode' | 'aggressiveBlock
 export function capacityPayload(d: CapacityDraft) {
   return {videoStorageMode: d.videoStorageMode, aggressiveBlockReclamation: d.aggressiveBlockReclamation, videoBudgetBytes: Math.round(Number(d.videoBudgetGiB) * 1073741824)};
 }
-export function reclamationLabel(s: Pick<Settings, 'videoStorageMode' | 'aggressiveBlockReclamation'>) {
-  return s.aggressiveBlockReclamation === 'auto' ? `自动（当前${s.videoStorageMode === 'none' ? '开启' : '关闭'}）` : s.aggressiveBlockReclamation === 'on' ? '开启' : '关闭';
-}
 export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }: {
   mode: CapacityDraft['videoStorageMode']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
 }) {
   const limited = mode === 'limited';
   const estimate = limited ? estimatedCoverage(value) : undefined;
   const estimateId = useId();
+  const budgetInput = useRef<HTMLInputElement>(null);
+  // Fluent commits typed text and steps in the same mouse event. Flush the blur
+  // first so its step starts from the current draft, including live edits.
+  const commitBeforeStep = () => flushSync(() => budgetInput.current?.blur());
   return <div id={anchor} tabIndex={-1} className="form-grid">
-    <Field label="是否保留下载的视频"><RadioGroup layout="horizontal" value={mode} disabled={disabled}
+    <Field label="保留下载的视频" hint={estimate === undefined ? undefined : {id:estimateId,children:`预计请求命中率：约 ${estimate}`}}><RadioGroup layout="horizontal" className="retention-options" value={mode} disabled={disabled}
       onChange={(_, v) => {
         if (v.value !== 'none' && v.value !== 'limited' && v.value !== 'unlimited') return;
         onChange({videoStorageMode: v.value,
           ...(!value.trim() || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 8388607 || v.value === 'limited' && Number(value) === 0 ? {videoBudgetGiB: v.value === 'none' ? '0' : '40'} : {})});
       }}>
-      <Radio value="none" label="不保留" /><Radio value="limited" label="限制为" /><Radio value="unlimited" label="不限制" />
-    </RadioGroup></Field>
-    <p>{mode==='none'?'普通视频不长期保留。':'保存完整视频供下次播放，优先保留常用歌曲。'}</p>
-    <div className="capacity-budget-row">
-      <ValidationField name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
-        <Input name="videoBudgetBytes" type="number" min="0.01" max="8388607" step="0.01" required={limited} disabled={disabled || !limited}
+      <Radio value="none" label="不保留" />
+      <div className="retention-option"><Radio value="limited" label="限制为" />
+      <ValidationField className="retention-input budget-field" name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
+        <div className="budget-input"><SpinButton ref={budgetInput} name="videoBudgetBytes" min={0.01} max={8388607} step={1} precision={2} required={limited} disabled={disabled || !limited}
           aria-describedby={estimate === undefined ? undefined : estimateId}
-          value={mode === 'none' ? '0' : value} onChange={(_, v) => onChange({videoBudgetGiB: v.value})} />
-      </ValidationField>
-      <span id={estimateId} className="secondary" aria-live="polite">{estimate !== undefined && `最佳约命中 ${estimate} 的歌曲请求`}</span>
-    </div>
+          value={mode === 'none' ? 0 : value.trim() && Number.isFinite(Number(value)) ? Number(value) : null}
+          displayValue={mode === 'none' ? '0' : value}
+          input={{inputMode:'decimal',onChange:e=>onChange({videoBudgetGiB:e.target.value})}}
+          incrementButton={{'aria-label':'增加视频预算',onMouseDownCapture:commitBeforeStep}} decrementButton={{'aria-label':'减少视频预算',onMouseDownCapture:commitBeforeStep}}
+          onChange={(_, v) => onChange({videoBudgetGiB:v.displayValue ?? String(v.value ?? '')})} /><span className="secondary">GiB</span></div>
+      </ValidationField></div>
+      <Radio value="unlimited" label="不限制" />
+    </RadioGroup></Field>
   </div>;
 }
 export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {
   mode: CapacityDraft['videoStorageMode']; reclamation: CapacityDraft['aggressiveBlockReclamation']; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void;
 }) {
-  return <div className="form-grid">
-    <Field label="激进的缓存回收策略" hint="减少缓存占用，可能重复下载。">
+  return <Field hint={<span aria-live="polite">{reclamation === 'auto' ? `不保留视频时开启。当前${mode === 'none' ? '开启' : '关闭'}` : reclamation === 'on' ? '可能导致视频未能及时保存到本地' : '可能导致大量缓存未及时回收'}</span>} label={<Tooltip content="减少缓存占用，可能重复下载" relationship="description"><span tabIndex={0}>激进的缓存回收策略</span></Tooltip>}>
       <RadioGroup layout="horizontal" value={reclamation} disabled={disabled} onChange={(_, v) => {
         if (v.value === 'auto' || v.value === 'on' || v.value === 'off') onChange({aggressiveBlockReclamation: v.value});
       }}>
         <Radio value="auto" label="自动（默认）" /><Radio value="on" label="开启" /><Radio value="off" label="关闭" />
       </RadioGroup>
-    </Field>
-    <span className="secondary" aria-live="polite">{reclamation === 'auto' ? reclamationLabel({videoStorageMode:mode,aggressiveBlockReclamation:reclamation})+'：不保留视频时开启。' : ''}</span>
-  </div>;
+    </Field>;
 }

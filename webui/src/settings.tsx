@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Button, Checkbox, Field, Input, Select, Tooltip } from '@fluentui/react-components';
-import { bootstrap } from './bootstrap';
+import { Button, Checkbox, Divider, Field, Input, Select, Text, Tooltip } from '@fluentui/react-components';
+import { bootstrap, type DownloadNumberField } from './bootstrap';
 import { APIError, decode, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress, useThemePreference } from './ui';
@@ -30,11 +30,14 @@ export function draftFrom(s: Settings): Draft {
 }
 export function settingsPayload(d: Draft) {
   const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, Number(d[k])])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
+  return { ...values, ...Object.fromEntries(numeric.map(k => [k, k === 'requestRetentionDays' ? Number(d[k]) : downloadNumber(d, k)])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
+function downloadNumber(d: Draft, key: DownloadNumberField) {
+  return Number(d[key].trim() || bootstrap.settingsDefaults[key]);
+}
 export function fingerprint(d: Draft) {
-  return JSON.stringify({...settingsPayload(d), proxyImportText: d.proxyImportText, proxyImportName: d.proxyImportName, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
+  return JSON.stringify({...settingsPayload(d), emptyNumbers: numeric.filter(k => k !== 'requestRetentionDays' && !d[k].trim()), proxyImportText: d.proxyImportText, proxyImportName: d.proxyImportName, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
 }
 export const releaseImport = async (id: string) => { if (id) try { await request('proxy/import/discard', {id}); } catch { /* Local discard remains available offline; server expiry is the fallback. */ } };
 
@@ -134,9 +137,11 @@ export function SettingsPage({section='application',children}: {section?:Setting
   const syncing = awaitingRevision !== undefined;
   const d = {...draftFrom(s.settings),...draft}, dirty = !syncing && fingerprint(d) !== fingerprint(draftFrom(s.settings));
   useEffect(()=>{app.setSettingsDirty(section,dirty);return ()=>app.setSettingsDirty(section,false);},[section,dirty,app.setSettingsDirty]);
-  const prepareAheadSeconds = Number(d.prepareAheadSeconds);
-  const prepareAheadEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
-    ? `约 ${prepareAheadSeconds / 4} MB 临时缓存（按 2 Mbps）` : '';
+  const prepareAheadSeconds = downloadNumber(d, 'prepareAheadSeconds');
+  const localProtectionGraceSeconds = downloadNumber(d, 'localProtectionGraceSeconds');
+  const cacheEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
+    && Number.isInteger(localProtectionGraceSeconds) && localProtectionGraceSeconds >= 0 && localProtectionGraceSeconds <= 10000
+    ? `预计 ${((prepareAheadSeconds + localProtectionGraceSeconds) * 2_000_000 / 8 / 1024 ** 2).toFixed(2)} MiB` : '';
   const update = (patch: Partial<Draft>) => {
     setDraft(value=>({...value,...patch}));
     setErrors(previous=>{
@@ -164,7 +169,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     // validation result can clear them. Read-only paths have their own check.
     if(target instanceof HTMLInputElement&&target.readOnly)return;
     const message=inputError(target);
-    if(!message&&target.name!=='socks5Address'&&!(target instanceof HTMLInputElement&&target.type==='number'))return;
+    if(!message&&target.name!=='socks5Address'&&!(target instanceof HTMLInputElement&&(target.type==='number'||target.getAttribute('role')==='spinbutton')))return;
     setErrors(previous=>{const next={...previous};if(message)next[target.name]=message;else delete next[target.name];return next;});
   }
   const disabled = app.unavailable || pending || syncing || app.status.loadedRevision !== app.revision;
@@ -173,7 +178,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
-  const numberField = (key: NumberField | 'videoBudgetGiB', label: string, min: number, max: number, hint?: string, step = '1') => <ValidationField name={key} label={label} hint={hint} required><Input name={key} id={key} type="number" required min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></ValidationField>;
+  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, hint?: string, step = '1') => <ValidationField name={key} label={label} hint={hint}><Input name={key} id={key} type="number" placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></ValidationField>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
   const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
   const restartHint=restartNeedsSaving
@@ -253,32 +258,33 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <StorageLocationFields section="storage" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} disabled={disabled || d.videoStorageMode==='none'} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
-      <span className="secondary">收藏视频在预算内优先保留，不会自动下载。</span>
       </fieldset>}
-      {section==='application'&&<><Field label="主题"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
+      {section==='application'&&<><Field label="主题"><Select disabled={disabled} value={theme.preference} onChange={async(_,v)=>{const value=v.value as 'system'|'light'|'dark';if(await app.action('settings/theme',{theme:value}))theme.setPreference(value);}}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></Field><Divider /><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
       <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip></fieldset>
-      <fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/>
+      <Divider /><fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/>
       <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip><span className="secondary">保存后立即用于停止加速和退出。关闭后需开启加速才能播放。</span></fieldset>
-      <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
-      <Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
+      <Divider /><RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
+      <Divider /><Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
       {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} checking={pending&&hasProxyImport(d)} />
       </fieldset>
 </>}
-      {section==='downloads'&&<><fieldset disabled={disabled}><legend>视频缓存</legend>
-      <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
-      <div className="settings-columns"><CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
-      {numberField('localProtectionGraceSeconds','本地延续保护时长（秒）',0,10000,'需求结束后继续保留缓存；0 表示不延续保护。')}
-      </div></fieldset>
-      <Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
-
-      {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64,'建议 16 路；播放急需时可临时超出。')}
-      {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000,'建议 250 ms；0 表示关闭缓增。')}
-      </div></fieldset>
-      <fieldset disabled={disabled}><legend>房间队列与游戏日志</legend>
-      {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000,`建议 200～2000 秒。${prepareAheadEstimate}`)}
+      {section==='downloads'&&<><fieldset disabled={disabled}><legend>队列预加载</legend>
+      <Checkbox label="随视频网关启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/>
       <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
-        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset></>}
+        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset>
+      <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
+      {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64)}
+      {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000)}
+      </div></fieldset>
+      <Divider /><fieldset disabled={disabled} aria-label="缓存"><legend className="inline">缓存<Text size={200} weight="regular" className="secondary" aria-live="polite">{cacheEstimate}</Text></legend>
+      <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
+      <div className="settings-columns">
+      {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000)}
+      {numberField('localProtectionGraceSeconds','延续保护时间（秒）',0,10000,'需求结束后继续保留缓存。')}
+      </div>
+      <CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
+      </fieldset></>}
       <span className="secondary">运行配置保存后重启生效。</span>
     </form></Panel></FieldErrors.Provider>;
   return children(form,actions);

@@ -23,6 +23,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 			setTestLibraryPaths(&c.settings, `<script>alert("path")</script>`)
 			setTestLibraryPaths(&c.savedSettings, "pending-storage")
 			c.settings.Theme = "dark"
+			c.savedSettings.DownloadConcurrencySoftLimit = 32
 			for _, path := range []string{"/", "/help", "/about", "/terms"} {
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))
@@ -34,6 +35,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 					Page, Token, Theme string
 					Paths              map[string]string
 					Build              json.RawMessage
+					SettingsDefaults   map[string]int
 					Terms              struct{ Text, Version string }
 					TermsGate          *termsEntry
 				}
@@ -56,6 +58,24 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 					}
 				}
 				if data.Page == "console" {
+					defaults, err := normalizeSettings(defaultSettings())
+					if err != nil {
+						t.Fatal(err)
+					}
+					wantDefaults := map[string]int{
+						"prepareAheadSeconds":          defaults.PrepareAheadSeconds,
+						"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
+						"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,
+						"localProtectionGraceSeconds":  defaults.LocalProtectionGraceSeconds,
+					}
+					if len(data.SettingsDefaults) != len(wantDefaults) {
+						t.Fatalf("%s: incomplete input defaults: %v", path, data.SettingsDefaults)
+					}
+					for key, want := range wantDefaults {
+						if data.SettingsDefaults[key] != want {
+							t.Fatalf("%s: %s default = %d, want %d", path, key, data.SettingsDefaults[key], want)
+						}
+					}
 					if len(data.Build) == 0 || data.Terms.Text != legal.Text || data.Terms.Version != legal.Version {
 						t.Fatalf("%s: document content unavailable at app startup", path)
 					}

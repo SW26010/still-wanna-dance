@@ -44,7 +44,7 @@ legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300
 .validation-input > :is(.fui-Input, .fui-Textarea, .fui-Select) { width: 100%; }
 .validation-icon { display: flex; align-items: center; justify-content: center; height: 32px; color: var(--colorPaletteRedForeground1); }
 .validation-icon > .fui-Button { color: inherit; min-width: 24px; }
-.field-error-description { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.field-error-description, .retention-input > .fui-Label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .validation-control:has(input[type=number]) { max-width: 188px; }
 .path-field > .fui-Input { flex: 1; min-width: 0; }
 .path-field > button { flex-shrink: 0; }
@@ -303,9 +303,13 @@ html:has(.log-expanded) { scrollbar-gutter: auto; }
 .settings-form .fui-Field { max-width: 100%; }
 .settings-form fieldset { gap: var(--spacingVerticalM); }
 .settings-form .fui-Input:has(input[type=number]) { max-width: 160px; }
-.capacity-budget-row { display: flex; align-items: end; flex-wrap: wrap; gap: var(--spacingVerticalXS) var(--spacingHorizontalS); min-width: 0; }
-.capacity-budget-row > .fui-Field { flex: 0 0 160px; min-width: 0; }
-.capacity-budget-row > .secondary { min-width: 0; padding-bottom: var(--spacingVerticalS); }
+.retention-options { flex-wrap: wrap; align-items: center; }
+.retention-option { display: flex; align-items: center; min-width: 0; max-width: 100%; }
+.retention-input { width: 124px; min-width: 0; }
+
+.budget-field { width: 148px; }
+.budget-input { display: flex; align-items: center; gap: var(--spacingHorizontalXS); }
+.budget-input > .fui-SpinButton { flex: 1; min-width: 0; width: 0; }
 
 .health-table { min-width: 550px; table-layout: fixed; }
 .health-table th:first-child { width: 30%; }

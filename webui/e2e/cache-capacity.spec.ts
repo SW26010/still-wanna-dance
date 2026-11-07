@@ -8,34 +8,39 @@ test('video budget shows the historical estimate as the draft changes', async ({
   const api = await mockAPI(page);
   await page.goto('/#storage-settings');
   const input = page.getByRole('spinbutton', {name:'视频存储预算（GiB）', exact:true});
-  const estimate = page.locator('.capacity-budget-row > .secondary');
-  await expect(estimate).toBeEmpty();
+  const estimate = page.locator('#videoBudgetGiB > .fui-Field > .fui-Field__hint');
+  await expect(estimate).toHaveCount(0);
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
   for (const [budget, expected] of [
     ['0.01','0%'], ['0.25','5%'], ['1','11%'], ['12.34','41%'], ['20','51%'], ['40','65%'],
     ['50','68%'], ['100','75%'], ['130.31','78%'], ['146.69','78%'], ['146.70','78%+'], ['8388607','78%+']
   ]) {
     await input.fill(budget);
-    await expect(estimate).toHaveText(`最佳约命中 ${expected} 的歌曲请求`);
-    await expect(input).toHaveAccessibleDescription(`最佳约命中 ${expected} 的歌曲请求`);
+    await expect(estimate).toHaveText(`预计请求命中率：约 ${expected}`);
+    await expect(input).toHaveAccessibleDescription(`预计请求命中率：约 ${expected}`);
   }
   for (const invalid of ['', '0', '-1', '0.001', '8388608']) {
     await input.fill(invalid);
-    await expect(estimate).toBeEmpty();
+    await expect(estimate).toHaveCount(0);
   }
+  await input.fill('12.5');
+  await page.getByRole('button',{name:'增加视频预算',exact:true}).click();await expect(input).toHaveValue('13.5');
+  await page.getByRole('button',{name:'减少视频预算',exact:true}).click();await expect(input).toHaveValue('12.5');
+  await input.press('ArrowUp');await expect(input).toHaveValue('13.5');
+  await input.press('ArrowDown');await expect(input).toHaveValue('12.5');
   await input.fill('40');
   for (const width of [320,1280]) {
     await page.setViewportSize({width,height:900});
     await page.emulateMedia({colorScheme:width === 320 ? 'dark' : 'light'});
     await expect(estimate).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    expect(await input.evaluate(element => (element as HTMLInputElement).labels![0].getBoundingClientRect().height)).toBeLessThanOrEqual(24);
+    expect((await input.locator('..').boundingBox())!.width).toBeLessThanOrEqual(100);
     await page.locator('#videoBudgetGiB').screenshot({path:info.outputPath(`estimate-${width}.png`),animations:'disabled'});
   }
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
-  await expect(estimate).toBeEmpty();
+  await expect(estimate).toHaveCount(0);
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
-  await expect(estimate).toBeEmpty();
+  await expect(estimate).toHaveCount(0);
   expect(api.calls.some(call => call.path === 'settings')).toBe(false);
 });
 
@@ -44,7 +49,7 @@ test('the smallest saved byte budget still shows an estimate', async ({page}) =>
   api.state.settings.videoStorageMode = 'limited';
   api.state.settings.videoBudgetBytes = Math.round(0.01 * 1073741824);
   await page.goto('/#storage-settings');
-  await expect(page.locator('.capacity-budget-row > .secondary')).toHaveText('最佳约命中 0% 的歌曲请求');
+  await expect(page.locator('#videoBudgetGiB > .fui-Field > .fui-Field__hint')).toHaveText('预计请求命中率：约 0%');
 });
 
 test('settings keep the video directory editable without losing its saved or draft path', async ({page}, info) => {
@@ -84,7 +89,7 @@ test('settings preserve all three storage choices and the entered budget across 
   const none = page.getByRole('radio', {name:'不保留', exact:true});
   const limited = page.getByRole('radio', {name:'限制为', exact:true});
   const unlimited = page.getByRole('radio', {name:'不限制', exact:true});
-  await expect(page.getByRole('radiogroup', {name:'是否保留下载的视频',exact:true}).getByRole('radio')).toHaveCount(3);
+  await expect(page.getByRole('radiogroup', {name:'保留下载的视频',exact:true}).getByRole('radio')).toHaveCount(3);
   await expect(unlimited).toBeChecked();
   await expect(input).toBeDisabled();
   await none.check();
@@ -201,7 +206,7 @@ test('settings reject invalid budgets and inactive choices recover from an inval
   const limited = page.getByRole('radio',{name:'限制为',exact:true});
   await limited.check();
   const input = page.getByRole('spinbutton',{name:'视频存储预算（GiB）',exact:true});
-  for (const invalid of ['0', '-1', '0.001', '8388608', '']) {
+  for (const invalid of ['0', '-1', '0.001', '12.345', 'abc', '8388608', '']) {
     await input.fill(invalid);
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);

@@ -5,9 +5,11 @@ import { mockAPI } from './api';
 test('drafts survive polling and navigation; save preserves active config and blocks dirty restart', async ({page}) => {
   const api=await mockAPI(page); await page.goto('/#prepareAheadSeconds');
   const m=page.getByRole('spinbutton',{name:/提前准备时间/});
-  await expect(m).toHaveAccessibleDescription(/约 125 MB 临时缓存（按 2 Mbps）/);
-  await m.fill(''); await expect(m).not.toHaveAccessibleDescription(/约 .* MB/);
-  await m.fill('100'); await expect(m).toHaveAccessibleDescription(/约 25 MB 临时缓存/);
+  const estimate=page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary');
+  await expect(m).toHaveAccessibleDescription('');
+  await expect(estimate).toHaveText('预计 190.73 MiB');
+  await m.fill(''); await expect(estimate).toHaveText('预计 190.73 MiB');
+  await m.fill('100'); await expect(estimate).toHaveText('预计 95.37 MiB');
   await navigate(page,'加速');
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'视频加速已开启。',exact:true})).toBeVisible();
@@ -16,16 +18,16 @@ test('drafts survive polling and navigation; save preserves active config and bl
   await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings.prepareAheadSeconds).toBe(100); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
   await m.fill('145'); await expect(page.getByRole('button',{name:'重启并应用'})).toBeDisabled();
-  await expect(m).toHaveAccessibleDescription(/约 36\.25 MB 临时缓存/);
+  await expect(estimate).toHaveText('预计 106.10 MiB');
   await page.getByRole('button',{name:'放弃更改',exact:true}).click(); await expect(m).toHaveValue('100');
-  await expect(m).toHaveAccessibleDescription(/约 25 MB 临时缓存/);
+  await expect(estimate).toHaveText('预计 95.37 MiB');
   await m.fill('16000'); await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用'})).toBeEnabled();
   expect(api.state.settings.prepareAheadSeconds).toBe(16000); expect(api.state.activeSettings.prepareAheadSeconds).toBe(500);
-  await expect(m).toHaveAccessibleDescription(/约 4000 MB 临时缓存/);
+  await expect(estimate).toHaveText('预计 3886.22 MiB');
   for (const value of ['99','16001']) {
     await m.fill(value); await page.getByRole('button',{name:'保存设置',exact:true}).click();
-    await expect(m).not.toHaveAccessibleDescription(/约 .* MB/);
+    await expect(estimate).toBeEmpty();
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(2);
   }
   expect(api.calls.filter(c=>!c.path.includes('/events')).every(c=>c.token==='browser-fixture-token')).toBe(true);

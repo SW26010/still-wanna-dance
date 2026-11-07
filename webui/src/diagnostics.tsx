@@ -8,7 +8,7 @@ import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
 
 interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string; finished?:string }
-interface ConnectionResult {operation:string;entry?:string;state?:string;reason?:string;scheme?:string;latencyMS?:number | null;observedAt?:string;retained?:boolean}
+interface ConnectionResult {operation:string;entry?:string;state?:string;reason?:string;scheme?:string;latencyMS?:number | null;observedAt?:string;retained?:boolean;selected?:boolean}
 type ConnectivityOperation = 'catalog' | 'playback_url' | 'resource';
 interface Connectivity extends EventState { operation?:ConnectivityOperation;initializing?:boolean;nextCheck?:string;results?: ConnectionResult[]; lastResult?: {finished:string;results:ConnectionResult[]} }
 interface Measurement {finished?:string;singleSpeedBPS?:number | null;fullSpeedBPS?:number | null;fullConcurrency?:number;fullCPUPercent?:number | null;cpuP95Percent?:number | null;referenceBitrateBPS?:number}
@@ -73,9 +73,10 @@ export function UpstreamStatus({visible}:{visible:boolean}) {
   const rows=discard?c?.lastResult?.results||[]:c?.results||[];
   const disabled=app.unavailable||!connectivity.online||connectivity.pending||!!connectivity.intent||!!c?.running||!!c?.closed;
   const busy=connectivity.online&&(!!c?.running||connectivity.intent==='start');
-  const latest=(items:ConnectionResult[],operation:ConnectivityOperation)=>items.filter(row=>row.operation===operation&&dated(row.observedAt)).sort((a,b)=>new Date(b.observedAt!).getTime()-new Date(a.observedAt!).getTime())[0];
+  const latest=(items:ConnectionResult[],operation:ConnectivityOperation)=>items.find(row=>row.operation===operation&&row.selected&&dated(row.observedAt))||items.filter(row=>row.operation===operation&&dated(row.observedAt)).sort((a,b)=>new Date(b.observedAt!).getTime()-new Date(a.observedAt!).getTime())[0];
   const observations=operations.map(operation=>{
-    const checking=!!c?.running&&(c.operation===operation||rows.some(row=>row.operation===operation&&row.state==='checking'));
+    const selected=rows.some(row=>row.operation===operation&&row.selected);
+    const checking=!!c?.running&&!selected&&(c.operation===operation||rows.some(row=>row.operation===operation&&row.state==='checking'));
     const current=latest(rows,operation), previous=(checking||c?.running)?latest(c?.lastResult?.results||[],operation):undefined;
     const row=current||previous, skipped=rows.some(item=>item.operation===operation&&item.state==='skipped');
     return {operation,checking,row,retained:!!row?.retained||!!(!current&&previous&&skipped)};
@@ -85,13 +86,14 @@ export function UpstreamStatus({visible}:{visible:boolean}) {
     <div className="toolbar spread upstream-heading"><Subtitle2 as="h2"><Link appearance="subtle" href={pageHref('network')}>网络上游：{upstreamName(app.status.data)}</Link></Subtitle2><Tooltip content="重新检测上游" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={disabled} disabledFocusable={busy} onClick={()=>void connectivity.start()}/></Tooltip></div>
     <div ref={setTooltipBelow} className="toolbar upstream-badges">{observations.map(({operation,checking,row,retained})=>{
       const unknown=!connectivity.online||!!app.status.error||app.stopped;
-      const previousState=row?.state==='available'?'可连接':row?.state==='failed'?'连接失败':'尚未检测';
+      const fallback=operation==='catalog'&&row?.selected&&row.state==='available'&&['api-http','kiva','wanna'].includes(row.entry||'');
+      const previousState=fallback?'主来源不可用，已使用备用清单':row?.state==='available'?'可连接':row?.state==='failed'?'连接失败':'尚未检测';
       const state=unknown?'待确认':checking?'检测中':retained?`本次未检测，上次${previousState}`:previousState;
       const latency=valid(row?.latencyMS)?Math.round(row.latencyMS)+' ms':'—';
       const value=unknown||checking?state:valid(row?.latencyMS)?latency:'—';
-      const description=dated(row?.observedAt)?(retained&&!checking?'本次未检测；':'')+(!checking&&row?.state==='failed'?(retained?'上次连接失败；':'连接失败；'):'')+(retained&&!checking?'上次检测：':'最后检测：')+date(row?.observedAt):'尚未检测';
+      const description=dated(row?.observedAt)?(retained&&!checking?'本次未检测；':'')+(!checking&&fallback?'主来源不可用，已使用备用清单；':'')+(!checking&&row?.state==='failed'?(retained?'上次连接失败；':'连接失败；'):'')+(retained&&!checking?'上次检测：':'最后检测：')+date(row?.observedAt):'尚未检测';
       const label=connectionNames[operation];
-      return <StatusBadge key={operation} label={label} description={description} color={unknown?'informative':checking?'brand':retained?'informative':row?.state==='available'?'success':row?.state==='failed'?'danger':'informative'} interactive={{label:`检测${label}，${state}${!unknown&&!checking&&valid(row?.latencyMS)?'，'+latency:''}`,disabled,tooltipBelow,onClick:()=>void connectivity.toggle(operation)}}>{value}</StatusBadge>;
+      return <StatusBadge key={operation} label={label} description={description} color={unknown?'informative':checking?'brand':retained?'informative':fallback?'warning':row?.state==='available'?'success':row?.state==='failed'?'danger':'informative'} interactive={{label:`检测${label}，${state}${!unknown&&!checking&&valid(row?.latencyMS)?'，'+latency:''}`,disabled,tooltipBelow,onClick:()=>void connectivity.toggle(operation)}}>{value}</StatusBadge>;
     })}</div>
     <Tooltip content="最早检测" relationship="description" positioning={{position:'after'}}><Caption1 as="p" tabIndex={0} className="secondary upstream-updated">{oldest?<time dateTime={oldest}>{date(oldest)}</time>:'—'}</Caption1></Tooltip>
     <Notification message={connectivity.actionError} error/>

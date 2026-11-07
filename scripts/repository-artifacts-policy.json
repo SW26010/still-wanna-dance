@@ -1298,6 +1298,13 @@
       "bytes": 1246439,
       "sha256": "5fe568d014e287b27e4dab1ee7e6227202bbbc20c0f3824cd8800d5f77c7b573",
       "reason": "Generated offline Fluent WebUI naming the HTTP Udon catalog fallback separately from the primary HTTPS source; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1246850,
+      "sha256": "15615c0878616ca357b211ea8a1681b4d8e48dab5bb99e0f4f8c242ad4ce7770",
+      "reason": "Generated offline Fluent WebUI showing a yellow catalog warning when a backup source is selected, retaining latency and accessible fallback details; verified against webui/build-manifest.json."
     }
   ]
 }

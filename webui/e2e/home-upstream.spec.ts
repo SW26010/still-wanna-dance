@@ -10,6 +10,42 @@ const initial=[
   {operation:'resource',entry:'example.invalid',state:'failed',reason:'timeout',observedAt:first},
 ];
 
+for(const selected of ['api','api-http','kiva','wanna'])test(`home keeps the selected catalog latency while other sources finish: ${selected}`,async({page},info)=>{
+  const api=await mockAPI(page);await page.goto('/#/home');
+  const badge=page.locator('.upstream-card').getByRole('button',{name:/检测歌曲列表/});
+  const other=selected==='wanna'?'kiva':'wanna';
+  const results=[
+    {operation:'catalog',entry:selected,state:'available',selected:true,latencyMS:42,observedAt:first},
+    {operation:'catalog',entry:other,state:'checking'},
+  ];
+  Object.assign(api.diagnostics.connectivity,{run:1,revision:2,running:true,operation:'catalog',phase:'running',results});
+  await api.emit('connectivity');
+  await expect(badge).toHaveText('歌曲列表：42 ms');
+  await expect(badge).toHaveAccessibleName(`检测歌曲列表，${selected==='api'?'可连接':'主来源不可用，已使用备用清单'}，42 ms`);
+  const expectedColor=await badge.evaluate((element,primary)=>{
+    const sample=document.createElement('span');
+    sample.style.backgroundColor=`var(--colorPalette${primary?'Green':'Yellow'}Background1)`;
+    element.append(sample);const color=getComputedStyle(sample).backgroundColor;sample.remove();return color;
+  },selected==='api');
+  await expect(badge.locator('.fui-Badge')).toHaveCSS('background-color',expectedColor);
+  const completed=[results[0],{operation:'catalog',entry:other,state:'failed',latencyMS:9000,observedAt:later}];
+  Object.assign(api.diagnostics.connectivity,{revision:3,running:false,phase:'completed',results:completed,lastResult:{finished:later,results:completed}});
+  await api.emit('connectivity');
+  await expect(badge).toHaveText('歌曲列表：42 ms');
+  await expect(badge.locator('.fui-Badge')).toHaveCSS('background-color',expectedColor);
+  if(selected!=='api'){
+    await badge.hover();
+    await expect(page.getByRole('tooltip')).toContainText('主来源不可用，已使用备用清单');
+    if(selected==='kiva'){
+      const card=(await page.locator('.upstream-card').boundingBox())!,tip=(await page.getByRole('tooltip').boundingBox())!;
+      const x=Math.min(card.x,tip.x)-8,y=Math.min(card.y,tip.y)-8;
+      await page.screenshot({path:info.outputPath('catalog-fallback-warning.png'),animations:'disabled',clip:{x,y,width:Math.max(card.x+card.width,tip.x+tip.width)-x+8,height:Math.max(card.y+card.height,tip.y+tip.height)-y+8}});
+    }
+  }
+  await navigate(page,'网络');
+  await expect(page.locator('.diagnostic-rows')).toContainText(`${other==='wanna'?'WannaInfo':'Kiva'}：连接失败 · 响应时间 9000 ms`);
+});
+
 async function homeLayout(page:import('@playwright/test').Page) {
   return page.evaluate(()=>{
     const rect=(selector:string)=>{const r=document.querySelector(selector)!.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};

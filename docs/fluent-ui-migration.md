@@ -70,11 +70,13 @@ Canvas 绘制文字读取 Fluent 的字体族、字号和字重，不另写固�
 
 验证分工遵循[现行机制](live-acceptance-process.md)，UAC、目录窗口、托盘、系统 DPI 和辅助技术的环境缺口见[非 VRC 跟进](validation-followups.md)。这里只引用记录，不再维护另一份逐项实机清单。
 
-曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用互斥且可取消的 ToggleButton，图标操作配合 Tooltip 与无障碍名称，本地状态及保护使用并列 Badge，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
+曲库歌曲／资源切换使用 TabList/Tab，分页结果使用紧凑 Table 与正常 Tab 顺序；偏好使用互斥且可取消的 ToggleButton，图标操作配合 Tooltip 与无障碍名称，本地状态使用单个 Badge，受保护时优先显示“受保护”，否则有活动资源任务时显示“下载中”，其余显示“已保存／未保存”；保护原因通过 Tooltip 说明，删除复用共享 Fluent Dialog。单项下载只调用既有任务接口，不实现自定义任务控件。
 
 设置四类和关于五类内容采用标准 TabList/Tab/tabpanel，网络页常驻连通性检测、下载速度测试及当前连接模式对应的内容，配置字段仅在设置中编辑。设置表单持续挂载，沿用独立部分草稿与最新保存配置合并；程序主题在网页中采用同一 FluentProvider，不另造主题样式系统。
 
 2026-10-25 曲库与请求历史已按[简洁重构](webui-design.md#当前界面规则)移除嵌套统计折叠，使用 Tooltip、Popover 与 Toast；早期的统一纵向 Card/Accordion 排布不再作为现行界面要求。
+
+曲库页面的直接子卡片由 page-stack 的 spacingVerticalXL（20px）统一分隔，移除卡片自身的纵向外边距，避免叠加。曲库本地状态的“受保护”“下载中”“已保存”“未保存”均使用 tint 浅底 Badge，分别保留 warning、brand、success、informative 语义色；不改变状态优先级和保护操作规则。
 
 ## 设置字段的校验反馈（2026-11-04）
 

@@ -14,17 +14,17 @@ for(const endpoint of ['inventory','downloads'] as const)for(const failure of ['
   await page.clock.install();await page.goto('/#/library');
   const coverage=page.getByRole('group',{name:'曲库覆盖率',exact:true}),update=page.getByRole('button',{name:'更新曲库',exact:true});
   if(endpoint==='inventory'){await expect(coverage).toContainText('50.0%');await expect(update).toHaveAttribute('aria-busy','true');}
-  else await expect(page.getByText('下载中 75.0%',{exact:true})).toBeVisible();
+  else await expect(page.getByText('下载中',{exact:true})).toBeVisible();
   fail=true;await page.clock.fastForward(endpoint==='inventory'?1100:5100);await expect.poll(()=>reads).toBe(2);
   if(endpoint==='inventory')await expect(update).toBeEnabled();
-  else await expect(page.getByRole('listitem').filter({hasText:'下载进度暂时无法读取。'})).toBeVisible();
+  else await expect(page.getByRole('listitem').filter({hasText:'下载状态暂时无法读取。'})).toBeVisible();
   await page.clock.fastForward(endpoint==='inventory'?1100:5100);await expect.poll(()=>reads).toBe(3);
   if(endpoint==='inventory')await expect(update).toBeEnabled();
-  else await expect(page.getByRole('listitem').filter({hasText:'下载进度暂时无法读取。'})).toBeVisible();
+  else await expect(page.getByRole('listitem').filter({hasText:'下载状态暂时无法读取。'})).toBeVisible();
   fail=false;complete=true;await page.clock.fastForward(endpoint==='inventory'?1100:5100);
   await expect.poll(()=>reads).toBe(4);
   if(endpoint==='inventory'){await expect(coverage).toContainText('100.0%');await expect(update).toHaveAttribute('aria-busy','false');}
-  else await expect(page.getByText('下载中 75.0%',{exact:true})).toHaveCount(0);
+  else await expect(page.getByText('下载中',{exact:true})).toHaveCount(0);
   const completedReads=reads;await page.clock.fastForward(31000);expect(reads).toBe(completedReads);
 });
 

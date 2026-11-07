@@ -1,5 +1,5 @@
 import type {ComponentProps,PropsWithChildren,ReactNode} from 'react';
-import {Button,Table,TableHeaderCell,Text,Tooltip,type SortDirection,type SlotRenderFunction} from '@fluentui/react-components';
+import {Button,Table,TableCellLayout,TableHeaderCell,Text,Tooltip,type SortDirection,type SlotRenderFunction} from '@fluentui/react-components';
 import {ChevronLeftRegular,ChevronRightRegular} from '@fluentui/react-icons';
 import {TableRegion} from './ui';
 
@@ -8,6 +8,10 @@ export type TableSort={sort:string;direction:SortDirection};
 // Server queries own the rows; Fluent owns table semantics and header interaction.
 export function RecordTable({children,label,regionLabel,busy,className}:PropsWithChildren<{label:string;regionLabel:string;busy?:boolean;className?:string}>) {
   return <TableRegion label={regionLabel}><Table size="small" className={'data-table'+(className?' '+className:'')} style={{tableLayout:'auto'}} aria-label={label} aria-busy={busy}>{children}</Table></TableRegion>;
+}
+
+export function TableText({children,primary,description}:{children:string;primary?:boolean;description?:string}) {
+  return <Tooltip content={children} relationship="label"><TableCellLayout truncate tabIndex={0} appearance={primary?'primary':undefined} description={description}>{children}</TableCellLayout></Tooltip>;
 }
 
 export function SortHeader({column,label,sort,onSortChange,defaultDirection='ascending',disabled,className,description}:{

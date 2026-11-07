@@ -1,4 +1,4 @@
-import {test,expect,type Page} from '@playwright/test';
+import {test,expect,type Locator,type Page} from '@playwright/test';
 import {mockAPI, choosePath} from './api';
 import type {LibraryPage,LibraryResource,SongPolicy} from '../src/types';
 
@@ -141,8 +141,8 @@ test('song and resource views share state and deletion impact; targets use exist
   await page.goto('/#/library');
   const songs=page.getByRole('table',{name:'曲库歌曲'});
   await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2);
-  await expect(songs.getByRole('columnheader')).toHaveText(['ID','名称','歌手','舞者/社团','热度','偏好','本地状态','操作']);
-  await expect(songs.getByRole('row').nth(1).getByRole('cell')).toHaveText(['1','共同视频1','歌手资料','舞者资料 / 社团资料','12,350','','已保存','详情']);
+  await expect(songs.getByRole('columnheader')).toHaveText(['ID','名称','歌手','舞者','需求分','偏好','本地状态','操作']);
+  await expect(songs.getByRole('row').nth(1).getByRole('cell')).toHaveText(['1','共同视频1','歌手资料','舞者资料','12,350','','已保存','详情']);
   await songs.getByRole('button',{name:'删除本地视频'}).first().click();
   await expect(page.getByRole('dialog')).toContainText('影响 2 首已知关联歌曲');
   await expect(page.getByRole('dialog')).toContainText('共同视频一');
@@ -154,7 +154,8 @@ test('song and resource views share state and deletion impact; targets use exist
   await page.getByRole('tab',{name:'按资源'}).click();
   const list=page.getByRole('table',{name:'曲库资源'});
   await expect(list.getByText('已保存',{exact:true})).toHaveCount(1);
-  await expect(list.getByText('时长未知').last()).toBeVisible();
+  await expect(list.getByText('时长未知')).toHaveCount(0);
+  await expect(list.locator('tbody tr').first().getByRole('cell').nth(2)).toHaveText('12,345 B');
   await list.getByRole('button',{name:'下载资源',exact:true}).last().click();
   await expect.poll(()=>calls.filter(c=>c.path==='batch/download').at(-1)?.body).toEqual({storageID:'fixture',resource:missing});
 });
@@ -229,6 +230,7 @@ test('protected files stay saved while preference toggles switch, clear and reta
   await page.goto('/#/library');
   const songs=page.getByRole('table',{name:'曲库歌曲'});
   await expect(songs.getByText('受保护')).toHaveCount(2);
+  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(0);
   await expect(songs.getByRole('button',{name:'删除本地视频'}).first()).toBeDisabled();
   const preferences=page.getByRole('group',{name:'歌曲 1 的偏好',exact:true});
   const favorite=preferences.getByRole('button',{name:'收藏',exact:true}),blocked=preferences.getByRole('button',{name:'屏蔽',exact:true});
@@ -251,7 +253,8 @@ test('protected files stay saved while preference toggles switch, clear and reta
   await expect(page.getByRole('listitem',{name:'偏好保存失败。',exact:true})).toBeVisible();
   await check('normal');
   expect(policies).toEqual(['favorite','blocked','favorite','normal','blocked','normal','favorite']);
-  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2);
+  await expect(songs.getByText('受保护',{exact:true})).toHaveCount(2);
+  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(0);
   expect(calls.some(c=>c.path==='batch/download'||c.path==='batch/start')).toBe(false);
 });
 
@@ -284,13 +287,53 @@ test('historical object links retain exact identity and explain missing objects'
 });
 
 for(const width of [320,390,1280])test(`library layout at ${width}px`,async({page},info)=>{
-  const {songs}=await libraryFixture(page);
+  const {songs,resources:resourceData}=await libraryFixture(page);
   songs[0].title='很长的歌曲名称'.repeat(20);songs[0].artist='很长的歌手名称'.repeat(20);songs[0].dancer='很长的舞者名称'.repeat(20);
+  resourceData[key].songs[0].title=songs[0].title;
   Object.assign(songs[1],{policy:'favorite'});Object.assign(songs[2],{policy:'blocked'});
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none'});
   await page.goto('/#/library');await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  const checkProtection=async(table:Locator,view:string)=>{
+    const column=table.getByRole('columnheader',{name:'本地状态',exact:true});
+    const before=(await column.boundingBox())!;
+    resourceData[key].local!.protected=true;
+    await page.getByRole('button',{name:'查找',exact:true}).click();
+    const badge=table.getByText('受保护',{exact:true}).first();
+    await expect(badge).toBeVisible();await expect(table.getByText('已保存',{exact:true})).toHaveCount(0);
+    expect(Math.abs((await column.boundingBox())!.width-before.width)).toBeLessThan(1);
+    await expect(table.getByRole('button',{name:'删除本地视频'}).first()).toBeDisabled();
+    await badge.focus();await expect(page.getByRole('tooltip')).toHaveText('正在使用、校验或准备播放，暂不能删除。');
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await page.screenshot({path:info.outputPath(`protected-${view}.png`),animations:'disabled'});
+    resourceData[key].local!.protected=false;
+    await page.getByRole('button',{name:'查找',exact:true}).click();
+    await expect(table.getByText('受保护',{exact:true})).toHaveCount(0);
+    await expect(table.getByText('已保存',{exact:true}).first()).toBeVisible();
+    expect(Math.abs((await column.boundingBox())!.width-before.width)).toBeLessThan(1);
+  };
+  await checkProtection(page.getByRole('table',{name:'曲库歌曲'}),'songs');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('library-songs.png'),fullPage:true,animations:'disabled'});
+  const cells=page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr').first().getByRole('cell');
+  const rem=await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).fontSize));
+  expect((await cells.nth(2).boundingBox())!.width).toBeGreaterThanOrEqual(6*rem);
+  expect((await cells.nth(3).boundingBox())!.width).toBeGreaterThanOrEqual(6*rem);
+  const fullText=async(cell:Locator,text:string,name:string)=>{
+    const target=cell.locator('.fui-TableCellLayout'),main=target.locator('.fui-TableCellLayout__main');
+    expect(await main.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
+    await target.hover();
+    const tooltip=page.getByRole('tooltip');await expect(tooltip).toHaveText(text);
+    const bounds=(await tooltip.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+    await page.screenshot({path:info.outputPath(`full-text-${name}.png`),animations:'disabled'});
+    await page.keyboard.press('Escape');await expect(tooltip).toHaveCount(0);
+    await page.mouse.move(0,0);await target.focus();await expect(tooltip).toHaveText(text);
+    await expect(target).toHaveAccessibleName(text);
+    await page.keyboard.press('Escape');await expect(tooltip).toHaveCount(0);
+  };
+  await fullText(cells.nth(1),songs[0].title,'title');
+  await fullText(cells.nth(2),songs[0].artist,'artist');
+  await fullText(cells.nth(3),songs[0].dancer,'dancer');
   const blocked=page.getByRole('group',{name:'歌曲 3 的偏好',exact:true}).getByRole('button',{name:'屏蔽',exact:true});
   await blocked.focus();await expect(blocked).toBeInViewport();await expect(blocked).toHaveAttribute('aria-pressed','true');
   await page.keyboard.press('Escape');
@@ -298,6 +341,7 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   await page.getByRole('tab',{name:'按资源'}).click();
   const resources=page.getByRole('table',{name:'曲库资源'});
   await expect(resources.getByRole('columnheader',{name:'关联歌曲',exact:true})).toBeVisible();
+  await checkProtection(resources,'resources');
   const resourceCell=resources.locator('tbody tr').first().getByRole('cell').first(),md5=resourceCell.getByText(key,{exact:true});
   await expect(md5).toHaveCSS('font-family',/Consolas|monospace/);
   expect(await md5.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
@@ -311,7 +355,9 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
     await page.setViewportSize({width,height:900});
   }
   expect((await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).boundingBox())!.width).toBeLessThan(48);
-  await expect(resources.locator('tbody tr').first().getByRole('cell').nth(1)).toContainText('共同视频一 / 共同视频二');
+  const related=resourceData[key].songs.map(song=>song.title).join(' / ');
+  await expect(resources.locator('tbody tr').first().getByRole('cell').nth(1)).toContainText(related);
+  await fullText(resources.locator('tbody tr').first().getByRole('cell').nth(1),related,'related');
   await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).hover();
   await expect(page.getByRole('group',{name:`资源 ${key} 的详情`,exact:true})).toBeVisible();
   await page.keyboard.press('Escape');await page.mouse.move(0,0);
@@ -377,7 +423,7 @@ test('compact rows, tooltip and operation feedback keep the table in place',asyn
   await expect(rows).toHaveCount(13);
   const before=await table.boundingBox();
   expect((await rows.nth(1).boundingBox())!.height).toBeLessThanOrEqual(72);
-  for(const [target,description] of [[table.getByRole('button',{name:'按热度排序',exact:true}),'随时间衰减'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'屏蔽会拒绝新的播放和下载请求']] as const){
+  for(const [target,description] of [[table.getByRole('button',{name:'按需求分排序',exact:true}),'反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'屏蔽会拒绝新的播放和下载请求']] as const){
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
     await page.mouse.move(0,0);await target.focus();

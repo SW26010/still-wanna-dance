@@ -3,8 +3,8 @@ import {Badge,Button,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,Table
 import {useApp,useFocusRecovery,useResource} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
-import {Feedback,Notification,Progress,RecordDetails} from './ui';
-import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
+import {Feedback,Notification,RecordDetails} from './ui';
+import {RecordTable,TableText,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {InventoryPanel,useCacheActions} from './cache';
@@ -83,18 +83,18 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const sharedState=(r:LibraryResource|undefined)=> {
     if(page.data?.videoError)return <Badge appearance="tint" color="warning">未知</Badge>;
     const task=downloads.data?.tasks.find(t=>t.resource===r?.key),local=r?.local;
-    return <div className="cell-stack"><div className="inline"><Badge appearance="tint" color={local?'success':'informative'}>{local?'已保存':'未保存'}</Badge>{local?.protected&&<Tooltip content="正在使用、校验或准备播放，暂不能删除。" relationship="description"><Badge color="warning" tabIndex={0}>受保护</Badge></Tooltip>}</div>
-      {task&&<Tooltip content={`${mb(task.bytes)} / ${task.size>0?mb(task.size):'未知'} · ${mb(task.bytesPerSecond)}/s；校验完成后保存。`} relationship="description"><div tabIndex={0} className="cell-progress"><span>{({cache_check:'检查中',upstream_headers:'等待上游',download:'下载中',range_download:'下载中',hash:'校验中',publish:'保存中',index:'保存中'}[task.stage]||'准备中')} {task.size>0?`${Math.min(100,100*task.bytes/task.size).toFixed(1)}%`:''}</span><Progress label="资源下载字节进度" value={task.bytes} max={task.size}/></div></Tooltip>}</div>;
+    if(local?.protected)return <Tooltip content="正在使用、校验或准备播放，暂不能删除。" relationship="description"><Badge appearance="tint" color="warning" tabIndex={0}>受保护</Badge></Tooltip>;
+    return <Badge appearance="tint" color={task?'brand':local?'success':'informative'}>{task?'下载中':local?'已保存':'未保存'}</Badge>;
   };
   const fileActions=(r:LibraryResource|undefined)=>r?.local&&<>
     <Tooltip content="定位文件" relationship="label"><Button size="small" appearance="subtle" icon={<FolderOpenRegular/>} aria-label="定位文件" disabled={disabled||!r.local.known} onClick={()=>void actions.operate('open',[r.local!])}/></Tooltip>
     <Tooltip content="删除本地视频" relationship="label"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>;
   const previewAction=(target:PreviewSelection,unavailableReason='')=><Tooltip content={unavailableReason||'预览视频'} relationship="description"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<PlayRegular/>} aria-label="预览" disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}/></Tooltip>;
   const storageBudget=<StorageBudgetNotice settings={s.activeSettings} usedBytes={page.error||page.data?.videoError?undefined:page.data?.totalBytes} checkedAt={page.loadedAt}/>;
-  return <div className="page-stack">
+  return <div className="page-stack library-page">
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
-    <Notification message={visible&&downloads.error?'下载进度暂时无法读取。':undefined} error/>
+    <Notification message={visible&&downloads.error?'下载状态暂时无法读取。':undefined} error/>
     {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。<p className="wrap">{page.data.videoError}</p></Feedback>}
     <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}
       actions={<><Button onClick={()=>focusSection('vrcx-import')}>导入 VRCX 历史</Button><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
@@ -118,14 +118,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell><span className={entry.label===entry.key?'resource-id':undefined}>{entry.label}</span></TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
       <RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
-        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="id" label="ID" sort={query} onSortChange={changeSort} disabled={disabled}/><SortHeader column="title" label="名称" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column table-name-column"/><TableHeaderCell className="table-metadata-column">歌手</TableHeaderCell><TableHeaderCell className="table-metadata-column">舞者/社团</TableHeaderCell><SortHeader column="score" label="热度" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="灰色为初始分数；真实分数随时间衰减。"/><DescriptionHeader label="偏好">屏蔽会拒绝新的播放和下载请求。再次点击可取消。</DescriptionHeader></>:<><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-resource-column"/><TableHeaderCell className="table-fill-column table-name-column">关联歌曲</TableHeaderCell><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
+        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="id" label="ID" sort={query} onSortChange={changeSort} disabled={disabled}/><SortHeader column="title" label="名称" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column table-name-column"/><TableHeaderCell className="table-metadata-column">歌手</TableHeaderCell><TableHeaderCell className="table-metadata-column">舞者</TableHeaderCell><SortHeader column="score" label="需求分" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。"/><DescriptionHeader label="偏好">屏蔽会拒绝新的播放和下载请求。再次点击可取消。</DescriptionHeader></>:<><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-resource-column"/><TableHeaderCell className="table-fill-column table-name-column">关联歌曲</TableHeaderCell><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
           <TableHeaderCell>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
         <TableBody>{view==='songs'?page.data?.songs.map(song=>{
           const r=resources[song.resource],score=scoreFormat.format(song.score*100),source=song.hasDemand?'真实分数':'初始分数';return <TableRow key={song.id}>
             <TableCell>{song.id}</TableCell>
-            <TableCell className="table-fill-column table-name-column"><TableCellLayout appearance="primary" truncate>{song.title||'未知名称'}</TableCellLayout></TableCell>
-            <TableCell className="table-metadata-column"><TableCellLayout truncate>{song.artist||'未知歌手'}</TableCellLayout></TableCell>
-            <TableCell className="table-metadata-column"><TableCellLayout truncate>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</TableCellLayout></TableCell>
+            <TableCell className="table-fill-column table-name-column"><TableText primary>{song.title||'未知名称'}</TableText></TableCell>
+            <TableCell className="table-metadata-column"><TableText>{song.artist||'未知歌手'}</TableText></TableCell>
+            <TableCell className="table-metadata-column"><TableText>{song.dancer||'未知'}</TableText></TableCell>
             <TableCell aria-label={`${source} ${score}`}><span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span></TableCell>
             <TableCell><div className="inline row-actions" role="group" aria-label={`歌曲 ${song.id} 的偏好`}>
               <Tooltip content={song.policy==='favorite'?'取消收藏':'收藏'} relationship="description"><ToggleButton size="small" appearance="subtle" aria-label="收藏" checked={song.policy==='favorite'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-favorite-icon',children:song.policy==='favorite'?<HeartFilled/>:<HeartRegular/>}} onClick={()=>void save(song.id,song.policy==='favorite'?'normal':'favorite')}/></Tooltip>
@@ -135,8 +135,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
           <TableCell className="table-resource-column"><span className="resource-id">{key}</span></TableCell>
-          <TableCell className="table-fill-column table-name-column"><TableCellLayout truncate description={`${r.songCount} 首`}>{r.songs.map(s=>s.title||s.id).join(' / ')||'无关联歌曲'}</TableCellLayout></TableCell>
-          <TableCell><TableCellLayout description={r.duration==null?'时长未知':`${r.duration} 秒`}>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
+          <TableCell className="table-fill-column table-name-column"><TableText description={`${r.songCount} 首`}>{r.songs.map(s=>s.title||s.id).join(' / ')||'无关联歌曲'}</TableText></TableCell>
+          <TableCell><TableCellLayout>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
           <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Tooltip content="下载资源" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载资源" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}/></Tooltip>{fileActions(r)}<RecordDetails openOnHover title={`资源 ${key} 的详情`} heading={<>资源 <span className="resource-id">{key}</span> 的详情</>}><p className="wrap resource-id">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div></TableCell>
         </TableRow>;})}</TableBody>
       </RecordTable>

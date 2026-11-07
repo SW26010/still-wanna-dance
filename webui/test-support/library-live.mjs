@@ -22,7 +22,7 @@ try {
   await page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true}).click();
   await expect(page.getByText('歌曲 1 已设为收藏。',{exact:true})).toBeVisible();
   await page.reload();await expect(page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true})).toHaveAttribute('aria-pressed','true');
-  const scoreHeader=songs.getByRole('button',{name:'按热度排序',exact:true});
+  const scoreHeader=songs.getByRole('button',{name:'按需求分排序',exact:true});
   await scoreHeader.focus();await page.keyboard.press('Enter');
   await expect(scoreHeader.locator('..')).toHaveAttribute('aria-sort','ascending');
   await expect(scoreHeader).toBeEnabled();await expect(scoreHeader).toBeFocused();

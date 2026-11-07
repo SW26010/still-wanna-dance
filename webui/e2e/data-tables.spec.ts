@@ -15,7 +15,7 @@ test('library sorts the query before paging, preserves search order and uses key
   });
   await page.goto('/#/library');
   const table=page.getByRole('table',{name:'曲库歌曲'}),pager=page.getByRole('navigation',{name:'曲库分页'});
-  const score=table.getByRole('columnheader').filter({has:page.getByRole('button',{name:'按热度排序',exact:true})});
+  const score=table.getByRole('columnheader').filter({has:page.getByRole('button',{name:'按需求分排序',exact:true})});
   await expect(score).toHaveAttribute('aria-sort','descending');
   await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
   await expect(pager).toContainText('第 2 页');

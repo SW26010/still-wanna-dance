@@ -198,6 +198,7 @@ form.actions { align-items: flex-end; }
 .library-search .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
 .library-search .fui-Input { width: 18rem; min-width: 0; max-width: 100%; }
 .search-field { max-width: 100%; }
+.library-page > .panel { margin-block: 0; }
 .library-summary { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacingHorizontalL); }
 .library-actions { margin-inline-start: auto; justify-content: flex-end; }
 .summary-values { gap: var(--spacingHorizontalXXXL); }
@@ -224,7 +225,6 @@ form.actions { align-items: flex-end; }
 .table-source-shares { display: grid; grid-template-columns: repeat(2, max-content); column-gap: var(--spacingHorizontalS); }
 .cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .cell-stack > * { max-width: 100%; }
-.cell-progress { width: 100%; font-size: var(--fontSizeBase200); }
 .truncate { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-actions { gap: var(--spacingHorizontalXS); }
 .row-actions > * { flex-shrink: 0; }

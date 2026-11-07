@@ -53,10 +53,10 @@ for(const width of [320,1280])for(const theme of ['light','dark','forced'] as co
   const interval=page.getByRole('spinbutton',{name:'并发增长间隔（毫秒）',exact:true});
   await input.scrollIntoViewIfNeeded();
   const before=await interval.boundingBox();
-  const normalBorder=await input.locator('..').evaluate(e=>getComputedStyle(e).borderColor);
+  const normalBorder=await input.locator('..').evaluate(e=>getComputedStyle(e,'::before').borderColor);
   await input.fill('65');await interval.focus();
   await expect(input).toHaveAttribute('aria-invalid','true');
-  if(theme!=='forced')expect(await input.locator('..').evaluate(e=>getComputedStyle(e).borderColor)).not.toBe(normalBorder);
+  if(theme!=='forced')expect(await input.locator('..').evaluate(e=>getComputedStyle(e,'::before').borderColor)).not.toBe(normalBorder);
   const icon=page.getByRole('button',{name:'同时下载数量：错误',exact:true});
   await icon.hover();await expect(page.getByRole('tooltip')).toContainText('1～64');
   expect(await interval.boundingBox()).toEqual(before);

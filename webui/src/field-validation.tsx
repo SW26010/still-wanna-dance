@@ -52,6 +52,13 @@ export function inputError(input:HTMLInputElement|HTMLSelectElement|HTMLTextArea
     if(Math.abs(value*100-Math.round(value*100))>0.000001)return '最多输入两位小数';
   }
   if(input instanceof HTMLInputElement) {
+    if(input.getAttribute('role')==='spinbutton'&&input.required&&!input.value.trim())return '请输入此项内容';
+    if(input.getAttribute('role')==='spinbutton'&&input.name!=='videoBudgetBytes'&&input.value.trim()) {
+      const value=Number(input.value);
+      if(!Number.isFinite(value))return '请输入有效数字';
+      if(input.min!==''&&value<Number(input.min)||input.max!==''&&value>Number(input.max))return `请输入 ${input.min}～${input.max} 范围内的数值`;
+      if(!Number.isInteger(value))return '请输入整数';
+    }
     if(input.validity.rangeUnderflow||input.validity.rangeOverflow)return `请输入 ${input.min}～${input.max} 范围内的数值`;
     if(input.validity.stepMismatch)return input.step==='1'?'请输入整数':`请输入以 ${input.step} 为步长的数值`;
   }

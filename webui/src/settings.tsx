@@ -12,6 +12,7 @@ import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
 import { displayStoragePath } from './storage-path';
 import {FieldErrors,ValidationField,inputError} from './field-validation';
+import {NumberInput} from './number-input';
 
 const numeric = ['requestRetentionDays','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
@@ -178,7 +179,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
     const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
     addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
   }, [dirty, app.stopped]);
-  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, hint?: string, step = '1') => <ValidationField name={key} label={label} hint={hint}><Input name={key} id={key} type="number" placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} step={step} disabled={disabled} value={d[key]} onChange={(_, v) => update({[key]:v.value})} /></ValidationField>;
+  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, unit?: string, hint?: string) => <ValidationField name={key} label={label} hint={hint}><NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} /></ValidationField>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
   const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
   const restartHint=restartNeedsSaving
@@ -275,13 +276,13 @@ export function SettingsPage({section='application',children}: {section?:Setting
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset>
       <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
       {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64)}
-      {numberField('downloadGrowIntervalMS','并发增长间隔（毫秒）',0,2000)}
+      {numberField('downloadGrowIntervalMS','并发增长间隔',0,2000,'毫秒')}
       </div></fieldset>
       <Divider /><fieldset disabled={disabled} aria-label="缓存"><legend className="inline">缓存<Text size={200} weight="regular" className="secondary" aria-live="polite">{cacheEstimate}</Text></legend>
       <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
       <div className="settings-columns">
-      {numberField('prepareAheadSeconds','提前准备时间（秒）',100,16000)}
-      {numberField('localProtectionGraceSeconds','延续保护时间（秒）',0,10000,'需求结束后继续保留缓存。')}
+      {numberField('prepareAheadSeconds','提前准备时间',100,16000,'秒')}
+      {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'秒','需求结束后继续保留缓存。')}
       </div>
       <CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
       </fieldset></>}

@@ -1,7 +1,8 @@
-import { Input, Radio, RadioGroup } from '@fluentui/react-components';
+import { Radio, RadioGroup } from '@fluentui/react-components';
 import { useId } from 'react';
 import type { Settings } from './types';
 import {ValidationField} from './field-validation';
+import {NumberInput} from './number-input';
 
 type RetentionDraft = Pick<Settings, 'requestRetentionMode'> & { requestRetentionDays: string };
 
@@ -22,8 +23,8 @@ export function RequestRetentionFields({ mode, value, disabled, onChange }: {
       <Radio value="none" label="不保留" />
       <div className="retention-option"><Radio value="limited" label="保留指定天数" />
     <ValidationField className="retention-input" name="requestRetentionDays" label="请求明细保留天数" required={limited}>
-      <Input name="requestRetentionDays" contentAfter="天" type="number" min="1" max="36500" step="1" required={limited} disabled={disabled || !limited}
-        value={limited ? value : mode === 'none' ? '0' : ''} onChange={(_, v) => onChange({requestRetentionDays:v.value})} />
+      <NumberInput name="requestRetentionDays" unit="天" stepLabel="请求明细保留天数" min={1} max={36500} required={limited} disabled={disabled || !limited}
+        value={limited ? value : mode === 'none' ? '0' : ''} onChange={value => onChange({requestRetentionDays:value})} />
     </ValidationField></div>
       <Radio value="unlimited" label="永久保留" />
     </RadioGroup>

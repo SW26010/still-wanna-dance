@@ -60,7 +60,7 @@ test('limited request retention requires positive whole days and can recover to 
   const days = page.getByRole('spinbutton', {name:'请求明细保留天数',exact:true});
   await group.getByRole('radio', {name:'保留指定天数',exact:true}).check();
   await expect(days).toHaveValue('30');
-  for (const invalid of ['', '0', '-1', '1.5', '36501']) {
+  for (const invalid of ['', ' ', 'abc', '0', '-1', '1.5', '36501']) {
     await days.fill(invalid);
     await page.getByRole('button', {name:'保存设置',exact:true}).click();
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);

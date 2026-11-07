@@ -1,8 +1,8 @@
-import { Field, Link, Radio, RadioGroup, SpinButton, Text, Tooltip } from '@fluentui/react-components';
-import { useId, useRef } from 'react';
-import { flushSync } from 'react-dom';
+import { Field, Link, Radio, RadioGroup, Text, Tooltip } from '@fluentui/react-components';
+import { useId } from 'react';
 import { date, gib, type Settings } from './types';
 import {ValidationField} from './field-validation';
+import {NumberInput} from './number-input';
 
 declare const __VIDEO_COVERAGE_REFERENCE__: {maxBudgetGiB: number; budgets: number[]; values: number[]};
 // A 0.01 GiB budget is stored as a whole number of bytes and can round down.
@@ -40,10 +40,6 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
   const estimate = limited ? estimatedCoverage(value) : undefined;
   const estimateId = useId();
   const labelId = useId();
-  const budgetInput = useRef<HTMLInputElement>(null);
-  // Fluent commits typed text and steps in the same mouse event. Flush the blur
-  // first so its step starts from the current draft, including live edits.
-  const commitBeforeStep = () => flushSync(() => budgetInput.current?.blur());
   return <div id={anchor} tabIndex={-1} className="form-grid">
     <Field label={{className:'inline',children:<><span id={labelId}>保留下载的视频</span>{estimate !== undefined && <Text id={estimateId} size={200} weight="regular" className="secondary">预计请求命中率：约 {estimate}</Text>}</>}}><RadioGroup aria-labelledby={labelId} aria-describedby={estimate === undefined ? undefined : estimateId} layout="horizontal" className="retention-options" value={mode} disabled={disabled}
       onChange={(_, v) => {
@@ -53,14 +49,11 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
       }}>
       <Radio value="none" label="不保留" />
       <div className="retention-option"><Radio value="limited" label="限制为" />
-      <ValidationField className="retention-input budget-field" name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
-        <div className="budget-input"><SpinButton ref={budgetInput} name="videoBudgetBytes" min={0.01} max={8388607} step={1} precision={2} required={limited} disabled={disabled || !limited}
+      <ValidationField className="retention-input" name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
+        <NumberInput name="videoBudgetBytes" min={0.01} max={8388607} precision={2} unit="GiB" stepLabel="视频预算" required={limited} disabled={disabled || !limited}
           aria-describedby={estimate === undefined ? undefined : estimateId}
-          value={mode === 'none' ? 0 : value.trim() && Number.isFinite(Number(value)) ? Number(value) : null}
-          displayValue={mode === 'none' ? '0' : value}
-          input={{inputMode:'decimal',onChange:e=>onChange({videoBudgetGiB:e.target.value})}}
-          incrementButton={{'aria-label':'增加视频预算',onMouseDownCapture:commitBeforeStep}} decrementButton={{'aria-label':'减少视频预算',onMouseDownCapture:commitBeforeStep}}
-          onChange={(_, v) => onChange({videoBudgetGiB:v.displayValue ?? String(v.value ?? '')})} /><span className="secondary">GiB</span></div>
+          value={mode === 'none' ? '0' : value}
+          onChange={value => onChange({videoBudgetGiB:value})} />
       </ValidationField></div>
       <Radio value="unlimited" label="不限制" />
     </RadioGroup></Field>

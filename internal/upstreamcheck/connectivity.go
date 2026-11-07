@@ -65,22 +65,12 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 	samples := make(chan resourceSample, len(playbacksource.Entries()))
 	var workers sync.WaitGroup
 	if full {
-		remember := business.RememberSample
-		business.RememberSample = func(ctx context.Context, id int64) {
-			if remember != nil {
-				remember(ctx, id)
-			}
-			catalogDone <- catalogResult{id: id}
-		}
 		workers.Go(func() {
 			id, err := checkCatalog()
 			if err != nil {
 				cancel()
 			}
-			select {
-			case catalogDone <- catalogResult{id, err}:
-			default:
-			}
+			catalogDone <- catalogResult{id, err}
 		})
 	}
 	if wantResource {

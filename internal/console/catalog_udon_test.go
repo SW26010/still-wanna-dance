@@ -74,10 +74,14 @@ func TestRefreshCatalogSourcesRunTogether(t *testing.T) {
 			}
 			var calls []string
 			var callsMu sync.Mutex
+			var started sync.WaitGroup
+			started.Add(4)
 			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 				callsMu.Lock()
 				calls = append(calls, r.URL.Scheme+"://"+r.URL.Host)
 				callsMu.Unlock()
+				started.Done()
+				started.Wait() // Every source starts before any source can win.
 				code, scheme := 200, "https"
 				body := monitorFull("kiva", "20261004000000", "backup", strings.Repeat("a", 32)).Body
 				switch r.URL.Host {

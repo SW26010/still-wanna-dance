@@ -16,8 +16,8 @@ import (
 // catalog before returning success. HTTPS Udon wins as soon as it succeeds;
 // otherwise wait for all sources and choose the newest valid version, keeping
 // definition order for equal-priority ties. Accept is called exactly once for
-// the winner. Other requests finish naturally after primary acceptance; only
-// cancellation or an acceptance error stops them. Workers are always drained.
+// the winner. Primary success cancels the other requests. Workers are always
+// drained before returning, including on caller cancellation or acceptance error.
 func FetchCatalog(ctx context.Context, sources []string, fetch func(context.Context, string) (cacheproxy.Catalog, error), accept func(cacheproxy.Catalog) error) error {
 	work, cancel := context.WithCancel(ctx)
 	type result struct {
@@ -38,7 +38,6 @@ func FetchCatalog(ctx context.Context, sources []string, fetch func(context.Cont
 		})
 	}
 	results := make([]result, len(sources))
-	accepted := false
 	for range sources {
 		select {
 		case <-ctx.Done():
@@ -49,15 +48,10 @@ func FetchCatalog(ctx context.Context, sources []string, fetch func(context.Cont
 			}
 			results[r.index] = r
 			if r.err == nil && cacheproxy.IsPrimaryCatalog(r.catalog.Source) {
-				if err := accept(r.catalog); err != nil {
-					return err
-				}
-				accepted = true
+				cancel()
+				return accept(r.catalog)
 			}
 		}
-	}
-	if accepted {
-		return nil
 	}
 	var best cacheproxy.Catalog
 	var failures []error
@@ -85,7 +79,8 @@ func checkCatalogs(ctx context.Context, access ConnectivityAccess, business Conn
 	observations := make([]observation, len(routes))
 	for i, route := range routes {
 		sources[i] = catalogmeta.SourceURL(route)
-		publish(Result{Operation: Catalog, Route: route, State: "checking"})
+		observations[i].result = Result{Operation: Catalog, Route: route, State: "checking"}
+		publish(observations[i].result)
 	}
 	var selectedSong int64
 	attemptedAcceptance := false
@@ -132,6 +127,14 @@ func checkCatalogs(ctx context.Context, access ConnectivityAccess, business Conn
 	})
 	if ctx.Err() != nil {
 		return 0, ctx.Err()
+	}
+	if fetchErr == nil {
+		for _, o := range observations {
+			if o.result.State == "checking" {
+				o.result.State = "skipped"
+				publish(o.result)
+			}
+		}
 	}
 	if errors.Is(fetchErr, cacheproxy.ErrLocalStorage) {
 		return 0, fetchErr

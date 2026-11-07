@@ -197,14 +197,18 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 	if c.monitor != nil {
 		t.Fatal("proxy metadata started monitor")
 	}
-	assertRequests := func(want int64, wantCalls, wantResources int) {
+	previousCalls := 0
+	assertRequests := func(want int64, wantResources int) {
 		t.Helper()
-		if !slices.Equal(requested, []int64{want}) || calls != wantCalls || resourceCalls != wantResources {
+		roundCalls := calls - previousCalls
+		previousCalls = calls
+		if !slices.Equal(requested, []int64{want}) || roundCalls < 3 || roundCalls > 6 || resourceCalls != wantResources {
 			t.Fatalf("requested=%v calls=%d resources=%d", requested, calls, resourceCalls)
 		}
 	}
-	// Each round fetches four catalogs, one playback URL and one resource.
-	assertRequests(1981, 6, 1)
+	// Each round fetches one to four catalogs, one playback URL and one resource;
+	// primary success may cancel backups before they reach the transport.
+	assertRequests(1981, 1)
 	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
@@ -213,7 +217,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 		t.Fatal(err)
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
-	assertRequests(5404, 12, 2)
+	assertRequests(5404, 2)
 	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
 		t.Fatal("Udon-only song was not scheduled", pending)
 	}
@@ -222,7 +226,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 		t.Fatal(err)
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
-	assertRequests(42, 18, 3)
+	assertRequests(42, 3)
 	if pending := c.metadataSongCandidates(context.Background()); len(pending) != 0 {
 		t.Fatal("metadata still incomplete", pending)
 	}

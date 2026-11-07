@@ -110,6 +110,7 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 	defer cancel()
 	catalogStarted, playbackStarted, resourceStarted := make(chan struct{}, 4), make(chan struct{}, 1), make(chan struct{}, 1)
 	releaseCatalog, releaseBackups, releasePlayback, done := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var canceledBackups atomic.Int32
 	sample, err := parseSample(connectivityCachedURL)
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +125,9 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 			select {
 			case <-release:
 			case <-ctx.Done():
+				if route != "api" {
+					canceledBackups.Add(1)
+				}
 				return Result{}, 0, CatalogResponse{}
 			}
 			return Result{Operation: Catalog, Route: route, State: "available"}, 42, CatalogResponse{Route: route, Body: []byte(catalogFixture)}
@@ -149,7 +153,9 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 		OnPlaybackURL: func(context.Context, PlaybackURLResponse) {},
 	}
 	go func() { defer close(done); CheckConnectivity(ctx, access, business, "", func(Result) {}) }()
-	waitConnectivitySignal(t, ctx, catalogStarted)
+	for range 4 {
+		waitConnectivitySignal(t, ctx, catalogStarted)
+	}
 	select {
 	case <-playbackStarted:
 		t.Fatal("playback started without a song")
@@ -169,13 +175,10 @@ func TestConnectivityFullWaitsForMissingSamples(t *testing.T) {
 	}
 	close(releasePlayback)
 	waitConnectivitySignal(t, ctx, resourceStarted)
-	select {
-	case <-done:
-		t.Fatal("remaining catalogs must finish naturally")
-	default:
-	}
-	close(releaseBackups)
 	waitConnectivitySignal(t, ctx, done)
+	if canceledBackups.Load() != 3 {
+		t.Fatal("primary did not cancel backups", canceledBackups.Load())
+	}
 }
 
 func TestConnectivityFullRetriesFailedCachedResourceWithFreshAddress(t *testing.T) {

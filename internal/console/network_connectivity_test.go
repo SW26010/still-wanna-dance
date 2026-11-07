@@ -395,13 +395,19 @@ func TestNetworkConnectivityReusesResponsesToInitializeStorage(t *testing.T) {
 			t.Fatal(state)
 		}
 		for _, row := range state.Results {
+			if row.Operation == upstreamcheck.Catalog && row.State == "skipped" {
+				if row.Entry == "api" || row.LatencyMS != nil || !row.ObservedAt.IsZero() {
+					t.Fatal("canceled backup fabricated a measurement", row)
+				}
+				continue
+			}
 			if row.State != "available" || row.LatencyMS == nil {
 				t.Fatal("missing successful summary", row)
 			}
 		}
-		// Four lists, the CF playback entry, one deduplicated resource host. Storage
-		// initialization must not fetch any of those responses a second time.
-		if requests.Load() != 6 {
+		// One to four lists, the CF playback entry and one resource host. Backups
+		// may be canceled before dispatch; initialization must reuse the responses.
+		if requests.Load() < 3 || requests.Load() > 6 {
 			t.Fatal("unexpected upstream request count", requests.Load())
 		}
 		db, err := sql.Open("sqlite", filepath.Join(testStorageRoot(c.settings), "storage.sqlite"))

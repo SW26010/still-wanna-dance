@@ -95,8 +95,15 @@ func TestConnectivityCatalogParallelSelection(t *testing.T) {
 					}
 					return
 				}
-				if time.Since(start) != 4*time.Second || canceled.Load() != 0 {
-					t.Fatal("remaining requests must finish naturally", time.Since(start), canceled.Load())
+				wantDuration, wantCanceled := 4*time.Second, int32(0)
+				if scenario == "primary" || scenario == "backup-first" {
+					wantDuration, wantCanceled = 2*time.Second, 3
+					if scenario == "backup-first" {
+						wantCanceled = 2
+					}
+				}
+				if time.Since(start) != wantDuration || canceled.Load() != wantCanceled {
+					t.Fatal("primary success must cancel and drain remaining requests", time.Since(start), canceled.Load())
 				}
 				if scenario == "all-failed" {
 					if writes != 0 || len(selected) != 0 {
@@ -118,9 +125,24 @@ func TestConnectivityCatalogParallelSelection(t *testing.T) {
 					t.Fatal(selected)
 				}
 				for _, r := range rows {
-					if r.State == "checking" || r.State == "skipped" {
+					if r.State == "checking" {
 						t.Fatal("lost completed observation", r)
 					}
+					if r.State == "skipped" && (!r.ObservedAt.IsZero() || r.Responded) {
+						t.Fatal("canceled backup must not report a measurement", r)
+					}
+				}
+				var skipped int32
+				for _, r := range rows {
+					if r.State == "skipped" {
+						skipped++
+					}
+				}
+				if skipped != wantCanceled {
+					t.Fatal("canceled backup results missing", rows)
+				}
+				if scenario == "backup-first" && rows["api-http"].State != "available" {
+					t.Fatal("completed backup was discarded", rows)
 				}
 				if scenario == "primary-invalid" && rows["api"].State != "invalid" {
 					t.Fatal("full metadata was not validated", rows)

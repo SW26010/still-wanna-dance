@@ -135,8 +135,9 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				t.Fatalf("missing metadata was not stored: urls=%v err=%v", urls, err)
 			}
 			status, err := c.store.CatalogStatus(ctx)
-			wantRejected := int32(6)
-			if err != nil || status.Source != cacheproxy.UdonCatalogURL || status.Revision != "20261031000000" || catalogs.Load() != 4 || playback.Load() != 1 || rejected.Load() != wantRejected {
+			// Primary catalog, playback and resource each retry the failed path;
+			// backup catalogs may be canceled before reaching either candidate.
+			if err != nil || status.Source != cacheproxy.UdonCatalogURL || status.Revision != "20261031000000" || catalogs.Load() < 1 || catalogs.Load() > 4 || playback.Load() != 1 || rejected.Load() < 3 || rejected.Load() > 6 {
 				t.Fatalf("catalog=%+v err=%v catalog requests=%d playback=%d rejected=%d", status, err, catalogs.Load(), playback.Load(), rejected.Load())
 			}
 			if resources.Load() != 1 {

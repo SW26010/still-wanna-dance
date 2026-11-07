@@ -452,6 +452,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		defer release()
 	}
 	if err != nil {
+		response.recordFailure(clientContext, err)
 		if errors.Is(err, ErrSongBlocked) {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
@@ -480,6 +481,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	if r.Method == http.MethodGet {
 		ctx, timingErr := s.playbackContext(r, v, start)
 		if timingErr != nil {
+			response.recordFailure(clientContext, timingErr)
 			http.Error(w, "playback metadata unavailable", cacheErrorStatus(timingErr))
 			return
 		}
@@ -512,6 +514,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		return nil
 	}
 	if err := attachGET(v); err != nil {
+		response.recordFailure(clientContext, err)
 		http.Error(w, "block demand capacity unavailable", cacheErrorStatus(err))
 		return
 	}
@@ -584,6 +587,7 @@ loadVideo:
 	}
 serveVideo:
 	if err != nil {
+		response.recordFailure(clientContext, err)
 		if r.Context().Err() != nil {
 			log.Debug("client_disconnected", "elapsed", time.Since(start))
 			return
@@ -616,6 +620,7 @@ serveVideo:
 					}
 				}
 			}
+			response.recordFailure(clientContext, stream.err)
 			if r.Context().Err() != nil {
 				log.Debug("client_disconnected", "cache", "MISS")
 			} else {
@@ -635,6 +640,7 @@ serveVideo:
 	}
 	file, err := s.verifiedFile(r.Context(), v)
 	if err != nil {
+		response.recordFailure(clientContext, err)
 		log.Error("open_failed", "error", applog.SafeError(err))
 		if errors.Is(err, errInvalidCache) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "file changed or validation interrupted; retry request", http.StatusServiceUnavailable)
@@ -668,6 +674,7 @@ type responseWriter struct {
 	expectedBytes                     *int64
 	waitedForBlock, firstBodyBlocking bool
 	writeErr                          error
+	failureOutcome                    string
 	consumption                       *getConsumption
 }
 
@@ -794,14 +801,40 @@ func cacheErrorStatus(err error) int {
 	}
 	return http.StatusBadGateway
 }
+
+// Capture only terminal service failures, after retries have finished and before
+// writing/aborting the response. Later connection cancellation must not erase them.
+func (w *responseWriter) recordFailure(client context.Context, err error) {
+	if w.failureOutcome != "" {
+		return
+	}
+	switch {
+	case errors.Is(err, ErrSongBlocked):
+		w.failureOutcome = "blocked"
+	case errors.Is(err, blocksched.ErrExpired):
+		w.failureOutcome = "expired"
+	case errors.Is(client.Err(), context.Canceled):
+		return
+	case errors.Is(err, errPlaybackUpstream) && !errors.Is(err, ErrLocalStorage) && !errors.Is(err, context.Canceled):
+		w.failureOutcome = "playback_info_failed"
+	default:
+		// Preserve a known terminal failure before writing its response. A
+		// transport timeout alone does not mean the download deadline expired.
+		w.failureOutcome = "failed"
+	}
+}
+
 func (w *responseWriter) outcome(ctx context.Context, crash any) string {
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if w.failureOutcome != "" && w.failureOutcome != "failed" {
+		return w.failureOutcome
+	}
+	if w.failureOutcome == "" && errors.Is(ctx.Err(), context.Canceled) {
 		return "canceled"
 	}
 	if crash != nil {
 		return "aborted"
 	}
-	if w.status >= 400 || w.writeErr != nil || ctx.Err() != nil {
+	if w.failureOutcome != "" || w.status >= 400 || w.writeErr != nil || ctx.Err() != nil {
 		return "failed"
 	}
 	if w.expectedBytes != nil && w.videoBytes < *w.expectedBytes {

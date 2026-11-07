@@ -35,7 +35,7 @@ try {
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
   await sourceHeading.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源，不受历史筛选影响，清理记录后相应减少。');
+  await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源。');
   await page.screenshot({path:join(output,'history-source-tooltip.png'),fullPage:false});
   await page.keyboard.press('Escape');await page.mouse.move(0,0);
   const timeHeader=history.getByRole('button',{name:'按收到时间排序',exact:true});
@@ -86,6 +86,18 @@ try {
   await page.getByText('隐藏相邻中断请求',{exact:true}).hover();
   await expect(page.getByRole('tooltip')).toHaveText('同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。');
   await page.screenshot({path:join(output,'history-filtered-tooltip.png'),fullPage:false});
+  await page.keyboard.press('Escape');
+  for(const [outcome,songID,label,status] of [['playback_info_failed','86','信息获取失败',504],['blocked','87','歌曲已屏蔽',403]]){
+    expect((await page.request.post(baseURL+'/__fixture/request?outcome='+outcome)).status()).toBe(status);
+    // Reload reads the persisted record through a new Console HTTP request.
+    await page.reload();
+    const row=history.getByRole('row').filter({has:page.getByRole('link',{name:'ID '+songID,exact:true})});
+    const result=row.getByText(label,{exact:true});
+    await expect(result).toBeVisible();await result.focus();
+    await expect(page.getByRole('tooltip')).toContainText('HTTP '+status);
+    await page.screenshot({path:join(output,'history-'+outcome+'.png'),fullPage:false});
+    await page.keyboard.press('Escape');
+  }
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({records:604,lastPageBeforePair:13,resource:key,latency,sources,eventInsertedSong:'84',adjacentPair:pair,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({records:606,lastPageBeforePair:13,resource:key,latency,sources,eventInsertedSong:'84',adjacentPair:pair,terminalOutcomes:['playback_info_failed','blocked'],errors},null,2));
 } finally {await browser.close();}

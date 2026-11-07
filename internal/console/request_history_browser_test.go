@@ -45,7 +45,12 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	cfg.CacheUnlimited = true
 	cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited = 30, false
 	target := fmt.Sprintf("http://play.udon.dance/files/2403/42-a.mp4?e=%s&s=%d", key, len(body))
-	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
+	cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+		if id == "86" {
+			return "", context.DeadlineExceeded
+		}
+		return target, nil
+	}
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -92,6 +97,17 @@ func TestRequestHistoryBrowser(t *testing.T) {
 		count, songID := 1, "84"
 		if r.URL.Query().Get("pair") == "true" {
 			count, songID = 2, "85"
+		}
+		switch r.URL.Query().Get("outcome") {
+		case "playback_info_failed":
+			songID = "86"
+		case "blocked":
+			songID = "87"
+			if err := writer.SetSongPolicy(r.Context(), 87, cacheproxy.SongBlocked); err != nil {
+				writer.Close()
+				http.Error(w, err.Error(), 500)
+				return
+			}
 		}
 		var response *httptest.ResponseRecorder
 		for i := 0; i < count; i++ {

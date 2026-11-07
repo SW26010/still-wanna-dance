@@ -5,7 +5,7 @@ import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './h
 import {Notification,RecordDetails} from './ui';
 import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
-import {requestOutcome} from './requests';
+import {requestOutcome,requestOutcomeDescription} from './requests';
 import {songHref,resourceHref} from './library';
 
 type Group={samples:number;p50MS:number|null;p95MS:number|null};
@@ -101,10 +101,10 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
         <TableCell><TableCellLayout description={r.completedAt==null?'结束：未知':date(r.completedAt)}>{date(r.at)}</TableCellLayout></TableCell>
         <TableCell className="table-fill-column">{r.songID?<TableCellLayout appearance="primary" truncate description={<Link href={songHref(r.songID)}>ID {r.songID}</Link>}>{r.songTitle||'未知名称'}</TableCellLayout>:'未知'}</TableCell>
         <TableCell className="table-fill-column"><TableCellLayout truncate>{r.resource?<Link title={r.resource} href={resourceHref(r.resource)}>{r.resource}</Link>:'未知'}</TableCellLayout></TableCell>
-        <TableCell><TableCellLayout description={`HTTP ${r.status||'未返回'}`}>{requestOutcome(r)}</TableCellLayout></TableCell>
+        <TableCell><TableCellLayout description={`HTTP ${r.status||'未返回'}`}><Tooltip content={requestOutcomeDescription(r)} relationship="description"><span tabIndex={0}>{requestOutcome(r)}</span></Tooltip></TableCellLayout></TableCell>
         <TableCell><div className="cell-stack"><span>{r.responseBytes!=null&&r.responseBytes>0?`${(r.bytes/r.responseBytes*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:'—'}</span><span className="secondary">{deliveredBytes(r.bytes)}{r.responseBytes!=null?` / ${deliveredBytes(r.responseBytes)}`:''}</span></div></TableCell>
         <TableCell><SourceShares sources={r.sources}/></TableCell>
-        <TableCell><RecordDetails title={`请求 ${r.id} 的明细`}><dl className="detail-grid">{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource||'未知'}</dd><dt>按块折算字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails></TableCell>
+        <TableCell><RecordDetails title={`请求 ${r.id} 的明细`}><dl className="detail-grid"><dt>结果</dt><dd>{requestOutcome(r)} · {requestOutcomeDescription(r)}</dd>{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource||'未知'}</dd><dt>按块折算字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails></TableCell>
       </TableRow>)}</TableBody>
     </RecordTable>
     {!history.error&&history.data?.requests.length===0&&<p className="empty-state">当前筛选条件下暂无请求记录。</p>}

@@ -4,6 +4,48 @@ import {navigate} from './navigation';
 
 const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
+test('request results explain terminal causes and preserve unknown legacy reasons',async({page},info)=>{
+  await mockAPI(page);
+  const cases=[
+    ['expired',206,'等待超时','下载截止时间'],
+    ['timeout',504,'处理异常','未记录具体类别'],
+    ['playback_info_failed',504,'信息获取失败','有效的歌曲播放地址或必要信息'],
+    ['playback_info_failed',502,'信息获取失败','有效的歌曲播放地址或必要信息'],
+    ['blocked',403,'歌曲已屏蔽','在请求时被设为屏蔽'],
+    ['canceled',200,'请求中断','客户端取消或连接断开'],
+    ['aborted',206,'处理异常','响应传输被中止'],
+    ['incomplete',200,'处理异常','少于本次响应应交付'],
+    ['failed',403,'处理异常','本次请求未能正常完成'],
+    ['failed',504,'处理异常','本次请求未能正常完成'],
+    ['failed',200,'处理异常','本次请求未能正常完成'],
+    ['completed',206,'完成','不代表播放完成'],
+    ['completed',304,'完成','本次 HTTP 响应已结束'],
+    ['unrecognized',0,'结果未知','没有可识别的结果'],
+    ['',504,'结果未知','没有可识别的结果'],
+  ] as const;
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:cases.map(([outcome,status],index)=>({...record(index+1),outcome,status})),hasMore:false}}));
+  await page.goto('/#/timeline');
+  const rows=page.getByRole('table',{name:'请求历史列表',exact:true}).locator('tbody tr');
+  for(const [index,[,status,label,description]] of cases.entries()){
+    const result=rows.nth(index).getByRole('cell').nth(3).getByText(label,{exact:true});
+    await expect(rows.nth(index).getByRole('cell').nth(3).getByText(`HTTP ${status||'未返回'}`,{exact:true})).toBeVisible();
+    await expect(result).toBeVisible();
+    await result.hover();
+    await expect(page.getByRole('tooltip')).toContainText(description);
+    await expect(page.getByRole('tooltip')).toContainText(`HTTP ${status||'未返回'}`);
+    await page.keyboard.press('Escape');await page.mouse.move(0,0);
+    await result.focus();
+    await expect(page.getByRole('tooltip')).toContainText(description);
+    await expect(result).toHaveAccessibleDescription(new RegExp(description));
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+  }
+  await page.getByRole('button',{name:'请求 1 的明细',exact:true}).click();
+  await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toContainText('等待超时 · 已超过本次播放所需数据的下载截止时间');
+  await page.keyboard.press('Escape');
+  await page.screenshot({path:info.outputPath('request-outcomes.png'),fullPage:true,animations:'disabled'});
+});
+
 test('adjacent cancellation filter defaults on, resets pagination, and stays only in the page session',async({page})=>{
   const api=await mockAPI(page),queries:URLSearchParams[]=[];
   const explanation='同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。';
@@ -186,7 +228,7 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);
-  await expect(page.getByRole('row').filter({hasText:'请求失败'}).getByText('0 B',{exact:true})).toBeVisible();
+  await expect(page.getByRole('row').filter({hasText:'处理异常'}).getByText('0 B',{exact:true})).toBeVisible();
   for(let n=2;n<=12;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
     await expect(page.getByText(`第 ${n} 页 · 50 条`,{exact:true})).toBeVisible();
@@ -204,15 +246,15 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`timeline fits ${width}px ${scheme} and preserves unknown facts`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
   const title='星河 · 很长的歌曲名称 / '.repeat(15);
-  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),songTitle:title},record(2),{...record(3),completedAt:null,resource:'',outcome:'aborted'},{...record(4),songID:'404'}],hasMore:false,nextCursor:''}}));
+  await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),songTitle:title},record(2),{...record(3),completedAt:null,resource:'',outcome:'aborted'},{...record(4),songID:'404',outcome:'playback_info_failed'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   await expect(page.getByText('暂无数据',{exact:true})).toHaveCount(2);
   await expect(page.getByText('结束：未知',{exact:true})).toBeVisible();
-  const outcome=page.getByText('传输中止（原因未确定）',{exact:true});
+  const outcome=page.getByRole('table',{name:'请求历史列表',exact:true}).locator('tbody tr').nth(2).getByText('处理异常',{exact:true});
   await expect(outcome).toBeVisible();
-  const resultCell=outcome.locator('xpath=ancestor::td');
-  const labelBox=await outcome.boundingBox(),httpBox=await resultCell.getByText('HTTP 206',{exact:true}).boundingBox();
-  expect(httpBox!.y).toBeGreaterThanOrEqual(labelBox!.y+labelBox!.height-1);
+  await outcome.hover();
+  await expect(page.getByRole('tooltip')).toContainText('响应传输被中止，未记录更具体的原因。 HTTP 206。');
+  await page.keyboard.press('Escape');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true});
   await expect(table.getByRole('columnheader')).toHaveCount(7);
   const songCell=table.locator('tbody tr').first().getByRole('cell').nth(1),songName=songCell.getByText(title,{exact:true});

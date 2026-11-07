@@ -237,7 +237,7 @@ func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) 
 		t.Fatal(page, err)
 	}
 	r := page.Requests[0]
-	if r.SongID != "42" || r.Resource != "" || r.At < before || r.At >= afterResolution || r.CompletedAt == nil || *r.CompletedAt < afterResolution || r.Bytes != 0 || r.ResponseBytes != nil || r.FirstBodyNS != nil || r.Outcome != "failed" {
+	if r.SongID != "42" || r.Resource != "" || r.At < before || r.At >= afterResolution || r.CompletedAt == nil || *r.CompletedAt < afterResolution || r.Bytes != 0 || r.ResponseBytes != nil || r.FirstBodyNS != nil || r.Outcome != "playback_info_failed" {
 		t.Fatalf("resolution history: %+v", r)
 	}
 }

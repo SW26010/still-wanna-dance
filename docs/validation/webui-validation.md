@@ -1624,3 +1624,41 @@ Edge 侧栏定向 **5/5**、短页／页面位置稳定／文档导航回归 **2
 线路详情悬停增量：复用共享 RecordDetails 与 Fluent Popover 的原生 openOnHover，仅为「当前连接」启用悬停展开；允许移入浮层继续阅读，移出后关闭，键盘 Enter／Escape 及其他记录详情的原有操作保留。已更新现行[内容约定](../webui-content.md)。Edge 验证六类观测详情均可通过悬停查看，390px 深色浮层完整位于视口，键盘开关与焦点、900–2560px 无多余横向滚动、曲库长详情／链接导航及共享组件回归通过。
 
 首轮相关回归 **23/24**，Mihomo 代理模式在既有页面横向溢出断言失败；原 HEAD JavaScript 资源对照 **1/1**、当前资源含失败用例及共享详情的定向复验 **6/6** 通过。首次失败原因未定位，未修改代理面板或放宽断言，原始截图、失败上下文、对照和复验日志保留在忽略目录 `artifacts/connection-details-hover-20261107/`。前端 build/check、产物精确登记、差异格式检查及本地桌面重建通过，`bin/SWD.exe` 的开发版本为 `dev-connection-details-hover`；检查 `-build-info` 后退出，未启动桌面服务或游戏，无新增 VRC 验收项。
+
+## 2026-11-07 请求结果与原因提示
+
+本节记录初版实现及验证；其中将各类超时合并展示的规则，已由后续“请求结果分类收敛”替代。历史验证与失败证据保留。
+
+历史结果改用简短结论；原因与实际 HTTP 状态通过结果文字的 Fluent Tooltip 和现有详情展示，支持悬停、键盘聚焦与 Escape。下载截止到期和最终处理超时均显示“超时结束”，提示区分原因；请求时命中屏蔽显示“歌曲已屏蔽”。首页最近请求复用同一结果映射。现行界面规则见[请求列表](../webui-design.md#请求列表)，新增 outcome 值及旧记录边界见[存储契约](../storage.md)。数据库仍为 v9，不执行迁移或历史原因回填。
+
+后端在重试结束后的 HTTP 退出点捕获明确原因，避免后续连接取消覆盖服务端结果。新增受控上游检查覆盖正文前／正文中超时及截止到期、上游实际返回 504 不误标、发送终止响应后客户端取消、地址解析超时、重试成功、取消优先级、屏蔽后恢复普通偏好仍保留当时结果，以及旧通用 403 记录保持原值。测试经真实请求处理、SQLite 写入和独立只读打开验证。定向回归通过；普通用户环境的 cacheproxy 整包回归通过（204.817 秒，跨卷、磁盘耗尽等环境专项仍按已有条件跳过），cacheproxy／console vet 通过。
+
+Edge 相关首轮为 42/43 通过；新增结果矩阵已验证悬停／键盘提示，但详情断言同时匹配按钮和浮层，改用 group 角色精确定位后定向复验 1/1 通过。既有 320／390／1280px、浅／深／forced-colors、历史刷新与焦点恢复检查通过，已查看宽屏结果列表、窄屏深色详情和真实服务提示截图。真实 Console／SQLite／Edge 的 TestRequestHistoryBrowser 通过：新增超时与屏蔽请求，关闭写入引擎后刷新页面，读取落盘结果并核对提示。该联调首轮因既有响应来源提示的旧文案断言失败；按当前文案对齐后通过，未改变响应来源功能。
+
+沙箱内 cacheproxy 整包首轮失败，输出包含硬链接和目录联接 Access is denied；该轮完整输出未落盘且工具展示截断，不据此推断全部失败原因。随后普通用户环境的完整结构化通过记录位于忽略目录 artifacts/request-outcomes-20261107/go-cacheproxy.jsonl；真实联调最终结果及截图在 real-console-final，初次联调已生成材料保留在 real-console；新增浏览器用例的最终证据在 browser-final，首次定位失败及其余浏览器截图保留在 artifacts/webui-tests。
+
+前端 build/check、嵌入产物精确登记和差异格式检查通过。已重建 bin/SWD.exe，开发版本 dev-request-outcomes，windows/amd64、Go 1.27.3，使用 -build-info 核对后退出。未启动日常桌面服务、VRC 或修改 hosts，无新增 VRC 验收项。
+
+
+## 2026-11-07 请求结果分类收敛
+
+本轮替代上一节初版的展示分类。现行七类结果以[请求列表](../webui-design.md#请求列表)为准：等待超时仅对应 SWD 下载截止到期；播放信息最终无法取得（包括查询超时）记录为 playback_info_failed；其他已知失败与旧 timeout 展示为处理异常，缺失或未知代码才显示结果未知。后端复用已有错误分类，在最终退出点捕获结果；普通终止失败也不被发送响应后的客户端取消覆盖，同时保留 aborted 等已有证据。首页、列表、详情共用展示映射。未修改下载重试、调度规则、数据库 v9 结构、配置版本或已有历史行，不执行迁移与回填。
+
+定向 Go 回归通过（7.461 秒）：覆盖正文前／正文中下载截止与普通上游超时、上游 HTTP 504、随后连接取消、播放信息查询超时／不可用／无效 URL／缺失必要元数据、真实数据库写入失败与信息失败的区分、重试恢复、本地交付成功而后台查询失败，以及旧结果、空值和未知值在重新打开引擎后保持一致；相关历史筛选、歌曲地址恢复和共享查询回归一并通过。首次新增存储故障测试因注入的触发器仍在而被只读结构校验拒绝；修正为请求结束后移除该测试触发器，再读取历史。未放宽产品结构校验，首次失败与最终通过均保留。
+
+普通用户环境的 cacheproxy 整包回归完成（210.621 秒）：530 个顶层用例通过，仅 TestResolutionFailureRetainsArrivalIdentityWithoutBodySample 因仍断言旧 failed 值失败。将该断言更新为 playback_info_failed，保留到达时刻、歌曲身份、零正文与无首正文样本的全部原有断言；相关历史与解析回归复验通过（3.467 秒）。此后只修改测试断言与验证文档，未改产品实现；未重复运行整包。完整首轮结果保留在 go-cacheproxy.jsonl，复验见 go-history-final.txt。跨卷、磁盘耗尽、符号链接权限、CPU 专项与辅助子进程等按已有条件跳过，不计为通过。
+
+Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、悬停／键盘／Escape、相邻中断过滤、历史分页和刷新恢复、320／390／1280px 与浅色／深色／forced-colors；长结果文案纳入窄屏用例。真实 Console／SQLite／Edge 的 TestRequestHistoryBrowser 通过（12.54 秒），验证播放信息查询超时与屏蔽请求的实际写入、引擎关闭后读取及页面刷新提示。已查看宽屏结果矩阵、窄屏深色列表及真实服务的播放信息失败提示截图。夹具与联调不外推为 VRC 播放体验。
+
+前端 build/check、cacheproxy／console vet、嵌入产物精确登记与差异格式检查通过。已重建 bin/SWD.exe，并通过 -build-info 验证 development、dev-request-results、windows/amd64、Go 1.27.3。证据位于忽略目录 artifacts/request-results-20261107/，包括 go-targeted.txt（首轮失败）、go-targeted-final.txt、browser、real-console、构建日志与 build-info.json。未启动日常桌面服务、VRC 或修改 hosts，无新增游戏验收项；未提交或推送。
+
+文案增量：按用户要求将显示名称缩短为“信息获取失败”，保留原有 Tooltip 说明与 playback_info_failed 存储值；同步共用展示、浏览器用例和现行界面文档。前端 build/check、结果矩阵及三种宽度的 Edge 定向回归 4/4、产物登记检查通过。证据见 artifacts/request-results-20261107/short-label；不改变后端行为或历史数据。
+同轮已重建 bin/SWD.exe（dev-request-results），通过 -build-info 验证；构建证据见 build-short-label.txt 与 build-info-short-label.json。
+
+
+## 2026-11-07 恢复历史 HTTP 状态常显
+
+按用户要求恢复结果列原有的 TableCellLayout 两行结构：第一行显示简短结果，第二行直接显示 HTTP 状态（未知时为 HTTP 未返回），保留结果文字的原因 Tooltip 和详情。此规则替代前述初版将状态仅收进提示的展示约定；后端分类和数据库保持不变。现行规则已同步至请求列表文档。
+
+已有结果矩阵增加悬停前的状态可见性断言，结果矩阵与 320／390／1280px Edge 定向回归 4/4 通过；已查看结果列表截图。前端 build/check、产物精确登记与差异格式检查通过。证据在 artifacts/request-results-20261107/http-visible 及 http-visible.txt。
+桌面程序已重建为 dev-request-results，并以 -build-info 核对；构建证据为 build-http-visible.txt 与 build-info-http-visible.json。未启动日常桌面服务或游戏，未提交或推送。

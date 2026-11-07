@@ -21,7 +21,6 @@ type Settings struct {
 	nodeImportID                 string // transient request only; cleared before publish
 	proxySecret                  string
 	proxySecretError             string
-	ThroughputIntervalMinutes    int    `json:"throughputIntervalMinutes"`
 	QueueWithGateway             bool   `json:"queueWithGateway"`
 	RequestRetentionDays         int    `json:"requestRetentionDays"`
 	RequestRetentionMode         string `json:"requestRetentionMode"`
@@ -125,12 +124,6 @@ func normalizeSettings(s Settings) (Settings, error) {
 	}
 	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
 		return s, invalidSetting(errors.New("主题必须为 system、light 或 dark"), "theme")
-	}
-	if s.ThroughputIntervalMinutes == 0 {
-		s.ThroughputIntervalMinutes = 20
-	}
-	if s.ThroughputIntervalMinutes < 1 || s.ThroughputIntervalMinutes > 1440 {
-		return s, invalidSetting(errors.New("自动吞吐检测间隔必须为 1～1440 分钟"), "throughputIntervalMinutes")
 	}
 	if s.UpstreamMode == "" {
 		s.UpstreamMode = "direct"

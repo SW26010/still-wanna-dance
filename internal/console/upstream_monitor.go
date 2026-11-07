@@ -48,7 +48,6 @@ func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 	if c.monitor == nil {
 		m, err := c.newUpstreamMonitor(upstreamstate.Options{
 			ThroughputStatePath: c.files().State("throughput"),
-			Policy:              upstreamstate.Policy{ThroughputInterval: time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute},
 		})
 		if err != nil {
 			return err
@@ -60,11 +59,7 @@ func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 
 func (c *Console) monitorSnapshotLocked() upstreamstate.Status {
 	if c.monitor == nil {
-		policy := upstreamstate.DefaultPolicy()
-		if c.settings.ThroughputIntervalMinutes > 0 {
-			policy.ThroughputInterval = time.Duration(c.settings.ThroughputIntervalMinutes) * time.Minute
-		}
-		return upstreamstate.Status{Policy: policy, Results: []upstreamstate.Result{}}
+		return upstreamstate.Status{Policy: upstreamstate.DefaultPolicy(), Results: []upstreamstate.Result{}}
 	}
 	s := c.monitor.Snapshot()
 	s.Checking = s.Checking || c.monitorManual

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -107,6 +108,9 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := c.monitor
+	if m.Snapshot().Policy.ThroughputInterval != 20*time.Minute {
+		t.Fatal("running monitor did not use the fixed default interval")
+	}
 	if err := c.StartUpstreamServices(); err != nil || c.monitor != m {
 		t.Fatal("not idempotent", err)
 	}
@@ -257,37 +261,60 @@ func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
 	}
 }
 
-func TestThroughputIntervalSettingsPersistAndApply(t *testing.T) {
-	c := testConsole(t)
-	if c.settings.ThroughputIntervalMinutes != 20 {
-		t.Fatal("wrong settings default")
-	}
-	var err error
-	c.monitor, err = upstreamstate.NewMonitor(upstreamstate.Options{Channel: c.requestChannel})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := c.settings
-	s.ThroughputIntervalMinutes = 35
-	if err = c.save(s); err != nil {
-		t.Fatal(err)
-	}
-	if c.monitor.Snapshot().Policy.ThroughputInterval != 20*time.Minute {
-		t.Fatal("save changed running monitor")
-	}
-	restored, err := newConsoleWithWorkForTest(t, c.configPath, "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer restored.Close()
-	if restored.settings.ThroughputIntervalMinutes != 35 {
-		t.Fatal("interval not persisted")
-	}
-	for _, invalid := range []int{-1, 1441} {
-		s.ThroughputIntervalMinutes = invalid
-		if c.save(s) == nil {
-			t.Fatal("invalid interval accepted", invalid)
-		}
+func TestObsoleteThroughputIntervalSettingIsIgnored(t *testing.T) {
+	for _, value := range []string{"35", "-1", "1441", "null", `"obsolete"`} {
+		t.Run(value, func(t *testing.T) {
+			c := testConsole(t)
+			if err := c.save(c.settings); err != nil {
+				t.Fatal(err)
+			}
+			_, fields, err := readConfigFile(c.configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fields["throughputIntervalMinutes"] = json.RawMessage(value)
+			fields["THROUGHPUTINTERVALMINUTES"] = json.RawMessage(value)
+			fields["futureSetting"] = json.RawMessage(`{"keep":true}`)
+			data, err := json.Marshal(fields)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(c.configPath, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			loaded, err := newConsoleWithWorkForTest(t, c.configPath, "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer loaded.Close()
+			if loaded.settings != c.settings || loaded.monitorSnapshotLocked().Policy.ThroughputInterval != 20*time.Minute {
+				t.Fatal("obsolete interval changed settings or monitor policy")
+			}
+			afterLoad, err := os.ReadFile(c.configPath)
+			if err != nil || string(afterLoad) != string(data) {
+				t.Fatal("loading rewrote the configuration", err)
+			}
+			input, err := decodeSettingsRequest([]byte(`{"throughputIntervalMinutes":`+value+`}`), loaded.settings)
+			if err != nil || input.Settings != loaded.settings {
+				t.Fatal("obsolete request field changed settings", err)
+			}
+			if err := loaded.save(input.Settings); err != nil {
+				t.Fatal(err)
+			}
+			_, fields, err = readConfigFile(c.configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for key := range fields {
+				if strings.EqualFold(key, "throughputIntervalMinutes") {
+					t.Fatal("obsolete field persisted", key)
+				}
+			}
+			var unknown struct{ Keep bool }
+			if err := json.Unmarshal(fields["futureSetting"], &unknown); err != nil || !unknown.Keep {
+				t.Fatal("unrelated unknown field was not preserved", err)
+			}
+		})
 	}
 }
 

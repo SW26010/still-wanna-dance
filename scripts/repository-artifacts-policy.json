@@ -1305,6 +1305,13 @@
       "bytes": 1246850,
       "sha256": "15615c0878616ca357b211ea8a1681b4d8e48dab5bb99e0f4f8c242ad4ce7770",
       "reason": "Generated offline Fluent WebUI showing a yellow catalog warning when a backup source is selected, retaining latency and accessible fallback details; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1246629,
+      "sha256": "aac50cf2b1359981aaad8ec817b08fb95ccad036a38dafee31b9bec60ade774a",
+      "reason": "Generated offline Fluent WebUI removing the automatic throughput interval setting and its draft field; verified against webui/build-manifest.json."
     }
   ]
 }

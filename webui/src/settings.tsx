@@ -13,7 +13,7 @@ import { RequestRetentionFields } from './request-retention';
 import { displayStoragePath } from './storage-path';
 import {FieldErrors,ValidationField,inputError} from './field-validation';
 
-const numeric = ['requestRetentionDays','throughputIntervalMinutes','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
+const numeric = ['requestRetentionDays','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id: string; nodes: number; groups: number; name: string; importedAt?: string }
@@ -22,7 +22,7 @@ export function draftFrom(s: Settings): Draft {
   const {videoBudgetBytes, theme: _theme, ...values} = s;
   // The backend supplies complete, normalized settings; drafts only format them.
   return { ...values, socks5Password: '',
-    requestRetentionDays: String(s.requestRetentionDays), throughputIntervalMinutes: String(s.throughputIntervalMinutes),
+    requestRetentionDays: String(s.requestRetentionDays),
     prepareAheadSeconds: String(s.prepareAheadSeconds),
     downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
     localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
@@ -263,7 +263,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
       <RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Field label="程序日志级别"><Select disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}><option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></Field></>}
       {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} checking={pending&&hasProxyImport(d)} />
-      {d.upstreamMode === 'direct' && numberField('throughputIntervalMinutes','自动测速间隔（分钟）',1,1440)}</fieldset>
+      </fieldset>
 </>}
       {section==='downloads'&&<><fieldset disabled={disabled}><legend>视频缓存</legend>
       <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />

@@ -1686,3 +1686,11 @@ Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、�
 Edge 曲库／历史／排序／收缩用例首次 63/66 通过，三项历史字体断言发现 Fluent Link 的字体规则覆盖了普通类，修正 Link／Text 样式优先级后相关三项及来源提示、收缩、需求详情／字阶共 10/10 通过。现有布局用例补充验证：1280→1480px 时资源、大小、状态和操作列宽不变，仅关联歌曲列增长；完整 MD5 未截断，详情按钮小于 48px、历史详情单元格小于 60px，可见列名为空而辅助技术名称仍存在。已查看曲库资源与最终历史截图，前端 build/check、产物登记和差异检查通过。
 
 首次失败与成功证据分别保留在忽略目录 `artifacts/ui-resource-columns/`、`artifacts/ui-resource-columns-recheck/` 及同名日志文件。验证使用内存 API 夹具，未启动游戏或改 hosts，未重建桌面 EXE，未提交或推送。
+
+## 2026-11-07 移除自动测速间隔设置
+
+设置网络标签移除“自动测速间隔（分钟）”，前端草稿与后端 Settings 不再包含 throughputIntervalMinutes。直连 Monitor 直接复用内部默认的 20 分钟策略，保留吞吐样本有效期、业务避让、冷却持久化及手动检测机制。旧配置字段及大小写变体读取时忽略、下次保存设置时清理，其他未知字段保留，配置版本不变；现行规则见[上游检测与测速](../upstream-channels.md#上游检测与测速)。本节替代历史界面记录中“测速间隔继续在设置中编辑”的描述。
+
+前端 build/check、当前生成产物的精确登记校验及差异格式检查通过。Go 的 Settings／Config／Monitor／Throughput／Resource／Candidate 定向回归覆盖两个包；沙箱外首轮仅新增旧字段测试失败，原因是夹具误将含相对路径的完整磁盘配置当作设置 API 请求。改为只提交已废弃字段后，该用例及实际 Monitor 启动策略复验通过，其余定向结果沿用首轮通过证据。兼容测试覆盖非默认值、原范围外值、null、旧字段类型变化、大小写变体、不在读取时改写文件及保留无关未知字段。
+
+Edge 设置结构、字段校验、Monitor 展示和网络诊断共 36 项，首次沙箱外 35 项通过；网络详情的悬停浮层关闭断言一次失败，修改前产物单项对照通过，当前产物单独连续复验 3/3 通过，未修改浮层产品逻辑或放宽断言。该并发轮次失败的确切原因尚未确认，不将单项复验外推为完全消除偶发问题。首轮沙箱另复现 Windows 原子重命名句柄无效与 Edge Crashpad 管道退出，随后清理本轮残留夹具服务；首次沙箱外浏览器重跑曾因该服务占用端口未开始。日志保留在忽略目录 artifacts/throughput-settings-*.log，浏览器失败截图和复验产物分别在 artifacts/throughput-settings-browser-verified/、artifacts/throughput-settings-popover-comparison/，原版对照在 artifacts/throughput-baseline/。这些是隔离配置及内存 API 浏览器验证；未启动 VRC、修改 hosts 或重建桌面 EXE，无新增游戏专属待验项。

@@ -22,7 +22,7 @@ Mihomo 文件／Base64／URL 输入属于前端草稿，不作为设置字段提
 
 「程序日志级别」（`logLevel`）默认 `info`，支持 `off/error/warn/info/debug`，缺失、null 或空串采用默认值，未知值拒绝。保存后重启整个程序生效，参与 `settings` / `activeSettings` / `restartRequired`；关闭不删除已有日志，也不影响游戏日志输入、请求历史或运行统计。初始化先复用配置格式校验读取该字段，以覆盖 Console 构造期日志；完整设置继续走原加载流程。行为与字段口径见[日志](logging.md)。
 
-播放地址入口固定为 CF，已移除 `downloadUpstream` 设置。旧配置中的该字段不生效，再次保存时移除；其他未知字段仍按原规则保留，不增加配置版本或迁移流程。
+播放地址入口固定为 CF，已移除 `downloadUpstream` 设置。直连自动吞吐探测采用内部固定周期，已移除 `throughputIntervalMinutes` 设置，具体规则见[上游检测与测速](upstream-channels.md#上游检测与测速)。旧配置中的这两个字段不生效，再次保存设置时移除；其他未知字段仍按原规则保留，不增加配置版本或迁移流程。
 
 歌曲屏蔽与收藏属于本地曲库偏好，不属于本页的启动配置。其保存后对后续决策的生效边界见[歌曲偏好设计](download-resource-design.md#8-歌曲屏蔽与收藏)；不纳入 `activeSettings` / `restartRequired`，也不因标记变更启动下载任务。
 

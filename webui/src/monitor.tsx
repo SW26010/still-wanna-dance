@@ -38,7 +38,7 @@ function HealthRow({row:r,minutes,wait='等待调度信息',context}: {row:Healt
     <TableCell>{({available:'可用',unavailable:'不可用',unknown:'待测',stale:'已过期',closed:'已关闭'}[r.state] || r.state)}{r.localDiagnostic&&<span className="secondary"> · {localReasons[r.localDiagnostic]||'本次未完成'}</span>}</TableCell>
     <TableCell>{r.estimatedLatencyMS==null?'—':r.estimatedLatencyMS.toFixed(1)+' ms'}</TableCell>
     <TableCell>{speed==null?'—':(speed/1024).toFixed(1)+' KiB/s'}{expired&&<span className="secondary">（已过期）</span>}</TableCell>
-    <TableCell><RecordDetails title="线路技术详情"><p className="wrap">{technical}{issuers.length?' · 地址来源：'+issuers.join('；'):''}</p><p>{r.reason&&(reasons[r.reason]||r.reason)}{observation}</p>
+    <TableCell><RecordDetails title="线路技术详情" openOnHover><p className="wrap">{technical}{issuers.length?' · 地址来源：'+issuers.join('；'):''}</p><p>{r.reason&&(reasons[r.reason]||r.reason)}{observation}</p>
       <p>吞吐样本：{speed!=null?(speed/1024).toFixed(1)+' KiB/s'+(song?' · 歌曲 #'+song:'')+' · 测速时间 '+date(at)+(duration!=null?' · 下载 '+(duration/1000).toFixed(2)+' s / '+((bytes || 0)/1048576).toFixed(2)+' MiB':'')+(expired?' · 历史样本（已过期）':''):noData}</p>
       {r.localDiagnostic&&<p>{localReasons[r.localDiagnostic]||'本次检测未完成'} · {date(r.localObservedAt)}</p>}
     </RecordDetails></TableCell>

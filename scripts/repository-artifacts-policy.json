@@ -1263,6 +1263,13 @@
       "bytes": 1243259,
       "sha256": "afd4295ed1c4907e205a969d779dc09dc2d472a3a88129e6f4ccae44620ec765",
       "reason": "Generated offline Fluent WebUI with the theme field hint removed from general settings; verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1243305,
+      "sha256": "b0d333c4e1be4a1402f8d03453956c8ed662085656e26eb3f6f38f43b1b0a150",
+      "reason": "Generated offline Fluent WebUI with native hover opening for current connection details, retaining keyboard access and shared record details behavior; verified against webui/build-manifest.json."
     }
   ]
 }

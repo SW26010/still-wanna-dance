@@ -51,9 +51,9 @@ export function Notification({message,body,action,error=false,persistent=false,o
 export function Hint({children,label='说明'}:PropsWithChildren<{label?:string}>) {
   return <Tooltip content={<>{children}</>} relationship="description"><Button size="small" appearance="transparent" icon={<InfoRegular/>} aria-label={label}/></Tooltip>;
 }
-export function RecordDetails({title,children}:PropsWithChildren<{title:string}>) {
+export function RecordDetails({title,children,openOnHover=false}:PropsWithChildren<{title:string;openOnHover?:boolean}>) {
   const [open,setOpen]=useState(false);
-  return <Popover open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
+  return <Popover openOnHover={openOnHover} open={open} onOpenChange={(_,data)=>setOpen(data.open)} positioning={{strategy:'fixed',autoSize:'height',shiftToCoverTarget:true,overflowBoundaryPadding:16}}><PopoverTrigger disableButtonEnhancement><Button size="small" appearance="subtle" aria-label={title}>详情</Button></PopoverTrigger><PopoverSurface aria-label={title} onClick={event=>{if((event.target as HTMLElement).closest('a[href]'))setOpen(false);}}><Subtitle2 as="h3">{title}</Subtitle2>{children}</PopoverSurface></Popover>;
 }
 const statusIcons={success:CheckmarkCircleRegular,danger:DismissCircleRegular,warning:WarningRegular,brand:ClockRegular,informative:SubtractCircleRegular};
 export function StatusBadge({label,color,children,description,action,interactive}:PropsWithChildren<{label?:string;color:keyof typeof statusIcons;description?:string;action?:{label:string;onClick:()=>void;disabled?:boolean};interactive?:{label:string;onClick:()=>void;disabled?:boolean;tooltipBelow?:HTMLElement|null}}>) {

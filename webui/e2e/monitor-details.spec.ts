@@ -2,6 +2,32 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 import type {HealthResult} from '../src/types';
 
+test('connection tables have no horizontal scroll range when their columns fit',async({page},info)=>{
+  const {state}=await mockAPI(page);
+  state.upstreamMonitor={results:(['catalog','playback_url','resource'] as const).map(operation=>({operation,route:'api',entry:'catalog.example',mode:'direct',state:'available',ip:'192.0.2.1',estimatedLatencyMS:12.5,estimatedSpeedBPS:524288}))};
+  await page.setViewportSize({width:1280,height:900});await page.goto('/#/network');
+  const panel=page.locator('#network'),regions=panel.getByRole('region',{name:/线路检测：/});
+  await expect(regions).toHaveCount(3);
+  for(const width of [900,1024,1280,1920,2560]){
+    await page.setViewportSize({width,height:900});
+    expect(await regions.evaluateAll(elements=>elements.map(element=>element.scrollWidth-element.clientWidth)),`${width}px connection tables`).toEqual([0,0,0]);
+    if(width===1280)await panel.screenshot({path:info.outputPath('connection-tables-wide.png'),animations:'disabled'});
+  }
+  await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});
+  expect(await regions.evaluateAll(elements=>elements.every(element=>element.scrollWidth>element.clientWidth))).toBe(true);
+  await regions.evaluateAll(elements=>{for(const element of elements)element.scrollLeft=element.scrollWidth;});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const trigger=panel.getByRole('button',{name:'线路技术详情',exact:true}).last(),detail=page.getByRole('group',{name:'线路技术详情',exact:true});
+  await trigger.hover();await expect(detail).toContainText('catalog.example');
+  await detail.hover();await expect(detail).toBeVisible();
+  await expect(detail).toBeInViewport({ratio:1});
+  await page.screenshot({path:info.outputPath('connection-details-hover-dark.png'),animations:'disabled'});
+  await panel.getByRole('heading',{name:'当前连接',exact:true}).hover();await expect(detail).toBeHidden();
+  await trigger.focus();await page.keyboard.press('Enter');await expect(detail).toBeVisible();
+  await page.keyboard.press('Escape');await expect(detail).toBeHidden();await expect(trigger).toBeFocused();
+  await panel.screenshot({path:info.outputPath('connection-tables-narrow-dark.png'),animations:'disabled'});
+});
+
 test('network details preserve sample evidence and distinguish failures from missing samples',async({page},info)=>{
   const api=await mockAPI(page);
   const catalog:HealthResult={operation:'catalog',route:'api',entry:'catalog.example',mode:'direct',state:'available',channelID:'direct/catalog',ip:'192.0.2.1',
@@ -20,11 +46,11 @@ test('network details preserve sample evidence and distinguish failures from mis
   const rows=panel.getByRole('table').getByRole('row').filter({has:page.getByRole('button',{name:'线路技术详情',exact:true})});
   const expected=['清单版本：fixture-v1','0.0 KiB/s','尚无成功样本 · 当前资源检查失败：请求超时','尚无成功样本 · 未取得该域名的有效资源地址','尚无成功样本 · 业务正在加载视频，自动测速已暂停','历史样本（已过期）'];
   for(let i=0;i<expected.length;i++){
-    await rows.nth(i).getByRole('button',{name:'线路技术详情',exact:true}).click();
+    await rows.nth(i).getByRole('button',{name:'线路技术详情',exact:true}).hover();
     const detail=page.locator('.fui-PopoverSurface:visible');await expect(detail).toContainText(expected[i]);
     if(i===0){await expect(detail).toContainText('512.0 KiB/s');await expect(detail).toContainText('2.00 s / 1.00 MiB');await expect(detail).toContainText('HTTP 200');}
     if(i===5){await expect(detail).toContainText('歌曲 #7');expect((await detail.innerText()).match(/API 通道 source-1/g)).toHaveLength(1);}
-    await page.keyboard.press('Escape');
+    await panel.getByRole('heading',{name:'当前连接',exact:true}).hover();await expect(detail).toBeHidden();
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await panel.screenshot({path:info.outputPath('network-details.png'),animations:'disabled'});

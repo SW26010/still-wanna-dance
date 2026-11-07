@@ -304,7 +304,8 @@ html:has(.log-expanded) { scrollbar-gutter: auto; }
 
 .health-table { min-width: 550px; table-layout: fixed; }
 .health-table th:first-child { width: 30%; }
-.health-table th:last-child { width: 55px; }
+/* Fit the Fluent text button's 64px minimum width and both cell paddings. */
+.health-table th:last-child { width: calc(64px + 2 * var(--spacingHorizontalS)); }
 .health-section h3 { margin: 0; }
 .file-results { margin-top: var(--spacingVerticalL); }
 .file-results table { table-layout: fixed; }

@@ -1,6 +1,6 @@
 # 普通路径观测、会话总成本与播放对照
 
-本文件落实 2026-10-22 的 `doc3` 收敛任务，在午间样本产生前登记。原 [PRODUCT](PRODUCT.md) 和 [CONTINUATION](CONTINUATION.md) 的候选、资源、顺序、窗口与停止条件不变。用户随后明确本轮只完成非游戏验证，真实 VRC 对照合并到下次 [LA-040](../../docs/live-acceptance-backlog.md#la-040慢网拖动多播放器与后台竞争)。
+本文件落实 2026-10-22 的 `doc3` 收敛任务，在午间样本产生前登记。原 [PRODUCT](PRODUCT.md) 和 [CONTINUATION](CONTINUATION.md) 的候选、资源、顺序、窗口与停止条件不变。本轮只完成非游戏验证，真实 VRC 对照合并到下次 [LA-040](../../docs/live-acceptance-backlog.md#la-040慢网拖动多播放器与后台竞争)。
 
 2026-10-29 执行更新：[LIVE-20261029-01](../../docs/acceptance/live-acceptance-20261029-01.md)已完成 C 节的普通网络后台有无对照：同歌独立空缓存、实际前后台重叠、两次音画正常。以下保留原采集计划，执行范围和单配对/播放器状态边界以该报告为准，不作为新一轮待办或性能收益证明。
 

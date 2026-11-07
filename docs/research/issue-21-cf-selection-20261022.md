@@ -164,7 +164,7 @@ v2 只改变观测，按 TLS 已验证的 ServerName 匹配目标主机并加锁
 
 ## doc3 会话核算与午间普通路径复核
 
-2026-10-22 午间按冻结 PRODUCT v2 完成唯一一次 `product-noon-01`，未更换候选、资源、顺序、历史预测或预算，也未补样。新增观测问题在采样前写入 [OBSERVATION](../../experiments/cf-block-paths/OBSERVATION.md)，分析器及协议指纹与结果一并保存在[独立证据清单](../evidence/cf-selection-observation-20261022/manifest.json)。本轮用户明确只做非游戏验证；VRC 播放对照按下文合并到既有台账。
+2026-10-22 午间按冻结 PRODUCT v2 完成唯一一次 `product-noon-01`，未更换候选、资源、顺序、历史预测或预算，也未补样。新增观测问题在采样前写入 [OBSERVATION](../../experiments/cf-block-paths/OBSERVATION.md)，分析器及协议指纹与结果一并保存在[独立证据清单](../evidence/cf-selection-observation-20261022/manifest.json)。本轮只做非游戏验证；VRC 播放对照按下文合并到既有台账。
 
 ### A：同轮完整会话成本
 

@@ -49,7 +49,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 
 ## 结论边界
 
-本轮证明受控网络下的模式隔离、当前请求检测、业务同步、取消/并发、页面交互及构建；没有测公网代理吞吐、真实 VRC 播放体验、最终发行包或新的系统辅助技术场景。未启动游戏、修改系统 hosts、提交或推送。已有游戏专属验收范围不因本次模块拆分自动扩大。
+本轮证明受控网络下的模式隔离、当前请求检测、业务同步、取消/并发、页面交互及构建；没有测公网代理吞吐、真实 VRC 播放体验、最终发行包或新的系统辅助技术场景。未启动游戏、修改系统 hosts。已有游戏专属验收范围不因本次模块拆分自动扩大。
 
 早期验证中的“代理也发布单一候选”“独立诊断 Monitor”“检测设置草稿”“测速固定候选”及“HTTPS 透传始终直连”等描述，只代表当时实现，已由本轮现行规则替代；历史失败和证据不改写。
 
@@ -61,7 +61,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 
 测速模块与 Console 测速/SSE 集成的定向 race 通过（`review-times-race.log` 中的 `upstreamcheck` 结果、`review-console-race.log`）；诊断与组件浏览器回归 9 项通过（`review-browser-fixed.log`），包括无旧成功结果和有旧成功结果两种失败后取消路径。前端构建和生成一致性检查通过（`review-ui-build.log`、`review-ui-check.log`）。首轮 race 的 Console 编译与前端生成同时读取/更新内嵌资产，发生 `unexpected length`；前端生成完成后顺序复验通过，保留原日志，未改产品代码规避。上文 363 项完整浏览器结果对应本次审查修正前的构建，本次按影响范围复验。
 
-受影响两包的 `go vet` 和 Windows 桌面构建通过（`review-vet.log`、`review-build.log`）。修正后的 EXE 为 `review-SWD.exe`，SHA256 `647315146df49fd542ea33f56e8af190f24a7d74ab08cff11eb329a00333431b`；未部署。上表 `SWD.exe` 保留为审查修正前的历史构建。未提交或推送。
+受影响两包的 `go vet` 和 Windows 桌面构建通过（`review-vet.log`、`review-build.log`）。修正后的 EXE 为 `review-SWD.exe`，SHA256 `647315146df49fd542ea33f56e8af190f24a7d74ab08cff11eb329a00333431b`；未部署。上表 `SWD.exe` 保留为审查修正前的历史构建。
 
 ## 曲库直连容错与清单定义收尾
 
@@ -75,7 +75,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 - `catalogmeta`、`catalogsync`、`upstreamcheck`、`upstreamstate` 模块回归通过，`catalog-modules.log`；新增虚拟时间检查验证发现耗时与 HTTPS/HTTP 尝试共用每入口 30 秒期限，曲库与 Console 的相关取消、模式隔离、手动诊断和容错 race 通过，`catalog-fallback-race.log`。
 - 存储消费者整包通过；Console 整包首轮只有既有目录搬迁测试出现 Windows `Access denied`，单独连续三次通过，未修改搬迁逻辑。第二轮整包的目录搬迁通过，但 `TestHostsSessionRestoresAPIAlongsideUnmanagedEntries` 在替换临时 hosts 夹具时出现同类错误，单独连续三次通过；该测试不创建曲库同步，也未改动其实现。两次整包不能记作全绿，失败与定向复验分别保留在 `catalog-consumers.log`、`catalog-layout-recheck.log`、`catalog-console-final.log`、`catalog-hosts-fixture-recheck.log`；未触及系统 hosts。
 - 受影响六包 `go vet` 通过，`catalog-vet.log`。本轮没有前端行为变更，沿用上一节对应范围的浏览器证据。
-- 最终 Windows 构建通过（`catalog-build.log`），产物 `catalog-SWD.exe`，SHA256 `eab29e36de2df1e41d8f4d7f8bb36928bbf1d5420207a573a9740109bab79e8f`。这是本轮最新构建，前文两个 EXE 为历史产物；未部署、提交或推送。
+- 最终 Windows 构建通过（`catalog-build.log`），产物 `catalog-SWD.exe`，SHA256 `eab29e36de2df1e41d8f4d7f8bb36928bbf1d5420207a573a9740109bab79e8f`。这是本轮最新构建，前文两个 EXE 为历史产物；未部署。
 
 ## 自动与手动统一检测
 
@@ -96,7 +96,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 
 本阶段保留的失败与修正：首次虚拟时间用例跨 bubble 共用全局 Channel 通知，导致测试运行时拒绝关闭；改为各 bubble 独立测试 Channel 并在 Console 清理后恢复。故障恢复用例最初试图在同一实例清除已锁存的存储错误，与既有存储契约不符；现分别验证持续存储故障与普通网络恢复，不改变产品故障规则。见 `automatic-schedule-tests.log`、`automatic-schedule-tests-after.log`。首次 race 指出新测试计数器未建立与后续计时器写入的同步，改用原子计数及锁保护记录；见 `automatic-race.log`。整包首次仅两处旧测试仍断言自动轮次没有资源读取，现明确允许并验证一个 byte 的 Range 请求；见 `automatic-packages.log`。这些修正未放宽请求预算或业务断言。首次窄屏截图的时间文字与结果挤在同一行，改为每项结果下方的次级文字；前后截图分别留在 `automatic-live-browser/` 与 `automatic-live-browser-final/`。
 
-本阶段使用隔离数据库、受控网络和本地浏览器，不代表公网代理性能或 VRC 播放体验；未启动游戏、修改系统 hosts、部署、提交或推送。
+本阶段使用隔离数据库、受控网络和本地浏览器，不代表公网代理性能或 VRC 播放体验；未启动游戏、修改系统 hosts、部署。
 
 ## 提交审查收口：HTTPS 验证入口与说明
 

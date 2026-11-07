@@ -6,7 +6,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 ## 实现边界
 
-组件迁移以 `207e431fefd150c59a4b6dc117b1aab535056007` 为历史文案和业务能力基准。2026-10-21 的使用体验修订按用户反馈调整页面归属、信息分层和文案，后续按 WebUI 目标设计提供开始／停止加速和退出，保留后台生命周期能力；现行行为以[内容约定](webui-content.md)与[配置生命周期](settings-lifecycle.md)为准，不再以历史逐字匹配限制已授权的改写。业务独有能力继续保留，通用交互优先采用标准组件，不为复刻旧控件的布局或细节增加自定义实现。
+组件迁移以 `207e431fefd150c59a4b6dc117b1aab535056007` 为历史文案和业务能力基准。2026-10-21 的使用体验修订调整页面归属、信息分层和文案，后续按 WebUI 目标设计提供开始／停止加速和退出，保留后台生命周期能力；现行行为以[内容约定](webui-content.md)与[配置生命周期](settings-lifecycle.md)为准，历史文案不要求逐字保留。业务独有能力继续保留，通用交互优先采用标准组件，不为复刻旧控件的布局或细节增加自定义实现。
 
 | 范围 | 当前实现 |
 | --- | --- |
@@ -41,7 +41,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；网络页直接展示全部适用模块，无页内入口栏或第二层标签。设置字段直接显示，卡片不重复显示分类标题；当前页的状态、保存、放弃更改和重启操作与顶部页签同行右对齐，空间不足时自然换行，整行随页面滚动保持可达。短说明使用 Tooltip，记录补充信息及包含“修复”操作的游戏连接说明使用非模态 Popover；修复浮层支持悬停、点击和键盘，使用蓝色 Link 按钮，授权处理中禁用但保留焦点。不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
 
-日志表格的展开窗口复用 Dialog/DialogTrigger/DialogSurface/DialogContent，按用户选择铺满网页视口；普通卡片与展开窗口共用查询结果，展开时滚动显示全部已读取记录（最多 500 条），退出后恢复原有页码。按用户要求，展开窗口仅显示日志行、原生双向滚动条及右上角浮动退出 Button；DialogSurface 通过 aria-label 命名，不设置可见标题／条数／提示，表头仅视觉隐藏并保留列头语义。展开布局移除边框及容器内外边距，滚动区贴满视口；焦点轮廓放入视口内部。展开期间取消根滚动条预留，退出后恢复普通页面规则，保留标准模态焦点、Esc 关闭及触发器焦点恢复。退出按钮不另套会先消费 Esc 的 Tooltip；普通展开入口仍提供 Tooltip 和无障碍名称。
+日志表格的展开窗口复用 Dialog/DialogTrigger/DialogSurface/DialogContent，铺满网页视口；普通卡片与展开窗口共用查询结果，展开时滚动显示全部已读取记录（最多 500 条），退出后恢复原有页码。展开窗口仅显示日志行、原生双向滚动条及右上角浮动退出 Button；DialogSurface 通过 aria-label 命名，不设置可见标题／条数／提示，表头仅视觉隐藏并保留列头语义。展开布局移除边框及容器内外边距，滚动区贴满视口；焦点轮廓放入视口内部。展开期间取消根滚动条预留，退出后恢复普通页面规则，保留标准模态焦点、Esc 关闭及触发器焦点恢复。退出按钮不另套会先消费 Esc 的 Tooltip；普通展开入口仍提供 Tooltip 和无障碍名称。
 
 设置与统计列通过 CSS Grid `auto-fit` 按实际容器宽度换行，容纳侧栏及嵌套区域；操作栏不另加边框或固定提示高度。表单默认使用 Field 的上方标签布局，避免窄容器挤压标签。设置中的请求保留天数与视频预算紧跟对应单选项，这两项与同时下载数量、并发增长间隔、提前准备时间、延续保护时间共用 Fluent v9 SpinButton（默认 medium/outline）及原生上下箭头。单位统一放在控件右侧，采用正文大小的次级文字和 Fluent 间距；有可见标题的时间字段不重复在标题中写单位，无障碍名称仍含单位。输入框默认宽 98px，窄屏可收缩，保留组件默认高度、按钮与焦点样式；天数与预算的独立字段标签仅视觉隐藏，保留无障碍名称与 ValidationField 校验。曲库搜索／筛选和历史时间筛选使用原生 `orientation="horizontal"`，将标签放到对应输入框左侧，仅在这些区域按标签内容分配列宽，避免默认比例占宽挤压输入框；宽屏同行，窄屏按字段自然换行，其他字段不覆盖组件内部网格。时间筛选使用 Field 的原生 `validationMessage`，错误随内容自然展开，不用绝对定位或空白占位保持结果坐标。轮询中的已有结果仍保持稳定。CardHeader 的 action 保留简短操作，批量控件放入内容区，避免挤压窄屏标题。组件依据为官方 [SpinButton](https://fluent2.microsoft.design/components/web/react/core/spin/usage)、[Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/)、[Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/) 与 [Toast](https://fluent2.microsoft.design/components/web/react/core/toast/usage/) 指南。
 

@@ -25,6 +25,7 @@
 | [验证机制](live-acceptance-process.md)、[VRC 台账](live-acceptance-backlog.md)、[非 VRC 跟进](validation-followups.md) | 当前验证分工和真正剩余的场景；不在其他文档重复维护待验清单 |
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | RC1 冻结与交付 | [v1.0.0-rc.1 验证](validation/rc1-release-20261105.md)记录本机预检、保留的失败和正式交付状态 |
+| RC2 冻结与交付 | [v1.0.0-rc.2 验证](validation/rc2-release-20261108.md)记录业务冻结、测试引用修正及本机和公开交付验证 |
 | 故障触发 WebUI | [启动、故障去重与原生兜底验证](validation/fault-webui-20261104.md)；现行规则见[配置生命周期](settings-lifecycle.md) |
 | [acceptance/](acceptance/) | 已实际开展的游戏/实网验收报告；新游戏批次使用[报告模板](live-acceptance-report-template.md) |
 | [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；[旧命令行服务手册](history/command-line-service-20261103.md)只适用于移除前版本，文件名中的 `original-` 指原版调查 |

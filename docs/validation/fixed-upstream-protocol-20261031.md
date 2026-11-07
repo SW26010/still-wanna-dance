@@ -48,7 +48,7 @@ DoH、Mihomo 自身传输、客户端 HTTPS 透传及入站非播放 API 的 307
 
 ## 拆分提交验证
 
-按用户要求分为两个提交：`e1ebb2bb`（`refactor(upstream): use fixed protocols for upstream requests`）只包含固定协议、旧播放证据兼容和吞吐样本规则；后续 `refactor(catalog): fetch backup catalogs only when needed` 包含按需清单、Monitor 范围、存储故障终止兜底及界面跳过提示。共同研究和本综合记录放入第二个提交。
+分为两个提交：`e1ebb2bb`（`refactor(upstream): use fixed protocols for upstream requests`）只包含固定协议、旧播放证据兼容和吞吐样本规则；后续 `refactor(catalog): fetch backup catalogs only when needed` 包含按需清单、Monitor 范围、存储故障终止兜底及界面跳过提示。共同研究和本综合记录放入第二个提交。
 
 第一提交使用隔离源码快照验证，全部 1,514 个文件的 Git blob 与实际提交树一致；它保留三清单检查及原清单兜底行为。CLI 和桌面程序的 `-tags=no_easytier -mod=readonly` 构建、`cmd/internal/data` 全包测试、同范围及实验包的 vet、前端产物一致性检查和 10 项验收脚本测试通过。第二提交源码的 CLI、桌面构建、`cmd/internal/data/experiments` 全包测试、同范围 vet 及 `pnpm --dir webui check` 均通过。
 

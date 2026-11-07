@@ -197,7 +197,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 两平台各 **345 项浏览器测试通过**；Windows 工具回归 **47/47**，Linux **39 通过、8 项 Windows 专属测试跳过**，无失败。Go 测试、vet、编译与 Linux race/gofmt 通过。最终正式包完成源码独立重建、单包冒烟，以及 `ci-25` → Beta 的默认存储、外置库、自定义配置 **3/3** 覆盖升级，持久化数据检查通过。
 
-Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后发布。全新 release runner 使用无凭据公共 URL 下载 Portable 与源码包，验证哈希、源码/EXE 身份并独立重建；最终输出 `verified=true`，提交为 `ad0559c4b79e36c73069be02dc166dccf677b50c`，发行 EXE SHA256 为 `dc23a009a4de7c2b7eb51183e892041e1c7e0a67c88321b48d411325862a6cd4`。公开发行清单与两份 SHA256 文件也已下载核对。未手动上传本机附件；仍不承诺 EXE 逐字节可复现。
+Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后发布。全新 release runner 使用无凭据公共 URL 下载 Portable 与源码包，验证哈希、源码/EXE 身份并独立重建；最终输出 `verified=true`，提交为 `ad0559c4b79e36c73069be02dc166dccf677b50c`，发行 EXE SHA256 为 `dc23a009a4de7c2b7eb51183e892041e1c7e0a67c88321b48d411325862a6cd4`。公开发行清单与两份 SHA256 文件也已下载核对。仍不承诺 EXE 逐字节可复现。
 
 | 正式附件 | 字节数 | SHA256 |
 | --- | ---: | --- |

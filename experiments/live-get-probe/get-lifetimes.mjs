@@ -105,6 +105,6 @@ for (const s of stages) {
   if (s.id.startsWith('dual-')) assert.equal(s.interaction.uncoveredMs, 0);
 }
 const text = JSON.stringify(result, null, 2) + '\n';
-assert(!/Himalia|C:\\Users\\|https?:\/\/|usr_[a-f0-9]|wrld_[a-f0-9]|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/i.test(text));
+assert(!/C:\\Users\\|https?:\/\/|usr_[a-f0-9]|wrld_[a-f0-9]|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/i.test(text));
 fs.writeFileSync(output, text);
 console.log(JSON.stringify(result.aggregate));

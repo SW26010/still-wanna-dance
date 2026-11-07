@@ -8,7 +8,7 @@
 
 本实验复用产品 `upstreamnet.Resolver`、`upstreamstate.Monitor`、固定候选 Transport 和 `cacheproxy.DiscardLoader`。入口在 `internal/console/cf_block_experiment_test.go`，仅以 `windows && cf_block_experiment` 标签编译；普通构建和测试不包含它。2026-10-24 网络模块拆分后，实验保留在 console 测试包以复用实际产品路径；DNS 细粒度观测通过仅在 `cf_block_experiment` 标签下编译的探针读取，正式产品不包含实验 API。
 
-> 首个下午两组窗口完成后，用户要求澄清 IPv4/IPv6 限制，后续执行改用独立[四组协议](FAMILY.md)。本文件作为原始预先方法保留，两种协议不混算。
+> 首个下午两组窗口完成后，为明确 IPv4/IPv6 限制，后续执行改用独立[四组协议](FAMILY.md)。本文件作为原始预先方法保留，两种协议不混算。
 
 ## 预先固定的方法（2026-10-21）
 

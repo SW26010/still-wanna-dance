@@ -40,7 +40,7 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 
 ## 本轮确认的配置归属与面板建议
 
-用户随后明确：配置继续由 SWD 管理并交给 Mihomo 消费；改造重点是清理 SWD 的代理节点选优职责，不将完整配置所有权交给面板。此决定仍未实施。当前 Runtime 已通过 `ParseWithBytes` 交付内存配置，不应仅因讨论使用“配置文件”一词就新增明文 YAML 副本。面板负责节点/组的运行时选择，SWD 保持配置的单一来源；接口是否允许修改配置应由后端边界保证，隐藏按钮只改善操作界面。
+方案边界为：配置继续由 SWD 管理并交给 Mihomo 消费；改造重点是清理 SWD 的代理节点选优职责，不将完整配置所有权交给面板。此决定仍未实施。当前 Runtime 已通过 `ParseWithBytes` 交付内存配置，不应仅因讨论使用“配置文件”一词就新增明文 YAML 副本。面板负责节点/组的运行时选择，SWD 保持配置的单一来源；接口是否允许修改配置应由后端边界保证，隐藏按钮只改善操作界面。
 
 建议先选 **zashboard 固定版本的 `dist-no-fonts` 静态包**，待与固定核心完成联调后再决定发行版本。其 README 明确提供使用系统字体的无字体包、同源后端自动连接以及 `disableUpgradeCore`、`disableTunMode` 参数，适合 SWD 托管配置的范围。这是基于文档的适配性判断，不是已完成的兼容性验证。Metacubexd 虽已增加 desktop/server/agent，也明确保留独立静态面板，不需要引入整套应用。[zashboard README](https://github.com/Zephyruso/zashboard/blob/main/README.md)、[Metacubexd README](https://github.com/MetaCubeX/metacubexd/blob/main/README.md)
 

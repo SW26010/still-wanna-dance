@@ -122,4 +122,4 @@ Monitor 在清单同步后、播放 API 请求前选择，每批仍用原请求�
 
 新增回归先在旧实现上确认失败：连接拒绝、尝试超时和 HTTP 503 被截成第一项，实际播放 HTTP 响应为 502。修复后通过实际 Console → 解析器 → 缓存服务链路断言返回 504，并保留三项原因；错误单测同时覆盖嵌套聚合、畸形 Location 脱敏、重复脱敏和无需脱敏时保留原错误。首版修复的整包测试暴露存储错误格式被重建，已按原值保留修正，未放宽原测试断言。
 
-最终 applog、console、cacheproxy、upstreamnet 四个包完整回归及同范围 go vet 通过，Git 空白检查通过。命令均经仓库临时目录包装器，包测试在常规 Windows 权限下运行。失败和成功输出保留于 artifacts/review-cf-sources/ 的 regression-before.log、regression-after.log、regression-final.log 及 checks-final.json；先前审查快照和最小复现证据继续保留。未重复未受本次收尾影响的浏览器和实机验证，未提交或推送。
+最终 applog、console、cacheproxy、upstreamnet 四个包完整回归及同范围 go vet 通过，Git 空白检查通过。命令均经仓库临时目录包装器，包测试在常规 Windows 权限下运行。失败和成功输出保留于 artifacts/review-cf-sources/ 的 regression-before.log、regression-after.log、regression-final.log 及 checks-final.json；先前审查快照和最小复现证据继续保留。未重复未受本次收尾影响的浏览器和实机验证。

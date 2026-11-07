@@ -1,6 +1,6 @@
 # Mihomo 单一出口与 zashboard 实施验证
 
-日期：2026-10-30。现行规则见 [Mihomo 与 zashboard](../mihomo-dashboard.md)。本批在 Windows、Go 1.27.3、Node 24.22.1、pnpm 11.25.0 和 Edge 上验证，证据保存在忽略目录 `artifacts/mihomo-dashboard/`。没有启动 VRC、修改系统 hosts、提交或推送。
+日期：2026-10-30。现行规则见 [Mihomo 与 zashboard](../mihomo-dashboard.md)。本批在 Windows、Go 1.27.3、Node 24.22.1、pnpm 11.25.0 和 Edge 上验证，证据保存在忽略目录 `artifacts/mihomo-dashboard/`。没有启动 VRC、修改系统 hosts。
 
 ## 实现与验证范围
 
@@ -39,7 +39,7 @@
 
 ## 提交前复审修正（2026-10-30）
 
-本节记录复审时的中间实现与证据。随后用户明确选择保留原生名称缓存并移除身份映射及测试版迁移；节点选择和缓存的现行行为以本节后的「按用户决策精简」及[现行设计](../mihomo-dashboard.md)为准。
+本节记录复审时的中间实现与证据。随后保留原生名称缓存并移除身份映射及测试版迁移；节点选择和缓存的现行行为以本节后的「配置与选择职责精简」及[现行设计](../mihomo-dashboard.md)为准。
 
 - **节点隐私与选择恢复**：复审发现早期实现将面板名称直接存入原生选择缓存，名称和无名节点的默认文案都可能包含地址。隔离回归在修复前重现两处明文（`review-privacy-red.log`）。现在选择请求先转换为完整 HMAC 身份，Mihomo 仍执行选择和保存；恢复时转换回当前名称。测试逐个扫描实际缓存，验证名称和地址不出现、摘要确实写入；重启、节点改名和临时身份下不覆盖原选择均通过。只在下次启动 Mihomo 时安全删除旧测试版的确定缓存文件；不安全入口不会被删除，也不会启动核心。旧选择重置；未启用核心前旧缓存可能仍存在。
 - **身份密钥异常**：恢复界面提示；损坏或不可读的密钥保留原文件，本次使用临时身份并禁用原生选择缓存的读取和写入。`review-selection-and-identity.log` 与 `review-race-browser-final.log` 包含相关回归。
@@ -49,7 +49,7 @@
 - **测试与构建**：修正后 `go test -p 1 -tags=no_easytier -mod=readonly ./cmd/... ./internal/... -count=1` 全部通过（`review-go-final.log`）；真实浏览器和选择/缓存并发 race 通过（`review-race-browser-final.log`），Node 发布工具 50 项及最终产物规则检查通过。完整 WebUI 测试首轮 355 项通过、1 项失败（`review-webui-tests-final.log`）：测试只推进 2.5 秒，晚于动作刷新到达的新样本需等 5 秒轮询。冻结时钟可重现（`review-monitor-deterministic-red.log`）；改为等待实际状态请求后，同文件双用例并发重复 5 次均通过（`review-monitor-repeat-fixed.log`），完整套件复跑 356 项通过（`review-webui-suite-rerun.log`）。第一次重复检查还暴露测试新增的 `pauseAt` 与墙钟竞争（`review-monitor-repeat.log`），改为固定虚拟起点与未来时间后通过。
 - **当时的桌面构建**：`review-SWD.exe` 59,418,624 字节，SHA256 `486f8c7a072d29833bd038b8a7d6b346444ca9863938b9cd1b44600f7c8a5cff`；实际链接的 114 个 Go 模块声明核对通过。没有运行或部署该 EXE。此 EXE 及上表的 `SWD.exe` 都是后续精简前的历史构建，予以保留。
 
-## 按用户决策精简（2026-10-30）
+## 配置与选择职责精简（2026-10-30）
 
 - 普通显示名称允许由 Mihomo 原生缓存；移除复审中加入的名称与身份双向映射、面板请求改写，以及针对未发行测试版缓存的运行时迁移。无名节点改为「节点 1」等名称，附短摘要区分同名节点，不自动拼入服务器地址或端口。订阅自带的显示名称可能本身包含地址，原生选择缓存和浏览器部分功能可能明文保存该名称；连接配置与凭据仍由 SWD 的受保护快照管理。
 - 本轮真实核心缓存测试确认含地址的订阅显示名按名称保存，无名节点的选择缓存不包含自动生成的地址或连接凭据；跨进程验证原生选择恢复、名称变化后的默认回退，以及临时身份不覆盖原选择。真实面板与并发 race 通过（`native-names-race-browser.log`），受影响包整包复验见 `native-names-affected.log`，静态检查通过。
@@ -79,7 +79,7 @@
 
 - 回归先在修复前重现核心启动、已有同意记录的 Console 创建、首次同意后的启动失败（`cache-review/regression-red.log`）。修正后，缓存不可打开和格式异常、启用和关闭选择持久化的组合均通过实际本地代理请求、面板选择和正常关闭检查；无关文件保留，正常缓存及临时身份的跨进程选择恢复回归通过。
 - 定向 race 与真实 Console／Edge 联调通过（`cache-review/regression-fixed-race-browser.log`）；真实界面确认缓存失败提示可见，原版面板在桌面、手机宽度下能选点、刷新与切回自动组。上游更新查询仍被测试主动断网，记录中的相关 `Failed to fetch` 为已知外部查询限制，节点控制通过。
-- 桌面入口、Console、Mihomo 整包回归通过（`cache-review/affected-packages.log`），相关 `go vet` 通过（`cache-review/vet.log`）。前端源码未变，嵌入产物校验通过。新构建为 `cache-review/SWD.exe`，59,417,600 字节，SHA256 `827703bd22b005f4882a2bda4314cc3f349cc26bbaa986a2fea39a3eabe76e66`，114 个实际链接 Go 模块的许可核对通过；未运行或部署此 EXE，未提交或推送。
+- 桌面入口、Console、Mihomo 整包回归通过（`cache-review/affected-packages.log`），相关 `go vet` 通过（`cache-review/vet.log`）。前端源码未变，嵌入产物校验通过。新构建为 `cache-review/SWD.exe`，59,417,600 字节，SHA256 `827703bd22b005f4882a2bda4314cc3f349cc26bbaa986a2fea39a3eabe76e66`，114 个实际链接 Go 模块的许可核对通过；未运行或部署此 EXE。
 
 ## 网络页原版面板嵌入（2026-10-30）
 
@@ -103,7 +103,7 @@
 
 - 17 项浏览器回归通过（`browser.log`）。新增用例使用简化 iframe 夹具，覆盖 Mihomo 模式下旧书签直达、刷新、两种落点间的前进／后退。既有当前连接、诊断与面板生命周期回归通过。
 - 隔离真实 Console、Mihomo 与原版 zashboard 的定向 race 联调通过（`real-race.log`、`browser-real/result.json`），确认当前连接导航关闭面板订阅，回到面板后可继续操作。此前缓存异常与系统显示设置的验证边界不变。
-- 前端类型与嵌入资源一致性检查通过。首次打包受沙箱写入限制，原日志保留在 `webui-build.log`；相同构建在获准写入后通过（`webui-build-unrestricted.log`）。更新的桌面验证构建为 `embedded-review/SWD.exe`，59,421,696 字节，SHA256 `da0a9e0ad8a23c874ca4b6baa4aa3e2b2e2fe31d401132366040d4c766a6232d`；114 个实际链接 Go 模块的许可声明核对通过。未运行或部署此 EXE，未提交或推送。
+- 前端类型与嵌入资源一致性检查通过。首次打包受沙箱写入限制，原日志保留在 `webui-build.log`；相同构建在获准写入后通过（`webui-build-unrestricted.log`）。更新的桌面验证构建为 `embedded-review/SWD.exe`，59,421,696 字节，SHA256 `da0a9e0ad8a23c874ca4b6baa4aa3e2b2e2fe31d401132366040d4c766a6232d`；114 个实际链接 Go 模块的许可声明核对通过。未运行或部署此 EXE。
 
 ### 嵌入面板的浏览器历史（2026-10-31）
 

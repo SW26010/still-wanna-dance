@@ -149,7 +149,7 @@ Go 的页面启动数据、内嵌资源与搜索约束专项通过（`go-assets.
 
 ## 2026-10-21 UI 范围纠正与历史改写
 
-按用户要求撤回此次 UI 调整附带的 hosts／网关／队列／退出联动，并改写尚未推送的历史。原 `2d15b9f` 仅保留界面总状态与信息分层，依赖该流程的 `86603a3` 退出保护和 `69b6fed` 托盘说明不再保留在当前分支历史中；页面归属、VRCX 预览保留和后续主题图标改动继续保留。上文标记为已撤回的启停及退出测试仅是历史证据，不作为当前行为结论。
+撤回此次 UI 调整附带的 hosts／网关／队列／退出联动。原 `2d15b9f` 仅保留界面总状态与信息分层，依赖该流程的 `86603a3` 退出保护和 `69b6fed` 托盘说明不再保留在当前分支历史中；页面归属、VRCX 预览保留和后续主题图标改动继续保留。上文标记为已撤回的启停及退出测试仅是历史证据，不作为当前行为结论。
 
 恢复原有边界：开始加速复用既有网关与 hosts 接入，不更改独立队列的开关；托盘只启停网关，停止网关不恢复 hosts；网页、托盘和引导退出均使用原退出流程，不恢复 hosts。恢复直连仍是独立操作。旧的联动接口、调用、确认提示和依赖断言均已清理，文档与帮助同步说明独立操作。
 
@@ -398,7 +398,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - `go test -tags=no_easytier ./internal/console ./internal/desktop ./cmd/still-wanna-dance-console -count=1 -timeout=240s -json` 三包通过，启用 `SWD_TRAY_CHECK=1`。包含菜单文案／禁用状态、真实 Windows 托盘窗口生命周期和命令分发、条款门禁及独立进程重启；未手工右键点选托盘或实际打开系统默认浏览器。需要真实外部环境的 opt-in 测试未启用，目录符号链接测试因用户权限跳过。
 - 前端构建、类型检查、嵌入产物逐字节一致性与清单校验、相关三包 go vet、桌面构建及 diff 检查通过。验证构建为 `artifacts/ui-terminology/SWD.exe`（`dev-ui-terminology`），未替换或重启现有程序。
 
-首轮沙箱内 Go 检查因原子替换／进程与文件权限限制失败；Edge 启动报 `TransactNamedPipe` 管道中断，测试结束后有残留进程。保留 `backend-sandbox.jsonl`、`browser-sandbox.log` 和 `browser-sandbox-error.md`，仅清理确认属于本轮失败测试的进程树后，以正常用户权限重跑通过。成功日志为 `backend.jsonl`、`browser.log`，其余检查日志与截图在同一忽略目录 `artifacts/ui-terminology/`。未修改系统 hosts、用户配置／同意记录或存储，未启动游戏，无新增 VRC 待验项；未提交或推送。
+首轮沙箱内 Go 检查因原子替换／进程与文件权限限制失败；Edge 启动报 `TransactNamedPipe` 管道中断，测试结束后有残留进程。保留 `backend-sandbox.jsonl`、`browser-sandbox.log` 和 `browser-sandbox-error.md`，仅清理确认属于本轮失败测试的进程树后，以正常用户权限重跑通过。成功日志为 `backend.jsonl`、`browser.log`，其余检查日志与截图在同一忽略目录 `artifacts/ui-terminology/`。未修改系统 hosts、用户配置／同意记录或存储，未启动游戏，无新增 VRC 待验项。
 
 
 ## 2026-10-25 简洁重构：曲库与时间线
@@ -521,7 +521,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 通过 `scripts/with-test-temp.ps1` 运行 `acceleration.spec.ts startup-settings.spec.ts terms-consent.spec.ts regressions.spec.ts runtime-status.spec.ts lifecycle-entrypoints.spec.ts --workers=3`，Edge **26/26** 通过；复选框触发区域调整后复验 `startup-settings.spec.ts regressions.spec.ts`，**6/6** 通过。日志为 `artifacts/uac-tooltip/regression-verified.log`、`settings-final.log`。
 - 隔离浏览器逐项检查悬停、Tab 聚焦、Escape、无障碍描述、保存／重启提示条件与无额外业务请求，覆盖小方框及文字标签；核对 1280px 浅色、320px 深色截图。首次直接包裹 Checkbox 时标签悬停失败，改用 Tooltip 的触发属性和 Checkbox `root` 插槽后全部通过；结果与截图见 `artifacts/uac-tooltip/inspect-final.log` 及同目录图片，失败记录保留。检查脚本还修正了单参数传递和 hash 导航保留旧夹具快照的问题，未据这些失败修改产品业务。
 - 沙箱内 Edge 在启动阶段因 `TransactNamedPipe` 管道错误失败，未进入页面断言；失败证据在 `artifacts/uac-tooltip/regression/`，沙箱外使用相同隔离入口完成检查。前端构建、类型、嵌入资源一致性与 diff 检查通过。验证使用本地内存 API，未触发真实 UAC、修改 hosts 或启动游戏；无新增 VRC 待验项。
-- 随后按用户要求移除“同意完整条款”的 Tooltip，恢复该按钮原有实现；其他 UAC 提示保留，现行内容约定同步。前端构建、类型与嵌入资源一致性检查通过；`terms-consent.spec.ts --workers=3` **6/6** 通过，日志为 `artifacts/uac-tooltip/terms-removed.log`。本节此前的条款提示截图仅记录移除前状态。
+- 随后移除“同意完整条款”的 Tooltip，恢复该按钮原有实现；其他 UAC 提示保留，现行内容约定同步。前端构建、类型与嵌入资源一致性检查通过；`terms-consent.spec.ts --workers=3` **6/6** 通过，日志为 `artifacts/uac-tooltip/terms-removed.log`。本节此前的条款提示截图仅记录移除前状态。
 
 ## 2026-10-26 新版 Windows EXE 与 WebUI 全面检查
 
@@ -573,7 +573,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 同日独立客户端对照：Windows 系统 `curl 8.21.0 / Schannel` 通过 `--resolve` 固定相同地址，保留原域名、SNI 和证书校验，使用 `--noproxy '*'` 禁用 curl 显式代理。Kiva IPv4 返回 200/5,992,687 字节，三个 Kiva IPv6 均 TCP 建连后 TLS 失败（curl 35）；另一个入口 `api.udon.dance` 的固定 IPv6 返回 200/2,885,371 字节。结果独立于 SWD 和 Go TLS 实现，指向 Kiva 的 IPv6 服务或途中链路；未排除本机透明网络组件，不能仅凭 EOF 将根因定为上游服务器。证据为 `ipv6-curl-comparison.log`。
 
-本次源副本和目标都在同一卷，验证了同盘导入；不是新增跨卷、源文件清理或游戏播放证据。未提交、未推送。
+本次源副本和目标都在同一卷，验证了同盘导入；不是新增跨卷、源文件清理或游戏播放证据。
 
 ### 同日补充：清单冷态候选回退修复
 
@@ -583,7 +583,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - Console 整包首轮仅新增模式测试因夹具漏填 SOCKS5 地址失败，补齐夹具后新增检查通过；第二轮整包仅未修改的 `TestCustomConfigurationsKeepIndependentStateAfterMove` 在目录重命名时报 Access denied，该用例随后独立连续五次通过。没有修改搬迁实现，也没有推断首次拒绝的具体原因；两轮整包失败和定向复验日志均保留，不记作一次完整无失败的整包运行。`go vet -tags=no_easytier ./internal/console` 通过。
 - 不创建 Monitor 的 `TestLiveCatalogCompleteBody` 请求真实 Kiva 清单，通过并取得 10,470 首歌曲，耗时约 2.97 秒，证明成功不依赖先运行网络检测；受控 TLS 用例负责证明失败后确实执行下一个通道。
 - 构建 `dev-ipv6-fallback-20261026`，源码基线 `fb473b00c00c0b6ad265eb0a876d45c7e662e37a` 加本轮未提交修改，构建时间 `2026-10-26T10:56:16.914Z`，EXE SHA256 `36D514C1AF59C93C71771AFBC6564393CA4DBA295B8D6AA4ABBE4487B1E6082C`。嵌入 WebUI 校验与桌面构建通过。独立目录首次导入三个真实视频副本，结果为导入 2、跳过 1、失败 0；Chrome 确认结果并重复导入，新增 0、跳过 3、失败 0。原文件、副本及两个目标文件的 MD5/大小一致，未清理源文件。
-- 网页正常退出后，验收进程和监听清空，hosts 哈希仍与前述基线一致，无托管条目。证据、构建及可还原工作区补丁位于忽略目录 `artifacts/ipv6-fallback-20261026/`。本次没有启动游戏、提交或推送。
+- 网页正常退出后，验收进程和监听清空，hosts 哈希仍与前述基线一致，无托管条目。证据、构建及可还原工作区补丁位于忽略目录 `artifacts/ipv6-fallback-20261026/`。本次没有启动游戏。
 
 #### 审查补充：保留冷态 Auto 直连路径
 
@@ -591,7 +591,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 发现条件改为无推荐且尚无直连候选，模式权限继续由现有提供者执行；强制代理即使调用发现接口也不查询本地目标 DNS。模式测试扩展为冷/热 DNS × direct/proxy/auto，检查六候选上限、Auto 代理额度、去重和强制代理隔离；既有超时预算、取消、TLS 失败及 Mihomo 回退定向检查通过。`go test -tags=no_easytier ./internal/console -count=1` 整包通过（64.64 秒），同包 `go vet`、嵌入 WebUI 校验及桌面构建通过。本次通过不覆盖或改写前述历史失败。
 
-替代首版构建的 `dev-ipv6-fallback-20261026-02` 仍以 `fb473b00c00c0b6ad265eb0a876d45c7e662e37a` 加未提交修改构建，时间 `2026-10-26T13:58:14.247Z`，EXE SHA256 `0B50EF2627BA5DAC2D0D49F8758106387FBD8E4518A72B1DD16661AA00F0A361`。本轮受控真实 HTTP 检查覆盖上述冷态 Auto 行为，未重跑公网视频导入或启动游戏。新构建、先失败后通过的日志及补丁保留在 `artifacts/ipv6-fallback-20261026/auto-review/`，旧 EXE 与证据保留；未提交、未推送。
+替代首版构建的 `dev-ipv6-fallback-20261026-02` 仍以 `fb473b00c00c0b6ad265eb0a876d45c7e662e37a` 加未提交修改构建，时间 `2026-10-26T13:58:14.247Z`，EXE SHA256 `0B50EF2627BA5DAC2D0D49F8758106387FBD8E4518A72B1DD16661AA00F0A361`。本轮受控真实 HTTP 检查覆盖上述冷态 Auto 行为，未重跑公网视频导入或启动游戏。新构建、先失败后通过的日志及补丁保留在 `artifacts/ipv6-fallback-20261026/auto-review/`，旧 EXE 与证据保留。
 
 ## 2026-10-26 需求分数显示与来源分组
 
@@ -603,7 +603,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 隔离真实 Console＋SQLite＋Edge 的 TestLibraryBrowser 与 TestLibraryAPIReadOnlyAndValidation 通过。真实库中 600 天前的一次需求显示为 0.10，排在初始分数 50.00 前；同一共享视频仍仅下载一次，收藏持久化、资源视图和删除流程正常，浏览器未报 JavaScript 错误。测试只访问受控回环上游，不使用个人运行库、游戏或系统 hosts。
 - pnpm --dir webui build、pnpm --dir webui check、嵌入清单、变更文件资源策略及 git diff --check 通过。已登记新生产 app.js 的精确大小 1,165,903 字节及 SHA256 c4c71425218647c4a1ca772df057a7cbe55e1e70d0c6c6fd5fad8eab828cfe88，保留既有构建例外。
 
-日志、截图及实际服务结果保存在 Git 忽略目录 artifacts/score-display-20261026/。浏览器结果覆盖受控服务和深浅主题，不外推为屏幕阅读器、系统 DPI 或游戏播放验收；本次无新增 VRC 专属风险。未替换运行中的程序，未提交或推送。
+日志、截图及实际服务结果保存在 Git 忽略目录 artifacts/score-display-20261026/。浏览器结果覆盖受控服务和深浅主题，不外推为屏幕阅读器、系统 DPI 或游戏播放验收；本次无新增 VRC 专属风险。未替换运行中的程序。
 
 ## 2026-10-27 关闭页面后的后台开销优化
 
@@ -660,7 +660,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - `review-red-browser.txt`：导入运行期间打开重启确认框，随后收到外部退出通知，再确认时仍提交一次 restart。操作入口及确认后的检查都读取已有 `shutdown.current`，防止旧闭包继续提交并覆盖退出提示；无新增状态。包含该回归的生命周期、状态与文档导航三组共 24 项通过，见 `review-green-browser.txt`。
 - 最终生命周期、托盘与会话结束的定向 race 连续三轮通过，见 `review-green-final-race.txt`；相关三个 Go 包 vet、前端构建／类型检查／嵌入产物一致性及变更文件资源策略通过。前述完整包与浏览器结果按原范围保留，本轮针对审查影响范围复验。
 
-`live-review-final.txt`、`live-review-final-results.json` 记录最终读取／关闭实现的真实 Console＋Edge 双页面复验：托盘退出、网页退出、重启及强制结束四种场景均通过，正常退出码为 0，重启后两页恢复连接，异常结束不产生退出事件，没有页面脚本错误。采用同一源码基线加审查修复的新 `SWD-lifecycle-review-final.exe`，SHA256 为 `16297ec3527e6304f2dce410fd509adbb8b28705058cfaf12423847daf595f41`，替代上一节构建作为当前实现验证依据；旧构建、首次失败与中间复验均保留。使用相同隔离及清理边界，没有注销／关机、启动游戏或修改 hosts，未提交或推送。
+`live-review-final.txt`、`live-review-final-results.json` 记录最终读取／关闭实现的真实 Console＋Edge 双页面复验：托盘退出、网页退出、重启及强制结束四种场景均通过，正常退出码为 0，重启后两页恢复连接，异常结束不产生退出事件，没有页面脚本错误。采用同一源码基线加审查修复的新 `SWD-lifecycle-review-final.exe`，SHA256 为 `16297ec3527e6304f2dce410fd509adbb8b28705058cfaf12423847daf595f41`，替代上一节构建作为当前实现验证依据；旧构建、首次失败与中间复验均保留。使用相同隔离及清理边界，没有注销／关机、启动游戏或修改 hosts。
 
 ## 2026-10-27 曲库浏览器预览
 
@@ -678,7 +678,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 保留失败边界：沙箱内曾遇到原子重命名 handle 错误及 Edge 管道启动限制，改为沙箱外隔离执行后通过；未修改产品文件操作绕过限制。`live-test.log` 的首次联调错误是在跨源已被浏览器拦截时仍等待 HTTP 响应导致超时，修正观察断言后通过，未据此放宽后端同源要求。两条独立评审分别检查规范与需求，最终无遗留实质问题，评审本身不替代测试证据。
 
-本轮浏览器证据只覆盖合成 MP4、回环上游和本机 Edge，不代表所有官方视频的编码、音轨或公网通道均已验证；上游通道沿用已有机制。此功能及新增共享读取边界可由隔离服务和浏览器验证，没有新增必须依赖 VRC 的剩余项。没有启动游戏、修改 hosts、替换日常程序、提交或推送。
+本轮浏览器证据只覆盖合成 MP4、回环上游和本机 Edge，不代表所有官方视频的编码、音轨或公网通道均已验证；上游通道沿用已有机制。此功能及新增共享读取边界可由隔离服务和浏览器验证，没有新增必须依赖 VRC 的剩余项。没有启动游戏、修改 hosts、替换日常程序。
 
 ### 同日评审补充：地址规则复用与禁用说明
 
@@ -703,7 +703,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 首次定向检查在 Windows 沙箱内遇到原子替换 The handle is invalid，沙箱外复验通过。沙箱内浏览器用例开始即失败且 runner 未正常收尾，已中断并在沙箱外完成上述浏览器检查。首次 cacheproxy 整包还发现旧夹具仅修改天数、或未显式启用明细采集，导致延迟覆盖与来源明细断言失败；已将相关夹具改为明确的模式并复跑整包通过，未修改产品默认值绕过检查。
 
-浏览器使用内存 API，后端使用隔离 SQLite 与回环 HTTP；本次不涉及需 VRC 才能判断的播放行为。未运行游戏、修改 hosts、修改用户配置、提交或推送。
+浏览器使用内存 API，后端使用隔离 SQLite 与回环 HTTP；本次不涉及需 VRC 才能判断的播放行为。未运行游戏、修改 hosts、修改用户配置。
 
 ## 2026-10-27 首次建库的 VRCX 导入建议
 
@@ -716,7 +716,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 保留失败：`backend.log` 中首次沙箱检查遇到 Windows 原子替换 `The handle is invalid`；`browser.log`、`browser-probe.log` 的沙箱浏览器启动失败且未正常收尾，已中断，再在沙箱外用相同隔离入口验证。`browser-outside.log` 首轮为 47/49，其中两项因测试文本同时匹配 Toast 与读屏播报而失败；改为按具名通知定位后 VRCX 全部通过，未修改产品绕过断言。首张窄屏截图捕获到导航关闭动画，复验截图禁用动画并等待页面就绪后重新检查。
 
-本次无需 VRC 验证；未运行游戏、修改系统 hosts、提交或推送。
+本次无需 VRC 验证；未运行游戏、修改系统 hosts。
 
 ### 同日补充：启动页右下角 Toast
 
@@ -733,7 +733,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 后端定向检查通过，覆盖首次建库、已有空库、重启、首次统计写入、忽略持久化、普通设置保存与忽略失败重试；原有 VRCX 读取门禁、覆盖竞态及同令牌重试继续通过。日志为 `artifacts/vrcx-suggestion/persistence-backend.log`。
 - 浏览器 VRCX 22 项全部通过，新增重启后空库保留建议但无 Toast、现有状态刷新撤去建议、忽略失败重试；其余导入、覆盖确认、通知与窄屏回归继续通过。日志与截图为 `persistence-browser.log`、`persistence-browser/`。
 - 真实 Console＋Edge 的首次建库、重启后空库两种场景均通过：确认前仅 detect，前者有 Toast，后者直接在曲库保留建议；明确导入后实际写入 2 首歌曲，刷新不再提示，手动覆盖取消／确认仍通过。证据为 `persistence-real-browser.log` 及 `persistence-real-browser/{first-run,reopened}/`，仅使用临时合成 SQLite，没有读取个人历史或启动视频引擎。
-- 类型、构建产物逐字节一致性、嵌入资源清单与 diff 检查通过。本次无需 VRC 验证；未修改系统 hosts，未提交或推送。以上证据目录均位于忽略目录 `artifacts/vrcx-suggestion/`；前述历史失败记录保留。
+- 类型、构建产物逐字节一致性、嵌入资源清单与 diff 检查通过。本次无需 VRC 验证；未修改系统 hosts，以上证据目录均位于忽略目录 `artifacts/vrcx-suggestion/`；前述历史失败记录保留。
 
 ## 首页需求视图常驻（2026-10-27）
 
@@ -747,18 +747,18 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 失败记录保留：首次后端沙箱检查出现 Windows 原子替换 `The handle is invalid`，相同隔离入口在沙箱外通过。浏览器首轮 65/66，失败为测试将项目的十进制 MB 按二进制计算；修正断言后通过。首次真实联调的旧滚动步骤不能保证新布局离开视野，改为明确滚动后通过。首轮 vet 指出新增并发测试在子协程使用 `Fatal`，改为线程安全的 `Errorf` 后复验通过。对应原始日志为 `backend-focused.log`、`browser.log`、`backend-outside.log`、`vet.log`，没有修改产品行为绕过这些断言。
 
-以上为隔离下载与界面验证，不据此外推 VRC 帧时间或公网吞吐。本次无需新增 VRC 验证；未运行游戏、修改系统 hosts、提交或推送。
+以上为隔离下载与界面验证，不据此外推 VRC 帧时间或公网吞吐。本次无需新增 VRC 验证；未运行游戏、修改系统 hosts。
 
 ### 同日补充：视频块需求紧凑布局
 
-按用户反馈移除手动暂停复选框及其状态，保留页面／面板不可见时的自动暂停；上方加速卡片未调整。面板改名「视频块需求」，使用 Fluent medium Card 与 CardHeader，将速度、连接状态、容量信息和展开箭头尽量并排；箭头复用 small Button 和 Tooltip，支持悬浮、聚焦、Enter／Space 与展开语义。图例和块大小控件同排，窄屏自然换行。默认收起的时间轴移至需求视图上方，去掉需求排序／空档说明；需求行随块大小计算高度，虚拟列表使用同一行高，默认由 128 px 缩至 100 px。上述规则替代本节前面的手动暂停及时间轴位于需求下方的布局。
+移除手动暂停复选框及其状态，保留页面／面板不可见时的自动暂停；上方加速卡片未调整。面板改名「视频块需求」，使用 Fluent medium Card 与 CardHeader，将速度、连接状态、容量信息和展开箭头尽量并排；箭头复用 small Button 和 Tooltip，支持悬浮、聚焦、Enter／Space 与展开语义。图例和块大小控件同排，窄屏自然换行。默认收起的时间轴移至需求视图上方，去掉需求排序／空档说明；需求行随块大小计算高度，虚拟列表使用同一行高，默认由 128 px 缩至 100 px。上述规则替代本节前面的手动暂停及时间轴位于需求下方的布局。
 
 - 最终 55 项浏览器回归通过，覆盖两行控件对齐、箭头提示和键盘操作、时间轴顺序、自动暂停／恢复、固定详情、速度不重绘、共享计数、导航、重连及虚拟列表；最小 4 px 和最大 36 px 块尺寸均完整显示。已检查 1280×800、1366×768 浅色、390px 深色及 320px forced-colors 布局，无横向溢出。两条需求的示例中，1366×768 下整个需求面板在首屏内；这不保证任意需求数或长异常内容下整页无需滚动，页脚仍可能在首屏以下。
 - 真实 Console＋调度器＋回环 Range＋Edge 联调通过，覆盖实际下载、来源详情、速度出现／归零、整面板离开视野后零 SSE、恢复固定详情、保护转换、收起时间轴保留主订阅及切页释放订阅。前端构建、类型和嵌入产物一致性检查通过。本轮未修改下载后端，不重复上轮已通过的 race 检查。
 
 证据在忽略目录 `artifacts/home-demand-compact/`：`browser-verified.log`、`browser-verified/` 截图、`live.log`、`live/result.json`、`build-final.log` 和 `check.log`。首轮 `browser.log` 为 53/54，1366×768 下需求面板底部超出 21 px；保留失败截图，收紧需求行后通过。第二轮 `browser-final.log` 为 54/55，一次隐藏页面后夹具仍报告 1 条订阅；原用例仅等待块标题，未确认详情事件已到达，单独重复五次均通过（`visibility-recheck.log`）。随后明确等待详情事件和两条订阅建立再隐藏，最终完整回归通过，原始失败保留，未据此断言偶发根因或修改产品订阅逻辑。
 
-本轮无需 VRC 验证，未运行游戏或修改 hosts；未提交或推送。
+本轮无需 VRC 验证，未运行游戏或修改 hosts。
 
 ### 同日补充：百分比与时间轴纵向空间
 
@@ -771,7 +771,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 证据位于 `artifacts/home-demand-axis-compact/`，包括 `browser-final.log`、`browser-final/`、`preview.log`、`preview/`、`live.log`、`live/result.json`、`build-final.log` 和 `check.log`。首次类型检查发现 D3 extent 回调返回值被推断为普通二维数组，补明确元组签名后通过。首轮浏览器结果 32/36 保留于 `browser.log`：三项还在断言已删除的说明文字，另一项因详情覆盖时间轴命中点而失败；更新失效断言并修正浮层避让后全部通过，原截图与错误上下文保留。
 
-本轮不需要 VRC 验证，未运行游戏、修改 hosts、提交或推送。
+本轮不需要 VRC 验证，未运行游戏、修改 hosts。
 
 ### 同日补充：连接徽章与画布留白
 
@@ -782,7 +782,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 证据位于忽略目录 `artifacts/home-demand-spacing/`：`browser-final.log`、`browser-final/`、`live.log`、`live/result.json`、`build.log` 和 `check.log`。首轮 `browser.log` 为 37/42，保留原日志与截图：四项新增断言同时匹配连接和选中块两处 status，修正为标题内状态；另一项固定详情覆盖了加入标题后右移的分层开关，改用聚焦后 Space 验证保留详情时的切换，普通指针切换仍由其他用例覆盖。未为测试变更浮层行为。
 
-本轮无需 VRC 验证，未运行游戏、修改 hosts、提交或推送。
+本轮无需 VRC 验证，未运行游戏、修改 hosts。
 
 ## 2026-10-27 普通导航与曲库工具焦点
 
@@ -809,7 +809,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 证据保存在忽略目录 `artifacts/logging-controls/`：`go-tests.log`、`log-regressions-final.log`、`browser.log`、`browser/`、`live.log`、`live/`、`build-final.log`、`check.log`、`vet-final.log`。运行遵循现有 Windows 隔离临时目录入口；涉及配置替换和 Edge 的测试使用普通用户权限，未修改产品逻辑规避沙箱限制。
 
-未做日志开关前后的性能 A/B，不宣称吞吐或帧率收益。本轮不需要 VRC 验证，未运行游戏、修改 hosts、提交或推送。
+未做日志开关前后的性能 A/B，不宣称吞吐或帧率收益。本轮不需要 VRC 验证，未运行游戏、修改 hosts。
 
 ## 2026-10-27 恢复首页房间队列状态
 
@@ -918,7 +918,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 验证使用内存 API 与实际编译资源，范围为页面布局和交互；本次不改变后端导入或下载机制，无需 VRC 验收。
 
-同轮按用户反馈，将三个入口恢复到“按歌曲／按资源”标签行右侧，替代上述页首独立按钮行；页末常驻模块及定位行为保持不变。桌面与窄屏的两项定位回归通过，已检查对应截图；宽屏按钮与标签同排靠右，窄屏自然换行且无横向溢出。前端 `build`、`check` 和差异检查通过。补充日志为 `artifacts/library-inline-modules/toolbar-navigation.log`，截图在同目录的 `toolbar/` 下。
+同轮将三个入口恢复到“按歌曲／按资源”标签行右侧，替代上述页首独立按钮行；页末常驻模块及定位行为保持不变。桌面与窄屏的两项定位回归通过，已检查对应截图；宽屏按钮与标签同排靠右，窄屏自然换行且无横向溢出。前端 `build`、`check` 和差异检查通过。补充日志为 `artifacts/library-inline-modules/toolbar-navigation.log`，截图在同目录的 `toolbar/` 下。
 
 ## 2026-10-28 导入与下载的存储预算提示
 
@@ -943,7 +943,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 原始失败与成功日志保存在忽略目录 artifacts/table-standardization/。首轮沙箱测试遇到 PowerShell 启动／回环监听／原子替换限制，随后使用同一隔离临时目录入口在普通用户权限下运行。后端新增夹具最初错误地假定预置资源大小为空、歌曲不含内置初始分数，改为显式未知大小及独立歌曲 ID 后通过；首次真实联调的旧固定初始分数断言也已按实际数据修正。浏览器首轮 58/66：两项揭示加载时排序按钮丢失焦点，使用 Fluent disabledFocusable 修复；六项依赖移除的旧样式选择器，改用表格辅助名称。失败日志保留，未修改业务排序规则迁就夹具。
 
-主要证据为 go-targeted-passed.log、go-vet.log、browser-final.log、browser-history-layout-final.log、browser-resource-final.log、browser-history-evidence.log、history-final/、live-browser-final.log，以及 live-library/、live-history/ 的截图与 results.json。复用既有完整浏览器回归中六项无关失败的基线对照，未宣称全量回归通过。上述验证不证明大规模数据库的排序性能或 VRC 播放效果；本次无需新增 VRC 验收项，未启动游戏、修改系统 hosts、替换运行中程序、提交或推送。
+主要证据为 go-targeted-passed.log、go-vet.log、browser-final.log、browser-history-layout-final.log、browser-resource-final.log、browser-history-evidence.log、history-final/、live-browser-final.log，以及 live-library/、live-history/ 的截图与 results.json。复用既有完整浏览器回归中六项无关失败的基线对照，未宣称全量回归通过。上述验证不证明大规模数据库的排序性能或 VRC 播放效果；本次无需新增 VRC 验收项，未启动游戏、修改系统 hosts、替换运行中程序。
 
 
 ### 同日补充：按内容分配列宽
@@ -955,7 +955,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 证据位于忽略目录 artifacts/table-auto-columns/：browser-final.log、history-final.log、header-final.log、对应截图目录、measure-verified.log、measurements.json 与布局截图、build-verified.log、check-verified.log。首轮 browser.log 为 58/67，普通 CSS 被 Fluent 默认固定布局覆盖，造成列重叠；改为 Table 的显式 style 后通过，保留原失败截图与日志。测量脚本初次受到隔离入口单参数拆分影响，另一次因错误等待 dialog 而中止；改用显式 Node 参数及实际 PopoverSurface 后通过，measure.log 和 measure-interrupted.log 保留。
 
-这些检查证明前端布局与交互，不新增 VRC 验收项；未启动游戏、修改系统 hosts、替换运行中的程序、提交或推送。
+这些检查证明前端布局与交互，不新增 VRC 验收项；未启动游戏、修改系统 hosts、替换运行中的程序。
 
 
 ### 同日补充：表头文字提示
@@ -964,7 +964,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 曲库、历史和排序浏览器回归 **55 项通过**；统一非排序表头的焦点槽位后，最终 **7 项**定向复核通过。既有用例补充四个文字提示的悬停、聚焦、可访问描述、Escape 和原图标缺席检查，保留排序、分页及操作回归；历史覆盖 1280px 浅色、390px 深色和 320px 强制颜色。已检查曲库和历史截图，图标占位已清理，表头与内容保持紧凑。前端 build/check 和差异检查通过，嵌入资源已重建。
 
-证据保存在 artifacts/table-header-hints/ 的 browser.log、browser/、final.log、final/、build-final-verified.log 和 check-final-verified.log。首次类型检查要求显式声明多元素按钮槽位的渲染签名，并将 Tooltip 内容包装为 React 元素；修正后通过，原日志 build.log、build-final.log 保留。本次仅调整前端提示方式，无需 VRC 验收；未提交或推送。
+证据保存在 artifacts/table-header-hints/ 的 browser.log、browser/、final.log、final/、build-final-verified.log 和 check-final-verified.log。首次类型检查要求显式声明多元素按钮槽位的渲染签名，并将 Tooltip 内容包装为 React 元素；修正后通过，原日志 build.log、build-final.log 保留。本次仅调整前端提示方式，无需 VRC 验收。
 
 ### 2026-10-28：首页加速状态下方提示
 
@@ -984,7 +984,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 - 历史与表格相关 Edge 浏览器回归 **17 项通过**，覆盖筛选、分页、排序焦点、刷新、失败保留旧结果及窄屏表格。
 - 独立 Edge 内存夹具检查 1280／1536／390／320px，覆盖浅色、深色和强制颜色。两种桌面宽度下，两组摘要均为 24px 单行，标题与数值为普通 14px／400 字重；时间范围等次级文字为 12px。七个文字提示均通过悬停、聚焦、描述与 Escape 检查，两个刷新图标可用键盘触发各自读取，字节和样本数不常驻。四种宽度均无页面横向溢出，已检查桌面与深色窄屏截图。
 
-证据位于忽略目录 `artifacts/history-summary/`：`browser.log`、`browser/`、`probe.mjs`、`probe-verified.log`、`measurements.json` 与四张 `summary-*.png`。最初沙箱进程初始化失败，后续在沙箱外运行检查；首次探针被测试临时目录入口的单参数拆分影响，Node 将路径拆为 `a`，原失败保留在 `probe.log`，显式提供 Node 参数后通过。没有改动产品行为绕过验证失败。本次仅验证前端展示与交互，不新增 VRC 验收项；未启动游戏、修改 hosts、替换运行中程序、提交或推送。
+证据位于忽略目录 `artifacts/history-summary/`：`browser.log`、`browser/`、`probe.mjs`、`probe-verified.log`、`measurements.json` 与四张 `summary-*.png`。最初沙箱进程初始化失败，后续在沙箱外运行检查；首次探针被测试临时目录入口的单参数拆分影响，Node 将路径拆为 `a`，原失败保留在 `probe.log`，显式提供 Node 参数后通过。没有改动产品行为绕过验证失败。本次仅验证前端展示与交互，不新增 VRC 验收项；未启动游戏、修改 hosts、替换运行中程序。
 
 同日按反馈进一步精简：移除摘要中的“累计”和标题中的“按块折算”，折算口径保留在原文字提示中；“最近 72 小时”及数据不足状态移至“首正文等待时间”的提示，替代上轮常驻时间范围的展示规则。历史浏览器回归 **14 项通过**，已有用例同步改为悬停标题检查时间范围。前端 build/check 与差异检查通过，内嵌资源再次重建；本轮证据为 `artifacts/history-summary/refined-browser.log` 与 `refined-browser/`，上轮证据保留。
 
@@ -1005,7 +1005,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 过程失败保留：首次新增 Go 条款用例把入口预期写成 409，真实统一门禁返回 428，已按现有门禁修正。浏览器新增断言先后同时匹配详情按钮／Popover，以及 Toast／读屏播报节点，产生 strict-mode 失败；已用明确的 group 和 listitem 角色修正，未改产品组件规避断言。失败截图和上下文保留在 `artifacts/history-events/browser/`、`browser-final/`，专项通过输出目录为 `browser-verified/`、`connection-verified/`。额外验证 HTTP 503 时原生 EventSource 会终止重连，因此该状态提示重新查询；普通断线仍提示并自动重连。
 
-本轮只涉及列表展示和数据通知，无需新增 VRC 验收项。未启动游戏、修改 hosts、替换运行中程序、提交或推送。
+本轮只涉及列表展示和数据通知，无需新增 VRC 验收项。未启动游戏、修改 hosts、替换运行中程序。
 
 ## 2026-10-28 曲库与历史交互的完整回归
 
@@ -1041,7 +1041,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 ## 2026-10-28 曲库列与图标操作
 
-按用户要求将歌曲表前四列拆为 ID、名称、歌手、舞者/社团，需求分数显示名改为“热度”。偏好复用既有三态存储，通过受控 Fluent ToggleButton 提供红心收藏与屏蔽按钮：互斥选择，再次点击取消，都不选为普通。预览与下载使用 small subtle 图标按钮，保留 Tooltip、无障碍名称、禁用规则和预览焦点恢复；选中态、尺寸和键盘行为使用组件默认实现，依据 [Fluent Button 指南](https://fluent2.microsoft.design/components/web/react/core/button/usage)。颜色只在普通主题覆盖图标，forced-colors 使用组件默认系统色。完整人员资料仍可在详情中查看，长文本受限，窄屏表格独立横向滚动。
+将歌曲表前四列拆为 ID、名称、歌手、舞者/社团，需求分数显示名改为“热度”。偏好复用既有三态存储，通过受控 Fluent ToggleButton 提供红心收藏与屏蔽按钮：互斥选择，再次点击取消，都不选为普通。预览与下载使用 small subtle 图标按钮，保留 Tooltip、无障碍名称、禁用规则和预览焦点恢复；选中态、尺寸和键盘行为使用组件默认实现，依据 [Fluent Button 指南](https://fluent2.microsoft.design/components/web/react/core/button/usage)。颜色只在普通主题覆盖图标，forced-colors 使用组件默认系统色。完整人员资料仍可在详情中查看，长文本受限，窄屏表格独立横向滚动。
 
 - 前端 `build`、`check` 通过，内嵌资源已重建，最终 `app.js` 的字节数与 SHA256 匹配构建清单并登记精确例外；历史资源检查无错误，保留原有体积提醒；`git diff --check` 通过。
 - Edge 定向套件 `library.spec.ts data-tables.spec.ts page-feedback.spec.ts --workers=3`：**61/61 通过**。覆盖既有预览／下载与查询排序、偏好双向切换及分别取消、失败保留旧状态、Enter／Space 和焦点、离页反馈、受保护文件与视频盘不可用。不是完整浏览器套件重跑。
@@ -1054,7 +1054,7 @@ Go 全包 go test -tags=no_easytier ./cmd/... ./internal/... 及 go vet 同范�
 
 ## 2026-10-28 曲库 ID 排序与屏蔽图标辨识
 
-ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter／Space 与焦点；首次升序，继续点击切换方向，排序变化回到第一页。复用后端既有数值排序，不新增接口或只重排当前页。按用户最终确认，未屏蔽显示 CircleRegular 空心圆，已屏蔽显示 ProhibitedRegular 圆圈斜线；使用主题正文色与默认 ToggleButton 背景，保留互斥和可取消选择。反色背景与圆形减号均不是最终方案。
+ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter／Space 与焦点；首次升序，继续点击切换方向，排序变化回到第一页。复用后端既有数值排序，不新增接口或只重排当前页。未屏蔽显示 CircleRegular 空心圆，已屏蔽显示 ProhibitedRegular 圆圈斜线；使用主题正文色与默认 ToggleButton 背景，保留互斥和可取消选择。反色背景与圆形减号均不是最终方案。
 
 - 最终屏蔽交互及 320/390/1280px 布局回归 **4/4 通过**，截图包含 forced-colors、深浅主题和横向滚动后的按钮。此前 ID／资源排序、偏好操作、布局和反馈专项 **7/7 通过**；最终仅替换了图标。
 - 真实 SQLite 的 TestLibrarySortDirectionsAcrossPages 增补 ID 的双向跨页覆盖；TestLibraryBrowser 通过实际 Console 接口验证 ID 升降序、排序箭头与键盘焦点。**2/2 通过**。
@@ -1110,7 +1110,7 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 
 过程失败保留：浮层首次 fixed／autoSize 修复通过原有位置断言，但内置浏览器发现长资料的自动聚焦链接位于内部滚动区外；补充更长资料并要求链接完整可见后，320px 用例失败、390px 通过，加入组件原生避让选项后通过。没有删除历史失败或将部分可见当成完整可用。
 
-证据位于忽略目录 `artifacts/webui-interaction-fix/`：`before.log`、`focus.log`、`focused-link-fully-before.log` 及对应目录保留失败；`browser-verified.log`／`browser-verified/` 为最终 129 项结果，`live/` 保存中间检查，`live-final/observations.json`、`details-320.jpg`、`details-390.jpg`、`details-1280.jpg` 和 `service.log` 保存真实服务复核。检查后关闭隔离服务并恢复内置浏览器视口；本轮未启动 VRC、修改系统 hosts、用户库或运行中 EXE，不新增 VRC 台账项。验证结束时尚未提交或推送。
+证据位于忽略目录 `artifacts/webui-interaction-fix/`：`before.log`、`focus.log`、`focused-link-fully-before.log` 及对应目录保留失败；`browser-verified.log`／`browser-verified/` 为最终 129 项结果，`live/` 保存中间检查，`live-final/observations.json`、`details-320.jpg`、`details-390.jpg`、`details-1280.jpg` 和 `service.log` 保存真实服务复核。检查后关闭隔离服务并恢复内置浏览器视口；本轮未启动 VRC、修改系统 hosts、用户库或运行中 EXE，不新增 VRC 台账项。验证结束时尚
 
 ## 2026-10-28 统一 Windows 路径选择
 
@@ -1121,7 +1121,7 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - `go test -tags=no_easytier ./internal/desktop ./internal/console -run 'PathPicker|FolderDialog|VRCX|Storage' -count=1 -v` 经隔离临时目录入口在沙箱外通过。包括六种用途的鉴权和无写入选择、全局单窗口、请求／退出取消、Windows COM 定义和 DPI 恢复；启用 `SWD_STORAGE_BROWSER_EVIDENCE`、`SWD_VRCX_BROWSER_EVIDENCE` 的真实 Console／SQLite／Edge 联调通过，确认保存前不切换位置、重新打开后应用位置，以及已有数据库拒绝覆盖。联调替换了选择器返回值，不代表实际点击系统窗口。个人 VRCX 源库测试未启用。
 - 原生窗口交互尚未验完。沙箱内创建窗口句柄失败；沙箱外独立探针确认调用到 `IFileDialog.Show`，且窗口在当前桌面可见，但桌面工具未列出附属窗口，首次交互测试超时。显式调用 `ShowWindow` 的诊断副本未改变工具发现结果，未据此改动产品实现。随后改用独立 Edge 作为所属窗口，computer-use 因无法可靠确认测试页 URL 而停止；没有继续自动点击。剩余为实际打开文件、选择新文件名、选择目录与取消的返回结果核对，属于 Windows 环境验证，不进入 VRC 台账。
 
-证据保存在忽略目录 `artifacts/path-picker-20261028/`：`browser.log`、`backend-live.log`、`storage-live/`、`vrcx-live/`、`native-tool-discovery-failure.log`、`native-browser-owner.log` 和 `probe-visible-err.txt`。沙箱首次 Edge 启动失败的上下文保留在 `sandbox-browser/`；后端首次遇到已知的 `renameat: The handle is invalid` 限制，改在沙箱外按同一测试入口通过，没有修改文件操作绕过限制。本轮未启动 VRC、修改 hosts、使用个人资料库、提交或推送。
+证据保存在忽略目录 `artifacts/path-picker-20261028/`：`browser.log`、`backend-live.log`、`storage-live/`、`vrcx-live/`、`native-tool-discovery-failure.log`、`native-browser-owner.log` 和 `probe-visible-err.txt`。沙箱首次 Edge 启动失败的上下文保留在 `sandbox-browser/`；后端首次遇到已知的 `renameat: The handle is invalid` 限制，改在沙箱外按同一测试入口通过，没有修改文件操作绕过限制。本轮未启动 VRC、修改 hosts、使用个人资料库。
 
 ## 2026-10-28 路径框直接选择、恢复默认与原生图标
 
@@ -1132,7 +1132,7 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - 原生测试在自己的 STA 消息循环内操作实际 IFileDialog，确认已有数据库、新文件名、普通文件、目录和取消的返回值，并逐像素核对标题栏小图标与内嵌 SWD ICO。**五种场景连续三轮通过**，覆盖上一节未完成的原生返回值检查；确认原生选择本身不改写已有文件或创建新文件。浏览器联调仍注入选择结果，未宣称整条浏览器到系统窗口链路由同一个自动化工具驱动。
 - 前端 `check`、两个 Go 包的 `vet`、内嵌资源校验和桌面构建通过，开发产物为 `artifacts/path-field-20261028/SWD.exe`。测试经 `scripts/with-test-temp.ps1` 使用隔离临时目录；原生与 Edge 检查沿用已确认可用的沙箱外环境。
 
-证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库、提交或推送。
+证据位于忽略目录 `artifacts/path-field-20261028/`：`browser-final.log`、`browser-final/`、`backend-final.log`、`storage-live-final/`、`vrcx-live-final/`、`database-selection.log`、`native-ready.log` 和 `build.log`。过程失败保留：浏览器测试最初向只读框输入了空格而触发选择器，另有字段标签匹配到恢复按钮，改为实际所需的字母输入与精确 textbox 查询后通过；原生测试先遇到内联图标超出命令长度、探针局部变量编译冲突，分别改为标准输入和独立变量名；窗口初始化期间曾读到不一致图标，探针增加最多三秒的初始化等待后连续三轮通过，产品未增加等待或补改系统窗口。未启动 VRC、改 hosts、使用个人数据库。
 
 ## 2026-10-28 CI 通知与模态背景的语义定位
 
@@ -1166,7 +1166,7 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - 原诊断场景再次通过真实 Console、SQLite、自动启动及 Edge 内嵌 WebUI 验证，未模拟 API。通过已有同步日志处理器延长启动窗口，页面显示蓝色「视频服务：启动中」，无端口占用 tooltip；放行后下一轮状态刷新显示绿色「运行中」。启动中与完成后的实际响应均无冲突字段，浏览器无脚本错误，两张截图已检查。未测原用户安装目录自然启动的命中率或持续时间，不需要 VRC 验收。
 - 内嵌前端资源校验与 Go 1.27.3 桌面构建通过，产物为 `artifacts/startup-port-fix-20261028/SWD.exe`。第一次构建因沙箱 PATH 中 Go 1.27.1 不满足项目要求而失败；仅为本次命令显式选择已安装的 Go 1.27.3 后成功，未修改系统环境或放宽版本要求。
 
-证据位于忽略目录 `artifacts/startup-port-fix-20261028/`：`before-fix.log`、`targeted.log`、`console-desktop.log`、`race.log`、`browser.log`、`browser-result.json`、`startup-pending.png`、`startup-running.png` 与构建日志；修复前的三次确定性复现和红色截图保留在 `artifacts/startup-port-diagnosis-20261028/`。临时诊断入口只存在于忽略目录的测试 overlay，产品代码未加入探针。未启动真实 SWD 或 VRC、修改系统 hosts、替换用户 EXE、提交或推送。
+证据位于忽略目录 `artifacts/startup-port-fix-20261028/`：`before-fix.log`、`targeted.log`、`console-desktop.log`、`race.log`、`browser.log`、`browser-result.json`、`startup-pending.png`、`startup-running.png` 与构建日志；修复前的三次确定性复现和红色截图保留在 `artifacts/startup-port-diagnosis-20261028/`。临时诊断入口只存在于忽略目录的测试 overlay，产品代码未加入探针。未启动真实 SWD 或 VRC、修改系统 hosts、替换用户 EXE。
 
 ## 2026-10-29 首次运行的视频导入建议
 
@@ -1177,21 +1177,21 @@ ID 列接入共用 SortHeader，保留 Fluent 排序箭头、aria-sort、Enter�
 - `SWD_VIDEO_IMPORT_BROWSER_EVIDENCE` 启用的真实 Console／SQLite／Edge 联调通过，使用临时 hosts 夹具，不模拟业务 API。检查首次显示、跳转、刷新、新标签页、关闭后重新打开配置，源目录仍为空，未触发选择目录、加速或导入，hosts 字节不变。前端构建、`check`、Console `go vet` 和差异格式检查通过。
 - 过程失败保留：首轮 Go 用例误删已由子测试清理的临时文件，改为在父测试准备读取失败夹具；首次联调脚本用 `browser.newPage()` 的独占上下文创建第二标签页，被 Playwright 拒绝，改为显式共享 `browser.newContext()` 后通过。均为验证代码问题，未据此放宽产品行为。
 
-证据位于忽略目录 `artifacts/video-import-suggestion/`：`backend.log`、`backend-final.log` 保留失败，`backend-verified.log` 为最终后端及真实浏览器结果，`browser.log`、`browser-final.log` 为浏览器回归，`notice-*.png` 和 `live/` 为最终截图及联调回执。测试均经隔离临时目录入口；未修改系统 hosts、使用个人视频、启动 VRC、提交或推送。此提示无必须依赖 VRC 的剩余验证项。
+证据位于忽略目录 `artifacts/video-import-suggestion/`：`backend.log`、`backend-final.log` 保留失败，`backend-verified.log` 为最终后端及真实浏览器结果，`browser.log`、`browser-final.log` 为浏览器回归，`notice-*.png` 和 `live/` 为最终截图及联调回执。测试均经隔离临时目录入口；未修改系统 hosts、使用个人视频、启动 VRC。此提示无必须依赖 VRC 的剩余验证项。
 
 ### 同日修订：改为右下角通知
 
-按用户反馈，正文 MessageBar 已替换为共用通知组件的右下角 Toast，撤回正文间距改动。保留「前往导入」「不再提示」，右上角关闭按钮使用相同确认机制；提示等待用户处理，不自动超时。共用组件支持在原 Toast 内更新等待状态和错误，不在状态刷新时重新创建通知或丢失操作焦点。前述截图和 18／6 项结果对应修订前的正文提示，当前呈现以本节和[内容约定](../webui-content.md#内容与交互)为准。
+正文 MessageBar 已替换为共用通知组件的右下角 Toast，撤回正文间距改动。保留「前往导入」「不再提示」，右上角关闭按钮使用相同确认机制；提示等待用户处理，不自动超时。共用组件支持在原 Toast 内更新等待状态和错误，不在状态刷新时重新创建通知或丢失操作焦点。前述截图和 18／6 项结果对应修订前的正文提示，当前呈现以本节和[内容约定](../webui-content.md#内容与交互)为准。
 
 Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过**，包含右下角位置、正文无占位、两种关闭入口、错误重试及跳转；1280px 浅色与 390px 深色截图已检查。真实 Console／SQLite／Edge 的刷新、新标签页及重新打开联调再次通过，前端构建、`check` 与差异格式检查通过。
 
-本轮证据位于 `artifacts/video-import-toast/`。`browser.log`、`browser-final.log` 保留原测试端口被占用的失败；只读核对发现现有服务器资源哈希不同，未复用或停止该进程，使用源码夹具的临时副本和独立端口完成测试，结果为 `browser-isolated.log`。`live.log` 保留将可访问名称误当作 `aria-label` 属性的定位失败，改为按角色和可访问名称定位后，`live-final.log` 通过。最终截图为 `notice-1280.png`、`notice-390.png`，真实服务回执在 `live/`；hosts 规则和后端逻辑未改，未修改系统 hosts、提交或推送。
+本轮证据位于 `artifacts/video-import-toast/`。`browser.log`、`browser-final.log` 保留原测试端口被占用的失败；只读核对发现现有服务器资源哈希不同，未复用或停止该进程，使用源码夹具的临时副本和独立端口完成测试，结果为 `browser-isolated.log`。`live.log` 保留将可访问名称误当作 `aria-label` 属性的定位失败，改为按角色和可访问名称定位后，`live-final.log` 通过。最终截图为 `notice-1280.png`、`notice-390.png`，真实服务回执在 `live/`；hosts 规则和后端逻辑未改，未修改系统 hosts。
 
 ### 同日修订：VRCX 通知等待用户处理
 
 「检测到 VRCX 数据库」复用通知组件的持久显示选项，取消原 7 秒超时，等待用户点击「前往曲库」或关闭；进入曲库后撤去通知、同标签页刷新不重复及页内导入建议规则沿用原行为。原超时用例已更新：浏览器虚拟时钟推进 12 秒后提示仍显示，切到历史页仍保留，关闭并返回加速页不重复。VRCX 与视频导入提示的 Edge 回归 **30/30 通过**，前端构建、`check`、差异格式检查及桌面构建通过。此处替代此前关于 VRCX Toast 自动超时的描述，其他普通通知保持原超时规则。
 
-证据在 `artifacts/vrcx-toast-persistent/` 的 `browser.log`、`build.log`、`build-info.json`；本轮只调整前端显示期限，未重跑未受影响的后端和真实 Console 联调。新测试 EXE 为 `artifacts/startup-notices-20261029/SWD.exe`，版本 `dev-startup-notices-20261029`，只执行 `-build-info` 核对身份，没有创建测试配置或启动应用服务。未修改系统 hosts、提交或推送。
+证据在 `artifacts/vrcx-toast-persistent/` 的 `browser.log`、`build.log`、`build-info.json`；本轮只调整前端显示期限，未重跑未受影响的后端和真实 Console 联调。新测试 EXE 为 `artifacts/startup-notices-20261029/SWD.exe`，版本 `dev-startup-notices-20261029`，只执行 `-build-info` 核对身份，没有创建测试配置或启动应用服务。未修改系统 hosts。
 
 ## 2026-10-29 视频导入使用已有曲库
 
@@ -1205,7 +1205,7 @@ Edge 通知、条款、页面反馈、VRCX 及导入提示回归 **61/61 通过*
 
 ## 2026-10-29 覆盖率恢复紧凑布局
 
-按用户反馈，覆盖率恢复为百分比一行，已覆盖／当前清单总数移到标题 Tooltip；资源待识别或覆盖率不可计算时，在数值后显示 Fluent ErrorCircle 小图标，通过标准 Button／Tooltip 提供说明。统计口径和批量计数不变，现行显示规则见[曲库设计](../webui-design.md#曲库)。
+覆盖率恢复为百分比一行，已覆盖／当前清单总数移到标题 Tooltip；资源待识别或覆盖率不可计算时，在数值后显示 Fluent ErrorCircle 小图标，通过标准 Button／Tooltip 提供说明。统计口径和批量计数不变，现行显示规则见[曲库设计](../webui-design.md#曲库)。
 
 Edge 定向回归 **20/20 通过**，覆盖提示的悬停、Tab 聚焦、无障碍描述、Escape 关闭、异常恢复、未知清单、原有刷新／失败重试行为及清单版本。1280px 浅色、390px 深色和 320px forced-colors 检查通过：感叹号出现／消失不改变概览高度、预算位置或列表纵向位置，无页面横向溢出，截图已检查。前端构建、类型、嵌入资源一致性及差异格式检查通过。
 
@@ -1225,7 +1225,7 @@ Edge 定向回归 **20/20 通过**，覆盖提示的悬停、Tab 聚焦、无障
 
 ### 同日修订：初始化保持横线与原有位置
 
-前一版只断言了概览高度，后续对照截图发现“正在获取曲库”使预算发生横向位移；原 27 项通过不代表横向位置稳定。按用户反馈，数值恢复“—”，初始化状态、失败原因和自动重试时间放入既有小感叹号 Tooltip。实际获取时刷新箭头复用既有旋转及 `aria-busy`，等待重试时停止并恢复手动更新；系统要求减少动态效果时保持静止。后端初始化流程未改。
+前一版只断言了概览高度，后续对照截图发现“正在获取曲库”使预算发生横向位移；原 27 项通过不代表横向位置稳定。数值恢复“—”，初始化状态、失败原因和自动重试时间放入既有小感叹号 Tooltip。实际获取时刷新箭头复用既有旋转及 `aria-busy`，等待重试时停止并恢复手动更新；系统要求减少动态效果时保持静止。后端初始化流程未改。
 
 Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，在 1280px 浅色、390px 深色、320px forced-colors 下逐一比较初始化、等待重试、成功后的覆盖率／预算／操作按钮／列表横纵坐标与概览高度，全部相同；同时验证旋转开始与停止、减少动态效果、悬停／键盘说明、Escape、提示不超出视口及自动显示覆盖率。新截图已检查，位于 `artifacts/catalog-initialization-ui-20261029/browser/`，结果为同目录上级的 `browser.log`。前端构建、类型、嵌入资源一致性和差异格式检查通过；本次仅修订前端显示，沿用前节未受影响的后端证据。
 
@@ -1240,7 +1240,7 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 
 失败与复核保留在同一忽略目录 `artifacts/block-cache-20261030/`：`backend-initial.log` 记录沙箱内 Console 初始化的已知 `renameat` 句柄限制；沙箱外 `backend.log` 中 `cacheproxy` 全部通过，Console 整包仅未修改的 `TestCustomConfigurationsKeepIndependentStateAfterMove` 在目录重命名时报 Access denied，该项独立三次复核通过（`layout-recheck.log`），不推断拒绝的具体原因，也不将这轮整包记为全部通过。首次真实浏览器联调沿用固定 300px 离屏视口，面板实际顶部低于该值而仍部分可见；改为按实际面板位置设置视口，保持离屏与断连断言，复核通过，分别见 `live.log`／`live/` 和 `live-final.log`／`live-final/`。桌面首次构建被 PATH 中的 Go 1.27.1 拒绝，显式使用已下载的 1.27.3 后成功；两个构建日志均保留。其余结果见 `race.log`、`vet.log`、`browser.log`、`browser/` 和 `frontend-check.log`。
 
-本轮未测试实际辅助技术朗读或游戏性能，没有必须依赖 VRC 的新增验证项；未修改 hosts、启动 VRC、提交或推送。
+本轮未测试实际辅助技术朗读或游戏性能，没有必须依赖 VRC 的新增验证项；未修改 hosts、启动 VRC。
 
 ### 同日审查修订：退出后清除旧缓存显示
 
@@ -1307,7 +1307,6 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 - 真实 Console／SQLite／测试凭据与 Edge 联调通过：设置页已是代理且只有两个选项，不要求再次重启；首次进入首页提示，链接可定位网络设置；刷新不重复，重开 Console 后仍为代理且不再提示。1280px／320px 检查无页面横向溢出，截图已检查。测试没有启动网关、Monitor、游戏或修改真实 hosts。
 - 现有代理草稿、网络诊断、设置结构与帮助浏览器回归 20/20 通过；前端构建、类型和嵌入资源一致性检查通过；桌面开发 EXE 构建通过。
 
-过程记录：删除 Auto 用例后两处未用导入曾阻止编译，已清理；沙箱测试遇到既有 Windows 原子重命名限制，pnpm 安装遇链接权限限制，正常用户环境复验通过。整体回归发现节点导入用例仍将直连强制转换为 Mihomo 类型，改为验证独立直连通道及保存节点身份后，完整回归通过。桌面构建首轮 PATH 中本地 Go 为 1.27.1，随后仅为构建进程使用已安装的 1.27.3，未修改工具链约束或系统 PATH。首次截图早于 Toast 入场动画完成，随后禁用动画截图又提前结束通知，使后续点击检查失败（browser-stable.log）；最终将交互检查与两个独立页面的截图分开，全部通过并逐张复核，不将中间帧当作最终布局。
 
 日志和隔离截图在忽略目录 artifacts/network-mode-cleanup/，最终结果为 go-all-final.log、go-vet-final.log、webui-check-final.log、webui-tests.log、desktop-build-final.log 与 browser-final-visual.log / browser-final-visual/。历史失败日志保留。未以本地回环与测试凭据结果推断第三方公网代理性能或 VRC 播放体验，本轮无必须交给 VRC 的新增验收项；未替换日常运行程序。
 
@@ -1323,11 +1322,11 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 
 ### 同轮补充：与添加图标前的布局对照
 
-应用户确认位置稳定性的要求，直接加载 Git HEAD 的原始 JS／CSS，与当前产物在 Edge 中对照；应用内及独立关于页各检查 18 个宽度（320–1560px）。现有 flex 标题行占用了标语宽度：520px 与 820px 视口下，原先一行的标语变成两行，介绍正文、卡片及页尾整体下移 36px；其余抽样宽度这些区域纵坐标不变，但标语元素顶部统一下移 1px。此前“无重叠／无横向溢出”结果仍成立，不能等同于添加图标前后布局不变。本次仅确认并记录事实，未调整实现；对照数据和命令输出见同目录 `layout-comparison.json`、`layout-comparison.log`。
+为检查位置稳定性，直接加载 Git HEAD 的原始 JS／CSS，与当前产物在 Edge 中对照；应用内及独立关于页各检查 18 个宽度（320–1560px）。现有 flex 标题行占用了标语宽度：520px 与 820px 视口下，原先一行的标语变成两行，介绍正文、卡片及页尾整体下移 36px；其余抽样宽度这些区域纵坐标不变，但标语元素顶部统一下移 1px。此前“无重叠／无横向溢出”结果仍成立，不能等同于添加图标前后布局不变。本次仅确认并记录事实，未调整实现；对照数据和命令输出见同目录 `layout-comparison.json`、`layout-comparison.log`。
 
 ### 同轮修订：图标移入版本与构建卡片
 
-按用户确认的位置，复用 Panel／CardHeader 的 action 区域，在“版本与构建”标题右侧使用标准 Fluent Link 和 20px 图标，与原标题行等高；删除顶部标语的 flex 容器与样式。保留提示、主题和新标签页行为，未改变共用卡片组件。
+复用 Panel／CardHeader 的 action 区域，在“版本与构建”标题右侧使用标准 Fluent Link 和 20px 图标，与原标题行等高；删除顶部标语的 flex 容器与样式。保留提示、主题和新标签页行为，未改变共用卡片组件。
 
 重新与添加图标前的产物进行 36 组坐标对照（两种页面 × 18 个宽度，320–1560px），标语的坐标、尺寸和文字换行、介绍正文、所有卡片的坐标和尺寸、卡片内标题及字段、页尾、页头和导航均完全一致，包含此前发生位移的 520px、820px。浅色／深色／forced-colors 六组悬停、Tab、Escape、点击与 Enter 打开新标签页检查通过，截图已检查；前端构建、类型、嵌入资源一致性及差异格式检查通过。
 
@@ -1363,7 +1362,7 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 
 ### 同轮修订：原生进程退出等待
 
-按用户反馈移除游戏运行期间的固定存活轮询。发现进程后只申请 `SYNCHRONIZE`，用 [WaitForMultipleObjects](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects) 同时等待进程结束和应用取消；收到结束信号后重新发现剩余实例，再做一次 2 秒的重启确认。只有尚未发现游戏或监测失败时继续定期发现。等待一个仍存活的实例即可阻止 SWD 提前退出，多个实例不需要一组常驻等待线程或全局进程事件订阅；业务仍使用原有 `RequestExit`。
+移除游戏运行期间的固定存活轮询。发现进程后只申请 `SYNCHRONIZE`，用 [WaitForMultipleObjects](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects) 同时等待进程结束和应用取消；收到结束信号后重新发现剩余实例，再做一次 2 秒的重启确认。只有尚未发现游戏或监测失败时继续定期发现。等待一个仍存活的实例即可阻止 SWD 提前退出，多个实例不需要一组常驻等待线程或全局进程事件订阅；业务仍使用原有 `RequestExit`。
 
 定向验证通过：合成时钟在已监测进程存活期间推进一小时，没有新增枚举调用；其他实例接续、确认期快速重启、查询和等待失败后的恢复、取消发现与取消等待均通过。真实 Windows 隔离子进程的正常结束和强制结束均唤醒原生等待，取消等待后子进程仍存活；资源在等待返回后关闭。Console 的设置生效边界、退出与重启选择、清理取消、生命周期通知和实际桌面子进程重启回归通过，受影响包 `go vet` 通过。未改变页面或配置格式，沿用上一轮设置与浏览器验证；这些检查没有启动真实 VRC，不代表真实游戏长期运行的性能测量。
 
@@ -1416,7 +1415,7 @@ Edge 定向回归 **28/28 通过**。新增以正常百分比状态为基准，�
 
 ### 同日修订：完整四列表格与横向滚动
 
-按用户反馈替代上一节的截断／详情展示：日志仅保留「时间、级别、事件、内容」四列，前三列按完整内容的最小宽度分配，不预留比例列宽；事件与内容不截断、不换行，所有字段直接单行显示，保留值内空格。超宽时复用 TableRegion 的原生横向滚动条与键盘滚动，窄屏不撑宽整页。保留 Fluent small Table 默认行高和单元格间距，不新增滚动条控件或表格键盘逻辑。筛选、分页、JSON Lines 落盘与直接文本导出契约保持不变，现行规则见[日志阅读器](../logging.md#webui-阅读器)。
+替代上一节的截断／详情展示：日志仅保留「时间、级别、事件、内容」四列，前三列按完整内容的最小宽度分配，不预留比例列宽；事件与内容不截断、不换行，所有字段直接单行显示，保留值内空格。超宽时复用 TableRegion 的原生横向滚动条与键盘滚动，窄屏不撑宽整页。保留 Fluent small Table 默认行高和单元格间距，不新增滚动条控件或表格键盘逻辑。筛选、分页、JSON Lines 落盘与直接文本导出契约保持不变，现行规则见[日志阅读器](../logging.md#webui-阅读器)。
 
 - Edge 日志回归 6/6 通过：表头与详情列移除、前三列没有额外留白、长路径及大整数完整显示、值内双空格保留，横向滚动可到内容末尾，表格聚焦后方向键可滚动；同时保留分页焦点、筛选草稿、事件选择、失败重试、直接下载及跨页继续导出的验证。覆盖 1280px、390px、深浅色与 forced-colors，行高不超过 44px，无整页横向溢出。
 - `TestLogReaderBrowser` 连接隔离真实 Console、JSONHandler 当前／历史文件和 Edge 通过：标准四列表格直接显示完整字段，保留精确大整数与字面 HTML，真实长路径与空格可完整读取，原生横向滚动及直接文本下载正常。源文件未修改、引擎未启动；沿用前轮底层读取／轮转／过滤的已通过证据。
@@ -1455,7 +1454,7 @@ Go 日志读取、轮转、字段精度、文本导出与 Console API 定向回�
 
 ### 同日修订：卡片导出与紧凑筛选栏
 
-按用户反馈，将「导出日志」移到现有 Panel 的 CardHeader action；开始时间、结束时间、级别、事件关键词、查询和重置在宽度允许时同排。采用可换行布局，日期框保留完整时间输入宽度，关键词框使用剩余空间，按钮及字段继续使用 Fluent 默认尺寸；窄屏自然换行，不缩小控件。删除筛选栏下的时间／匹配／滚动说明和日志关闭提示，查询错误、日期校验及必要结果反馈继续保留。此节替代前述按钮位置和常驻辅助文案，查询、导出与日志关闭后仍可读取的契约不变。
+将「导出日志」移到现有 Panel 的 CardHeader action；开始时间、结束时间、级别、事件关键词、查询和重置在宽度允许时同排。采用可换行布局，日期框保留完整时间输入宽度，关键词框使用剩余空间，按钮及字段继续使用 Fluent 默认尺寸；窄屏自然换行，不缩小控件。删除筛选栏下的时间／匹配／滚动说明和日志关闭提示，查询错误、日期校验及必要结果反馈继续保留。此节替代前述按钮位置和常驻辅助文案，查询、导出与日志关闭后仍可读取的契约不变。
 
 Edge 日志回归 6/6 通过，覆盖 Enter 查询、空结果、筛选草稿、校验、导出失败重试及跨页继续下载，保留单行完整内容、精确数值、深浅色和 forced-colors 检查。`TestLogReaderBrowser` 连接真实 Console 与 JSONHandler 日志通过，确认关闭日志后仍可查询及从卡片标题导出文本。人工查看真实宽屏与窄屏截图：1280px 且侧栏展开时六项同排，已填写的秒级日期时间完整显示；390px 下自然换行，导出保持标题右侧，无整页横向溢出。前端构建、类型、内嵌资源一致性、联调脚本语法及差异格式检查通过。结果和截图保存在忽略目录 `artifacts/log-layout-20261102/` 的 `build.log`、`browser.log`、`live.log` 与 `live/`。未启动游戏、修改 hosts 或替换日常程序，没有新增 VRC 验收项。
 
@@ -1479,7 +1478,7 @@ Edge 日志回归 7/7 通过，展开用例改为 500 条记录，核对无分�
 
 ### 同日修订：贴边纯日志展开视图
 
-按用户反馈替代上节的展开标题、条数和可见表头：展开后仅显示日志行、原生双向滚动条及右上角浮动退出按钮，隐藏普通视图的数量上限／未解析行提示、加载、空结果和通知文案。滚动区没有外层留白，精确覆盖网页视口；右上角退出按钮不随日志滚动，并避开原生垂直滚动条。DialogSurface 使用无障碍名称，列头视觉隐藏而保留表格语义，焦点轮廓收进视口；Esc、焦点约束、退出和触发器焦点恢复沿用 Fluent。普通视图保留原有提示与分页；读取上限、查询及导出逻辑未修改。
+替代上节的展开标题、条数和可见表头：展开后仅显示日志行、原生双向滚动条及右上角浮动退出按钮，隐藏普通视图的数量上限／未解析行提示、加载、空结果和通知文案。滚动区没有外层留白，精确覆盖网页视口；右上角退出按钮不随日志滚动，并避开原生垂直滚动条。DialogSurface 使用无障碍名称，列头视觉隐藏而保留表格语义，焦点轮廓收进视口；Esc、焦点约束、退出和触发器焦点恢复沿用 Fluent。普通视图保留原有提示与分页；读取上限、查询及导出逻辑未修改。
 
 Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 17,559 条／已读 500 条／2 行无法解析的合成结果：普通提示可见，展开后无标题、条数及提示，500 行完整存在、列头仅保留语义，第一行从顶部开始；滚动区在 1280×720 和 390×844 下与视口四边完全对齐，滚动至末尾后退出按钮仍可见。验证退出后原第 2 页、筛选草稿和上限提示恢复，不新增查询；保留普通查询、直接文本导出和失败重试检查。`TestLogReaderBrowser` 连接真实 Console 与 JSONHandler 日志通过，核对原生滚动条、贴边尺寸、退出及 Esc 焦点恢复。人工查看 500 行宽屏、真实日志宽屏与窄屏深色截图。构建、类型、内嵌资源一致性、脚本语法和差异格式检查通过。
 
@@ -1511,13 +1510,11 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 前端 build/check、产物一致性与差异格式检查通过，现有启停、状态及深色窄屏回归 6/6 通过。另以同一内存 API 夹具在 Edge 观察开始／停止按钮：深浅主题常态与移出后透明，hover／pressed 呈对应主题色；禁用时仍透明，键盘保留原有焦点边框。浏览器模拟 forced-colors 保留系统高亮、禁用色和焦点反馈。截图已查看，结果与计算样式在 `hover/`、`hover-final.log`，回归在 `hover-regression.log` 和 `hover-regression/`。首次定向采集在点击关闭 Tooltip 后未移出鼠标便再次检查提示，失败保留在 `hover.log`；补齐重新移入动作后采集完成，没有据此改动产品提示机制。以上不外推真实 Windows 辅助技术或游戏体验。
 
-后续按实色方案编译预览：hover／pressed 改用 colorBrandBackgroundHover／Pressed，前景使用 colorNeutralForegroundOnBrand；常态仍透明描边，替代上版淡色填充。前端 build/check、哈希及差异检查通过；重新在 Edge 内存夹具核对深浅主题、启停提示、按压、禁用、键盘焦点与 forced-colors，截图及计算样式在 `solid-hover/` 和 `solid-hover.log`。Go 1.27.3 通过标准桌面入口生成 `bin/SWD.exe`，版本 `dev-ui-solid-hover-20261102`；只执行 `-build-info` 核对身份，没有运行真实加速。构建日志及文件 SHA256 在 `solid-desktop-build.log`／`solid-desktop-build.json`。
 
 最后按简化定制要求改为网络按钮同款原生 secondary，首页保留 large 尺寸；删除以上四项颜色映射，仅将此按钮的 colorNeutralBackground1Hover 映射为 colorBrandBackground2Hover。浅色主题原生图标在深蓝底上的对比度约 2.33:1，因此选用不透明的浅主题色，仅改背景即可让两种主题下的图标保持清晰；常态、按下、禁用、图标颜色与焦点沿用 Fluent。此方案替代本节此前的首页按钮外观，现行规则已同步到加速页设计。
 
 前端 build/check、产物哈希与差异格式检查通过；现有启停、状态与深色窄屏回归 6/6 通过。Edge 内存夹具的深浅主题与 forced-colors 采集确认只有正常 hover 使用局部主题背景，按下回到原生按压色，禁用和键盘焦点保持；截图已查看。证据在 `secondary-hover/`、`secondary-hover.log`、`secondary-regression/` 和 `secondary-regression.log`。此前桌面 EXE 仅证明其记录的实色方案，本轮未重建或替换该 EXE。
 
-随后按用户请求，使用 Go 1.27.3 和标准桌面构建入口更新 `bin/SWD.exe`，版本 `dev-ui-secondary-hover-20261102`，包含当前 secondary 方案。资源哈希检查、编译及 `-build-info` 身份核对通过，文件 SHA256 和构建身份保存在 `secondary-desktop-build.json`，日志在 `secondary-desktop-build.log`；仅执行身份查询，没有启动真实加速。
 
 ## 2026-11-04 移除 VRCX 历史导入复选框
 
@@ -1533,7 +1530,7 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 ## 2026-11-04 精简介绍底部文案
 
-按用户要求移除介绍底部整段用户协议链接与软件／内容授权说明，清理不再使用的 pageHref 导入，并将既有导航用例改为通过“用户协议”标签进入。同步现行界面设计，历史文案基线保留。
+移除介绍底部整段用户协议链接与软件／内容授权说明，清理不再使用的 pageHref 导入，并将既有导航用例改为通过“用户协议”标签进入。同步现行界面设计，历史文案基线保留。
 
 前端 build/check、嵌入产物哈希、工作区产物登记与差异格式检查通过；Edge 内存夹具定向回归 3/3 通过，覆盖关于页标签与许可入口、文档导航保留草稿及独立文档地址和刷新。日志位于忽略目录 `artifacts/about-intro-copy/browser.log`。未启动游戏或修改 hosts，无需新增 VRC 验收项。
 
@@ -1543,7 +1540,6 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 前端 build/check、嵌入产物哈希、工作区产物登记与差异格式检查通过；普通用户环境 Edge 内存夹具的文档导航、帮助与设置／关于结构回归 31/31 通过，覆盖视频需求跳转后的焦点和可见性、切页草稿保留、旧章节深链、状态不可用时的帮助内容、同意前独立帮助页 h1、标签键盘导航及离线许可入口。日志在忽略目录 `artifacts/help-cleanup/browser.log`。本轮沿用已确认的沙箱 Edge 启动限制；未操作个人数据、启动游戏或修改 hosts，无需新增 VRC 验收项。
 
-随后按用户请求，经标准桌面入口编译当前修改至 `bin/SWD.exe`，版本 `dev-ui-cleanup-20261104`，Go 1.27.3 / windows/amd64。内嵌资源校验、编译和 `-build-info` 身份核对通过，含未提交修改；日志、文件 SHA256 和构建身份保存在忽略目录 `artifacts/ui-cleanup-build/`。仅执行构建信息查询，未启动应用或加速。
 
 ## 2026-11-04 合并界面精简与故障恢复入口
 
@@ -1567,7 +1563,7 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 沙箱内 Edge 在用例启动阶段失败，普通用户环境完成复验。夹具首轮 65/66，剩余一项仍将显示值当作选择器绝对路径；修正该旧断言后 66/66。失败和成功日志分别保留在忽略目录 `artifacts/path-display-browser-sandbox.log`、`artifacts/path-display-browser.log`、`artifacts/path-display-browser-fixed.log`；真实联调日志及截图位于 `artifacts/path-display-storage-live.log` 和 `artifacts/path-display-storage-live/`。夹具结果仅证明界面与请求交互，真实联调使用隔离数据，不外推为个人数据或游戏验证。
 
-随后按用户确认，为默认相对路径显式加上 `.\` 前缀（如 `.\work`、`.\videos`、`.\data\database\storage.sqlite`），其余显示范围和保存语义保持不变。前端 build/check、嵌入资源登记和差异格式检查通过；同组 Edge 回归 66/66 及真实 `TestStorageChoicesBrowser` 联调再次通过，并查看了 390px 真实服务截图中的默认数据库相对路径。增量证据位于忽略目录 `artifacts/path-display-dot-prefix-browser.log`、`artifacts/path-display-dot-prefix-live.log` 和 `artifacts/path-display-dot-prefix-live/`。
+随后为默认相对路径显式加上 `.\` 前缀（如 `.\work`、`.\videos`、`.\data\database\storage.sqlite`），其余显示范围和保存语义保持不变。前端 build/check、嵌入资源登记和差异格式检查通过；同组 Edge 回归 66/66 及真实 `TestStorageChoicesBrowser` 联调再次通过，并查看了 390px 真实服务截图中的默认数据库相对路径。增量证据位于忽略目录 `artifacts/path-display-dot-prefix-browser.log`、`artifacts/path-display-dot-prefix-live.log` 和 `artifacts/path-display-dot-prefix-live/`。
 
 ## 2026-11-04 设置页标题与顶部操作区
 
@@ -1575,9 +1571,8 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 前端 build/check、仓库产物策略和差异格式检查通过。普通用户环境 Edge 定向回归 19/19 通过，覆盖独立草稿、导航保留、保存、放弃、数值校验、重启限制及窄屏导航。额外核对四页 1440px 同行右对齐、320px 无横向溢出和无重复卡片标题，并查看宽窄屏截图，采集脚本与截图位于忽略目录 artifacts/settings-layout-*。沙箱内首轮 Edge 因命名管道错误在启动阶段退出；结束该轮检查后在普通用户环境复验通过。检查使用内存接口，仅验证界面及请求交互；本轮界面检查未启动游戏或修改 hosts。
 
-随后按用户要求去除存储页的“本地存储”和网络页的“网络连接”可见分组标题，分组无障碍名称保留。重新 build/check 通过，Edge 对四页的 1440px／320px 布局复核及两个标题无正文文本检查均通过。
+随后去除存储页的“本地存储”和网络页的“网络连接”可见分组标题，分组无障碍名称保留。重新 build/check 通过，Edge 对四页的 1440px／320px 布局复核及两个标题无正文文本检查均通过。
 
-按用户要求另行通过 scripts/build-desktop.ps1 编译 bin/SWD.exe，版本 dev-settings-layout；嵌入资源校验、桌面构建及 -build-info 检查通过。
 
 ## 2026-11-04 外部 SOCKS5 服务定期检查
 
@@ -1589,9 +1584,8 @@ Edge 日志回归 7/7 通过，使用原生滚动条。展开用例包含匹配 
 
 历史失败：沙箱内 Console 的原子重命名报无效句柄，Edge 启动阶段因命名管道错误退出；普通用户环境完成验证，沙箱浏览器失败上下文保留在 `artifacts/webui-tests/`。首轮两个 worker 的相关浏览器检查 17/18，Mihomo 用例在窄屏横向溢出断言失败，原始截图与上下文在 `browser/`；原 HEAD 产物对照 1/1、当前产物定向 3/3 及最终串行 18/18 均通过，未修改该断言，也未据复验通过推断首次失败原因。Console 首次整包检查曾失败，完整原始输出未落盘且聊天工具输出被截断；随后保留完整结构化日志的整包复验通过，首次失败的具体原因仍未定位，不将其归因于本次功能或环境。
 
-随后按用户要求显示当前生效的服务器地址及端口，移除卡片内周期说明，并复用现有刷新图标按钮的外观、旋转和禁用样式。手动与自动检查共用执行流程，检查中触发合并，完成后重算周期；请求失败以通知反馈。增量前端 build/check、产物登记、4/4 浏览器检查、Console 定向检查及 race 通过，覆盖 IPv6 地址显示、已保存地址不冒充生效地址、按钮防重复和失败反馈、手动重算周期、条款／退出／后端限制及路由鉴权。真实 Console／SOCKS5／Edge 联调确认按钮重新完成认证并更新实际观测时间，已查看窄屏深色及真实服务截图；证据在忽略目录 `artifacts/socks5-service-refresh/`。未重建 EXE 或提交 Git。
+随后显示当前生效的服务器地址及端口，移除卡片内周期说明，并复用现有刷新图标按钮的外观、旋转和禁用样式。手动与自动检查共用执行流程，检查中触发合并，完成后重算周期；请求失败以通知反馈。增量前端 build/check、产物登记、4/4 浏览器检查、Console 定向检查及 race 通过，覆盖 IPv6 地址显示、已保存地址不冒充生效地址、按钮防重复和失败反馈、手动重算周期、条款／退出／后端限制及路由鉴权。真实 Console／SOCKS5／Edge 联调确认按钮重新完成认证并更新实际观测时间，已查看窄屏深色及真实服务截图；证据在忽略目录 `artifacts/socks5-service-refresh/`。未重建 EXE 或提交 Git。
 
-随后按用户要求运行 `scripts/build-desktop.ps1 -Version dev-socks5-service`，生成 `bin/SWD.exe`；嵌入资源校验、桌面构建及 `-build-info` 检查通过，构建类型为 development、目标为 windows/amd64。未自动启动应用或游戏。
 
 ## 2026-11-04 设置字段图标校验与保存拒绝
 
@@ -1619,7 +1613,6 @@ Edge 侧栏定向 **5/5**、短页／页面位置稳定／文档导航回归 **2
 
 修复后，900／1024／1280／1920／2560px 视口的歌曲列表、播放地址解析、视频资源加载三张表格均无多余横向滚动范围；390px 深色检查保留必要滚动、无页面级横向溢出，并可打开详情。相关 Edge 回归 **21/21**，前端 build/check、产物策略检查及差异格式检查通过，已查看宽屏浅色和窄屏深色截图。首轮沙箱内 Edge 在打开页面前因命名管道错误退出，随后普通用户环境完成上述验证；原始失败、测量、修复前后日志及截图保留在忽略目录 `artifacts/connection-table-overflow-20261107/`。验证使用内存 API，仅涉及前端布局；未重建 EXE，无新增 VRC 验收项。
 
-随后按用户要求运行 `scripts/build-desktop.ps1 -Version dev-connection-table-scroll`，生成 `bin/SWD.exe`。嵌入资源一致性、桌面构建及 `-build-info` 检查通过，构建类型为 development、目标为 windows/amd64；未启动桌面服务或游戏。
 
 线路详情悬停增量：复用共享 RecordDetails 与 Fluent Popover 的原生 openOnHover，仅为「当前连接」启用悬停展开；允许移入浮层继续阅读，移出后关闭，键盘 Enter／Escape 及其他记录详情的原有操作保留。已更新现行[内容约定](../webui-content.md)。Edge 验证六类观测详情均可通过悬停查看，390px 深色浮层完整位于视口，键盘开关与焦点、900–2560px 无多余横向滚动、曲库长详情／链接导航及共享组件回归通过。
 
@@ -1650,18 +1643,18 @@ Edge 相关首轮为 42/43 通过；新增结果矩阵已验证悬停／键盘�
 
 Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、悬停／键盘／Escape、相邻中断过滤、历史分页和刷新恢复、320／390／1280px 与浅色／深色／forced-colors；长结果文案纳入窄屏用例。真实 Console／SQLite／Edge 的 TestRequestHistoryBrowser 通过（12.54 秒），验证播放信息查询超时与屏蔽请求的实际写入、引擎关闭后读取及页面刷新提示。已查看宽屏结果矩阵、窄屏深色列表及真实服务的播放信息失败提示截图。夹具与联调不外推为 VRC 播放体验。
 
-前端 build/check、cacheproxy／console vet、嵌入产物精确登记与差异格式检查通过。已重建 bin/SWD.exe，并通过 -build-info 验证 development、dev-request-results、windows/amd64、Go 1.27.3。证据位于忽略目录 artifacts/request-results-20261107/，包括 go-targeted.txt（首轮失败）、go-targeted-final.txt、browser、real-console、构建日志与 build-info.json。未启动日常桌面服务、VRC 或修改 hosts，无新增游戏验收项；未提交或推送。
+前端 build/check、cacheproxy／console vet、嵌入产物精确登记与差异格式检查通过。已重建 bin/SWD.exe，并通过 -build-info 验证 development、dev-request-results、windows/amd64、Go 1.27.3。证据位于忽略目录 artifacts/request-results-20261107/，包括 go-targeted.txt（首轮失败）、go-targeted-final.txt、browser、real-console、构建日志与 build-info.json。未启动日常桌面服务、VRC 或修改 hosts，无新增游戏验收项。
 
-文案增量：按用户要求将显示名称缩短为“信息获取失败”，保留原有 Tooltip 说明与 playback_info_failed 存储值；同步共用展示、浏览器用例和现行界面文档。前端 build/check、结果矩阵及三种宽度的 Edge 定向回归 4/4、产物登记检查通过。证据见 artifacts/request-results-20261107/short-label；不改变后端行为或历史数据。
+文案增量：将显示名称缩短为“信息获取失败”，保留原有 Tooltip 说明与 playback_info_failed 存储值；同步共用展示、浏览器用例和现行界面文档。前端 build/check、结果矩阵及三种宽度的 Edge 定向回归 4/4、产物登记检查通过。证据见 artifacts/request-results-20261107/short-label；不改变后端行为或历史数据。
 同轮已重建 bin/SWD.exe（dev-request-results），通过 -build-info 验证；构建证据见 build-short-label.txt 与 build-info-short-label.json。
 
 
 ## 2026-11-07 恢复历史 HTTP 状态常显
 
-按用户要求恢复结果列原有的 TableCellLayout 两行结构：第一行显示简短结果，第二行直接显示 HTTP 状态（未知时为 HTTP 未返回），保留结果文字的原因 Tooltip 和详情。此规则替代前述初版将状态仅收进提示的展示约定；后端分类和数据库保持不变。现行规则已同步至请求列表文档。
+恢复结果列原有的 TableCellLayout 两行结构：第一行显示简短结果，第二行直接显示 HTTP 状态（未知时为 HTTP 未返回），保留结果文字的原因 Tooltip 和详情。此规则替代前述初版将状态仅收进提示的展示约定；后端分类和数据库保持不变。现行规则已同步至请求列表文档。
 
 已有结果矩阵增加悬停前的状态可见性断言，结果矩阵与 320／390／1280px Edge 定向回归 4/4 通过；已查看结果列表截图。前端 build/check、产物精确登记与差异格式检查通过。证据在 artifacts/request-results-20261107/http-visible 及 http-visible.txt。
-桌面程序已重建为 dev-request-results，并以 -build-info 核对；构建证据为 build-http-visible.txt 与 build-info-http-visible.json。未启动日常桌面服务或游戏，未提交或推送。
+桌面程序已重建为 dev-request-results，并以 -build-info 核对；构建证据为 build-http-visible.txt 与 build-info-http-visible.json。未启动日常桌面服务或游戏。
 
 ## 2026-11-07 曲库与历史表格精简
 
@@ -1669,7 +1662,7 @@ Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、�
 
 前端 build/check 与差异格式检查通过，嵌入资源和精确产物登记已同步。Edge 的曲库、历史与表格排序回归共 64 项：首次普通用户权限运行 60 项通过，4 项因新测试选择器同时匹配 Fluent 的隐藏 span 失败；改用可见文字定位后定向复验 4/4 通过。截图检查后进一步调整资源与关联歌曲的空间分配，320／390／1280px 布局复验 3/3 通过，已检查最终桌面与窄屏截图。覆盖详情悬停与键盘操作、交付和资源 Tooltip、纯单类／混合／零计入／未知来源、分页和原资源链接身份。
 
-首次沙箱执行因 Edge Crashpad 管道结束未进入页面断言；重跑前清理了本轮遗留的夹具服务器。沙箱错误、首次断言失败、成功复验日志与截图保留在忽略目录 `artifacts/ui-table-adjustment/`，来源展示复验截图在 `artifacts/webui-tests/`。这些是内存 API 夹具的浏览器验证，不涉及后端或 VRC 行为；未启动游戏、修改 hosts、重建桌面 EXE、提交或推送。
+首次沙箱执行因 Edge Crashpad 管道结束未进入页面断言；重跑前清理了本轮遗留的夹具服务器。沙箱错误、首次断言失败、成功复验日志与截图保留在忽略目录 `artifacts/ui-table-adjustment/`，来源展示复验截图在 `artifacts/webui-tests/`。这些是内存 API 夹具的浏览器验证，不涉及后端或 VRC 行为；未启动游戏、修改 hosts、重建桌面 EXE。
 
 ## 2026-11-07 修复表格过早横向滚动
 
@@ -1677,7 +1670,7 @@ Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、�
 
 新增实际浏览器回归在 1050px 窗口、819px 表格容器下先复现两表仍宽 900px，歌曲名称分别约 238px／276px；仅在测试页面移除整体下限后，两表均宽 819px，名称分别约 157px／195px。生产修复删除该固定整体下限，保留名称 8rem 下限、内容自动分配和必要的表内滚动；日志已有独立宽度规则不变。回归移除临时样式注入，检查生产资源在 1050px 不横向溢出、900px 下名称继续收缩至不超过 144px，长标题不撑开页面。
 
-修复前两项断言失败，修复后连同曲库／历史 320、390、1280px 布局、悬停详情与提示共 13/13 通过，已检查两个 1050px 截图。build/check 通过，生成 CSS 与构建清单已更新。证据在忽略目录 `artifacts/ui-table-width/`；首次历史夹具无请求的测试准备失败另保留于 `artifacts/ui-table-width-before.log`，补齐请求后才确认两个页面同样的宽度失败。未重建 EXE，未提交或推送。
+修复前两项断言失败，修复后连同曲库／历史 320、390、1280px 布局、悬停详情与提示共 13/13 通过，已检查两个 1050px 截图。build/check 通过，生成 CSS 与构建清单已更新。证据在忽略目录 `artifacts/ui-table-width/`；首次历史夹具无请求的测试准备失败另保留于 `artifacts/ui-table-width-before.log`，补齐请求后才确认两个页面同样的宽度失败。未重建 EXE。
 
 ## 2026-11-07 资源等宽与详情列收紧
 
@@ -1685,7 +1678,7 @@ Edge 相关回归 35/35 通过，包括七类结果与旧值的提示矩阵、�
 
 Edge 曲库／历史／排序／收缩用例首次 63/66 通过，三项历史字体断言发现 Fluent Link 的字体规则覆盖了普通类，修正 Link／Text 样式优先级后相关三项及来源提示、收缩、需求详情／字阶共 10/10 通过。现有布局用例补充验证：1280→1480px 时资源、大小、状态和操作列宽不变，仅关联歌曲列增长；完整 MD5 未截断，详情按钮小于 48px、历史详情单元格小于 60px，可见列名为空而辅助技术名称仍存在。已查看曲库资源与最终历史截图，前端 build/check、产物登记和差异检查通过。
 
-首次失败与成功证据分别保留在忽略目录 `artifacts/ui-resource-columns/`、`artifacts/ui-resource-columns-recheck/` 及同名日志文件。验证使用内存 API 夹具，未启动游戏或改 hosts，未重建桌面 EXE，未提交或推送。
+首次失败与成功证据分别保留在忽略目录 `artifacts/ui-resource-columns/`、`artifacts/ui-resource-columns-recheck/` 及同名日志文件。验证使用内存 API 夹具，未启动游戏或改 hosts，未重建桌面 EXE。
 
 ## 2026-11-07 移除自动测速间隔设置
 
@@ -1702,21 +1695,21 @@ Edge 设置结构、字段校验、Monitor 展示和网络诊断共 36 项，首
 
 Edge 内存 API 夹具的 request-retention、cache-capacity、cache-reclamation、download-settings、settings-structure、console 六个文件共 28/28 通过；覆盖模式切换、数值范围、零值、草稿及保存、导航、提示和窄屏。已查看历史请求明细、视频预算、缓存策略及下载分组截图。前端 build/check、构建工具测试 2/2、当前 app.js 精确登记与差异检查通过。历史资源检查无错误，已有大文档大小提醒保留。成功截图在忽略目录 artifacts/settings-ui-tests/。
 
-首次沙箱执行的 Edge 在启动阶段因 Crashpad 管道及临时文件权限问题退出，未执行页面断言，错误详情保留在 artifacts/webui-tests/；首次沙箱外重试因该轮遗留夹具占用端口未开始，清理本轮进程后全部通过。构建工具测试首次沙箱内 1/2 通过，另一项因临时 junction 创建 EPERM 失败；沙箱外 2/2 通过。这些结果证明界面和构建行为，不外推为后端持久化或游戏验证；未重建桌面 EXE、启动游戏、修改 hosts、提交或推送。
+首次沙箱执行的 Edge 在启动阶段因 Crashpad 管道及临时文件权限问题退出，未执行页面断言，错误详情保留在 artifacts/webui-tests/；首次沙箱外重试因该轮遗留夹具占用端口未开始，清理本轮进程后全部通过。构建工具测试首次沙箱内 1/2 通过，另一项因临时 junction 创建 EPERM 失败；沙箱外 2/2 通过。这些结果证明界面和构建行为，不外推为后端持久化或游戏验证；未重建桌面 EXE、启动游戏、修改 hosts。
 
 
 ## 2026-11-07 下载数值清空后使用默认值
 
 同时下载数量、并发增长间隔、提前准备时间、延续保护时间清空后分别以灰色 placeholder 显示 16、250、500、300。页面启动数据直接使用后端默认值，前端共用该值进行提交和提前准备缓存估算；不新增持久化配置。合法的显式 0 保留原义，非空值仍按原范围和整数要求校验。清空已为默认的字段也保持可保存／放弃，保存后回显实际数值；其他设置仍只提交差异。
 
-Edge 的 download-settings、console、settings-validation、settings-structure 共 27/27 通过，覆盖四字段从非默认值（含 0）清空、跨标签保留空草稿、默认值请求体、保存后刷新回显、默认值再次清空保存／放弃，以及原有零值、范围、字段错误和布局。已查看 390px 空输入灰色提示截图，证据在 artifacts/settings-defaults-tests/。Go TestWebUIDocumentNavigationBootstrap 通过：真实 Console 页面在已同意与未同意条款状态下输出与规范化默认配置一致的四项值，已保存自定义值不影响默认提示。前端 build/check 和当前生成产物登记通过。浏览器保存使用内存 API 夹具，未额外执行真实配置文件保存／重启；未重建桌面 EXE、启动游戏、修改 hosts、提交或推送。
+Edge 的 download-settings、console、settings-validation、settings-structure 共 27/27 通过，覆盖四字段从非默认值（含 0）清空、跨标签保留空草稿、默认值请求体、保存后刷新回显、默认值再次清空保存／放弃，以及原有零值、范围、字段错误和布局。已查看 390px 空输入灰色提示截图，证据在 artifacts/settings-defaults-tests/。Go TestWebUIDocumentNavigationBootstrap 通过：真实 Console 页面在已同意与未同意条款状态下输出与规范化默认配置一致的四项值，已保存自定义值不影响默认提示。前端 build/check 和当前生成产物登记通过。浏览器保存使用内存 API 夹具，未额外执行真实配置文件保存／重启；未重建桌面 EXE、启动游戏、修改 hosts。
 
 
 ## 2026-11-07 缓存标题后的 MiB 估算
 
 预计缓存大小移到“缓存”标题后，以次级文字显示，提前准备时间下方不再重复。按（提前准备秒数 + 延续保护秒数）× 2,000,000 ÷ 8 ÷ 1,048,576 换算为 MiB，保留两位小数；默认 500 + 300 秒显示 190.73 MiB。清空使用对应后端默认值，合法的 0 秒按 0 计算，任一输入不合法时不显示估算。只改变显示估算，不影响缓存管理。
 
-Edge 的 download-settings、console、cache-reclamation 共 9/9 通过，覆盖两个时间字段分别变化、清空默认值、0 秒、上下界与非法值、草稿导航及保存，已查看 390px 截图确认估算在缓存标题后。前端 build/check、当前生成产物精确登记与差异检查通过。截图在 artifacts/cache-estimate-tests/；结果属于内存 API 浏览器验证，未重建桌面 EXE、启动游戏、修改 hosts、提交或推送。
+Edge 的 download-settings、console、cache-reclamation 共 9/9 通过，覆盖两个时间字段分别变化、清空默认值、0 秒、上下界与非法值、草稿导航及保存，已查看 390px 截图确认估算在缓存标题后。前端 build/check、当前生成产物精确登记与差异检查通过。截图在 artifacts/cache-estimate-tests/；结果属于内存 API 浏览器验证，未重建桌面 EXE、启动游戏、修改 hosts。
 
 
 ## 2026-11-07 紧凑保留输入、预算步进与分组分隔
@@ -1725,7 +1718,7 @@ Edge 的 download-settings、console、cache-reclamation 共 9/9 通过，覆盖
 
 Edge 首轮五个设置相关文件 25/26 通过，预算步进发现 Fluent 在连续文本编辑后使用旧值；捕获按钮 mousedown 时先同步完成 blur 提交后，18/19 复验通过（含共用字段校验）。剩余宽度断言发现预算外框约 102px，进一步缩短后命中率／步进／宽窄屏与非法预算两项最终复验 2/2 通过。覆盖鼠标按钮与方向键 12.5→13.5→12.5、小数保存、非法文本／超范围／三位小数、模式切换、历史估算端点和宽窄屏。已检查常规、下载缓存、320px 深色和 1280px 浅色预算截图。前端 build/check、研究输入构建清单校验、精确产物登记和差异检查通过。
 
-首次失败、步进诊断、宽度复验与最终证据分别保留在 artifacts/settings-spacing-tests/、artifacts/settings-spacing-debug/、artifacts/settings-spacing-recheck/、artifacts/settings-spacing-final/。这是内存 API 浏览器验证，未重建桌面 EXE、启动游戏、修改 hosts、提交或推送。
+首次失败、步进诊断、宽度复验与最终证据分别保留在 artifacts/settings-spacing-tests/、artifacts/settings-spacing-debug/、artifacts/settings-spacing-recheck/、artifacts/settings-spacing-final/。这是内存 API 浏览器验证，未重建桌面 EXE、启动游戏、修改 hosts。
 
 ## 2026-11-07 设置文案与命中率提示位置
 
@@ -1744,7 +1737,6 @@ Edge 首轮五个设置相关文件 25/26 通过，预算步进发现 Fluent 在
 
 前端 build/check、内嵌资源哈希及差异检查通过，最终 app.js 精确登记已更新。首次失败与复验保存在 artifacts/number-input-20261107/browser/、verified/、border/，最终证据在 final/。测试使用沙箱外 Edge 与内存接口夹具；未执行真实后端持久化／重启联调，未重建桌面 EXE、启动游戏、修改 hosts、提交或推送，无新增 VRC 专属验收项。
 
-后续按用户要求使用 scripts/build-desktop.ps1 编译 bin/SWD.exe，版本 dev-ui-inputs-20261107；-build-info 核验为 Windows amd64 / Go 1.27.3，包含本轮未提交改动。仅核验构建身份，未启动应用服务。
 
 ## 2026-11-07 历史筛选栏与表格间距
 
@@ -1754,7 +1746,7 @@ Edge 内存夹具的临时间距探针在修改前确认 1280px、320px 的正�
 
 ## 2026-11-07 移除曲库顶部 VRCX 导入快捷按钮
 
-按用户要求移除概览行的“导入 VRCX 历史”按钮，顶部保留“导入视频”“下载视频”。现行页面设计同步更新；原 VRCX 导入面板、自动建议与直接锚点保留。既有浏览器用例改为滚动访问导入面板，导航用例检查顶部按钮已移除。
+移除概览行的“导入 VRCX 历史”按钮，顶部保留“导入视频”“下载视频”。现行页面设计同步更新；原 VRCX 导入面板、自动建议与直接锚点保留。既有浏览器用例改为滚动访问导入面板，导航用例检查顶部按钮已移除。
 
 Edge 内存夹具的 document-navigation.spec.ts 与 vrcx.spec.ts 共 39/39 通过，覆盖 390px／1280px 顶部布局、其他按钮定位、导入预览、覆盖确认及导航草稿保留；已查看桌面顶部截图。结果附件位于 artifacts/library-vrcx-button-20261107/，顶部截图位于 artifacts/library-toolbar-layout/。前端 build/check、内嵌资源哈希及差异检查通过，产物精确登记已更新。未重建桌面 EXE、启动游戏、修改 hosts、提交或推送，无新增 VRC 专属验收项。
 
@@ -1770,19 +1762,18 @@ Edge 内存夹具 network-diagnostics.spec.ts 最终 14/14 通过，覆盖直连
 
 Edge 内存夹具 library.spec.ts 共 42/42 通过。扩展既有布局用例，覆盖 1280px 浅色、390px 深色和 320px forced-colors 的实际列宽、四类文字实际截断、悬停全文、聚焦名称与提示、Escape 关闭、提示框横向边界及资源列随容器伸缩；既有分页、预览、删除、偏好、导航和导入草稿回归通过。已查看桌面与窄屏歌手全文截图，证据位于 artifacts/library-columns-20261107/。前端 build/check、内嵌资源哈希及差异检查通过，产物精确登记同步更新。未执行真实后端联调，未重建桌面 EXE、启动游戏、修改 hosts、提交或推送，无新增 VRC 专属验收项。
 
-后续按用户要求通过 scripts/build-desktop.ps1 编译 bin/SWD.exe，版本 dev-webui-20261107，包含本轮历史间距、曲库顶部按钮、网络小标题、曲库列宽及全文提示修改。-build-info 核验为 Windows amd64 / Go 1.27.3，源码 e14e0560deac1aef22b075177db03e859630c6f9 加当前未提交修改（dirty=true），构建时间 2026-11-07T15:26:16.573Z；EXE SHA256 为 04f25cabe1dcb66724a75ebf3084e453297fd0814450298a97d911ae81180698。仅读取构建身份，未启动应用服务。
 
 ### 同日调整：两列统一 6rem，列表仅显示舞者
 
 按后续要求，歌手和舞者共用最小 6rem、期望占比 12% 的列样式，移除舞者独立加宽规则；表头改为“舞者”，单元格及其全文提示仅使用 dancer，不拼接或回退到 group。详情仍保留原有舞者／社团资料。本节替代上一节的列宽与列表合并展示规则，全文提示交互不变。
 
-Edge 定向回归 4/4 通过，覆盖歌曲／资源视图数据、320px forced-colors、390px 深色、1280px 浅色布局及全文提示；已查看桌面截图。证据位于 artifacts/library-dancer-20261107/。前端 build/check、内嵌资源哈希和差异检查通过，产物精确登记已更新。未重建桌面 EXE、提交或推送。
+Edge 定向回归 4/4 通过，覆盖歌曲／资源视图数据、320px forced-colors、390px 深色、1280px 浅色布局及全文提示；已查看桌面截图。证据位于 artifacts/library-dancer-20261107/。前端 build/check、内嵌资源哈希和差异检查通过，产物精确登记已更新。未重建桌面 EXE。
 
 ## 2026-11-07 资源列表暂不显示时长
 
 按最小处理方案，资源列表大小列仅保留文件大小，移除时长副文案。后端 duration 字段及数据结构不变，未新增媒体探测或估算。现行页面文档同步移除常驻时长要求。
 
-Edge 定向回归 4/4 通过，确认“时长未知”不再出现、文件大小仍正确，并覆盖 320px forced-colors、390px 深色、1280px 浅色布局及全文提示。已查看桌面资源列表截图，证据位于 artifacts/library-size-only-20261107/。前端 build/check、内嵌资源哈希和差异检查通过，产物精确登记已更新。未重建桌面 EXE、提交或推送。
+Edge 定向回归 4/4 通过，确认“时长未知”不再出现、文件大小仍正确，并覆盖 320px forced-colors、390px 深色、1280px 浅色布局及全文提示。已查看桌面资源列表截图，证据位于 artifacts/library-size-only-20261107/。前端 build/check、内嵌资源哈希和差异检查通过，产物精确登记已更新。未重建桌面 EXE。
 
 ## 2026-11-07 曲库保护状态使用单个徽章
 
@@ -1794,7 +1785,7 @@ Edge 内存夹具 library.spec.ts 与 library-download-completion.spec.ts 共 45
 
 按视觉检查中已获确认的两项建议，仅在曲库容器内移除直接子 Panel 的纵向外边距，让卡片间距由 page-stack 的 spacingVerticalXL（20px）统一提供，原约 60px 的卡片间距收敛为 20px；“受保护”Badge 使用 appearance=tint，与已保存／未保存共用浅底外观，保留黄色、Tooltip 和删除禁用规则。
 
-Edge 既有定向检查 6/6 通过，覆盖 320px forced-colors、390px 深色、1280px 浅色的歌曲／资源布局、保护状态切换列宽、全文提示、偏好操作，以及顶部导入／下载按钮的卡片定位。已查看桌面保护徽章及窄屏完整卡片截图，证据在 artifacts/library-visual-polish-20261107/。前端 build/check、内嵌资源哈希与差异检查通过，产物精确登记已更新。未实施其余视觉建议，未重建桌面 EXE、提交或推送。
+Edge 既有定向检查 6/6 通过，覆盖 320px forced-colors、390px 深色、1280px 浅色的歌曲／资源布局、保护状态切换列宽、全文提示、偏好操作，以及顶部导入／下载按钮的卡片定位。已查看桌面保护徽章及窄屏完整卡片截图，证据在 artifacts/library-visual-polish-20261107/。前端 build/check、内嵌资源哈希与差异检查通过，产物精确登记已更新。未实施其余视觉建议，未重建桌面 EXE。
 
 ## 2026-11-07 曲库下载进度改为单状态徽章
 
@@ -1806,28 +1797,28 @@ Edge 四个相关文件共 66/66 通过，覆盖两种视图下载中仅有单�
 
 “响应来源”“首正文等待时间”标题使用 Subtitle2；两行容器共用 Fluent typographyStyles.subtitle2，使同行来源占比、分组名称、P50／P95 数值及读取／空状态文字继承相同小标题字阶。保留原布局与自然换行，刷新按钮、Tooltip 和表格内正文不变。现行页面设计同步替代普通字号摘要规则。
 
-Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，覆盖 1280px 浅色、390px 深色、320px 浅色布局及统计提示、刷新、历史筛选与事件更新。已查看桌面及窄屏摘要截图，证据位于 artifacts/history-summary-heading-20261107/。前端 build/check、内嵌资源哈希与差异检查通过，产物精确登记同步更新。未重建桌面 EXE、提交或推送。
+Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，覆盖 1280px 浅色、390px 深色、320px 浅色布局及统计提示、刷新、历史筛选与事件更新。已查看桌面及窄屏摘要截图，证据位于 artifacts/history-summary-heading-20261107/。前端 build/check、内嵌资源哈希与差异检查通过，产物精确登记同步更新。未重建桌面 EXE。
 
 ## 2026-11-08 历史摘要无数据占位
 
 响应来源总览无计入块、首正文等待时间分组无有效样本时统一显示“—”，保留读取中、读取失败及已有数据的展示行为；现行内容与设计约定同步更新。
 
-Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，既有三档布局用例同时断言来源总览一个横线、首正文两组各一个横线。已查看 390px 深色截图中的首正文空值展示，证据在 artifacts/history-summary-empty-20261108/。前端 build/check、内嵌资源校验及差异检查通过，产物精确登记同步更新。未重建桌面 EXE、提交或推送。
+Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，既有三档布局用例同时断言来源总览一个横线、首正文两组各一个横线。已查看 390px 深色截图中的首正文空值展示，证据在 artifacts/history-summary-empty-20261108/。前端 build/check、内嵌资源校验及差异检查通过，产物精确登记同步更新。未重建桌面 EXE。
 ## 2026-11-08 历史统计标题改为响应时间
 
-历史摘要标题与区域名称改为“响应时间”，标题 Tooltip 按用户指定改为“从收到请求到首次返回视频正文的时间”；刷新及读取失败文案同步名称。统计口径与 72 小时窗口不变，现行界面文档同步更新。
+历史摘要标题与区域名称改为“响应时间”，标题 Tooltip 改为“从收到请求到首次返回视频正文的时间”；刷新及读取失败文案同步名称。统计口径与 72 小时窗口不变，现行界面文档同步更新。
 
-Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，既有用例验证新标题及完整悬停提示、无数据横线、刷新成功／失败和三档布局。证据位于 artifacts/history-response-time-20261108/。前端 build/check、内嵌资源校验及差异检查通过。未重建桌面 EXE、提交或推送。
+Edge request-timeline.spec.ts 与 history-refresh.spec.ts 共 21/21 通过，既有用例验证新标题及完整悬停提示、无数据横线、刷新成功／失败和三档布局。证据位于 artifacts/history-response-time-20261108/。前端 build/check、内嵌资源校验及差异检查通过。未重建桌面 EXE。
 ## 2026-11-08 曲库热度改名为需求分
 
 曲库表头改为“需求分”，悬停及键盘提示为“反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。”同步更新排序按钮名称、现行文档及真实 Console 验证脚本的定位器，评分、显示精度及排序逻辑不变。
 
-Edge library.spec.ts 与 data-tables.spec.ts 定向用例 12/12 通过，覆盖完整提示的悬停／聚焦及 Escape、表头排序、分数来源、320px／390px／1280px 布局。证据位于 artifacts/library-demand-score-label-20261108/。前端 build/check、内嵌资源校验及差异检查通过；真实 Console 脚本仅同步定位器，本次未重跑。未重建桌面 EXE、提交或推送。
+Edge library.spec.ts 与 data-tables.spec.ts 定向用例 12/12 通过，覆盖完整提示的悬停／聚焦及 Escape、表头排序、分数来源、320px／390px／1280px 布局。证据位于 artifacts/library-demand-score-label-20261108/。前端 build/check、内嵌资源校验及差异检查通过；真实 Console 脚本仅同步定位器，本次未重跑。未重建桌面 EXE。
 ## 2026-11-08 VRCX 导入说明与正文样式
 
 “导入 VRCX 历史”卡片标题下方改用普通段落，说明读取 WannaDance 播放记录、计算需求分及安排视频下载和保留顺序。空统计按钮改为“导入需求记录”；已有统计的预览和确认弹窗均说明整体替换且不累加，保留歌曲数量。处理中提示去除“偏好”，导入机制不变。同步现行设计及测试定位文案。
 
-Edge vrcx.spec.ts 共 25/25 通过，覆盖空库导入、覆盖确认／取消、冲突、重复提交、草稿保留和 390px／1280px 布局。运行输出目录为 artifacts/vrcx-copy-20261108/。前端 build/check、内嵌资源校验及差异检查通过；真实 Console 脚本仅同步覆盖文案断言，本次未重跑。未重建桌面 EXE、提交或推送。
+Edge vrcx.spec.ts 共 25/25 通过，覆盖空库导入、覆盖确认／取消、冲突、重复提交、草稿保留和 390px／1280px 布局。运行输出目录为 artifacts/vrcx-copy-20261108/。前端 build/check、内嵌资源校验及差异检查通过；真实 Console 脚本仅同步覆盖文案断言，本次未重跑。未重建桌面 EXE。
 ## 2026-11-08 视觉检查四项调整
 
 落实已确认建议：VRCX 预览统计在桌面以双列信息组排列，640px 及以下回到单列，并移除 dt/dd 与网格重复的外边距；网络顶部两张检测卡片通过局部网格拉伸自然等高，单列仍按各自内容定高；单连接／多连接测速缺值仅显示“—”，有效值（含零）保留 Mbps；当前连接的按钮统一为“检测歌曲列表”。不改变导入、测速、检测业务机制。
@@ -1835,16 +1826,16 @@ Edge vrcx.spec.ts 共 25/25 通过，覆盖空库导入、覆盖确认／取消�
 Edge vrcx.spec.ts、ui-layout.spec.ts、network-diagnostics.spec.ts 与 monitor-details.spec.ts 共 50/50 通过，覆盖预览列数、检测卡片等高与窄屏堆叠、空速度占位、导入覆盖／取消、独立检测与结果保留等。首次截图复核发现统计项外边距与网格间距叠加，收紧后重跑相关布局 2/2 通过并查看桌面／深色窄屏截图。首轮证据在 artifacts/ui-polish-20261108/，最终 VRCX 截图在 artifacts/ui-polish-spacing-20261108/。前端 build/check、内嵌资源校验及差异检查通过，产物登记同步。未重建桌面 EXE、提交或推送，无新增 VRC 专属验收项。
 ## 2026-11-08 撤回检测卡片等高
 
-用户指出检测内容动态变化，底边对齐不能稳定内部布局。撤回上一条记录中的检测卡片等高设置及对应断言，清理专用类，恢复宽屏顶部对齐、各卡片按自身内容定高；其余三项已确认调整保留，现行内容约定同步替代等高规则。
+检测内容动态变化，底边对齐不能稳定内部布局。撤回上一条记录中的检测卡片等高设置及对应断言，清理专用类，恢复宽屏顶部对齐、各卡片按自身内容定高；其余三项已确认调整保留，现行内容约定同步替代等高规则。
 
-Edge 390px、800px、1440px 设置／网络布局检查 3/3 通过，证据在 artifacts/network-natural-height-20261108/；前端 build/check、内嵌资源校验及差异检查通过，产物登记更新。未重建桌面 EXE、提交或推送。
+Edge 390px、800px、1440px 设置／网络布局检查 3/3 通过，证据在 artifacts/network-natural-height-20261108/；前端 build/check、内嵌资源校验及差异检查通过，产物登记更新。未重建桌面 EXE。
 ## 2026-11-08 下载设置路径控件右侧对齐
 
 仅落实本轮获准的第一项视觉建议：DirectoryField 转发可选字段名，日志目录以 vrchatLogDir 复用既有 PathField／ValidationField，与临时缓存目录使用相同校验图标槽位，统一路径框及恢复默认按钮右边缘。未新增样式补丁或修改校验槽位，未实施窄屏设置操作区及测速详情文字建议。
 
-Edge 定向检查 19/19 通过，另补日志目录选择、保存及恢复自动识别 1/1 通过。覆盖 390px／800px／1440px 右边缘误差小于 1px、路径显示及选择、目录冲突、错误提示和浅深／高对比度布局。已查看桌面与窄屏下载设置截图；证据位于 artifacts/settings-path-alignment-20261108/ 和 artifacts/settings-log-reset-20261108/。前端 build/check、内嵌资源校验及差异检查通过。未重建桌面 EXE、提交或推送。
+Edge 定向检查 19/19 通过，另补日志目录选择、保存及恢复自动识别 1/1 通过。覆盖 390px／800px／1440px 右边缘误差小于 1px、路径显示及选择、目录冲突、错误提示和浅深／高对比度布局。已查看桌面与窄屏下载设置截图；证据位于 artifacts/settings-path-alignment-20261108/ 和 artifacts/settings-log-reset-20261108/。前端 build/check、内嵌资源校验及差异检查通过。未重建桌面 EXE。
 ## 2026-11-08 按独立目的拆分提交复核
 
-按用户授权拆为曲库列表与状态、VRCX 导入、历史摘要、网络诊断展示、设置路径对齐五组；各组均重建并校验自己的前端产物与构建清单，产物例外仅新增实际进入提交的五个版本。另修正界面设计中残留的“概览行三个按钮”为“两个”，与移除顶部 VRCX 快捷入口后的实际界面一致。拆分前后源码、测试、既有验证记录及最终前端产物已对照核验，历史中间调整与撤回记录保留。
+拆为曲库列表与状态、VRCX 导入、历史摘要、网络诊断展示、设置路径对齐五组；各组均重建并校验自己的前端产物与构建清单，产物例外仅新增实际进入提交的五个版本。另修正界面设计中残留的“概览行三个按钮”为“两个”，与移除顶部 VRCX 快捷入口后的实际界面一致。拆分前后源码、测试、既有验证记录及最终前端产物已对照核验，历史中间调整与撤回记录保留。
 
 各提交状态下的 Edge 定向检查分别为曲库 71/71、VRCX 与导航 39/39、历史 21/21、网络与布局 25/25、设置路径 20/20，通过前端 build/check、内嵌资源校验和差异检查。证据分别位于 artifacts/commit-library-20261108/、artifacts/commit-vrcx-20261108/、artifacts/commit-history-20261108/、artifacts/commit-network-20261108/、artifacts/commit-settings-20261108/。本轮只提交，不推送，也未重建桌面 EXE。

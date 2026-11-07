@@ -1389,6 +1389,13 @@
       "bytes": 1277560,
       "sha256": "29ead7b2ce7c2a9c6b95b60e65c02d59f486525aab931843990a28a490508135",
       "reason": "Production WebUI with consistent network diagnostic headings, labels and empty speed placeholders; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1277594,
+      "sha256": "79d3bafb6cdaa2092c75542afd9475e37fcf21389d4f39f26aa0a4e5340ac0bb",
+      "reason": "Production WebUI with aligned log and cache directory controls using shared validation fields; generated and verified by webui/build.mjs for offline embedding."
     }
   ]
 }

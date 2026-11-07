@@ -272,7 +272,7 @@ export function SettingsPage({section='application',children}: {section?:Setting
 </>}
       {section==='downloads'&&<><fieldset disabled={disabled}><legend>队列预加载</legend>
       <Checkbox label="随视频服务启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/>
-      <DirectoryField purpose="log-directory" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
+      <DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset>
       <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
       {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64)}

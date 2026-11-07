@@ -59,13 +59,13 @@ export function samePath(value: string, defaultValue: string) {
   return !value || normalize(value) === normalize(defaultValue);
 }
 
-export function DirectoryField({purpose, label, labelSuffix, value, defaultValue = '', isDefault, hint, disabled, onChange, onReset, onPending}: {
-  purpose: 'video-directory' | 'block-cache-directory' | 'import-directory' | 'log-directory'; label: string; value: string; defaultValue?: string; isDefault?: boolean;
+export function DirectoryField({purpose, name, label, labelSuffix, value, defaultValue = '', isDefault, hint, disabled, onChange, onReset, onPending}: {
+  purpose: 'video-directory' | 'block-cache-directory' | 'import-directory' | 'log-directory'; name?:string; label: string; value: string; defaultValue?: string; isDefault?: boolean;
   labelSuffix?: ReactNode; hint?: string; disabled: boolean; onChange: (path: string) => void; onReset?: () => void; onPending?: (pending: boolean) => void;
 }) {
   const picker = usePathPicker(onPending);
   return <>
-    <PathField label={label} labelSuffix={labelSuffix} value={value} defaultValue={defaultValue} isDefault={isDefault} hint={hint} disabled={disabled || picker.pending}
+    <PathField name={name} label={label} labelSuffix={labelSuffix} value={value} defaultValue={defaultValue} isDefault={isDefault} hint={hint} disabled={disabled || picker.pending}
       onChoose={() => void picker.choose(purpose, value || defaultValue, onChange)} onReset={onReset || (() => onChange(defaultValue))}/>
     <Feedback error>{picker.error}</Feedback>
   </>;

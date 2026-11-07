@@ -1838,3 +1838,13 @@ Edge vrcx.spec.ts、ui-layout.spec.ts、network-diagnostics.spec.ts 与 monitor-
 用户指出检测内容动态变化，底边对齐不能稳定内部布局。撤回上一条记录中的检测卡片等高设置及对应断言，清理专用类，恢复宽屏顶部对齐、各卡片按自身内容定高；其余三项已确认调整保留，现行内容约定同步替代等高规则。
 
 Edge 390px、800px、1440px 设置／网络布局检查 3/3 通过，证据在 artifacts/network-natural-height-20261108/；前端 build/check、内嵌资源校验及差异检查通过，产物登记更新。未重建桌面 EXE、提交或推送。
+## 2026-11-08 下载设置路径控件右侧对齐
+
+仅落实本轮获准的第一项视觉建议：DirectoryField 转发可选字段名，日志目录以 vrchatLogDir 复用既有 PathField／ValidationField，与临时缓存目录使用相同校验图标槽位，统一路径框及恢复默认按钮右边缘。未新增样式补丁或修改校验槽位，未实施窄屏设置操作区及测速详情文字建议。
+
+Edge 定向检查 19/19 通过，另补日志目录选择、保存及恢复自动识别 1/1 通过。覆盖 390px／800px／1440px 右边缘误差小于 1px、路径显示及选择、目录冲突、错误提示和浅深／高对比度布局。已查看桌面与窄屏下载设置截图；证据位于 artifacts/settings-path-alignment-20261108/ 和 artifacts/settings-log-reset-20261108/。前端 build/check、内嵌资源校验及差异检查通过。未重建桌面 EXE、提交或推送。
+## 2026-11-08 按独立目的拆分提交复核
+
+按用户授权拆为曲库列表与状态、VRCX 导入、历史摘要、网络诊断展示、设置路径对齐五组；各组均重建并校验自己的前端产物与构建清单，产物例外仅新增实际进入提交的五个版本。另修正界面设计中残留的“概览行三个按钮”为“两个”，与移除顶部 VRCX 快捷入口后的实际界面一致。拆分前后源码、测试、既有验证记录及最终前端产物已对照核验，历史中间调整与撤回记录保留。
+
+各提交状态下的 Edge 定向检查分别为曲库 71/71、VRCX 与导航 39/39、历史 21/21、网络与布局 25/25、设置路径 20/20，通过前端 build/check、内嵌资源校验和差异检查。证据分别位于 artifacts/commit-library-20261108/、artifacts/commit-vrcx-20261108/、artifacts/commit-history-20261108/、artifacts/commit-network-20261108/、artifacts/commit-settings-20261108/。本轮只提交，不推送，也未重建桌面 EXE。

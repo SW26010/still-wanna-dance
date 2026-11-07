@@ -23,6 +23,11 @@ for(const width of [390,800,1440])test(`settings and network show their controls
     await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeVisible();
     await expect(page.locator('.fui-Accordion')).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    if(tab==='下载与缓存'){
+      const log=(await page.getByRole('button',{name:'VRChat 日志目录：恢复默认',exact:true}).boundingBox())!;
+      const cache=(await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).boundingBox())!;
+      expect(Math.abs(log.x+log.width-cache.x-cache.width)).toBeLessThan(1);
+    }
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:info.outputPath(tab+'.png'),fullPage:true,animations:'disabled'});
   }

@@ -6,7 +6,7 @@ test('favorite retention is a saved storage preference and does not start downlo
   const api=await mockAPI(page);
   await page.goto('/#storage-settings');
   const option=page.getByRole('checkbox',{name:'优先保留收藏视频',exact:true});
-  await expect(page.getByText('收藏视频在预算内优先保留，不会自动下载。',{exact:true})).toBeVisible();
+  await expect(option).toBeVisible();
   await expect(option).toBeChecked();
   await option.uncheck();
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);

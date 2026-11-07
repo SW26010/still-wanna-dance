@@ -107,7 +107,7 @@ test('acceleration summarizes recent failures and links to their owning page',as
   api.state.activation={phase:'waiting',firstRequest:new Date().toISOString()};
   await page.route('**/api/requests?*',r=>r.fulfill({json:{requests:[{id:1,at:Date.now(),status:502,outcome:'failed',method:'GET',bytes:0,elapsedMS:100,resource:'song'}]}}));
   await page.setViewportSize({width:390,height:844});await page.goto('/');
-  await expect(page.getByText(/最近请求：请求失败 · HTTP 502/)).toBeVisible();
+  await expect(page.getByText(/最近请求：处理异常 · HTTP 502/)).toBeVisible();
   await expect(page.getByRole('button',{name:'加速错误',exact:true})).toHaveCount(0);
   await expect(page.getByRole('status',{name:'游戏连接',exact:true})).toHaveText('游戏连接：已接入');
   await expect(page.getByRole('status',{name:'视频服务',exact:true})).toHaveText('视频服务：运行中');

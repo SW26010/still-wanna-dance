@@ -12,7 +12,7 @@ Mihomo 文件／Base64／URL 输入属于前端草稿，不作为设置字段提
 
 设置请求中缺失或 null 的字段保留已保存值，显式 false、0、空串按字段语义校验；例如清空 `vrchatLogDir` 才恢复自动识别，省略它不改变路径。不同字段的并发修改相互保留，同一字段以最后成功保存的请求为准，不增加版本冲突协议。配置文件加载仍采用启动默认值，下文各字段的“缺失或 null 使用默认值”均指文件加载。配置格式仍为 v8，保存与重启的生效边界不变。
 
-当前配置版本为 8，统一使用 `vrchatLogDir`、`videoBudgetBytes`、`aggressiveBlockReclamation`、`downloadConcurrencySoftLimit` 和 `restoreHostsOnStopOrExit`。此次发布前整理不迁移旧配置、不读取旧名称别名；旧版本拒绝打开且保留原文件。当前 v8 配置中已停用的 `upstreamMode=auto` 是一个明确例外：读取时转换为 `proxy`，启动校验通过后仅原子写回该字段，保留代理凭据、节点及其他字段，不增加格式版本。设置请求只接受 direct/proxy。迁移当次运行首次进入首页时弹出简短通知，同一浏览器标签刷新不重复；迁移已落盘，后续启动不再通知。写回失败则启动报错，不宣称迁移成功。数据库及其他状态格式不因字段调整改变，版本边界见[存储契约](storage.md#持久化格式与语义)。
+当前配置版本为 8，统一使用 `vrchatLogDir`、`videoBudgetBytes`、`downloadConcurrencySoftLimit` 和 `restoreHostsOnStopOrExit`。此次发布前整理不迁移旧配置、不读取旧名称别名；旧版本拒绝打开且保留原文件。当前 v8 配置中已停用的 `upstreamMode=auto` 是一个明确例外：读取时转换为 `proxy`，启动校验通过后原子写回该字段并清除已停用的回收策略字段，保留代理凭据、节点及其他字段，不增加格式版本。设置请求只接受 direct/proxy。迁移当次运行首次进入首页时弹出简短通知，同一浏览器标签刷新不重复；迁移已落盘，后续启动不再通知。写回失败则启动报错，不宣称迁移成功。数据库及其他状态格式不因字段调整改变，版本边界见[存储契约](storage.md#持久化格式与语义)。
 
 `vrchatLogDir` 表示用户指定的 VRChat 日志输入目录，缺失、null、空串或仅空白表示自动识别；非空路径相对配置文件解析，实例内路径落盘为相对路径。`settings` / `activeSettings` 在自动模式下始终保留空串，读取日志时才解析当前用户的默认目录；`defaultLogDir` 仅向界面提供默认路径展示，不回写配置。指定和恢复默认均保存后重启生效，不再单独保存手动模式布尔值。
 
@@ -28,7 +28,7 @@ Mihomo 文件／Base64／URL 输入属于前端草稿，不作为设置字段提
 
 「忽略 VRCX 导入建议」是当前配置实例的界面选择，主配置以 `vrcxImportDismissed` 保存；不进入可编辑的 `settings` / `activeSettings`，不应用待重启设置，普通设置保存保留该字段。默认与完整生命周期统一见[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)。
 
-「激进的缓存回收策略」保存为显式枚举 aggressiveBlockReclamation=auto/on/off，初始为 auto。自动只在视频保留选项为「不保留」时开启，「限制为」及「不限制」时关闭；使用有效预算判断，不受界面记住的预算输入值或当前剩余额度影响。手动开启/关闭不随预算变化，选回自动后恢复跟随。该选项仅在设置的「下载与缓存」标签编辑；状态快照保留策略本身，实际行为由当前运行配置计算。仅切换策略也参与待重启，配置格式为 8，不迁移旧格式。
+块回收固定采用原默认策略，规则见[本地资源管理](download-resource-design.md#6-本地资源管理的存储与外部契约)。已移除 `aggressiveBlockReclamation` 配置，旧值（包括 on/off）读取时忽略，不进入设置 API 或运行快照；单纯读取不改写文件，在下一次成功写入配置时清除该字段及其大小写别名，保留其他未知字段，不增加配置版本或单独迁移流程。
 
 「高级下载设置」中的下载并发软上限与增长间隔也遵循此规则。配置字段 `downloadConcurrencySoftLimit` 与 `downloadGrowIntervalMS` 缺失或 null 时分别使用 16 和 250，明确保存的 0 ms 表示关闭缓增；范围与执行语义见[下载并发](download-concurrency.md)。
 

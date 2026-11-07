@@ -42,7 +42,6 @@ type Settings struct {
 	VideoBudgetBytes             int64  `json:"videoBudgetBytes"`
 	VideoStorageMode             string `json:"videoStorageMode"`
 	RetainFavorites              bool   `json:"retainFavorites"`
-	AggressiveBlockReclamation   string `json:"aggressiveBlockReclamation"`
 	DatabasePath                 string `json:"databasePath"`
 	VideoDir                     string `json:"videoDir"`
 	BlockCacheDir                string `json:"blockCacheDir"` // empty uses the executable's work directory
@@ -56,7 +55,6 @@ func defaultSettings() Settings {
 		RequestRetentionMode: "unlimited",
 		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnStopOrExit: true,
 		VideoStorageMode: "none", VideoBudgetBytes: 0, RetainFavorites: true,
-		AggressiveBlockReclamation:   "auto",
 		DownloadConcurrencySoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),
 	}
@@ -178,9 +176,6 @@ func normalizeSettings(s Settings) (Settings, error) {
 	}
 	if s.VideoStorageMode == "limited" && s.VideoBudgetBytes == 0 {
 		return s, invalidSetting(errors.New("选择「限制为」时，视频存储预算必须大于 0"), "videoBudgetBytes")
-	}
-	if s.AggressiveBlockReclamation != "auto" && s.AggressiveBlockReclamation != "on" && s.AggressiveBlockReclamation != "off" {
-		return s, invalidSetting(errors.New("激进的缓存回收策略必须为 auto、on 或 off"), "aggressiveBlockReclamation")
 	}
 	for _, path := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		*path = strings.TrimSpace(*path)

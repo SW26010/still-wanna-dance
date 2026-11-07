@@ -20,7 +20,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should disable automatic acceleration and enable WebUI opening and queue following")
 	}
-	if want.AggressiveBlockReclamation != "auto" || want.VideoStorageMode != "none" || want.VideoBudgetBytes != 0 {
+	if want.VideoStorageMode != "none" || want.VideoBudgetBytes != 0 {
 		t.Fatal("first launch should not retain unprotected videos")
 	}
 	c.Close()
@@ -36,7 +36,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "8" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
 		t.Fatal(fields)
 	}
-	if string(fields["aggressiveBlockReclamation"]) != `"auto"` || string(fields["videoStorageMode"]) != `"none"` || string(fields["videoBudgetBytes"]) != "0" {
+	if fields["aggressiveBlockReclamation"] != nil || string(fields["videoStorageMode"]) != `"none"` || string(fields["videoBudgetBytes"]) != "0" {
 		t.Fatal("zero retention defaults were not persisted", fields)
 	}
 	if string(fields["vrchatLogDir"]) != `""` || string(fields["downloadConcurrencySoftLimit"]) != "16" || string(fields["restoreHostsOnStopOrExit"]) != "true" {

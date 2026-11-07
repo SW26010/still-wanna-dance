@@ -3,7 +3,6 @@ export interface Settings {
   theme: ThemePreference;
   logLevel: 'off' | 'error' | 'warn' | 'info' | 'debug';
 	retainFavorites: boolean;
-  aggressiveBlockReclamation: 'auto' | 'on' | 'off';
   databasePath: string; videoDir: string; blockCacheDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number;
   prepareAheadSeconds: number; downloadConcurrencySoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;

@@ -5,7 +5,7 @@ import { APIError, decode, request } from './api';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress, useThemePreference } from './ui';
 import { type Settings, type Status } from './types';
-import { CacheCapacityFields, CacheReclamationFields, capacityPayload, type CapacityDraft } from './cache-capacity';
+import { CacheCapacityFields, capacityPayload, type CapacityDraft } from './cache-capacity';
 import { StorageLocationFields, locationRequestError, locationValidationKey, type LocationValidation } from './storage-directory';
 import { DirectoryField, samePath } from './path-picker';
 import { ImportSpaceHint } from './import-space';
@@ -30,8 +30,8 @@ export function draftFrom(s: Settings): Draft {
     videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportName: '', proxyImportSource: 'config' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, k === 'requestRetentionDays' ? Number(d[k]) : downloadNumber(d, k)])), ...capacityPayload({videoStorageMode, aggressiveBlockReclamation, videoBudgetGiB}),
+  const { videoStorageMode, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
+  return { ...values, ...Object.fromEntries(numeric.map(k => [k, k === 'requestRetentionDays' ? Number(d[k]) : downloadNumber(d, k)])), ...capacityPayload({videoStorageMode, videoBudgetGiB}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 function downloadNumber(d: Draft, key: DownloadNumberField) {
@@ -284,7 +284,6 @@ export function SettingsPage({section='application',children}: {section?:Setting
       {numberField('prepareAheadSeconds','提前准备时间',100,16000,'秒')}
       {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'秒','需求结束后继续保留缓存。')}
       </div>
-      <CacheReclamationFields mode={d.videoStorageMode} reclamation={d.aggressiveBlockReclamation} disabled={disabled} onChange={update} />
       </fieldset></>}
     </form></Panel></FieldErrors.Provider>;
   return children(form,actions);

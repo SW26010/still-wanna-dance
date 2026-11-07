@@ -51,8 +51,8 @@ try {
   await second.getByRole('button',{name:'放弃更改',exact:true}).click();
   await expect(second.getByRole('radio',{name:'不限制',exact:true})).toBeChecked();
   await second.route('**/api/path/select',route=>route.fulfill({json:{path:videoDir,canceled:false}}));
-  await second.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
-  await expect(second.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(videoDir);
+  await second.getByRole('textbox',{name:'本地视频目录',exact:true}).click();
+  await expect(second.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue(videoDir);
   const save=second.getByRole('button',{name:'保存设置',exact:true}),dialog=second.getByRole('dialog');
   await save.click();
   await expect(dialog).toContainText('不限制视频空间');
@@ -63,7 +63,7 @@ try {
   const rejected=second.waitForResponse(response=>new URL(response.url()).pathname==='/api/settings');
   await dialog.getByRole('button',{name:'确认并保存',exact:true}).click();
   expect((await rejected).status()).toBe(400);
-  await second.getByRole('button',{name:'完整视频目录：错误',exact:true}).hover();
+  await second.getByRole('button',{name:'本地视频目录：错误',exact:true}).hover();
   await expect(second.getByRole('tooltip')).toHaveText('目录或视频保留策略已变化，请重新确认后保存。');
   await second.mouse.move(0,0);
   expect((await status()).settings.videoDir).toBe(initial.settings.videoDir);

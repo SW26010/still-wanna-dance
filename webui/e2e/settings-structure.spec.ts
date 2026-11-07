@@ -29,7 +29,7 @@ test('six primary pages and section links reach their current owners',async({pag
   await expect(page.getByRole('navigation',{name:'页面导航'}).getByRole('link')).toHaveText(['加速','历史','曲库','网络','设置','关于']);
   for(const name of ['常规','存储','下载与缓存','网络'])await expect(page.getByRole('tablist',{name:'设置分类'}).getByRole('tab',{name,exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'存储',exact:true}).click();
-  for(const label of ['数据库文件','完整视频目录'])await expect(page.getByRole('textbox',{name:label,exact:true})).toBeVisible();
+  for(const label of ['数据库文件','本地视频目录'])await expect(page.getByRole('textbox',{name:label,exact:true})).toBeVisible();
   for(const text of ['当前数据库：','当前完整视频目录：','当前临时视频缓存目录：'])await expect(page.getByText(text,{exact:false})).toHaveCount(0);
   await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveCount(0);
   await expect(page.getByRole('radiogroup',{name:'激进的缓存回收策略',exact:true})).toHaveCount(0);

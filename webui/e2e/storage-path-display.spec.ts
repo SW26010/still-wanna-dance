@@ -11,7 +11,7 @@ for (const prefix of ['', 'night.json.d\\']) test(`default storage paths stay re
   api.state.portableDir = 'E:\\SWD'; api.state.defaultBlockCacheDir = 'E:\\SWD\\work';
   await page.goto('/#storage-settings');
   const db = page.getByRole('textbox', {name:'数据库文件', exact:true});
-  const video = page.getByRole('textbox', {name:'完整视频目录', exact:true});
+  const video = page.getByRole('textbox', {name:'本地视频目录', exact:true});
   await expect(db).toHaveValue('.\\' + prefix + 'data\\database\\storage.sqlite');
   await expect(video).toHaveValue('.\\' + prefix + 'videos');
   await expect(page.getByRole('button', {name:'数据库文件：恢复默认', exact:true})).toBeDisabled();
@@ -39,7 +39,7 @@ test('policy confirmation formats default paths while requests keep resolved pat
   api.state.defaultVideoDir = 'C:\\UI-Test\\videos';
   await page.route('**/api/storage/check', route => route.fulfill({json:{confirmVideoPolicy:true}}));
   await page.goto('/#storage-settings');
-  await page.getByRole('button', {name:'完整视频目录：恢复默认', exact:true}).click();
+  await page.getByRole('button', {name:'本地视频目录：恢复默认', exact:true}).click();
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('视频目录：.\\videos');
@@ -52,11 +52,11 @@ test('policy confirmation formats default paths while requests keep resolved pat
     confirmVideoPolicy:{databasePath:api.state.defaultDatabasePath, videoDir:api.state.defaultVideoDir},
   });
   await page.reload();
-  await expect(page.getByRole('textbox', {name:'完整视频目录', exact:true})).toHaveValue('.\\videos');
-  await choosePath(page, '完整视频目录', 'D:\\Custom Videos');
+  await expect(page.getByRole('textbox', {name:'本地视频目录', exact:true})).toHaveValue('.\\videos');
+  await choosePath(page, '本地视频目录', 'D:\\Custom Videos');
   await page.getByRole('button', {name:'保存设置', exact:true}).click();
   await expect(dialog).toContainText('视频目录：D:\\Custom Videos');
   await dialog.getByRole('button', {name:'取消', exact:true}).click();
   await page.getByRole('button', {name:'放弃更改', exact:true}).click();
-  await expect(page.getByRole('textbox', {name:'完整视频目录', exact:true})).toHaveValue('.\\videos');
+  await expect(page.getByRole('textbox', {name:'本地视频目录', exact:true})).toHaveValue('.\\videos');
 });

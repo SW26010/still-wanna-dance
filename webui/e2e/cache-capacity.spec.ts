@@ -8,7 +8,7 @@ test('video budget shows the historical estimate as the draft changes', async ({
   const api = await mockAPI(page);
   await page.goto('/#storage-settings');
   const input = page.getByRole('spinbutton', {name:'视频存储预算（GiB）', exact:true});
-  const estimate = page.locator('#videoBudgetGiB > .fui-Field > .fui-Field__hint');
+  const estimate = page.locator('#videoBudgetGiB > .fui-Field > .fui-Label .secondary');
   await expect(estimate).toHaveCount(0);
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
   for (const [budget, expected] of [
@@ -33,6 +33,17 @@ test('video budget shows the historical estimate as the draft changes', async ({
     await page.setViewportSize({width,height:900});
     await page.emulateMedia({colorScheme:width === 320 ? 'dark' : 'light'});
     await expect(estimate).toBeVisible();
+    const group = page.getByRole('radiogroup',{name:'保留下载的视频',exact:true});
+    const title = page.getByText('保留下载的视频',{exact:true});
+    const estimateBox = (await estimate.boundingBox())!;
+    expect(estimateBox.y + estimateBox.height).toBeLessThanOrEqual((await group.boundingBox())!.y);
+    expect(estimateBox.x).toBeGreaterThan((await title.boundingBox())!.x + (await title.boundingBox())!.width);
+    const favorites = page.getByRole('checkbox',{name:'优先保留收藏视频',exact:true});
+    const top = (await favorites.boundingBox())!.y;
+    for (const mode of ['不保留','不限制','限制为']) {
+      await page.getByRole('radio',{name:mode,exact:true}).check();
+      expect((await favorites.boundingBox())!.y).toBe(top);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect((await input.locator('..').boundingBox())!.width).toBeLessThanOrEqual(100);
     await page.locator('#videoBudgetGiB').screenshot({path:info.outputPath(`estimate-${width}.png`),animations:'disabled'});
@@ -49,7 +60,7 @@ test('the smallest saved byte budget still shows an estimate', async ({page}) =>
   api.state.settings.videoStorageMode = 'limited';
   api.state.settings.videoBudgetBytes = Math.round(0.01 * 1073741824);
   await page.goto('/#storage-settings');
-  await expect(page.locator('#videoBudgetGiB > .fui-Field > .fui-Field__hint')).toHaveText('预计请求命中率：约 0%');
+  await expect(page.locator('#videoBudgetGiB > .fui-Field > .fui-Label .secondary')).toHaveText('预计请求命中率：约 0%');
 });
 
 test('settings keep the video directory editable without losing its saved or draft path', async ({page}, info) => {
@@ -59,7 +70,7 @@ test('settings keep the video directory editable without losing its saved or dra
   api.state.settings.videoStorageMode = 'none';
   await page.emulateMedia({colorScheme:'dark'});
   await page.goto('/#storage-settings');
-  const path = page.getByRole('textbox', {name:'完整视频目录', exact:true});
+  const path = page.getByRole('textbox', {name:'本地视频目录', exact:true});
   await expect(path).toBeVisible();
   await expect(path).toBeEnabled();
   await expect(path).toHaveValue(savedPath);
@@ -67,7 +78,7 @@ test('settings keep the video directory editable without losing its saved or dra
   await page.getByRole('radio', {name:'限制为', exact:true}).check();
   await expect(path).toBeEnabled();
   const draftPath = 'D:\\SWD\\new-storage';
-  await choosePath(page, '完整视频目录', draftPath);
+  await choosePath(page, '本地视频目录', draftPath);
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
   await expect(path).toBeEnabled();

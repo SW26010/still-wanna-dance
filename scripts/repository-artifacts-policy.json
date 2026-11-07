@@ -1340,6 +1340,20 @@
       "bytes": 1275408,
       "sha256": "d320f849614e21e7271ceeb1ab6aa74191ff0c4e215b94f906ef806ba597271d",
       "reason": "Production WebUI using compact retention fields, decimal-capable Fluent SpinButton with 1 GiB steps, historical request coverage hints and settings dividers; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1275186,
+      "sha256": "f179501fadca8e19d26d9e2d70055cb679269521075a00d3c0722de7246601f6",
+      "reason": "Production WebUI removing the explanatory text below the restore-on-stop-or-exit setting; generated and verified by webui/build.mjs for offline embedding."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1275240,
+      "sha256": "87cd5d3d7d39ec583ae808739ff3e5951275c5b56cabf534457d8c2fd727581f",
+      "reason": "Production WebUI with revised settings copy and historical request coverage beside the retention label; generated and verified by webui/build.mjs for offline embedding."
     }
   ]
 }

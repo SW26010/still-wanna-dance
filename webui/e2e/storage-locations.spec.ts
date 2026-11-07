@@ -15,7 +15,7 @@ test('database selection can wait beyond the ordinary request timeout', async ({
 });
 
 for (const target of [
-  {endpoint:'storage/validate-location',label:'完整视频目录',path:'D:\\Slow Videos',message:'检查存储位置超时'},
+  {endpoint:'storage/validate-location',label:'本地视频目录',path:'D:\\Slow Videos',message:'检查存储位置超时'},
   {endpoint:'storage/prepare-database',label:'数据库文件',path:'D:\\Slow Database\\storage.sqlite',message:'数据库准备超时，结果尚未确认'},
 ]) test(`${target.endpoint} timeout releases the picker and preserves the draft`,async({page})=>{
   test.setTimeout(25000);
@@ -33,7 +33,7 @@ for (const target of [
     await expect(page.getByRole('button',{name:'放弃更改',exact:true})).toBeDisabled();
     if(target.endpoint==='storage/prepare-database') {
       api.state.settings.videoDir='D:\\Other Videos';
-      await expect(page.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue('D:\\Other Videos',{timeout:10000});
+      await expect(page.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue('D:\\Other Videos',{timeout:10000});
     }
     await expect(fieldError(page,target.message)).toBeVisible({timeout:19000});
     await expect(page.getByRole('textbox',{name:target.label,exact:true})).toHaveValue(target.path);
@@ -55,8 +55,8 @@ test('pagehide cancels a pending location check without changing the draft',asyn
   });
   try {
     await page.goto('/#storage-settings');
-    const field=page.getByRole('textbox',{name:'完整视频目录',exact:true}), original=await field.inputValue();
-    await choosePath(page,'完整视频目录','D:\\Canceled Videos');
+    const field=page.getByRole('textbox',{name:'本地视频目录',exact:true}), original=await field.inputValue();
+    await choosePath(page,'本地视频目录','D:\\Canceled Videos');
     await started;
     await page.evaluate(()=>dispatchEvent(new Event('pagehide')));
     await expect(field).toBeEnabled();
@@ -86,7 +86,7 @@ test('explicit database creation only updates the draft until save and restart',
   await page.setViewportSize({width:390,height:900});
   await page.goto('/#storage-settings');
   const db=page.getByRole('textbox',{name:'数据库文件',exact:true});
-  const videos=page.getByRole('textbox',{name:'完整视频目录',exact:true});
+  const videos=page.getByRole('textbox',{name:'本地视频目录',exact:true});
   await expect(db).toBeEnabled(); await expect(videos).toBeEnabled();
   await page.getByRole('textbox',{name:'数据库文件',exact:true}).click();
   await expect(db).toHaveValue('.\\storage\\storage.sqlite');
@@ -131,7 +131,7 @@ test('creation failure keeps the chosen database in the draft and blocks saving'
   await choosePath(page,'数据库文件',invalid);
   await expect(fieldError(page,'所选数据库无效，不会覆盖')).toBeVisible();
   await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue(invalid);
-  await expect(page.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(api.state.settings.videoDir);
+  await expect(page.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue(api.state.settings.videoDir);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
 });
@@ -147,7 +147,7 @@ test('canceling a new database never creates it or changes the draft',async({pag
 });
 
 for(const target of [
-  {anchor:'storage-settings',label:'完整视频目录',purpose:'video-directory'},
+  {anchor:'storage-settings',label:'本地视频目录',purpose:'video-directory'},
   {anchor:'download-settings',label:'临时视频缓存目录',purpose:'block-cache-directory'},
   {anchor:'download-settings',label:'VRChat 日志目录',purpose:'log-directory'},
   {anchor:'video-import',label:'外部目录',purpose:'import-directory'},
@@ -219,8 +219,8 @@ test('conflicting choices stay in the draft until the whole combination is valid
   });
   api.state.settings.blockCacheDir=cachePath;
   await page.goto('/#storage-settings');
-  const video=page.getByRole('textbox',{name:'完整视频目录',exact:true});
-  await choosePath(page,'完整视频目录',rejectedVideo);
+  const video=page.getByRole('textbox',{name:'本地视频目录',exact:true});
+  await choosePath(page,'本地视频目录',rejectedVideo);
   await expect(fieldError(page,'完整视频目录与临时视频缓存目录不能相同或互相包含')).toBeVisible();
   await expect(video).toHaveValue(rejectedVideo);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
@@ -232,7 +232,7 @@ test('conflicting choices stay in the draft until the whole combination is valid
   await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue(database);
   await expect(fieldError(page,'完整视频目录与临时视频缓存目录不能相同或互相包含')).toBeVisible();
   expect(api.calls.some(c=>c.path==='storage/prepare-database')).toBe(false);
-  await choosePath(page,'完整视频目录','D:\\Other Videos');
+  await choosePath(page,'本地视频目录','D:\\Other Videos');
   await expect(video).toHaveValue('D:\\Other Videos');
   await expect(fieldError(page,'完整视频目录与临时视频缓存目录不能相同或互相包含')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
@@ -253,14 +253,14 @@ test('restoring a conflicting default keeps it in the draft until corrected', as
     return route.fulfill({json:{valid:true}});
   });
   await page.goto('/#storage-settings');
-  await choosePath(page,'完整视频目录',chosen);
-  const video=page.getByRole('textbox',{name:'完整视频目录',exact:true});
+  await choosePath(page,'本地视频目录',chosen);
+  const video=page.getByRole('textbox',{name:'本地视频目录',exact:true});
   await expect(video).toHaveValue(chosen);
-  await page.getByRole('button',{name:'完整视频目录：恢复默认',exact:true}).click();
+  await page.getByRole('button',{name:'本地视频目录：恢复默认',exact:true}).click();
   await expect(fieldError(page,'默认视频目录与临时缓存目录冲突')).toBeVisible();
   await expect(video).toHaveValue(api.state.defaultVideoDir);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
-  await choosePath(page,'完整视频目录',chosen);
+  await choosePath(page,'本地视频目录',chosen);
   await expect(video).toHaveValue(chosen);
   await expect(fieldError(page,'默认视频目录与临时缓存目录冲突')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
@@ -280,9 +280,9 @@ test('an existing conflict stays on the field that first caused it', async ({pag
   });
   api.state.settings.blockCacheDir=cache;
   await page.goto('/#storage-settings');
-  await choosePath(page,'完整视频目录',video);
-  await expect(page.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(video);
-  const videoField=page.getByRole('textbox',{name:'完整视频目录',exact:true}).locator('xpath=ancestor::div[contains(@class,"fui-Field")][1]');
+  await choosePath(page,'本地视频目录',video);
+  await expect(page.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue(video);
+  const videoField=page.getByRole('textbox',{name:'本地视频目录',exact:true}).locator('xpath=ancestor::div[contains(@class,"fui-Field")][1]');
   await expect(videoField).toContainText('完整视频目录与临时视频缓存目录不能相同或互相包含');
   await choosePath(page,'数据库文件','D:\\Library\\deferred.sqlite');
   await expect(videoField).toContainText('完整视频目录与临时视频缓存目录不能相同或互相包含');
@@ -367,8 +367,8 @@ test('a deferred database preparation failure keeps saving blocked until reselec
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(fieldError(page,'所选数据库无效，不会覆盖')).toBeVisible();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
-  await choosePath(page,'完整视频目录','D:\\Another Video Directory');
-  await expect(page.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue('D:\\Another Video Directory');
+  await choosePath(page,'本地视频目录','D:\\Another Video Directory');
+  await expect(page.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue('D:\\Another Video Directory');
   await expect(fieldError(page,'所选数据库无效，不会覆盖')).toBeVisible();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   await choosePath(page,'数据库文件','D:\\Library\\valid.sqlite');
@@ -426,7 +426,7 @@ test('a picker validates against locations updated while it was open', async ({p
   await page.getByRole('textbox',{name:'临时视频缓存目录',exact:true}).click();
   await started;
   api.state.settings.videoDir=video;
-  await expect(page.getByLabel('完整视频目录',{exact:true})).toHaveValue(video,{timeout:10_000});
+  await expect(page.getByLabel('本地视频目录',{exact:true})).toHaveValue(video,{timeout:10_000});
   release();
   await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveValue(cache);
   await expect(fieldError(page,'视频目录与缓存目录冲突')).toBeVisible();
@@ -449,7 +449,7 @@ test('a picker rechecks if locations change while validation is in flight', asyn
   await choosePath(page,'临时视频缓存目录',cache);
   await started;
   api.state.settings.videoDir=video;
-  await expect(page.getByLabel('完整视频目录',{exact:true})).toHaveValue(video,{timeout:10_000});
+  await expect(page.getByLabel('本地视频目录',{exact:true})).toHaveValue(video,{timeout:10_000});
   release();
   await expect(fieldError(page,'视频目录与缓存目录冲突')).toBeVisible();
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
@@ -471,7 +471,7 @@ test('saved location updates revalidate an existing draft and clear resolved war
   await expect(fieldError(page,'视频目录与缓存目录冲突')).toBeVisible({timeout:10_000});
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   api.state.settings.videoDir='D:\\Other Videos';
-  await expect(page.getByLabel('完整视频目录',{exact:true})).toHaveValue('D:\\Other Videos',{timeout:10_000});
+  await expect(page.getByLabel('本地视频目录',{exact:true})).toHaveValue('D:\\Other Videos',{timeout:10_000});
   await expect(fieldError(page,'视频目录与缓存目录冲突')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   await expect(page.getByRole('textbox',{name:'临时视频缓存目录',exact:true})).toHaveValue(cache);
@@ -497,7 +497,7 @@ test('a stale revalidation cannot replace the warning for newer saved locations'
   await started;
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeDisabled();
   api.state.settings.videoDir=safe;
-  await expect(page.getByLabel('完整视频目录',{exact:true})).toHaveValue(safe,{timeout:10_000});
+  await expect(page.getByLabel('本地视频目录',{exact:true})).toHaveValue(safe,{timeout:10_000});
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   release();
   await expect(fieldError(page,'过期的位置冲突')).toHaveCount(0);
@@ -561,7 +561,7 @@ test('reselecting an unchanged legacy location preserves unrelated changes', asy
   });
   await page.goto('/#storage-settings');
   await page.getByRole('checkbox',{name:'优先保留收藏视频'}).uncheck();
-  await choosePath(page,'完整视频目录',video);
+  await choosePath(page,'本地视频目录',video);
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect.poll(()=>api.state.settings.retainFavorites).toBe(false);

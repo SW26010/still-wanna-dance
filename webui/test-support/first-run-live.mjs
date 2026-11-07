@@ -30,7 +30,7 @@ try {
   await expect(page.getByText('后台程序：已连接',{exact:true})).toBeVisible();
   await page.goto(base+'/#storage-settings');
   await expect(page.getByRole('textbox',{name:'数据库文件',exact:true})).toHaveValue(status.defaultDatabasePath);
-  await expect(page.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(status.defaultVideoDir);
+  await expect(page.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue(status.defaultVideoDir);
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
   await page.goto(base+'/#/help');
   await expect(page.getByText(status.defaultDatabasePath,{exact:true})).toBeVisible();

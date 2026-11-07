@@ -10,7 +10,7 @@ try {
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base+'/#download-settings');
   const database=page.getByLabel('数据库文件',{exact:true});
-  const video=page.getByLabel('完整视频目录',{exact:true});
+  const video=page.getByLabel('本地视频目录',{exact:true});
   const cache=page.getByRole('textbox',{name:'临时视频缓存目录',exact:true});
   await expect(database).toHaveValue('.'+sep+join('data','database','storage.sqlite'));
   await expect(video).toHaveValue('.'+sep+'videos');
@@ -34,15 +34,15 @@ try {
   await cache.click();
   await pickerStarted;
   await other.route('**/api/path/select',route=>route.fulfill({json:{path:nestedVideo,canceled:false}}),{times:1});
-  await other.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
-  await expect(other.getByRole('textbox',{name:'完整视频目录',exact:true})).toHaveValue(nestedVideo);
+  await other.getByRole('textbox',{name:'本地视频目录',exact:true}).click();
+  await expect(other.getByRole('textbox',{name:'本地视频目录',exact:true})).toHaveValue(nestedVideo);
   await other.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(video).toHaveValue(nestedVideo,{timeout:10000});
   releasePicker();
   await expect(cache).toHaveValue(cacheDir);
   await expect(page.getByText('临时视频缓存目录与完整视频目录不能相同或互相包含',{exact:false})).toBeVisible();
   await expect(save).toBeDisabled();
-  await other.getByRole('button',{name:'完整视频目录：恢复默认',exact:true}).click();
+  await other.getByRole('button',{name:'本地视频目录：恢复默认',exact:true}).click();
   await other.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(video).toHaveValue(originalVideo,{timeout:10000});
   await expect(page.getByText('临时视频缓存目录与完整视频目录不能相同或互相包含',{exact:false})).toHaveCount(0);
@@ -109,7 +109,7 @@ try {
   await expect(page.getByText('数据库已新建。保存设置并重启后使用。',{exact:true})).toBeVisible();
 
   const containingCache=await page.getByLabel('临时视频缓存目录',{exact:true}).inputValue();
-  await page.getByRole('button',{name:'完整视频目录：恢复默认',exact:true}).click();
+  await page.getByRole('button',{name:'本地视频目录：恢复默认',exact:true}).click();
   await expect(page.getByText('完整视频目录与临时视频缓存目录不能相同或互相包含',{exact:false})).toBeVisible();
   await expect(video).toHaveValue(originalVideo);
   await expect(page.getByLabel('临时视频缓存目录',{exact:true})).toHaveValue(containingCache);

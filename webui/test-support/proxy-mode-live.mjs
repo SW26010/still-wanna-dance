@@ -12,7 +12,7 @@ try {
   const mode=page.getByRole('combobox',{name:'上游连接',exact:true});
   const notice=page.getByText('上游连接已改为代理',{exact:true});
   await expect(mode).toHaveValue('proxy');
-  await expect(mode.locator('option')).toHaveText(['直连（内置 DNS）','代理']);
+  await expect(mode.locator('option')).toHaveText(['直连','代理']);
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
   await expect(notice).toHaveCount(0);
   await page.getByRole('link',{name:'加速',exact:true}).click();

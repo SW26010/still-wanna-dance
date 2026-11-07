@@ -31,11 +31,11 @@ test('directory conflicts highlight the read-only field without inserting error 
   const api=await mockAPI(page);
   await page.route('**/api/storage/validate-location',r=>r.fulfill({json:{valid:false,field:'video',message:'目录不能互相包含'}}));
   await page.goto('/#storage-settings');
-  const video=page.getByRole('textbox',{name:'完整视频目录',exact:true});
+  const video=page.getByRole('textbox',{name:'本地视频目录',exact:true});
   const before=await page.getByRole('radiogroup').first().boundingBox();
-  await choosePath(page,'完整视频目录','D:\\Conflicting');
+  await choosePath(page,'本地视频目录','D:\\Conflicting');
   await expect(video).toHaveAttribute('aria-invalid','true');
-  const icon=page.getByRole('button',{name:'完整视频目录：错误',exact:true});
+  const icon=page.getByRole('button',{name:'本地视频目录：错误',exact:true});
   await expect(icon).toBeVisible();
   expect(await page.getByRole('radiogroup').first().boundingBox()).toEqual(before);
   await icon.focus();await expect(page.getByRole('tooltip')).toContainText('目录不能互相包含');

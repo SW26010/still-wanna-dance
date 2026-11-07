@@ -23,12 +23,12 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await expect(auto).toBeChecked();
   const hint=group.locator('..').locator('.fui-Field__hint');
   expect((await hint.boundingBox())!.y-((await group.boundingBox())!.y+(await group.boundingBox())!.height)).toBeLessThanOrEqual(4);
-  await expect(page.getByText('不保留视频时开启。当前关闭')).toBeVisible();
+  await expect(page.getByText('自动：不保留视频时开启。当前关闭')).toBeVisible();
   await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'不保留', exact:true}).check();
   await saveSettings(page,'待重启');
   await navigateSettings(page,'下载与缓存');
-  await expect(page.getByText('不保留视频时开启。当前开启')).toBeVisible();
+  await expect(page.getByText('自动：不保留视频时开启。当前开启')).toBeVisible();
   await off.check();
   await expect(page.getByText('可能导致大量缓存未及时回收',{exact:true})).toBeVisible();
   await navigateSettings(page,'存储');
@@ -37,7 +37,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   await navigateSettings(page,'下载与缓存');
   await expect(off).toBeChecked();
   await on.check();
-  await expect(page.getByText('可能导致视频未能及时保存到本地',{exact:true})).toBeVisible();
+  await expect(page.getByText('可能导致没有完整的视频保存到本地',{exact:true})).toBeVisible();
   await navigateSettings(page,'存储');
   await page.getByRole('radio', {name:'不限制', exact:true}).check();
   await saveSettings(page,'已生效');
@@ -70,7 +70,7 @@ test('reclamation strategy follows storage only in auto and survives save, disca
   expect(api.state.settings.aggressiveBlockReclamation).toBe('auto');
   await page.reload();
   await expect(auto).toBeChecked();
-  await expect(page.getByText('不保留视频时开启。当前开启')).toBeVisible();
+  await expect(page.getByText('自动：不保留视频时开启。当前开启')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   await page.emulateMedia({colorScheme:'dark'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

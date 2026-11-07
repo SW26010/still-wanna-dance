@@ -1,4 +1,4 @@
-import { Field, Link, Radio, RadioGroup, SpinButton, Tooltip } from '@fluentui/react-components';
+import { Field, Link, Radio, RadioGroup, SpinButton, Text, Tooltip } from '@fluentui/react-components';
 import { useId, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { date, gib, type Settings } from './types';
@@ -39,12 +39,13 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
   const limited = mode === 'limited';
   const estimate = limited ? estimatedCoverage(value) : undefined;
   const estimateId = useId();
+  const labelId = useId();
   const budgetInput = useRef<HTMLInputElement>(null);
   // Fluent commits typed text and steps in the same mouse event. Flush the blur
   // first so its step starts from the current draft, including live edits.
   const commitBeforeStep = () => flushSync(() => budgetInput.current?.blur());
   return <div id={anchor} tabIndex={-1} className="form-grid">
-    <Field label="保留下载的视频" hint={estimate === undefined ? undefined : {id:estimateId,children:`预计请求命中率：约 ${estimate}`}}><RadioGroup layout="horizontal" className="retention-options" value={mode} disabled={disabled}
+    <Field label={{className:'inline',children:<><span id={labelId}>保留下载的视频</span>{estimate !== undefined && <Text id={estimateId} size={200} weight="regular" className="secondary">预计请求命中率：约 {estimate}</Text>}</>}}><RadioGroup aria-labelledby={labelId} aria-describedby={estimate === undefined ? undefined : estimateId} layout="horizontal" className="retention-options" value={mode} disabled={disabled}
       onChange={(_, v) => {
         if (v.value !== 'none' && v.value !== 'limited' && v.value !== 'unlimited') return;
         onChange({videoStorageMode: v.value,
@@ -68,7 +69,7 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
 export function CacheReclamationFields({ mode, reclamation, disabled, onChange }: {
   mode: CapacityDraft['videoStorageMode']; reclamation: CapacityDraft['aggressiveBlockReclamation']; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void;
 }) {
-  return <Field hint={<span aria-live="polite">{reclamation === 'auto' ? `不保留视频时开启。当前${mode === 'none' ? '开启' : '关闭'}` : reclamation === 'on' ? '可能导致视频未能及时保存到本地' : '可能导致大量缓存未及时回收'}</span>} label={<Tooltip content="减少缓存占用，可能重复下载" relationship="description"><span tabIndex={0}>激进的缓存回收策略</span></Tooltip>}>
+  return <Field hint={<span aria-live="polite">{reclamation === 'auto' ? `自动：不保留视频时开启。当前${mode === 'none' ? '开启' : '关闭'}` : reclamation === 'on' ? '可能导致没有完整的视频保存到本地' : '可能导致大量缓存未及时回收'}</span>} label={<Tooltip content="减少缓存占用，可能重复下载" relationship="description"><span tabIndex={0}>激进的缓存回收策略</span></Tooltip>}>
       <RadioGroup layout="horizontal" value={reclamation} disabled={disabled} onChange={(_, v) => {
         if (v.value === 'auto' || v.value === 'on' || v.value === 'off') onChange({aggressiveBlockReclamation: v.value});
       }}>

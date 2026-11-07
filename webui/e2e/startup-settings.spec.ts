@@ -7,14 +7,14 @@ test('startup settings have one owner and saving does not trigger acceleration o
  await page.goto('/#/settings');
  const auto=page.getByRole('checkbox',{name:'启动程序时自动开启视频加速',exact:true});
  await expect(auto).not.toBeChecked();
- await expect(page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('checkbox',{name:'随视频服务启用队列预加载',exact:true})).toHaveCount(0);
  await auto.check();
  expect(api.state.settings.autoAccelerate).toBe(false);
  await saveSettings(page,'待重启');
  expect(api.state.settings.autoAccelerate).toBe(true);
  expect(api.state.activeSettings.autoAccelerate).toBe(false);
  await page.goto('/#prepareAheadSeconds');
- const follow=page.getByRole('checkbox',{name:'随视频网关启用队列预加载',exact:true});
+ const follow=page.getByRole('checkbox',{name:'随视频服务启用队列预加载',exact:true});
  await expect(follow).toBeChecked();
  await expect(auto).toHaveCount(0);
  await follow.uncheck();

@@ -8,7 +8,7 @@ try {
   const page=await browser.newPage({viewport:{width:390,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/#storage-settings');
-  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'完整视频目录',exact:true}),cache=page.getByLabel('临时视频缓存目录',{exact:true});
+  const db=page.getByRole('textbox',{name:'数据库文件',exact:true}),videos=page.getByRole('textbox',{name:'本地视频目录',exact:true}),cache=page.getByLabel('临时视频缓存目录',{exact:true});
   if(phase==='configure') {
     await expect(db).not.toHaveValue('');
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
@@ -16,7 +16,7 @@ try {
     await page.getByRole('textbox',{name:'数据库文件',exact:true}).click();
     await expect(db).not.toHaveValue('');
     await expect(page.getByText('数据库已新建。保存设置并重启后使用。',{exact:true})).toBeVisible();
-    await page.getByRole('textbox',{name:'完整视频目录',exact:true}).click();
+    await page.getByRole('textbox',{name:'本地视频目录',exact:true}).click();
     await expect(videos).toHaveValue(videoDir);
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();

@@ -136,7 +136,7 @@ func TestAllRoutesAndReadOnlySnapshot(t *testing.T) {
 			t.Fatal(r)
 		}
 	}
-	if resultFor(t, m, Catalog, "api").Entry != apiBase+"/Api/Songs/list" {
+	if resultFor(t, m, Catalog, "api").Entry != "https://api.udon.dance/Api/Songs/list" {
 		t.Fatal(snapshot)
 	}
 	for _, op := range []Operation{PlaybackURL, Resource} {

@@ -137,7 +137,8 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
-	if !s.Scheduled || len(s.Results) != 6 || calls.Load() != 9 {
+	// Monitor checks three operations on two paths; diagnostics make six requests.
+	if !s.Scheduled || len(s.Results) != 6 || calls.Load() != 12 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {

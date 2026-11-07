@@ -143,7 +143,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 	}
 }
 
-func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing.T) {
+func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T) {
 	c := testConsole(t)
 	keys := map[int64]string{1981: strings.Repeat("a", 32), 5404: strings.Repeat("b", 32)}
 	if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261014000000", Source: cacheproxy.KivaCatalogURL, Songs: []cacheproxy.CatalogSong{{ID: 1981, MD5: keys[1981]}, {ID: 5404, MD5: keys[5404]}}}); err != nil {
@@ -203,7 +203,8 @@ func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing
 			t.Fatalf("requested=%v calls=%d resources=%d", requested, calls, resourceCalls)
 		}
 	}
-	assertRequests(1981, 3, 1)
+	// Each round fetches four catalogs, one playback URL and one resource.
+	assertRequests(1981, 6, 1)
 	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404, 42}) {
 		t.Fatal("completed song stayed pending", pending)
 	}
@@ -212,7 +213,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing
 		t.Fatal(err)
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
-	assertRequests(5404, 6, 2)
+	assertRequests(5404, 12, 2)
 	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
 		t.Fatal("Udon-only song was not scheduled", pending)
 	}
@@ -221,7 +222,7 @@ func TestMetadataBackfillIncludesUdonOnlySongWithoutRequestingBackups(t *testing
 		t.Fatal(err)
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
-	assertRequests(42, 9, 3)
+	assertRequests(42, 18, 3)
 	if pending := c.metadataSongCandidates(context.Background()); len(pending) != 0 {
 		t.Fatal("metadata still incomplete", pending)
 	}

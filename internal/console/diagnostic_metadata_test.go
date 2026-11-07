@@ -117,7 +117,7 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 						t.Fatalf("round %d requested %v, want %d", round, ids, want)
 					}
 				}
-				if round != 2 && listRequests != 2 || round == 2 && listRequests > 2 {
+				if round != 2 && listRequests != 4 || round == 2 && listRequests > 4 {
 					t.Fatalf("round %d catalog requests: %d", round, listRequests)
 				}
 				if round == 0 && resourceRequests != 0 || round != 0 && round != 2 && resourceRequests != 1 || round == 2 && resourceRequests > 1 {

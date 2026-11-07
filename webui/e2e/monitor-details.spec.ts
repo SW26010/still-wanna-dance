@@ -64,7 +64,7 @@ test('unmeasured network offers direct checks and shows new samples without expa
   await expect(panel).not.toContainText('暂无检测结果');await expect(panel).not.toContainText('最近完成：—');
   // Finish the action-triggered refresh before publishing the later sample.
   const actionRefresh=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/status');
-  await panel.getByRole('button',{name:'检测视频列表',exact:true}).click();
+  await panel.getByRole('button',{name:'检测歌曲列表',exact:true}).click();
   await expect.poll(()=>calls.filter(c=>c.path==='upstream/check/catalog').length).toBe(1);
   await (await actionRefresh).finished();
   await expect(page.getByRole('listitem',{name:'网络检测已开始，请查看检测结果。',exact:true})).toBeVisible();

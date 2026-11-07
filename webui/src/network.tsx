@@ -71,7 +71,7 @@ export function Network({visible}:{visible:boolean}) {
   const direct=status.activeSettings.upstreamMode==='direct';
   const mihomo=status.activeSettings.upstreamMode==='proxy'&&status.activeSettings.proxyBackend==='mihomo';
   return <div id={!direct?'network':undefined} tabIndex={!direct?-1:undefined} className="page-stack">
-    <section id="network-tests" tabIndex={-1}>{visible&&<Diagnostics visible={visible}/>}</section>
+    <section id="network-tests" className="content-stack" tabIndex={-1}>{visible&&<Diagnostics visible={visible}/>}</section>
     {!direct&&!mihomo&&<SOCKS5Service/>}
     {direct&&<NetworkMonitor/>}
     {mihomo&&visible&&<MihomoDashboard/>}

@@ -115,7 +115,7 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
   const label = canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?previous?'未完成，保留上次结果':'测速未完成':previous?'上次有效结果':'尚未测速';
   return <><p role="status">{label}</p>
     {s?.phase==='failed' && s.reason==='preparation_insufficient' && <Feedback error>可用测速样本不足，请检查曲库与连通性后重试。</Feedback>}
-    <div className="metrics"><div>单连接速度 <output><Text block size={600} font="numeric">{metric(single,8/1e6)} Mbps</Text></output></div><div>多连接速度<output><Text block size={600} font="numeric">{metric(full,8/1e6)} Mbps</Text></output></div></div>
+    <div className="metrics"><div>单连接速度 <output><Text block size={600} font="numeric">{valid(single)?`${metric(single,8/1e6)} Mbps`:'—'}</Text></output></div><div>多连接速度<output><Text block size={600} font="numeric">{valid(full)?`${metric(full,8/1e6)} Mbps`:'—'}</Text></output></div></div>
     <RecordDetails title="测速技术详情"><p>使用 CF 播放地址接口解析视频，分别测量单连接与多连接下载速度。并发连接数：{(live?s.open:result.fullConcurrency) || '—'}。</p><p>CPU 使用率：<span aria-label="多连接稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p></RecordDetails>
     {usable ? <div role="group" aria-label={`${live?'当前':'多连接'} ${metric(ratio)} 倍，${advice}${live?'（测量中）':''}`}>
       <GaugeChart chartValue={ratio} maxValue={maximum} chartValueFormat={()=>metric(ratio)+'×'} sublabel={advice}
@@ -149,7 +149,7 @@ export function Diagnostics({visible}: {visible:boolean}) {
   const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'')||(speedState?.phase==='completed'&&!speedComplete(speedState));
   const speedFinished=speedState?.finished, savedSpeedFinished=speedState?.lastValid?.finished;
   const notice=app.stopped?'':[...new Set([connectivity.message,calibration.message].filter(message=>message&&message!=='正在连接检测状态…'))].join('；');
-  return <><p className="secondary">检测上游：{upstream}</p>
+  return <><Subtitle2 as="h2">检测上游：{upstream}</Subtitle2>
     <div className="settings-columns"><Panel title="连通性检测" action={button('connectivity','连通性检测')}>
       <p className="secondary">每 5 分钟自动检测，也可手动开始。</p>
       <div><span role="status">{connectivity.intent==='start'?'正在启动…':discard?c?.running?'正在停止…':'已放弃本次检测':''}</span></div>

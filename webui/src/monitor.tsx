@@ -60,7 +60,7 @@ export function NetworkMonitor() {
     {(['catalog','playback_url','resource'] as const).map(op=>{
       const rows=results.filter(r=>r.operation===op);
       return <section key={op} className="health-section">
-      <div className="toolbar spread"><div className="inline"><Subtitle2 as="h3">{operationNames[op]}</Subtitle2>{!rows.length&&<span className="secondary">未检测</span>}</div><div className="inline">{(op==='catalog'?[['catalog','检测视频列表']]:op==='playback_url'?[['playback','检测播放地址解析']]:[['latency','检测响应延迟'],['throughput','测量下载速度']]).map(([key,label])=><Button size="small" key={key} disabled={app.unavailable||h.manual} onClick={()=>void app.action('upstream/check/'+key)}>{label}</Button>)}</div></div>
+      <div className="toolbar spread"><div className="inline"><Subtitle2 as="h3">{operationNames[op]}</Subtitle2>{!rows.length&&<span className="secondary">未检测</span>}</div><div className="inline">{(op==='catalog'?[['catalog','检测歌曲列表']]:op==='playback_url'?[['playback','检测播放地址解析']]:[['latency','检测响应延迟'],['throughput','测量下载速度']]).map(([key,label])=><Button size="small" key={key} disabled={app.unavailable||h.manual} onClick={()=>void app.action('upstream/check/'+key)}>{label}</Button>)}</div></div>
       {!!rows.length&&<HealthTable rows={rows} minutes={minutes} wait={waits[h.throughputStatus||'']} label={'线路检测：'+op}/>}
       {op==='resource'&&(h.throughputStatus||dated(h.nextThroughput)||h.throughputSaveFailed)&&<span className="secondary">{[waits[h.throughputStatus||''],dated(h.nextThroughput)?'下次测速：'+date(h.nextThroughput):'',h.throughputSaveFailed?'记录保存失败':''].filter(Boolean).join(' · ')}</span>}
     </section>;})}

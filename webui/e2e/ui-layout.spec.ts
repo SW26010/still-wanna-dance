@@ -29,6 +29,7 @@ for(const width of [390,800,1440])test(`settings and network show their controls
   await expect(page.getByRole('link',{name:'检测当前连接',exact:true})).toHaveCount(0);
   await navigate(page,'网络');
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();
+  await expect(page.locator('#network-tests .metrics output')).toHaveText(['—','—']);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));
   await page.screenshot({path:info.outputPath('network.png'),fullPage:true,animations:'disabled'});

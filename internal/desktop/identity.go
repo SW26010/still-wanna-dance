@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"still-wanna-dance/internal/apppaths"
 )
 
 // CanonicalPath resolves aliases in existing ancestors without creating a new
@@ -108,6 +110,28 @@ func sameConfigPath(a, b string) bool {
 	return runtime.GOOS == "windows" && strings.EqualFold(a, b) && samePath(a, b)
 }
 
+// InstanceConflictError rejects a different installation without starting a
+// recovery service or changing the existing owner.
+type InstanceConflictError struct {
+	Existing Identity
+}
+
+const instanceConflictInstruction = "已有 SWD 正在运行"
+const instanceConflictExplanation = "本次启动已取消。请先退出正在运行的 SWD，再重新启动。"
+
+func (e *InstanceConflictError) Error() string {
+	return instanceConflictInstruction + "。" + instanceConflictExplanation + "\n" + e.details()
+}
+
+func (e *InstanceConflictError) details() string {
+	id := e.Existing
+	details := fmt.Sprintf("程序：%s", id.Executable)
+	if !sameConfigPath(id.Config, apppaths.DefaultConfig(id.Executable)) {
+		details += "\n配置：" + id.Config
+	}
+	return fmt.Sprintf("%s\nPID：%d", details, id.PID)
+}
+
 func (id Identity) conflict() error {
-	return fmt.Errorf("已有 Still Wanna Dance 正在运行（PID %d）。\n程序：%s\n配置：%s\n本次请求的程序或配置不同，请先自行退出已有实例后再启动。", id.PID, id.Executable, id.Config)
+	return &InstanceConflictError{Existing: id}
 }

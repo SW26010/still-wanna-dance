@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,6 +75,10 @@ func TestDiscoveryInstallationConflicts(t *testing.T) {
 				}
 				if conflict && (!strings.Contains(err.Error(), id.Executable) || !strings.Contains(err.Error(), id.Config)) {
 					t.Fatal("missing conflict ownership", err)
+				}
+				var rejected *InstanceConflictError
+				if errors.As(err, &rejected) != conflict || rejected != nil && rejected.Existing != id {
+					t.Fatalf("conflict lost its type or existing owner: %v", err)
 				}
 				if got := readInstanceRecord(path); got == nil || got.Identity != id {
 					t.Fatal("existing owner disturbed")

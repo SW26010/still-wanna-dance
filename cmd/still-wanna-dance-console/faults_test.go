@@ -266,3 +266,18 @@ func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestInstanceConflictSkipsRecovery(t *testing.T) {
+	previous := openWebUI
+	t.Cleanup(func() { openWebUI = previous })
+	openWebUI = func(string) error {
+		t.Error("instance conflict opened a recovery browser")
+		return errors.New("unexpected browser opening")
+	}
+	conflict := &desktop.InstanceConflictError{Existing: desktop.Identity{Executable: "existing.exe", Config: "existing.json", PID: 123}}
+	for _, cause := range []error{conflict, fmt.Errorf("startup: %w", conflict)} {
+		if got := recoverApplication(cause); got != cause {
+			t.Fatalf("conflict should go directly to native error handling: %v", got)
+		}
+	}
+}

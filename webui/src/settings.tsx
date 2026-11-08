@@ -2,12 +2,11 @@ import { useEffect, useRef, useState, useContext, type ReactNode, type Ref } fro
 import {flushSync} from 'react-dom';
 import { Button, Checkbox, Divider, Field, Input, Select, Text, Tooltip } from '@fluentui/react-components';
 import { bootstrap, type DownloadNumberField } from './bootstrap';
-import { APIError, decode, request } from './api';
+import {downloadNumber,hasProxyImport,type Draft} from './settings-draft';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress } from './ui';
-import { type Settings, type Status } from './types';
-import { CacheCapacityFields, capacityPayload, type CapacityDraft } from './cache-capacity';
-import { StorageConfirmationNotice, StorageLocationFields, locationRequestError, locationValidationKey } from './storage-directory';
+import { CacheCapacityFields } from './cache-capacity';
+import { StorageConfirmationNotice, StorageLocationFields } from './storage-directory';
 import { DirectoryField, samePath } from './path-picker';
 import { ImportSpaceHint } from './import-space';
 import { RequestRetentionFields } from './request-retention';
@@ -16,73 +15,12 @@ import {FieldErrors,FieldIssues,ValidationField,inputError} from './field-valida
 import {NumberInput} from './number-input';
 import {SettingsSource,useNormalSettingsEditor,type SettingsEditor} from './settings-source';
 
-const numeric = ['requestRetentionDays','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
 const restorePermissionHint='开启并保存时，可能请求 Windows 管理员授权（UAC）。';
-type NumberField = typeof numeric[number];
-export interface ProxyReport { id: string; nodes: number; groups: number; name: string; importedAt?: string }
-export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { theme?: Settings['theme']; proxyImportID: string; proxyImportText: string; proxyImportName: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
-export function draftFrom(s: Settings): Draft {
-  const {videoBudgetBytes, theme: _theme, ...values} = s;
-  // The backend supplies complete, normalized settings; drafts only format them.
-  return { ...values, socks5Password: '',
-    requestRetentionDays: String(s.requestRetentionDays),
-    prepareAheadSeconds: String(s.prepareAheadSeconds),
-    downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
-    localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
-    videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportName: '', proxyImportSource: 'config' };
-}
-export function settingsPayload(d: Draft) {
-  const { videoStorageMode, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, k === 'requestRetentionDays' ? Number(d[k]) : downloadNumber(d, k)])), ...capacityPayload({videoStorageMode, videoBudgetGiB}),
-    ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
-}
-function downloadNumber(d: Draft, key: DownloadNumberField) {
-  return Number(d[key].trim() || bootstrap.settingsDefaults[key]);
-}
-export function fingerprint(d: Draft) {
-  return JSON.stringify({...settingsPayload(d), emptyNumbers: numeric.filter(k => k !== 'requestRetentionDays' && !d[k].trim()), proxyImportText: d.proxyImportText, proxyImportName: d.proxyImportName, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});
-}
-export const releaseImport = async (id: string) => { if (id) try { await request('proxy/import/discard', {id}); } catch { /* Local discard remains available offline; server expiry is the fallback. */ } };
-
-function hasProxyImport(d: Draft) {
-  return d.proxyImportSource==='config'?!!d.proxyImportName:!!d.proxyImportText.trim();
-}
-// Explicit import and Save settings share this request and draft transition.
-async function importProxyConfiguration(d: Draft): Promise<ProxyReport> {
-  const headers:Record<string,string>={'Content-Type':'text/plain','X-SWD-Token':bootstrap.token,'X-SWD-Import-Source':d.proxyImportSource};
-  if(d.proxyImportSource==='config'&&d.proxyImportName)headers['Content-Disposition']="attachment; filename*=UTF-8''"+encodeURIComponent(d.proxyImportName).replaceAll("'",'%27');
-  return decode<ProxyReport>(await fetch('/api/proxy/import',{method:'POST',headers,body:d.proxyImportText,signal:AbortSignal.timeout(100000)}));
-}
-function importedProxyDraft(report:ProxyReport) {
-  return {proxyImportID:report.id,proxyImportText:'',proxyImportName:'',proxyReport:report};
-}
-
-type FormProps = { draft: Draft; update: (values: Partial<Draft>) => void; disabled: boolean; status: Pick<Status,'proxyNodes'|'socks5CredentialError'> };
-export function NetworkFields({ draft: d, update, disabled, status, onPending, checking }: FormProps & {onPending: (pending: boolean) => void;checking:boolean}) {
-  const [pending, setPending] = useState(false), [error, setError] = useState('');
-  const fileInput=useRef<HTMLInputElement>(null);
-  useEffect(()=>setError(''),[d.proxyImportID,d.proxyImportText,d.proxyImportSource,d.proxyBackend,d.upstreamMode]);
-  const generation = useRef(0), current = useRef(d); current.current = d;
-  useEffect(() => () => { generation.current++; }, []);
-  const busy = (value: boolean) => { setPending(value); onPending(value); };
-  async function readFile(file?: File) {
-    if (!file) return;
-    const id = ++generation.current; busy(true); setError('');
-    try { if (file.size > 2 * 1024 * 1024) throw new Error('配置文件超过 2 MiB。'); const text = await file.text(); if (id === generation.current) update({proxyImportText: text,proxyImportName:file.name,proxyImportSource: 'config'}); }
-    catch (e) { if (id === generation.current) setError(String(e)); }
-    finally { if (id === generation.current) busy(false); }
-  }
-  async function inspect() {
-    if (pending || disabled || !hasProxyImport(d)) return;
-    const id = ++generation.current, content = d.proxyImportText; busy(true); setError('');
-    try {
-      const report = await importProxyConfiguration(d);
-      if (id !== generation.current || current.current.proxyImportText !== content) { void releaseImport(report.id || ''); return; }
-      void releaseImport(current.current.proxyImportID);
-      update(importedProxyDraft(report));
-    } catch (e) { if (id === generation.current) setError(String(e)); }
-    finally { if (id === generation.current) busy(false); }
-  }
+function NetworkFields({editor}:{editor:SettingsEditor}) {
+ const {values:d,update,disabled,data:status,proxy}=editor;
+ const {pending,error,readFile,inspect,clearError}=proxy;
+ const fileInput=useRef<HTMLInputElement>(null);
+ const checking=editor.pending&&hasProxyImport(d);
   const locked = disabled || pending;
   const connectionDisabled=locked||d.upstreamMode==='direct';
   const info=d.proxyReport||status.proxyNodes?.configuration;
@@ -106,7 +44,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, c
         <Feedback error>{[status.proxyNodes?.error, status.proxyNodes?.activeError].filter(Boolean).join('；')}</Feedback>
         <Field label="当前配置文件"><Tooltip content={summary} relationship="description"><Input readOnly value={summary} /></Tooltip></Field>
         <ValidationField name="proxyImportText" error={error} label="导入配置文件">{props=><div className="mihomo-import-row">
-          <Select id="mihomo-import-source" aria-label="配置来源" aria-labelledby="" disabled={locked} value={d.proxyImportSource} onChange={(_,v)=>{setError('');update({proxyImportSource:v.value as Draft['proxyImportSource'],proxyImportText:'',proxyImportName:''});}}>
+          <Select id="mihomo-import-source" aria-label="配置来源" aria-labelledby="" disabled={locked} value={d.proxyImportSource} onChange={(_,v)=>{clearError();update({proxyImportSource:v.value as Draft['proxyImportSource'],proxyImportText:'',proxyImportName:''});}}>
             <option value="config">文件</option><option value="base64">Base64</option><option value="url">URL</option>
           </Select>
           <Input {...props} name="proxyImportText" readOnly={d.proxyImportSource==='config'} disabled={locked}
@@ -114,7 +52,7 @@ export function NetworkFields({ draft: d, update, disabled, status, onPending, c
             placeholder={d.proxyImportSource==='config'?'点击选择文件':d.proxyImportSource==='url'?'输入配置 URL':'输入 Base64'}
             onClick={()=>{if(d.proxyImportSource==='config')chooseFile();}}
             onKeyDown={e=>{if(d.proxyImportSource==='config'&&(e.key==='Enter'||e.key===' ')){e.preventDefault();chooseFile();}}}
-            onChange={(_,v)=>{setError('');update({proxyImportText:v.value});}} />
+            onChange={(_,v)=>{clearError();update({proxyImportText:v.value});}} />
           <Button disabled={locked||!hasProxyImport(d)} onClick={()=>void inspect()}>{pending||checking?'处理中':'导入'}</Button>
           <input ref={fileInput} type="file" aria-label="选择配置文件" hidden disabled={locked} accept=".yaml,.yml,.json" onChange={e=>{void readFile(e.target.files?.[0]);e.target.value='';}} />
         </div>}</ValidationField>
@@ -134,22 +72,12 @@ function NormalSettingsPage(props:SettingsPageProps) {
   return <SettingsForm {...props} editor={editor}/>;
 }
 function SettingsForm({section='application',children,editor}:{editor:SettingsEditor}&SettingsPageProps) {
-  const app=useApp(),state=editor.draft,s=editor.data,loadedRevision=editor.loadedRevision;
-  const [draft, setDraft] = state.draft, [pending, setPending] = state.pending;
-  const [awaitingRevision, setAwaitingRevision] = state.revision;
-  const [locationError, setLocationError] = state.locationError;
-  const [errors,setErrors]=state.errors;
+  const app=useApp(),s=editor.data;
+  const {values:d,syncing,dirty,disabled,errors,locationError,locationWarning,locationChecking,update}=editor;
   const formRef=useRef<HTMLFormElement>(null);
   const [invalidTarget,setInvalidTarget]=useState<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>();
-  const [locationValidation, setLocationValidation] = state.location;
-  const discard = () => { void releaseImport(draft?.proxyImportID || ''); setDraft(undefined); setPending(false); setAwaitingRevision(undefined); setLocationValidation({}); setErrors(s.fields||{});setLocationError('');setInvalidTarget(undefined); };
-  useEffect(() => {
-    if (awaitingRevision !== undefined && loadedRevision !== undefined && loadedRevision >= awaitingRevision) {
-      setDraft(undefined); setAwaitingRevision(undefined);setErrors({});
-    }
-  }, [awaitingRevision, loadedRevision]);
-  const syncing = awaitingRevision !== undefined;
-  const d = {...draftFrom(s.settings),...draft}, dirty = !syncing && fingerprint(d) !== fingerprint(draftFrom(s.settings));
+  const save=(confirmedStorage?:Draft)=>editor.save(section,confirmedStorage);
+  const discard=()=>{editor.discard();setInvalidTarget(undefined);};
   const storageIssues=Object.fromEntries(Object.entries(s.storageIssues||{}).filter(([name,issue])=>{
     const value=d[name as keyof Draft];
     return typeof value==='string'&&(value===issue.value||!!value&&!!issue.value&&samePath(value,issue.value));
@@ -160,30 +88,12 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
   const cacheEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
     && Number.isInteger(localProtectionGraceSeconds) && localProtectionGraceSeconds >= 0 && localProtectionGraceSeconds <= 10000
     ? `预计 ${((prepareAheadSeconds + localProtectionGraceSeconds) * 2_000_000 / 8 / 1024 ** 2).toFixed(2)} MiB` : '';
-  const update = (patch: Partial<Draft>) => {
-    setDraft(value=>({...value,...patch}));
-    setErrors(previous=>{
-      const next={...previous};
-      for(const key of Object.keys(patch)) {
-        const name=key==='videoBudgetGiB'?'videoBudgetBytes':key;
-        if(!(name in next))continue;
-        const input=formRef.current?.elements.namedItem(name);
-        const message=isInput(input)?inputError(input):'';
-        if(message)next[name]=message;else delete next[name];
-      }
-      if('proxyImportID' in patch||'proxyImportSource' in patch||'proxyImportText' in patch)delete next.proxyImportText;
-      if('upstreamMode' in patch||'proxyBackend' in patch)for(const name of ['socks5Address','socks5Username','socks5Password','proxyImportText'])delete next[name];
-      if('requestRetentionMode' in patch)delete next.requestRetentionDays;
-      if('videoStorageMode' in patch)delete next.videoBudgetBytes;
-      return next;
-    });
-  };
   function isInput(value:unknown):value is HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement {
     return value instanceof HTMLInputElement||value instanceof HTMLSelectElement||value instanceof HTMLTextAreaElement;
   }
-  function focusInvalid(forms:HTMLFormElement[],name:string) {
-    const input=forms.map(form=>form.elements.namedItem(name)).find(isInput);
-    if(!input)return;
+  function focusInvalid(name:string) {
+    const input=formRef.current?.elements.namedItem(name);
+    if(!isInput(input))return;
     const panel=input.closest<HTMLElement>('[role="tabpanel"]');
     if(panel?.hidden){
       const anchors:Record<string,string>={'settings-panel-application':'/settings','settings-panel-storage':'storage-settings','settings-panel-downloads':'download-settings','settings-panel-network':'network-proxy'};
@@ -199,20 +109,23 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     if(target instanceof HTMLInputElement&&target.readOnly)return;
     const message=inputError(target);
     if(!message&&target.name!=='socks5Address'&&!(target instanceof HTMLInputElement&&(target.type==='number'||target.getAttribute('role')==='spinbutton')))return;
-    setErrors(previous=>{const next={...previous};if(message)next[target.name]=message;else delete next[target.name];return next;});
+    editor.validateField(target.name,message);
   }
-  const disabled = editor.unavailable || pending || syncing || loadedRevision !== app.revision;
   // A rejected save still clears busy and refreshes its snapshot. Focus only
   // after React has committed the enabled controls for that revision.
   useEffect(()=>{
     if(!invalidTarget||disabled)return;
     invalidTarget.focus();setInvalidTarget(undefined);
   },[invalidTarget,disabled]);
-  const locationChecking = (section === 'storage' || section === 'downloads') && !!locationValidation.checked && locationValidation.checked !== locationValidationKey(d,s.settings);
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => { if (dirty && !app.stopped) event.preventDefault(); };
-    addEventListener('beforeunload', warn); return () => removeEventListener('beforeunload', warn);
-  }, [dirty, app.stopped]);
+  useEffect(()=>editor.registerForm(section,{
+    validate:()=>{
+      const checked:Record<string,string>={};
+      for(const input of Array.from(formRef.current?.elements||[]))if(isInput(input)&&input.name){const error=inputError(input);if(error)checked[input.name]=error;}
+      return checked;
+    },
+    fieldError:name=>{const input=formRef.current?.elements.namedItem(name);return isInput(input)?inputError(input):'';},
+    hasField:name=>!!formRef.current?.elements.namedItem(name),focus:focusInvalid,
+  }),[editor.registerForm,editor.selectTab,section]);
   const numberField = (key: DownloadNumberField, label: string, min: number, max: number, unit?: string, hint?: string) => <ValidationField name={key} label={label} hint={hint}><NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} /></ValidationField>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
   const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
@@ -221,106 +134,37 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     : s.settings.autoAccelerate?'重启后将自动开启视频加速，接入时可能请求 Windows 管理员授权（UAC）。':undefined;
   const restartAction=<Button disabled={disabled || dirty || app.dirtySettings.size>0 || !s.restartRequired} disabledFocusable={restartNeedsSaving} onClick={() => void app.action('restart')}>重启并应用</Button>;
   const restartButton=restartHint?<Tooltip content={restartHint} relationship="description">{restartAction}</Tooltip>:restartAction;
-  async function save(confirmedStorage?: Draft) {
-    if ((!dirty&&!confirmedStorage) || disabled || locationChecking) return;
-    const candidate=confirmedStorage||d;
-    if(confirmedStorage)update(confirmedStorage);
-    const checked:Record<string,string>={};
-    const forms=editor.scope==='workspace'?Array.from(formRef.current?.closest('[data-settings-workspace]')?.querySelectorAll('form')||[]):formRef.current?[formRef.current]:[];
-    for(const form of forms)for(const input of Array.from(form.elements))if(isInput(input)&&input.name){const error=inputError(input);if(error)checked[input.name]=error;}
-    setErrors(checked);
-    if(Object.keys(checked).length) {
-      focusInvalid(forms,Object.keys(checked)[0]);
-      return;
-    }
-    if(locationValidation.warning)return;
-    setPending(true); setLocationError('');
-    try {
-      let ready=candidate;
-      if((editor.scope==='workspace'||section==='network')&&d.upstreamMode==='proxy'&&d.proxyBackend==='mihomo'&&hasProxyImport(d)) {
-        const report=await importProxyConfiguration(d);
-        void releaseImport(d.proxyImportID);
-        const imported=importedProxyDraft(report);
-        ready={...d,...imported};update(imported);
-      }
-      const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(ready);
-      const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => value !== saved[key as keyof typeof saved]));
-      const pendingDatabase=confirmedStorage&&!s.settings.databasePath?values.databasePath:locationValidation.pendingDatabase;
-      if (pendingDatabase) {
-        if (!samePath(pendingDatabase, values.databasePath)) {
-          setLocationValidation(current=>({...current,warning:{field:'database',message:'数据库位置已变化，请重新选择'}}));
-          return;
-        }
-        let preparingDatabase = false;
-        try {
-          const check = await request<{valid:boolean;field?:string;message?:string}>('storage/validate-location', {databasePath:values.databasePath,videoDir:values.videoDir,blockCacheDir:values.blockCacheDir,selection:'database'});
-          if (!check.valid) {
-            const field = check.field === 'video' || check.field === 'cache' ? check.field : 'database';
-            setLocationValidation(current=>({...current,warning:{field,message:check.message || '所选存储位置不可用'}}));
-            return;
-          }
-          preparingDatabase = true;
-          await request('storage/prepare-database', {databasePath:values.databasePath,videoDir:values.videoDir,blockCacheDir:values.blockCacheDir});
-          setLocationValidation(current=>({...current,warning:undefined,pendingDatabase:undefined,databaseError:undefined}));
-        } catch (error) {
-          const message = locationRequestError(error,preparingDatabase);
-          setLocationValidation(current=>({...current,warning:{field:'database',message},databaseError:message,pendingDatabase}));
-          return;
-        }
-      }
-      let confirmed: Pick<Settings,'databasePath'|'videoDir'|'videoStorageMode'|'videoBudgetBytes'|'retainFavorites'> | undefined;
-      if (ready.databasePath !== s.settings.databasePath || ready.videoDir !== s.settings.videoDir) {
-        const check = await request<{confirmVideoPolicy:boolean}>('storage/check', {databasePath:ready.databasePath,videoDir:ready.videoDir,blockCacheDir:ready.blockCacheDir});
-        if (check.confirmVideoPolicy) {
-          const accepted = await app.confirm('确认此目录的视频保留方式', <><p className="wrap">视频目录：{displayStoragePath(ready.videoDir,s)}</p><p className="wrap">数据库：{displayStoragePath(ready.databasePath,s)||'尚未指定'}</p><p>此目录的视频将按本次设置管理：{ready.videoStorageMode==='none'?'不保留普通视频':ready.videoStorageMode==='unlimited'?'不限制视频空间':ready.videoBudgetGiB+' GiB 视频预算'}。不符合保留策略的视频可能被删除。</p><p>{ready.retainFavorites?'优先保留收藏视频。':'收藏不提供额外保留保护。'}</p></>, '确认并保存');
-          if (!accepted) return;
-          const {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites} = values;
-          confirmed = {databasePath,videoDir,videoStorageMode,videoBudgetBytes,retainFavorites};
-        }
-      }
-      if (await app.action('settings', {...patch,confirmVideoPolicy:confirmed},error=>{
-        if(error.code!=='settings_validation'||!error.fields)return false;
-        const name=Object.keys(error.fields).find(name=>forms.some(form=>form.elements.namedItem(name)));
-        if(!name)return false;
-        setErrors(error.fields);focusInvalid(forms,name);return true;
-      })) setAwaitingRevision(app.revision + 1);
-    } catch (e) {
-      if(e instanceof APIError&&e.code==='settings_validation'&&e.fields)setErrors(e.fields);
-      else setLocationError(String(e));
-    }
-    finally { setPending(false); }
-  }
   const actions = <div className="settings-actions" role="region" aria-label="设置操作"><p role="status">{syncing ? '正在同步设置…' : dirty ? '未保存' : s.restartRequired ? '待重启' : '已生效'}</p>
-      <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationValidation.warning)} onClick={discard}>放弃更改</Button>
+      <div className="actions">{d.restoreHostsOnStopOrExit&&!s.settings.restoreHostsOnStopOrExit?<Tooltip content={restorePermissionHint} relationship="description">{saveButton}</Tooltip>:saveButton}<Button disabled={disabled || (!dirty && !locationWarning)} onClick={discard}>放弃更改</Button>
       {restartButton}</div></div>;
   const needsStorageConfirmation=!!s.storageConfirmation&&(!s.settings.databasePath||!s.settings.videoDir);
-  const confirmStorage=<Button disabled={disabled||locationChecking||!!locationValidation.warning} onClick={()=>void save({...d,databasePath:d.databasePath||s.defaultDatabasePath,videoDir:d.videoDir||s.defaultVideoDir})}>确认并保存</Button>;
+  const confirmStorage=<Button disabled={disabled||locationChecking||!!locationWarning} onClick={()=>void save({...d,databasePath:d.databasePath||s.defaultDatabasePath,videoDir:d.videoDir||s.defaultVideoDir})}>确认并保存</Button>;
   const form = <FieldIssues.Provider value={storageIssues}><FieldErrors.Provider value={errors}><Panel id={section==='storage'?'storage-settings':section==='downloads'?'download-settings':section==='network'?'proxy-settings':'preferences'}><Feedback error>{locationError||s.actionErrors?.settings}</Feedback>{section==='storage'&&<StorageConfirmationNotice message={needsStorageConfirmation?s.storageConfirmation:s.storageConfirmation?'存储设置已保存，请重启后应用。':undefined} action={needsStorageConfirmation?confirmStorage:undefined}/>}<form ref={formRef} noValidate onBlurCapture={e=>validateBlur(e.target)} id={'settings-form-'+section} className="form-grid settings-form" onSubmit={e => { e.preventDefault(); void save(); }}>
       {section==='storage'&&<fieldset disabled={disabled} aria-label="本地存储">
-      <StorageLocationFields section="storage" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
+      <StorageLocationFields section="storage" editor={editor} />
       <CacheCapacityFields anchor="videoBudgetGiB" mode={d.videoStorageMode} value={d.videoBudgetGiB} disabled={disabled} onChange={update} />
       <Checkbox label="优先保留收藏视频" checked={d.retainFavorites} disabled={disabled || d.videoStorageMode==='none'} onChange={(_,v)=>update({retainFavorites:!!v.checked})}/>
       </fieldset>}
-      {section==='application'&&<><ValidationField name="theme" label="主题"><Select name="theme" disabled={disabled} value={editor.theme.value} onChange={(_,v)=>editor.theme.change(v.value as Settings['theme'])}>{!['system','light','dark'].includes(editor.theme.value)&&<option value={editor.theme.value}>无效值：{editor.theme.value||'空'}</option>}<option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></ValidationField><Divider /><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
+      {section==='application'&&<><ValidationField name="theme" label="主题"><Select name="theme" disabled={disabled} value={editor.theme.value} onChange={(_,v)=>editor.theme.change(v.value as typeof s.settings.theme)}>{!['system','light','dark'].includes(editor.theme.value)&&<option value={editor.theme.value}>无效值：{editor.theme.value||'空'}</option>}<option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></Select></ValidationField><Divider /><fieldset disabled={disabled}><legend>程序启动</legend><Checkbox label="启动程序时自动打开 WebUI" checked={d.autoOpenWebUI} onChange={(_,v)=>update({autoOpenWebUI:!!v.checked})}/>
       {/* Checkbox forwards trigger props to its input; put pointer handlers on the root to include the label. */}
       <Tooltip content="下次启动自动加速时，可能请求 Windows 管理员授权（UAC）。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="启动程序时自动开启视频加速" checked={d.autoAccelerate} onChange={(_, v) => update({autoAccelerate:!!v.checked})} />}</Tooltip></fieldset>
       <Divider /><fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/>
       <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip></fieldset>
       <Divider /><RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
-      <Divider /><ValidationField name="logLevel" label="程序日志级别"><Select name="logLevel" disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as Settings['logLevel']})}>{!['off','error','warn','info','debug'].includes(d.logLevel)&&<option value={d.logLevel}>无效值：{d.logLevel||'空'}</option>}<option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></ValidationField></>}
-      {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields draft={d} update={update} disabled={disabled} status={s} onPending={setPending} checking={pending&&hasProxyImport(d)} />
+      <Divider /><ValidationField name="logLevel" label="程序日志级别"><Select name="logLevel" disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as typeof s.settings.logLevel})}>{!['off','error','warn','info','debug'].includes(d.logLevel)&&<option value={d.logLevel}>无效值：{d.logLevel||'空'}</option>}<option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></ValidationField></>}
+      {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields editor={editor} />
       </fieldset>
 </>}
       {section==='downloads'&&<><fieldset disabled={disabled}><legend>队列预加载</legend>
       <Checkbox label="随视频服务启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/>
       <DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
-        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={setPending}/></fieldset>
+        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={editor.pathPending}/></fieldset>
       <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
       {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64)}
       {numberField('downloadGrowIntervalMS','并发增长间隔',0,2000,'毫秒')}
       </div></fieldset>
       <Divider /><fieldset disabled={disabled} aria-label="缓存"><legend className="inline">缓存<Text size={200} weight="regular" className="secondary" aria-live="polite">{cacheEstimate}</Text></legend>
-      <StorageLocationFields section="cache" value={d} update={update} disabled={disabled} status={s} validation={locationValidation} onValidation={setLocationValidation} onPending={setPending} />
+      <StorageLocationFields section="cache" editor={editor} />
       <div className="settings-columns">
       {numberField('prepareAheadSeconds','提前准备时间',100,16000,'秒')}
       {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'秒','需求结束后继续保留缓存。')}

@@ -47,7 +47,7 @@ func TestBlockingDoesNotCancelAdmittedPlayback(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("playback did not reach upstream")
 	}
-	if err := s.SetSongPolicy(context.Background(), 1, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(context.Background(), 1, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil)
@@ -74,11 +74,11 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 		seedPrioritySong(t, s, id, key)
 	}
 	writeTestFile(t, cfg.videoFile(key), payload)
-	if _, err := s.usage.db.Exec("UPDATE songs SET end=CASE id WHEN 1 THEN 180 WHEN 2 THEN 240 ELSE 120 END"); err != nil {
+	if _, err := s.Store.usage.db.Exec("UPDATE songs SET end=CASE id WHEN 1 THEN 180 WHEN 2 THEN 240 ELSE 120 END"); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []int64{1, 2} {
-		if err := s.SetSongPolicy(ctx, id, SongBlocked); err != nil {
+		if err := s.Store.SetSongPolicy(ctx, id, SongBlocked); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -106,7 +106,7 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 		t.Fatal("blocking changed clock or produced work", clockOK, empty, calls.Load())
 	}
 	// The unblocked shared song still owns a usable local resource.
-	if err := s.CheckSongAllowed(ctx, 3); err != nil {
+	if err := s.Store.CheckSongAllowed(ctx, 3); err != nil {
 		t.Fatal(err)
 	}
 	s.runRetention(true)
@@ -125,10 +125,10 @@ func TestFavoritePublicationRespectsBudgetWithoutChangingScores(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 				t.Fatal(err)
 			}
-			if err := s.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
 				t.Fatal(err)
 			}
 			setRetentionLimit(t, s, limit)
@@ -166,13 +166,13 @@ func TestSongPolicyRetentionBelowBudgetRespectsSharingAndPins(t *testing.T) {
 			if !unlimited {
 				setRetentionLimit(t, s, 1000)
 			}
-			if err := s.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
 				t.Fatal(err)
 			}
 			s.runRetention(true)
 			expectRetained(t, cfg.videoFile(v.key), true)
 			s.pinVideo(v)
-			if err := s.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
 				t.Fatal(err)
 			}
 			s.runRetention(false)
@@ -201,7 +201,7 @@ func TestFavoriteRetentionUsesRemainingBudgetAndUnmarkRestoresEviction(t *testin
 	favorite, ordinary := videoKey("favorite"), videoKey("ordinary")
 	seedPrioritySong(t, s, "9000001", favorite)
 	seedPrioritySong(t, s, "9000002", ordinary)
-	if err := s.SetSongPolicy(ctx, 9000001, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 9000001, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	putRetained(t, cfg.videoFile(favorite), 6)
@@ -214,7 +214,7 @@ func TestFavoriteRetentionUsesRemainingBudgetAndUnmarkRestoresEviction(t *testin
 	expectRetained(t, cfg.videoFile(favorite), true)
 	expectRetained(t, cfg.videoFile(ordinary), false)
 	putRetained(t, cfg.videoFile(ordinary), 4)
-	if err := s.SetSongPolicy(ctx, 9000001, SongNormal); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 9000001, SongNormal); err != nil {
 		t.Fatal(err)
 	}
 	s.runRetention(true)
@@ -229,7 +229,7 @@ func TestFavoriteRetentionOverBudgetKeepsMarksAndRespectsProtection(t *testing.T
 			low, high := videoKey("low favorite"), videoKey("high favorite")
 			for id, key := range map[int64]string{9000001: low, 9000002: high} {
 				seedPrioritySong(t, s, fmt.Sprint(id), key)
-				if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+				if err := s.Store.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
 					t.Fatal(err)
 				}
 				putRetained(t, cfg.videoFile(key), 6)
@@ -258,7 +258,7 @@ func TestFavoriteRetentionOverBudgetKeepsMarksAndRespectsProtection(t *testing.T
 			if retainedBytes(s) != 6 {
 				t.Fatal(retainedBytes(s))
 			}
-			policies, err := s.SongPolicies(t.Context())
+			policies, err := s.Store.SongPolicies(t.Context())
 			if err != nil || policies[9000001] != SongFavorite || policies[9000002] != SongFavorite {
 				t.Fatal(policies, err)
 			}
@@ -270,7 +270,7 @@ func TestOversizedFavoriteDoesNotEvictOrdinaryVideoThatFits(t *testing.T) {
 	s, cfg := setup(t, nil)
 	favorite, ordinary := videoKey("oversized favorite"), videoKey("ordinary")
 	seedPrioritySong(t, s, "1", favorite)
-	if err := s.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	putRetained(t, cfg.videoFile(favorite), 12)
@@ -288,13 +288,13 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 			f, v := completedRangeFlight(t, s, payload)
 			seedPrioritySong(t, s, "1", v.key)
 			ctx := context.Background()
-			if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 				t.Fatal(err)
 			}
 			if policy == SongNormal {
 				ordinary := videoKey("competing ordinary")
 				seedPrioritySong(t, s, "9000001", ordinary)
-				if err := s.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+				if err := s.Store.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 					t.Fatal(err)
 				}
 				putRetained(t, cfg.videoFile(ordinary), len(payload))
@@ -307,7 +307,7 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer s.releasePublication(r)
-			if err := s.SetSongPolicy(ctx, 1, policy); err != nil {
+			if err := s.Store.SetSongPolicy(ctx, 1, policy); err != nil {
 				t.Fatal(err)
 			}
 			file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
@@ -333,7 +333,7 @@ func TestFavoriteBatchReservationRespectsBudgetAndCountsSharedBytesOnce(t *testi
 	key := videoKey(payload)
 	seedPrioritySong(t, s, "1", key)
 	seedPrioritySong(t, s, "2", key)
-	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	setRetentionLimit(t, s, 36)
@@ -369,10 +369,10 @@ func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testi
 	key := videoKey(payload)
 	seedPrioritySong(t, s, "1", key)
 	seedPrioritySong(t, s, "2", key)
-	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 2, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	setRetentionLimit(t, s, 0)

@@ -35,10 +35,10 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 				openEngine()
 				const body = "favorite retention settings integration"
 				key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
-				if err := c.service.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
+				if err := c.service.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
 					t.Fatal(err)
 				}
-				if err := c.service.SetSongPolicy(t.Context(), 42, cacheproxy.SongFavorite); err != nil {
+				if err := c.service.Store.SetSongPolicy(t.Context(), 42, cacheproxy.SongFavorite); err != nil {
 					t.Fatal(err)
 				}
 				source := filepath.Join(t.TempDir(), key+".mp4")
@@ -80,7 +80,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 				} else if !os.IsNotExist(err) {
 					t.Fatal("budgeted retention kept an oversized favorite", err)
 				}
-				policies, err := c.service.SongPolicies(t.Context())
+				policies, err := c.service.Store.SongPolicies(t.Context())
 				if err != nil || policies[42] != cacheproxy.SongFavorite {
 					t.Fatal("retention setting changed the favorite mark", policies, err)
 				}

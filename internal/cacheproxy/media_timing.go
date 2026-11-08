@@ -57,16 +57,16 @@ func (m mediaTiming) at(offset int64) time.Duration {
 // A song's end is usable only for the same resource version. Direct resource
 // requests have no song ID; the earliest valid end among matching songs is the
 // conservative estimate when multiple catalog entries reference the same MD5.
-func (s *Server) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
+func (s *Store) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
 	var size sql.NullInt64
 	var seconds sql.NullFloat64
-	if s.usage != nil {
+	if s != nil && s.usage != nil {
 		err := s.usage.db.QueryRowContext(ctx, `SELECT byte_size,
  (SELECT MIN(s.end) FROM songs s JOIN song_media sm ON sm.song_id=s.id
   WHERE sm.md5=media.md5 AND (?='' OR s.id=?) AND s.end>0)
  FROM media WHERE md5=?`, v.songID, v.songID, v.key).Scan(&size, &seconds)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return mediaTiming{}, s.storageError(err)
+			return mediaTiming{}, err
 		}
 	}
 	if !size.Valid || size.Int64 <= 0 {
@@ -75,4 +75,9 @@ func (s *Server) mediaTiming(ctx context.Context, v video) (mediaTiming, error) 
 		size.Int64 = v.size
 	}
 	return estimateMediaTiming(size.Int64, seconds.Float64), nil
+}
+
+func (s *Server) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
+	result, err := s.Store.mediaTiming(ctx, v)
+	return result, s.storageError(err)
 }

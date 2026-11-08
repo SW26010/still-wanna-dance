@@ -141,11 +141,11 @@ func TestHistoricalUsageConcurrentGETAndImports(t *testing.T) {
 	start := time.Now().Add(-120 * 24 * time.Hour).UnixMilli()
 	h := historyAt(1, start)
 	// The pending real demand is accepted before the import's final check.
-	s.usage.startGET("99", "")
-	if err := s.ImportSongUsage(ctx, h, false); !errors.Is(err, ErrSongUsageExists) {
+	s.Store.usage.startGET("99", "")
+	if err := s.Store.ImportSongUsage(ctx, h, false); !errors.Is(err, ErrSongUsageExists) {
 		t.Fatal("pending GET overwritten", err)
 	}
-	if err := s.ImportSongUsage(ctx, h, true); err != nil {
+	if err := s.Store.ImportSongUsage(ctx, h, true); err != nil {
 		t.Fatal(err)
 	}
 	// Concurrent repeat requests cannot bypass the empty-table check.
@@ -154,22 +154,22 @@ func TestHistoricalUsageConcurrentGETAndImports(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := s.ImportSongUsage(ctx, h, false); !errors.Is(err, ErrSongUsageExists) {
+			if err := s.Store.ImportSongUsage(ctx, h, false); !errors.Is(err, ErrSongUsageExists) {
 				t.Error(err)
 			}
 		}()
 	}
 	wg.Wait()
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
-	s.usage.flush()
+	s.Store.usage.flush()
 	var count int
 	var score float64
 	var last int64
-	if err := s.usage.db.QueryRow("SELECT demand_count,demand_score,last_demand_at FROM song_usage WHERE song_id=1").Scan(&count, &score, &last); err != nil || count != 2 || math.Abs(score-1.25) > 1e-5 {
+	if err := s.Store.usage.db.QueryRow("SELECT demand_count,demand_score,last_demand_at FROM song_usage WHERE song_id=1").Scan(&count, &score, &last); err != nil || count != 2 || math.Abs(score-1.25) > 1e-5 {
 		t.Fatal(count, score, last, err)
 	}
 	// Existing batch and eviction consumers read the same imported accumulator.
-	p, err := s.resourcePriorities(ctx, map[string]string{"1": "same", "2": "same"}, last)
+	p, err := s.Store.resourcePriorities(ctx, map[string]string{"1": "same", "2": "same"}, last)
 	if err != nil || p["same"].Score < score {
 		t.Fatal(p, err)
 	}
@@ -185,10 +185,10 @@ func TestHistoricalUsageResourceRankingAndEviction(t *testing.T) {
 	h := historyAt(2, now-2*demandHalfLife.Milliseconds())
 	h.Observe(1, now)
 	h.Observe(3, now)
-	if err := s.ImportSongUsage(ctx, h, false); err != nil {
+	if err := s.Store.ImportSongUsage(ctx, h, false); err != nil {
 		t.Fatal(err)
 	}
-	ranks, err := s.resourcePriorities(ctx, map[string]string{"1": strings.Repeat("1", 32), "2": strings.Repeat("2", 32), "3": strings.Repeat("1", 32)}, now)
+	ranks, err := s.Store.resourcePriorities(ctx, map[string]string{"1": strings.Repeat("1", 32), "2": strings.Repeat("2", 32), "3": strings.Repeat("1", 32)}, now)
 	if err != nil || ranks[strings.Repeat("1", 32)].Score != 2 || ranks[strings.Repeat("2", 32)].Score != 0.25 {
 		t.Fatal("shared resource/batch ranks", ranks, err)
 	}

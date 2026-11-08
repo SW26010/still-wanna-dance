@@ -31,7 +31,7 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 			}
 			var clock atomic.Int64
 			clock.Store(time.Now().Unix())
-			s.usage.now = func() time.Time { return time.Unix(clock.Load(), 0) }
+			s.Store.usage.now = func() time.Time { return time.Unix(clock.Load(), 0) }
 			w := &pausedUsageWriter{ResponseRecorder: httptest.NewRecorder(), entered: make(chan struct{}), release: make(chan struct{})}
 			var release sync.Once
 			defer release.Do(func() { close(w.release) })
@@ -47,17 +47,17 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 			assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-3"}), 206, payload[:4])
 			release.Do(func() { close(w.release) })
 			<-done
-			s.usage.flush()
+			s.Store.usage.flush()
 			var count int64
 			var firstFinished string
 			want := int64(1)
 			if gap >= 30 {
 				want = 2
 			}
-			if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != want {
+			if err := s.Store.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != want {
 				t.Fatal(count, want, err)
 			}
-			if err := s.usage.db.QueryRow("SELECT range_header FROM request_events ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != "bytes=0-3" {
+			if err := s.Store.usage.db.QueryRow("SELECT range_header FROM request_events ORDER BY event_id LIMIT 1").Scan(&firstFinished); err != nil || firstFinished != "bytes=0-3" {
 				t.Fatal("short request must finish first", firstFinished, err)
 			}
 		})
@@ -67,15 +67,15 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
 	old := time.Now().Add(-31 * 24 * time.Hour)
-	s.usage.now = func() time.Time { return old }
+	s.Store.usage.now = func() time.Time { return old }
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 	s.wg.Wait()
-	s.usage.flush()
+	s.Store.usage.flush()
 	// Model an old retained request without replacing the production arrival clock.
-	if _, err := s.usage.db.Exec("UPDATE request_events SET requested_at=?", old.UnixMilli()); err != nil {
+	if _, err := s.Store.usage.db.Exec("UPDATE request_events SET requested_at=?", old.UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
-	cleaner := &usageStore{db: s.usage.db, retention: 30 * 24 * time.Hour}
+	cleaner := &usageStore{db: s.Store.usage.db, retention: 30 * 24 * time.Hour}
 	if n, err := cleaner.prune(time.Now()); err != nil || n != 1 {
 		t.Fatal(n, err)
 	}
@@ -168,17 +168,17 @@ func TestOnlyExplicitSongGETAddsDemand(t *testing.T) {
 		assertResponse(t, request(s, method, videoURL(payload), nil), 200, map[string]string{"GET": payload}[method])
 	}
 	request(s, "HEAD", "http://api.udon.dance/Api/Songs/play?id=1", nil)
-	s.usage.flush()
+	s.Store.usage.flush()
 	var count int
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_usage").Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM song_usage").Scan(&count); err != nil || count != 0 {
 		t.Fatal(count, err)
 	}
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
-	s.usage.flush()
-	if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+	s.Store.usage.flush()
+	if err := s.Store.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=2").Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=2").Scan(&count); err != nil || count != 0 {
 		t.Fatal(count, err)
 	}
 }
@@ -328,14 +328,14 @@ func TestRequestRetentionNonePreservesHTTPSummaries(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
-	s.usage.flush()
+	s.Store.usage.flush()
 	for query, want := range map[string]int64{
 		"SELECT count(*) FROM request_events":                 0,
 		"SELECT demand_count FROM song_usage WHERE song_id=1": 1,
 		"SELECT count(*) FROM media_access":                   1,
 	} {
 		var got int64
-		if err := s.usage.db.QueryRow(query).Scan(&got); err != nil || got != want {
+		if err := s.Store.usage.db.QueryRow(query).Scan(&got); err != nil || got != want {
 			t.Fatal(query, got, want, err)
 		}
 	}

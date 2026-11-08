@@ -217,7 +217,7 @@ func TestMD5RetentionSumsSongsAndOrphansHaveZeroScore(t *testing.T) {
 		id    string
 		score float64
 	}{{"1", 2}, {"2", 2}, {"3", 3}} {
-		_, err := s.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", e.id, e.score, now)
+		_, err := s.Store.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", e.id, e.score, now)
 		if err != nil {
 			t.Fatal(err)
 		}

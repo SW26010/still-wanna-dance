@@ -206,16 +206,16 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	holdQueuePlaybackUntil(t, s, time.Now().Add(time.Hour))
 	ctx := context.Background()
 	key := "0123456789abcdef0123456789abcdef"
-	if _, err := s.usage.db.Exec(`INSERT INTO media(md5) VALUES (?)`, key); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO media(md5) VALUES (?)`, key); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,100),(2,5,300),(3,0,NULL)`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,100),(2,5,300),(3,0,NULL)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("UPDATE songs SET name='本地清单名称' WHERE id=1"); err != nil {
+	if _, err := s.Store.usage.db.Exec("UPDATE songs SET name='本地清单名称' WHERE id=1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, key); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, key); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.UpdatePrefetchQueue([]int64{1, -1, 2, 3}, false); err != nil {
@@ -236,7 +236,7 @@ func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	q := s.prefetchSources["1"]
 	before := q.readyBy(1, rangeBlockSize)
 	queueCtx := s.queueDemandContext(ctx, "1")
-	if _, err := s.usage.db.Exec("UPDATE media SET byte_size=50000000 WHERE md5=?", key); err != nil {
+	if _, err := s.Store.usage.db.Exec("UPDATE media SET byte_size=50000000 WHERE md5=?", key); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.refreshQueueResourceTiming(queueCtx, video{key: key, songID: "1"}); err != nil {

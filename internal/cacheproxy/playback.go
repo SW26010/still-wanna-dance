@@ -116,8 +116,8 @@ func (s *Server) requestVideo(r *http.Request, observed func(), current *current
 // verifies it before returning a local-only video; this lookup does not resolve
 // an upstream URL or download missing content.
 func (s *Server) localPlaybackVideo(ctx context.Context, id string) (video, error) {
-	var key string
-	if err := s.usage.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key); err != nil || !validMD5(key) {
+	key, err := s.Store.songResource(ctx, id)
+	if err != nil || !validMD5(key) {
 		return video{}, errPlaybackUpstream
 	}
 	info, err := os.Stat(s.cfg.videoFile(key))

@@ -313,7 +313,7 @@ func TestImportCrashWorker(t *testing.T) {
 	if mode == "stage" || mode == "copy" {
 		err = c.runImport(importStageCrashContext{context.Background(), task.VideoDir, marker}, engine, task)
 	} else if mode == "published" {
-		allowed, e := engine.KnownMedia(t.Context())
+		allowed, e := engine.Store.KnownMedia(t.Context())
 		if e != nil {
 			t.Fatal(e)
 		}

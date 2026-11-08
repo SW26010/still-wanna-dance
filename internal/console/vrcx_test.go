@@ -662,7 +662,7 @@ func TestVRCXLocalReadOnlyIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count, err := engine.SongUsageCount(context.Background()); err != nil || count != p.Songs {
+	if count, err := engine.Store.SongUsageCount(context.Background()); err != nil || count != p.Songs {
 		t.Fatal("reopened engine", count, err)
 	}
 	if err = engine.Close(); err != nil {

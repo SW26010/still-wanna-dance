@@ -35,25 +35,25 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		return transport.RoundTrip(r)
 	})
 	ctx := context.Background()
-	if err := s.SyncCatalog(ctx, testCandidate("20261015000000", CatalogSong{ID: 42, MD5: key})); err != nil {
+	if err := s.Store.SyncCatalog(ctx, testCandidate("20261015000000", CatalogSong{ID: 42, MD5: key})); err != nil {
 		t.Fatal(err)
 	}
 	var size sql.NullInt64
-	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size.Valid {
+	if err := s.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size.Valid {
 		t.Fatalf("unknown size must be NULL: %+v, %v", size, err)
 	}
 	for _, id := range []string{"42", "43"} {
 		if _, err := s.resolvePlaybackVideo(ctx, id); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {
+		if err := s.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {
 			t.Fatalf("resolution did not fill size immediately: %+v, %v", size, err)
 		}
 		assertSongResource(t, s, id, key)
 	}
 	for table, want := range map[string]int{"media": 1, "media_urls": 1, "song_media": 2, "song_usage": 0, "request_events": 0} {
 		var count int
-		if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
+		if err := s.Store.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != want {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
@@ -75,7 +75,7 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if err := reopened.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {
+	if err := reopened.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || !size.Valid || size.Int64 != 1234 {
 		t.Fatalf("metadata did not survive restart: %+v %v", size, err)
 	}
 	assertSongResource(t, reopened, "43", key)
@@ -97,7 +97,7 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				if _, err := s.usage.db.Exec("CREATE TRIGGER fail_metadata BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(FAIL, 'injected storage failure'); END"); err != nil {
+				if _, err := s.Store.usage.db.Exec("CREATE TRIGGER fail_metadata BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(FAIL, 'injected storage failure'); END"); err != nil {
 					t.Fatal(err)
 				}
 				next := o
@@ -107,10 +107,10 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 				}
 				if existing {
 					var size int64
-					if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size != 12 {
+					if err := s.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", key).Scan(&size); err != nil || size != 12 {
 						t.Fatal(size, err)
 					}
-					got, err := s.SongURLs(ctx, 42, "cf")
+					got, err := s.Store.SongURLs(ctx, 42, "cf")
 					if err != nil || len(got) != 1 || got[0].URL != o.URL {
 						t.Fatal(got, err)
 					}
@@ -118,7 +118,7 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 				} else {
 					for _, name := range []string{"media", "media_urls", "songs", "song_media"} {
 						var count int
-						if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + name).Scan(&count); err != nil || count != 0 {
+						if err := s.Store.usage.db.QueryRow("SELECT COUNT(*) FROM " + name).Scan(&count); err != nil || count != 0 {
 							t.Fatal(name, count, err)
 						}
 					}
@@ -140,7 +140,7 @@ func TestSongURLInvalidMetadataDoesNotWrite(t *testing.T) {
 			}
 			for _, table := range []string{"media", "media_urls", "songs", "song_media"} {
 				var count int
-				if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+				if err := s.Store.usage.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 					t.Fatal(table, count, err)
 				}
 			}
@@ -152,10 +152,10 @@ func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, payload) })
 	// Reacquiring the only connection waits for database/sql's cancellation
 	// worker to finish rollback, deterministically putting it ahead of Commit.
-	s.usage.db.SetMaxOpenConns(1)
+	s.Store.usage.db.SetMaxOpenConns(1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	tx, err := s.usage.db.BeginTx(ctx, nil)
+	tx, err := s.Store.usage.db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
 	cancel()
 	waitCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stop()
-	conn, err := s.usage.db.Conn(waitCtx)
+	conn, err := s.Store.usage.db.Conn(waitCtx)
 	if err != nil {
 		t.Fatal("automatic rollback did not release the connection", err)
 	}
@@ -177,11 +177,11 @@ func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
 	if !errors.Is(commitErr, sql.ErrTxDone) {
 		t.Fatalf("did not reproduce rollback before Commit: %v", commitErr)
 	}
-	if err := s.metadataWriteError(ctx, commitErr); !errors.Is(err, context.Canceled) || s.StorageError() != nil {
+	if err := s.Store.metadataWriteError(ctx, commitErr); !errors.Is(err, context.Canceled) || s.StorageError() != nil {
 		t.Fatalf("cancellation poisoned storage: returned=%v retained=%v", err, s.StorageError())
 	}
 	var count int
-	if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM media").Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT COUNT(*) FROM media").Scan(&count); err != nil || count != 0 {
 		t.Fatal("canceled transaction was not rolled back", count, err)
 	}
 

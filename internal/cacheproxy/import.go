@@ -218,29 +218,32 @@ func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	policies, err := s.resourcePolicies(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if policies[key].blocked {
-		return nil, nil
-	}
-	if err = os.Link(stage, dest); err != nil {
-		if os.IsExist(err) {
-			return nil, nil
+	var result *ImportedVideo
+	err = s.Store.retentionDecision(func() error {
+		policies, err := s.resourcePolicies(ctx)
+		if err != nil {
+			return err
 		}
-		return nil, err
-	}
-	published, err := os.Lstat(dest)
-	if err != nil {
-		return nil, err
-	}
-	s.retentionMu.Lock()
-	s.retainVideoLocked(key, &retainedVideo{path: dest, key: key, size: published.Size(), recent: published.ModTime().UnixMilli(), modified: published.ModTime().UnixNano()})
-	s.retentionMu.Unlock()
-	return &ImportedVideo{ImportFile: snapshot, Destination: dest, MD5: key}, nil
+		if policies[key].blocked {
+			return nil
+		}
+		if err = os.Link(stage, dest); err != nil {
+			if os.IsExist(err) {
+				return nil
+			}
+			return err
+		}
+		published, err := os.Lstat(dest)
+		if err != nil {
+			return err
+		}
+		s.retentionMu.Lock()
+		s.retainVideoLocked(key, &retainedVideo{path: dest, key: key, size: published.Size(), recent: published.ModTime().UnixMilli(), modified: published.ModTime().UnixNano()})
+		s.retentionMu.Unlock()
+		result = &ImportedVideo{ImportFile: snapshot, Destination: dest, MD5: key}
+		return nil
+	})
+	return result, err
 }
 
 // RemoveImportedSource refuses stale receipts and missing/corrupt destinations.

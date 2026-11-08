@@ -21,50 +21,52 @@ type publicationReservation struct {
 
 // One shared resource flight owns one reservation. Admission and final rename
 // serialize with retention, while merge/hash I/O runs independently.
-func (s *Server) reservePublication(ctx context.Context, v video) (*publicationReservation, error) {
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.retentionMu.Lock()
-	unlimited := s.cfg.CacheUnlimited
-	limit := s.cfg.VideoBudgetBytes
-	s.retentionMu.Unlock()
-	policies, err := s.resourcePolicies(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if policies[v.key].blocked || !unlimited && (limit == 0 || v.size > limit) {
-		return nil, ErrNotRetained
-	}
-	var priorities map[string]ResourcePriority
-	if !unlimited {
-		var err error
-		priorities, err = s.retentionPriorities(ctx)
-		if err != nil {
-			return nil, err
+func (s *Server) reservePublication(ctx context.Context, v video) (result *publicationReservation, resultErr error) {
+	resultErr = s.Store.retentionDecision(func() error {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-	}
-	now := time.Now()
-	child, cancel := context.WithCancelCause(ctx)
-	r := &publicationReservation{item: retainedVideo{key: v.key, path: s.cfg.videoFile(v.key), size: v.size, recent: now.UnixMilli(), modified: now.UnixNano()}, ctx: child, cancel: cancel}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	if s.publications == nil {
-		s.publications = make(map[string]*publicationReservation)
-	}
-	// Concurrent callers are coalesced by obtain, before reaching publication.
-	if s.publications[v.key] != nil {
-		cancel(nil)
-		return nil, errors.New("duplicate resource publication")
-	}
-	s.publications[v.key] = r
-	s.selectPublicationsLocked(priorities, policies)
-	if s.publications[v.key] != r {
-		return nil, ErrNotRetained
-	}
-	return r, nil
+		s.retentionMu.Lock()
+		unlimited := s.cfg.CacheUnlimited
+		limit := s.cfg.VideoBudgetBytes
+		s.retentionMu.Unlock()
+		policies, err := s.resourcePolicies(ctx)
+		if err != nil {
+			return err
+		}
+		if policies[v.key].blocked || !unlimited && (limit == 0 || v.size > limit) {
+			return ErrNotRetained
+		}
+		var priorities map[string]ResourcePriority
+		if !unlimited {
+			var err error
+			priorities, err = s.retentionPriorities(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		now := time.Now()
+		child, cancel := context.WithCancelCause(ctx)
+		r := &publicationReservation{item: retainedVideo{key: v.key, path: s.cfg.videoFile(v.key), size: v.size, recent: now.UnixMilli(), modified: now.UnixNano()}, ctx: child, cancel: cancel}
+		s.retentionMu.Lock()
+		defer s.retentionMu.Unlock()
+		if s.publications == nil {
+			s.publications = make(map[string]*publicationReservation)
+		}
+		// Concurrent callers are coalesced by obtain, before reaching publication.
+		if s.publications[v.key] != nil {
+			cancel(nil)
+			return errors.New("duplicate resource publication")
+		}
+		s.publications[v.key] = r
+		s.selectPublicationsLocked(priorities, policies)
+		if s.publications[v.key] != r {
+			return ErrNotRetained
+		}
+		result = r
+		return nil
+	})
+	return result, resultErr
 }
 
 // Retained protected videos are fixed occupants. Other videos and pending
@@ -127,34 +129,34 @@ func (s *Server) releasePublication(r *publicationReservation) {
 }
 
 func (s *Server) commitPublication(r *publicationReservation, file *os.File, path string, v video, f *flight) error {
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	if err := r.ctx.Err(); err != nil {
-		return context.Cause(r.ctx)
-	}
-	policies, err := s.resourcePolicies(r.ctx)
-	if err != nil {
-		return err
-	}
-	s.retentionMu.Lock()
-	unlimited := s.cfg.CacheUnlimited
-	s.retentionMu.Unlock()
-	var priorities map[string]ResourcePriority
-	if !unlimited {
-		var err error
-		priorities, err = s.retentionPriorities(r.ctx)
+	return s.Store.retentionDecision(func() error {
+		if err := r.ctx.Err(); err != nil {
+			return context.Cause(r.ctx)
+		}
+		policies, err := s.resourcePolicies(r.ctx)
 		if err != nil {
 			return err
 		}
-	}
-	s.retentionMu.Lock()
-	s.selectPublicationsLocked(priorities, policies)
-	accepted := s.publications[v.key] == r
-	s.retentionMu.Unlock()
-	if !accepted {
-		return ErrNotRetained
-	}
-	// No other admission/retention pass can change this decision until inventory
-	// settlement. The worker's video pin also excludes explicit file deletion.
-	return s.commitPublishedFile(r.ctx, file, path, v, f)
+		s.retentionMu.Lock()
+		unlimited := s.cfg.CacheUnlimited
+		s.retentionMu.Unlock()
+		var priorities map[string]ResourcePriority
+		if !unlimited {
+			var err error
+			priorities, err = s.retentionPriorities(r.ctx)
+			if err != nil {
+				return err
+			}
+		}
+		s.retentionMu.Lock()
+		s.selectPublicationsLocked(priorities, policies)
+		accepted := s.publications[v.key] == r
+		s.retentionMu.Unlock()
+		if !accepted {
+			return ErrNotRetained
+		}
+		// No other admission/retention pass can change this decision until inventory
+		// settlement. The worker's video pin also excludes explicit file deletion.
+		return s.commitPublishedFile(r.ctx, file, path, v, f)
+	})
 }

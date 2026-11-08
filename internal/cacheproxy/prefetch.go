@@ -45,7 +45,7 @@ func (s *Server) PrefetchDownload(ctx context.Context, id int64) (string, error)
 		return "", context.Canceled
 	}
 	defer s.wg.Done()
-	if err := s.CheckSongAllowed(ctx, id); err != nil {
+	if err := s.Store.CheckSongAllowed(ctx, id); err != nil {
 		return "", err
 	}
 	if err := s.StorageError(); err != nil {
@@ -83,7 +83,7 @@ func (s *Server) prefetchResource(ctx context.Context, key, id string) (string, 
 	if s.ctx.Err() != nil {
 		return "", context.Canceled
 	}
-	target, err := s.PreviewMetadata(ctx, s.cfg.libraryPaths(), PreviewTarget{Resource: key, AdmissionSongID: id})
+	target, err := s.Store.PreviewMetadata(ctx, s.cfg.libraryPaths(), PreviewTarget{Resource: key, AdmissionSongID: id})
 	if err != nil {
 		return "", err
 	}
@@ -140,7 +140,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	id := v.songID
 	if id != "" {
 		n, _ := strconv.ParseInt(id, 10, 64)
-		if err := s.CheckSongAllowed(ctx, n); err != nil {
+		if err := s.Store.CheckSongAllowed(ctx, n); err != nil {
 			return "", err
 		}
 	}

@@ -34,14 +34,14 @@ func TestMediaTimingUsesMatchingCatalogVersion(t *testing.T) {
 	s, _ := setup(t, nil)
 	ctx := context.Background()
 	key, other := "0123456789abcdef0123456789abcdef", "abcdef0123456789abcdef0123456789"
-	_, err := s.usage.db.Exec(`INSERT INTO media(md5,byte_size) VALUES (?,60000000),(?,NULL)`, key, other)
+	_, err := s.Store.usage.db.Exec(`INSERT INTO media(md5,byte_size) VALUES (?,60000000),(?,NULL)`, key, other)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,240),(2,80,300),(3,0,900)`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,start,end) VALUES (1,50,240),(2,80,300),(3,0,900)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, other); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO song_media(song_id,md5) VALUES (1,?),(2,?),(3,?)`, key, key, other); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
@@ -58,7 +58,7 @@ func TestMediaTimingUsesMatchingCatalogVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	var size any
-	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", other).Scan(&size); err != nil || size != nil {
+	if err := s.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", other).Scan(&size); err != nil || size != nil {
 		t.Fatal(size, err)
 	}
 }

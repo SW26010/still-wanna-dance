@@ -15,14 +15,14 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
 	r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
 	v, _ := s.parseResolved(r)
-	if _, err := s.usage.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", v.key, v.size); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", v.key, v.size); err != nil {
 		t.Fatal(err)
 	}
 	s.wg.Wait()
-	if _, err := s.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
 		t.Fatal(err)
 	}
 	s.UpdatePrefetchQueue([]int64{2}, false)
@@ -51,10 +51,10 @@ func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 	}
 	// Body delivery finishes independently of background publication/indexing.
 	s.wg.Wait()
-	if _, err := s.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,120)"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", v.key); err != nil {
 		t.Fatal(err)
 	}
 	date := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)

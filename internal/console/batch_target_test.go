@@ -53,16 +53,16 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			c.service = engine
 			ctx := context.Background()
 			if mode == "unresolved" {
-				if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongFavorite); err != nil {
+				if err := engine.Store.SetSongPolicy(ctx, 1, cacheproxy.SongFavorite); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if err := engine.SyncCatalog(ctx, cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 1, MD5: key}, {ID: 2, MD5: key}}}); err != nil {
+				if err := engine.Store.SyncCatalog(ctx, cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 1, MD5: key}, {ID: 2, MD5: key}}}); err != nil {
 					t.Fatal(err)
 				}
 			}
 			if mode == "blocked" {
-				if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongBlocked); err != nil {
+				if err := engine.Store.SetSongPolicy(ctx, 1, cacheproxy.SongBlocked); err != nil {
 					t.Fatal(err)
 				}
 			}

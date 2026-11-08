@@ -441,7 +441,7 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 			return
 		}
 		changed := engine.QueuePreparationChanged()
-		policies, policyErr := engine.SongPolicies(ctx)
+		policies, policyErr := engine.Store.SongPolicies(ctx)
 		if policyErr != nil && ctx.Err() == nil {
 			slog.Warn("queue_song_preferences_failed", "error", policyErr)
 		}

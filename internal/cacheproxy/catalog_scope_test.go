@@ -22,10 +22,10 @@ func TestCatalogMembersIncludeUnresolvedSongsAndKeepHistoricalTargets(t *testing
 		http.Error(w, "unknown resource", 404)
 	})
 	ctx := t.Context()
-	if err := s.SyncCatalog(ctx, testCandidate("20261027000000", CatalogSong{ID: 1, MD5: videoKey(bodies[1])}, CatalogSong{ID: 2, MD5: videoKey(bodies[2])})); err != nil {
+	if err := s.Store.SyncCatalog(ctx, testCandidate("20261027000000", CatalogSong{ID: 1, MD5: videoKey(bodies[1])}, CatalogSong{ID: 2, MD5: videoKey(bodies[2])})); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SyncCatalog(ctx, Catalog{Revision: "20261028000000", Source: UdonCatalogURL, Songs: []CatalogSong{{ID: 2}, {ID: 3}, {ID: 4}}}); err != nil {
+	if err := s.Store.SyncCatalog(ctx, Catalog{Revision: "20261028000000", Source: UdonCatalogURL, Songs: []CatalogSong{{ID: 2}, {ID: 3}, {ID: 4}}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(cfg.videoFile(videoKey(bodies[2])), []byte(bodies[2]), 0600); err != nil {
@@ -69,7 +69,7 @@ func TestCatalogMembersIncludeUnresolvedSongsAndKeepHistoricalTargets(t *testing
 		t.Fatal(page, err)
 	}
 	var members int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id=1").Scan(&members); err != nil || members != 0 {
+	if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id=1").Scan(&members); err != nil || members != 0 {
 		t.Fatal(members, err)
 	}
 }

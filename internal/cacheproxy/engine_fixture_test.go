@@ -22,10 +22,9 @@ func prepareFixtureResources(t testing.TB, cfg *Config, root string, create bool
 	}
 	store := cfg.Store
 	t.Cleanup(func() {
-		if engine := store.engine.Load(); engine != nil {
-			engine.Close()
+		if err := store.Close(); err != nil {
+			t.Error(err)
 		}
-		store.Close()
 	})
 	prepareFixtureVideo(t, cfg, filepath.Join(root, "videos"))
 }
@@ -43,11 +42,6 @@ func prepareFixtureVideo(t testing.TB, cfg *Config, videoDir string) {
 	}
 	work := cfg.Work
 	t.Cleanup(func() {
-		if cfg.Store != nil {
-			if engine := cfg.Store.engine.Load(); engine != nil {
-				engine.Close()
-			}
-		}
 		work.Close()
 	})
 }
@@ -86,10 +80,9 @@ func reopenFixtureStore(t testing.TB, cfg *Config) {
 	}
 	store := cfg.Store
 	t.Cleanup(func() {
-		if engine := store.engine.Load(); engine != nil {
-			engine.Close()
+		if err := store.Close(); err != nil {
+			t.Error(err)
 		}
-		store.Close()
 	})
 }
 

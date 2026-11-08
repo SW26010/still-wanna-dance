@@ -99,7 +99,7 @@ func (f *DownloadFill) fillResources(ctx context.Context, references map[string]
 		if err != nil {
 			return nil, err
 		}
-		songPolicies, err = s.SongPolicies(ctx)
+		songPolicies, err = s.Store.SongPolicies(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func (f *DownloadFill) fillResources(ctx context.Context, references map[string]
 			unresolved = append(unresolved, n)
 		}
 	}
-	songPriorities, err := s.songPriorities(ctx, unresolved, time.Now().UnixMilli())
+	songPriorities, err := s.Store.songPriorities(ctx, unresolved, time.Now().UnixMilli())
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 		}
 		if !f.scanOnly {
 			var policies map[int64]SongPolicy
-			policies, err = s.SongPolicies(ctx)
+			policies, err = s.Store.SongPolicies(ctx)
 			if err == nil {
 				for _, id := range job.ids {
 					n, _ := strconv.ParseInt(id, 10, 64)

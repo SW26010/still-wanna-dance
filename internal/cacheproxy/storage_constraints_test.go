@@ -116,10 +116,10 @@ func TestPrefetchDoesNotPersistRequestHistory(t *testing.T) {
 			if (err == nil) != (status == 200) {
 				t.Fatalf("prefetch status %d: %v", status, err)
 			}
-			s.usage.flush()
+			s.Store.usage.flush()
 			for _, table := range []string{"request_events", "song_usage", "media_access"} {
 				var count int
-				if err := s.usage.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+				if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 					t.Fatal("preparation persisted request facts", table, count, err)
 				}
 			}

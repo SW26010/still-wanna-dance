@@ -94,7 +94,7 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 	t.Cleanup(func() { engine.Close() })
 	const body = "previously saved ordinary video"
 	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, MD5: key}}}); err != nil {
 		t.Fatal(err)
 	}
 	file := filepath.Join(cfg.VideoDir, key+".mp4")
@@ -194,7 +194,7 @@ func TestOfflineSongPolicyDoesNotRequireVideoDirectory(t *testing.T) {
 func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 	c, engine, _, calls := queueRetentionFixture(t, 0)
 	ctx, cancel := context.WithCancel(context.Background())
-	if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongBlocked); err != nil {
+	if err := engine.Store.SetSongPolicy(ctx, 1, cacheproxy.SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.prefetchSong(ctx, engine, 1); err != cacheproxy.ErrSongBlocked {
@@ -229,7 +229,7 @@ func TestQueueSkipsBlockedWithoutRetryAndResumesAfterUnblock(t *testing.T) {
 	if !clean || calls.Load() != 0 {
 		t.Fatal("blocked song retried or disappeared", clean, calls.Load())
 	}
-	if err := engine.SetSongPolicy(ctx, 1, cacheproxy.SongNormal); err != nil {
+	if err := engine.Store.SetSongPolicy(ctx, 1, cacheproxy.SongNormal); err != nil {
 		t.Fatal(err)
 	}
 	wait(func() bool { return q.snapshot().Completed == 1 })
@@ -297,10 +297,10 @@ func testBatchFavoriteRetention(t *testing.T, mode string, retain bool, limit in
 		t.Fatal(err)
 	}
 	c.service = engine
-	if err := engine.SetSongPolicy(t.Context(), 9000002, cacheproxy.SongFavorite); err != nil {
+	if err := engine.Store.SetSongPolicy(t.Context(), 9000002, cacheproxy.SongFavorite); err != nil {
 		t.Fatal(err)
 	}
-	if err := engine.SetSongPolicy(t.Context(), 9000001, cacheproxy.SongBlocked); err != nil {
+	if err := engine.Store.SetSongPolicy(t.Context(), 9000001, cacheproxy.SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.startBatch(); err != nil {

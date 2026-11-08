@@ -18,7 +18,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	for id, key := range map[string]string{"1": shared, "2": shared, "3": missing, "4": orphan, "5": hidden} {
 		seedPrioritySong(t, s, id, key)
 	}
-	if _, err := s.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',groupName='Group' WHERE id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
+	if _, err := s.Store.usage.db.Exec(`DELETE FROM song_media WHERE song_id IN (4,5); UPDATE songs SET name='Song',artist='Singer',dancer='Dancer',groupName='Group' WHERE id=1; INSERT INTO song_preferences VALUES (1,'favorite'); INSERT INTO song_usage VALUES (1,1,8,?)`, time.Now().Add(-24*time.Hour).UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
 	writeTestFile(t, cfg.videoFile(shared), "shared")
@@ -36,7 +36,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if page.Resources[missing].Local != nil || page.Resources[missing].Duration != nil || page.Resources[hidden] == nil || page.Resources[hidden].Local != nil {
 		t.Fatal(page)
 	}
-	if _, err := s.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO media_access(md5,last_requested_at) VALUES (?,?), (?,?)", shared, 100, orphan, 200); err != nil {
 		t.Fatal(err)
 	}
 	recent, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Sort: "recent"})
@@ -67,7 +67,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 		t.Fatal(page, err)
 	}
 	var count int
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM media WHERE md5=?", orphan).Scan(&count); err != nil || count != 1 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM media WHERE md5=?", orphan).Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
 	if err := os.Remove(cfg.videoFile(shared)); err != nil {
@@ -87,17 +87,17 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000121; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
+		if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,?)`, id, fmt.Sprintf("Song %d", id)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.usage.db.Exec(`INSERT INTO song_usage VALUES (?,1,?,?)`, id, float64(id-9000000), now); err != nil {
+		if _, err := s.Store.usage.db.Exec(`INSERT INTO song_usage VALUES (?,1,?,?)`, id, float64(id-9000000), now); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := s.usage.db.Exec(`UPDATE song_usage SET last_demand_at=? WHERE song_id=9000121; INSERT INTO song_preferences VALUES (9000120,'blocked')`, now-int64(365*24*time.Hour/time.Millisecond)); err != nil {
+	if _, err := s.Store.usage.db.Exec(`UPDATE song_usage SET last_demand_at=? WHERE song_id=9000121; INSERT INTO song_preferences VALUES (9000120,'blocked')`, now-int64(365*24*time.Hour/time.Millisecond)); err != nil {
 		t.Fatal(err)
 	}
-	priorities, err := s.songPriorities(ctx, nil, now)
+	priorities, err := s.Store.songPriorities(ctx, nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,15 +147,15 @@ func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UnixMilli()
 	for id := int64(9000001); id <= 9000051; id++ {
-		if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,'Z real')`, id); err != nil {
+		if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (?,'Z real')`, id); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.usage.db.Exec(`INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at) VALUES (?,1,?,?)`, id, float64(id-9000001)/1000, now); err != nil {
+		if _, err := s.Store.usage.db.Exec(`INSERT INTO song_usage(song_id,demand_count,demand_score,last_demand_at) VALUES (?,1,?,?)`, id, float64(id-9000001)/1000, now); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// Every real score is below the priors, including one real score of zero.
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,name) VALUES (3119,'A initial'),(2167,'B initial'),(9999999,'C unknown')`); err != nil {
 		t.Fatal(err)
 	}
 	first, err := readLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Sort: "score"}, now)
@@ -193,17 +193,17 @@ func TestLibrarySortDirectionsAcrossPages(t *testing.T) {
 	for id := 1; id <= 63; id++ {
 		key := fmt.Sprintf("%032x", id)
 		seedPrioritySong(t, s, fmt.Sprint(9000000+id), key)
-		if _, err := s.usage.db.Exec("UPDATE songs SET name=? WHERE id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
+		if _, err := s.Store.usage.db.Exec("UPDATE songs SET name=? WHERE id=?", fmt.Sprintf("Song %03d", 64-id), 9000000+id); err != nil {
 			t.Fatal(err)
 		}
 		if id <= 61 {
-			if _, err := s.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", 9000000+id, id, now); err != nil {
+			if _, err := s.Store.usage.db.Exec("INSERT INTO song_usage VALUES (?,1,?,?)", 9000000+id, id, now); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := s.usage.db.Exec("UPDATE media SET byte_size=? WHERE md5=?", id*100, key); err != nil {
+			if _, err := s.Store.usage.db.Exec("UPDATE media SET byte_size=? WHERE md5=?", id*100, key); err != nil {
 				t.Fatal(err)
 			}
-		} else if _, err := s.usage.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", key); err != nil {
+		} else if _, err := s.Store.usage.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", key); err != nil {
 			t.Fatal(err)
 		}
 	}

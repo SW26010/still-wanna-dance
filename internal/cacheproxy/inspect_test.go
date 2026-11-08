@@ -23,7 +23,7 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 	// Simulate a crash after publishing bytes but before recording the resource.
 	writeTestFile(t, cfg.videoFile(v.key), payload)
 	var count int
-	if err := s.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("expected unregistered file: count=%d err=%v", count, err)
 	}
 	hit, receipt, err := CheckLocalReceipt(ctx, cfg.VideoDir, target)
@@ -37,7 +37,7 @@ func TestReuseLocalSongRestoresMissingResourceRecord(t *testing.T) {
 		}
 		var checksum string
 		var size int64
-		if err := s.usage.db.QueryRow(`SELECT v.md5, v.byte_size
+		if err := s.Store.usage.db.QueryRow(`SELECT v.md5, v.byte_size
  FROM media v JOIN song_media s USING(md5) WHERE s.song_id='1344'`).Scan(&checksum, &size); err != nil {
 			t.Fatal(err)
 		}

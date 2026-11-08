@@ -20,13 +20,13 @@ func TestCatalogProtocolSampleAndAtomicRoundTrip(t *testing.T) {
 	}
 	s, _ := setup(t, nil)
 	ctx := context.Background()
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
 	var name, artist, group, tags, shader string
 	var volume, start, end float64
 	var flip, width int
-	err = s.usage.db.QueryRow("SELECT name,artist,groupName,volume,start,end,flip,double_width,tag,shader_motion FROM songs WHERE id=90000").Scan(&name, &artist, &group, &volume, &start, &end, &flip, &width, &tags, &shader)
+	err = s.Store.usage.db.QueryRow("SELECT name,artist,groupName,volume,start,end,flip,double_width,tag,shader_motion FROM songs WHERE id=90000").Scan(&name, &artist, &group, &volume, &start, &end, &flip, &width, &tags, &shader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,10 +43,10 @@ func TestCatalogProtocolSampleAndAtomicRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("CREATE TRIGGER forbid_song_update BEFORE UPDATE ON songs BEGIN SELECT RAISE(ABORT,'duplicate wrote'); END"); err != nil {
+	if _, err := s.Store.usage.db.Exec("CREATE TRIGGER forbid_song_update BEFORE UPDATE ON songs BEGIN SELECT RAISE(ABORT,'duplicate wrote'); END"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SyncCatalog(ctx, duplicate); err != nil {
+	if err := s.Store.SyncCatalog(ctx, duplicate); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -61,42 +61,42 @@ func TestCatalogUpdatesPreserveUsageResourcesAndAbsentSongs(t *testing.T) {
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	name := "old"
 	c := testCandidate("20261001000000", CatalogSong{ID: 1, MD5: a, Name: &name}, CatalogSong{ID: 2, MD5: a})
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.recordVideo(ctx, video{key: a, size: 100, path: "/known"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := s.Store.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	name = "new"
 	c = testCandidate("20261002000000", CatalogSong{ID: 1, MD5: b, Name: &name})
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
 	assertSongResource(t, s, "1", a)
 	assertSongResource(t, s, "2", a)
 	var count, size int
 	var got string
-	if err := s.usage.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&got); err != nil || got != "new" {
+	if err := s.Store.usage.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&got); err != nil || got != "new" {
 		t.Fatal(got, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+	if err := s.Store.usage.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=1").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", a).Scan(&size); err != nil || size != 100 {
+	if err := s.Store.usage.db.QueryRow("SELECT byte_size FROM media WHERE md5=?", a).Scan(&size); err != nil || size != 100 {
 		t.Fatal(size, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM song_media WHERE song_id=1").Scan(&count); err != nil || count != 1 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM song_media WHERE song_id=1").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
 	// No historical mapping or redundant authoritative column remains.
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name IN ('video_versions','current_videos','song_videos','resource_usage')").Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name IN ('video_versions','current_videos','song_videos','resource_usage')").Scan(&count); err != nil || count != 0 {
 		t.Fatal(count, err)
 	}
 	for _, query := range []string{"INSERT INTO song_media VALUES (999,'" + a + "')", "INSERT INTO media(md5) VALUES (NULL)", "UPDATE songs SET flip=2 WHERE id=1", "UPDATE songs SET tag='{}' WHERE id=1"} {
-		if _, err := s.usage.db.Exec(query); err == nil {
+		if _, err := s.Store.usage.db.Exec(query); err == nil {
 			t.Fatal("constraint not enforced", query)
 		}
 	}
@@ -107,33 +107,33 @@ func TestCatalogRollbackAndWatermark(t *testing.T) {
 	ctx := context.Background()
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	first := testCandidate("20261001000000", CatalogSong{ID: 1, MD5: a})
-	if err := s.SyncCatalog(ctx, first); err != nil {
+	if err := s.Store.SyncCatalog(ctx, first); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("CREATE TRIGGER reject_second BEFORE INSERT ON songs WHEN NEW.id=2 BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
+	if _, err := s.Store.usage.db.Exec("CREATE TRIGGER reject_second BEFORE INSERT ON songs WHEN NEW.id=2 BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
 		t.Fatal(err)
 	}
 	next := testCandidate("20261002000000", CatalogSong{ID: 1, MD5: b}, CatalogSong{ID: 2, MD5: b})
-	if err := s.SyncCatalog(ctx, next); err == nil {
+	if err := s.Store.SyncCatalog(ctx, next); err == nil {
 		t.Fatal("injected transaction committed")
 	}
 	assertSongResource(t, s, "1", a)
 	var revision string
 	var n int
-	if err := s.usage.db.QueryRow("SELECT revision FROM catalog_state").Scan(&revision); err != nil || revision != first.Revision {
+	if err := s.Store.usage.db.QueryRow("SELECT revision FROM catalog_state").Scan(&revision); err != nil || revision != first.Revision {
 		t.Fatal(revision, err)
 	}
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM media WHERE md5=?", b).Scan(&n); err != nil || n != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM media WHERE md5=?", b).Scan(&n); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
-	if _, err := s.usage.db.Exec("DROP TRIGGER reject_second"); err != nil {
+	if _, err := s.Store.usage.db.Exec("DROP TRIGGER reject_second"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SyncCatalog(ctx, next); err != nil {
+	if err := s.Store.SyncCatalog(ctx, next); err != nil {
 		t.Fatal(err)
 	}
 	for _, bad := range []Catalog{first} {
-		if err := s.SyncCatalog(ctx, bad); err == nil {
+		if err := s.Store.SyncCatalog(ctx, bad); err == nil {
 			t.Fatal("stale/conflicting candidate accepted")
 		}
 	}
@@ -161,17 +161,17 @@ func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
 	newer := testCandidate("20261002000000", CatalogSong{ID: 1, MD5: b})
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go func() { defer wg.Done(); _ = s.SyncCatalog(ctx, old) }()
+	go func() { defer wg.Done(); _ = s.Store.SyncCatalog(ctx, old) }()
 	go func() {
 		defer wg.Done()
-		if err := s.SyncCatalog(ctx, newer); err != nil {
+		if err := s.Store.SyncCatalog(ctx, newer); err != nil {
 			t.Error(err)
 		}
 	}()
 	wg.Wait()
 	assertSongResource(t, s, "1", a)
 	// Simulate an older fetch finishing after the new version has committed.
-	if err := s.SyncCatalog(ctx, old); err == nil {
+	if err := s.Store.SyncCatalog(ctx, old); err == nil {
 		t.Fatal("late older candidate accepted")
 	}
 	wg.Add(2)
@@ -183,7 +183,7 @@ func TestCatalogConcurrentOrderingAndPlaybackFill(t *testing.T) {
 	}()
 	go func() {
 		defer wg.Done()
-		if err := s.SyncCatalog(ctx, newer); err != nil {
+		if err := s.Store.SyncCatalog(ctx, newer); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -197,40 +197,40 @@ func TestCatalogTimesAcrossMD5SourcesIgnoreLegacyUdonWatermark(t *testing.T) {
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	name := "old"
 	first := Catalog{Revision: "20260215004959", Source: "https://wanna.kiva.moe/api/wannaInfo", Songs: []CatalogSong{{ID: 1, MD5: a, Name: &name}}}
-	if err := s.SyncCatalog(ctx, first); err != nil {
+	if err := s.Store.SyncCatalog(ctx, first); err != nil {
 		t.Fatal(err)
 	}
 	var count int
-	if err := s.usage.db.QueryRow("SELECT count(*) FROM catalog_state").Scan(&count); err != nil || count != 1 {
+	if err := s.Store.usage.db.QueryRow("SELECT count(*) FROM catalog_state").Scan(&count); err != nil || count != 1 {
 		t.Fatal(count, err)
 	}
 	// Existing obsolete rows must never gate, advance, or be rewritten by MD5 sync.
-	if _, err := s.usage.db.Exec("INSERT INTO catalog_state VALUES ('song_names','20990101000000','udon')"); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO catalog_state VALUES ('song_names','20990101000000','udon')"); err != nil {
 		t.Fatal(err)
 	}
 	name = "new"
 	next := Catalog{Revision: "20261004235822", Source: "https://x.kiva.moe/api/v2/wanna/songs", Songs: []CatalogSong{{ID: 1, MD5: b, Name: &name}}}
-	if err := s.SyncCatalog(ctx, next); err != nil {
+	if err := s.Store.SyncCatalog(ctx, next); err != nil {
 		t.Fatal("obsolete Udon watermark blocked update", err)
 	}
 	assertSongResource(t, s, "1", a)
-	if err := s.SyncCatalog(ctx, first); err == nil {
+	if err := s.Store.SyncCatalog(ctx, first); err == nil {
 		t.Fatal("old mirror accepted")
 	}
-	if _, err := s.usage.db.Exec("CREATE TRIGGER forbid_update BEFORE UPDATE ON songs BEGIN SELECT RAISE(ABORT,'duplicate wrote'); END"); err != nil {
+	if _, err := s.Store.usage.db.Exec("CREATE TRIGGER forbid_update BEFORE UPDATE ON songs BEGIN SELECT RAISE(ABORT,'duplicate wrote'); END"); err != nil {
 		t.Fatal(err)
 	}
 	next.Source = first.Source
-	if err := s.SyncCatalog(ctx, next); err != nil {
+	if err := s.Store.SyncCatalog(ctx, next); err != nil {
 		t.Fatal("same-version mirror rewrote data", err)
 	}
 	conflictName := "conflict"
 	next.Songs[0].Name = &conflictName
-	if err := s.SyncCatalog(ctx, next); err != nil {
+	if err := s.Store.SyncCatalog(ctx, next); err != nil {
 		t.Fatal("same-version content must be ignored", err)
 	}
 	var revision string
-	if err := s.usage.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='song_names'").Scan(&revision); err != nil || revision != "20990101000000" {
+	if err := s.Store.usage.db.QueryRow("SELECT revision FROM catalog_state WHERE catalog_key='song_names'").Scan(&revision); err != nil || revision != "20990101000000" {
 		t.Fatal(revision, err)
 	}
 }

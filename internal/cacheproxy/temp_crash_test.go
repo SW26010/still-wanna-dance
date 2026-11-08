@@ -86,7 +86,7 @@ func TestTemporaryMediaAfterProcessTermination(t *testing.T) {
 		t.Fatal("source changed", err)
 	}
 	var integrity string
-	if err := s.usage.db.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {
+	if err := s.Store.usage.db.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {
 		t.Fatal("database damaged", integrity, err)
 	}
 }

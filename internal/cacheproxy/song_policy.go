@@ -114,8 +114,8 @@ type resourcePolicy struct {
 // associations participate in the reduction, including ordinary songs sharing
 // the same resource. No associations means ordinary, never implicitly blocked.
 // Find marked song IDs first so sparse preferences do not scan the whole catalog.
-func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolicy, error) {
-	rows, err := s.usage.db.QueryContext(ctx, `SELECT m.md5,
+func (s *Store) resourcePolicies(ctx context.Context, retainFavorites bool) (map[string]resourcePolicy, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT m.md5,
  MAX(CASE WHEN p.policy='favorite' THEN 1 ELSE 0 END),
  MIN(CASE WHEN p.policy='blocked' THEN 1 ELSE 0 END)
  FROM song_media m LEFT JOIN song_preferences p ON p.song_id=m.song_id
@@ -132,8 +132,12 @@ func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolic
 		if err := rows.Scan(&key, &p.favorite, &p.blocked); err != nil {
 			return nil, err
 		}
-		p.favorite = p.favorite && s.cfg.RetainFavorites
+		p.favorite = p.favorite && retainFavorites
 		result[key] = p
 	}
 	return result, rows.Err()
+}
+
+func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolicy, error) {
+	return s.Store.resourcePolicies(ctx, s.cfg.RetainFavorites)
 }

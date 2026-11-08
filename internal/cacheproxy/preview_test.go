@@ -23,7 +23,7 @@ func seedPreview(t *testing.T, s *Server, body string) PreviewTarget {
 		"INSERT INTO songs(id) VALUES(1) ON CONFLICT DO NOTHING",
 		fmt.Sprintf("INSERT INTO song_media(song_id,md5) VALUES(1,'%s') ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", key),
 	} {
-		if _, err := s.db.Exec(query); err != nil {
+		if _, err := s.Store.db.Exec(query); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -50,19 +50,19 @@ func previewResponse(s *Server, target PreviewTarget, headers map[string]string)
 
 func assertPreviewUncounted(t *testing.T, s *Server, target PreviewTarget) {
 	t.Helper()
-	s.usage.flush()
+	s.Store.usage.flush()
 	for _, table := range []string{"request_events", "song_usage"} {
 		var count int
-		if err := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+		if err := s.Store.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("%s: count=%d error=%v", table, count, err)
 		}
 	}
 	var at int64
-	if err := s.db.QueryRow("SELECT last_requested_at FROM media_access WHERE md5=?", target.Resource).Scan(&at); err != nil || at <= 0 {
+	if err := s.Store.db.QueryRow("SELECT last_requested_at FROM media_access WHERE md5=?", target.Resource).Scan(&at); err != nil || at <= 0 {
 		t.Fatalf("resource access missing: %d %v", at, err)
 	}
 	var total int64
-	if err := s.db.QueryRow("SELECT COALESCE(sum(download_bytes+cache_bytes+local_bytes),0) FROM request_events").Scan(&total); err != nil || total != 0 {
+	if err := s.Store.db.QueryRow("SELECT COALESCE(sum(download_bytes+cache_bytes+local_bytes),0) FROM request_events").Scan(&total); err != nil || total != 0 {
 		t.Fatalf("response source totals changed: %d %v", total, err)
 	}
 }
@@ -113,7 +113,7 @@ func TestResourcePreviewCanResolveThroughBlockedAlias(t *testing.T) {
 		}
 	})
 	target := seedPreview(t, s, payload)
-	if err := s.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	// Selecting a resource does not create a demand for its lookup alias.
@@ -141,7 +141,7 @@ func TestSongPreviewTriesSelectedAliasFirst(t *testing.T) {
 		}
 	})
 	target := seedPreview(t, s, payload)
-	if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (2); INSERT INTO song_media(song_id,md5) VALUES (2,?)", target.Resource); err != nil {
+	if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (2); INSERT INTO song_media(song_id,md5) VALUES (2,?)", target.Resource); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -184,7 +184,7 @@ func TestPreviewUnknownSizeDuringServerStop(t *testing.T) {
 		}
 	})
 	target := seedPreview(t, s, payload)
-	if _, err := s.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
+	if _, err := s.Store.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
 		t.Fatal(err)
 	}
 	target.Size = 0
@@ -237,13 +237,13 @@ func TestPreviewStaysOnClickTimeResourceAndRechecksSongPolicy(t *testing.T) {
 	if err := os.WriteFile(cfg.videoFile(target.Resource), []byte(payload), 0600); err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := s.PreparePreview(context.Background(), cfg.libraryPaths(), DownloadTarget{SongID: "1"})
+	prepared, err := s.Store.PreparePreview(context.Background(), cfg.libraryPaths(), DownloadTarget{SongID: "1"})
 	if err != nil || prepared != target {
 		t.Fatal(prepared, err)
 	}
 	seedPreview(t, s, "new-version")
 	assertResponse(t, previewResponse(s, prepared, nil), 200, payload)
-	if err := s.SetSongPolicy(context.Background(), 1, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(context.Background(), 1, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	if w := previewResponse(s, prepared, nil); w.Code != 403 {
@@ -270,12 +270,12 @@ func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 	if w.Code < 400 || downloads.Load() != 0 {
 		t.Fatal(w.Code, w.Body.String(), downloads.Load())
 	}
-	urls, err := s.SongURLs(context.Background(), 1, "")
+	urls, err := s.Store.SongURLs(context.Background(), 1, "")
 	if err != nil || len(urls) != 1 || urls[0].MD5 == target.Resource {
 		t.Fatal("new version observation was rejected", urls, err)
 	}
 	var mapped string
-	if err := s.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped); err != nil || mapped != urls[0].MD5 {
+	if err := s.Store.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped); err != nil || mapped != urls[0].MD5 {
 		t.Fatal("fresh preview API evidence did not update mapping", mapped, err)
 	}
 }
@@ -367,7 +367,7 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 				}
 			}
 			// Unknown catalog size must use the existing resource, without API work.
-			if _, err := s.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
+			if _, err := s.Store.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
 				t.Fatal(err)
 			}
 			target.Size = 0
@@ -401,10 +401,10 @@ func TestPreviewKnownAddressBeyondAPILookupBudget(t *testing.T) {
 	})
 	target := seedPreview(t, s, payload)
 	for id := 2; id <= 12; id++ {
-		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(?)", id); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES(?)", id); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(?,?)", id, target.Resource); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(?,?)", id, target.Resource); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -494,10 +494,10 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 			case <-time.After(5 * time.Second):
 				t.Fatal("game was canceled with preview")
 			}
-			s.usage.flush()
+			s.Store.usage.flush()
 			for _, table := range []string{"request_events", "song_usage"} {
 				var count int
-				if err := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 1 {
+				if err := s.Store.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 1 {
 					t.Fatal(table, count, err)
 				}
 			}

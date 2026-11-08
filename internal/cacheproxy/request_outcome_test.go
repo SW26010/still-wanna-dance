@@ -135,14 +135,14 @@ func TestPlaybackResolutionStorageFailureHistory(t *testing.T) {
 			return videoURL(payload), s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload)})
 		}
 	})
-	if _, err := s.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
+	if _, err := s.Store.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
 		t.Fatal(err)
 	}
 	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil); w.Code != 503 {
 		t.Fatal(w.Code)
 	}
 	// Remove only the injected fault; read-only history validates the exact schema.
-	if _, err := s.db.Exec("DROP TRIGGER fail_address"); err != nil {
+	if _, err := s.Store.db.Exec("DROP TRIGGER fail_address"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -167,18 +167,18 @@ func (w *outcomeWriter) Write(p []byte) (int, error) {
 
 func TestBlockedHistoryKeepsRequestTimePolicy(t *testing.T) {
 	s, cfg := setup(t, nil)
-	if err := s.SetSongPolicy(t.Context(), 42, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 42, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil)
 	if w.Code != 403 {
 		t.Fatal(w.Code)
 	}
-	if err := s.SetSongPolicy(t.Context(), 42, SongNormal); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 42, SongNormal); err != nil {
 		t.Fatal(err)
 	}
 	// Existing generic history must remain generic, even with the same HTTP code.
-	if err := s.usage.write([]usageEvent{{at: time.Now().UnixMilli(), method: "GET", outcome: "failed", status: 403, songID: "42"}}); err != nil {
+	if err := s.Store.usage.write([]usageEvent{{at: time.Now().UnixMilli(), method: "GET", outcome: "failed", status: 403, songID: "42"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -240,7 +240,7 @@ func TestRequestHistoryReopenPreservesLegacyResults(t *testing.T) {
 	for i, outcome := range []string{"completed", "canceled", "failed", "aborted", "incomplete", "timeout", "expired", "blocked", "", "future_result"} {
 		events = append(events, usageEvent{at: time.Now().UnixMilli() + int64(i), method: "GET", outcome: outcome, status: 504})
 	}
-	if err := s.usage.write(events); err != nil {
+	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {

@@ -108,7 +108,7 @@ func TestBusinessResolutionUsesCFAndMeasuredTransport(t *testing.T) {
 	if cfCalls.Load() != 2 {
 		t.Fatalf("want two CF resolutions, got %d", cfCalls.Load())
 	}
-	urls, err := engine.SongURLs(context.Background(), 42, "cf")
+	urls, err := engine.Store.SongURLs(context.Background(), 42, "cf")
 	if err != nil || len(urls) != 1 || urls[0].URL != target {
 		t.Fatalf("API observation not persisted: %+v %v", urls, err)
 	}

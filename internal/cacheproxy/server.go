@@ -55,7 +55,8 @@ type flight struct {
 }
 
 type Server struct {
-	*Store
+	Store            *Store
+	binding          *retentionBinding
 	getMu            sync.Mutex // Current incoming GET observations; independent of worker locks.
 	currentGETs      map[uint64]*currentGET
 	resourceHosts    sync.Map // validated API/programmatic URLs, host -> expiry
@@ -201,7 +202,8 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 		flights: make(map[string]*flight), localChecks: make(chan struct{}, cfg.MaxLocalValidations), capacityChanged: make(chan struct{}),
 		client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
-	if err := store.attach(s); err != nil {
+	s.binding = &retentionBinding{changed: s.databaseChanged}
+	if err := store.attach(s.binding); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -209,7 +211,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 		if failed {
 			cancel()
 			s.client.CloseIdleConnections()
-			store.detach(s)
+			store.detach(s.binding)
 		}
 	}()
 	// Claim the engine before touching media work owned by its video lease.
@@ -278,7 +280,7 @@ func (s *Server) Close() error {
 		clear(s.protection)
 		s.retentionMu.Unlock()
 		s.runRetention(false)
-		s.Store.detach(s)
+		s.Store.detach(s.binding)
 		s.client.CloseIdleConnections()
 		err = s.unlock()
 		s.cfg.Logger.Info("cache_engine_stopped", "error", applog.SafeError(err))
@@ -432,7 +434,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		event.elapsedMS = time.Since(start).Milliseconds()
 		event.outcome = response.outcome(clientContext, panicked)
 		if preview == nil {
-			s.usage.record(event)
+			s.Store.recordRequest(event)
 		}
 		if panicked != nil {
 			panic(panicked)
@@ -520,7 +522,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	}
 	defer func() { releaseDemand() }()
 	if r.Method == http.MethodGet {
-		s.usage.startGET(v.songID, v.key)
+		s.Store.recordGET(v.songID, v.key)
 	}
 	// Transfer the request pin and event identity together on every pre-body retry.
 	retry := func(cause error) error {

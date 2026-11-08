@@ -69,7 +69,7 @@ func TestRequestHistoryBrowser(t *testing.T) {
 	}
 	// Current mapping changes without rewriting the already handled request.
 	name := "new current mapping"
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, Name: &name, MD5: strings.Repeat("b", 32)}}}); err != nil {
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261024000000", Source: "test", Songs: []cacheproxy.CatalogSong{{ID: 42, Name: &name, MD5: strings.Repeat("b", 32)}}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := engine.Close(); err != nil {
@@ -103,7 +103,7 @@ func TestRequestHistoryBrowser(t *testing.T) {
 			songID = "86"
 		case "blocked":
 			songID = "87"
-			if err := writer.SetSongPolicy(r.Context(), 87, cacheproxy.SongBlocked); err != nil {
+			if err := writer.Store.SetSongPolicy(r.Context(), 87, cacheproxy.SongBlocked); err != nil {
 				writer.Close()
 				http.Error(w, err.Error(), 500)
 				return

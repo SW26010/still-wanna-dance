@@ -19,7 +19,7 @@ func batchBudgetServer(t *testing.T, cfg Config) *Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return &Server{Store: &Store{usage: &usageStore{db: db}}, cfg: cfg}
+	return &Server{Store: &Store{db: db, usage: &usageStore{db: db}}, cfg: cfg}
 }
 
 func TestBatchBudgetConcurrentReservations(t *testing.T) {

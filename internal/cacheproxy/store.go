@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -33,7 +32,7 @@ type Store struct {
 	retentionRunMu      sync.Mutex
 	mappingMu           sync.Mutex
 	catalogObservations map[string]catalogObservation // Protected by mappingMu; diagnostic only.
-	engine              atomic.Pointer[Server]
+	binding             *retentionBinding             // guarded by retentionRunMu
 	mu                  sync.Mutex
 	wg                  sync.WaitGroup
 	closed              bool
@@ -164,7 +163,7 @@ func (s *Store) Close() error {
 		<-s.done
 		return s.closeErr
 	}
-	if s.engine.Load() != nil {
+	if s.binding != nil {
 		s.mu.Unlock()
 		s.retentionRunMu.Unlock()
 		return errors.New("请先关闭视频引擎，再关闭数据库")
@@ -192,7 +191,7 @@ func (s *Store) beginRequest() bool {
 	return true
 }
 
-func (s *Store) attach(engine *Server) error {
+func (s *Store) attach(binding *retentionBinding) error {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
 	s.mu.Lock()
@@ -200,30 +199,38 @@ func (s *Store) attach(engine *Server) error {
 	if s.closed {
 		return errors.New("数据库已关闭")
 	}
-	if !s.engine.CompareAndSwap(nil, engine) {
+	if s.binding != nil {
 		return errors.New("数据库已被另一个视频引擎使用")
 	}
+	s.binding = binding
 	return nil
 }
 
-func (s *Store) detach(engine *Server) {
+func (s *Store) detach(binding *retentionBinding) {
 	s.retentionRunMu.Lock()
-	s.engine.CompareAndSwap(engine, nil)
+	if s.binding == binding {
+		s.binding = nil
+	}
 	s.retentionRunMu.Unlock()
 }
 
 // Caller holds retentionRunMu through the commit and its invalidation.
 func (s *Store) changed(queue bool) {
-	if engine := s.engine.Load(); engine != nil {
-		engine.retentionMu.Lock()
-		engine.requestRetentionLocked()
-		engine.retentionMu.Unlock()
-		if queue {
-			engine.mu.Lock()
-			engine.notifyQueuePreparationLocked()
-			engine.mu.Unlock()
-		}
+	if s.binding != nil {
+		s.binding.changed(queue)
 	}
+}
+
+// A binding is an engine's synchronous invalidation lease. Store knows neither
+// the engine's concrete type nor its locks. Detach waits for in-flight commits.
+type retentionBinding struct{ changed func(queue bool) }
+
+// A decision includes its database snapshot, filesystem publication/deletion,
+// and settlement. Mapping/preference writes cannot interleave with that scope.
+func (s *Store) retentionDecision(decide func() error) error {
+	s.retentionRunMu.Lock()
+	defer s.retentionRunMu.Unlock()
+	return decide()
 }
 
 // Error reports a database I/O failure independently of any video engine.

@@ -147,7 +147,7 @@ func (store *Store) DeleteCache(ctx context.Context, videoDir string, selected [
 	defer store.wg.Done()
 	store.retentionRunMu.Lock()
 	defer store.retentionRunMu.Unlock()
-	if store.engine.Load() != nil {
+	if store.binding != nil {
 		return nil, errors.New("视频引擎正在使用数据库，请通过当前引擎删除")
 	}
 	paths, err := (LibraryPaths{DatabasePath: store.path, VideoDir: videoDir}).Resolve()

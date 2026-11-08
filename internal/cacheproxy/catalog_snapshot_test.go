@@ -102,10 +102,10 @@ func TestStoreCatalogSyncSurvivesActiveEngineVideoFailure(t *testing.T) {
 func TestCatalogVersionAndMembersSurviveRestart(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
-	if err := s.SyncCatalog(ctx, testCandidate("20261001000000", CatalogSong{ID: 1, MD5: strings.Repeat("a", 32)})); err != nil {
+	if err := s.Store.SyncCatalog(ctx, testCandidate("20261001000000", CatalogSong{ID: 1, MD5: strings.Repeat("a", 32)})); err != nil {
 		t.Fatal(err)
 	}
-	before, err := s.CatalogStatus(ctx)
+	before, err := s.Store.CatalogStatus(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestCatalogVersionAndMembersSurviveRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	after, err := reopened.CatalogStatus(ctx)
+	after, err := reopened.Store.CatalogStatus(ctx)
 	if err != nil || after.Revision != before.Revision {
 		t.Fatal(before, after, err)
 	}
@@ -133,10 +133,10 @@ func TestLoadCatalogStatusRejectsMissingTrackingSchema(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
 	c := testCandidate("20261001000000", CatalogSong{ID: 1, MD5: strings.Repeat("a", 32)})
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("DROP TABLE catalog_state"); err != nil {
+	if _, err := s.Store.usage.db.Exec("DROP TABLE catalog_state"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {

@@ -139,10 +139,10 @@ func TestCoverageSeedIsUnknownAndUnresolvedMembersStayInDenominator(t *testing.T
 		t.Fatal(seeded)
 	}
 	key := strings.Repeat("a", 32)
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261028000000", Source: "fixture", Songs: []cacheproxy.CatalogSong{{ID: 9000001, MD5: key}, {ID: 9000002, MD5: key}}}); err != nil {
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261028000000", Source: "fixture", Songs: []cacheproxy.CatalogSong{{ID: 9000001, MD5: key}, {ID: 9000002, MD5: key}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261029000000", Source: cacheproxy.UdonCatalogURL, Songs: []cacheproxy.CatalogSong{{ID: 9000002}, {ID: 9000003}, {ID: 9000004}}}); err != nil {
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261029000000", Source: cacheproxy.UdonCatalogURL, Songs: []cacheproxy.CatalogSong{{ID: 9000002}, {ID: 9000003}, {ID: 9000004}}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(cfg.VideoDir, key+".mp4"), []byte("local"), 0600); err != nil {

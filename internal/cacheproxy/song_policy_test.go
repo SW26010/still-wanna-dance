@@ -10,24 +10,24 @@ import (
 func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()
-	if err := s.SetSongPolicy(ctx, 42, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 42, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	if err := syncTestCatalog(s, ctx, map[string]string{"42": strings.Repeat("a", 32)}); err != nil {
 		t.Fatal(err)
 	}
-	before, err := s.CatalogStatus(ctx)
+	before, err := s.Store.CatalogStatus(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetSongPolicy(ctx, 42, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 42, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
-	after, _ := s.CatalogStatus(ctx)
+	after, _ := s.Store.CatalogStatus(ctx)
 	if before != after {
 		t.Fatal("preference changed catalog state")
 	}
-	if err := s.CheckSongAllowed(ctx, 42); !errors.Is(err, ErrSongBlocked) {
+	if err := s.Store.CheckSongAllowed(ctx, 42); !errors.Is(err, ErrSongBlocked) {
 		t.Fatal(err)
 	}
 	s.mu.Lock()
@@ -42,14 +42,14 @@ func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if err := reopened.CheckSongAllowed(ctx, 42); !errors.Is(err, ErrSongBlocked) {
+	if err := reopened.Store.CheckSongAllowed(ctx, 42); !errors.Is(err, ErrSongBlocked) {
 		t.Fatal("lost preference after restart", err)
 	}
-	if err := reopened.SetSongPolicy(ctx, 42, SongNormal); err != nil {
+	if err := reopened.Store.SetSongPolicy(ctx, 42, SongNormal); err != nil {
 		t.Fatal(err)
 	}
 	var count int
-	if err := reopened.usage.db.QueryRow("SELECT COUNT(*) FROM song_preferences").Scan(&count); err != nil || count != 0 {
+	if err := reopened.Store.usage.db.QueryRow("SELECT COUNT(*) FROM song_preferences").Scan(&count); err != nil || count != 0 {
 		t.Fatal("normal should have no preference row", count, err)
 	}
 }
@@ -59,7 +59,7 @@ func TestSongPolicyNotifiesQueueOnlyAfterCommit(t *testing.T) {
 	changed := s.QueuePreparationChanged()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if err := s.SetSongPolicy(ctx, 42, SongBlocked); err == nil {
+	if err := s.Store.SetSongPolicy(ctx, 42, SongBlocked); err == nil {
 		t.Fatal("canceled preference write succeeded")
 	}
 	select {
@@ -69,7 +69,7 @@ func TestSongPolicyNotifiesQueueOnlyAfterCommit(t *testing.T) {
 	}
 	for _, policy := range []SongPolicy{SongBlocked, SongNormal} {
 		changed = s.QueuePreparationChanged()
-		if err := s.SetSongPolicy(t.Context(), 42, policy); err != nil {
+		if err := s.Store.SetSongPolicy(t.Context(), 42, policy); err != nil {
 			t.Fatal(err)
 		}
 		select {
@@ -77,7 +77,7 @@ func TestSongPolicyNotifiesQueueOnlyAfterCommit(t *testing.T) {
 		default:
 			t.Fatal("committed preference did not notify the queue", policy)
 		}
-		policies, err := s.SongPolicies(t.Context())
+		policies, err := s.Store.SongPolicies(t.Context())
 		if err != nil || (policies[42] == SongBlocked) != (policy == SongBlocked) {
 			t.Fatal("notification preceded committed state", policies, err)
 		}
@@ -100,10 +100,10 @@ func TestResourcePoliciesFollowSharedCurrentAssociations(t *testing.T) {
 		{SongBlocked, SongBlocked, resourcePolicy{blocked: true}},
 		{SongNormal, SongNormal, resourcePolicy{}},
 	} {
-		if err := s.SetSongPolicy(ctx, 1, tc.first); err != nil {
+		if err := s.Store.SetSongPolicy(ctx, 1, tc.first); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.SetSongPolicy(ctx, 2, tc.second); err != nil {
+		if err := s.Store.SetSongPolicy(ctx, 2, tc.second); err != nil {
 			t.Fatal(err)
 		}
 		got, err := s.resourcePolicies(ctx)
@@ -111,7 +111,7 @@ func TestResourcePoliciesFollowSharedCurrentAssociations(t *testing.T) {
 			t.Fatalf("%s/%s: %v, %v", tc.first, tc.second, got, err)
 		}
 	}
-	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 
@@ -131,18 +131,18 @@ func TestSongPolicyValidationAndTransactionRollback(t *testing.T) {
 		id     int64
 		policy SongPolicy
 	}{{0, SongBlocked}, {-1, SongFavorite}, {1, "unknown"}} {
-		if err := s.SetSongPolicy(ctx, tc.id, tc.policy); err == nil {
+		if err := s.Store.SetSongPolicy(ctx, tc.id, tc.policy); err == nil {
 			t.Fatal("accepted invalid preference", tc)
 		}
 	}
-	if _, err := s.usage.db.Exec(`CREATE TRIGGER reject_preference BEFORE INSERT ON song_preferences BEGIN SELECT RAISE(ABORT,'fail'); END`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`CREATE TRIGGER reject_preference BEFORE INSERT ON song_preferences BEGIN SELECT RAISE(ABORT,'fail'); END`); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetSongPolicy(ctx, 123, SongFavorite); err == nil {
+	if err := s.Store.SetSongPolicy(ctx, 123, SongFavorite); err == nil {
 		t.Fatal("expected failure")
 	}
 	var count int
-	if err := s.usage.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=123").Scan(&count); err != nil || count != 0 {
+	if err := s.Store.usage.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=123").Scan(&count); err != nil || count != 0 {
 		t.Fatal("partial placeholder write", count, err)
 	}
 }

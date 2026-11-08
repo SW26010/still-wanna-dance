@@ -102,11 +102,12 @@ func (s *Server) trimCache() {
 }
 
 func (s *Server) runRetention(reconcile bool) {
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
-	if err := s.trimCachePass(reconcile); err != nil {
-		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
-	}
+	_ = s.Store.retentionDecision(func() error {
+		if err := s.trimCachePass(reconcile); err != nil {
+			s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
+		}
+		return nil
+	})
 }
 
 func (s *Server) requestRetentionLocked() {

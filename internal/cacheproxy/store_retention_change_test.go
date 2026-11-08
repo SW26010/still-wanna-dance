@@ -18,11 +18,12 @@ func retentionChangeEngine(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	s := &Server{Store: store, cfg: fixtureConfig(), retentionWake: make(chan struct{}, 1), versionPins: make(map[string]int)}
-	if err := store.attach(s); err != nil {
+	s.binding = &retentionBinding{changed: s.databaseChanged}
+	if err := store.attach(s.binding); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		store.detach(s)
+		store.detach(s.binding)
 		if err := store.Close(); err != nil {
 			t.Error(err)
 		}
@@ -64,7 +65,7 @@ func requireDecisionBeforeWrite(t *testing.T, s *Server, decision, write func(co
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	u := s.usage
+	u := s.Store.usage
 	u.mu.Lock()
 	if u.started {
 		u.mu.Unlock()
@@ -120,9 +121,9 @@ func requireDecisionBeforeWrite(t *testing.T, s *Server, decision, write func(co
 	writeDone = make(chan struct{})
 	attempted := make(chan bool, 1)
 	go func() {
-		acquired := s.retentionRunMu.TryLock()
+		acquired := s.Store.retentionRunMu.TryLock()
 		if acquired {
-			s.retentionRunMu.Unlock()
+			s.Store.retentionRunMu.Unlock()
 		}
 		attempted <- acquired
 		writeErr = write(ctx)
@@ -173,18 +174,18 @@ func TestBusinessWritesNotifyRetentionAndQueue(t *testing.T) {
 		{
 			name: "catalog",
 			write: func(s *Server) error {
-				return s.SyncCatalog(context.Background(), testCandidate("20261002000000", CatalogSong{ID: 1, MD5: key}))
+				return s.Store.SyncCatalog(context.Background(), testCandidate("20261002000000", CatalogSong{ID: 1, MD5: key}))
 			},
 		},
 		{
 			name: "older catalog still commits a mapping",
 			prepare: func(t *testing.T, s *Server) {
-				if err := s.SyncCatalog(t.Context(), testCandidate("20261002000000", CatalogSong{ID: 1})); err != nil {
+				if err := s.Store.SyncCatalog(t.Context(), testCandidate("20261002000000", CatalogSong{ID: 1})); err != nil {
 					t.Fatal(err)
 				}
 			},
 			write: func(s *Server) error {
-				return s.SyncCatalog(context.Background(), testCandidate("20261001000000", CatalogSong{ID: 2, MD5: key}))
+				return s.Store.SyncCatalog(context.Background(), testCandidate("20261001000000", CatalogSong{ID: 2, MD5: key}))
 			},
 			wantErr: ErrCatalogOlder,
 			verify:  func(t *testing.T, s *Server) { assertSongResource(t, s, "2", key) },
@@ -197,19 +198,19 @@ func TestBusinessWritesNotifyRetentionAndQueue(t *testing.T) {
 		},
 		{
 			name:      "song preference",
-			write:     func(s *Server) error { return s.SetSongPolicy(context.Background(), 1, SongFavorite) },
+			write:     func(s *Server) error { return s.Store.SetSongPolicy(context.Background(), 1, SongFavorite) },
 			wantQueue: true,
 		},
 		{
 			name: "recorded existing mapping",
 			prepare: func(t *testing.T, s *Server) {
-				if _, err := s.db.Exec("INSERT INTO media(md5) VALUES (?)", key); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO media(md5) VALUES (?)", key); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (1)"); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (1)"); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", key); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", key); err != nil {
 					t.Fatal(err)
 				}
 				// Keep the worker's release from providing an unrelated last-pin wake.
@@ -254,7 +255,7 @@ func TestFailedBusinessWritesDoNotNotify(t *testing.T) {
 		{
 			name: "catalog",
 			write: func(s *Server) error {
-				return s.SyncCatalog(context.Background(), testCandidate("20261002000000", CatalogSong{ID: 1, MD5: key}))
+				return s.Store.SyncCatalog(context.Background(), testCandidate("20261002000000", CatalogSong{ID: 1, MD5: key}))
 			},
 		},
 		{
@@ -266,12 +267,12 @@ func TestFailedBusinessWritesDoNotNotify(t *testing.T) {
 		{
 			name:  "song preference",
 			table: "song_preferences",
-			write: func(s *Server) error { return s.SetSongPolicy(context.Background(), 1, SongFavorite) },
+			write: func(s *Server) error { return s.Store.SetSongPolicy(context.Background(), 1, SongFavorite) },
 		},
 		{
 			name: "recorded mapping",
 			prepare: func(t *testing.T, s *Server) {
-				if _, err := s.db.Exec("INSERT INTO media(md5) VALUES (?)", key); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO media(md5) VALUES (?)", key); err != nil {
 					t.Fatal(err)
 				}
 				v := video{key: key}
@@ -290,7 +291,7 @@ func TestFailedBusinessWritesDoNotNotify(t *testing.T) {
 			if table == "" {
 				table = "song_media"
 			}
-			if _, err := s.db.Exec("CREATE TRIGGER reject_write BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
+			if _, err := s.Store.db.Exec("CREATE TRIGGER reject_write BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
 				t.Fatal(err)
 			}
 			changed := s.QueuePreparationChanged()
@@ -300,7 +301,7 @@ func TestFailedBusinessWritesDoNotNotify(t *testing.T) {
 			requireRetentionWake(t, s, false)
 			requireQueueWake(t, changed, false)
 			var count int
-			if err := s.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=1").Scan(&count); err != nil || count != 0 {
+			if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=1").Scan(&count); err != nil || count != 0 {
 				t.Fatal("failed transaction left a placeholder", count, err)
 			}
 		})
@@ -311,7 +312,7 @@ func TestPreferenceCommitHoldsRetentionExclusionThroughNotification(t *testing.T
 	s := retentionChangeEngine(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	conn, err := s.db.Conn(ctx)
+	conn, err := s.Store.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,20 +325,20 @@ func TestPreferenceCommitHoldsRetentionExclusionThroughNotification(t *testing.T
 			s.retentionMu.Unlock()
 		}
 	}()
-	before := s.db.Stats().WaitCount
+	before := s.Store.db.Stats().WaitCount
 	done := make(chan error, 1)
-	go func() { done <- s.SetSongPolicy(ctx, 1, SongBlocked) }()
-	waitForDatabaseWait(t, s.db, before)
+	go func() { done <- s.Store.SetSongPolicy(ctx, 1, SongBlocked) }()
+	waitForDatabaseWait(t, s.Store.db, before)
 	if err := conn.Close(); err != nil {
 		t.Fatal(err)
 	}
 	// The queued writer owns the only connection and commits before this read.
 	var policy SongPolicy
-	if err := s.db.QueryRowContext(ctx, "SELECT policy FROM song_preferences WHERE song_id=1").Scan(&policy); err != nil || policy != SongBlocked {
+	if err := s.Store.db.QueryRowContext(ctx, "SELECT policy FROM song_preferences WHERE song_id=1").Scan(&policy); err != nil || policy != SongBlocked {
 		t.Fatal("preference did not commit", policy, err)
 	}
-	if s.retentionRunMu.TryLock() {
-		s.retentionRunMu.Unlock()
+	if s.Store.retentionRunMu.TryLock() {
+		s.Store.retentionRunMu.Unlock()
 		t.Fatal("retention could run between commit and notification")
 	}
 	requireQueueWake(t, changed, false)
@@ -359,18 +360,18 @@ func TestPreferenceFailureIsRecordedBeforeRetentionResumes(t *testing.T) {
 	s := retentionChangeEngine(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	if _, err := s.db.Exec("PRAGMA query_only=1"); err != nil {
+	if _, err := s.Store.db.Exec("PRAGMA query_only=1"); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := s.db.Conn(ctx)
+	conn, err := s.Store.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	before := s.db.Stats().WaitCount
+	before := s.Store.db.Stats().WaitCount
 	done := make(chan error, 1)
-	go func() { done <- s.SetSongPolicy(ctx, 1, SongBlocked) }()
-	waitForDatabaseWait(t, s.db, before)
+	go func() { done <- s.Store.SetSongPolicy(ctx, 1, SongBlocked) }()
+	waitForDatabaseWait(t, s.Store.db, before)
 	s.Store.mu.Lock()
 	locked := true
 	defer func() {
@@ -382,15 +383,15 @@ func TestPreferenceFailureIsRecordedBeforeRetentionResumes(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Reacquiring the only connection waits for the failed transaction to end.
-	returned, err := s.db.Conn(ctx)
+	returned, err := s.Store.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := returned.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if s.retentionRunMu.TryLock() {
-		s.retentionRunMu.Unlock()
+	if s.Store.retentionRunMu.TryLock() {
+		s.Store.retentionRunMu.Unlock()
 		t.Fatal("retention could resume before the storage failure was recorded")
 	}
 	s.Store.mu.Unlock()
@@ -409,7 +410,7 @@ func TestPreferenceFailureIsRecordedBeforeRetentionResumes(t *testing.T) {
 func TestRetentionDecisionExcludesMappingAfterPolicyRead(t *testing.T) {
 	s := retentionChangeEngine(t)
 	const key = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	if err := s.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), key+".mp4")
@@ -458,7 +459,7 @@ func TestPublicationDecisionExcludesPreferenceAfterPolicyRead(t *testing.T) {
 		reservation, err = s.reservePublication(ctx, video{key: key, size: 12})
 		return err
 	}, func(ctx context.Context) error {
-		if err := s.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
+		if err := s.Store.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
 			return err
 		}
 		s.retentionMu.Lock()
@@ -476,7 +477,7 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	const key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	if err := s.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 1, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	requireRetentionWake(t, s, true)
@@ -489,7 +490,7 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 12
 	const ordinary = "dddddddddddddddddddddddddddddddd"
 	seedPrioritySong(t, s, "9000001", ordinary)
-	if err := s.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := s.Store.usage.write([]usageEvent{{songID: "9000001", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
 	ordinaryPath := filepath.Join(filepath.Dir(path), ordinary+".mp4")
@@ -504,19 +505,19 @@ func TestMappingWriteSerializesWithRetention(t *testing.T) {
 	}
 	s.retainedBytes = info.Size() + ordinaryInfo.Size()
 
-	conn, err := s.db.Conn(ctx)
+	conn, err := s.Store.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	before := s.db.Stats().WaitCount
+	before := s.Store.db.Stats().WaitCount
 	written := make(chan error, 1)
 	go func() {
 		written <- s.Store.ObserveSongURL(ctx, PlaybackObservation{SongID: 1, Node: "cf", URL: "https://play.udon.dance/files/1/1-video.mp4?e=" + key + "&s=12"})
 	}()
-	waitForDatabaseWait(t, s.db, before)
-	if s.retentionRunMu.TryLock() {
-		s.retentionRunMu.Unlock()
+	waitForDatabaseWait(t, s.Store.db, before)
+	if s.Store.retentionRunMu.TryLock() {
+		s.Store.retentionRunMu.Unlock()
 		t.Fatal("mapping write did not exclude retention")
 	}
 	started, retained := make(chan struct{}), make(chan struct{})
@@ -554,17 +555,17 @@ func TestPreferenceWriteSerializesWithPublication(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	conn, err := s.db.Conn(ctx)
+	conn, err := s.Store.db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	before := s.db.Stats().WaitCount
+	before := s.Store.db.Stats().WaitCount
 	written := make(chan error, 1)
-	go func() { written <- s.SetSongPolicy(ctx, 1, SongBlocked) }()
-	waitForDatabaseWait(t, s.db, before)
-	if s.retentionRunMu.TryLock() {
-		s.retentionRunMu.Unlock()
+	go func() { written <- s.Store.SetSongPolicy(ctx, 1, SongBlocked) }()
+	waitForDatabaseWait(t, s.Store.db, before)
+	if s.Store.retentionRunMu.TryLock() {
+		s.Store.retentionRunMu.Unlock()
 		t.Fatal("preference write did not exclude publication")
 	}
 	started, admitted := make(chan struct{}), make(chan error, 1)

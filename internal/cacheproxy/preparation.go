@@ -91,7 +91,7 @@ func (s *Server) addPreparation(ctx context.Context, v video) (*downloadDemand, 
 		// on every attempt; policy changes never revoke an admitted source.
 		if v.songID != "" {
 			id, _ := strconv.ParseInt(v.songID, 10, 64)
-			if err := s.CheckSongAllowed(ctx, id); err != nil {
+			if err := s.Store.CheckSongAllowed(ctx, id); err != nil {
 				return nil, nil, err
 			}
 		}

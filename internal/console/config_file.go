@@ -23,6 +23,16 @@ type loadedConfig struct {
 }
 
 func loadConfigFile(path string) (loadedConfig, error) {
+	loaded, err := decodeConfigFile(path)
+	if err == nil {
+		loaded.Settings, err = resolveConfigSettings(loaded.Settings, path)
+	}
+	return loaded, err
+}
+
+// Recovery may edit a fully decoded current-version document even when its
+// values fail semantic validation. Never expose a partially decoded document.
+func decodeConfigFile(path string) (loadedConfig, error) {
 	data, fields, err := readConfigFile(path)
 	if err != nil {
 		return loadedConfig{}, err
@@ -44,8 +54,8 @@ func loadConfigFile(path string) (loadedConfig, error) {
 			}
 		}
 	}
-	loaded.Settings, err = resolveConfigSettings(loaded.Settings, path)
-	return loaded, err
+	loaded.Settings = settingsWithDefaults(resolveConfigPaths(loaded.Settings, path))
+	return loaded, nil
 }
 
 // ReadStartupSettings shares the ordinary configuration decoder before the

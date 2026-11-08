@@ -80,6 +80,12 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	if c.workOpenError != nil {
 		return nil, nil, c.workOpenError
 	}
+	if c.storageOpenError != nil {
+		return nil, nil, c.storageOpenError
+	}
+	if c.storageConfirmation != nil {
+		return nil, nil, c.storageConfirmation
+	}
 	store, err := c.businessStore()
 	if err != nil {
 		return nil, nil, err

@@ -64,9 +64,9 @@ func proxyConfigurationContent(ctx context.Context, source string, input []byte)
 	}
 }
 
-func (c *Console) serveProxyImport(w http.ResponseWriter, r *http.Request) {
+func (c *Console) serveProxyImportAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
 	c.mu.Lock()
-	allowed := !c.closing && c.terms.valid()
+	allowed := !c.closing && (!requireTerms || c.terms.valid())
 	c.mu.Unlock()
 	if !allowed {
 		preserveResponseFault(w, rejectRequest(errors.New("请先同意条款，并等待应用就绪")))
@@ -98,7 +98,7 @@ func (c *Console) serveProxyImport(w http.ResponseWriter, r *http.Request) {
 			name = params["filename"]
 		}
 	}
-	result, err := c.importProxyNodes(r.Context(), data, name)
+	result, err := c.importProxyNodesAuthorized(r.Context(), data, name, requireTerms)
 	if err != nil {
 		if writeSettingsValidation(w, err) {
 			return

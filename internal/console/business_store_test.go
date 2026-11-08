@@ -14,7 +14,7 @@ func TestApplicationOwnsDatabaseBeforeEngineStarts(t *testing.T) {
 	c := testConsole(t)
 	path := libraryPaths(c.settings).DatabasePath
 	if c.store == nil || c.service != nil {
-		t.Fatal("database ownership must not depend on an engine", c.storeOpenError)
+		t.Fatal("database ownership must not depend on an engine", c.storageOpenError)
 	}
 	if other, err := cacheproxy.OpenStore(path); err == nil {
 		other.Close()

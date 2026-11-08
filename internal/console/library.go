@@ -47,7 +47,13 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	page, err := cacheproxy.ReadLibraryPage(ctx, root, q)
+	// Preserve startup's pending-selection result instead of attempting to
+	// read an unselected database and reporting it as a new runtime fault.
+	var page cacheproxy.LibraryPage
+	_, err = c.businessStore()
+	if err == nil {
+		page, err = cacheproxy.ReadLibraryPage(ctx, root, q)
+	}
 	if err != nil {
 		preserveResponseFault(w, err)
 		w.WriteHeader(400)

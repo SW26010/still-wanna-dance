@@ -1,64 +1,122 @@
 package console
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/workfiles"
 )
 
-// A new desktop installation prepares its shared business storage. Only an
-// unconfigured instance may create its default library; opening a configured
-// database remains strict, including when that database has disappeared.
-// Existing default data needs an explicit choice because a lost configuration
-// also loses its video retention policy. No extra bootstrap marker is needed.
+// This is a request for a storage decision, not a resource failure. It is
+// derived at startup and never persisted separately from the selected paths.
+type storageConfirmationRequired struct {
+	missing, detail string
+}
+
+func (e *storageConfirmationRequired) Error() string {
+	return "尚未指定" + e.missing + "。" + e.detail + "请在存储设置中确认数据库、完整视频目录和视频保留方式，保存后重启。"
+}
+
+// Database access remains independent of video readiness. The startup result
+// is fixed until restart; business requests never retry initialization.
+func (c *Console) prepareStorage() {
+	if c.settings.DatabasePath != "" {
+		var err error
+		c.store, err = cacheproxy.OpenStore(c.settings.DatabasePath)
+		if err != nil {
+			c.storageOpenError = withSettingFields(fmt.Errorf("数据库不可用，请在设置中打开已有数据库或明确新建：%w", err), "databasePath")
+		}
+	}
+	if c.settings.DatabasePath == "" || c.settings.VideoDir == "" {
+		c.storageOpenError = errors.Join(c.storageOpenError, c.prepareDefaultLibrary())
+	}
+}
+
+// Fill only missing choices. Validate the final combination and inspect old
+// data before creating anything; explicit locations are never replaced.
 func (c *Console) prepareDefaultLibrary() error {
-	s := c.settings
-	s.DatabasePath, s.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
+	old, s := c.settings, c.settings
+	missing := []string{}
+	if s.DatabasePath == "" {
+		s.DatabasePath = c.defaultDatabasePath()
+		missing = append(missing, "数据库")
+	}
+	if s.VideoDir == "" {
+		s.VideoDir = c.defaultVideoDir()
+		missing = append(missing, "完整视频目录")
+	}
 	if err := c.validateResourcePaths(s); err != nil {
 		return err
 	}
-	if err := checkUnconfiguredLibrary(s.DatabasePath, s.VideoDir); err != nil {
+	if err := c.validateChangedStorageChoices(s, old); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(s.VideoDir, 0700); err != nil {
-		return err
+	confirm := func(detail string) {
+		if c.storageConfirmation == nil {
+			c.storageConfirmation = &storageConfirmationRequired{missing: strings.Join(missing, "和"), detail: detail}
+		}
 	}
-	if err := workfiles.CheckDir(s.VideoDir); err != nil {
-		return err
+	if old.DatabasePath == "" {
+		exists, err := unconfiguredDatabaseExists(s.DatabasePath)
+		if err != nil {
+			return withSettingFields(fmt.Errorf("无法检查默认数据库位置：%w", err), "databasePath")
+		}
+		if exists {
+			confirm(fmt.Sprintf("默认位置发现已有数据库资料：%s。", s.DatabasePath))
+		}
 	}
-	if err := workfiles.Probe(s.VideoDir); err != nil {
-		return err
+	// An explicit offline directory must not be recreated, even when the
+	// database is missing. A future default directory may be created below.
+	if old.VideoDir != "" {
+		if err := workfiles.CheckDir(s.VideoDir); err != nil {
+			return withSettingFields(fmt.Errorf("完整视频目录不可用：%w", err), "videoDir")
+		}
+	} else if err := workfiles.CheckFutureDir(s.VideoDir); err != nil {
+		return withSettingFields(fmt.Errorf("默认完整视频目录不可用：%w", err), "videoDir")
 	}
-	store, err := cacheproxy.CreateStore(s.DatabasePath)
+	required, err := inspectVideoPolicy(s, old)
 	if err != nil {
-		return err
+		return withSettingFields(fmt.Errorf("无法检查完整视频目录：%w", err), "videoDir")
 	}
-	c.store, c.settings = store, s
-	c.vrcxNotify = true
+	if required {
+		confirm(fmt.Sprintf("完整视频目录已有资料，需要确认其数据库与保留策略：%s。", s.VideoDir))
+	}
+	if c.storageOpenError != nil || c.storageConfirmation != nil {
+		return nil
+	}
+	if old.VideoDir == "" {
+		if err := os.MkdirAll(s.VideoDir, 0700); err != nil {
+			return withSettingFields(fmt.Errorf("无法创建默认完整视频目录：%w", err), "videoDir")
+		}
+		if err := workfiles.CheckDir(s.VideoDir); err != nil {
+			return withSettingFields(fmt.Errorf("默认完整视频目录不可用：%w", err), "videoDir")
+		}
+		if err := workfiles.Probe(s.VideoDir); err != nil {
+			return withSettingFields(fmt.Errorf("默认完整视频目录不可用：%w", err), "videoDir")
+		}
+	}
+	if old.DatabasePath == "" {
+		store, err := cacheproxy.CreateStore(s.DatabasePath)
+		if err != nil {
+			return withSettingFields(fmt.Errorf("无法创建默认数据库：%w", err), "databasePath")
+		}
+		c.store = store
+		c.vrcxNotify = true
+	}
+	c.settings = s
 	return nil
 }
 
-func checkUnconfiguredLibrary(database, videos string) error {
+func unconfiguredDatabaseExists(database string) (bool, error) {
 	for _, suffix := range []string{"", "-wal", "-shm", "-journal"} {
 		if _, err := os.Lstat(database + suffix); err == nil {
-			return fmt.Errorf("已有数据库资料，请在存储设置中选择已有数据库并确认视频保留方式：%s", database)
+			return true, nil
 		} else if !os.IsNotExist(err) {
-			return err
+			return false, err
 		}
 	}
-	if err := workfiles.CheckFutureDir(videos); err != nil {
-		return err
-	}
-	entries, err := os.ReadDir(videos)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && cacheName.MatchString(entry.Name()) {
-			return fmt.Errorf("已有完整视频，请在存储设置中选择数据库并确认视频保留方式：%s", videos)
-		}
-	}
-	return nil
+	return false, nil
 }

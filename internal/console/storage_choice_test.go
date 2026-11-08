@@ -233,7 +233,7 @@ func TestLegacyOverlappingSelectionsAllowUnrelatedSaves(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	if c.settings.BlockCacheDir != legacy.BlockCacheDir || c.store == nil {
-		t.Fatal("legacy selection failed to reopen", c.storeOpenError)
+		t.Fatal("legacy selection failed to reopen", c.storageOpenError)
 	}
 	unrelated := c.savedSettings
 	unrelated.LogLevel = "debug"
@@ -350,7 +350,7 @@ func TestLegacyDatabaseInVideoAllowsUnrelatedSaves(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	if c.settings.DatabasePath != legacy.DatabasePath || c.store == nil {
-		t.Fatal("legacy database failed to reopen", c.storeOpenError)
+		t.Fatal("legacy database failed to reopen", c.storageOpenError)
 	}
 	unrelated := c.savedSettings
 	unrelated.LogLevel = "debug"

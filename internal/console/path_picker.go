@@ -12,7 +12,7 @@ import (
 	"still-wanna-dance/internal/desktop"
 )
 
-func (c *Console) servePathPicker(w http.ResponseWriter, r *http.Request) {
+func (c *Console) servePathPickerAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
 	var input struct {
 		Purpose string `json:"purpose"`
 		Path    string `json:"path"`
@@ -24,7 +24,7 @@ func (c *Console) servePathPicker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "无效的路径选择请求", http.StatusBadRequest)
 		return
 	}
-	path, err := c.selectPath(r.Context(), input.Purpose, input.Path)
+	path, err := c.selectPathAuthorized(r.Context(), input.Purpose, input.Path, requireTerms)
 	if err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -34,6 +34,11 @@ func (c *Console) servePathPicker(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) selectPath(ctx context.Context, purpose, initial string) (string, error) {
+	return c.selectPathAuthorized(ctx, purpose, initial, true)
+}
+
+// Recovery only selects configuration paths; it does not activate services.
+func (c *Console) selectPathAuthorized(ctx context.Context, purpose, initial string, requireTerms bool) (string, error) {
 	dialog := desktop.PathDialog{}
 	switch purpose {
 	case "database":
@@ -60,7 +65,7 @@ func (c *Console) selectPath(ctx context.Context, purpose, initial string) (stri
 	}
 	dialog.Initial = initial
 	c.mu.Lock()
-	if c.closing || !c.terms.valid() || c.pathPickerCancel != nil {
+	if c.closing || (requireTerms && !c.terms.valid()) || c.pathPickerCancel != nil {
 		c.mu.Unlock()
 		return "", rejectRequest(errors.New("请先同意条款，或关闭已打开的路径选择窗口"))
 	}

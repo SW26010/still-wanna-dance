@@ -38,13 +38,7 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 		data["build"] = buildinfo.Current()
 	}
 	if page == "console" {
-		defaults := defaultSettings()
-		data["settingsDefaults"] = map[string]int{
-			"prepareAheadSeconds":          int(blocksched.DefaultPrepareAhead / time.Second),
-			"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
-			"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,
-			"localProtectionGraceSeconds":  defaults.LocalProtectionGraceSeconds,
-		}
+		data["settingsDefaults"] = downloadSettingsDefaults()
 	}
 	if page == "console" || page == "help" {
 		c.mu.Lock()
@@ -60,6 +54,16 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 		data["terms"] = map[string]string{"text": legal.Text, "version": legal.Version}
 	}
 	serveWebUIPage(w, title, c.token, data)
+}
+
+func downloadSettingsDefaults() map[string]int {
+	defaults := defaultSettings()
+	return map[string]int{
+		"prepareAheadSeconds":          int(blocksched.DefaultPrepareAhead / time.Second),
+		"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
+		"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,
+		"localProtectionGraceSeconds":  defaults.LocalProtectionGraceSeconds,
+	}
 }
 
 // Both the regular application and the limited startup-failure server use the

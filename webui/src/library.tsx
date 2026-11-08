@@ -1,3 +1,4 @@
+import {StorageConfirmationNotice} from './storage-directory';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {Badge,Button,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,ToggleButton,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource} from './hooks';
@@ -31,13 +32,14 @@ export function Library({visible,anchor}:{visible:boolean;anchor:string}) {
 }
 function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boolean;anchor:string;song:string;resource:string;requestedView?:'songs'|'resources'}) {
   const app=useApp(),s=app.status.data!,focus=useFocusRecovery();
+  const waitingForDatabase=!!s.storageConfirmation&&!s.activeSettings.databasePath&&!s.storageError;
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[filter,setFilter]=useState('');
   const [query,setQuery]=useState<TableSort&{q:string;filter:string}>({q:'',sort:'score',direction:'descending',filter:''}),[offset,setOffset]=useState(0);
   const [pending,setPending]=useState(false);
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const dialogFocusTarget=useRestoreFocusTarget();
-  const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped,app.revision,0,true);
+  const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending||!!page.error);
@@ -95,8 +97,9 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
     <Notification message={feedback.value?.text} error={feedback.value?.failed}/><Notification message={!actions.result?.error&&!actions.result?.entries?.length?actions.result?.text:undefined}/>
     <Notification message={visible&&downloads.error?'下载状态暂时无法读取。':undefined} error/>
-    {page.data?.videoError&&<Feedback error>视频目录不可用，本地视频状态未知。<p className="wrap">{page.data.videoError}</p></Feedback>}
-    <InventoryPanel visible={visible} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}
+    <StorageConfirmationNotice message={s.storageConfirmation}/>{s.storageConfirmation&&<Link href="#storage-settings">确认存储设置</Link>}
+    {page.data?.videoError&&s.activeSettings.videoDir&&<Feedback error>视频目录不可用，本地视频状态未知。<p className="wrap">{page.data.videoError}</p></Feedback>}
+    <InventoryPanel visible={visible} waitingForDatabase={waitingForDatabase} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={page.error}
       actions={<><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
     <section id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>
@@ -143,7 +146,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       {page.data?.total===0&&<p className="empty-state">{song||resource?'当前条件下没有匹配项。':'没有匹配项，请调整搜索或更新清单。'}</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
         previous={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{setOffset(offset+50);focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}
-        summary={page.error?'曲库读取失败，请刷新重试。':!page.data?'正在读取曲库…':`共 ${page.data.total} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}/>
+        summary={waitingForDatabase?'待确认存储':page.error?'曲库读取失败，请刷新重试。':!page.data?'正在读取曲库…':`共 ${page.data.total} ${view==='songs'?'首歌曲':'个资源'} · 第 ${offset/50+1} 页`}/>
       </div>
     </section>
     <VRCXImport model={history}/>

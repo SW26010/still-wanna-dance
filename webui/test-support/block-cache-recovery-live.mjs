@@ -9,7 +9,7 @@ try {
   const page=await browser.newPage({viewport:{width:390,height:900}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base+'/#download-settings');
-  await page.getByRole('button',{name:'后台状态'}).click();
+  await page.getByRole('button',{name:/后台程序：.*，查看详情/}).focus();await page.keyboard.press('Enter');
   await expect(page.getByText('临时视频缓存目录不可用，视频服务和下载无法启动。',{exact:false})).toBeVisible();
   await expect(page.getByText(/修复后退出并重新打开应用/)).toBeVisible();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();

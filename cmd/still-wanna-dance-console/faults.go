@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -70,29 +69,29 @@ func recoverApplication(cause error) error {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identity, identityErr := desktop.NewIdentity(flagValue("config"))
-	var instance *desktop.Instance
-	if identityErr == nil {
-		var err error
-		instance, err = desktop.AcquireOrActivate(ctx, identity, true)
-		if err == nil && instance == nil {
-			// Another matching owner became ready while startup was unwinding.
-			return nil
-		}
-		if err == nil {
-			defer instance.Close()
-		}
+	identity, err := desktop.NewIdentity(flagValue("config"))
+	if err != nil {
+		return err
 	}
+	instance, err := desktop.AcquireOrActivate(ctx, identity, true)
+	if err != nil {
+		return err
+	}
+	if instance == nil {
+		// Another matching owner became ready while startup was unwinding.
+		return nil
+	}
+	defer instance.Close()
 	preferred := flagValue("listen")
 	if port, err := strconv.Atoi(flagValue("restart-port")); err == nil && port > 0 && port <= 65535 {
 		preferred = net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	}
-	return serveFailureUI(ctx, cause, identity, preferred, instance, openWebUI, desktop.Run)
+	return serveFailureUI(ctx, cause, identity, preferred, instance.Publish, openWebUI, desktop.Run)
 }
 
-// serveFailureUI also works without a desktop lease (e.g. a conflicting owner):
-// it does not write or take over that owner's configuration or tray.
-func serveFailureUI(parent context.Context, cause error, identity desktop.Identity, preferred string, instance *desktop.Instance, open func(string) error, runTray func(context.Context, desktop.Options) error) error {
+// Recovery requires desktop ownership and a working tray. Its caller presents
+// failures through the native dialog after all recovery resources are released.
+func serveFailureUI(parent context.Context, cause error, identity desktop.Identity, preferred string, publish func(string) error, open func(string) error, runTray func(context.Context, desktop.Options) error) error {
 	host, _, err := net.SplitHostPort(preferred)
 	if err != nil || host != "127.0.0.1" {
 		preferred = desktop.Address
@@ -105,7 +104,7 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 		return fmt.Errorf("无法启动 WebUI：%w", err)
 	}
 	defer listener.Close()
-	view, err := console.NewRecovery(listener.Addr().String(), identity)
+	view, err := console.NewRecovery(listener.Addr().String(), identity, cause.Error())
 	if err != nil {
 		return err
 	}
@@ -113,6 +112,7 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	var once sync.Once
+	var shutdownErr error
 	shutdown := func() {
 		once.Do(func() {
 			view.BeginShutdown()
@@ -121,13 +121,12 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 			if err := server.Shutdown(grace); err != nil {
 				_ = server.Close()
 			}
-			view.Close(grace)
+			shutdownErr = view.Close(grace)
 		})
 	}
 	defer shutdown()
-	if instance != nil {
-		// Failure to publish does not prevent a local browser from displaying it.
-		_ = instance.Publish(listener.Addr().String())
+	if err := publish(listener.Addr().String()); err != nil {
+		return fmt.Errorf("登记恢复实例：%w", err)
 	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener); cancel() }()
@@ -139,32 +138,24 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 		}
 	}()
 	center := faults.New()
-	center.Set("startup", cause)
 	openErr := make(chan error, 1)
-	go watchFaultOpenings(ctx, center, "http://"+listener.Addr().String(), view.WebUIConnected, open, func(err error) {
-		openErr <- err
-		cancel()
-	})
-	if instance != nil && runTray != nil {
-		err = runTray(ctx, desktop.Options{
-			URL:         "http://" + listener.Addr().String(),
-			State:       func() desktop.State { return desktop.State{Unavailable: true} },
-			ReportFault: center.Set, RequestExit: view.RequestExit, Shutdown: shutdown,
-		})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "托盘不可用：%v\n", err)
-		}
-		// The tray is not required to serve or close the limited WebUI.
-		// If it cannot start, keep the page alive until exit or cancellation.
-		if ctx.Err() == nil {
+	err = runTray(ctx, desktop.Options{
+		URL:         "http://" + listener.Addr().String(),
+		State:       view.DesktopState,
+		ReportFault: center.Set, RequestExit: view.RequestExit, Shutdown: shutdown,
+		Ready: func() {
+			center.Set("startup", cause)
+			go watchFaultOpenings(ctx, center, "http://"+listener.Addr().String(), view.WebUIConnected, open, func(err error) {
+				openErr <- err
+				cancel()
+			})
 			go view.ExitWhenUnattended(ctx, time.Minute)
-			<-ctx.Done()
-		}
-		err = nil
-	} else {
-		go view.ExitWhenUnattended(ctx, time.Minute)
-		<-ctx.Done()
+		},
+	})
+	if err == nil && ctx.Err() == nil && view.ShutdownAction() == "running" {
+		err = errors.New("托盘已意外关闭")
 	}
+	cancel()
 	shutdown()
 	serverErr := <-serveErr
 	select {
@@ -173,10 +164,31 @@ func serveFailureUI(parent context.Context, cause error, identity desktop.Identi
 	default:
 	}
 	if err != nil {
-		return err
+		return errors.Join(fmt.Errorf("托盘不可用：%w", err), shutdownErr)
 	}
 	if !errors.Is(serverErr, http.ErrServerClosed) {
 		return serverErr
+	}
+	if shutdownErr != nil {
+		return shutdownErr
+	}
+	if view.ShutdownAction() == console.ShutdownRestart {
+		args := []string{"-config", identity.Config, "-no-open"}
+		explicit := false
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "listen" {
+				explicit = true
+			}
+		})
+		if explicit {
+			args = append(args, "-listen", listener.Addr().String())
+		} else {
+			args = append(args, "-restart-port", strconv.Itoa(listener.Addr().(*net.TCPAddr).Port))
+		}
+		if flagValue("no-tray") == "true" {
+			args = append(args, "-no-tray")
+		}
+		return &restartRequest{args: args}
 	}
 	return nil
 }

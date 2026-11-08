@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +25,7 @@ import (
 
 func TestFaultOpeningKeepsConnectedWebUI(t *testing.T) {
 	server := httptest.NewUnstartedServer(nil)
-	view, err := console.NewRecovery(server.Listener.Addr().String(), desktop.Identity{})
+	view, err := console.NewRecovery(server.Listener.Addr().String(), desktop.Identity{}, "startup failed")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,51 +130,148 @@ func TestFaultOpeningInterruptedByShutdownIsRetained(t *testing.T) {
 
 func TestFailureUIFallsBackWhenBrowserCannotOpen(t *testing.T) {
 	cause, unavailable := errors.New("configuration invalid"), errors.New("browser unavailable")
-	err := serveFailureUI(t.Context(), cause, desktop.Identity{}, "127.0.0.1:0", nil, func(string) error { return unavailable }, nil)
+	err := serveFailureUI(t.Context(), cause, desktop.Identity{}, "127.0.0.1:0", func(string) error { return nil }, func(string) error { return unavailable }, runRecoveryTrayFixture)
 	if !errors.Is(err, cause) || !errors.Is(err, unavailable) {
 		t.Fatalf("lost startup or browser failure: %v", err)
 	}
 }
 
-func TestFailureUIRemainsAvailableWithoutTray(t *testing.T) {
-	opened := make(chan string, 1)
-	done := make(chan error, 1)
-	go func() {
-		done <- serveFailureUI(t.Context(), errors.New("startup failed"), desktop.Identity{}, "127.0.0.1:0", &desktop.Instance{}, func(url string) error {
-			opened <- url
-			return nil
-		}, func(context.Context, desktop.Options) error { return errors.New("tray unavailable") })
-	}()
-	var base string
-	select {
-	case base = <-opened:
-	case <-time.After(5 * time.Second):
-		t.Fatal("recovery UI was not opened")
+func TestInstanceConflictSkipsRecovery(t *testing.T) {
+	previous := openWebUI
+	t.Cleanup(func() { openWebUI = previous })
+	openWebUI = func(string) error {
+		t.Error("instance conflict opened a recovery browser")
+		return errors.New("unexpected browser opening")
 	}
-	response, err := http.Get(base + "/")
-	if err != nil {
-		t.Fatal("tray failure closed the recovery UI", err)
-	}
-	body, _ := io.ReadAll(response.Body)
-	response.Body.Close()
-	token := regexp.MustCompile(`name="swd-token"\s+content="([a-f0-9]+)"`).FindSubmatch(body)
-	if len(token) != 2 {
-		t.Fatal("recovery page has no token")
-	}
-	request, _ := http.NewRequest("POST", base+"/api/exit", strings.NewReader(`{}`))
-	request.Header.Set("X-SWD-Token", string(token[1]))
-	response, err = http.DefaultClient.Do(request)
-	if err != nil || response.StatusCode != 200 {
-		t.Fatal(response, err)
-	}
-	response.Body.Close()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
+	conflict := &desktop.InstanceConflictError{Existing: desktop.Identity{Executable: "existing.exe", Config: "existing.json", PID: 123}}
+	for _, cause := range []error{conflict, fmt.Errorf("startup: %w", conflict)} {
+		if got := recoverApplication(cause); got != cause {
+			t.Fatalf("conflict should go directly to native error handling: %v", got)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("recovery did not exit")
+	}
+}
+
+// Models the tray owner without touching the user's notification area.
+func runRecoveryTrayFixture(ctx context.Context, options desktop.Options) error {
+	options.Ready()
+	<-ctx.Done()
+	options.Shutdown()
+	return nil
+}
+
+func TestFailureUIRequiresTray(t *testing.T) {
+	for _, ready := range []bool{false, true} {
+		t.Run(fmt.Sprint("ready=", ready), func(t *testing.T) {
+			unavailable := errors.New("fixture tray unavailable")
+			var address string
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			err := serveFailureUI(ctx, errors.New("startup failed"), desktop.Identity{}, "127.0.0.1:0", func(value string) error {
+				address = value
+				return nil
+			}, func(string) error {
+				if !ready {
+					t.Error("browser opened before tray was ready")
+				}
+				return nil
+			}, func(ctx context.Context, options desktop.Options) error {
+				if ready {
+					options.Ready()
+				}
+				return unavailable
+			})
+			if !errors.Is(err, unavailable) {
+				t.Fatalf("lost tray failure: %v", err)
+			}
+			response, err := http.Get("http://" + address + "/")
+			if err == nil {
+				response.Body.Close()
+				t.Fatal("recovery server survived tray failure")
+			}
+		})
+	}
+}
+
+func TestFailureUIRequiresPublishedInstance(t *testing.T) {
+	unavailable := errors.New("fixture discovery unavailable")
+	err := serveFailureUI(t.Context(), errors.New("startup failed"), desktop.Identity{}, "127.0.0.1:0", func(string) error { return unavailable }, func(string) error {
+		t.Error("browser opened without instance registration")
+		return nil
+	}, func(context.Context, desktop.Options) error {
+		t.Error("tray started without instance registration")
+		return nil
+	})
+	if !errors.Is(err, unavailable) {
+		t.Fatalf("lost registration failure: %v", err)
+	}
+}
+
+func TestFailureUIUnexpectedTrayReturnStopsServer(t *testing.T) {
+	err := serveFailureUI(t.Context(), errors.New("startup failed"), desktop.Identity{}, "127.0.0.1:0", func(string) error { return nil }, func(string) error { return nil }, func(context.Context, desktop.Options) error { return nil })
+	if err == nil || !strings.Contains(err.Error(), "托盘已意外关闭") {
+		t.Fatalf("unexpected tray exit was not reported: %v", err)
+	}
+}
+
+func TestFailureUITrayFollowsCommittedTheme(t *testing.T) {
+	root := t.TempDir()
+	identity := desktop.Identity{Executable: filepath.Join(root, "SWD.exe"), Config: filepath.Join(root, "config.json")}
+	if err := os.WriteFile(identity.Config, []byte(`{"schemaVersion":8,"theme":"dark","videoStorageMode":"limited","videoBudgetBytes":0,"restoreHostsOnStopOrExit":false}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	err := serveFailureUI(ctx, errors.New("invalid video budget"), identity, "127.0.0.1:0", func(string) error { return nil }, func(string) error { return nil }, func(_ context.Context, options desktop.Options) error {
+		defer options.RequestExit()
+		page := func(theme string) []byte {
+			t.Helper()
+			response, err := http.Get(options.URL + "/")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, err := io.ReadAll(response.Body)
+			if err != nil || response.StatusCode != 200 || !strings.Contains(string(body), `"theme":"`+theme+`"`) {
+				t.Fatal("initial page appearance differs from tray", response.StatusCode, err)
+			}
+			return body
+		}
+		if state := options.State(); state != (desktop.State{Unavailable: true, Theme: "dark"}) {
+			t.Fatal("recovery tray did not load the saved theme", state)
+		}
+		token := regexp.MustCompile(`name="swd-token"\s+content="([a-f0-9]+)"`).FindSubmatch(page("dark"))
+		if len(token) != 2 {
+			t.Fatal("missing recovery token")
+		}
+		for _, test := range []struct {
+			body, theme string
+			status      int
+		}{
+			{`{"theme":"light"}`, "dark", 400},
+			{`{"theme":"light","videoBudgetBytes":1073741824}`, "light", 200},
+		} {
+			req, err := http.NewRequestWithContext(ctx, "POST", options.URL+"/api/settings", strings.NewReader(test.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("X-SWD-Token", string(token[1]))
+			response, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response.Body.Close()
+			if response.StatusCode != test.status {
+				t.Fatal("save result", response.StatusCode)
+			}
+			if state := options.State(); state != (desktop.State{Unavailable: true, Theme: test.theme}) {
+				t.Fatal("tray did not follow the committed theme", state)
+			}
+			page(test.theme)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -183,6 +281,7 @@ func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 	for _, fixture := range []struct{ name, contents, reason string }{
 		{"malformed", `{"schemaVersion":8,`, "读取程序配置"},
 		{"contradictory", `{"schemaVersion":8,"autoOpenWebUI":false,"videoStorageMode":"limited","videoBudgetBytes":0}`, "视频存储预算"},
+		{"fields", `{"schemaVersion":8,"autoOpenWebUI":false,"logLevel":"LOUD","theme":"unknown","proxyBackend":"unknown","downloadConcurrencySoftLimit":65,"requestRetentionDays":-1,"videoBudgetBytes":-1}`, "日志级别"},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -225,7 +324,7 @@ func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 			}
 			if evidence := os.Getenv("SWD_RECOVERY_BROWSER_EVIDENCE"); evidence != "" {
 				ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
-				browser := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "recovery-live.mjs"), base, filepath.Join(evidence, fixture.name))
+				browser := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "recovery-live.mjs"), base, filepath.Join(evidence, fixture.name), fixture.reason, fixture.name)
 				out, err := browser.CombinedOutput()
 				cancel()
 				if err != nil {
@@ -260,24 +359,19 @@ func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 				t.Fatal("recovery process did not exit")
 			}
 			data, err := os.ReadFile(config)
-			if err != nil || string(data) != fixture.contents {
+			if fixture.name == "contradictory" && os.Getenv("SWD_RECOVERY_BROWSER_EVIDENCE") != "" {
+				settings, readErr := console.ReadStartupSettings(config)
+				if readErr != nil || settings.VideoBudgetBytes != 1073741824 {
+					t.Fatal("repair was not persisted", readErr, settings.VideoBudgetBytes)
+				}
+			} else if fixture.name == "fields" && os.Getenv("SWD_RECOVERY_BROWSER_EVIDENCE") != "" {
+				settings, readErr := console.ReadStartupSettings(config)
+				if readErr != nil || settings.DownloadConcurrencySoftLimit != 8 || settings.VideoBudgetBytes != 0 {
+					t.Fatal("field repair was not persisted", readErr)
+				}
+			} else if err != nil || string(data) != fixture.contents {
 				t.Fatalf("configuration was changed: %q %v", data, err)
 			}
 		})
-	}
-}
-
-func TestInstanceConflictSkipsRecovery(t *testing.T) {
-	previous := openWebUI
-	t.Cleanup(func() { openWebUI = previous })
-	openWebUI = func(string) error {
-		t.Error("instance conflict opened a recovery browser")
-		return errors.New("unexpected browser opening")
-	}
-	conflict := &desktop.InstanceConflictError{Existing: desktop.Identity{Executable: "existing.exe", Config: "existing.json", PID: 123}}
-	for _, cause := range []error{conflict, fmt.Errorf("startup: %w", conflict)} {
-		if got := recoverApplication(cause); got != cause {
-			t.Fatalf("conflict should go directly to native error handling: %v", got)
-		}
 	}
 }

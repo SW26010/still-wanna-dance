@@ -9,6 +9,37 @@ const healthy=async(page:Page)=>{
   for(const [label,state] of [['后台程序','已连接'],['游戏连接','已接入'],['视频服务','运行中'],['房间队列','监控中']])await expect(badge(page,label)).toHaveText(label+'：'+state);
 };
 
+for(const [width,theme,cause] of [[1280,'light','polling'],[390,'dark','storage'],[320,'light','work']] as const)test(`backend details open from the badge without shifting controls at ${width}px`,async({page},info)=>{
+  const api=await mockAPI(page);
+  await page.setViewportSize({width,height:850});await page.emulateMedia({colorScheme:theme});await page.clock.install();await page.goto('/#/home');
+  await expect(badge(page,'后台程序')).toHaveText('后台程序：已连接');
+  const header=page.locator('header').first(),headerBefore=(await header.boundingBox())!;
+  if(cause==='polling')await page.route('**/api/status',route=>route.fulfill({status:503,json:{error:'offline'}}));
+  else if(cause==='storage')api.state.storageError='fixture database unavailable';
+  else api.state.workError='fixture cache directory unavailable';
+  await page.clock.fastForward(5100);
+  const trigger=page.getByRole('button',{name:/后台程序：.*，查看详情/}),details=page.getByRole('group',{name:'后台状态',exact:true});
+  await expect(trigger).toBeVisible();
+  await expect(page.locator('.runtime-status > *')).toHaveCount(1);
+  await expect(page.locator('.runtime-controls .record-details-trigger')).toHaveCount(0);
+  expect((await header.boundingBox())!.height).toBe(headerBefore.height);
+  const exit=page.getByRole('button',{name:'退出程序',exact:true}),exitBefore=await exit.boundingBox(),triggerBefore=await trigger.boundingBox();
+  await trigger.hover();await page.clock.runFor(300);await expect(details).toBeVisible();
+  await expect(details).toContainText(cause==='polling'?'当前显示上次状态。':cause==='storage'?api.state.storageError!:api.state.workError!);
+  expect(await exit.boundingBox()).toEqual(exitBefore);expect(await trigger.boundingBox()).toEqual(triggerBefore);
+  const box=(await details.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('backend-details.png'),animations:'disabled'});
+  await page.mouse.move(0,0);await page.clock.runFor(600);await expect(details).toBeHidden();
+  await trigger.focus();await page.keyboard.press('Enter');await expect(details).toBeVisible();
+  await page.keyboard.press('Escape');await expect(details).toBeHidden();await expect(trigger).toBeFocused();
+  await page.keyboard.press('Space');await expect(details).toBeVisible();await page.keyboard.press('Escape');
+  await trigger.hover();await expect(details).toBeVisible();
+  await trigger.click();await expect(details).toBeHidden();
+  await trigger.click();await expect(details).toBeVisible();
+  await page.keyboard.press('Escape');await expect(details).toBeHidden();
+});
+
 for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,'light',true]] as const)test(`runtime states share Fluent status styling at ${width}px ${theme}`,async({page},info)=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme,forcedColors:forced?'active':'none'});await page.goto('/#/home');await healthy(page);

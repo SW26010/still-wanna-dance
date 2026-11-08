@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -29,6 +30,82 @@ import (
 	"still-wanna-dance/internal/legal"
 	"still-wanna-dance/internal/workfiles"
 )
+
+// Uses a private config and a real tray without claiming the user's desktop
+// instance. Only discovery publication is replaced; no business services run.
+func TestRecoveryTrayExitsAfterBrowserCloses(t *testing.T) {
+	evidence := os.Getenv("SWD_RECOVERY_EXIT_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_RECOVERY_EXIT_BROWSER_EVIDENCE for real tray/browser close integration")
+	}
+	config := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := desktop.NewIdentity(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Second)
+	done, browserDone := make(chan error, 1), make(chan error, 1)
+	var address string
+	go func() {
+		done <- serveFailureUI(ctx, errors.New("fixture configuration invalid"), identity, "127.0.0.1:0", func(value string) error {
+			address = value
+			return nil
+		}, func(url string) error {
+			go func() {
+				cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "recovery-exit-live.mjs"), url, evidence)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					err = fmt.Errorf("browser close: %w\n%s", err, output)
+				}
+				browserDone <- err
+			}()
+			return nil
+		}, desktop.Run)
+	}()
+	defer cancel()
+	select {
+	case err := <-browserDone:
+		if err != nil {
+			cancel()
+			<-done
+			t.Fatal(err)
+		}
+	case err := <-done:
+		t.Fatalf("recovery ended before browser closed: %v", err)
+	}
+	closed := time.Now()
+	if response, err := http.Get("http://" + address + "/"); err != nil {
+		t.Fatal("recovery did not retain refresh grace", err)
+	} else {
+		response.Body.Close()
+	}
+	select {
+	case err := <-done:
+		if err != nil || ctx.Err() != nil {
+			t.Fatal("recovery did not exit automatically", err, ctx.Err())
+		}
+	case <-ctx.Done():
+		cancel()
+		<-done
+		t.Fatal("recovery tray remained after grace expired")
+	}
+	if elapsed := time.Since(closed); elapsed < 58*time.Second || elapsed > 65*time.Second {
+		t.Fatalf("unexpected post-close lifetime: %s", elapsed)
+	}
+	if response, err := http.Get("http://" + address + "/"); err == nil {
+		response.Body.Close()
+		t.Fatal("recovery server remained after tray returned")
+	}
+	lease, err := desktop.LockConfig(config)
+	if err != nil {
+		t.Fatal("recovery retained config lease", err)
+	}
+	_ = lease.Close()
+	t.Log("Real tray and recovery server closed after 60 seconds without pages; config lease released.")
+}
 
 func TestFaultOpeningNavigationBrowser(t *testing.T) {
 	evidence := os.Getenv("SWD_FAULT_NAVIGATION_BROWSER_EVIDENCE")
@@ -158,8 +235,37 @@ func writeAcceptedTerms(t *testing.T, config string) {
 // Induces a real browser-open failure and dismisses only the dialog owned by
 // this test process; no existing browser or application window is touched.
 func TestWindowsDesktopNativeFallback(t *testing.T) {
+	testDesktopStartupDialog(t, false)
+}
+
+func TestWindowsDesktopInstanceConflict(t *testing.T) {
+	testDesktopStartupDialog(t, true)
+}
+
+func testDesktopStartupDialog(t *testing.T, conflict bool) {
+	t.Helper()
 	requireUnusedDesktop(t)
 	root := t.TempDir()
+	cache := filepath.Join(root, "local-app-data")
+	if conflict {
+		t.Setenv("LOCALAPPDATA", cache)
+		identity, err := desktop.NewIdentity(filepath.Join(root, "existing.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		owner, err := desktop.AcquireOrActivate(t.Context(), identity, false)
+		if err != nil || owner == nil {
+			t.Fatalf("could not own isolated desktop: %v", err)
+		}
+		defer owner.Close()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(identity)
+		}))
+		defer server.Close()
+		if err := owner.Publish(strings.TrimPrefix(server.URL, "http://")); err != nil {
+			t.Fatal(err)
+		}
+	}
 	config := filepath.Join(root, "config.json")
 	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,`), 0600); err != nil {
 		t.Fatal(err)
@@ -170,7 +276,7 @@ func TestWindowsDesktopNativeFallback(t *testing.T) {
 	}
 	defer log.Close()
 	cmd := exec.Command(os.Args[0], "-config", config, "-no-open", "-listen", "127.0.0.1:0")
-	cmd.Env = append(os.Environ(), "SWD_DESKTOP_RECOVERY_TEST_APP=1", "SWD_DESKTOP_RECOVERY_OPEN_FAIL=1", "LOCALAPPDATA="+filepath.Join(root, "local-app-data"))
+	cmd.Env = append(os.Environ(), "SWD_DESKTOP_RECOVERY_TEST_APP=1", "SWD_DESKTOP_RECOVERY_OPEN_FAIL=1", "LOCALAPPDATA="+cache)
 	cmd.Stdout, cmd.Stderr = log, log
 	configureRestartCommand(cmd)
 	if err := cmd.Start(); err != nil {
@@ -208,30 +314,22 @@ func TestWindowsDesktopNativeFallback(t *testing.T) {
 		output, _ := os.ReadFile(log.Name())
 		t.Fatalf("native fallback dialog did not appear: %s", output)
 	}
-	var text []string
-	var button uintptr
-	getText := user32.NewProc("GetWindowTextW")
-	childCallback := syscall.NewCallback(func(hwnd uintptr, _ uintptr) uintptr {
-		var buffer [4096]uint16
-		getText.Call(hwnd, uintptr(unsafe.Pointer(&buffer[0])), uintptr(len(buffer)))
-		text = append(text, windows.UTF16ToString(buffer[:]))
-		var class [64]uint16
-		className.Call(hwnd, uintptr(unsafe.Pointer(&class[0])), uintptr(len(class)))
-		if windows.UTF16ToString(class[:]) == "Button" {
-			button = hwnd
+	reader := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-File", filepath.Join("..", "..", "scripts", "read-dialog-text.ps1"), "-ProcessId", fmt.Sprint(cmd.Process.Pid))
+	text, err := reader.CombinedOutput()
+	if err != nil {
+		t.Fatalf("read native dialog: %v\n%s", err, text)
+	}
+	message := string(text)
+	if conflict {
+		output, _ := os.ReadFile(log.Name())
+		if !strings.Contains(message, "本次启动已取消") || !strings.Contains(message, "existing.json") || strings.Contains(string(output), "DESKTOP_OPEN_URL=") {
+			t.Errorf("instance conflict opened recovery or lost its reason: %q %s", message, output)
 		}
-		return 1
-	})
-	user32.NewProc("EnumChildWindows").Call(dialog, childCallback, 0)
-	message := strings.Join(text, " ")
-	if !strings.Contains(message, "读取程序配置") || !strings.Contains(message, "fixture browser unavailable") {
+	} else if !strings.Contains(message, "读取程序配置") || !strings.Contains(message, "fixture browser unavailable") {
 		t.Fatalf("fallback lost either failure: %q", message)
 	}
-	if button == 0 {
-		t.Fatal("native fallback has no acknowledgement button")
-	}
-	// BM_CLICK, directed to the button belonging to this child only.
-	if ok, _, err := postMessage.Call(button, 0xf5, 0, 0); ok == 0 {
+	// TDM_CLICK_BUTTON / IDCLOSE, directed to this child only.
+	if ok, _, err := postMessage.Call(dialog, 0x400+102, 8, 0); ok == 0 {
 		t.Fatalf("could not dismiss isolated dialog: %v", err)
 	}
 	select {

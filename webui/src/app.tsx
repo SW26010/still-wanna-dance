@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, Link, Spinner, Title2, Tooltip, makeStyles, shorthands, tokens } from '@fluentui/react-components';
+import { Button, Link, MessageBar, MessageBarBody, MessageBarTitle, Spinner, Title2, Tooltip, makeStyles, shorthands, tokens } from '@fluentui/react-components';
 import { ConsoleContext, useConsole } from './hooks';
 import { Brand, Notification, RecordDetails, StatusBadge, NavigationLayout, pageLinks, isDocumentPage, useThemePreference } from './ui';
 import { AboutPage } from './documents';
 import { Home } from './home-library';
 import { SettingsAndNetwork } from './settings-page';
+import { RecoverySettings } from './recovery-settings';
 import { Library } from './library';
 import { TermsConsent } from './terms-consent';
 import { RequestTimeline } from './request-timeline';
@@ -44,7 +45,7 @@ export function App() {
   const [anchor,setAnchor]=useState(location.hash.slice(1)||location.pathname.slice(1));
   const [page, setPage] = useState<Page>(() => route(location.hash&&location.hash!=='#main'?location.hash:'#'+location.pathname));
   const documentPage=isDocumentPage(page);
-  const model = useConsole(accepted, page), main = useRef<HTMLElement>(null), initial = useRef(true);
+  const model = useConsole(accepted&&!bootstrap.recovery, page), main = useRef<HTMLElement>(null), initial = useRef(true);
   const tabAnchor=useRef<string|null>(null);
   const selectTab=(next:string)=>{
     if(location.hash==='#'+next)return;
@@ -104,16 +105,17 @@ export function App() {
       const target=document.getElementById(anchor==='downloads'||anchor==='queue'?'block-demands':anchor==='service'||anchor==='network-access'?'activation':anchor);target?.focus();target?.scrollIntoView();
     }
   },[page,!!s,anchor,documentPage]);
-  const fault=s?.storageError||s?.workError||model.status.error;
-  const statusText=model.stopped?'未连接':model.status.error?s?'更新失败':'读取失败':s?.storageError?(s.activeSettings.databasePath?'存储故障':'待配置'):s?.workError?'存储故障':s?'已连接':'连接中';
-  const runtimeStatus=<div className="runtime-status"><StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?'success':'brand'}>{statusText}</StatusBadge>{fault&&<RecordDetails title="后台状态">{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<>{s.activeSettings.databasePath?<><p>本地存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p></>:<p>请到存储设置打开已有数据库或新建数据库，并指定完整视频目录，保存后重启。</p>}<p className="wrap">首个错误：{s.storageError}</p></>}{s?.workError&&<><p>临时视频缓存目录不可用，视频服务和下载无法启动。检查磁盘和目录权限，修复后退出并重新打开应用；也可在下载与缓存设置中选择其他目录，保存后重启。</p><p className="wrap">原因：{s.workError}</p></>}</RecordDetails>}</div>;
+  const fault=bootstrap.recovery||s?.storageError||s?.workError||model.status.error;
+  const statusText=model.stopped?'未连接':bootstrap.recovery?'启动失败':model.status.error?s?'更新失败':'读取失败':s?.storageError?'存储故障':s?.workError?'存储故障':s?.storageConfirmation?'待确认存储':s?'已连接':'连接中';
+  const runtimeBadge=<StatusBadge label="后台程序" color={model.stopped?'informative':fault?'danger':s?.storageConfirmation?'warning':s?'success':'brand'}>{statusText}</StatusBadge>;
+  const runtimeStatus=<div className="runtime-status">{(fault||s?.storageConfirmation)&&!bootstrap.recovery?<RecordDetails title="后台状态" openOnHover trigger={<button type="button" className="status-badge-button" aria-label={`后台程序：${statusText}，查看详情`}>{runtimeBadge}</button>}>{s?.storageConfirmation&&<><p className="wrap">{s.storageConfirmation}</p><Link href="#storage-settings">确认存储设置</Link></>}{model.status.error&&<><p>无法读取程序状态，请检查 SWD 是否仍在运行。</p>{s&&<p>当前显示上次状态。</p>}</>}{s?.storageError&&<><p>本地存储不可用，新的下载已停止。</p><p>检查所选文件、磁盘空间和目录权限，修复后重新打开应用。</p><p className="wrap">首个错误：{s.storageError}</p></>}{s?.workError&&<><p>临时视频缓存目录不可用，视频服务和下载无法启动。检查磁盘和目录权限，修复后退出并重新打开应用；也可在下载与缓存设置中选择其他目录，保存后重启。</p><p className="wrap">原因：{s.workError}</p></>}</RecordDetails>:runtimeBadge}</div>;
   const feedback=<div className="app-feedback">
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
     <Notification message={updateNotice?`发现新版本 ${updateNotice}`:undefined} action={{href:'#/about',label:'查看更新'}}/>
     {proxyNotice&&<Notification message="上游连接已改为代理" body="自动选择模式已移除，原代理配置已保留。可在设置中切换为直连。" action={{href:'#network-proxy',label:'网络设置'}}/>}
     <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID}/>
-    {accepted&&<VideoImportSuggestion/>}
-    {!s&&accepted&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
+    {accepted&&!bootstrap.recovery&&<VideoImportSuggestion/>}
+    {!s&&accepted&&!bootstrap.recovery&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">
     <Link className="skip-link" href="#main" onClick={e => { e.preventDefault(); main.current?.focus(); }}>跳到主要内容</Link>
@@ -121,6 +123,8 @@ export function App() {
     <NavigationLayout items={pageLinks()} selected={page}>
     <main ref={main} id="main" tabIndex={-1}><div className="page-heading"><Title2 as="h1">{pages[page]}</Title2></div>
       {feedback}
+      {bootstrap.recovery&&!model.stopped&&<MessageBar intent="error"><MessageBarBody><MessageBarTitle>SWD 启动失败</MessageBarTitle><p className="wrap">{bootstrap.recovery.reason}</p><p>可前往<Link href="#/settings">修改设置</Link>。如果配置无法读取，请根据原因修复文件或运行环境，再重新启动 SWD。</p></MessageBarBody></MessageBar>}
+      {bootstrap.recovery&&<RecoverySettings visible={page==='settings'} anchor={anchor} onTabSelect={selectTab}/>}
       {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor} onTabSelect={selectTab}/>
       </VRCXProvider>}
       <div hidden={page!=='about'}><AboutPage visible={accepted&&page==='about'} anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}} update={s?.update} refreshUpdate={model.refresh} updateUnavailable={!accepted||!s||!!model.status.error||model.stopped}/></div>

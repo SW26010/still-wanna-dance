@@ -42,13 +42,13 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
   return {operate,pending,result:feedback.value};
 }
 const inventoryRefreshInterval=(data:Inventory)=>data.scanning?1000:0;
-export function InventoryPanel({visible,files,videoError,refresh,loading,loadedAt,readError,actions}: {visible:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string;actions:ReactNode}) {
+export function InventoryPanel({visible,waitingForDatabase,files,videoError,refresh,loading,loadedAt,readError,actions}: {visible:boolean;waitingForDatabase:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string;actions:ReactNode}) {
   const app = useApp(), s=app.status.data!;
   const [lastCheckedAt,setLastCheckedAt]=useState<number>();
   useEffect(()=>{
     if(files&&!videoError&&!readError&&loadedAt!==undefined)setLastCheckedAt(loadedAt);
   },[files,videoError,readError,loadedAt]);
-  const inventory = useResource<Inventory>('inventory',visible && !app.stopped,app.revision,inventoryRefreshInterval,true), v = inventory.data;
+  const inventory = useResource<Inventory>('inventory',visible && !app.stopped && !waitingForDatabase,app.revision,inventoryRefreshInterval,true), v = inventory.data;
   const catalogCheck=s.catalogSync?.updated, previousCheck=useRef(catalogCheck);
   useEffect(()=>{
     if(visible&&dated(catalogCheck)&&previousCheck.current!==catalogCheck){inventory.refresh();refresh();}
@@ -65,19 +65,20 @@ export function InventoryPanel({visible,files,videoError,refresh,loading,loadedA
   const sync=s.catalogSync,initializing=!!sync?.initializing&&!v?.catalog?.revision;
   const catalogError=[v?.error,sync?.error].filter(Boolean).join('；');
   const catalogBusy=scanning||inventory.loading||initializing&&!!sync?.checking;
-  const initializationError=initializing?(s.storageError||catalogError):'';
+  const initializationError=initializing?(s.storageError||s.storageConfirmation||catalogError):'';
   const initializationDetail=initializing?[initializationError,sync?.checking?'正在获取完整歌曲清单。':`程序会自动重试${dated(sync?.nextCheck)?'，下次尝试：'+date(sync?.nextCheck):''}。`].filter(Boolean).join(' '):'';
   const coverageDescription=(known?`已覆盖 ${v.coveredSongs} / 当前清单 ${v.totalSongs} 首；`:'')+'统计清单版本：'+(v?.catalogRevision||'未知');
-  const coverageWarning=videoError?'无法检查本地视频。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首。`:v&&!known&&!catalogBusy?(catalogError||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单。请更新曲库。')):undefined;
+  const waitingForStorage=!!s.storageConfirmation&&!s.storageError&&(!videoError||!s.activeSettings.videoDir);
+  const coverageWarning=waitingForStorage?s.storageConfirmation:(videoError?'无法检查本地视频。':initializing?initializationDetail:known&&v.unresolvedSongs?`资源待识别 ${v.unresolvedSongs} 首。`:v&&!known&&!catalogBusy?(catalogError||(v.catalog?.revision?'尚未计算覆盖率，请更新曲库。':'尚无有效的完整清单。请更新曲库。')):undefined);
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">
-        <div className="inline"><span className="secondary">本地视频</span><Tooltip content={<>检查本地视频<Text block size={200}>最后检查时间：{date(lastCheckedAt)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="检查本地视频" aria-busy={loading} disabled={app.unavailable||loading} disabledFocusable={loading} onClick={refresh}/></Tooltip></div>
+        <div className="inline"><span className="secondary">本地视频</span><Tooltip content={<>检查本地视频<Text block size={200}>最后检查时间：{date(lastCheckedAt)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="检查本地视频" aria-busy={loading} disabled={app.unavailable||loading||waitingForDatabase} disabledFocusable={loading} onClick={refresh}/></Tooltip></div>
         <Text block size={500} weight="semibold">{files?`${files.fileCount} 个 · ${gib(files.totalBytes)}`:'—'}</Text>
-        {(readError||videoError)&&<Text block size={200} role="status">检查失败</Text>}
+        {(waitingForDatabase||readError||videoError)&&<Text block size={200} role="status">{waitingForStorage?'待确认存储':'检查失败'}</Text>}
       </div>
       <div role="group" aria-label="曲库覆盖率">
-        <div className="inline"><Tooltip content={coverageDescription} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
+        <div className="inline"><Tooltip content={coverageDescription} relationship="description"><span className="secondary" tabIndex={0}>曲库覆盖率</span></Tooltip><Tooltip content={<>更新曲库<Text block size={200}>最后检查时间：{date(v?.updated)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="更新曲库" aria-busy={catalogBusy} disabled={app.unavailable||catalogBusy||waitingForDatabase} disabledFocusable={catalogBusy||app.busy} onClick={()=>void app.action('inventory/scan')}/></Tooltip></div>
         <div className="inline"><Text size={500} weight="semibold">{known?`${(100*v.coveredSongs/v.totalSongs).toFixed(1)}%`:'—'}</Text>{coverageWarning&&<Tooltip content={coverageWarning} relationship="description"><Button size="small" appearance="transparent" icon={<ErrorCircle16Regular aria-hidden="true"/>} aria-label="覆盖率说明"/></Tooltip>}</div>
       </div>
       <div><Link href="#storage-settings">视频存储预算</Link><Text block size={400}>{s.activeSettings.videoStorageMode==='unlimited'?'不限制':s.activeSettings.videoStorageMode==='none'?'不保留':gib(s.activeSettings.videoBudgetBytes)}</Text></div>

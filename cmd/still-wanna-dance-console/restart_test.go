@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,10 +40,18 @@ func TestMain(m *testing.M) {
 		}
 		fmt.Fprintf(os.Stderr, "STARTUP_FAILURE=%s\n", err)
 		identity, _ := desktop.NewIdentity(flagValue("config"))
-		if failure := serveFailureUI(context.Background(), err, identity, "127.0.0.1:0", nil, func(url string) error {
+		failure := serveFailureUI(context.Background(), err, identity, "127.0.0.1:0", func(string) error { return nil }, func(url string) error {
 			fmt.Printf("RECOVERY_URL=%s\n", url)
 			return nil
-		}, nil); failure != nil {
+		}, runRecoveryTrayFixture)
+		var restart *restartRequest
+		if errors.As(failure, &restart) {
+			// The replacement executes the real main entrypoint with no consent.
+			os.Setenv("SWD_RECOVERY_TEST_APP", "0")
+			os.Setenv("SWD_RESTART_TEST_APP", "1")
+			failure = restartApplication(restart.args)
+		}
+		if failure != nil {
 			fmt.Fprintln(os.Stderr, failure)
 			os.Exit(3)
 		}

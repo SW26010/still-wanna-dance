@@ -575,7 +575,7 @@ test('unavailable temporary cache explains how to recover', async ({page}) => {
   api.state.settings.blockCacheDir=api.state.activeSettings.blockCacheDir='E:\\SSD Cache';
   api.state.workError='磁盘不可访问';
   await page.goto('/#download-settings');
-  await page.getByRole('button',{name:'后台状态'}).click();
+  await page.getByRole('button',{name:/后台程序：.*，查看详情/}).focus();await page.keyboard.press('Enter');
   await expect(page.getByText('临时视频缓存目录不可用，视频服务和下载无法启动。',{exact:false})).toBeVisible();
   await expect(page.getByText('原因：磁盘不可访问')).toBeVisible();
   await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).click();
@@ -589,7 +589,7 @@ test('cache failure explains how to restart after repairing the same directory',
   api.state.workError='磁盘不可访问';
   await page.goto('/#storage-settings');
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeDisabled();
-  await page.getByRole('button',{name:'后台状态'}).click();
+  await page.getByRole('button',{name:/后台程序：.*，查看详情/}).focus();await page.keyboard.press('Enter');
   await expect(page.getByText(/修复后退出并重新打开应用/)).toBeVisible();
 });
 

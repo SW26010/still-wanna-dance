@@ -20,12 +20,12 @@ function Settings({anchor,networkForm,networkActions,onTabSelect}:{anchor:string
   </>}</SettingsPage>}</SettingsPage>}</SettingsPage>;
 }
 
-export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabSelect}:{settingsVisible:boolean;networkVisible:boolean;anchor:string;onTabSelect:(anchor:string)=>void}) {
+export function SettingsAndNetwork({settingsVisible,networkVisible,anchor,onTabSelect,settingsOnly=false}:{settingsVisible:boolean;networkVisible:boolean;anchor:string;onTabSelect:(anchor:string)=>void;settingsOnly?:boolean}) {
   return <SettingsPage section="network">{(form,actions)=>{
     return <>
-    <div hidden={!settingsVisible}><Settings anchor={anchor} onTabSelect={onTabSelect} networkActions={actions} networkForm={<div id="network-proxy" tabIndex={-1}>
+    <div hidden={!settingsVisible} data-settings-workspace><Settings anchor={anchor} onTabSelect={onTabSelect} networkActions={actions} networkForm={<div id="network-proxy" tabIndex={-1}>
       {form}
     </div>}/></div>
-    <div hidden={!networkVisible}><Network visible={networkVisible}/></div>
+    {!settingsOnly&&<div hidden={!networkVisible}><Network visible={networkVisible}/></div>}
   </>;}}</SettingsPage>;
 }

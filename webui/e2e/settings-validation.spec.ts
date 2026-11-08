@@ -75,6 +75,7 @@ test('server validation keeps the Mihomo draft and marks its field after a faile
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'导入配置文件',exact:true})).toHaveAttribute('aria-invalid','true');
+  await expect(page.getByRole('textbox',{name:'导入配置文件',exact:true})).toBeFocused();
   await expect(page).toHaveURL(/#network-proxy$/);
   expect(api.state.settings.upstreamMode).toBe('direct');
   await page.getByRole('button',{name:'导入配置文件：错误',exact:true}).hover();

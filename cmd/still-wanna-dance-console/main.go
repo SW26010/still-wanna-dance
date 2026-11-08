@@ -40,7 +40,14 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if visibleErrors {
-			if recoveryErr := recoverApplication(err); recoveryErr != nil {
+			recoveryErr := recoverApplication(err)
+			if errors.As(recoveryErr, &restart) {
+				recoveryErr = restartApplication(restart.args)
+				if recoveryErr == nil {
+					return
+				}
+			}
+			if recoveryErr != nil {
 				if errors.Is(recoveryErr, err) {
 					desktop.ShowError(recoveryErr)
 				} else {

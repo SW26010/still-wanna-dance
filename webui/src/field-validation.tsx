@@ -1,17 +1,19 @@
 import {createContext,useContext} from 'react';
 import {Button,Field,Tooltip,tokens,type FieldProps} from '@fluentui/react-components';
-import {ErrorCircleRegular} from '@fluentui/react-icons';
+import {ErrorCircleRegular,WarningRegular} from '@fluentui/react-icons';
 
 export const FieldErrors = createContext<Record<string,string>>({});
+export const FieldIssues = createContext<Record<string,{message:string;severity:'error'|'warning'}>>({});
 
 // Keep one small icon column in the control row. The Field owns the accessible
 // error description, but its message is visually hidden, never a new text row.
 export function ValidationField({name,error,label,children,...props}: Omit<FieldProps,'label'> & {name?:string;error?:string;label:string}) {
-  const errors=useContext(FieldErrors), message=error || (name ? errors[name] : undefined);
-  return <Field {...props} label={label} validationState={message?'error':'none'}
+  const errors=useContext(FieldErrors),issues=useContext(FieldIssues), invalid=error || (name ? errors[name] : undefined), issue=name?issues[name]:undefined;
+  const message=invalid||issue?.message, severity=invalid?'error':issue?.severity||'error', warning=severity==='warning';
+  return <Field {...props} label={label} validationState={message?severity:'none'}
     validationMessage={message?{children:message,className:'field-error-description'}:undefined} validationMessageIcon={null}>
     {controlProps=><div className="validation-control"><div className="validation-input">{typeof children==='function'?children(controlProps):children}</div><span className="validation-icon">
-      {message&&<Tooltip content={message} relationship="description"><Button type="button" size="small" appearance="transparent" icon={<ErrorCircleRegular style={{color:tokens.colorPaletteRedForeground1}}/>} aria-label={label+'：错误'}/></Tooltip>}
+      {message&&<Tooltip content={message} relationship="description"><Button type="button" size="small" appearance="transparent" icon={warning?<WarningRegular style={{color:tokens.colorPaletteYellowForeground1}}/>:<ErrorCircleRegular style={{color:tokens.colorPaletteRedForeground1}}/>} aria-label={label+(warning?'：警告':'：错误')}/></Tooltip>}
     </span></div>}
   </Field>;
 }
@@ -48,7 +50,8 @@ export function inputError(input:HTMLInputElement|HTMLSelectElement|HTMLTextArea
     const value=Number(input.value);
     if(!input.value.trim())return '请输入此项内容';
     if(!Number.isFinite(value))return '请输入有效数字';
-    if(value<Math.round(0.01*1073741824)/1073741824||value>8388607)return '请输入 0.01～8388607 范围内的数值';
+    const minimum=input.getAttribute('min')==='0'?0:Math.round(0.01*1073741824)/1073741824;
+    if(value<minimum||value>8388607)return `请输入 ${minimum===0?'0':'0.01'}～8388607 范围内的数值`;
     if(Math.abs(value*100-Math.round(value*100))>0.000001)return '最多输入两位小数';
   }
   if(input instanceof HTMLInputElement) {

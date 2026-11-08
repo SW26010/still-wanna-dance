@@ -3,7 +3,7 @@ import { samePath } from './path-picker';
 import type { Status } from './types';
 
 // Format only the default locations. Keep resolved paths in drafts and requests.
-export function displayStoragePath(path: string, status: Status) {
+export function displayStoragePath(path: string, status: Pick<Status,'defaultDatabasePath'|'defaultVideoDir'|'defaultBlockCacheDir'|'portableDir'>) {
   if (!path) return path;
   const configDir = bootstrap.paths?.Config?.replace(/[/\\][^/\\]*$/, '');
   const defaults = [

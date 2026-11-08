@@ -1,9 +1,12 @@
+import {MessageBar,MessageBarBody,MessageBarTitle} from '@fluentui/react-components';
+import type {ReactNode} from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { request, withRequestTimeout } from './api';
 import { Feedback } from './ui';
 import { PathField, samePath, usePathPicker } from './path-picker';
 import { displayStoragePath } from './storage-path';
-import type { Settings, Status } from './types';
+import type { Settings } from './types';
+import type {SettingsSnapshot} from './settings-source';
 
 type Locations = Pick<Settings, 'databasePath' | 'videoDir' | 'blockCacheDir'>;
 type LocationChoice = 'database' | 'video' | 'cache';
@@ -25,7 +28,7 @@ export function locationRequestError(error: unknown, preparingDatabase = false) 
   return error instanceof Error ? error.message : String(error);
 }
 export function StorageLocationFields({section, value, update, disabled, status, validation, onValidation, onPending}: {
-  section: 'storage' | 'cache'; value: Locations; update: (value: Partial<Locations>) => void; disabled: boolean; status: Status;
+  section: 'storage' | 'cache'; value: Locations; update: (value: Partial<Locations>) => void; disabled: boolean; status: SettingsSnapshot;
   validation: LocationValidation; onValidation: (value: LocationValidation) => void; onPending: (pending: boolean) => void;
 }) {
   const [message, setMessage] = useState(''), [errorField, setErrorField] = useState<LocationChoice>();
@@ -135,4 +138,8 @@ export function StorageLocationFields({section, value, update, disabled, status,
     <Feedback error>{errorField === 'cache' && picker.error}</Feedback></>}
     <p role="status">{message}</p>
   </div>;
+}
+
+export function StorageConfirmationNotice({message,action}:{message?:string;action?:ReactNode}) {
+  return message?<MessageBar intent="warning"><MessageBarBody><MessageBarTitle>待确认存储</MessageBarTitle><p className="wrap">{message}</p>{action}</MessageBarBody></MessageBar>:null;
 }

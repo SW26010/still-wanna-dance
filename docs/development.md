@@ -23,11 +23,19 @@ pnpm --dir webui check
 
 设置字段校验的真实 Console 联调可设置 `SWD_SETTINGS_VALIDATION_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsValidationBrowser$' -count=1 -v`，验证缺少节点的拒绝不落盘、不产生桌面打开通知，以及合法 SOCKS5 设置保存后保持待重启边界。只使用隔离配置，不启动代理或网关。
 
+启动配置修复的真实进程／浏览器检查可设置 `SWD_RECOVERY_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./cmd/still-wanna-dance-console -run '^TestApplicationRecoveryAfterInvalidConfiguration$' -count=1 -v`。覆盖损坏 JSON 只读、预算矛盾与多个无效字段保留原值、保存、重启到新会话、320px 布局与退出。替代进程不接受条款，不启动游戏或修改 hosts；普通 Go 测试不设置此变量时仅验证恢复入口与退出且保持配置不变。
+
+恢复页与正常设置共用表单的操作联调可设置 `SWD_RECOVERY_SETTINGS_BROWSER_EVIDENCE`，执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestRecoverySharedSettingsBrowser$' -count=1 -v`。隔离目录替代路径选择结果，真实创建数据库及校验／加密保存 Mihomo 配置；权限助手使用私有 hosts 夹具，验证取消后保留草稿、重试提交及退出清理，不触及系统 hosts。
+
+恢复页关闭与真实托盘清理可设置 `SWD_RECOVERY_EXIT_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./cmd/still-wanna-dance-console -run '^TestRecoveryTrayExitsAfterBrowserCloses$' -count=1 -v`。使用私有损坏配置、真实 Windows 托盘与 Edge 两个页面，关闭页面后等待实际 60 秒，检查托盘运行循环返回、HTTP 服务结束及配置租约释放。替代实例登记，不竞争正在使用的桌面实例，不启动业务服务或更改 hosts。
+
 Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_EVIDENCE` 为隔离输出目录，再运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestMihomoConfigurationBrowser$' -count=1 -v`，覆盖浏览器文件选择、文件／URL 的保存时自动检查、Base64 显式检查复用、检查失败不保存、原文加密／展示元数据普通保存、摘要刷新重载及待重启。只使用回环配置服务器、隔离数据和测试节点，不修改系统 hosts。
 
 加速启停与退出策略的真实浏览器联调可设置 `SWD_HOSTS_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestHostsPolicyBrowser$' -count=1 -v`。测试使用回环网关和私有 hosts 文件，不修改系统 hosts。Windows CI 同时运行此检查和上述设置联调。
 
 更新检查的真实 Console 与浏览器联调可设置 `SWD_UPDATE_BROWSER_EVIDENCE` 为隔离输出目录，并以同一入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestUpdateBrowser$' -count=1 -v`；GitHub 响应受控，检查启动通知、多个页面、刷新和手动检查。另可设置 `SWD_UPDATE_GITHUB_LIVE=1` 并运行 `TestUpdatePublicGitHub`，通过产品直连网络访问公开 Release 接口，不启动游戏或修改 hosts。
+
+存储确认与字段故障修复的真实浏览器联调可设置 `SWD_STORAGE_REPAIR_BROWSER_EVIDENCE`，再运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestStorageRepairBrowser$' -count=1 -v`。覆盖黄色一键确认、红色字段定位、视频策略取消／确认、保存后的待重启及重新打开，检查已有资料原字节保留；路径选择结果与 hosts 使用私有夹具。
 
 ## 测试维护与 CI 修复
 
@@ -132,7 +140,7 @@ CF 专用实验的新构建要求显式指定本地网卡配置，统一绑定 A
 
 桌面构建使用 `scripts/build-desktop.ps1 -Version dev-名称`，版本与 UTC 构建时间写入 EXE，源码提交和 dirty 状态取 Go VCS 标记。`& ./bin/SWD.exe -build-info | Out-String` 输出机器可读 JSON 并立即退出，不读取配置、创建数据目录或争用桌面实例；启动日志复用同一身份。正式标签只经发布流程注入，缺失/dirty 的 VCS 不显示为正式发行；无 Git 的对应源码重建独立标为 rebuild。通过补丁入口直接执行 `build` 仍是开发构建，未注入的时间明确留空。
 
-Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目录已登记的 `logo_windows_amd64.syso` 由 Go 自动链接，开发构建与桌面／便携打包均生效。更新 ICO 后运行 `go generate ./internal/branding`，使用固定版本的 [rsrc](https://github.com/akavel/rsrc/tree/v0.10.2) 重新生成资源；正常构建无需安装或下载此工具。图标源、生成步骤与哈希登记见[资源约定](evidence-storage.md#git-历史和防回归)。
+Windows amd64 的桌面 EXE 图标使用 `internal/branding/logo.ico`。同目录已登记的 `logo_windows_amd64.syso` 由 Go 自动链接，开发构建与桌面／便携打包均生效。更新 ICO 或 Common Controls v6／默认 DPI 清单 `app.manifest` 后运行 `go generate ./internal/branding`，使用固定版本的 [rsrc](https://github.com/akavel/rsrc/tree/v0.10.2) 重新生成资源；正常构建无需安装或下载此工具。图标源、生成步骤与哈希登记见[资源约定](evidence-storage.md#git-历史和防回归)。
 
 2026-10-21 图标验证：普通 `go build -tags=no_easytier` 与桌面构建均通过；用 Win32 资源 API 从两个实际 EXE 读取的九档图标逐字节匹配 `logo.ico`，`PrivateExtractIconsW` 在 16–256 像素九档尺寸均可提取，256 像素提取图已检查。原生图标解码、资源策略的三项回归及生成资源重复构建字节一致性通过。原始核对结果与提取图在忽略目录 `artifacts/exe-icon/`；未检查已有资源管理器窗口的图标缓存刷新行为。
 

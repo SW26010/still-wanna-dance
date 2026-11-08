@@ -36,6 +36,7 @@ export function capacityPayload(d: CapacityDraft) {
 export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }: {
   mode: CapacityDraft['videoStorageMode']; value: string; disabled: boolean; onChange: (patch: Partial<CapacityDraft>) => void; anchor?: string;
 }) {
+  const repair=!['none','limited','unlimited'].includes(mode)||Number(value)<0;
   const limited = mode === 'limited';
   const estimate = limited ? estimatedCoverage(value) : undefined;
   const estimateId = useId();
@@ -47,12 +48,13 @@ export function CacheCapacityFields({ mode, value, disabled, onChange, anchor }:
         onChange({videoStorageMode: v.value,
           ...(!value.trim() || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 8388607 || v.value === 'limited' && Number(value) === 0 ? {videoBudgetGiB: v.value === 'none' ? '0' : '40'} : {})});
       }}>
+      {repair&&!['none','limited','unlimited'].includes(mode)&&<Radio disabled value={mode} label={'无效值：'+mode}/>}
       <Radio value="none" label="不保留" />
       <div className="retention-option"><Radio value="limited" label="限制为" />
       <ValidationField className="retention-input" name="videoBudgetBytes" label="视频存储预算（GiB）" required={limited}>
-        <NumberInput name="videoBudgetBytes" min={0.01} max={8388607} precision={2} unit="GiB" stepLabel="视频预算" required={limited} disabled={disabled || !limited}
+        <NumberInput name="videoBudgetBytes" min={limited?0.01:0} max={8388607} precision={2} unit="GiB" stepLabel="视频预算" required={limited} disabled={disabled || (!limited&&!repair)}
           aria-describedby={estimate === undefined ? undefined : estimateId}
-          value={mode === 'none' ? '0' : value}
+          value={mode === 'none'&&!repair ? '0' : value}
           onChange={value => onChange({videoBudgetGiB:value})} />
       </ValidationField></div>
       <Radio value="unlimited" label="不限制" />

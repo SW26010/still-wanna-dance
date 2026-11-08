@@ -6,13 +6,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"still-wanna-dance/internal/desktop"
 )
 
 func TestRecoveryServesEmbeddedUIWithoutBusinessAccess(t *testing.T) {
-	view, err := NewRecovery("127.0.0.1:12345", desktop.Identity{})
+	view, err := NewRecovery("127.0.0.1:12345", desktop.Identity{}, "configuration invalid")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,13 +28,13 @@ func TestRecoveryServesEmbeddedUIWithoutBusinessAccess(t *testing.T) {
 		return w
 	}
 	page := request("GET", "/", "", "")
-	if page.Code != 200 || !strings.Contains(page.Body.String(), `"recovery":true`) || !strings.Contains(page.Body.String(), `name="swd-token"`) {
+	if page.Code != 200 || !strings.Contains(page.Body.String(), `"recovery":{"reason":"configuration invalid"}`) || !strings.Contains(page.Body.String(), `name="swd-token"`) {
 		t.Fatalf("recovery page unavailable: %d %s", page.Code, page.Body.String())
 	}
 	if w := request("GET", "/api/status", "", ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatal("invalid settings presented as active", w.Code)
 	}
-	if w := request("POST", "/api/settings", view.console.token, ""); w.Code != http.StatusServiceUnavailable {
+	if w := request("POST", "/api/activation/enable", view.console.token, ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatal("recovery admitted a business mutation", w.Code)
 	}
 	if w := request("POST", "/api/exit", "wrong", ""); w.Code != http.StatusForbidden {
@@ -58,28 +59,76 @@ func TestRecoveryServesEmbeddedUIWithoutBusinessAccess(t *testing.T) {
 	}
 }
 
-func TestRecoveryWithoutTrayExitsAfterLastClientLeaves(t *testing.T) {
-	view, err := NewRecovery("127.0.0.1:12345", desktop.Identity{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, cancelClient := context.WithCancel(t.Context())
-	defer cancelClient()
-	if !view.console.lifecycle.attach(client, cancelClient) {
-		t.Fatal("could not attach recovery client")
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go view.ExitWhenUnattended(ctx, 100*time.Millisecond)
-	select {
-	case <-view.ShutdownRequested():
-		t.Fatal("closed while a browser was connected")
-	case <-time.After(200 * time.Millisecond):
-	}
-	view.console.lifecycle.detach(client)
-	select {
-	case <-view.ShutdownRequested():
-	case <-time.After(3 * time.Second):
-		t.Fatal("unattended recovery remained running")
-	}
+func TestRecoveryExitsAfterLastClientLeaves(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		view, err := NewRecovery("127.0.0.1:12345", desktop.Identity{}, "configuration invalid")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go view.ExitWhenUnattended(ctx, time.Minute)
+		attach := func() context.Context {
+			client, stop := context.WithCancel(ctx)
+			if !view.console.lifecycle.attach(client, stop) {
+				t.Fatal("could not attach recovery client")
+			}
+			synctest.Wait()
+			return client
+		}
+		assertRunning := func() {
+			t.Helper()
+			synctest.Wait()
+			select {
+			case <-view.ShutdownRequested():
+				t.Fatal("recovery exited while attended or before grace expired")
+			default:
+			}
+		}
+		first, second := attach(), attach()
+		time.Sleep(2 * time.Minute)
+		assertRunning()
+		view.console.lifecycle.detach(first)
+		time.Sleep(2 * time.Minute)
+		assertRunning()
+		view.console.lifecycle.detach(second)
+		synctest.Wait()
+		time.Sleep(59 * time.Second)
+		assertRunning()
+		// A refresh or reopening the page cancels the old deadline.
+		reopened := attach()
+		time.Sleep(2 * time.Minute)
+		assertRunning()
+		view.console.lifecycle.detach(reopened)
+		synctest.Wait()
+		time.Sleep(59 * time.Second)
+		assertRunning()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		select {
+		case <-view.ShutdownRequested():
+		default:
+			t.Fatal("unattended recovery remained running")
+		}
+	})
+}
+
+func TestRecoveryExitsIfBrowserNeverConnects(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		view, err := NewRecovery("127.0.0.1:12345", desktop.Identity{}, "configuration invalid")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go view.ExitWhenUnattended(ctx, time.Minute)
+		synctest.Wait()
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		select {
+		case <-view.ShutdownRequested():
+		default:
+			t.Fatal("recovery remained running without any browser")
+		}
+	})
 }

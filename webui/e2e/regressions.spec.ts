@@ -17,7 +17,7 @@ test('saved settings stay locked until a fresh status arrives, including failed 
   await expect(page.getByText('正在同步设置…',{exact:true})).toBeVisible();
   await expect(ahead).toHaveValue('120');await expect(retention).toBeDisabled();
   await expect(page.getByRole('textbox',{name:'VRChat 日志目录',exact:true})).toBeDisabled();
-  fail=true;release();await expect(connection).toHaveText('后台程序：更新失败');await page.getByRole('button',{name:'后台状态'}).click();await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。')).toBeVisible();await page.keyboard.press('Escape');
+  fail=true;release();await expect(connection).toHaveText('后台程序：更新失败');await page.getByRole('button',{name:/后台程序：.*，查看详情/}).focus();await page.keyboard.press('Enter');await expect(page.getByText('无法读取程序状态，请检查 SWD 是否仍在运行。')).toBeVisible();await page.keyboard.press('Escape');
   await expect(connection).toHaveText('后台程序：更新失败');
   await expect(retention).toBeDisabled();await expect(ahead).toHaveValue('120');
   fail=false;await page.clock.fastForward(5100);await expect(retention).toBeEnabled();

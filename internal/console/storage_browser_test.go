@@ -61,7 +61,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	}
 	run("configure")
 	if c.store == nil || c.service != nil || c.settings.DatabasePath != c.defaultDatabasePath() || c.savedSettings.DatabasePath != database || c.settings.BlockCacheDir != "" || c.savedSettings.BlockCacheDir != cacheDir {
-		t.Fatal("selection activated before restart", c.storeOpenError)
+		t.Fatal("selection activated before restart", c.storageOpenError)
 	}
 	if c.settings.VRChatLogDir != "" || c.savedSettings.VRChatLogDir != logDir || c.settings.DownloadConcurrencySoftLimit != 16 || c.savedSettings.DownloadConcurrencySoftLimit != 32 {
 		t.Fatal("browser save lost settings or applied them before restart")
@@ -83,7 +83,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.store == nil || c.settings.VideoDir != video || c.settings.BlockCacheDir != cacheDir || c.work.Path() != work.Path() || c.service != nil {
-		t.Fatal("restart did not apply independent paths", c.storeOpenError)
+		t.Fatal("restart did not apply independent paths", c.storageOpenError)
 	}
 	run("reopened")
 	if c.settings.VRChatLogDir != logDir || c.savedSettings.VRChatLogDir != "" || c.settings.DownloadConcurrencySoftLimit != 32 {
@@ -185,6 +185,6 @@ func TestStorageChoicesBrowser(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	if c.settings.DatabasePath != database || c.settings.VideoDir != videos || c.settings.BlockCacheDir != cache || c.store == nil {
-		t.Fatal("validated choices did not survive restart", c.storeOpenError)
+		t.Fatal("validated choices did not survive restart", c.storageOpenError)
 	}
 }

@@ -39,7 +39,7 @@ func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
 	if input.BlockCacheDir != nil {
 		s.BlockCacheDir = *input.BlockCacheDir
 	}
-	s, err := c.resolveSettings(s)
+	s, err := c.resolveResourceSettings(resolveConfigPaths(s, c.configPath))
 	if r.URL.Path == "/api/storage/validate-location" {
 		choice, field := input.Selection, ""
 		if choice != "database" && choice != "video" && choice != "cache" {

@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// A rejected draft is actionable at its fields, not a desktop incident. Keep
-// the original cause for callers while exposing stable field names to the UI.
+// Field attribution is independent of severity: invalid drafts are expected
+// rejections, while failures of active storage retain their operational cause.
 type settingsValidationError struct {
 	Fields map[string]string
 	cause  error
@@ -19,11 +19,18 @@ func invalidSetting(err error, fields ...string) error {
 	if err == nil {
 		return nil
 	}
+	return withSettingFields(rejectRequest(err), fields...)
+}
+
+func withSettingFields(err error, fields ...string) error {
+	if err == nil {
+		return nil
+	}
 	messages := make(map[string]string, len(fields))
 	for _, field := range fields {
 		messages[field] = err.Error()
 	}
-	return &settingsValidationError{Fields: messages, cause: rejectRequest(err)}
+	return &settingsValidationError{Fields: messages, cause: err}
 }
 
 func storageSettingField(choice string) string {

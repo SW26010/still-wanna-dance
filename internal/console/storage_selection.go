@@ -205,6 +205,20 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 			return false, invalidSetting(err, "videoDir")
 		}
 	}
+	required, err := inspectVideoPolicy(s, old)
+	// Saving an unchanged offline video location is allowed, but switching
+	// its database still needs consent before the disk returns.
+	if err != nil && !videoChanged {
+		return required, nil
+	}
+	return required, err
+}
+
+// Startup defaults and explicit selections protect the same videos when their
+// database (and therefore favorite protection) changes.
+func inspectVideoPolicy(s, old Settings) (bool, error) {
+	databaseChanged := !sameResourcePath(s.DatabasePath, old.DatabasePath)
+	videoChanged := !sameResourcePath(s.VideoDir, old.VideoDir)
 	if s.VideoDir == "" || (!databaseChanged && !videoChanged) {
 		return false, nil
 	}
@@ -213,7 +227,7 @@ func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
 		// Reusing an unavailable location with a different database still needs
 		// a policy decision before the disk returns. Never recreate that root.
 		if !videoChanged {
-			return databaseChanged, nil
+			return databaseChanged, err
 		}
 		if os.IsNotExist(err) {
 			return false, nil

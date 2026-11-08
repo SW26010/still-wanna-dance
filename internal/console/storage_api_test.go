@@ -128,7 +128,7 @@ func TestDatabaseCreationIsExplicitAndDoesNotActivateOrOverwrite(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	if c.store == nil || c.settings.DatabasePath != paths.DatabasePath || c.settings.VideoDir != paths.VideoDir || c.service != nil {
-		t.Fatal("restart did not open the selected database", c.storeOpenError)
+		t.Fatal("restart did not open the selected database", c.storageOpenError)
 	}
 	if _, err := os.Stat(paths.VideoDir); err != nil {
 		t.Fatal("explicit video selection did not create its directory", err)
@@ -280,8 +280,14 @@ func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
 	}
 }
 
-func TestMissingVideoSelectionNeverUsesLegacyDefault(t *testing.T) {
+func TestMissingVideoSelectionPreservesExistingDefaultVideos(t *testing.T) {
 	c := testConsole(t)
+	if err := os.MkdirAll(c.defaultVideoDir(), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(c.defaultVideoDir(), strings.Repeat("a", 32)+".mp4"), []byte("existing video"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	next := c.settings
 	next.VideoDir = ""
 	if err := c.save(next); err != nil {
@@ -289,10 +295,42 @@ func TestMissingVideoSelectionNeverUsesLegacyDefault(t *testing.T) {
 	}
 	c = restartTestConsole(t, c)
 	if c.store == nil {
-		t.Fatal("database depends on a video selection", c.storeOpenError)
+		t.Fatal("database depends on a video selection", c.storageOpenError)
+	}
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+	var status struct{ StorageError, StorageConfirmation string }
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || status.StorageError != "" || !strings.Contains(status.StorageConfirmation, "尚未指定完整视频目录") {
+		t.Fatalf("unselected video directory was reported as a fault: %s (%v)", w.Body.String(), err)
 	}
 	if err := c.start(); err == nil || c.service != nil {
 		t.Fatal("unselected video directory started an engine")
+	}
+}
+
+func TestMissingDatabaseSelectionPreservesExistingVideos(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "config.json")
+	video := filepath.Join(filepath.Dir(config), "videos")
+	if err := os.MkdirAll(video, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(video, strings.Repeat("a", 32)+".mp4"), []byte("existing video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"videoDir":"videos"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	_, err = c.businessStore()
+	if err == nil || !strings.Contains(err.Error(), "尚未指定数据库。") || strings.Contains(err.Error(), "数据库不可用") {
+		t.Fatal("unselected database was reported as a fault", err)
+	}
+	if c.store != nil {
+		t.Fatal("unselected database was implicitly opened")
 	}
 }
 

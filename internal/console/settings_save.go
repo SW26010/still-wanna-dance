@@ -9,16 +9,22 @@ import (
 // Resource checks and preparation belong to the application, not file decoding.
 func (c *Console) resolveSettings(s Settings) (Settings, error) {
 	s, err := resolveConfigSettings(s, c.configPath)
-	if err == nil && s.BlockCacheDir != "" && sameResourcePath(s.BlockCacheDir, defaultBlockCacheDir(c.identity.Executable)) {
+	if err != nil {
+		return s, err
+	}
+	return c.resolveResourceSettings(s)
+}
+
+// Selecting or creating a storage location does not depend on unrelated draft
+// values. Full settings validation still runs before committing configuration.
+func (c *Console) resolveResourceSettings(s Settings) (Settings, error) {
+	if s.BlockCacheDir != "" && sameResourcePath(s.BlockCacheDir, defaultBlockCacheDir(c.identity.Executable)) {
 		s.BlockCacheDir = ""
 	}
-	if err == nil {
-		err = c.validateResourcePaths(s)
+	if err := c.validateResourcePaths(s); err != nil {
+		return s, err
 	}
-	if err == nil {
-		err = invalidSetting(c.validateBlockCacheSelection(s), "blockCacheDir")
-	}
-	return s, err
+	return s, invalidSetting(c.validateBlockCacheSelection(s), "blockCacheDir")
 }
 
 func (c *Console) save(s Settings) error {

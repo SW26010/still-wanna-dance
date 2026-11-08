@@ -101,9 +101,13 @@ func storedProxyNodes(s Settings) (json.RawMessage, error) {
 // Import only stages a bounded, expiring in-memory draft. Saving settings
 // explicitly commits it; preview never activates or persists it.
 func (c *Console) importProxyNodes(ctx context.Context, data []byte, name string) (proxyImportResult, error) {
+	return c.importProxyNodesAuthorized(ctx, data, name, true)
+}
+
+func (c *Console) importProxyNodesAuthorized(ctx context.Context, data []byte, name string, requireTerms bool) (proxyImportResult, error) {
 	c.mu.Lock()
 	base := c.savedSettings
-	allowed := !c.closing && c.terms.valid()
+	allowed := !c.closing && (!requireTerms || c.terms.valid())
 	c.mu.Unlock()
 	if !allowed {
 		return proxyImportResult{}, rejectRequest(errors.New("请先同意条款，并等待应用就绪"))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +35,8 @@ var assets embed.FS
 type Console struct {
 	faults                 atomic.Pointer[faults.Center]
 	store                  *cacheproxy.Store
-	storeOpenError         error
+	storageOpenError       error
+	storageConfirmation    *storageConfirmationRequired
 	work                   *cacheproxy.WorkDirectory // Borrowed from the application entry point.
 	workOpenError          error                     // Workspace could not be opened during startup.
 	channelIdentity        proxyChannelIdentity
@@ -153,15 +153,14 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	if err := apppaths.ValidateWorkSeparation(identity.Executable, configPath); err != nil {
 		return nil, err
 	}
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
+	c, err := newSettingsConsole(address, identity)
+	if err != nil {
 		return nil, err
 	}
-	c := &Console{work: work, workOpenError: workErr, configPath: configPath, address: address, videoAddress: "127.0.0.1:80", httpsAddress: "127.0.0.1:443", token: hex.EncodeToString(b), apiBase: playbacksource.DefaultBaseURL, checksumURL: cacheproxy.UdonCatalogURL}
+	c.work, c.workOpenError = work, workErr
+	c.videoAddress, c.httpsAddress = "127.0.0.1:80", "127.0.0.1:443"
+	c.apiBase, c.checksumURL = playbacksource.DefaultBaseURL, cacheproxy.UdonCatalogURL
 	c.previewKey = rand.Text()
-	c.identity = identity
-	c.hosts = newHostsController(hostsPath(), launchHostsSession)
-	c.lifecycle = newApplicationLifecycle()
 	c.dns = dns
 	c.resources = upstreamrequest.NewResources()
 	c.requestChannel = upstreamrequest.NewChannel()
@@ -171,11 +170,8 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	}
 	c.videoImportSuggestion = !loaded.Exists
 	c.vrcxImportDismissed = loaded.VRCXImportDismissed
-	c.settings = loaded.Settings
+	c.initializeSettings(loaded.Settings)
 	err = c.validateResourcePaths(c.settings)
-	c.savedSettings = c.settings
-	c.loadedNodeCount = configurationNodeCount(c.settings.nodeSnapshot)
-	c.savedNodeCount = c.loadedNodeCount
 	if err == nil {
 		err = c.loadTerms()
 	}
@@ -187,13 +183,9 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 		c.proxyModeMigrated = err == nil
 	}
 	if err == nil {
-		unconfigured := c.settings.DatabasePath == "" && c.settings.VideoDir == ""
-		if unconfigured {
-			c.storeOpenError = c.prepareDefaultLibrary()
-		} else {
-			c.store, c.storeOpenError = cacheproxy.OpenStore(libraryPaths(c.settings).DatabasePath)
-		}
-		if !loaded.Exists || unconfigured && c.store != nil {
+		original := c.settings
+		c.prepareStorage()
+		if !loaded.Exists || c.settings != original {
 			err = saveConfigSettings(c.configPath, c.settings)
 		}
 		c.savedSettings = c.settings
@@ -560,39 +552,41 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.mu.Lock()
 		running := c.httpServer != nil
 		result := struct {
-			Running               bool                 `json:"running"`
-			Settings              Settings             `json:"settings"`
-			ActiveSettings        Settings             `json:"activeSettings"`
-			RestartRequired       bool                 `json:"restartRequired"`
-			Hosts                 HostsStatus          `json:"hosts"`
-			PortOK                bool                 `json:"portOK"`
-			CDNError              string               `json:"cdnError"`
-			StorageError          string               `json:"storageError,omitempty"`
-			WorkError             string               `json:"workError,omitempty"`
-			VRCXImportAvailable   bool                 `json:"vrcxImportAvailable"`
-			VideoImportSuggested  bool                 `json:"videoImportSuggested"`
-			ProxyModeMigrated     bool                 `json:"proxyModeMigrated,omitempty"`
-			ActionErrors          map[string]string    `json:"actionErrors"`
-			Batch                 Batch                `json:"batch"`
-			Import                ImportStatus         `json:"import"`
-			PortOwner             *desktop.Owner       `json:"portOwner,omitempty"`
-			Queue                 QueueStatus          `json:"queue"`
-			LastBatch             Batch                `json:"lastBatch"`
-			HTTPSPortOK           bool                 `json:"httpsPortOK"`
-			HTTPSPortOwner        *desktop.Owner       `json:"httpsPortOwner,omitempty"`
-			SOCKS5PasswordSet     bool                 `json:"socks5PasswordSet"`
-			SOCKS5CredentialError string               `json:"socks5CredentialError,omitempty"`
-			SOCKS5Service         *socks5ServiceStatus `json:"socks5Service,omitempty"`
-			ProxyNodes            proxyNodeStatus      `json:"proxyNodes"`
-			Activation            Activation           `json:"activation"`
-			DefaultLogDir         string               `json:"defaultLogDir"`
-			DefaultDatabasePath   string               `json:"defaultDatabasePath"`
-			DefaultVideoDir       string               `json:"defaultVideoDir"`
-			DefaultBlockCacheDir  string               `json:"defaultBlockCacheDir"`
-			PortableDir           string               `json:"portableDir"`
-			CatalogSync           catalogSyncStatus    `json:"catalogSync"`
-			UpstreamMonitor       upstreamstate.Status `json:"upstreamMonitor"`
-			Update                updateStatus         `json:"update"`
+			Running               bool                         `json:"running"`
+			Settings              Settings                     `json:"settings"`
+			ActiveSettings        Settings                     `json:"activeSettings"`
+			RestartRequired       bool                         `json:"restartRequired"`
+			Hosts                 HostsStatus                  `json:"hosts"`
+			PortOK                bool                         `json:"portOK"`
+			CDNError              string                       `json:"cdnError"`
+			StorageError          string                       `json:"storageError,omitempty"`
+			StorageConfirmation   string                       `json:"storageConfirmation,omitempty"`
+			StorageIssues         map[string]storageFieldIssue `json:"storageIssues,omitempty"`
+			WorkError             string                       `json:"workError,omitempty"`
+			VRCXImportAvailable   bool                         `json:"vrcxImportAvailable"`
+			VideoImportSuggested  bool                         `json:"videoImportSuggested"`
+			ProxyModeMigrated     bool                         `json:"proxyModeMigrated,omitempty"`
+			ActionErrors          map[string]string            `json:"actionErrors"`
+			Batch                 Batch                        `json:"batch"`
+			Import                ImportStatus                 `json:"import"`
+			PortOwner             *desktop.Owner               `json:"portOwner,omitempty"`
+			Queue                 QueueStatus                  `json:"queue"`
+			LastBatch             Batch                        `json:"lastBatch"`
+			HTTPSPortOK           bool                         `json:"httpsPortOK"`
+			HTTPSPortOwner        *desktop.Owner               `json:"httpsPortOwner,omitempty"`
+			SOCKS5PasswordSet     bool                         `json:"socks5PasswordSet"`
+			SOCKS5CredentialError string                       `json:"socks5CredentialError,omitempty"`
+			SOCKS5Service         *socks5ServiceStatus         `json:"socks5Service,omitempty"`
+			ProxyNodes            proxyNodeStatus              `json:"proxyNodes"`
+			Activation            Activation                   `json:"activation"`
+			DefaultLogDir         string                       `json:"defaultLogDir"`
+			DefaultDatabasePath   string                       `json:"defaultDatabasePath"`
+			DefaultVideoDir       string                       `json:"defaultVideoDir"`
+			DefaultBlockCacheDir  string                       `json:"defaultBlockCacheDir"`
+			PortableDir           string                       `json:"portableDir"`
+			CatalogSync           catalogSyncStatus            `json:"catalogSync"`
+			UpstreamMonitor       upstreamstate.Status         `json:"upstreamMonitor"`
+			Update                updateStatus                 `json:"update"`
 		}{
 			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
 			RestartRequired:      c.savedSettings != c.settings,
@@ -637,8 +631,19 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result.Hosts = c.hosts.status()
 		result.VideoImportSuggested = result.VideoImportSuggested && result.Hosts.Ready && !result.Hosts.Managed && !result.Hosts.Conflict
+		if c.storageOpenError != nil {
+			result.StorageError = applog.SafeError(c.storageOpenError).Error()
+		}
+		if c.storageConfirmation != nil {
+			result.StorageConfirmation = applog.SafeError(c.storageConfirmation).Error()
+		}
 		if store, err := c.businessStore(); err != nil {
-			result.StorageError = applog.SafeError(err).Error()
+			var confirmation *storageConfirmationRequired
+			if errors.As(err, &confirmation) {
+				result.StorageConfirmation = applog.SafeError(err).Error()
+			} else {
+				result.StorageError = applog.SafeError(err).Error()
+			}
 		} else if !vrcxDismissed {
 			count, err := store.SongUsageCount(r.Context())
 			result.VRCXImportAvailable = err == nil && count == 0
@@ -653,6 +658,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				f.Name = result.Queue.Titles[strconv.FormatInt(f.ID, 10)]
 			}
 		}
+		result.StorageIssues = c.storageSettingsIssues(result.ActiveSettings, service)
 		writeJSON(w, result)
 		return
 	}
@@ -680,8 +686,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/api/proxy/import" {
-		c.serveProxyImport(w, r)
+	if handler := c.settingsHandler(r.URL.Path, true); handler != nil {
+		handler(w, r)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
@@ -693,16 +699,8 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		c.serveUpdateNotice(w)
 		return
 	}
-	if r.URL.Path == "/api/path/select" {
-		c.servePathPicker(w, r)
-		return
-	}
 	if r.URL.Path == "/api/library/preview" {
 		c.preparePreview(w, r)
-		return
-	}
-	if strings.HasPrefix(r.URL.Path, "/api/storage/") {
-		c.serveStorage(w, r)
 		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/vrcx/") {
@@ -718,20 +716,6 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		c.mu.Unlock()
 		writeJSON(w, map[string]bool{"ok": true})
 		return
-	case "/api/proxy/import/discard":
-		source = "proxy-import"
-		var input struct {
-			ID string `json:"id"`
-		}
-		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
-			c.mu.Lock()
-			delete(c.proxyImports, input.ID)
-			c.mu.Unlock()
-			// Idempotent even after a successful save or expiration. Only the
-			// named in-memory draft is released; saved settings never change.
-			writeJSON(w, map[string]bool{"ok": true})
-			return
-		}
 	case "/api/network/calibration/start":
 		source = "network-calibration"
 		var input struct{}
@@ -831,23 +815,6 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	case "/api/hosts/prepare":
 		source = "hosts"
 		err = c.prepareHostsRestore()
-	case "/api/settings/theme":
-		source = "settings"
-		var input struct {
-			Theme string `json:"theme"`
-		}
-		decoder := json.NewDecoder(r.Body)
-		decoder.DisallowUnknownFields()
-		if err = decodeRequest(decoder, &input); err == nil {
-			err = c.saveTheme(input.Theme)
-		}
-	case "/api/settings":
-		source = "settings"
-		// Read the bounded request before taking the settings lifecycle lock.
-		var input json.RawMessage
-		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
-			err = c.saveSettingsPatch(input)
-		}
 	case "/api/batch/start":
 		source = "batch"
 		err = c.startBatch()
@@ -873,6 +840,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", 404)
 		return
 	}
+	c.writeActionResult(w, r, source, err)
+}
+
+func (c *Console) writeActionResult(w http.ResponseWriter, r *http.Request, source string, err error) {
 	c.recordActionError(source, err)
 	if result, ok := w.(*faultResponseWriter); ok {
 		result.reported = true

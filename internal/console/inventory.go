@@ -76,6 +76,12 @@ func (c *Console) localInventory() Inventory {
 }
 
 func (c *Console) localInventoryWithLoader(load func(context.Context, string) (cacheproxy.CatalogStatus, error)) Inventory {
+	// No database has been adopted yet. Its missing catalog is an expected
+	// consequence of confirmation, not a second local-storage read failure.
+	var confirmation *storageConfirmationRequired
+	if _, err := c.businessStore(); errors.As(err, &confirmation) {
+		return Inventory{}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	// Active storage is immutable. Never borrow the engine or hold state locks

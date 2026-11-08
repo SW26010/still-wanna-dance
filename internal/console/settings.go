@@ -89,13 +89,17 @@ func decodeSettingsRequest(data []byte, saved Settings) (settingsRequest, error)
 
 // Relative paths belong to the configuration, independent of the launch directory.
 func resolveConfigSettings(s Settings, configPath string) (Settings, error) {
+	return normalizeSettings(resolveConfigPaths(s, configPath))
+}
+
+func resolveConfigPaths(s Settings, configPath string) Settings {
 	for _, p := range []*string{&s.DatabasePath, &s.VideoDir, &s.BlockCacheDir, &s.VRChatLogDir} {
 		*p = strings.TrimSpace(*p)
 		if *p != "" && !filepath.IsAbs(*p) {
 			*p = filepath.Join(filepath.Dir(configPath), *p)
 		}
 	}
-	return normalizeSettings(s)
+	return s
 }
 
 // Keep directories inside the portable folder movable; external stores stay absolute.
@@ -111,26 +115,39 @@ func storedSettings(s Settings, configPath string) Settings {
 	return s
 }
 
+// Resolve documented default-valued scalars independently of validation, so an
+// unrelated invalid field cannot expose valid default syntax as an invalid form.
+func settingsWithDefaults(s Settings) Settings {
+	if s.LogLevel == "" {
+		s.LogLevel = applog.Info.String()
+	}
+	if s.Theme == "" {
+		s.Theme = "system"
+	}
+	if s.UpstreamMode == "" {
+		s.UpstreamMode = "direct"
+	}
+	if s.ProxyBackend == "" {
+		s.ProxyBackend = "external-socks5"
+	}
+	if s.PrepareAheadSeconds == 0 {
+		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
+	}
+	return s
+}
+
 func normalizeSettings(s Settings) (Settings, error) {
+	s = settingsWithDefaults(s)
 	level, err := applog.ParseLevel(s.LogLevel)
 	if err != nil {
 		return s, invalidSetting(err, "logLevel")
 	}
 	s.LogLevel = level.String()
-	if s.Theme == "" {
-		s.Theme = "system"
-	}
 	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
 		return s, invalidSetting(errors.New("主题必须为 system、light 或 dark"), "theme")
 	}
-	if s.UpstreamMode == "" {
-		s.UpstreamMode = "direct"
-	}
 	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" {
 		return s, invalidSetting(errors.New("上游连接必须是 direct 或 proxy"), "upstreamMode")
-	}
-	if s.ProxyBackend == "" {
-		s.ProxyBackend = "external-socks5"
 	}
 	if s.ProxyBackend != "external-socks5" && s.ProxyBackend != "mihomo" {
 		return s, invalidSetting(errors.New("代理后端必须是 external-socks5 或 mihomo"), "proxyBackend")
@@ -143,9 +160,6 @@ func normalizeSettings(s Settings) (Settings, error) {
 		if err := upstreamnet.ValidateSOCKS5Credentials(s.SOCKS5Username, s.SOCKS5Password); err != nil && s.proxySecretError == "" {
 			return s, invalidSetting(err, "socks5Username", "socks5Password")
 		}
-	}
-	if s.PrepareAheadSeconds == 0 {
-		s.PrepareAheadSeconds = int(blocksched.DefaultPrepareAhead / time.Second)
 	}
 	if s.PrepareAheadSeconds < int(blocksched.MinPrepareAhead/time.Second) || s.PrepareAheadSeconds > int(blocksched.MaxPrepareAhead/time.Second) {
 		return s, invalidSetting(errors.New("提前准备时间 M 必须为 100～16000 秒"), "prepareAheadSeconds")

@@ -14,7 +14,7 @@ func (c *Console) SetFaultCenter(center *faults.Center) {
 	c.queue.setLogFaultObserver(func(err error) {
 		c.reportRetryFault("queue:log", err)
 	})
-	c.reportFault("storage", c.storeOpenError)
+	c.reportFault("storage", c.storageOpenError)
 	c.reportFault("work", c.workOpenError)
 	c.mu.Lock()
 	importError := c.importStatus.Error
@@ -55,6 +55,9 @@ func nonFaultError(err error) bool {
 		return false
 	}
 	if _, ok := err.(*requestRejection); ok {
+		return true
+	}
+	if _, ok := err.(*storageConfirmationRequired); ok {
 		return true
 	}
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {

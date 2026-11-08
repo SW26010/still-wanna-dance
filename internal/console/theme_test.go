@@ -27,22 +27,22 @@ func TestThemeAutosavePersistsAndPreservesPendingSettings(t *testing.T) {
 	}
 	for _, theme := range []string{"dark", "light", "system"} {
 		w := themeRequest(c, `{"theme":"`+theme+`"}`, c.token)
-		if w.Code != 200 || c.settings != c.savedSettings || c.DesktopState().Theme != theme {
+		if w.Code != 200 || c.settings != c.editor.savedSettings || c.DesktopState().Theme != theme {
 			t.Fatal("theme must apply to active settings and tray without restart", w.Code, w.Body.String())
 		}
 	}
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	next.AutoOpenWebUI = !next.AutoOpenWebUI
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
-	active, saved := c.settings, c.savedSettings
+	active, saved := c.settings, c.editor.savedSettings
 	client := c.client
 	if w := themeRequest(c, `{"theme":"dark"}`, c.token); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	active.Theme, saved.Theme = "dark", "dark"
-	if c.settings != active || c.savedSettings != saved || c.client != client || c.service != nil {
+	if c.settings != active || c.editor.savedSettings != saved || c.client != client || c.service != nil {
 		t.Fatal("theme save changed runtime settings or applied a pending restart")
 	}
 	_, fields, err := readConfigFile(c.configPath)
@@ -50,9 +50,9 @@ func TestThemeAutosavePersistsAndPreservesPendingSettings(t *testing.T) {
 		t.Fatal("theme missing from configuration", err)
 	}
 	// An ordinary form omits the independently saved preference.
-	next = c.savedSettings
+	next = c.editor.savedSettings
 	next.Theme = ""
-	if err := c.save(next); err != nil || c.settings.Theme != "dark" {
+	if err := c.editor.save(next); err != nil || c.settings.Theme != "dark" {
 		t.Fatal("ordinary save reset the theme", err)
 	}
 	reopened := restartTestConsole(t, c)
@@ -84,7 +84,7 @@ func TestThemeSaveFailureLeavesAppearanceAndFileUnchanged(t *testing.T) {
 		t.Fatal("failed config write reported success")
 	}
 	after, err := os.ReadFile(c.configPath)
-	if err != nil || string(before) != string(after) || c.settings != old || c.savedSettings != old || c.DesktopState().Theme != old.Theme {
+	if err != nil || string(before) != string(after) || c.settings != old || c.editor.savedSettings != old || c.DesktopState().Theme != old.Theme {
 		t.Fatal("failed save changed the theme or configuration", err)
 	}
 }

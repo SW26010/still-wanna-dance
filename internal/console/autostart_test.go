@@ -15,12 +15,12 @@ import (
 func TestAutoStartSetting(t *testing.T) {
 	c := testConsole(t)
 	c.AutoStart()
-	if c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired || c.hosts.status().Ready {
+	if c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired || c.editor.hosts.status().Ready {
 		t.Fatal("default settings started acceleration or queue prefetch")
 	}
 	s := c.settings
 	s.AutoAccelerate = true
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -41,7 +41,7 @@ func TestAutoStartSetting(t *testing.T) {
 	if w.Code != 200 || c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired {
 		t.Fatal("opening the web console restarted manually stopped services")
 	}
-	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway || !c.savedSettings.AutoAccelerate || !c.savedSettings.QueueWithGateway {
+	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway || !c.editor.savedSettings.AutoAccelerate || !c.editor.savedSettings.QueueWithGateway {
 		t.Fatal("manual stop changed startup preferences")
 	}
 }
@@ -56,7 +56,7 @@ func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
 				}
 				s := c.settings
 				s.AutoAccelerate, s.QueueWithGateway = gateway, queue
-				if err := c.save(s); err != nil {
+				if err := c.editor.save(s); err != nil {
 					t.Fatal(err)
 				}
 				if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired {
@@ -105,7 +105,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	if c.DesktopState().CDN || c.videoListener != nil || c.https != nil {
 		t.Fatal("failed auto start left CDN partially running")
 	}
-	if c.queue.snapshot().Running || c.queueDesired || c.hosts.status().Ready {
+	if c.queue.snapshot().Running || c.queueDesired || c.editor.hosts.status().Ready {
 		t.Fatal("failed acceleration left connection or queue running")
 	}
 	r := httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil)
@@ -115,7 +115,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 		t.Fatalf("console did not report startup failure: %d %s", w.Code, w.Body.String())
 	}
 	occupied.Close()
-	if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+	if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil {
 		t.Fatal(err)
 	}
 	if !c.DesktopState().CDN || c.cdnError != "" {
@@ -138,7 +138,7 @@ func TestAutoAccelerationDeniedAuthorizationIsNotRetried(t *testing.T) {
 	c.settings.AutoAccelerate = true
 
 	h, launches := fixtureHostsController(t, hostsBaseline)
-	c.hosts = h
+	c.editor.hosts = h
 	launch := h.launch
 	h.launch = func(ctx context.Context) (hostsConnection, error) { return nil, errors.New("fixture UAC canceled") }
 	c.AutoStart()

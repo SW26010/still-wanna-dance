@@ -26,7 +26,7 @@ func TestDownloadSettingsDefaultsAndZero(t *testing.T) {
 			if c.settings.DownloadConcurrencySoftLimit != tc.limit || c.settings.DownloadGrowIntervalMS != tc.interval || c.settings.LocalProtectionGraceSeconds != tc.grace {
 				t.Fatal("incorrect loaded download settings", c.settings)
 			}
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)
@@ -57,7 +57,7 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		if w := post(body); w.Code != 200 {
 			t.Fatal(w.Code, w.Body.String())
 		}
-		if c.settings.DownloadConcurrencySoftLimit != 16 || c.settings.DownloadGrowIntervalMS != 250 || c.settings.LocalProtectionGraceSeconds != 300 || c.savedSettings != next {
+		if c.settings.DownloadConcurrencySoftLimit != 16 || c.settings.DownloadGrowIntervalMS != 250 || c.settings.LocalProtectionGraceSeconds != 300 || c.editor.savedSettings != next {
 			t.Fatal("save changed runtime or lost download settings")
 		}
 		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -80,7 +80,7 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 		"localProtectionGraceSeconds":  {"-1", "10001", "0.5", `"300"`, "true"},
 	} {
 		for _, value := range invalid {
-			body, _ := json.Marshal(c.savedSettings)
+			body, _ := json.Marshal(c.editor.savedSettings)
 			var fields map[string]json.RawMessage
 			if err := json.Unmarshal(body, &fields); err != nil {
 				t.Fatal(err)
@@ -91,7 +91,7 @@ func TestDownloadSettingsValidationAndPersistence(t *testing.T) {
 				t.Fatalf("accepted %s=%s: %d", key, value, w.Code)
 			}
 			after, err := os.ReadFile(c.configPath)
-			if err != nil || !bytes.Equal(before, after) || c.savedSettings != c.settings {
+			if err != nil || !bytes.Equal(before, after) || c.editor.savedSettings != c.settings {
 				t.Fatal("invalid input changed saved settings", err)
 			}
 		}

@@ -17,7 +17,7 @@ import (
 
 func TestCoverageRecomputesFromDatabaseWhenRemoteFails(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	initializeTestLibrary(t, c)

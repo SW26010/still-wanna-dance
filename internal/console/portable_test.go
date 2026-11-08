@@ -18,14 +18,14 @@ func TestPortableSettingsMove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.DatabasePath != c.defaultDatabasePath() || c.settings.VideoDir != c.defaultVideoDir() || c.defaultDatabasePath() != filepath.Join(original, "settings.json.d", "data", "database", "storage.sqlite") {
+	if c.settings.DatabasePath != c.editor.defaultDatabasePath() || c.settings.VideoDir != c.editor.defaultVideoDir() || c.editor.defaultDatabasePath() != filepath.Join(original, "settings.json.d", "data", "database", "storage.sqlite") {
 		t.Fatal(c.settings)
 	}
 	next := c.settings
 	createTestDatabase(t, filepath.Join(original, "data", "storage.sqlite"))
 	setTestLibraryPaths(&next, "data")
 	next.VRChatLogDir = external
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(c.configPath)

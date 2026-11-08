@@ -290,7 +290,7 @@ func TestDiagnosticsBorrowActiveProxyWithoutChannels(t *testing.T) {
 	c := testConsole(t)
 	c.settings.UpstreamMode = "proxy"
 	c.settings.SOCKS5Address = "127.0.0.1:9"
-	c.savedSettings.UpstreamMode = "direct" // saved configuration is intentionally different
+	c.editor.savedSettings.UpstreamMode = "direct" // saved configuration is intentionally different
 	_, client, err := c.networkFor(c.settings)
 	if err != nil {
 		t.Fatal(err)

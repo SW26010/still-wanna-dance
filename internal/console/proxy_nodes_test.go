@@ -18,17 +18,17 @@ const nodeFixture = "proxies: [{name: private-node, type: ss, server: private.ex
 func TestProxyImportDraftPrivateBoundedAndStale(t *testing.T) {
 	c := testConsole(t)
 	before, _ := os.ReadFile(c.configPath)
-	r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
+	r, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil || r.ID == "" || r.Nodes != 1 {
 		t.Fatalf("import: %v", err)
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if !bytes.Equal(before, after) || c.settings.nodeSnapshot != "" || c.savedSettings.nodeSnapshot != "" {
+	if !bytes.Equal(before, after) || c.settings.nodeSnapshot != "" || c.editor.savedSettings.nodeSnapshot != "" {
 		t.Fatal("preview saved or activated")
 	}
-	s := c.savedSettings
+	s := c.editor.savedSettings
 	s.nodeImportID = r.ID
-	merged, err := c.mergeProxyNodes(s, c.savedSettings)
+	merged, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings)
 	if err != nil || merged.nodeSnapshot == "" {
 		t.Fatal("draft not merged")
 	}
@@ -39,15 +39,15 @@ func TestProxyImportDraftPrivateBoundedAndStale(t *testing.T) {
 	if strings.Contains(string(public), "private") {
 		t.Fatal("report exposed nodes")
 	}
-	old := c.savedSettings
+	old := c.editor.savedSettings
 	old.nodeSnapshot = "changed"
-	if _, err := c.mergeProxyNodes(s, old); err == nil {
+	if _, err := c.editor.mergeProxyNodes(s, old); err == nil {
 		t.Fatal("stale snapshot accepted")
 	}
-	draft := c.proxyImports[r.ID]
+	draft := c.editor.proxyImports[r.ID]
 	draft.Expires = time.Now().Add(-time.Second)
-	c.proxyImports[r.ID] = draft
-	if _, err := c.mergeProxyNodes(s, c.savedSettings); err == nil {
+	c.editor.proxyImports[r.ID] = draft
+	if _, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings); err == nil {
 		t.Fatal("expired draft accepted")
 	}
 }
@@ -89,7 +89,7 @@ func TestUnavailableProxyNodesPreserveEnvelope(t *testing.T) {
 	if loaded.settings.nodeSecretError == "" {
 		t.Fatal("unreadable nodes treated as empty")
 	}
-	if err := loaded.saveSettings(loaded.savedSettings, true, nil); err != nil {
+	if err := loaded.editor.saveSettings(loaded.editor.savedSettings, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	_, after, _ := readConfigFile(c.configPath)
@@ -111,7 +111,7 @@ func TestUnavailableProxyNodesPreserveEnvelope(t *testing.T) {
 func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 	c := testConsole(t)
 	before, _ := os.ReadFile(c.configPath)
-	retained, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
+	retained, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,34 +129,34 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 		t.Fatal("discard bypassed authorization")
 	}
 	for range 12 {
-		r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
+		r, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 		if err != nil || r.ID == "" {
 			t.Fatal("discard did not release quota", err)
 		}
 		if discard(r.ID, c.token, "") != 200 || discard(r.ID, c.token, "") != 200 {
 			t.Fatal("discard must be idempotent")
 		}
-		s := c.savedSettings
+		s := c.editor.savedSettings
 		s.nodeImportID = r.ID
-		if _, err := c.mergeProxyNodes(s, c.savedSettings); err == nil {
+		if _, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings); err == nil {
 			t.Fatal("discarded draft remained usable")
 		}
 		s.nodeImportID = retained.ID
-		if _, err := c.mergeProxyNodes(s, c.savedSettings); err != nil {
+		if _, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings); err != nil {
 			t.Fatal("discard affected another draft", err)
 		}
 	}
 	// Releasing abandoned drafts does not remove the cap on genuinely live ones.
 	for range 7 {
-		if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err != nil {
+		if _, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err == nil {
+	if _, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml"); err == nil {
 		t.Fatal("live draft quota disappeared")
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if !bytes.Equal(before, after) || c.savedSettings.nodeSnapshot != "" || c.settings.nodeSnapshot != "" {
+	if !bytes.Equal(before, after) || c.editor.savedSettings.nodeSnapshot != "" || c.settings.nodeSnapshot != "" {
 		t.Fatal("discard changed saved or active settings")
 	}
 }
@@ -164,13 +164,13 @@ func TestProxyImportDiscardReclaimsOnlyNamedDraft(t *testing.T) {
 func TestProxyImportPreservesExactOriginalConfiguration(t *testing.T) {
 	c := testConsole(t)
 	input := "# original comment\nproxies: [{name: one, type: ss, server: localhost, port: 1234, cipher: aes-128-gcm, password: private}]\nproxy-groups: [{name: original, type: select, proxies: [one]}]\n"
-	r, err := c.importProxyNodes(context.Background(), []byte(input), "fixture.yaml")
+	r, err := c.editor.importProxyNodes(context.Background(), []byte(input), "fixture.yaml")
 	if err != nil || r.Nodes != 1 || r.Groups != 1 {
 		t.Fatal("configuration import failed", err)
 	}
-	s := c.savedSettings
+	s := c.editor.savedSettings
 	s.nodeImportID = r.ID
-	merged, err := c.mergeProxyNodes(s, c.savedSettings)
+	merged, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings)
 	if err != nil || merged.nodeSnapshot != input {
 		t.Fatal("original configuration lost", err)
 	}

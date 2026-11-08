@@ -196,7 +196,7 @@ func TestManagementRetainsStorageFailureAcrossSources(t *testing.T) {
 		default:
 		}
 	}
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) {
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) {
 		return "", errors.New("fixture dialog failure")
 	}
 	if w := call("/api/path/select", `{"purpose":"database"}`); w.Code != http.StatusBadRequest {
@@ -236,7 +236,7 @@ func TestManagementRetainsStorageFailureAcrossSources(t *testing.T) {
 
 func TestManagementPreservesCancellationCause(t *testing.T) {
 	c := testConsole(t)
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", context.Canceled }
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", context.Canceled }
 	center := faults.New()
 	c.SetFaultCenter(center)
 	r := httptest.NewRequest(http.MethodPost, "http://"+c.address+"/api/path/select", strings.NewReader(`{"purpose":"database"}`))

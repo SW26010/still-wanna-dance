@@ -19,7 +19,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 	for _, evidence := range []string{"inventory", "failed attempt"} {
 		t.Run(evidence, func(t *testing.T) {
 			c := testConsole(t)
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			cfg := fixtureCacheConfig()
@@ -100,7 +100,7 @@ func TestBatchScanRejectsMissingUsedStorageAfterRestart(t *testing.T) {
 
 func TestBatchScanNeverInitializesMissingDatabaseFromEmptyInventory(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()

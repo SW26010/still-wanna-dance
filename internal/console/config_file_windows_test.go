@@ -13,7 +13,7 @@ func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 	c := testConsole(t)
 	initial := c.settings
 	initial.SOCKS5Username, initial.SOCKS5Password = "user", "preserved-secret"
-	if err := c.save(initial); err != nil {
+	if err := c.editor.save(initial); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(c.configPath)
@@ -35,15 +35,15 @@ func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 			windows.CloseHandle(h)
 		}
 	}()
-	want := c.savedSettings
+	want := c.editor.savedSettings
 	next := want
 	next.SOCKS5Password = "new-secret"
 	next.PrepareAheadSeconds++
-	if err := c.save(next); err == nil {
+	if err := c.editor.save(next); err == nil {
 		t.Fatal("replaced a locked configuration")
 	}
 	after, err := os.ReadFile(c.configPath)
-	if err != nil || !bytes.Equal(before, after) || c.savedSettings != want {
+	if err != nil || !bytes.Equal(before, after) || c.editor.savedSettings != want {
 		t.Fatal("failed replacement changed persisted settings", err)
 	}
 	temps, err := filepath.Glob(filepath.Join(filepath.Dir(c.configPath), ".settings-*"))
@@ -54,7 +54,7 @@ func TestConfigurationReplacementFailurePreservesSavedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	h = windows.InvalidHandle
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal("retry failed", err)
 	}
 	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)

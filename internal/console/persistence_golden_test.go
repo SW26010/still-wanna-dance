@@ -33,7 +33,7 @@ func TestConfigurationAndInventoryGolden(t *testing.T) {
 	if c.settings.PrepareAheadSeconds != 500 || c.settings.RequestRetentionDays != 0 || c.settings.AutoAccelerate || testStorageRoot(c.settings) != filepath.Join(root, "storage") || c.settings.VideoStorageMode != "none" || c.settings.VideoBudgetBytes != 0 {
 		t.Fatal("configuration defaults changed")
 	}
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	_, fields, err := readConfigFile(path)
@@ -79,7 +79,7 @@ func TestConfigurationRejectsFrozenOldFormats(t *testing.T) {
 				other.Close()
 				t.Fatal("opened an unsupported configuration")
 			}
-			if err := c.save(c.settings); err == nil {
+			if err := c.editor.save(c.settings); err == nil {
 				t.Fatal("overwrote an unsupported configuration")
 			}
 			after, err := os.ReadFile(c.configPath)

@@ -46,6 +46,7 @@ func TestStorageSelectionRejectsCustomPortableLocations(t *testing.T) {
 			c := testConsole(t)
 			root := filepath.Dir(c.configPath)
 			c.identity.Executable = filepath.Join(root, "SWD.exe")
+			c.editor.identity = c.identity
 			paths := fixtureLibraryPaths(filepath.Join(root, "data", "storage"))
 			if scenario == "other-filename" {
 				paths.DatabasePath = filepath.Join(filepath.Dir(paths.DatabasePath), "other.sqlite")
@@ -104,14 +105,14 @@ func TestStorageSaveRejectsPortableTargetBeforeConfigWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved := c.savedSettings
+	saved := c.editor.savedSettings
 	changed := saved
-	setTestLibraryPaths(&changed, filepath.Join(c.portableDir(), "new-media-not-created"))
-	if err := c.save(changed); err == nil {
+	setTestLibraryPaths(&changed, filepath.Join(c.editor.portableDir(), "new-media-not-created"))
+	if err := c.editor.save(changed); err == nil {
 		t.Fatal("saved custom Portable target")
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if string(before) != string(after) || c.savedSettings != saved {
+	if string(before) != string(after) || c.editor.savedSettings != saved {
 		t.Fatal("failed selection changed configuration")
 	}
 }

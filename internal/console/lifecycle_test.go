@@ -83,7 +83,7 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 				case "start":
 					done <- c.start()
 				case "save":
-					done <- c.save(settings)
+					done <- c.editor.save(settings)
 				case "stop":
 					done <- c.stop()
 				case "close":
@@ -135,7 +135,7 @@ func TestLifecycleIOLeavesStateResponsive(t *testing.T) {
 			if operation == "start" {
 				// A concurrent save must leave the newly created engine intact.
 				saved = make(chan error, 1)
-				go func() { saved <- c.save(settings) }()
+				go func() { saved <- c.editor.save(settings) }()
 			}
 			release.Do(func() { close(gate.release) })
 			if err := <-done; err != nil {

@@ -22,7 +22,7 @@ func TestStorageEntryPointsRejectLostLibrary(t *testing.T) {
 		for _, entry := range []string{"gateway", "monitor_catalog", "monitor_playback", "batch_scan", "inventory", "inventory_without_coverage"} {
 			t.Run(layout+"/"+entry, func(t *testing.T) {
 				c := testConsole(t)
-				if err := c.save(c.settings); err != nil {
+				if err := c.editor.save(c.settings); err != nil {
 					t.Fatal(err)
 				}
 				root := testStorageRoot(c.settings)

@@ -21,9 +21,9 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 				c.terms = termsReceipt{}
 			}
 			setTestLibraryPaths(&c.settings, `<script>alert("path")</script>`)
-			setTestLibraryPaths(&c.savedSettings, "pending-storage")
+			setTestLibraryPaths(&c.editor.savedSettings, "pending-storage")
 			c.settings.Theme = "dark"
-			c.savedSettings.DownloadConcurrencySoftLimit = 32
+			c.editor.savedSettings.DownloadConcurrencySoftLimit = 32
 			for _, path := range []string{"/", "/help", "/about", "/terms"} {
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+path, nil))

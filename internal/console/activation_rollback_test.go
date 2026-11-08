@@ -12,7 +12,7 @@ func TestAccelerationRollbackRetainsHelperForRetry(t *testing.T) {
 	for _, initial := range []string{hostsBaseline, hostsBaseline + "\r\n127.0.0.1 nya.xin.moe " + marker + "\r\n"} {
 		c := testConsole(t)
 		h, launches := fixtureHostsController(t, initial)
-		c.hosts = h
+		c.editor.hosts = h
 		occupied, err := net.Listen("tcp4", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
@@ -44,7 +44,7 @@ func TestAccelerationFailurePreservesExistingGatewayAndConnection(t *testing.T) 
 					initial, _ = transformHosts(initial, "enable")
 				}
 				h, _ := fixtureHostsController(t, initial)
-				c.hosts = h
+				c.editor.hosts = h
 				if running {
 					if err := c.start(); err != nil {
 						t.Fatal(err)
@@ -73,7 +73,7 @@ func TestAccelerationFailurePreservesExistingGatewayAndConnection(t *testing.T) 
 func TestAccelerationReportsRollbackFailureAndKeepsConcurrentHostsEdit(t *testing.T) {
 	c := testConsole(t)
 	h, launches := fixtureHostsController(t, hostsBaseline)
-	c.hosts = h
+	c.editor.hosts = h
 	var edited string
 	change := func(action string) error {
 		if err := c.changeHostsLocked(action); err != nil {

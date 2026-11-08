@@ -28,7 +28,7 @@ func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 		if want == 0 {
 			want = 500
 		}
-		if c.settings.PrepareAheadSeconds != 500 || c.savedSettings.PrepareAheadSeconds != want {
+		if c.settings.PrepareAheadSeconds != 500 || c.editor.savedSettings.PrepareAheadSeconds != want {
 			t.Fatal("save changed active lead or lost saved lead")
 		}
 		loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -46,7 +46,7 @@ func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, value := range []json.RawMessage{[]byte(`-1`), []byte(`1`), []byte(`99`), []byte(`16001`), []byte(`86400`), []byte(`1.5`), []byte(`"500"`)} {
-		body, _ := json.Marshal(c.savedSettings)
+		body, _ := json.Marshal(c.editor.savedSettings)
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(body, &fields); err != nil {
 			t.Fatal(err)
@@ -61,7 +61,7 @@ func TestPrepareAheadSettingsValidationAndPersistence(t *testing.T) {
 			t.Fatalf("accepted invalid lead %s: %d", value, w.Code)
 		}
 		after, err := os.ReadFile(c.configPath)
-		if err != nil || !bytes.Equal(before, after) || c.savedSettings.PrepareAheadSeconds != 500 {
+		if err != nil || !bytes.Equal(before, after) || c.editor.savedSettings.PrepareAheadSeconds != 500 {
 			t.Fatal("invalid lead changed saved settings", err)
 		}
 	}

@@ -61,7 +61,7 @@ func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
 	}
 	c.settings.QueueWithGateway = true
 	c.settings.AutoAccelerate = false
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 
 	c.AutoStart()
 	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil {
@@ -93,7 +93,7 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 					}
 					return HostsStatus{Message: "fixture final verification failed"}
 				}
-				return c.hosts.status()
+				return c.editor.hosts.status()
 			}
 			err := c.enableAcceleration(inspect, c.changeHostsLocked)
 			if outcome == "activation-rollback" {

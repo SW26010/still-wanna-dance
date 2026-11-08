@@ -109,7 +109,7 @@ func waitInventory(t *testing.T, c *Console) Inventory {
 
 func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(testStorageRoot(c.settings), "videos")
@@ -157,7 +157,7 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 	newSettings := c.settings
 	setTestLibraryPaths(&newSettings, testStorageRoot(newSettings)+"-different")
 	createTestDatabase(t, newSettings.DatabasePath)
-	if err := c.save(newSettings); err != nil {
+	if err := c.editor.save(newSettings); err != nil {
 		t.Fatal(err)
 	}
 	if c.inventory.Updated.IsZero() {
@@ -172,7 +172,7 @@ func TestInventoryPersistsAndKeepsLastSuccessOnFailure(t *testing.T) {
 func TestScanOnlyPersistsSuccessAcrossFailureAndCancellation(t *testing.T) {
 	c := testConsole(t)
 	c.settings.VideoStorageMode = "unlimited" // Preserve the videos underlying the saved scan result.
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	const body = "video"

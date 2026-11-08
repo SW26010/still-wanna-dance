@@ -258,10 +258,10 @@ func TestAutoAccelerationUsesOwnedHosts(t *testing.T) {
 	c := testConsole(t)
 	c.settings.AutoAccelerate = true
 	data := "\r\n127.0.0.1 api.udon.dance " + marker + "\r\n"
-	c.hosts, _ = fixtureHostsController(t, data)
+	c.editor.hosts, _ = fixtureHostsController(t, data)
 
 	c.AutoStart()
-	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.hosts.status().Ready {
+	if !c.DesktopState().CDN || c.activation.Phase != "waiting" || !c.editor.hosts.status().Ready {
 		t.Fatal(c.activation)
 	}
 }

@@ -22,7 +22,7 @@ func TestSOCKS5ServiceScheduleAndShutdown(t *testing.T) {
 		c := testConsole(t)
 		c.settings.UpstreamMode, c.settings.ProxyBackend = "proxy", "external-socks5"
 		c.settings.proxySecretError = "unavailable test secret"
-		c.savedSettings = c.settings
+		c.editor.initializeSettings(c.settings)
 		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 			return automaticConnectivityResponse(r), nil
 		})}
@@ -57,8 +57,8 @@ func TestSOCKS5ServiceScheduleAndShutdown(t *testing.T) {
 			t.Fatal(first)
 		}
 		// Saved settings do not switch the active probe or its credentials.
-		c.savedSettings.UpstreamMode = "direct"
-		c.savedSettings.proxySecretError = ""
+		c.editor.savedSettings.UpstreamMode = "direct"
+		c.editor.savedSettings.proxySecretError = ""
 		time.Sleep(29 * time.Second)
 		synctest.Wait()
 		if !snapshot().ObservedAt.Equal(first.ObservedAt) {
@@ -152,9 +152,9 @@ func TestSOCKS5ServiceActiveConfigurationAndStatus(t *testing.T) {
 	c.settings.UpstreamMode, c.settings.ProxyBackend = "proxy", "external-socks5"
 	c.settings.SOCKS5Address = listener.Addr().String()
 	c.settings.SOCKS5Username, c.settings.SOCKS5Password = "active-user", "active-secret"
-	c.savedSettings = c.settings
-	c.savedSettings.SOCKS5Address = "127.0.0.1:1"
-	c.savedSettings.SOCKS5Password = "saved-secret"
+	c.editor.initializeSettings(c.settings)
+	c.editor.savedSettings.SOCKS5Address = "127.0.0.1:1"
+	c.editor.savedSettings.SOCKS5Password = "saved-secret"
 	c.mu.Lock()
 	n, err := c.networkDiagnosticsLocked()
 	if err != nil {

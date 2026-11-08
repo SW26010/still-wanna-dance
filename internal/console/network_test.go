@@ -323,7 +323,7 @@ func TestConsoleNetworkSwitchPreservesInflightRequest(t *testing.T) {
 	c := testConsole(t)
 	s := c.settings
 	s.UpstreamMode, s.SOCKS5Address = "proxy", address
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -346,7 +346,7 @@ func TestConsoleNetworkSwitchPreservesInflightRequest(t *testing.T) {
 		t.Fatal("request did not start")
 	}
 	s.UpstreamMode = "direct"
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	unblock()
@@ -389,7 +389,7 @@ func TestConsoleSOCKS5APIAndHTTPSRelayDialPaths(t *testing.T) {
 	c := testConsole(t)
 	s := c.settings
 	s.UpstreamMode, s.SOCKS5Address = "proxy", address
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -433,7 +433,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	originalClient := c.client
 	s := c.settings
 	s.UpstreamMode, s.SOCKS5Address = "proxy", address
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -451,7 +451,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	target := fmt.Sprintf("http://play.udon.dance/files/1/2-video.mp4?e=%x&s=4", md5.Sum([]byte("test")))
@@ -474,7 +474,7 @@ func TestConsoleSOCKS5CacheAndSettingsSwitch(t *testing.T) {
 	}
 	proxyClient := c.client
 	s.UpstreamMode = "direct"
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	if c.service == nil || c.client != proxyClient {

@@ -26,7 +26,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	}
 	c := testConsole(t)
 	c.settings.VideoStorageMode, c.settings.VideoBudgetBytes = "limited", int64(len("saved"))
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	var resolutions atomic.Int32
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir

@@ -82,24 +82,25 @@ func TestStorageChoicesRejectJunctionAliases(t *testing.T) {
 	cacheAlias := junction("cache-alias", cache)
 	portableAlias := junction("portable-alias", portable)
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	s := c.settings
 	s.BlockCacheDir = cache
 	s.VideoDir = strings.ToUpper(cache)
-	if err := c.validateStorageChoice(s, "video"); err == nil {
+	if err := c.editor.validateStorageChoice(s, "video"); err == nil {
 		t.Fatal("case variation bypassed the selected cache boundary")
 	}
 	s.VideoDir = filepath.Join(cacheAlias, "future-videos")
-	if err := c.validateStorageChoice(s, "video"); err == nil {
+	if err := c.editor.validateStorageChoice(s, "video"); err == nil {
 		t.Fatal("video junction bypassed the selected cache boundary")
 	}
 	s.VideoDir = filepath.Join(root, "videos")
 	s.DatabasePath = filepath.Join(cacheAlias, "future", "library.sqlite")
-	if err := c.validateStorageChoice(s, "database"); err == nil {
+	if err := c.editor.validateStorageChoice(s, "database"); err == nil {
 		t.Fatal("database junction bypassed the selected cache boundary")
 	}
 	s.DatabasePath = filepath.Join(root, "library.sqlite")
 	s.BlockCacheDir = filepath.Join(portableAlias, "future-cache")
-	if err := c.validateStorageChoice(s, "cache"); err == nil {
+	if err := c.editor.validateStorageChoice(s, "cache"); err == nil {
 		t.Fatal("junction allowed custom cache inside Portable")
 	}
 }

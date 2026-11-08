@@ -71,8 +71,8 @@ func TestSnapshotFollowsPortableMoveAndSeparatesLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	selected := c.settings
-	selected.DatabasePath, selected.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
-	if err := c.save(selected); err != nil {
+	selected.DatabasePath, selected.VideoDir = c.editor.defaultDatabasePath(), c.editor.defaultVideoDir()
+	if err := c.editor.save(selected); err != nil {
 		t.Fatal(err)
 	}
 	c.Close()

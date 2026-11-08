@@ -20,7 +20,7 @@ func TestTermsBrowser(t *testing.T) {
 	c := testConsole(t)
 	settings := c.settings
 	settings.AutoAccelerate = false
-	if err := c.save(settings); err != nil {
+	if err := c.editor.save(settings); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)

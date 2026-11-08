@@ -19,6 +19,7 @@ func TestBlockCacheSelectionStagesAndCleansPreviousWorkspace(t *testing.T) {
 	c := testConsole(t)
 	exe := filepath.Join(t.TempDir(), "SWD.exe")
 	c.identity.Executable = exe
+	c.editor.identity = c.identity
 	oldWork := apppaths.WorkForConfig(exe, c.configPath)
 	if err := os.MkdirAll(oldWork, 0700); err != nil {
 		t.Fatal(err)
@@ -33,10 +34,10 @@ func TestBlockCacheSelectionStagesAndCleansPreviousWorkspace(t *testing.T) {
 	selected := t.TempDir()
 	next := c.settings
 	next.BlockCacheDir = selected
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.BlockCacheDir != "" || c.savedSettings.BlockCacheDir != selected {
+	if c.settings.BlockCacheDir != "" || c.editor.savedSettings.BlockCacheDir != selected {
 		t.Fatal("save changed the active workspace")
 	}
 	workPath := apppaths.WorkForCacheRoot(exe, c.configPath, selected)
@@ -130,7 +131,7 @@ func TestBlockCacheUnavailableAllowsRecovery(t *testing.T) {
 	root := t.TempDir()
 	next := original.settings
 	next.BlockCacheDir = root
-	if err := original.save(next); err != nil {
+	if err := original.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	config, address := original.configPath, original.address
@@ -167,14 +168,14 @@ func TestBlockCacheUnavailableAllowsRecovery(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatal("unavailable workspace prevented the UI from loading", w.Code)
 	}
-	unrelated := c.savedSettings
+	unrelated := c.editor.savedSettings
 	unrelated.LogLevel = "debug"
-	if err := c.save(unrelated); err != nil {
+	if err := c.editor.save(unrelated); err != nil {
 		t.Fatal("offline cache blocked an unrelated setting", err)
 	}
-	recovered := c.savedSettings
+	recovered := c.editor.savedSettings
 	recovered.BlockCacheDir = ""
-	if err := c.save(recovered); err != nil {
+	if err := c.editor.save(recovered); err != nil {
 		t.Fatal("could not select the default while the old disk was offline", err)
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
@@ -191,7 +192,7 @@ func TestBlockCacheCannotOverlapVideoStorage(t *testing.T) {
 	for _, root := range roots {
 		s := c.settings
 		s.BlockCacheDir = root
-		if err := c.save(s); err == nil {
+		if err := c.editor.save(s); err == nil {
 			t.Fatal("accepted a workspace inside the video directory", root)
 		}
 		if _, err := os.Stat(blockWorkPath(c.identity.Executable, c.configPath, s)); !os.IsNotExist(err) {
@@ -225,7 +226,7 @@ func TestActivationDeferredCacheChecksKnownDatabaseFailureBeforeHosts(t *testing
 		work.Close()
 		t.Fatal(err)
 	}
-	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	defer func() { c.Close(); work.Close() }()
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)

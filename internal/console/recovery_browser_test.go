@@ -24,7 +24,7 @@ func TestRecoverySharedSettingsBrowser(t *testing.T) {
 	if err := os.Mkdir(video, 0700); err != nil {
 		t.Fatal(err)
 	}
-	view.console.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+	view.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 		if dialog.Mode == "database" {
 			return database, nil
 		}
@@ -34,9 +34,9 @@ func TestRecoverySharedSettingsBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	view.console.hosts.close(false)
+	view.editor.hosts.close(false)
 	h, launches := fixtureHostsController(t, managed)
-	view.console.hosts = h
+	view.editor.hosts = h
 	launch, attempts := h.launch, 0
 	h.launch = func(ctx context.Context) (hostsConnection, error) {
 		attempts++
@@ -50,7 +50,7 @@ func TestRecoverySharedSettingsBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	ui := httptest.NewUnstartedServer(view)
-	view.console.address = ui.Listener.Addr().String()
+	view.address = ui.Listener.Addr().String()
 	ui.Start()
 	defer ui.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
@@ -70,9 +70,6 @@ func TestRecoverySharedSettingsBrowser(t *testing.T) {
 	}
 	if err := cacheproxy.CheckDatabaseSelection(database); err != nil {
 		t.Fatal(err)
-	}
-	if view.console.store != nil || view.console.client != nil || view.console.terms.valid() {
-		t.Fatal("settings initialized business")
 	}
 	if state := view.DesktopState(); state != (desktop.State{Unavailable: true, Theme: "dark"}) {
 		t.Fatal("saved appearance was not published to the recovery tray", state)

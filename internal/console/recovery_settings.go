@@ -27,11 +27,11 @@ func (r *Recovery) openSettings() {
 	}
 	// Reserve the original locations for the ordinary settings handlers. This
 	// baseline is never exposed as a running application snapshot.
-	r.console.initializeSettings(loaded.Settings)
+	r.editor.initializeSettings(loaded.Settings)
 }
 
 func (r *Recovery) allowSettings(w http.ResponseWriter) bool {
-	if r.closed || r.ctx.Err() != nil || r.console.ShutdownAction() != "running" {
+	if r.closed || r.ctx.Err() != nil || r.ShutdownAction() != "running" {
 		http.Error(w, "程序正在退出", http.StatusServiceUnavailable)
 		return false
 	}
@@ -43,10 +43,10 @@ func (r *Recovery) allowSettings(w http.ResponseWriter) bool {
 }
 
 func (r *Recovery) settingsSnapshot() map[string]any {
-	c := r.console
+	c := r.editor
+	s := c.snapshot()
+	nodes := c.proxyNodesStatus()
 	c.mu.Lock()
-	s := c.savedSettings
-	nodes := c.proxyNodesStatusLocked()
 	actionErrors := maps.Clone(c.actionErrors)
 	c.mu.Unlock()
 	public := s
@@ -67,8 +67,8 @@ func (r *Recovery) settingsSnapshot() map[string]any {
 }
 
 func (r *Recovery) serveSettings(w http.ResponseWriter, req *http.Request, handler http.HandlerFunc) {
-	c := r.console
-	if !c.allowManagement(w, req) {
+	c := r.editor
+	if !allowManagement(w, req, r.token, r.address) {
 		return
 	}
 	ctx, cancel := context.WithCancel(req.Context())
@@ -92,9 +92,7 @@ func (r *Recovery) serveSettings(w http.ResponseWriter, req *http.Request, handl
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	c.mu.Lock()
-	c.savedSettings = loaded.Settings
-	c.mu.Unlock()
+	c.reload(loaded.Settings)
 	if req.Method == http.MethodGet {
 		defer r.mu.Unlock()
 		writeJSON(w, r.settingsSnapshot())

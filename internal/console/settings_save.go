@@ -7,7 +7,7 @@ import (
 )
 
 // Resource checks and preparation belong to the application, not file decoding.
-func (c *Console) resolveSettings(s Settings) (Settings, error) {
+func (c *settingsEditor) resolveSettings(s Settings) (Settings, error) {
 	s, err := resolveConfigSettings(s, c.configPath)
 	if err != nil {
 		return s, err
@@ -17,7 +17,7 @@ func (c *Console) resolveSettings(s Settings) (Settings, error) {
 
 // Selecting or creating a storage location does not depend on unrelated draft
 // values. Full settings validation still runs before committing configuration.
-func (c *Console) resolveResourceSettings(s Settings) (Settings, error) {
+func (c *settingsEditor) resolveResourceSettings(s Settings) (Settings, error) {
 	if s.BlockCacheDir != "" && sameResourcePath(s.BlockCacheDir, defaultBlockCacheDir(c.identity.Executable)) {
 		s.BlockCacheDir = ""
 	}
@@ -27,11 +27,11 @@ func (c *Console) resolveResourceSettings(s Settings) (Settings, error) {
 	return s, invalidSetting(c.validateBlockCacheSelection(s), "blockCacheDir")
 }
 
-func (c *Console) save(s Settings) error {
+func (c *settingsEditor) save(s Settings) error {
 	return c.saveSettings(s, false, nil)
 }
 
-func (c *Console) saveSettingsPatch(data []byte) error {
+func (c *settingsEditor) saveSettingsPatch(data []byte) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
@@ -46,13 +46,13 @@ func (c *Console) saveSettingsPatch(data []byte) error {
 
 // An omitted password in the settings API preserves the stored secret. Merge
 // under the lifecycle lock so concurrent saves cannot restore stale secrets.
-func (c *Console) saveSettings(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
+func (c *settingsEditor) saveSettings(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
 	return c.saveSettingsLocked(s, preservePassword, confirmVideoPolicy)
 }
 
-func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
+func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -112,15 +112,22 @@ func (c *Console) saveSettingsLocked(s Settings, preservePassword bool, confirmV
 		return err
 	}
 	nodeCount := configurationNodeCount(s.nodeSnapshot)
-	c.mu.Lock()
-	c.savedSettings = s
-	c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
-	c.settings.Theme = s.Theme
-	// Display metadata is saved immediately and does not require a core restart.
-	c.settings.nodeInfo = s.nodeInfo
-	c.savedNodeCount = nodeCount
-	delete(c.proxyImports, importID)
-	c.mu.Unlock()
+	commit := func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.savedSettings = s
+		c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
+		c.settings.Theme = s.Theme
+		// Display metadata is saved immediately and does not require a core restart.
+		c.settings.nodeInfo = s.nodeInfo
+		c.savedNodeCount = nodeCount
+		delete(c.proxyImports, importID)
+	}
+	if c.onSaved != nil {
+		c.onSaved(s, commit)
+	} else {
+		commit()
+	}
 	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.effectiveVRChatLogDir())
 	return nil
 }

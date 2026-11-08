@@ -118,7 +118,11 @@ func (w *faultResponseWriter) Flush() {
 
 // Terms actions share this check while remaining available before consent.
 func (c *Console) allowManagement(w http.ResponseWriter, r *http.Request) bool {
-	if r.Header.Get("X-SWD-Token") != c.token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+c.address) {
+	return allowManagement(w, r, c.token, c.address)
+}
+
+func allowManagement(w http.ResponseWriter, r *http.Request, token, address string) bool {
+	if r.Header.Get("X-SWD-Token") != token || (r.Header.Get("Origin") != "" && r.Header.Get("Origin") != "http://"+address) {
 		http.Error(w, "invalid origin or token", http.StatusForbidden)
 		return false
 	}

@@ -15,7 +15,7 @@ import (
 func TestScanSharedResourceCountsBothSongs(t *testing.T) {
 	c := testConsole(t)
 	c.settings.VideoStorageMode = "unlimited" // Count the same retained video across repeated scans.
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	const body = "shared video"

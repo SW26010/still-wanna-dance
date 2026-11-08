@@ -265,7 +265,7 @@ func TestObsoleteThroughputIntervalSettingIsIgnored(t *testing.T) {
 	for _, value := range []string{"35", "-1", "1441", "null", `"obsolete"`} {
 		t.Run(value, func(t *testing.T) {
 			c := testConsole(t)
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			_, fields, err := readConfigFile(c.configPath)
@@ -298,7 +298,7 @@ func TestObsoleteThroughputIntervalSettingIsIgnored(t *testing.T) {
 			if err != nil || input.Settings != loaded.settings {
 				t.Fatal("obsolete request field changed settings", err)
 			}
-			if err := loaded.save(input.Settings); err != nil {
+			if err := loaded.editor.save(input.Settings); err != nil {
 				t.Fatal(err)
 			}
 			_, fields, err = readConfigFile(c.configPath)

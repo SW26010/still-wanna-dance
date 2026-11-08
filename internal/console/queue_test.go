@@ -153,7 +153,7 @@ func TestQueueLifecycleAndParallelBatch(t *testing.T) {
 	if err := c.startBatch(); err != nil {
 		t.Fatal("parallel batch rejected", err)
 	}
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.Close(); err != nil {

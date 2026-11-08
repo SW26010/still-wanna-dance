@@ -11,7 +11,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 )
 
-func (c *Console) serveStorage(w http.ResponseWriter, r *http.Request) {
+func (c *settingsEditor) serveStorage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		DatabasePath  string  `json:"databasePath"`
 		VideoDir      string  `json:"videoDir"`

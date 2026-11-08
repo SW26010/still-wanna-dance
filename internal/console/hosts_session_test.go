@@ -226,11 +226,11 @@ func TestHostsConsoleCloseUsesPreparedHelperAndActiveSettings(t *testing.T) {
 	for _, restore := range []bool{true, false} {
 		c := testConsole(t)
 		h, launches := fixtureHostsController(t, hostsBaseline)
-		c.hosts = h
+		c.editor.hosts = h
 		c.settings.RestoreHostsOnStopOrExit = restore
 		// An unsaved synthetic snapshot must not change the committed active policy.
-		c.savedSettings.RestoreHostsOnStopOrExit = !restore
-		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+		c.editor.savedSettings.RestoreHostsOnStopOrExit = !restore
+		if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
 		if err := c.Close(); err != nil {
@@ -252,14 +252,14 @@ func TestRestoreHostsSettingDefaultsAndImmediateSave(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+		c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 		want := !strings.Contains(field, "false")
 		if c.settings.RestoreHostsOnStopOrExit != want {
 			t.Fatal("wrong default", field)
 		}
-		next := c.savedSettings
+		next := c.editor.savedSettings
 		next.RestoreHostsOnStopOrExit = !want
-		if err := c.save(next); err != nil {
+		if err := c.editor.save(next); err != nil {
 			t.Fatal(err)
 		}
 		if c.settings.RestoreHostsOnStopOrExit == want {
@@ -294,8 +294,8 @@ func TestRestoreHostsSettingsAPIDefaultAndExplicitFalse(t *testing.T) {
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, r)
-		if w.Code != 200 || c.savedSettings.RestoreHostsOnStopOrExit == include || c.settings.RestoreHostsOnStopOrExit == include {
-			t.Fatal(w.Code, w.Body.String(), c.savedSettings.RestoreHostsOnStopOrExit)
+		if w.Code != 200 || c.editor.savedSettings.RestoreHostsOnStopOrExit == include || c.settings.RestoreHostsOnStopOrExit == include {
+			t.Fatal(w.Code, w.Body.String(), c.editor.savedSettings.RestoreHostsOnStopOrExit)
 		}
 	}
 }
@@ -304,14 +304,14 @@ func TestHostsShutdownCancelsPendingAuthorization(t *testing.T) {
 	c := testConsole(t)
 	entered := make(chan struct{})
 	calls := 0
-	c.hosts = newHostsController(hostsFixture(t, hostsBaseline), func(ctx context.Context) (hostsConnection, error) {
+	c.editor.hosts = newHostsController(hostsFixture(t, hostsBaseline), func(ctx context.Context) (hostsConnection, error) {
 		calls++
 		close(entered)
 		<-ctx.Done()
 		return nil, ctx.Err()
 	})
 	done := make(chan error, 1)
-	go func() { done <- c.enableAcceleration(c.hosts.status, c.changeHostsLocked) }()
+	go func() { done <- c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked) }()
 	<-entered
 	closed := make(chan error, 1)
 	go func() { closed <- c.Close() }()
@@ -326,7 +326,7 @@ func TestHostsShutdownCancelsPendingAuthorization(t *testing.T) {
 	if err := <-done; err == nil || calls != 1 {
 		t.Fatal(err, calls)
 	}
-	if readHostsFixture(t, c.hosts.path) != hostsBaseline {
+	if readHostsFixture(t, c.editor.hosts.path) != hostsBaseline {
 		t.Fatal("pending authorization changed hosts")
 	}
 }
@@ -336,17 +336,17 @@ func TestAccelerationReusesExistingConnectionWithoutPreparingRestore(t *testing.
 		c := testConsole(t)
 		owned, _ := transformHosts(hostsBaseline, "enable")
 		h, launches := fixtureHostsController(t, owned)
-		c.hosts = h
+		c.editor.hosts = h
 		c.settings.RestoreHostsOnStopOrExit = restore
 		c.settings.AutoAccelerate = true
 		c.settings.QueueWithGateway = false
-		c.savedSettings = c.settings
+		c.editor.initializeSettings(c.settings)
 
 		c.AutoStart()
 		if *launches != 0 || c.httpServer == nil {
 			t.Fatal("automatic acceleration requested permission or did not start")
 		}
-		if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+		if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil {
 			t.Fatal(err)
 		}
 		if *launches != 0 || h.status().ExitRestorePrepared {
@@ -361,7 +361,7 @@ func TestHostsRestorePreparationEndpointDoesNotControlAcceleration(t *testing.T)
 			c := testConsole(t)
 			owned, _ := transformHosts(hostsBaseline, "enable")
 			h, launches := fixtureHostsController(t, owned)
-			c.hosts = h
+			c.editor.hosts = h
 			launch := h.launch
 			attempts := 0
 			h.launch = func(ctx context.Context) (hostsConnection, error) {
@@ -399,7 +399,7 @@ func TestHostsRestorePreparationEndpointDoesNotControlAcceleration(t *testing.T)
 			if (w.Code == 200) != (failure == "none") || h.prepared.Load() != (failure == "none") || attempts != 1 || c.httpServer != nil || readHostsFixture(t, h.path) != owned {
 				t.Fatal("repair changed hosts, enabled acceleration or hid failure", w.Code, w.Body.String())
 			}
-			if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil || c.httpServer == nil || attempts != 1 {
+			if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil || c.httpServer == nil || attempts != 1 {
 				t.Fatal("acceleration retried or depended on repair", err, attempts)
 			}
 			server, activation := c.httpServer, c.activation
@@ -422,8 +422,8 @@ func TestHostsRepairClearsOnlyResolvedPermissionError(t *testing.T) {
 			c := testConsole(t)
 			owned, _ := transformHosts(hostsBaseline, "enable")
 			h, _ := fixtureHostsController(t, owned)
-			c.hosts = h
-			if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+			c.editor.hosts = h
+			if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil {
 				t.Fatal(err)
 			}
 			c.beginVideoRequest(time.Now())()

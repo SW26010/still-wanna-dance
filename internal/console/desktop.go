@@ -26,7 +26,7 @@ func (c *Console) DesktopState() desktop.State {
 	}
 	c.mu.Unlock()
 	// Status reads must remain independent of lifecycleMu while UAC is pending.
-	hosts := c.hosts.status()
+	hosts := c.editor.hosts.status()
 	s.Ready = s.CDN && hosts.Ready
 	s.NeedsExitPreparation = restore && hosts.Managed && !hosts.ExitRestorePrepared
 	return s
@@ -43,7 +43,7 @@ func (c *Console) DesktopCommand(id int) (err error) {
 	}()
 	switch id {
 	case desktop.StartAcceleration:
-		return c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+		return c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked)
 	case desktop.StopAcceleration:
 		return c.disableAcceleration()
 	default:

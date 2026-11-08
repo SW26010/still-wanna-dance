@@ -22,12 +22,12 @@ func TestPortableMoveReopensInternalAndExternalMedia(t *testing.T) {
 				t.Fatal(err)
 			}
 			settings := c.settings
-			settings.DatabasePath, settings.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
+			settings.DatabasePath, settings.VideoDir = c.editor.defaultDatabasePath(), c.editor.defaultVideoDir()
 			if external {
 				setTestLibraryPaths(&settings, filepath.Join(root, "external media"))
 				createTestDatabase(t, settings.DatabasePath)
 			}
-			if err := c.save(settings); err != nil {
+			if err := c.editor.save(settings); err != nil {
 				t.Fatal(err)
 			}
 			c.Close()
@@ -73,7 +73,7 @@ func TestPortableMoveReopensInternalAndExternalMedia(t *testing.T) {
 			}
 			settings = c.settings
 			setTestLibraryPaths(&settings, filepath.Join(root, "selected but unused"))
-			if err := c.save(settings); err == nil {
+			if err := c.editor.save(settings); err == nil {
 				t.Fatal("missing database selection accepted")
 			}
 			if got, err := os.ReadFile(filepath.Join(wantVideo, video)); err != nil || string(got) != "preserve video" {

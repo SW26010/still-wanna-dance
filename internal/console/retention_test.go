@@ -13,7 +13,7 @@ func TestVideoStorageModesPersistAndApplyOnRestart(t *testing.T) {
 		c := testConsole(t)
 		s := c.settings
 		s.VideoStorageMode, s.VideoBudgetBytes = mode, 5<<30
-		if err := c.save(s); err != nil {
+		if err := c.editor.save(s); err != nil {
 			t.Fatal(err)
 		}
 		if c.settings.VideoStorageMode != "none" || c.settings.VideoBudgetBytes != 0 {
@@ -52,7 +52,7 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	settings := c.settings
 	settings.VideoBudgetBytes = 5 << 30
 	settings.VideoStorageMode = "limited"
-	if err := c.save(settings); err != nil {
+	if err := c.editor.save(settings); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -74,11 +74,11 @@ func TestCacheLimitSettingsPersist(t *testing.T) {
 	} {
 		invalid := settings
 		invalid.VideoStorageMode, invalid.VideoBudgetBytes = tc.mode, tc.budget
-		if err := c.save(invalid); err == nil {
+		if err := c.editor.save(invalid); err == nil {
 			t.Fatal("invalid video storage choice accepted")
 		}
 	}
-	if c.savedSettings.VideoBudgetBytes != 5<<30 {
+	if c.editor.savedSettings.VideoBudgetBytes != 5<<30 {
 		t.Fatal("invalid setting changed saved limit")
 	}
 	c.lifecycleMu.Lock()
@@ -96,7 +96,7 @@ func TestRequestRetentionSettings(t *testing.T) {
 	for _, mode := range []string{"none", "limited", "unlimited"} {
 		settings := c.settings
 		settings.RequestRetentionMode, settings.RequestRetentionDays = mode, 7
-		if err := c.save(settings); err != nil {
+		if err := c.editor.save(settings); err != nil {
 			t.Fatal(err)
 		}
 		if c.settings.RequestRetentionMode != "unlimited" || c.settings.RequestRetentionDays != 0 {
@@ -114,14 +114,14 @@ func TestRequestRetentionSettings(t *testing.T) {
 	for _, days := range []int{-1, 36501} {
 		settings := c.settings
 		settings.RequestRetentionDays = days
-		if err := c.save(settings); err == nil {
+		if err := c.editor.save(settings); err == nil {
 			t.Fatal("invalid retention accepted")
 		}
 	}
 	for _, mode := range []string{"", "other", "limited"} {
 		settings := c.settings
 		settings.RequestRetentionMode = mode
-		if err := c.save(settings); err == nil {
+		if err := c.editor.save(settings); err == nil {
 			t.Fatal("invalid mode or zero-day limited retention accepted")
 		}
 	}
@@ -152,7 +152,7 @@ func TestRequestRetentionDefaultsAndExplicitModes(t *testing.T) {
 			if c.settings.RequestRetentionMode != tc.mode || c.settings.RequestRetentionDays != tc.days {
 				t.Fatal("unexpected retention mode or days", c.settings.RequestRetentionMode, c.settings.RequestRetentionDays)
 			}
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			_, fields, err := readConfigFile(config)

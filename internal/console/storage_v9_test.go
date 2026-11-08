@@ -92,16 +92,16 @@ func TestV8SelectedLibraryUpgradesOnlyAfterRestart(t *testing.T) {
 			if err := json.Unmarshal(w.Body.Bytes(), &selection); err != nil || w.Code != 200 || selection.ConfirmVideoPolicy != existingVideo {
 				t.Fatal("selection changed the existing policy confirmation", w.Code, w.Body.String(), err)
 			}
-			next := c.savedSettings
+			next := c.editor.savedSettings
 			next.DatabasePath = paths.DatabasePath
 			var confirmed *videoPolicyConfirmation
 			if existingVideo {
-				if err := c.save(next); err == nil || !strings.Contains(err.Error(), "请先确认此视频目录") {
+				if err := c.editor.save(next); err == nil || !strings.Contains(err.Error(), "请先确认此视频目录") {
 					t.Fatal("missing video policy confirmation was accepted", err)
 				}
 				confirmed = &videoPolicyConfirmation{next.DatabasePath, next.VideoDir, next.VideoStorageMode, next.VideoBudgetBytes, next.RetainFavorites}
 			}
-			if err := c.saveSettings(next, false, confirmed); err != nil {
+			if err := c.editor.saveSettings(next, false, confirmed); err != nil {
 				t.Fatal(err)
 			}
 			if after, err := os.ReadFile(paths.DatabasePath); err != nil || !bytes.Equal(before, after) || c.settings.DatabasePath == paths.DatabasePath {

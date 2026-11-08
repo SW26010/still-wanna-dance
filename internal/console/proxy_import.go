@@ -64,9 +64,10 @@ func proxyConfigurationContent(ctx context.Context, source string, input []byte)
 	}
 }
 
-func (c *Console) serveProxyImportAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
+func (c *settingsEditor) serveProxyImportAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
+	admitted := c.admitted(requireTerms)
 	c.mu.Lock()
-	allowed := !c.closing && (!requireTerms || c.terms.valid())
+	allowed := !c.closing && (!requireTerms || admitted)
 	c.mu.Unlock()
 	if !allowed {
 		preserveResponseFault(w, rejectRequest(errors.New("请先同意条款，并等待应用就绪")))

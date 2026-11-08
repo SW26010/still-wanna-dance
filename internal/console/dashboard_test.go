@@ -29,8 +29,8 @@ func TestMihomoDashboardAndConsent(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
-	c.client, c.upstreamDial, c.settings, c.savedSettings = client, dial, s, s
-	c.loadedNodeCount, c.savedNodeCount = 8, 8
+	c.client, c.upstreamDial, c.settings, c.editor.savedSettings = client, dial, s, s
+	c.editor.loadedNodeCount, c.editor.savedNodeCount = 8, 8
 	if client.Transport.(*mihomoTransport).core != nil {
 		t.Fatal("core started before consent")
 	}

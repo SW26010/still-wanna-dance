@@ -139,7 +139,7 @@ func (c *Console) disableAcceleration() error {
 	c.mu.Unlock()
 	var err error
 	if restore {
-		if hostsErr := c.hosts.change("disable", restore); hostsErr != nil {
+		if hostsErr := c.editor.hosts.change("disable", restore); hostsErr != nil {
 			err = fmt.Errorf("加速已停止，但未能恢复游戏直连：%w", hostsErr)
 		}
 	}
@@ -180,7 +180,7 @@ func (c *Console) changeHostsLocked(action string) error {
 	if closing {
 		return rejectRequest(errors.New("程序正在退出"))
 	}
-	return c.hosts.change(action, restore)
+	return c.editor.hosts.change(action, restore)
 }
 
 // Prepare restoration without enabling acceleration or changing hosts.
@@ -196,12 +196,12 @@ func (c *Console) prepareHostsRestore() error {
 	if !restore {
 		return nil
 	}
-	if err := c.hosts.prepareRestore(); err != nil {
+	if err := c.editor.hosts.prepareRestore(); err != nil {
 		return err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.hosts.prepared.Load() && c.activation.restorePermissionMissing {
+	if c.editor.hosts.prepared.Load() && c.activation.restorePermissionMissing {
 		c.activation.ConnectionError = ""
 		c.activation.restorePermissionMissing = false
 	}

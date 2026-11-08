@@ -21,15 +21,15 @@ func TestExitWithVRChatSetting(t *testing.T) {
 		}
 	}
 	c := testConsole(t)
-	if err := c.saveSettingsPatch([]byte(`{"exitWithVRChat":true}`)); err != nil {
+	if err := c.editor.saveSettingsPatch([]byte(`{"exitWithVRChat":true}`)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.savedSettings.ExitWithVRChat || c.settings.ExitWithVRChat {
+	if !c.editor.savedSettings.ExitWithVRChat || c.settings.ExitWithVRChat {
 		t.Fatal("save did not stage the exit setting")
 	}
 	c.watchVRChat(func(context.Context) error { t.Fatal("staged setting started monitoring"); return nil })
 	for _, patch := range []string{`{"logLevel":"warn"}`, `{"exitWithVRChat":null}`} {
-		if err := c.saveSettingsPatch([]byte(patch)); err != nil {
+		if err := c.editor.saveSettingsPatch([]byte(patch)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -37,10 +37,10 @@ func TestExitWithVRChatSetting(t *testing.T) {
 	if !c.settings.ExitWithVRChat {
 		t.Fatal("restart lost the saved exit setting")
 	}
-	if err := c.saveSettingsPatch([]byte(`{"exitWithVRChat":false}`)); err != nil {
+	if err := c.editor.saveSettingsPatch([]byte(`{"exitWithVRChat":false}`)); err != nil {
 		t.Fatal(err)
 	}
-	if c.savedSettings.ExitWithVRChat || !c.settings.ExitWithVRChat {
+	if c.editor.savedSettings.ExitWithVRChat || !c.settings.ExitWithVRChat {
 		t.Fatal("disable did not follow the restart boundary")
 	}
 	c = restartTestConsole(t, c)

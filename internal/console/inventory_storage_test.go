@@ -18,7 +18,7 @@ func TestInventoryRejectsMissingStorageWithRestoredBatchEvidence(t *testing.T) {
 		for _, coverage := range []bool{false, true} {
 			t.Run(fmt.Sprintf("failed=%t/coverage=%t", failed, coverage), func(t *testing.T) {
 				c := testConsole(t)
-				if err := c.save(c.settings); err != nil {
+				if err := c.editor.save(c.settings); err != nil {
 					t.Fatal(err)
 				}
 				var requests atomic.Int32

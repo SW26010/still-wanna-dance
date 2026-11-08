@@ -128,7 +128,7 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 			if got := consoleStorageError(t, c); got != "" {
 				t.Fatal("uninitialized engine reported a fault", got)
 			}
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			const warm, cold = "existing cached video", "new uncached video"

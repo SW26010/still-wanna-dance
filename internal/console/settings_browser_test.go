@@ -53,7 +53,7 @@ func TestMihomoConfigurationBrowser(t *testing.T) {
 	} else {
 		t.Log(string(output))
 	}
-	if downloads.Load() != 2 || c.savedSettings.nodeSnapshot != content || c.settings.nodeSnapshot != "" || c.savedSettings.ProxyBackend != "mihomo" || c.savedSettings.nodeInfo.Name != "URL 配置" || c.savedSettings.nodeInfo.ImportedAt.IsZero() {
+	if downloads.Load() != 2 || c.editor.savedSettings.nodeSnapshot != content || c.settings.nodeSnapshot != "" || c.editor.savedSettings.ProxyBackend != "mihomo" || c.editor.savedSettings.nodeInfo.Name != "URL 配置" || c.editor.savedSettings.nodeInfo.ImportedAt.IsZero() {
 		t.Fatal("wrong acquisition or activation boundary")
 	}
 	data, err := os.ReadFile(c.configPath)
@@ -65,7 +65,7 @@ func TestMihomoConfigurationBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer loaded.Close()
-	if loaded.settings.nodeSnapshot != content || loaded.settings.nodeInfo != c.savedSettings.nodeInfo {
+	if loaded.settings.nodeSnapshot != content || loaded.settings.nodeInfo != c.editor.savedSettings.nodeInfo {
 		t.Fatal("restart did not preserve original configuration")
 	}
 }
@@ -93,7 +93,7 @@ func TestSettingsValidationBrowser(t *testing.T) {
 	if open, cause := center.Take(); open {
 		t.Fatalf("validation requested WebUI opening: %v", cause)
 	}
-	if c.settings.UpstreamMode != "direct" || c.savedSettings.SOCKS5Address != "localhost:7891" {
+	if c.settings.UpstreamMode != "direct" || c.editor.savedSettings.SOCKS5Address != "localhost:7891" {
 		t.Fatal("wrong save/activation boundary")
 	}
 }
@@ -105,9 +105,9 @@ func TestSettingsSeparateBrowsers(t *testing.T) {
 	}
 	c := testConsole(t)
 	active := c.settings
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	next.VideoStorageMode = "unlimited"
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	videoDir := t.TempDir()

@@ -97,7 +97,7 @@ func TestMonitorCatalogUsesCurrentStorageAfterSwitch(t *testing.T) {
 	if err := created.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -173,13 +173,13 @@ func TestMonitorCatalogFailureStatus(t *testing.T) {
 
 func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("kiva", "20261002000000", "good", strings.Repeat("a", 32))})
 	c.syncCatalogs(context.Background(), []upstreamstate.CatalogResponse{monitorFull("wanna", "20261002000000", "conflict", strings.Repeat("b", 32))})
 	want := c.localInventory().Catalog
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	if c.service != nil || c.store == nil {
@@ -202,7 +202,7 @@ func TestInventoryLoadsCatalogStatusWithoutEngine(t *testing.T) {
 	next := c.settings
 	setTestLibraryPaths(&next, t.TempDir())
 	createTestDatabase(t, next.DatabasePath)
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(next.DatabasePath); err != nil {

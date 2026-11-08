@@ -201,7 +201,7 @@ func TestLogReaderBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.settings.LogLevel = "off"
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	ui := httptest.NewUnstartedServer(c)
 	c.address = ui.Listener.Addr().String()
 	ui.Start()

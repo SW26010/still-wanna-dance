@@ -201,7 +201,7 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 	}
 }
 
-func (c *Console) validateBlockCacheSelection(s Settings) error {
+func (c *settingsEditor) validateBlockCacheSelection(s Settings) error {
 	if s.BlockCacheDir == "" {
 		return nil
 	}
@@ -215,7 +215,7 @@ func (c *Console) validateBlockCacheSelection(s Settings) error {
 	return workspaceOverlaps(work, []string{active.DatabasePath, active.VideoDir})
 }
 
-func (c *Console) prepareBlockCacheSelection(s, old Settings) error {
+func (c *settingsEditor) prepareBlockCacheSelection(s, old Settings) error {
 	if s.BlockCacheDir == "" || sameResourcePath(s.BlockCacheDir, old.BlockCacheDir) {
 		return nil
 	}

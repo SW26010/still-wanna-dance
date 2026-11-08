@@ -55,7 +55,7 @@ func TestDatabaseSelectionCreatesOnlyMissingFilesAndPreservesExistingData(t *tes
 	if after, _ := os.ReadFile(paths.DatabasePath); !bytes.Equal(corrupt, after) {
 		t.Fatal("selection replaced a corrupt file")
 	}
-	if after, _ := os.ReadFile(c.configPath); !bytes.Equal(before, after) || c.settings != active || c.savedSettings != active || c.service != nil {
+	if after, _ := os.ReadFile(c.configPath); !bytes.Equal(before, after) || c.settings != active || c.editor.savedSettings != active || c.service != nil {
 		t.Fatal("selection saved or activated settings")
 	}
 	if _, err := os.Stat(paths.VideoDir); !os.IsNotExist(err) {
@@ -71,8 +71,9 @@ func TestDatabaseSelectionDoesNotRecreateLostConfiguredDatabase(t *testing.T) {
 			paths.DatabasePath = filepath.Join(t.TempDir(), "lost.sqlite")
 			if snapshot == "active" {
 				c.settings.DatabasePath = paths.DatabasePath
+				c.editor.settings = c.settings
 			} else {
-				c.savedSettings.DatabasePath = paths.DatabasePath
+				c.editor.savedSettings.DatabasePath = paths.DatabasePath
 			}
 			w := storageRequest(t, c, "prepare-database", paths)
 			if w.Code != 400 || !strings.Contains(w.Body.String(), "数据库文件丢失") {
@@ -112,7 +113,7 @@ func TestDatabaseCreationIsExplicitAndDoesNotActivateOrOverwrite(t *testing.T) {
 	if after, err := os.ReadFile(paths.DatabasePath); err != nil || !bytes.Equal(created, after) {
 		t.Fatal("repeated creation changed the database", err)
 	}
-	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.settings != active || c.savedSettings != active || c.service != nil {
+	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.settings != active || c.editor.savedSettings != active || c.service != nil {
 		t.Fatal("creation activated resources or changed settings", err)
 	}
 	if _, err := os.Stat(paths.VideoDir); !os.IsNotExist(err) {
@@ -120,7 +121,7 @@ func TestDatabaseCreationIsExplicitAndDoesNotActivateOrOverwrite(t *testing.T) {
 	}
 	next := active
 	next.DatabasePath, next.VideoDir = paths.DatabasePath, paths.VideoDir
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	if c.settings != active {
@@ -158,14 +159,14 @@ func TestExistingVideosRequirePolicyConfirmationBeforeChangingDatabase(t *testin
 	next := c.settings
 	next.DatabasePath = paths.DatabasePath
 	before, _ := os.ReadFile(c.configPath)
-	if err := c.save(next); err == nil {
+	if err := c.editor.save(next); err == nil {
 		t.Fatal("changed database without acknowledging video policy")
 	}
 	if after, _ := os.ReadFile(c.configPath); !bytes.Equal(before, after) {
 		t.Fatal("unconfirmed choice changed configuration")
 	}
 	confirmed := &videoPolicyConfirmation{next.DatabasePath, next.VideoDir, next.VideoStorageMode, next.VideoBudgetBytes, next.RetainFavorites}
-	if err := c.saveSettings(next, false, confirmed); err != nil {
+	if err := c.editor.saveSettings(next, false, confirmed); err != nil {
 		t.Fatal(err)
 	}
 	if c.service != nil {
@@ -188,14 +189,14 @@ func TestUnavailableVideoDoesNotPreventUnrelatedSaveOrRecreateRoot(t *testing.T)
 	next := c.settings
 	next.VideoStorageMode = "none"
 	next.RequestRetentionDays++
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal("unrelated save depended on the video disk", err)
 	}
 	if _, err := os.Stat(next.VideoDir); !os.IsNotExist(err) {
 		t.Fatal("save recreated an unavailable video root", err)
 	}
 	next.VideoDir = filepath.Join(t.TempDir(), "replacement")
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal("none mode prevented location changes", err)
 	}
 	if _, err := os.Stat(next.VideoDir); err != nil {
@@ -207,9 +208,9 @@ func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
 	for _, field := range []string{"databasePath", "videoDir", "videoStorageMode", "videoBudgetBytes", "retainFavorites", "missing", "boolean"} {
 		t.Run(field, func(t *testing.T) {
 			c := testConsole(t)
-			initial := c.savedSettings
+			initial := c.editor.savedSettings
 			initial.VideoStorageMode, initial.VideoBudgetBytes = "limited", 1024
-			if err := c.save(initial); err != nil {
+			if err := c.editor.save(initial); err != nil {
 				t.Fatal(err)
 			}
 			target := t.TempDir()
@@ -262,7 +263,7 @@ func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
 					t.Fatal(w.Code, w.Body.String())
 				}
 			}
-			saved := c.savedSettings
+			saved := c.editor.savedSettings
 			before, err := os.ReadFile(c.configPath)
 			if err != nil {
 				t.Fatal(err)
@@ -270,7 +271,7 @@ func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
 			if w := post(patch); w.Code != 400 {
 				t.Fatal("accepted an unbound or stale confirmation", w.Code, w.Body.String())
 			}
-			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.savedSettings != saved {
+			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.editor.savedSettings != saved {
 				t.Fatal("rejected confirmation changed saved settings", err)
 			}
 			if data, err := os.ReadFile(video); err != nil || string(data) != "existing video" || c.service != nil {
@@ -282,15 +283,15 @@ func TestVideoPolicyConfirmationBindsFinalSelection(t *testing.T) {
 
 func TestMissingVideoSelectionPreservesExistingDefaultVideos(t *testing.T) {
 	c := testConsole(t)
-	if err := os.MkdirAll(c.defaultVideoDir(), 0700); err != nil {
+	if err := os.MkdirAll(c.editor.defaultVideoDir(), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(c.defaultVideoDir(), strings.Repeat("a", 32)+".mp4"), []byte("existing video"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(c.editor.defaultVideoDir(), strings.Repeat("a", 32)+".mp4"), []byte("existing video"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	next := c.settings
 	next.VideoDir = ""
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -362,7 +363,7 @@ func TestIndependentPathsResolveRelativeToConfigurationAfterTrimming(t *testing.
 	c := testConsole(t)
 	next := c.settings
 	next.DatabasePath, next.VideoDir = "  songs/library.sqlite  ", "  videos  "
-	resolved, err := c.resolveSettings(next)
+	resolved, err := c.editor.resolveSettings(next)
 	if err != nil {
 		t.Fatal(err)
 	}

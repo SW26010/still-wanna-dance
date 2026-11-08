@@ -20,7 +20,7 @@ func TestChannelModesFollowSettingsAndRetireSavedCandidates(t *testing.T) {
 	s := c.settings
 	s.UpstreamMode = "proxy"
 	s.SOCKS5Address = "127.0.0.1:1080"
-	if err := c.saveSettings(s, false, nil); err != nil {
+	if err := c.editor.saveSettings(s, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)

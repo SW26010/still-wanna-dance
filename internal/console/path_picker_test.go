@@ -33,7 +33,7 @@ func TestPathPickerAuthorizationAndReadOnlySelection(t *testing.T) {
 		{"video-directory", "folder"}, {"block-cache-directory", "folder"}, {"import-directory", "folder"}, {"log-directory", "folder"},
 	} {
 		t.Run(tc.purpose, func(t *testing.T) {
-			c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+			c.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 				calls++
 				if dialog.Title == "" || dialog.Initial != selected || dialog.Mode != tc.mode {
 					t.Fatal("invalid dialog input", dialog)
@@ -69,11 +69,11 @@ func TestPathPickerAuthorizationAndReadOnlySelection(t *testing.T) {
 
 func TestPathPickerCancelBoundaryAndRetry(t *testing.T) {
 	c := testConsole(t)
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", nil }
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", nil }
 	if w := pathPickerRequest(c, "database", "", c.token, ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"canceled":true`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) {
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) {
 		t.Fatal("invalid request opened dialog")
 		return "", nil
 	}
@@ -83,23 +83,23 @@ func TestPathPickerCancelBoundaryAndRetry(t *testing.T) {
 		}
 	}
 	for _, result := range []string{"relative.sqlite3", "bad\x00path"} {
-		c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return result, nil }
-		if _, err := c.selectPath(context.Background(), "database", ""); err == nil {
+		c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return result, nil }
+		if _, err := c.editor.selectPath(context.Background(), "database", ""); err == nil {
 			t.Fatal("accepted invalid path")
 		}
 	}
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", errors.New("dialog unavailable") }
-	if _, err := c.selectPath(context.Background(), "database", ""); err == nil {
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", errors.New("dialog unavailable") }
+	if _, err := c.editor.selectPath(context.Background(), "database", ""); err == nil {
 		t.Fatal("lost picker error")
 	}
 	dir := t.TempDir()
-	c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+	c.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 		if dialog.Initial != filepath.Join(filepath.Dir(c.configPath), "videos") {
 			t.Fatal(dialog.Initial)
 		}
 		return dir, nil
 	}
-	if path, err := c.selectPath(context.Background(), "video-directory", " videos "); err != nil || path != dir {
+	if path, err := c.editor.selectPath(context.Background(), "video-directory", " videos "); err != nil || path != dir {
 		t.Fatal(path, err)
 	}
 }
@@ -108,15 +108,15 @@ func TestPathPickerSingleDialogAndCancellation(t *testing.T) {
 	for _, shutdown := range []bool{false, true} {
 		c := testConsole(t)
 		started, done := make(chan struct{}), make(chan error, 1)
-		c.pathPicker = func(ctx context.Context, _ desktop.PathDialog) (string, error) {
+		c.editor.pathPicker = func(ctx context.Context, _ desktop.PathDialog) (string, error) {
 			close(started)
 			<-ctx.Done()
 			return "", ctx.Err()
 		}
 		ctx, cancel := context.WithCancel(context.Background())
-		go func() { _, err := c.selectPath(ctx, "database", ""); done <- err }()
+		go func() { _, err := c.editor.selectPath(ctx, "database", ""); done <- err }()
 		<-started
-		if _, err := c.selectPath(context.Background(), "import-directory", ""); err == nil {
+		if _, err := c.editor.selectPath(context.Background(), "import-directory", ""); err == nil {
 			t.Fatal("opened two dialogs across purposes")
 		}
 		if shutdown {
@@ -129,8 +129,8 @@ func TestPathPickerSingleDialogAndCancellation(t *testing.T) {
 		}
 		cancel()
 		if !shutdown {
-			c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", nil }
-			if _, err := c.selectPath(context.Background(), "log-directory", ""); err != nil {
+			c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return "", nil }
+			if _, err := c.editor.selectPath(context.Background(), "log-directory", ""); err != nil {
 				t.Fatal("cancellation retained dialog lock", err)
 			}
 		}

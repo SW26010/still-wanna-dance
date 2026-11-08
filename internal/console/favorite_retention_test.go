@@ -22,7 +22,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 					t.Fatal("favorite retention preference should default on")
 				}
 				c.settings.VideoStorageMode = "unlimited"
-				c.savedSettings = c.settings
+				c.editor.initializeSettings(c.settings)
 				openEngine := func() {
 					t.Helper()
 					c.lifecycleMu.Lock()
@@ -49,7 +49,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 					t.Fatal(err)
 				}
 				file := filepath.Join(testStorageRoot(c.settings), "videos", key+".mp4")
-				next := c.savedSettings
+				next := c.editor.savedSettings
 				next.VideoStorageMode, next.RetainFavorites = mode, retain
 				// The remembered budget must not permit retention in none mode.
 				next.VideoBudgetBytes = 1
@@ -61,7 +61,7 @@ func TestFavoriteRetentionSettingsApplyAfterRestart(t *testing.T) {
 				r.Header.Set("X-SWD-Token", c.token)
 				w := httptest.NewRecorder()
 				c.ServeHTTP(w, r)
-				if w.Code != 200 || c.savedSettings.RetainFavorites != retain || c.savedSettings.VideoStorageMode != mode || c.settings.VideoStorageMode != "unlimited" || !c.settings.RetainFavorites {
+				if w.Code != 200 || c.editor.savedSettings.RetainFavorites != retain || c.editor.savedSettings.VideoStorageMode != mode || c.settings.VideoStorageMode != "unlimited" || !c.settings.RetainFavorites {
 					t.Fatal("save changed active retention or lost saved values", w.Code, w.Body.String())
 				}
 				if _, err := os.Stat(file); err != nil {

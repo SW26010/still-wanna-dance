@@ -294,7 +294,7 @@ func TestConsentSavedWhenMihomoCannotStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
-	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount, c.savedNodeCount = s, s, client, dial, 1, 1
+	c.settings, c.editor.savedSettings, c.client, c.upstreamDial, c.editor.loadedNodeCount, c.editor.savedNodeCount = s, s, client, dial, 1, 1
 	c.upstreamRequested = true
 	c.AutoStart()
 	if evidence := os.Getenv("SWD_CONSENT_FAILURE_BROWSER_EVIDENCE"); evidence != "" {
@@ -359,7 +359,7 @@ func TestAutoStartAfterFailedConsentStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.client.Transport.(interface{ Retire() }).Retire()
-	c.settings, c.savedSettings, c.client, c.upstreamDial, c.loadedNodeCount = s, s, client, dial, 1
+	c.settings, c.editor.savedSettings, c.client, c.upstreamDial, c.editor.loadedNodeCount = s, s, client, dial, 1
 	c.upstreamRequested = true
 	if err := c.acceptTerms(); !errors.Is(err, errTermsStartup) {
 		t.Fatalf("expected startup failure after saving consent, got %v", err)

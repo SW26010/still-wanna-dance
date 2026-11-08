@@ -25,7 +25,7 @@ func TestAutomaticLogDirectoryFollowsEnvironment(t *testing.T) {
 		if c.settings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != want {
 			t.Fatalf("automatic directory: %+v", c.settings)
 		}
-		if err := c.save(c.settings); err != nil {
+		if err := c.editor.save(c.settings); err != nil {
 			t.Fatal(err)
 		}
 		data, err := os.ReadFile(config)
@@ -59,7 +59,7 @@ func TestManualLogDirectorySwitch(t *testing.T) {
 	active := c.settings
 	s := c.settings
 	s.VRChatLogDir = "custom-logs"
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	if c.settings != active {
@@ -74,12 +74,12 @@ func TestManualLogDirectorySwitch(t *testing.T) {
 	if err != nil || string(fields["vrchatLogDir"]) != `"custom-logs"` {
 		t.Fatal("portable relative log directory lost", fields, err)
 	}
-	s = c.savedSettings
+	s = c.editor.savedSettings
 	s.VRChatLogDir = " " // whitespace normalizes to automatic, like an empty path
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
-	if c.savedSettings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != want {
+	if c.editor.savedSettings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != want {
 		t.Fatal("reset did not preserve the active directory until restart")
 	}
 	c = restartTestConsole(t, c)

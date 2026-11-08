@@ -17,7 +17,7 @@ import (
 func TestImportSpaceUsesActiveOrBatchDestinationWithoutStartingWork(t *testing.T) {
 	c := testConsole(t)
 	source := t.TempDir()
-	c.savedSettings.VideoDir = filepath.Join(t.TempDir(), "not-yet-active")
+	c.editor.savedSettings.VideoDir = filepath.Join(t.TempDir(), "not-yet-active")
 	check := func(source, wantMode, wantTarget string, status int) {
 		t.Helper()
 		r := httptest.NewRequest("GET", "http://"+c.address+"/api/import/space?"+url.Values{"source": {source}}.Encode(), nil)
@@ -46,7 +46,7 @@ func TestImportSpaceUsesActiveOrBatchDestinationWithoutStartingWork(t *testing.T
 	if c.service != nil || c.importStatus.Running || c.importTask != nil {
 		t.Fatal("estimate started an engine or import")
 	}
-	if _, err := os.Stat(c.savedSettings.VideoDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(c.editor.savedSettings.VideoDir); !os.IsNotExist(err) {
 		t.Fatal("estimate created an inactive destination", err)
 	}
 	c.terms = termsReceipt{}
@@ -60,7 +60,7 @@ func TestImportSpaceBrowser(t *testing.T) {
 	}
 	c := testConsole(t)
 	source := t.TempDir()
-	c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return source, nil }
+	c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return source, nil }
 	ui := httptest.NewUnstartedServer(c)
 	c.address = ui.Listener.Addr().String()
 	ui.Start()

@@ -24,7 +24,7 @@ func TestExitPolicySavePreparesWithoutChangingHosts(t *testing.T) {
 		c := testConsole(t)
 		next := c.settings
 		next.RestoreHostsOnStopOrExit = false
-		if err := c.save(next); err != nil {
+		if err := c.editor.save(next); err != nil {
 			t.Fatal(err)
 		}
 		owned, _ := transformHosts(hostsBaseline, "enable")
@@ -33,17 +33,17 @@ func TestExitPolicySavePreparesWithoutChangingHosts(t *testing.T) {
 			initial = hostsBaseline
 		}
 		h, launches := fixtureHostsController(t, initial)
-		c.hosts = h
+		c.editor.hosts = h
 		if existing {
 			if err := h.change("enable", false); err != nil {
 				t.Fatal(err)
 			}
 		}
 		next.RestoreHostsOnStopOrExit = true
-		if err := c.save(next); err != nil {
+		if err := c.editor.save(next); err != nil {
 			t.Fatal(err)
 		}
-		if *launches != 1 || !h.prepared.Load() || !c.settings.RestoreHostsOnStopOrExit || c.settings != c.savedSettings || readHostsFixture(t, h.path) != owned {
+		if *launches != 1 || !h.prepared.Load() || !c.settings.RestoreHostsOnStopOrExit || c.settings != c.editor.savedSettings || readHostsFixture(t, h.path) != owned {
 			t.Fatal("save did not commit one prepared exit policy without changing hosts")
 		}
 		if err := c.Close(); err != nil || readHostsFixture(t, h.path) != hostsBaseline || *launches != 1 {
@@ -58,17 +58,17 @@ func TestExitPolicySaveFailureLeavesConfigurationAndExitUnchanged(t *testing.T) 
 			c := testConsole(t)
 			next := c.settings
 			next.RestoreHostsOnStopOrExit = false
-			if err := c.save(next); err != nil {
+			if err := c.editor.save(next); err != nil {
 				t.Fatal(err)
 			}
-			old := c.savedSettings
+			old := c.editor.savedSettings
 			before, err := os.ReadFile(c.configPath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			owned, _ := transformHosts(hostsBaseline, "enable")
 			h, launches := fixtureHostsController(t, owned)
-			c.hosts = h
+			c.editor.hosts = h
 			launch := h.launch
 			h.launch = func(ctx context.Context) (hostsConnection, error) {
 				if failure == "uac" {
@@ -87,11 +87,11 @@ func TestExitPolicySaveFailureLeavesConfigurationAndExitUnchanged(t *testing.T) 
 			}
 			next.RestoreHostsOnStopOrExit = true
 			next.PrepareAheadSeconds++
-			if err := c.save(next); err == nil {
+			if err := c.editor.save(next); err == nil {
 				t.Fatal("faulted save reported success")
 			}
 			after, err := os.ReadFile(c.configPath)
-			if err != nil || string(after) != string(before) || c.settings != old || c.savedSettings != old {
+			if err != nil || string(after) != string(before) || c.settings != old || c.editor.savedSettings != old {
 				t.Fatal("failed save changed part of the configuration", err)
 			}
 			if err := c.Close(); err != nil || readHostsFixture(t, h.path) != owned {
@@ -107,11 +107,11 @@ func TestExitPolicySaveFailureLeavesConfigurationAndExitUnchanged(t *testing.T) 
 func TestExitPolicySaveWithoutManagedHostsDoesNotRequestPermission(t *testing.T) {
 	c := testConsole(t)
 	h, launches := fixtureHostsController(t, hostsBaseline+"127.0.0.1 api.udon.dance # user\r\n")
-	c.hosts = h
+	c.editor.hosts = h
 	for _, restore := range []bool{false, true} {
 		next := c.settings
 		next.RestoreHostsOnStopOrExit = restore
-		if err := c.save(next); err != nil || *launches != 0 {
+		if err := c.editor.save(next); err != nil || *launches != 0 {
 			t.Fatal("saving without managed hosts requested permission", err)
 		}
 	}

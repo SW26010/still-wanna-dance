@@ -20,7 +20,7 @@ import (
 func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 	c := testConsole(t)
 	defer c.Close()
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	cfg := fixtureCacheConfig()
@@ -85,7 +85,7 @@ func TestInventoryCoverageDoesNotRecreateMissingVideoDirectory(t *testing.T) {
 
 func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	read := func() Inventory {
@@ -130,7 +130,7 @@ func TestInventoryReadsWaitForExplicitScan(t *testing.T) {
 
 func TestSavedEmptyStorageScansWithoutStartingEngine(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	c.startInventoryScan()
@@ -216,7 +216,7 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 	for _, action := range []string{"close", "change storage"} {
 		t.Run(action, func(t *testing.T) {
 			c := testConsole(t)
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			c.startInventoryScan()
@@ -254,7 +254,7 @@ func TestInventoryLifecycleCancelsCoverage(t *testing.T) {
 				if action == "close" {
 					finished <- c.Close()
 				} else {
-					finished <- c.save(settings)
+					finished <- c.editor.save(settings)
 				}
 			}()
 			select {
@@ -359,13 +359,13 @@ func TestInventoryReadKeepsActiveSettingsAcrossSaves(t *testing.T) {
 			next := original
 			setTestLibraryPaths(&next, t.TempDir())
 			createTestDatabase(t, next.DatabasePath)
-			if err := c.save(next); err != nil {
+			if err := c.editor.save(next); err != nil {
 				close(release)
 				<-done
 				t.Fatal(err)
 			}
 			if aba {
-				if err := c.save(original); err != nil {
+				if err := c.editor.save(original); err != nil {
 					close(release)
 					<-done
 					t.Fatal(err)

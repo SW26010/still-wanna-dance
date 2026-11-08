@@ -34,16 +34,16 @@ func TestRecoveryServesEmbeddedUIWithoutBusinessAccess(t *testing.T) {
 	if w := request("GET", "/api/status", "", ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatal("invalid settings presented as active", w.Code)
 	}
-	if w := request("POST", "/api/activation/enable", view.console.token, ""); w.Code != http.StatusServiceUnavailable {
+	if w := request("POST", "/api/activation/enable", view.token, ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatal("recovery admitted a business mutation", w.Code)
 	}
 	if w := request("POST", "/api/exit", "wrong", ""); w.Code != http.StatusForbidden {
 		t.Fatal("exit accepted an invalid token", w.Code)
 	}
-	if w := request("POST", "/api/exit", view.console.token, "http://example.invalid"); w.Code != http.StatusForbidden {
+	if w := request("POST", "/api/exit", view.token, "http://example.invalid"); w.Code != http.StatusForbidden {
 		t.Fatal("exit accepted another origin", w.Code)
 	}
-	if w := request("POST", "/api/exit", view.console.token, "http://127.0.0.1:12345"); w.Code != 200 {
+	if w := request("POST", "/api/exit", view.token, "http://127.0.0.1:12345"); w.Code != 200 {
 		t.Fatal("recovery could not exit", w.Code, w.Body.String())
 	}
 	select {
@@ -70,7 +70,7 @@ func TestRecoveryExitsAfterLastClientLeaves(t *testing.T) {
 		go view.ExitWhenUnattended(ctx, time.Minute)
 		attach := func() context.Context {
 			client, stop := context.WithCancel(ctx)
-			if !view.console.lifecycle.attach(client, stop) {
+			if !view.lifecycle.attach(client, stop) {
 				t.Fatal("could not attach recovery client")
 			}
 			synctest.Wait()
@@ -88,10 +88,10 @@ func TestRecoveryExitsAfterLastClientLeaves(t *testing.T) {
 		first, second := attach(), attach()
 		time.Sleep(2 * time.Minute)
 		assertRunning()
-		view.console.lifecycle.detach(first)
+		view.lifecycle.detach(first)
 		time.Sleep(2 * time.Minute)
 		assertRunning()
-		view.console.lifecycle.detach(second)
+		view.lifecycle.detach(second)
 		synctest.Wait()
 		time.Sleep(59 * time.Second)
 		assertRunning()
@@ -99,7 +99,7 @@ func TestRecoveryExitsAfterLastClientLeaves(t *testing.T) {
 		reopened := attach()
 		time.Sleep(2 * time.Minute)
 		assertRunning()
-		view.console.lifecycle.detach(reopened)
+		view.lifecycle.detach(reopened)
 		synctest.Wait()
 		time.Sleep(59 * time.Second)
 		assertRunning()

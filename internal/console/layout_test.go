@@ -17,7 +17,7 @@ func TestPortableLayoutCreatesOnlyUsedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(c.files().Root)
@@ -55,12 +55,12 @@ func TestCustomConfigurationsKeepIndependentStateAfterMove(t *testing.T) {
 		}
 		t.Cleanup(func() { c.Close(); lease.Close() })
 		s := c.settings
-		s.DatabasePath, s.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
+		s.DatabasePath, s.VideoDir = c.editor.defaultDatabasePath(), c.editor.defaultVideoDir()
 		if i == 2 {
 			setTestLibraryPaths(&s, external)
 			createTestDatabase(t, s.DatabasePath)
 		}
-		if err := c.save(s); err != nil {
+		if err := c.editor.save(s); err != nil {
 			t.Fatal(err)
 		}
 		if i != 1 {
@@ -73,7 +73,7 @@ func TestCustomConfigurationsKeepIndependentStateAfterMove(t *testing.T) {
 			t.Fatal(err)
 		}
 		keys[name] = id
-		if err := c.writeSnapshot("test", libraryPaths(c.savedSettings), i+1); err != nil {
+		if err := c.writeSnapshot("test", libraryPaths(c.editor.savedSettings), i+1); err != nil {
 			t.Fatal(err)
 		}
 		if other, err := desktop.LockConfig(path); err == nil {

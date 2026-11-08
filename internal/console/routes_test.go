@@ -18,7 +18,7 @@ import (
 
 func TestRemovedControlsDoNotStartWork(t *testing.T) {
 	c := testConsole(t)
-	before, err := os.ReadFile(c.hosts.path)
+	before, err := os.ReadFile(c.editor.hosts.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,10 +35,10 @@ func TestRemovedControlsDoNotStartWork(t *testing.T) {
 			t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
 		}
 	}
-	if c.service != nil || c.httpServer != nil || c.queueDesired || c.queue.snapshot().Running || c.hosts.session != nil {
+	if c.service != nil || c.httpServer != nil || c.queueDesired || c.queue.snapshot().Running || c.editor.hosts.session != nil {
 		t.Fatal("removed controls started work")
 	}
-	if after, err := os.ReadFile(c.hosts.path); err != nil || string(after) != string(before) {
+	if after, err := os.ReadFile(c.editor.hosts.path); err != nil || string(after) != string(before) {
 		t.Fatal("removed controls changed hosts", err)
 	}
 }

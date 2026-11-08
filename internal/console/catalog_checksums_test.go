@@ -216,7 +216,7 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 
 func TestMD5CatalogInvalidChecksumDoesNotChangeMappings(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
@@ -304,7 +304,7 @@ func TestCatalogFailureUsesOnlyLocalFallback(t *testing.T) {
 			for _, cached := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/scan=%v/local=%v", bad, scan, cached), func(t *testing.T) {
 					c := testConsole(t)
-					if err := c.save(c.settings); err != nil {
+					if err := c.editor.save(c.settings); err != nil {
 						t.Fatal(err)
 					}
 					var forbidden atomic.Int32

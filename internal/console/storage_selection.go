@@ -12,15 +12,15 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-func (c *Console) defaultDatabasePath() string {
+func (c *settingsEditor) defaultDatabasePath() string {
 	return filepath.Join(filepath.Dir(c.configPath), c.files().DefaultDatabase)
 }
 
-func (c *Console) defaultVideoDir() string {
+func (c *settingsEditor) defaultVideoDir() string {
 	return filepath.Join(filepath.Dir(c.configPath), c.files().DefaultVideo)
 }
 
-func (c *Console) portableDir() string {
+func (c *settingsEditor) portableDir() string {
 	return filepath.Dir(c.identity.Executable)
 }
 
@@ -65,7 +65,7 @@ func selectedPathContains(parent, child string) bool {
 	return parentErr == nil && childErr == nil && pathContains(resolvedParent, resolvedChild)
 }
 
-func (c *Console) validateStorageChoice(s Settings, choice string) error {
+func (c *settingsEditor) validateStorageChoice(s Settings, choice string) error {
 	cache := s.BlockCacheDir
 	if cache == "" {
 		cache = defaultBlockCacheDir(c.identity.Executable)
@@ -116,7 +116,7 @@ func (c *Console) validateStorageChoice(s Settings, choice string) error {
 // Existing configurations remain usable even when they predate the selection
 // rules. Only changes are checked; unchanged resource pairs are not reclassified
 // by a save of another field.
-func (c *Console) validateChangedStorageChoices(s, old Settings) error {
+func (c *settingsEditor) validateChangedStorageChoices(s, old Settings) error {
 	_, err := c.firstInvalidChangedStorageChoice(s, old)
 	return err
 }
@@ -134,7 +134,7 @@ func storageChoiceChanged(s, old Settings, choice string) bool {
 	}
 }
 
-func (c *Console) firstInvalidChangedStorageChoice(s, old Settings) (string, error) {
+func (c *settingsEditor) firstInvalidChangedStorageChoice(s, old Settings) (string, error) {
 	for _, choice := range []string{"database", "video", "cache"} {
 		if storageChoiceChanged(s, old, choice) {
 			if err := c.validateStorageChoice(s, choice); err != nil {
@@ -148,7 +148,7 @@ func (c *Console) firstInvalidChangedStorageChoice(s, old Settings) (string, err
 // Pure path validation also runs when loading configuration. Filesystem access
 // belongs to changed selections only; an offline video disk must not prevent
 // saving unrelated settings or opening the business database.
-func (c *Console) validateResourcePaths(s Settings) error {
+func (c *settingsEditor) validateResourcePaths(s Settings) error {
 	p := c.files()
 	for _, location := range []struct{ field, path string }{{"databasePath", s.DatabasePath}, {"videoDir", s.VideoDir}} {
 		path := location.path
@@ -158,8 +158,8 @@ func (c *Console) validateResourcePaths(s Settings) error {
 		if err := apppaths.ValidateWorkSeparation(c.identity.Executable, path); err != nil {
 			return invalidSetting(err, location.field)
 		}
-		if c.work != nil {
-			if err := workspaceOverlaps(c.work.Path(), []string{path}); err != nil {
+		if c.workPath != "" {
+			if err := workspaceOverlaps(c.workPath, []string{path}); err != nil {
 				return invalidSetting(err, location.field)
 			}
 		}
@@ -186,7 +186,7 @@ func (c *Console) validateResourcePaths(s Settings) error {
 
 // Read-only validation for the review before saving. No selected directory is
 // created here, and no database is opened for writing or adopted by the app.
-func (c *Console) inspectLibrarySelection(s, old Settings) (bool, error) {
+func (c *settingsEditor) inspectLibrarySelection(s, old Settings) (bool, error) {
 	databaseChanged := !sameResourcePath(s.DatabasePath, old.DatabasePath)
 	videoChanged := !sameResourcePath(s.VideoDir, old.VideoDir)
 	if databaseChanged && s.DatabasePath != "" {
@@ -257,7 +257,7 @@ func (v videoPolicyConfirmation) matches(s Settings) bool {
 		v.VideoStorageMode == s.VideoStorageMode && v.VideoBudgetBytes == s.VideoBudgetBytes && v.RetainFavorites == s.RetainFavorites
 }
 
-func (c *Console) prepareLibrarySelection(s, old Settings, confirmed *videoPolicyConfirmation) error {
+func (c *settingsEditor) prepareLibrarySelection(s, old Settings, confirmed *videoPolicyConfirmation) error {
 	if confirmed != nil && !confirmed.matches(s) {
 		return invalidSetting(errors.New("目录或视频保留策略已变化，请重新确认后保存。"), "videoDir")
 	}

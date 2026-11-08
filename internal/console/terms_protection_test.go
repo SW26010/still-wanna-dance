@@ -63,7 +63,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 	}
 	defer moved.Close()
 	moved.settings.AutoOpenWebUI = false
-	if err := moved.save(moved.settings); err != nil {
+	if err := moved.editor.save(moved.settings); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(moved.files().StateDir, 0700); err != nil {

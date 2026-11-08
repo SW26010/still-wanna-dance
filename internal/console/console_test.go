@@ -86,14 +86,14 @@ func testConsoleWithSeed(t *testing.T, seeded bool) *Console {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close() })
-	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.checksumURL = ""
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
 	setTestLibraryPaths(&c.settings, filepath.Join(root, "library"))
 	c.settings.VRChatLogDir = filepath.Join(root, "logs")
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	c.videoAddress = "127.0.0.1:0"
 	c.httpsAddress = "127.0.0.1:0"
 	return c
@@ -133,7 +133,7 @@ func TestHostsRoundTripAndConflicts(t *testing.T) {
 
 func TestSettingsPersistAndPortConflict(t *testing.T) {
 	c := testConsole(t)
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	other, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -160,7 +160,7 @@ func TestSettingsPersistAndPortConflict(t *testing.T) {
 	if err = c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.save(c.settings); err != nil {
+	if err = c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	if err = c.stop(); err != nil {
@@ -169,7 +169,7 @@ func TestSettingsPersistAndPortConflict(t *testing.T) {
 	if c.httpServer != nil {
 		t.Fatal("listener remains")
 	}
-	if err = c.save(c.settings); err != nil {
+	if err = c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 }

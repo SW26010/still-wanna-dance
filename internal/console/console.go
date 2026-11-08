@@ -33,6 +33,7 @@ import (
 var assets embed.FS
 
 type Console struct {
+	editor                 *settingsEditor
 	faults                 atomic.Pointer[faults.Center]
 	store                  *cacheproxy.Store
 	storageOpenError       error
@@ -42,11 +43,10 @@ type Console struct {
 	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
-	vrcxNotify             bool                        // startup Toast only; set during automatic library creation
-	vrcxImportDismissed    bool                        // protected by mu; persisted user choice outside editable Settings
-	videoImportSuggestion  bool                        // protected by mu; only the first run of a configuration, until acknowledged
-	proxyModeMigrated      bool                        // startup notice; migration is already persisted
-	proxyImports           map[string]proxyImportDraft // protected by mu
+	vrcxNotify             bool // startup Toast only; set during automatic library creation
+	vrcxImportDismissed    bool // protected by mu; persisted user choice outside editable Settings
+	videoImportSuggestion  bool // protected by mu; only the first run of a configuration, until acknowledged
+	proxyModeMigrated      bool // startup notice; migration is already persisted
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
 	terms                  termsReceipt // protected by mu; separate from editable settings
@@ -61,7 +61,6 @@ type Console struct {
 	activationGeneration   uint64     // protected by mu; distinguishes same-clock-tick retries
 	// Acquire lifecycleMu before mu; state readers never wait on lifecycleMu.
 	lifecycleMu         sync.Mutex
-	hosts               *hostsController // operations are serialized by lifecycleMu
 	inventoryMu         sync.Mutex
 	inventory           Inventory
 	inventorySettings   Settings
@@ -70,9 +69,6 @@ type Console struct {
 	inventoryCancel     context.CancelFunc // protected by inventoryMu
 	mu                  sync.Mutex
 	settings            Settings // active configuration; theme and exit policy apply after save
-	savedSettings       Settings // last successfully persisted configuration
-	savedNodeCount      int
-	loadedNodeCount     int
 	autoStartOnce       sync.Once
 	autoStartPending    bool // protected by mu; startup deferred until consent succeeds
 	updateAutoRequested bool // update checking is deferred until consent and network setup
@@ -120,8 +116,6 @@ type Console struct {
 	monitorManualAt     time.Time
 	monitorManualDone   chan struct{}
 	networkDiagnostics  *networkDiagnostics
-	pathPickerCancel    context.CancelFunc // protected by mu; serializes all path dialogs
-	pathPicker          func(context.Context, desktop.PathDialog) (string, error)
 }
 
 func New(configPath, address string, work *cacheproxy.WorkDirectory) (*Console, error) {
@@ -153,9 +147,24 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	if err := apppaths.ValidateWorkSeparation(identity.Executable, configPath); err != nil {
 		return nil, err
 	}
-	c, err := newSettingsConsole(address, identity)
+	token, err := newManagementToken()
 	if err != nil {
 		return nil, err
+	}
+	c := &Console{address: address, identity: identity, configPath: identity.Config, token: token, lifecycle: newApplicationLifecycle()}
+	c.editor = newSettingsEditor(identity, &c.lifecycleMu)
+	c.editor.termsAccepted = func() bool { c.mu.Lock(); defer c.mu.Unlock(); return c.terms.valid() }
+	c.editor.onSaved = func(s Settings, commit func()) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		commit()
+		c.settings.Theme = s.Theme
+		c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
+		c.settings.nodeInfo = s.nodeInfo
+	}
+	c.editor.onResult = c.recordActionError
+	if work != nil {
+		c.editor.workPath = work.Path()
 	}
 	c.work, c.workOpenError = work, workErr
 	c.videoAddress, c.httpsAddress = "127.0.0.1:80", "127.0.0.1:443"
@@ -170,8 +179,9 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	}
 	c.videoImportSuggestion = !loaded.Exists
 	c.vrcxImportDismissed = loaded.VRCXImportDismissed
-	c.initializeSettings(loaded.Settings)
-	err = c.validateResourcePaths(c.settings)
+	c.settings = loaded.Settings
+	c.editor.initializeSettings(c.settings)
+	err = c.editor.validateResourcePaths(c.settings)
 	if err == nil {
 		err = c.loadTerms()
 	}
@@ -188,7 +198,7 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 		if !loaded.Exists || c.settings != original {
 			err = saveConfigSettings(c.configPath, c.settings)
 		}
-		c.savedSettings = c.settings
+		c.editor.initializeSettings(c.settings)
 	}
 	if err == nil {
 		c.loadSnapshots()
@@ -236,7 +246,7 @@ func (c *Console) autoStart() {
 	enabled := c.settings.AutoAccelerate
 	c.mu.Unlock()
 	if enabled {
-		err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+		err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked)
 		c.reportFault("action:activation", err)
 		if err != nil {
 			slog.Error("auto_acceleration_failed", "error", err)
@@ -381,14 +391,11 @@ func (c *Console) BeginShutdown() {
 	c.lifecycle.beginShutdown()
 	// Cancel a pending authorization before waiting for lifecycleMu. Existing
 	// helper connections remain usable for cleanup without a new UAC request.
-	c.hosts.cancel()
+	c.editor.beginShutdown()
 	c.lifecycleMu.Lock()
 	c.mu.Lock()
 	c.closing = true
 	c.notifyBlockEngineLocked()
-	if c.pathPickerCancel != nil {
-		c.pathPickerCancel()
-	}
 	if c.updateCancel != nil {
 		c.updateCancel()
 	}
@@ -424,7 +431,7 @@ func (c *Console) Close() error {
 	c.mu.Lock()
 	restore := c.settings.RestoreHostsOnStopOrExit
 	c.mu.Unlock()
-	hostsErr := c.hosts.close(restore)
+	hostsErr := c.editor.hosts.close(restore)
 	c.lifecycleMu.Unlock()
 	if hostsErr != nil {
 		hostsErr = fmt.Errorf("退出时未能确认游戏连接已清理，下次启动后请恢复游戏直连：%w", hostsErr)
@@ -551,6 +558,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/status" && r.Method == "GET" {
 		c.mu.Lock()
 		running := c.httpServer != nil
+		saved := c.editor.snapshot()
 		result := struct {
 			Running               bool                         `json:"running"`
 			Settings              Settings                     `json:"settings"`
@@ -588,18 +596,18 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			UpstreamMonitor       upstreamstate.Status         `json:"upstreamMonitor"`
 			Update                updateStatus                 `json:"update"`
 		}{
-			Running: running, Settings: c.savedSettings, ActiveSettings: c.settings,
-			RestartRequired:      c.savedSettings != c.settings,
+			Running: running, Settings: saved, ActiveSettings: c.settings,
+			RestartRequired:      saved != c.settings,
 			VideoImportSuggested: c.videoImportSuggestion,
 			ProxyModeMigrated:    c.proxyModeMigrated,
 			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
 			Import: c.importStatus, Batch: c.batch, Queue: c.queue.snapshot(), LastBatch: c.lastBatch,
-			SOCKS5PasswordSet:     c.savedSettings.SOCKS5Password != "",
-			SOCKS5CredentialError: c.savedSettings.proxySecretError,
+			SOCKS5PasswordSet:     saved.SOCKS5Password != "",
+			SOCKS5CredentialError: saved.proxySecretError,
 			SOCKS5Service:         c.socks5ServiceSnapshotLocked(),
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
-			DefaultDatabasePath: c.defaultDatabasePath(), DefaultVideoDir: c.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.portableDir(),
+			DefaultDatabasePath: c.editor.defaultDatabasePath(), DefaultVideoDir: c.editor.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.editor.portableDir(),
 			UpstreamMonitor: c.monitorSnapshotLocked(),
 			CatalogSync:     c.catalogSyncSnapshotLocked(),
 			Update:          c.updateSnapshotLocked(),
@@ -629,7 +637,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if c.workOpenError != nil {
 			result.WorkError = applog.SafeError(c.workOpenError).Error()
 		}
-		result.Hosts = c.hosts.status()
+		result.Hosts = c.editor.hosts.status()
 		result.VideoImportSuggested = result.VideoImportSuggested && result.Hosts.Ready && !result.Hosts.Managed && !result.Hosts.Conflict
 		if c.storageOpenError != nil {
 			result.StorageError = applog.SafeError(c.storageOpenError).Error()
@@ -686,7 +694,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
-	if handler := c.settingsHandler(r.URL.Path, true); handler != nil {
+	if handler := c.editor.settingsHandler(r.URL.Path, true); handler != nil {
 		handler(w, r)
 		return
 	}
@@ -808,7 +816,7 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		err = c.startBatchMode(true)
 	case "/api/activation/enable":
 		source = "activation"
-		err = c.enableAcceleration(c.hosts.status, c.changeHostsLocked)
+		err = c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked)
 	case "/api/activation/disable":
 		source = "activation"
 		err = c.disableAcceleration()
@@ -845,6 +853,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 
 func (c *Console) writeActionResult(w http.ResponseWriter, r *http.Request, source string, err error) {
 	c.recordActionError(source, err)
+	writeActionResult(w, r, err)
+}
+
+func writeActionResult(w http.ResponseWriter, r *http.Request, err error) {
 	if result, ok := w.(*faultResponseWriter); ok {
 		result.reported = true
 	}

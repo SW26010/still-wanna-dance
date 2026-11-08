@@ -40,12 +40,12 @@ func TestBlockCacheSelectionWithOfflineLibraryVolume(t *testing.T) {
 			if resource == "video" || resource == "both" {
 				settings.VideoDir = filepath.Join(offline, "missing", "videos")
 			}
-			c.settings, c.savedSettings = settings, settings
+			c.settings, c.editor.savedSettings = settings, settings
 			settings.BlockCacheDir = t.TempDir()
-			if err := c.save(settings); err != nil {
+			if err := c.editor.save(settings); err != nil {
 				t.Fatalf("unavailable %s prevented selecting a separate cache: %v", resource, err)
 			}
-			if c.savedSettings.BlockCacheDir != settings.BlockCacheDir {
+			if c.editor.savedSettings.BlockCacheDir != settings.BlockCacheDir {
 				t.Fatal("cache selection was not saved")
 			}
 		})
@@ -56,6 +56,7 @@ func TestDefaultBlockCacheChecksOfflineLibraryAndAliases(t *testing.T) {
 	offline := unusedDrive(t)
 	c := testConsole(t)
 	c.identity.Executable = filepath.Join(t.TempDir(), "SWD.exe")
+	c.editor.identity = c.identity
 	for _, resource := range []string{"database", "video"} {
 		t.Run(resource, func(t *testing.T) {
 			settings := c.settings
@@ -144,15 +145,15 @@ func TestBlockCacheSelectionChecksExistingWorkspacePermissions(t *testing.T) {
 			if err := workfiles.Probe(dir); (err != nil) != tc.denyFiles {
 				t.Fatalf("fixture file-write permission differs from expectation: %v", err)
 			}
-			err := c.save(next)
+			err := c.editor.save(next)
 			if tc.wantError {
 				if err == nil || !strings.Contains(err.Error(), "不可写") {
 					t.Fatal("saved a cache selection whose existing workspace cannot be prepared", err)
 				}
-				if c.savedSettings.BlockCacheDir != "" {
+				if c.editor.savedSettings.BlockCacheDir != "" {
 					t.Fatal("failed selection changed the saved cache location")
 				}
-			} else if err != nil || c.savedSettings.BlockCacheDir != root {
+			} else if err != nil || c.editor.savedSettings.BlockCacheDir != root {
 				t.Fatal("unneeded subdirectory permission prevented saving an existing writable workspace", err)
 			}
 		})
@@ -281,6 +282,7 @@ func TestPreviousDefaultBlockCacheWaitsForOfflineLibraryPath(t *testing.T) {
 	offline := unusedDrive(t)
 	c := testConsole(t)
 	c.identity.Executable = filepath.Join(t.TempDir(), "SWD.exe")
+	c.editor.identity = c.identity
 	previousRoot := ""
 	oldWork := blockWorkPath(c.identity.Executable, c.configPath, c.settings)
 	if err := os.MkdirAll(oldWork, 0700); err != nil {
@@ -319,6 +321,7 @@ func TestDefaultBlockCacheResumesDeferredCleanup(t *testing.T) {
 	offline := unusedDrive(t)
 	c := testConsole(t)
 	c.identity.Executable = filepath.Join(t.TempDir(), "SWD.exe")
+	c.editor.identity = c.identity
 	settings := c.settings
 	settings.VideoDir = filepath.Join(offline, "videos")
 	workPath := blockWorkPath(c.identity.Executable, c.configPath, settings)

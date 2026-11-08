@@ -4,7 +4,7 @@ import "errors"
 
 // Theme changes persist only this preference, retaining all saved runtime
 // settings and any pending restart. Use the same atomic save lifecycle.
-func (c *Console) saveTheme(theme string) error {
+func (c *settingsEditor) saveTheme(theme string) error {
 	if theme != "system" && theme != "light" && theme != "dark" {
 		return rejectRequest(errors.New("主题必须为 system、light 或 dark"))
 	}

@@ -33,7 +33,7 @@ func TestPreviewBrowser(t *testing.T) {
 	c := testConsole(t)
 	defer c.Close()
 	c.settings.VideoStorageMode = "unlimited"
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	key := fmt.Sprintf("%x", md5.Sum(body))
 	var downloads atomic.Int32
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

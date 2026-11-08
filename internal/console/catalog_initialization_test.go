@@ -81,7 +81,7 @@ func TestCatalogInitializationRequiresCompleteCatalogAndRetainsSnapshot(t *testi
 	if c.service != nil {
 		t.Fatal("initialization started video management")
 	}
-	if err := c.save(c.settings); err != nil {
+	if err := c.editor.save(c.settings); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)

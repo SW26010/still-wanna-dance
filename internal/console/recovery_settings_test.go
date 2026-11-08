@@ -31,8 +31,8 @@ func recoveryFixture(t *testing.T, contents string) *Recovery {
 }
 
 func recoveryRequest(view *Recovery, method, path, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, "http://"+view.console.address+path, strings.NewReader(body))
-	req.Header.Set("X-SWD-Token", view.console.token)
+	req := httptest.NewRequest(method, "http://"+view.address+path, strings.NewReader(body))
+	req.Header.Set("X-SWD-Token", view.token)
 	w := httptest.NewRecorder()
 	view.ServeHTTP(w, req)
 	return w
@@ -144,7 +144,7 @@ func TestRecoverySharesCrossFieldValidationAndMergesLatest(t *testing.T) {
 
 func TestRecoverySettingsRejectsUnauthorizedAndWriteFailure(t *testing.T) {
 	view := recoveryFixture(t, `{"schemaVersion":8}`)
-	req := httptest.NewRequest("GET", "http://"+view.console.address+"/api/recovery/settings", nil)
+	req := httptest.NewRequest("GET", "http://"+view.address+"/api/recovery/settings", nil)
 	w := httptest.NewRecorder()
 	view.ServeHTTP(w, req)
 	if w.Code != 403 {
@@ -262,7 +262,7 @@ func TestRecoveryAcknowledgesWinningShutdown(t *testing.T) {
 
 func TestRecoveryResolvesDefaultSyntaxWhileRetainingInvalidValues(t *testing.T) {
 	view := recoveryFixture(t, `{"schemaVersion":8,"logLevel":"LOUD","theme":"","upstreamMode":"","proxyBackend":"","prepareAheadSeconds":0,"downloadGrowIntervalMS":0,"localProtectionGraceSeconds":0}`)
-	s := view.console.savedSettings
+	s := view.editor.savedSettings
 	defaults, _ := normalizeSettings(defaultSettings())
 	if s.LogLevel != "LOUD" || s.Theme != "system" || s.UpstreamMode != "direct" || s.ProxyBackend != "external-socks5" || s.PrepareAheadSeconds != defaults.PrepareAheadSeconds || s.DownloadGrowIntervalMS != 0 || s.LocalProtectionGraceSeconds != 0 {
 		t.Fatal("default or explicit zero semantics changed", s)
@@ -293,9 +293,6 @@ func TestRecoveryUsesNormalDatabaseAndProxyOperations(t *testing.T) {
 	if err != nil || s.nodeSnapshot != nodeFixture || s.DatabasePath != paths["databasePath"] {
 		t.Fatal("shared save lost resources", err)
 	}
-	if view.console.store != nil || view.console.client != nil || view.console.terms.valid() {
-		t.Fatal("settings enabled business or consent")
-	}
 	if w := recoveryRequest(view, "POST", "/api/activation/enable", `{}`); w.Code != 503 {
 		t.Fatal("business enabled", w.Code)
 	}
@@ -308,8 +305,8 @@ func TestRecoveryRestorePolicyUsesNormalAuthorizationAndCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := hostsFixture(t, managed)
-	view.console.hosts.close(false)
-	view.console.hosts = newHostsController(path, func(context.Context) (hostsConnection, error) { return nil, errHostsAuthorizationCanceled })
+	view.editor.hosts.close(false)
+	view.editor.hosts = newHostsController(path, func(context.Context) (hostsConnection, error) { return nil, errHostsAuthorizationCanceled })
 	w := recoveryRequest(view, "POST", "/api/settings", `{"restoreHostsOnStopOrExit":true}`)
 	if w.Code != 400 || !strings.Contains(w.Body.String(), `"code":"uac_canceled"`) {
 		t.Fatal(w.Code, w.Body.String())
@@ -318,9 +315,9 @@ func TestRecoveryRestorePolicyUsesNormalAuthorizationAndCleanup(t *testing.T) {
 	if s.RestoreHostsOnStopOrExit {
 		t.Fatal("canceled authorization was saved")
 	}
-	view.console.hosts.close(false)
+	view.editor.hosts.close(false)
 	h, launches := fixtureHostsController(t, managed)
-	view.console.hosts = h
+	view.editor.hosts = h
 	w = recoveryRequest(view, "POST", "/api/settings", `{"restoreHostsOnStopOrExit":true}`)
 	if w.Code != 200 || *launches != 1 {
 		t.Fatal(w.Code, w.Body.String(), *launches)
@@ -361,7 +358,7 @@ func TestRecoveryInvalidThemeUsesSystemAppearance(t *testing.T) {
 func TestRecoveryShutdownCancelsPendingPathSelection(t *testing.T) {
 	view := recoveryFixture(t, `{"schemaVersion":8}`)
 	started := make(chan struct{})
-	view.console.pathPicker = func(ctx context.Context, _ desktop.PathDialog) (string, error) {
+	view.editor.pathPicker = func(ctx context.Context, _ desktop.PathDialog) (string, error) {
 		close(started)
 		<-ctx.Done()
 		return "", ctx.Err()
@@ -394,8 +391,8 @@ func TestRecoveryExitCancelsPendingSettingsOperation(t *testing.T) {
 					}))
 					defer upstream.Close()
 					run = func() *httptest.ResponseRecorder {
-						req := httptest.NewRequest("POST", "http://"+view.console.address+"/api/proxy/import", strings.NewReader(upstream.URL))
-						req.Header.Set("X-SWD-Token", view.console.token)
+						req := httptest.NewRequest("POST", "http://"+view.address+"/api/proxy/import", strings.NewReader(upstream.URL))
+						req.Header.Set("X-SWD-Token", view.token)
 						req.Header.Set("X-SWD-Import-Source", "url")
 						w := httptest.NewRecorder()
 						view.ServeHTTP(w, req)
@@ -406,8 +403,8 @@ func TestRecoveryExitCancelsPendingSettingsOperation(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					view.console.hosts.close(false)
-					view.console.hosts = newHostsController(hostsFixture(t, managed), func(ctx context.Context) (hostsConnection, error) {
+					view.editor.hosts.close(false)
+					view.editor.hosts = newHostsController(hostsFixture(t, managed), func(ctx context.Context) (hostsConnection, error) {
 						close(started)
 						<-ctx.Done()
 						return nil, ctx.Err()

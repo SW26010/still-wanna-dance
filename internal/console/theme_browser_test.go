@@ -32,7 +32,7 @@ func TestThemeBrowser(t *testing.T) {
 			t.Fatalf("browser %s: %v\n%s", phase, err, output)
 		}
 		t.Log(string(output))
-		if c.settings.Theme != "dark" || c.DesktopState().Theme != "dark" || c.settings != c.savedSettings || c.service != nil {
+		if c.settings.Theme != "dark" || c.DesktopState().Theme != "dark" || c.settings != c.editor.savedSettings || c.service != nil {
 			t.Fatal("browser theme not applied independently to console and desktop")
 		}
 		_, fields, err := readConfigFile(c.configPath)

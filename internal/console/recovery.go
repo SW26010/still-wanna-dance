@@ -16,43 +16,48 @@ import (
 
 // Recovery admits configuration repair without initializing business resources.
 type Recovery struct {
-	console       *Console
-	identity      desktop.Identity
-	reason        string
-	mu            sync.Mutex // serializes the entire configuration read/modify/write lifetime
-	lease         io.Closer
-	settingsError string
-	closed        bool
-	ctx           context.Context
-	cancel        context.CancelFunc
-	closeErr      error
+	editor         *settingsEditor
+	address, token string
+	lifecycle      *applicationLifecycle
+	identity       desktop.Identity
+	reason         string
+	mu             sync.Mutex // serializes the entire configuration read/modify/write lifetime
+	lease          io.Closer
+	settingsError  string
+	closed         bool
+	ctx            context.Context
+	cancel         context.CancelFunc
+	closeErr       error
 }
 
 func NewRecovery(address string, identity desktop.Identity, reason string) (*Recovery, error) {
-	c, err := newSettingsConsole(address, identity)
+	token, err := newManagementToken()
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	r := &Recovery{console: c, identity: identity, reason: reason, ctx: ctx, cancel: cancel}
+	r := &Recovery{editor: newSettingsEditor(identity, nil), address: address, token: token, lifecycle: newApplicationLifecycle(), identity: identity, reason: reason, ctx: ctx, cancel: cancel}
 	r.openSettings()
 	return r, nil
 }
 
-func (r *Recovery) ShutdownRequested() <-chan struct{} { return r.console.ShutdownRequested() }
+func (r *Recovery) ShutdownRequested() <-chan struct{} { return r.lifecycle.requested }
 func (r *Recovery) RequestExit() {
 	// The owner must be able to cancel pending imports/dialogs before waiting
 	// for configuration transactions to drain in Close.
-	r.console.RequestExit()
+	r.lifecycle.request(ShutdownExit, nil)
 }
-func (r *Recovery) WebUIConnected() bool { return r.console.WebUIConnected() }
+func (r *Recovery) WebUIConnected() bool {
+	clients, _ := r.lifecycle.clientSnapshot()
+	return clients != 0
+}
 
 // Recovery has no business readiness to report. Only committed appearance is
 // shared with the normal tray; unreadable/invalid preferences follow the system.
 func (r *Recovery) DesktopState() desktop.State {
-	r.console.mu.Lock()
-	theme := r.console.settings.Theme
-	r.console.mu.Unlock()
+	r.editor.mu.Lock()
+	theme := r.editor.settings.Theme
+	r.editor.mu.Unlock()
 	if theme != "light" && theme != "dark" {
 		theme = "system"
 	}
@@ -61,28 +66,20 @@ func (r *Recovery) DesktopState() desktop.State {
 
 func (r *Recovery) BeginShutdown() {
 	r.cancel()
-	r.console.mu.Lock()
-	r.console.closing = true
-	if r.console.pathPickerCancel != nil {
-		r.console.pathPickerCancel()
-	}
-	r.console.mu.Unlock()
-	if r.console.hosts != nil {
-		r.console.hosts.cancel()
-	}
-	r.console.lifecycle.beginShutdown()
+	r.editor.beginShutdown()
+	r.lifecycle.beginShutdown()
 }
-func (r *Recovery) ShutdownAction() ShutdownAction { return r.console.ShutdownAction() }
+func (r *Recovery) ShutdownAction() ShutdownAction { return r.lifecycle.snapshot() }
 func (r *Recovery) Close(ctx context.Context) error {
 	r.BeginShutdown()
-	r.console.lifecycle.close(ctx)
+	r.lifecycle.close(ctx)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.closed = true
-	if r.console.hosts != nil {
-		r.console.lifecycleMu.Lock()
-		r.closeErr = r.console.hosts.close(r.console.savedSettings.RestoreHostsOnStopOrExit)
-		r.console.lifecycleMu.Unlock()
+	if r.editor.hosts != nil {
+		r.editor.lifecycleMu.Lock()
+		r.closeErr = r.editor.hosts.close(r.editor.savedSettings.RestoreHostsOnStopOrExit)
+		r.editor.lifecycleMu.Unlock()
 	}
 	if r.lease != nil {
 		_ = r.lease.Close()
@@ -101,7 +98,7 @@ func (r *Recovery) ExitWhenUnattended(ctx context.Context, grace time.Duration) 
 		}
 	}()
 	for {
-		clients, changed := r.console.lifecycle.clientSnapshot()
+		clients, changed := r.lifecycle.clientSnapshot()
 		var expired <-chan time.Time
 		if clients == 0 {
 			if timer == nil {
@@ -117,7 +114,7 @@ func (r *Recovery) ExitWhenUnattended(ctx context.Context, grace time.Duration) 
 			return
 		case <-changed:
 		case <-expired:
-			if r.console.lifecycle.requestExitIfUnattended() {
+			if r.lifecycle.requestExitIfUnattended() {
 				return
 			}
 			timer = nil
@@ -126,11 +123,11 @@ func (r *Recovery) ExitWhenUnattended(ctx context.Context, grace time.Duration) 
 }
 
 func (r *Recovery) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	c := r.console
+	c := r.editor
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
-	if req.Host != c.address {
+	if req.Host != r.address {
 		http.Error(w, "invalid host", http.StatusForbidden)
 		return
 	}
@@ -153,25 +150,25 @@ func (r *Recovery) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = fmt.Fprint(w, legal.Text)
 	case req.Method == http.MethodGet && (req.URL.Path == "/" || req.URL.Path == "/help" || req.URL.Path == "/about" || req.URL.Path == "/terms"):
-		serveWebUIPage(w, "WebUI", c.token, map[string]any{
-			"page": "console", "token": c.token, "theme": r.DesktopState().Theme, "recovery": map[string]string{"reason": r.reason},
+		serveWebUIPage(w, "WebUI", r.token, map[string]any{
+			"page": "console", "token": r.token, "theme": r.DesktopState().Theme, "recovery": map[string]string{"reason": r.reason},
 			"settingsDefaults": downloadSettingsDefaults(),
 			"build":            buildinfo.Current(), "terms": map[string]string{"text": legal.Text, "version": legal.Version},
 		})
 	case req.Method == http.MethodGet && req.URL.Path == "/api/identity":
 		writeJSON(w, r.identity)
 	case req.URL.Path == "/api/lifecycle":
-		c.serveLifecycle(w, req)
+		serveLifecycle(w, req, r.address, r.lifecycle)
 	case req.Method == http.MethodGet && req.URL.Path == "/api/recovery/settings":
 		r.serveSettings(w, req, settings)
 	case req.Method == http.MethodPost && settings != nil:
 		r.serveSettings(w, req, settings)
 	case req.Method == http.MethodPost && (req.URL.Path == "/api/exit" || req.URL.Path == "/api/restart"):
-		if !c.allowManagement(w, req) {
+		if !allowManagement(w, req, r.token, r.address) {
 			return
 		}
 		action := ShutdownExit
-		if req.URL.Path == "/api/restart" && c.ShutdownAction() == "running" {
+		if req.URL.Path == "/api/restart" && r.ShutdownAction() == "running" {
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			if !r.allowSettings(w) {
@@ -191,7 +188,7 @@ func (r *Recovery) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/api/restart" {
 			action = ShutdownRestart
 		}
-		c.lifecycle.request(action, func(action ShutdownAction) {
+		r.lifecycle.request(action, func(action ShutdownAction) {
 			controller := http.NewResponseController(w)
 			_ = controller.SetWriteDeadline(time.Now().Add(lifecycleWriteTimeout))
 			writeJSON(w, struct {

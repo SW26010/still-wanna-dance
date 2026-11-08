@@ -50,10 +50,10 @@ func testFirstRunBrowser(t *testing.T, evidence, missing string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close() })
-	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 	c.settings.VRChatLogDir = t.TempDir()
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	ui := httptest.NewUnstartedServer(c)
 	c.address = ui.Listener.Addr().String()
 	ui.Start()
@@ -66,7 +66,7 @@ func testFirstRunBrowser(t *testing.T, evidence, missing string) {
 	} else {
 		t.Log(string(output))
 	}
-	if !c.termsAccepted() || c.store == nil || c.activation.Phase != "waiting" || c.savedSettings != c.settings {
+	if !c.termsAccepted() || c.store == nil || c.activation.Phase != "waiting" || c.editor.savedSettings != c.settings {
 		t.Fatal("first-run default experience did not become ready", c.activation, c.storageOpenError)
 	}
 }

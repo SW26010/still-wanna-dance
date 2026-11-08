@@ -44,7 +44,7 @@ func TestVRCXBrowser(t *testing.T) {
 			if mode == "reopened" {
 				c = restartTestConsole(t, c)
 			}
-			c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return source, nil }
+			c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return source, nil }
 			ui := httptest.NewUnstartedServer(c)
 			c.address = ui.Listener.Addr().String()
 			ui.Start()
@@ -74,7 +74,7 @@ func firstRunVRCXConsole(t *testing.T) *Console {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close() })
-	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.checksumURL = ""
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
@@ -205,12 +205,12 @@ func TestVRCXSuggestionStatusFollowsFirstStoredDemand(t *testing.T) {
 
 func TestVRCXDismissalPersistsWithoutApplyingOrChangingSettings(t *testing.T) {
 	c := testConsole(t)
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	next.PrepareAheadSeconds++
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
-	active, saved := c.settings, c.savedSettings
+	active, saved := c.settings, c.editor.savedSettings
 	_, before, err := readConfigFile(c.configPath)
 	if err != nil {
 		t.Fatal(err)
@@ -218,7 +218,7 @@ func TestVRCXDismissalPersistsWithoutApplyingOrChangingSettings(t *testing.T) {
 	if w := vrcxRequest(t, c, "dismiss", map[string]any{}); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if c.settings != active || c.savedSettings != saved || vrcxAvailable(t, c) {
+	if c.settings != active || c.editor.savedSettings != saved || vrcxAvailable(t, c) {
 		t.Fatal("dismissal changed runtime settings or did not retire suggestion")
 	}
 	_, after, err := readConfigFile(c.configPath)
@@ -232,7 +232,7 @@ func TestVRCXDismissalPersistsWithoutApplyingOrChangingSettings(t *testing.T) {
 		t.Fatal("dismissal altered configuration fields")
 	}
 	next.PrepareAheadSeconds++
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -416,7 +416,7 @@ func TestVRCXRejectsLostStorageWithRestoredUsageEvidence(t *testing.T) {
 			for _, layout := range []string{"missing-root", "empty-root"} {
 				t.Run(evidence.kind+"/"+stage+"/"+layout, func(t *testing.T) {
 					c := testConsole(t)
-					if err := c.save(c.settings); err != nil {
+					if err := c.editor.save(c.settings); err != nil {
 						t.Fatal(err)
 					}
 					root := testStorageRoot(c.settings)
@@ -610,7 +610,7 @@ func TestVRCXGatesDetectionAndPicker(t *testing.T) {
 		t.Fatal("detection read history or started service")
 	}
 	source := vrcxFixture(t)
-	c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+	c.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 		if !strings.Contains(dialog.Title, "VRCX") {
 			t.Fatal(dialog.Title)
 		}

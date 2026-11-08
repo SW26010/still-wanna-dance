@@ -47,12 +47,12 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 	for _, variant := range []string{"missing", "null", "explicit"} {
 		t.Run(variant, func(t *testing.T) {
 			c := testConsole(t)
-			if err := c.saveTheme("dark"); err != nil {
+			if err := c.editor.saveTheme("dark"); err != nil {
 				t.Fatal(err)
 			}
-			saved := c.savedSettings
+			saved := c.editor.savedSettings
 			saved.DownloadConcurrencySoftLimit, saved.DownloadGrowIntervalMS = 23, 600
-			if err := c.save(saved); err != nil {
+			if err := c.editor.save(saved); err != nil {
 				t.Fatal(err)
 			}
 			active := c.settings
@@ -92,7 +92,7 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 				want.VRChatLogDir = "" // explicitly clearing the path selects automatic detection
 			}
 			active.RestoreHostsOnStopOrExit = want.RestoreHostsOnStopOrExit
-			if c.savedSettings != want || c.settings != active {
+			if c.editor.savedSettings != want || c.settings != active {
 				t.Fatal("partial request lost saved settings or applied staged values")
 			}
 			before, err := os.ReadFile(c.configPath)
@@ -106,7 +106,7 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 			if w.Code != 400 {
 				t.Fatal("invalid partial settings accepted", w.Code)
 			}
-			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(after, before) || c.savedSettings != want {
+			if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(after, before) || c.editor.savedSettings != want {
 				t.Fatal("invalid request changed settings", err)
 			}
 		})
@@ -130,7 +130,7 @@ func TestConcurrentConfigurationUpdatesPreserveIndependentChoices(t *testing.T) 
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
-	active, next := c.settings, c.savedSettings
+	active, next := c.settings, c.editor.savedSettings
 	next.PrepareAheadSeconds++
 	patch, err := json.Marshal(map[string]int{"prepareAheadSeconds": next.PrepareAheadSeconds})
 	if err != nil {
@@ -139,9 +139,9 @@ func TestConcurrentConfigurationUpdatesPreserveIndependentChoices(t *testing.T) 
 	next.LogLevel = "warn"
 	start, results := make(chan struct{}), make(chan error, 4)
 	for _, update := range []func() error{
-		func() error { return c.saveSettingsPatch(patch) },
-		func() error { return c.saveSettingsPatch([]byte(`{"logLevel":"warn"}`)) },
-		func() error { return c.saveTheme("dark") },
+		func() error { return c.editor.saveSettingsPatch(patch) },
+		func() error { return c.editor.saveSettingsPatch([]byte(`{"logLevel":"warn"}`)) },
+		func() error { return c.editor.saveTheme("dark") },
 		c.dismissVRCXSuggestion,
 	} {
 		go func() { <-start; results <- update() }()
@@ -156,7 +156,7 @@ func TestConcurrentConfigurationUpdatesPreserveIndependentChoices(t *testing.T) 
 		return
 	}
 	next.Theme, active.Theme = "dark", "dark"
-	if c.savedSettings != next || c.settings != active || !c.vrcxImportDismissed {
+	if c.editor.savedSettings != next || c.settings != active || !c.vrcxImportDismissed {
 		t.Fatal("concurrent writes lost a choice or applied staged settings")
 	}
 	_, after, err := readConfigFile(c.configPath)

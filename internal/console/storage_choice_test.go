@@ -14,6 +14,7 @@ func TestStorageChoiceChecksSelectedRoots(t *testing.T) {
 	c := testConsole(t)
 	portable, root := t.TempDir(), t.TempDir()
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	base := c.settings
 	base.DatabasePath = filepath.Join(root, "library.sqlite")
 	base.VideoDir = filepath.Join(root, "videos")
@@ -39,7 +40,7 @@ func TestStorageChoiceChecksSelectedRoots(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := base
 			tc.change(&s)
-			err := c.validateStorageChoice(s, tc.choice)
+			err := c.editor.validateStorageChoice(s, tc.choice)
 			if (err != nil) != tc.wantError {
 				t.Fatalf("want error %v, got %v", tc.wantError, err)
 			}
@@ -80,6 +81,7 @@ func TestStorageDraftValidationRetainsOtherConflicts(t *testing.T) {
 	c := testConsole(t)
 	portable := t.TempDir()
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	badCache := filepath.Join(portable, "custom")
 	video := filepath.Join(t.TempDir(), "videos")
 	check := func(cache, choice string) (bool, string) {
@@ -118,6 +120,7 @@ func TestStorageCreationWaitsForOtherDraftLocations(t *testing.T) {
 	c := testConsole(t)
 	portable := t.TempDir()
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	database := filepath.Join(t.TempDir(), "new", "library.sqlite")
 	prepare := func(cache string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -151,8 +154,9 @@ func TestStorageCreationAvoidsSavedAndActiveLocations(t *testing.T) {
 			oldVideo := t.TempDir()
 			if snapshot == "active" {
 				c.settings.VideoDir = oldVideo
+				c.editor.settings = c.settings
 			} else {
-				c.savedSettings.VideoDir = oldVideo
+				c.editor.savedSettings.VideoDir = oldVideo
 			}
 			database := filepath.Join(oldVideo, "new", "library.sqlite")
 			body, err := json.Marshal(map[string]string{
@@ -177,17 +181,17 @@ func TestStorageCreationAvoidsSavedAndActiveLocations(t *testing.T) {
 
 func TestStorageSaveRejectsNewOverlapWithoutChangingConfig(t *testing.T) {
 	c := testConsole(t)
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	// The old rule checked only cache/<instance>, which is a sibling of videos.
 	next.BlockCacheDir = filepath.Dir(next.VideoDir)
 	before, err := os.ReadFile(c.configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.save(next); err == nil || !strings.Contains(err.Error(), "互相包含") {
+	if err := c.editor.save(next); err == nil || !strings.Contains(err.Error(), "互相包含") {
 		t.Fatal("saved a cache parent containing the video directory", err)
 	}
-	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.savedSettings.BlockCacheDir != "" {
+	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.editor.savedSettings.BlockCacheDir != "" {
 		t.Fatal("rejected cache changed saved settings", err)
 	}
 }
@@ -195,9 +199,9 @@ func TestStorageSaveRejectsNewOverlapWithoutChangingConfig(t *testing.T) {
 func TestStorageSaveRechecksLatestSavedPaths(t *testing.T) {
 	c := testConsole(t)
 	cache := t.TempDir()
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	next.BlockCacheDir = cache
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(c.configPath)
@@ -216,7 +220,7 @@ func TestStorageSaveRechecksLatestSavedPaths(t *testing.T) {
 	if w.Code != 400 || !strings.Contains(w.Body.String(), "互相包含") {
 		t.Fatal("stale partial update bypassed the latest cache selection", w.Code, w.Body.String())
 	}
-	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.savedSettings.BlockCacheDir != cache {
+	if after, err := os.ReadFile(c.configPath); err != nil || !bytes.Equal(before, after) || c.editor.savedSettings.BlockCacheDir != cache {
 		t.Fatal("rejected update changed the latest configuration", err)
 	}
 	if _, err := os.Stat(video); !os.IsNotExist(err) {
@@ -235,21 +239,21 @@ func TestLegacyOverlappingSelectionsAllowUnrelatedSaves(t *testing.T) {
 	if c.settings.BlockCacheDir != legacy.BlockCacheDir || c.store == nil {
 		t.Fatal("legacy selection failed to reopen", c.storageOpenError)
 	}
-	unrelated := c.savedSettings
+	unrelated := c.editor.savedSettings
 	unrelated.LogLevel = "debug"
-	if err := c.save(unrelated); err != nil {
+	if err := c.editor.save(unrelated); err != nil {
 		t.Fatal("new selection rules blocked an unrelated save", err)
 	}
-	if c.savedSettings.BlockCacheDir != legacy.BlockCacheDir || c.savedSettings.VideoDir != legacy.VideoDir {
+	if c.editor.savedSettings.BlockCacheDir != legacy.BlockCacheDir || c.editor.savedSettings.VideoDir != legacy.VideoDir {
 		t.Fatal("unrelated save changed legacy paths")
 	}
 }
 
 func TestLegacySelectionValidationChecksOnlyChangedLocations(t *testing.T) {
 	c := testConsole(t)
-	legacy := c.savedSettings
+	legacy := c.editor.savedSettings
 	legacy.BlockCacheDir = filepath.Dir(legacy.VideoDir)
-	c.savedSettings = legacy
+	c.editor.savedSettings = legacy
 	check := func(s Settings, selection string) (bool, string) {
 		t.Helper()
 		body, err := json.Marshal(map[string]string{
@@ -285,10 +289,10 @@ func TestLegacySelectionValidationChecksOnlyChangedLocations(t *testing.T) {
 
 func TestLegacyDatabaseReselectionStillChecksTheFile(t *testing.T) {
 	c := testConsole(t)
-	legacy := c.savedSettings
+	legacy := c.editor.savedSettings
 	legacy.DatabasePath = filepath.Join(legacy.VideoDir, "legacy.sqlite")
 	createTestDatabase(t, legacy.DatabasePath)
-	c.savedSettings = legacy
+	c.editor.savedSettings = legacy
 	prepare := func(path string) *httptest.ResponseRecorder {
 		t.Helper()
 		body, err := json.Marshal(map[string]string{
@@ -321,6 +325,7 @@ func TestLegacyPortableCacheAllowsUnrelatedSaves(t *testing.T) {
 	c := testConsole(t)
 	portable := t.TempDir()
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	legacy := c.settings
 	legacy.BlockCacheDir = filepath.Join(portable, "old-cache")
 	if err := os.Mkdir(legacy.BlockCacheDir, 0700); err != nil {
@@ -329,13 +334,13 @@ func TestLegacyPortableCacheAllowsUnrelatedSaves(t *testing.T) {
 	if err := saveConfigSettings(c.configPath, legacy); err != nil {
 		t.Fatal(err)
 	}
-	c.settings, c.savedSettings = legacy, legacy
+	c.settings, c.editor.savedSettings = legacy, legacy
 	unrelated := legacy
 	unrelated.LogLevel = "debug"
-	if err := c.save(unrelated); err != nil {
+	if err := c.editor.save(unrelated); err != nil {
 		t.Fatal("legacy cache blocked an unrelated save", err)
 	}
-	if c.savedSettings.BlockCacheDir != legacy.BlockCacheDir {
+	if c.editor.savedSettings.BlockCacheDir != legacy.BlockCacheDir {
 		t.Fatal("unrelated save changed the legacy cache path")
 	}
 }
@@ -352,12 +357,12 @@ func TestLegacyDatabaseInVideoAllowsUnrelatedSaves(t *testing.T) {
 	if c.settings.DatabasePath != legacy.DatabasePath || c.store == nil {
 		t.Fatal("legacy database failed to reopen", c.storageOpenError)
 	}
-	unrelated := c.savedSettings
+	unrelated := c.editor.savedSettings
 	unrelated.LogLevel = "debug"
-	if err := c.save(unrelated); err != nil {
+	if err := c.editor.save(unrelated); err != nil {
 		t.Fatal("legacy database blocked an unrelated save", err)
 	}
-	if c.savedSettings.DatabasePath != legacy.DatabasePath {
+	if c.editor.savedSettings.DatabasePath != legacy.DatabasePath {
 		t.Fatal("unrelated save changed the legacy database path")
 	}
 }

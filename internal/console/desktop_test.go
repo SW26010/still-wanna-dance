@@ -49,7 +49,7 @@ func TestDesktopSharesWebRuntime(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := readHostsFixture(t, c.hosts.path); got != hostsBaseline {
+	if got := readHostsFixture(t, c.editor.hosts.path); got != hostsBaseline {
 		t.Fatal("exit did not restore tray activation", got)
 	}
 	if err := c.DesktopCommand(desktop.StartAcceleration); err == nil {
@@ -101,7 +101,7 @@ func TestDesktopRepairsRunningGateway(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := testConsole(t)
-			c.hosts, _ = fixtureHostsController(t, tc.initial)
+			c.editor.hosts, _ = fixtureHostsController(t, tc.initial)
 			c.settings.RestoreHostsOnStopOrExit = tc.restore
 			if err := c.start(); err != nil {
 				t.Fatal(err)
@@ -131,7 +131,7 @@ func TestDesktopActivationRollsBackAndRetries(t *testing.T) {
 	if err := c.DesktopCommand(desktop.StartAcceleration); err == nil {
 		t.Fatal("occupied HTTPS port accepted")
 	}
-	if s := c.DesktopState(); s.CDN || s.Ready || s.Activating || c.activation.Phase != "failed" || c.activation.Error == "" || readHostsFixture(t, c.hosts.path) != hostsBaseline {
+	if s := c.DesktopState(); s.CDN || s.Ready || s.Activating || c.activation.Phase != "failed" || c.activation.Error == "" || readHostsFixture(t, c.editor.hosts.path) != hostsBaseline {
 		t.Fatal("failed tray activation was not rolled back", s, c.activation)
 	}
 	c.httpsAddress = "127.0.0.1:0"
@@ -147,18 +147,18 @@ func TestDesktopActivationRejectsConflictAndDeniedAuthorization(t *testing.T) {
 		if conflict {
 			initial += "192.0.2.1 api.udon.dance\r\n"
 		}
-		if err := os.WriteFile(c.hosts.path, []byte(initial), 0600); err != nil {
+		if err := os.WriteFile(c.editor.hosts.path, []byte(initial), 0600); err != nil {
 			t.Fatal(err)
 		}
 		calls := 0
-		c.hosts.launch = func(context.Context) (hostsConnection, error) {
+		c.editor.hosts.launch = func(context.Context) (hostsConnection, error) {
 			calls++
 			return nil, errors.New("UAC canceled")
 		}
 		if err := c.DesktopCommand(desktop.StartAcceleration); err == nil || c.DesktopState().CDN || c.activation.Phase != "failed" {
 			t.Fatal("failed tray preflight started the gateway", err)
 		}
-		if calls != map[bool]int{true: 0, false: 1}[conflict] || readHostsFixture(t, c.hosts.path) != initial {
+		if calls != map[bool]int{true: 0, false: 1}[conflict] || readHostsFixture(t, c.editor.hosts.path) != initial {
 			t.Fatal("conflict/denied authorization changed hosts or elevated unexpectedly", calls)
 		}
 	}
@@ -169,13 +169,13 @@ func TestDesktopReflectsWebActivationAndRejectsDuplicates(t *testing.T) {
 	entered, release, done := make(chan struct{}), make(chan struct{}), make(chan error, 1)
 	var once sync.Once
 	defer once.Do(func() { close(release) })
-	launch := c.hosts.launch
-	c.hosts.launch = func(ctx context.Context) (hostsConnection, error) {
+	launch := c.editor.hosts.launch
+	c.editor.hosts.launch = func(ctx context.Context) (hostsConnection, error) {
 		close(entered)
 		<-release
 		return launch(ctx)
 	}
-	go func() { done <- c.enableAcceleration(c.hosts.status, c.changeHostsLocked) }()
+	go func() { done <- c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked) }()
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):

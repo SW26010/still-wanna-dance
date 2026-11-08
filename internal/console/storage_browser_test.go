@@ -34,7 +34,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	cacheDir := t.TempDir()
 	run := func(phase string) {
 		t.Helper()
-		c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+		c.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 			if dialog.Title == "选择临时视频缓存目录" {
 				return cacheDir, nil
 			}
@@ -60,10 +60,10 @@ func TestStorageLocationsBrowser(t *testing.T) {
 		}
 	}
 	run("configure")
-	if c.store == nil || c.service != nil || c.settings.DatabasePath != c.defaultDatabasePath() || c.savedSettings.DatabasePath != database || c.settings.BlockCacheDir != "" || c.savedSettings.BlockCacheDir != cacheDir {
+	if c.store == nil || c.service != nil || c.settings.DatabasePath != c.editor.defaultDatabasePath() || c.editor.savedSettings.DatabasePath != database || c.settings.BlockCacheDir != "" || c.editor.savedSettings.BlockCacheDir != cacheDir {
 		t.Fatal("selection activated before restart", c.storageOpenError)
 	}
-	if c.settings.VRChatLogDir != "" || c.savedSettings.VRChatLogDir != logDir || c.settings.DownloadConcurrencySoftLimit != 16 || c.savedSettings.DownloadConcurrencySoftLimit != 32 {
+	if c.settings.VRChatLogDir != "" || c.editor.savedSettings.VRChatLogDir != logDir || c.settings.DownloadConcurrencySoftLimit != 16 || c.editor.savedSettings.DownloadConcurrencySoftLimit != 32 {
 		t.Fatal("browser save lost settings or applied them before restart")
 	}
 	if err := c.Close(); err != nil {
@@ -86,7 +86,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 		t.Fatal("restart did not apply independent paths", c.storageOpenError)
 	}
 	run("reopened")
-	if c.settings.VRChatLogDir != logDir || c.savedSettings.VRChatLogDir != "" || c.settings.DownloadConcurrencySoftLimit != 32 {
+	if c.settings.VRChatLogDir != logDir || c.editor.savedSettings.VRChatLogDir != "" || c.settings.DownloadConcurrencySoftLimit != 32 {
 		t.Fatal("browser reset changed the active directory or lost the concurrency setting")
 	}
 	if err := c.Close(); err != nil {
@@ -96,7 +96,7 @@ func TestStorageLocationsBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.settings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != defaultLogDir() || c.savedSettings != c.settings || c.service != nil {
+	if c.settings.VRChatLogDir != "" || c.settings.effectiveVRChatLogDir() != defaultLogDir() || c.editor.savedSettings != c.settings || c.service != nil {
 		t.Fatal("automatic directory did not survive restart")
 	}
 	_, fields, err := readConfigFile(config)
@@ -122,6 +122,7 @@ func TestStorageChoicesBrowser(t *testing.T) {
 	}
 	portable, root := t.TempDir(), t.TempDir()
 	c.identity.Executable = filepath.Join(portable, "SWD.exe")
+	c.editor.identity = c.identity
 	cache := filepath.Join(root, "cache")
 	videos := filepath.Join(root, "videos")
 	badVideo := filepath.Join(cache, "nested-videos")
@@ -133,7 +134,7 @@ func TestStorageChoicesBrowser(t *testing.T) {
 		}
 	}
 	counts := map[string]int{}
-	c.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
+	c.editor.pathPicker = func(_ context.Context, dialog desktop.PathDialog) (string, error) {
 		counts[dialog.Title]++
 		switch dialog.Title {
 		case "选择临时视频缓存目录":
@@ -177,7 +178,7 @@ func TestStorageChoicesBrowser(t *testing.T) {
 	if _, err := os.Stat(badDatabase); err != nil {
 		t.Fatal("database was not created after the draft became valid", err)
 	}
-	if c.savedSettings.DatabasePath != database || c.savedSettings.VideoDir != videos || c.savedSettings.BlockCacheDir != cache {
+	if c.editor.savedSettings.DatabasePath != database || c.editor.savedSettings.VideoDir != videos || c.editor.savedSettings.BlockCacheDir != cache {
 		t.Fatal("browser did not save the validated choices")
 	}
 	if c.settings.DatabasePath == database || c.settings.VideoDir == videos || c.settings.BlockCacheDir != "" {

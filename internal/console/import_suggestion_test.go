@@ -17,7 +17,7 @@ func firstRunImportConsole(t *testing.T) *Console {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close() })
-	c.hosts, _ = fixtureHostsController(t, "127.0.0.1 api.udon.dance # user\r\n")
+	c.editor.hosts, _ = fixtureHostsController(t, "127.0.0.1 api.udon.dance # user\r\n")
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestVideoImportSuggestionRequiresUnmanagedLocalAPI(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h, launches := fixtureHostsController(t, tc.hosts)
-			c.hosts = h
+			c.editor.hosts = h
 			if got := videoImportSuggested(t, c); got != tc.want {
 				t.Fatalf("suggested = %v, want %v", got, tc.want)
 			}
@@ -69,8 +69,8 @@ func TestVideoImportSuggestionRequiresUnmanagedLocalAPI(t *testing.T) {
 			}
 		})
 	}
-	c.hosts, _ = fixtureHostsController(t, "")
-	if err := os.Remove(c.hosts.path); err != nil {
+	c.editor.hosts, _ = fixtureHostsController(t, "")
+	if err := os.Remove(c.editor.hosts.path); err != nil {
 		t.Fatal(err)
 	}
 	if videoImportSuggested(t, c) {
@@ -108,7 +108,7 @@ func TestVideoImportSuggestionFirstRunAndAcknowledgement(t *testing.T) {
 			if err != nil || !bytes.Equal(before, after) {
 				t.Fatal("acknowledgement changed configuration", err)
 			}
-			hosts := c.hosts
+			hosts := c.editor.hosts
 			if err := c.Close(); err != nil {
 				t.Fatal(err)
 			}
@@ -117,7 +117,7 @@ func TestVideoImportSuggestionFirstRunAndAcknowledgement(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { reopened.Close() })
-			reopened.hosts = hosts
+			reopened.editor.hosts = hosts
 			reopened.videoAddress, reopened.httpsAddress = "127.0.0.1:0", "127.0.0.1:0"
 			if videoImportSuggested(t, reopened) {
 				t.Fatal("reopening an existing configuration repeated the first-run suggestion")

@@ -12,7 +12,7 @@ import (
 	"still-wanna-dance/internal/desktop"
 )
 
-func (c *Console) servePathPickerAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
+func (c *settingsEditor) servePathPickerAuthorized(w http.ResponseWriter, r *http.Request, requireTerms bool) {
 	var input struct {
 		Purpose string `json:"purpose"`
 		Path    string `json:"path"`
@@ -33,12 +33,13 @@ func (c *Console) servePathPickerAuthorized(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]any{"path": path, "canceled": path == ""})
 }
 
-func (c *Console) selectPath(ctx context.Context, purpose, initial string) (string, error) {
+func (c *settingsEditor) selectPath(ctx context.Context, purpose, initial string) (string, error) {
 	return c.selectPathAuthorized(ctx, purpose, initial, true)
 }
 
 // Recovery only selects configuration paths; it does not activate services.
-func (c *Console) selectPathAuthorized(ctx context.Context, purpose, initial string, requireTerms bool) (string, error) {
+func (c *settingsEditor) selectPathAuthorized(ctx context.Context, purpose, initial string, requireTerms bool) (string, error) {
+	admitted := c.admitted(requireTerms)
 	dialog := desktop.PathDialog{}
 	switch purpose {
 	case "database":
@@ -65,7 +66,7 @@ func (c *Console) selectPathAuthorized(ctx context.Context, purpose, initial str
 	}
 	dialog.Initial = initial
 	c.mu.Lock()
-	if c.closing || (requireTerms && !c.terms.valid()) || c.pathPickerCancel != nil {
+	if c.closing || (requireTerms && !admitted) || c.pathPickerCancel != nil {
 		c.mu.Unlock()
 		return "", rejectRequest(errors.New("请先同意条款，或关闭已打开的路径选择窗口"))
 	}

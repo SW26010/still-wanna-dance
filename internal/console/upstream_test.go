@@ -104,7 +104,7 @@ func TestObsoleteDownloadUpstreamSettingIsIgnored(t *testing.T) {
 	for _, mode := range []string{"auto", "cf", "hkg", "future-node"} {
 		t.Run(mode, func(t *testing.T) {
 			c := testConsole(t)
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			data, err := os.ReadFile(c.configPath)
@@ -128,7 +128,7 @@ func TestObsoleteDownloadUpstreamSettingIsIgnored(t *testing.T) {
 			if loaded.settings != c.settings {
 				t.Fatal("obsolete field changed current settings")
 			}
-			if err := loaded.save(loaded.settings); err != nil {
+			if err := loaded.editor.save(loaded.settings); err != nil {
 				t.Fatal(err)
 			}
 			data, err = os.ReadFile(c.configPath)

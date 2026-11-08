@@ -41,7 +41,7 @@ func TestAutoUpstreamMigratesOnlyDiskMode(t *testing.T) {
 					t.Fatal("read-only load changed disk")
 				}
 				c = restartTestConsole(t, c)
-				if c.settings.UpstreamMode != "proxy" || c.savedSettings != c.settings || !c.proxyModeMigrated {
+				if c.settings.UpstreamMode != "proxy" || c.editor.savedSettings != c.settings || !c.proxyModeMigrated {
 					t.Fatal("startup did not apply migrated proxy mode")
 				}
 				if conn, err := c.upstreamDial(context.Background(), "tcp", "example.invalid:443"); err == nil {

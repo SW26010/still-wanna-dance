@@ -20,7 +20,7 @@ func TestBlockCacheRecoveryBrowser(t *testing.T) {
 	cache := t.TempDir()
 	next := original.settings
 	next.BlockCacheDir = cache
-	if err := original.save(next); err != nil {
+	if err := original.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	config := original.configPath
@@ -45,7 +45,7 @@ func TestBlockCacheRecoveryBrowser(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("browser: %v\n%s", err, output)
 	}
-	if c.settings.BlockCacheDir != cache || c.savedSettings.BlockCacheDir != "" || c.work != nil {
+	if c.settings.BlockCacheDir != cache || c.editor.savedSettings.BlockCacheDir != "" || c.work != nil {
 		t.Fatal("recovery applied before restart or lost the selected default")
 	}
 	if _, err := os.Stat(cache); !os.IsNotExist(err) {

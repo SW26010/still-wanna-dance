@@ -27,7 +27,7 @@ func TestLibraryBrowser(t *testing.T) {
 	c := testConsole(t)
 	defer c.Close()
 	c.settings.VideoStorageMode = "unlimited"
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	const body = "library browser video"
 	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 	var downloads atomic.Int32

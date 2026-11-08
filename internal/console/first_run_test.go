@@ -29,7 +29,7 @@ func TestFirstRunLibraryAvailableWithoutAcceleration(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
-			if c.store == nil || c.storageOpenError != nil || c.settings.DatabasePath != c.defaultDatabasePath() || c.settings.VideoDir != c.defaultVideoDir() || c.savedSettings != c.settings {
+			if c.store == nil || c.storageOpenError != nil || c.settings.DatabasePath != c.editor.defaultDatabasePath() || c.settings.VideoDir != c.editor.defaultVideoDir() || c.editor.savedSettings != c.settings {
 				t.Fatal("default storage was not ready at application startup", c.storageOpenError)
 			}
 			if name == "unconfigured_v7" && c.settings.Theme != "dark" {
@@ -135,7 +135,7 @@ func TestFirstRunPreservesUnconfiguredExistingData(t *testing.T) {
 			if c.store != nil || c.storageOpenError != nil || c.storageConfirmation == nil {
 				t.Fatal("existing data was implicitly adopted")
 			}
-			if _, err := os.Stat(c.defaultDatabasePath()); path != c.defaultDatabasePath() && !os.IsNotExist(err) {
+			if _, err := os.Stat(c.editor.defaultDatabasePath()); path != c.editor.defaultDatabasePath() && !os.IsNotExist(err) {
 				t.Fatal("replacement database created", err)
 			}
 			_, storeErr := c.businessStore()
@@ -191,13 +191,13 @@ func TestFirstRunAccelerationNeedsNoStorageSetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close() })
-	c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+	c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 	c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 	c.settings.VRChatLogDir = t.TempDir()
 	if err := c.acceptTerms(); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.enableAcceleration(c.hosts.status, c.changeHostsLocked); err != nil {
+	if err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked); err != nil {
 		t.Fatalf("first-run one-click acceleration required manual storage setup: %v", err)
 	}
 	if c.activation.Phase != "waiting" || c.httpServer == nil || c.store == nil {
@@ -232,10 +232,10 @@ func TestMissingStorageChoicesInitializeOnlySafeDefaults(t *testing.T) {
 				t.Fatal("safe defaults failed", c.storageOpenError, c.storageConfirmation)
 			}
 			if missing != "video" {
-				database = c.defaultDatabasePath()
+				database = c.editor.defaultDatabasePath()
 			}
 			if missing != "database" {
-				videos = c.defaultVideoDir()
+				videos = c.editor.defaultVideoDir()
 			}
 			if c.settings.DatabasePath != database || c.settings.VideoDir != videos || c.settings.Theme != "dark" {
 				t.Fatal("explicit choice or preference replaced", c.settings)

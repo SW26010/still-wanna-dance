@@ -54,7 +54,7 @@ func TestLogSettingsSaveAndRestart(t *testing.T) {
 		t.Fatal("default", c.settings.LogLevel)
 	}
 	post := func(value string) *httptest.ResponseRecorder {
-		s := c.savedSettings
+		s := c.editor.savedSettings
 		s.LogLevel = value
 		body, _ := json.Marshal(s)
 		r := httptest.NewRequest("POST", "http://"+c.address+"/api/settings", bytes.NewReader(body))
@@ -68,7 +68,7 @@ func TestLogSettingsSaveAndRestart(t *testing.T) {
 		if w := post(value); w.Code != 200 {
 			t.Fatal(w.Code, w.Body.String())
 		}
-		if c.settings.LogLevel != active || c.savedSettings.LogLevel != value {
+		if c.settings.LogLevel != active || c.editor.savedSettings.LogLevel != value {
 			t.Fatal("save changed the active level or lost the saved level")
 		}
 		level, err := ReadLogLevel(c.configPath)
@@ -84,7 +84,7 @@ func TestLogSettingsSaveAndRestart(t *testing.T) {
 			t.Fatal("level change did not require restart", w.Body.String(), err)
 		}
 		c = restartTestConsole(t, c)
-		if c.settings.LogLevel != value || c.settings != c.savedSettings {
+		if c.settings.LogLevel != value || c.settings != c.editor.savedSettings {
 			t.Fatal("restart did not apply level")
 		}
 	}
@@ -93,7 +93,7 @@ func TestLogSettingsSaveAndRestart(t *testing.T) {
 		t.Fatal("accepted invalid level", w.Code)
 	}
 	after, _ := os.ReadFile(c.configPath)
-	if !bytes.Equal(before, after) || c.settings != c.savedSettings {
+	if !bytes.Equal(before, after) || c.settings != c.editor.savedSettings {
 		t.Fatal("rejected level changed configuration")
 	}
 }

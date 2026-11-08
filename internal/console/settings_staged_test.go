@@ -19,7 +19,7 @@ func restartTestConsole(t *testing.T, c *Console) *Console {
 	if err != nil {
 		t.Fatal(err)
 	}
-	next.hosts, _ = fixtureHostsController(t, readHostsFixture(t, c.hosts.path))
+	next.editor.hosts, _ = fixtureHostsController(t, readHostsFixture(t, c.editor.hosts.path))
 	next.videoAddress, next.httpsAddress = c.videoAddress, c.httpsAddress
 	next.checksumURL, next.apiBase = c.checksumURL, c.apiBase
 	t.Cleanup(func() { next.Close() })
@@ -42,7 +42,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		next.SOCKS5Username, next.SOCKS5Password = "user", "secret"
 	}
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
 	if c.settings != active || c.service != engine || c.client != client {
@@ -76,7 +76,7 @@ func TestSavedSettingsDoNotChangeRuntime(t *testing.T) {
 		t.Fatal("CDN restart applied saved settings")
 	}
 	c = restartTestConsole(t, c)
-	if c.settings != next || c.savedSettings != next {
+	if c.settings != next || c.editor.savedSettings != next {
 		t.Fatal("application restart did not apply settings")
 	}
 }
@@ -86,13 +86,13 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	active := c.settings
 	next := active
 	next.PrepareAheadSeconds++
-	if err := c.save(next); err != nil {
+	if err := c.editor.save(next); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.save(active); err != nil {
+	if err := c.editor.save(active); err != nil {
 		t.Fatal(err)
 	}
-	if c.savedSettings != c.settings {
+	if c.editor.savedSettings != c.settings {
 		t.Fatal("revert still requires restart")
 	}
 	before, err := os.ReadFile(c.configPath)
@@ -101,18 +101,19 @@ func TestSettingsSaveFailureAndRevert(t *testing.T) {
 	}
 	next.VideoBudgetBytes = -1
 	next.VideoStorageMode = "limited"
-	if err := c.save(next); err == nil {
+	if err := c.editor.save(next); err == nil {
 		t.Fatal("invalid settings saved")
 	}
 	after, err := os.ReadFile(c.configPath)
-	if err != nil || string(before) != string(after) || c.savedSettings != active {
+	if err != nil || string(before) != string(after) || c.editor.savedSettings != active {
 		t.Fatal("failed save changed settings")
 	}
 	// A destination directory forces the final replacement to fail.
 	c.configPath = t.TempDir()
+	c.editor.configPath = c.configPath
 	next.VideoBudgetBytes = 1
 	next.VideoStorageMode = "limited"
-	if err := c.save(next); err == nil || c.savedSettings != active {
+	if err := c.editor.save(next); err == nil || c.editor.savedSettings != active {
 		t.Fatal("failed write changed snapshot")
 	}
 }

@@ -11,13 +11,13 @@ import (
 
 func TestProxyConfigurationDisplayMetadataAndOriginalProtection(t *testing.T) {
 	c := testConsole(t)
-	result, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), `C:\private\机场配置.yaml`)
+	result, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), `C:\private\机场配置.yaml`)
 	if err != nil || result.Name != "机场配置.yaml" || result.ImportedAt.IsZero() {
 		t.Fatal("invalid imported metadata", err)
 	}
-	s := c.savedSettings
+	s := c.editor.savedSettings
 	s.nodeImportID = result.ID
-	if err := c.saveSettings(s, true, nil); err != nil {
+	if err := c.editor.saveSettings(s, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	data, fields, err := readConfigFile(c.configPath)
@@ -52,33 +52,33 @@ func TestProxyConfigurationDisplayMetadataAndOriginalProtection(t *testing.T) {
 		t.Fatal("missing original metadata was invented")
 	}
 	// Simulate settings loaded by a running instance, then replace metadata only.
-	c.settings = c.savedSettings
-	result, err = c.importProxyNodes(context.Background(), []byte(nodeFixture), "renamed.yaml")
+	c.settings = c.editor.savedSettings
+	result, err = c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "renamed.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s = c.savedSettings
+	s = c.editor.savedSettings
 	s.nodeImportID = result.ID
-	if err := c.saveSettings(s, true, nil); err != nil {
+	if err := c.editor.saveSettings(s, true, nil); err != nil {
 		t.Fatal(err)
 	}
-	if c.settings != c.savedSettings {
+	if c.settings != c.editor.savedSettings {
 		t.Fatal("display metadata incorrectly requires restart")
 	}
 }
 
 func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 	c := testConsole(t)
-	r, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
+	r, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := c.savedSettings
+	s := c.editor.savedSettings
 	s.nodeImportID = r.ID
-	if err := c.saveSettings(s, true, nil); err != nil {
+	if err := c.editor.saveSettings(s, true, nil); err != nil {
 		t.Fatal(err)
 	}
-	if c.settings == c.savedSettings || c.settings.nodeSnapshot != "" || c.savedSettings.nodeImportID != "" {
+	if c.settings == c.editor.savedSettings || c.settings.nodeSnapshot != "" || c.editor.savedSettings.nodeImportID != "" {
 		t.Fatal("incorrect staged lifecycle")
 	}
 	b, _ := os.ReadFile(c.configPath)
@@ -92,7 +92,7 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer loaded.Close()
-	if loaded.settings.nodeSnapshot != c.savedSettings.nodeSnapshot {
+	if loaded.settings.nodeSnapshot != c.editor.savedSettings.nodeSnapshot {
 		t.Fatal("move changed snapshot")
 	}
 	var fields map[string]json.RawMessage
@@ -112,15 +112,15 @@ func TestProtectedNodesSaveRestartMoveAndFailedReplacement(t *testing.T) {
 		t.Fatal("tampered nodes accepted")
 	}
 	// The same config transaction saves settings and the encrypted snapshot.
-	old := c.savedSettings
-	r, _ = c.importProxyNodes(context.Background(), []byte("proxies: [{name: replacement, type: ss, server: replacement.example, port: 1234, cipher: aes-128-gcm, password: replacement}]"), "fixture.yaml")
+	old := c.editor.savedSettings
+	r, _ = c.editor.importProxyNodes(context.Background(), []byte("proxies: [{name: replacement, type: ss, server: replacement.example, port: 1234, cipher: aes-128-gcm, password: replacement}]"), "fixture.yaml")
 	s = old
 	s.nodeImportID = r.ID
 	_, fields, _ = readConfigFile(c.configPath)
 	fields["schemaVersion"] = json.RawMessage(`999`)
 	b, _ = json.Marshal(fields)
 	os.WriteFile(c.configPath, b, 0600)
-	if c.saveSettings(s, true, nil) == nil || c.savedSettings != old {
+	if c.editor.saveSettings(s, true, nil) == nil || c.editor.savedSettings != old {
 		t.Fatal("failed save published replacement")
 	}
 	after, _ := os.ReadFile(c.configPath)
@@ -140,7 +140,7 @@ func TestLegacyNodeSnapshotPreservedUntilExplicitReimport(t *testing.T) {
 		t.Fatal(err)
 	}
 	envelope, _ := json.Marshal(protectedEnvelope{1, "dpapi-current-user", cipher})
-	s := c.savedSettings
+	s := c.editor.savedSettings
 	loadProxyNodes(map[string]json.RawMessage{"proxyNodes": envelope}, &s)
 	if s.nodeSnapshot != "" || s.nodeSecretError == "" {
 		t.Fatal("legacy silently reinterpreted")
@@ -149,13 +149,13 @@ func TestLegacyNodeSnapshotPreservedUntilExplicitReimport(t *testing.T) {
 	if err != nil || !bytes.Equal(stored, envelope) {
 		t.Fatal("legacy ciphertext changed", err)
 	}
-	c.savedSettings = s
-	result, err := c.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
+	c.editor.savedSettings = s
+	result, err := c.editor.importProxyNodes(context.Background(), []byte(nodeFixture), "fixture.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.nodeImportID = result.ID
-	next, err := c.mergeProxyNodes(s, c.savedSettings)
+	next, err := c.editor.mergeProxyNodes(s, c.editor.savedSettings)
 	if err != nil || next.nodeSnapshot != nodeFixture || next.nodeSecretError != "" {
 		t.Fatal("explicit reimport failed", err)
 	}

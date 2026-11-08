@@ -15,7 +15,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 	s := c.settings
 	s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1080"
 	s.SOCKS5Username, s.SOCKS5Password = "test-user", "never-persist-this-secret"
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(c.configPath)
@@ -59,9 +59,9 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 		conn.Close()
 		t.Fatal("invalid credential dialed")
 	}
-	next := broken.savedSettings
+	next := broken.editor.savedSettings
 	next.PrepareAheadSeconds++
-	if err := broken.saveSettings(next, true, nil); err != nil {
+	if err := broken.editor.saveSettings(next, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(path)
@@ -73,7 +73,7 @@ func TestProtectedProxySecretMoveTamperAndRecovery(t *testing.T) {
 		t.Fatal("lost invalid ciphertext")
 	}
 	next.SOCKS5Password = "replacement-secret"
-	if err := broken.saveSettings(next, false, nil); err != nil {
+	if err := broken.editor.saveSettings(next, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	repaired, err := newConsoleWithWorkForTest(t, path, c.address)

@@ -37,7 +37,7 @@ func TestLogSettingsBrowser(t *testing.T) {
 		if phase == "reopen" {
 			want = "info"
 		}
-		if c.settings.LogLevel != active || c.savedSettings.LogLevel != want || c.service != nil {
+		if c.settings.LogLevel != active || c.editor.savedSettings.LogLevel != want || c.service != nil {
 			t.Fatal("save applied runtime settings or started the gateway")
 		}
 		level, err := ReadLogLevel(c.configPath)
@@ -45,7 +45,7 @@ func TestLogSettingsBrowser(t *testing.T) {
 			t.Fatal("startup level differs from browser choice", level, err)
 		}
 		c = restartTestConsole(t, c)
-		if c.settings.LogLevel != want || c.settings != c.savedSettings {
+		if c.settings.LogLevel != want || c.settings != c.editor.savedSettings {
 			t.Fatal("saved choice not applied after Console restart")
 		}
 	}

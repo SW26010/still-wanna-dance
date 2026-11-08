@@ -41,17 +41,17 @@ func (c *Console) prepareDefaultLibrary() error {
 	old, s := c.settings, c.settings
 	missing := []string{}
 	if s.DatabasePath == "" {
-		s.DatabasePath = c.defaultDatabasePath()
+		s.DatabasePath = c.editor.defaultDatabasePath()
 		missing = append(missing, "数据库")
 	}
 	if s.VideoDir == "" {
-		s.VideoDir = c.defaultVideoDir()
+		s.VideoDir = c.editor.defaultVideoDir()
 		missing = append(missing, "完整视频目录")
 	}
-	if err := c.validateResourcePaths(s); err != nil {
+	if err := c.editor.validateResourcePaths(s); err != nil {
 		return err
 	}
-	if err := c.validateChangedStorageChoices(s, old); err != nil {
+	if err := c.editor.validateChangedStorageChoices(s, old); err != nil {
 		return err
 	}
 	confirm := func(detail string) {

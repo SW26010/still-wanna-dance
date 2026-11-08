@@ -16,7 +16,7 @@ import (
 func TestLocalProtectionSettingsControlEngineAfterRestart(t *testing.T) {
 	c := testConsole(t)
 	c.settings.VideoStorageMode = "unlimited"
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	body := []byte("local protection settings integration")
 	key := fmt.Sprintf("%x", md5.Sum(body))
 	source := filepath.Join(t.TempDir(), key+".mp4")
@@ -83,7 +83,7 @@ func TestLocalProtectionSettingsControlEngineAfterRestart(t *testing.T) {
 		active := c.settings.LocalProtectionGraceSeconds
 		next := c.settings
 		next.LocalProtectionGraceSeconds = seconds
-		if err := c.save(next); err != nil {
+		if err := c.editor.save(next); err != nil {
 			t.Fatal(err)
 		}
 		check(active)

@@ -18,9 +18,9 @@ func TestHostsRestorePermissionBrowser(t *testing.T) {
 	c := testConsole(t)
 	owned, _ := transformHosts(hostsBaseline, "enable")
 	h, launches := fixtureHostsController(t, owned)
-	c.hosts = h
+	c.editor.hosts = h
 	c.settings.QueueWithGateway = false
-	c.savedSettings = c.settings
+	c.editor.initializeSettings(c.settings)
 	launch, attempts := h.launch, 0
 	h.launch = func(ctx context.Context) (hostsConnection, error) {
 		attempts++
@@ -63,7 +63,7 @@ func TestHostsPolicyBrowser(t *testing.T) {
 	c := testConsole(t)
 	for _, phase := range []string{"default", "persistent"} {
 		h, launches := fixtureHostsController(t, hostsBaseline)
-		c.hosts = h
+		c.editor.hosts = h
 		c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 		ui := httptest.NewUnstartedServer(c)
 		c.address = ui.Listener.Addr().String()
@@ -107,7 +107,7 @@ func TestVideoImportSuggestionBrowser(t *testing.T) {
 		t.Skip("set SWD_VIDEO_IMPORT_BROWSER_EVIDENCE for first-run import suggestion browser integration")
 	}
 	c := firstRunImportConsole(t)
-	hosts := c.hosts
+	hosts := c.editor.hosts
 	before := readHostsFixture(t, hosts.path)
 	for _, phase := range []string{"first-run", "reopened"} {
 		ui := httptest.NewUnstartedServer(c)
@@ -134,7 +134,7 @@ func TestVideoImportSuggestionBrowser(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
-			c.hosts = hosts
+			c.editor.hosts = hosts
 			c.videoAddress, c.httpsAddress, c.checksumURL = "127.0.0.1:0", "127.0.0.1:0", ""
 		}
 	}

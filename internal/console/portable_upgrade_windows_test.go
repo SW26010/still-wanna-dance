@@ -68,7 +68,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			}
 			t.Cleanup(func() { c.Close() })
 			s := c.settings
-			s.DatabasePath, s.VideoDir = c.defaultDatabasePath(), c.defaultVideoDir()
+			s.DatabasePath, s.VideoDir = c.editor.defaultDatabasePath(), c.editor.defaultVideoDir()
 			s.AutoAccelerate, s.QueueWithGateway, s.VideoStorageMode = false, false, "unlimited"
 			s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1"
 			s.SOCKS5Username, s.SOCKS5Password = "upgrade-test", "synthetic-upgrade-secret"
@@ -76,7 +76,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				setTestLibraryPaths(&s, filepath.Join(root, "external library"))
 				createTestDatabase(t, s.DatabasePath)
 			}
-			if err := c.save(s); err != nil {
+			if err := c.editor.save(s); err != nil {
 				t.Fatal(err)
 			}
 			if err := c.acceptTerms(); err != nil {

@@ -155,9 +155,13 @@ func (c *Console) WebUIConnected() bool {
 }
 
 func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
+	serveLifecycle(w, r, c.address, c.lifecycle)
+}
+
+func serveLifecycle(w http.ResponseWriter, r *http.Request, address string, lifecycle *applicationLifecycle) {
 	// This read-only notification is also available on the consent page. Native
 	// WebSocket supplies Origin, not the API token header; never put tokens in URLs.
-	if r.Method != http.MethodGet || r.Header.Get("Origin") != "http://"+c.address {
+	if r.Method != http.MethodGet || r.Header.Get("Origin") != "http://"+address {
 		http.Error(w, "invalid lifecycle origin or method", http.StatusForbidden)
 		return
 	}
@@ -169,11 +173,11 @@ func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
 	defer cancelRead()
 	// Reserve admission before HTTP 101 reaches the client. Shutdown must also
 	// drain a handler paused between the completed handshake and Accept's return.
-	if !c.lifecycle.attach(ctx, cancelRead) {
+	if !lifecycle.attach(ctx, cancelRead) {
 		http.Error(w, "application is shutting down", http.StatusServiceUnavailable)
 		return
 	}
-	defer c.lifecycle.detach(ctx)
+	defer lifecycle.detach(ctx)
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
@@ -190,11 +194,11 @@ func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
 		_, _, _ = conn.Reader(ctx)
 	}()
 	for {
-		action := c.lifecycle.snapshot()
+		action := lifecycle.snapshot()
 		select {
-		case <-c.lifecycle.stop:
+		case <-lifecycle.stop:
 			// The decision can be published between the snapshot and stop.
-			action = c.lifecycle.snapshot()
+			action = lifecycle.snapshot()
 			if action == "running" {
 				return
 			}
@@ -216,8 +220,8 @@ func (c *Console) serveLifecycle(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-c.lifecycle.requested:
-		case <-c.lifecycle.stop:
+		case <-lifecycle.requested:
+		case <-lifecycle.stop:
 		}
 	}
 }

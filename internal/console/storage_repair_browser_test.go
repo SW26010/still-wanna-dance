@@ -50,12 +50,12 @@ func TestStorageRepairBrowser(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { c.Close() })
-			c.hosts, _ = fixtureHostsController(t, hostsBaseline)
+			c.editor.hosts, _ = fixtureHostsController(t, hostsBaseline)
 			c.checksumURL = ""
 			if err := c.acceptTerms(); err != nil {
 				t.Fatal(err)
 			}
-			c.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return database, nil }
+			c.editor.pathPicker = func(context.Context, desktop.PathDialog) (string, error) { return database, nil }
 			run := func(phase string) {
 				t.Helper()
 				ui := httptest.NewUnstartedServer(c)
@@ -70,8 +70,8 @@ func TestStorageRepairBrowser(t *testing.T) {
 				}
 			}
 			run(scenario)
-			if c.savedSettings.DatabasePath != database || c.savedSettings.VideoDir != videos || c.settings == c.savedSettings || c.service != nil {
-				t.Fatal("repair did not remain staged", c.savedSettings.DatabasePath, c.savedSettings.VideoDir)
+			if c.editor.savedSettings.DatabasePath != database || c.editor.savedSettings.VideoDir != videos || c.settings == c.editor.savedSettings || c.service != nil {
+				t.Fatal("repair did not remain staged", c.editor.savedSettings.DatabasePath, c.editor.savedSettings.VideoDir)
 			}
 			if after, err := os.ReadFile(database); err != nil || !bytes.Equal(before, after) {
 				t.Fatal("repair changed the unopened existing database", err)

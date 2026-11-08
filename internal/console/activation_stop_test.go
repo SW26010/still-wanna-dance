@@ -18,10 +18,10 @@ func TestAccelerationStopResumePolicies(t *testing.T) {
 			t.Run(fmt.Sprintf("restore=%v/queue=%v", restore, queue), func(t *testing.T) {
 				c := testConsole(t)
 				h, launches := fixtureHostsController(t, hostsBaseline)
-				c.hosts = h
+				c.editor.hosts = h
 				c.settings.RestoreHostsOnStopOrExit, c.settings.QueueWithGateway = restore, queue
 				// Pending restart settings must not change stop/resume behavior.
-				c.savedSettings.RestoreHostsOnStopOrExit, c.savedSettings.QueueWithGateway = !restore, !queue
+				c.editor.savedSettings.RestoreHostsOnStopOrExit, c.editor.savedSettings.QueueWithGateway = !restore, !queue
 				if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 					t.Fatal(err)
 				}
@@ -79,7 +79,7 @@ func TestAccelerationStopRestoreFailureStillStopsGateway(t *testing.T) {
 			c := testConsole(t)
 			owned, _ := transformHosts(hostsBaseline, "enable")
 			h, launches := fixtureHostsController(t, owned)
-			c.hosts = h
+			c.editor.hosts = h
 			if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 				t.Fatal(err)
 			}

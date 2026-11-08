@@ -66,12 +66,12 @@ func TestSavedAutoOpenAppliesOnNextLaunch(t *testing.T) {
 	if !c.OpenWebUIOnLaunch() {
 		t.Fatal("automatic browser opening should default on")
 	}
-	next := c.savedSettings
+	next := c.editor.savedSettings
 	next.AutoOpenWebUI = false
-	if err := c.saveSettings(next, true, nil); err != nil {
+	if err := c.editor.saveSettings(next, true, nil); err != nil {
 		t.Fatal(err)
 	}
-	if !c.OpenWebUIOnLaunch() || c.savedSettings.AutoOpenWebUI {
+	if !c.OpenWebUIOnLaunch() || c.editor.savedSettings.AutoOpenWebUI {
 		t.Fatal("save changed current launch or was not saved")
 	}
 	reopened, err := newConsoleWithWorkForTest(t, c.configPath, c.address)
@@ -124,7 +124,7 @@ func TestConfigurationRejectsUnsupportedWithoutOverwrite(t *testing.T) {
 				other.Close()
 				t.Fatal("accepted unsupported config")
 			}
-			if err := c.save(c.settings); err == nil {
+			if err := c.editor.save(c.settings); err == nil {
 				t.Fatal("overwrote unsupported config")
 			}
 			after, err := os.ReadFile(c.configPath)
@@ -143,7 +143,7 @@ func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	}
 	s := c.settings
 	s.SOCKS5Password = ""
-	if err := c.save(s); err != nil {
+	if err := c.editor.save(s); err != nil {
 		t.Fatal(err)
 	}
 	_, fields, err := readConfigFile(c.configPath)
@@ -213,7 +213,7 @@ func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
 			if c.settings.AutoAccelerate != tc.wantCDN || c.settings.QueueWithGateway != tc.wantQueue {
 				t.Fatalf("loaded startup settings: gateway=%v queue=%v", c.settings.AutoAccelerate, c.settings.QueueWithGateway)
 			}
-			if err := c.save(c.settings); err != nil {
+			if err := c.editor.save(c.settings); err != nil {
 				t.Fatal(err)
 			}
 			c = restartTestConsole(t, c)

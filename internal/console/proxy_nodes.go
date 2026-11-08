@@ -100,14 +100,15 @@ func storedProxyNodes(s Settings) (json.RawMessage, error) {
 
 // Import only stages a bounded, expiring in-memory draft. Saving settings
 // explicitly commits it; preview never activates or persists it.
-func (c *Console) importProxyNodes(ctx context.Context, data []byte, name string) (proxyImportResult, error) {
+func (c *settingsEditor) importProxyNodes(ctx context.Context, data []byte, name string) (proxyImportResult, error) {
 	return c.importProxyNodesAuthorized(ctx, data, name, true)
 }
 
-func (c *Console) importProxyNodesAuthorized(ctx context.Context, data []byte, name string, requireTerms bool) (proxyImportResult, error) {
+func (c *settingsEditor) importProxyNodesAuthorized(ctx context.Context, data []byte, name string, requireTerms bool) (proxyImportResult, error) {
+	admitted := c.admitted(requireTerms)
 	c.mu.Lock()
 	base := c.savedSettings
-	allowed := !c.closing && (!requireTerms || c.terms.valid())
+	allowed := !c.closing && (!requireTerms || admitted)
 	c.mu.Unlock()
 	if !allowed {
 		return proxyImportResult{}, rejectRequest(errors.New("请先同意条款，并等待应用就绪"))
@@ -151,7 +152,7 @@ func (c *Console) importProxyNodesAuthorized(ctx context.Context, data []byte, n
 	return result, nil
 }
 
-func (c *Console) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
+func (c *settingsEditor) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
 	if s.nodeImportID == "" {
 		s.nodeSnapshot, s.nodeSecret, s.nodeSecretError = old.nodeSnapshot, old.nodeSecret, old.nodeSecretError
 		s.nodeInfo = old.nodeInfo
@@ -173,12 +174,19 @@ func (c *Console) mergeProxyNodes(s Settings, old Settings) (Settings, error) {
 
 // Caller holds mu. Filename/import time are display metadata; node names,
 // addresses, credentials, URIs and encrypted envelopes are never returned.
-func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
+func (c *settingsEditor) proxyNodesStatus() proxyNodeStatus {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	status := proxyNodeStatus{Saved: c.savedNodeCount, Loaded: c.loadedNodeCount, Error: c.savedSettings.nodeSecretError, ActiveError: c.settings.nodeSecretError}
 	if c.savedSettings.nodeSnapshot != "" {
 		info := c.savedSettings.nodeInfo
 		status.Configuration = &info
 	}
+	return status
+}
+
+func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
+	status := c.editor.proxyNodesStatus()
 	if c.client != nil {
 		if tr, ok := c.client.Transport.(*mihomoTransport); ok {
 			status.Dashboard = tr.core != nil

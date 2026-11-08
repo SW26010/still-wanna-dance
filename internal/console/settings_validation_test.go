@@ -18,7 +18,7 @@ func TestSettingsValidationRetainsWriteFailureUntilSaved(t *testing.T) {
 	c := testConsole(t)
 	center := faults.New()
 	c.SetFaultCenter(center)
-	before := c.savedSettings
+	before := c.editor.savedSettings
 	config, err := os.ReadFile(c.configPath)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +57,7 @@ func TestSettingsValidationRetainsWriteFailureUntilSaved(t *testing.T) {
 		t.Error("field rejection cleared the unresolved incident")
 	}
 	after, err := os.ReadFile(c.configPath)
-	if err != nil || !bytes.Equal(config, after) || c.savedSettings != before {
+	if err != nil || !bytes.Equal(config, after) || c.editor.savedSettings != before {
 		t.Fatal("failed attempts changed settings", err)
 	}
 	if err := os.Remove(blocked); err != nil {
@@ -66,7 +66,7 @@ func TestSettingsValidationRetainsWriteFailureUntilSaved(t *testing.T) {
 	if w := post(`{"logLevel":"debug"}`); w.Code != http.StatusOK {
 		t.Fatalf("retry failed: %d %s", w.Code, w.Body.String())
 	}
-	if c.actionErrors["settings"] != "" || c.savedSettings.LogLevel != "debug" {
+	if c.actionErrors["settings"] != "" || c.editor.savedSettings.LogLevel != "debug" {
 		t.Error("successful save did not clear the old operation failure")
 	}
 	center.Restore(cause)

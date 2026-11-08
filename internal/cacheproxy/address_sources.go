@@ -173,7 +173,7 @@ func (s *Server) loadSongAddress(ctx context.Context, canonical string) (video, 
 	}
 	check := s.startPlaybackCheck(ctx, canonical, video{songID: canonical})
 	id, _ := strconv.ParseInt(canonical, 10, 64)
-	urls, err := s.mediaURLs(ctx, "song", id, playbacksource.Nodes(), -1, nil)
+	urls, err := s.Store.mediaURLs(ctx, "song", id, playbacksource.Nodes(), -1, nil)
 	if err != nil {
 		return video{}, err
 	}
@@ -278,7 +278,7 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		// Known addresses are selected by resource, independent of the API
 		// lookup budget or the number/order of songs sharing this content.
 		var err error
-		p.candidates, err = s.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32, nil)
+		p.candidates, err = s.Store.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32, nil)
 		if err != nil {
 			return video{}, err
 		}
@@ -288,18 +288,11 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		if p.batch {
 			limit = -1
 		}
-		rows, err := s.db.QueryContext(ctx, `SELECT sm.song_id FROM song_media sm
- LEFT JOIN catalog_members c ON c.song_id=sm.song_id
- WHERE sm.md5=?
- ORDER BY sm.song_id=? DESC,c.song_id IS NOT NULL DESC,sm.song_id DESC LIMIT ?`, p.key, p.preferredSong, limit)
+		songs, err := s.Store.resourceSongs(ctx, p.key, p.preferredSong, limit)
 		if err != nil {
 			return video{}, s.storageError(err)
 		}
-		for rows.Next() {
-			var id string
-			if err = rows.Scan(&id); err != nil {
-				break
-			}
+		for _, id := range songs {
 			if p.selectedSongs != nil {
 				if _, ok := p.selectedSongs[id]; !ok {
 					continue
@@ -307,10 +300,7 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 			}
 			p.songs = append(p.songs, id)
 		}
-		err = errors.Join(err, rows.Err(), rows.Close())
-		if err != nil {
-			return video{}, s.storageError(err)
-		}
+
 	}
 	if failed.host != "" {
 		p.tried[videoAddress(failed)] = true

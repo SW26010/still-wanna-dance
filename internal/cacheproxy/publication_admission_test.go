@@ -32,7 +32,7 @@ func TestPublicationAdmissionRanksFullCacheBeforeMerge(t *testing.T) {
 			if mode == "lower" {
 				hot = "9000001"
 			}
-			if err := s.usage.write([]usageEvent{{songID: hot, at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+			if err := s.Store.usage.write([]usageEvent{{songID: hot, at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 				t.Fatal(err)
 			}
 			putRetained(t, cfg.videoFile(oldKey), len(payload))
@@ -108,10 +108,10 @@ func TestFavoritePublicationSharesBudgetAndRankingWithEviction(t *testing.T) {
 			oldKey := videoKey("hot ordinary")
 			seedPrioritySong(t, s, "9000001", v.key)
 			seedPrioritySong(t, s, "9000002", oldKey)
-			if err := s.usage.write([]usageEvent{{songID: "9000002", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+			if err := s.Store.usage.write([]usageEvent{{songID: "9000002", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 				t.Fatal(err)
 			}
-			if err := s.SetSongPolicy(t.Context(), 9000001, SongFavorite); err != nil {
+			if err := s.Store.SetSongPolicy(t.Context(), 9000001, SongFavorite); err != nil {
 				t.Fatal(err)
 			}
 			putRetained(t, cfg.videoFile(oldKey), len(payload))
@@ -136,7 +136,7 @@ func TestFavoritePublicationReservationsCannotAccumulatePastBudget(t *testing.T)
 	low, high := video{key: videoKey("low favorite"), size: 10}, video{key: videoKey("high favorite"), size: 10}
 	for id, key := range map[int64]string{9000001: low.key, 9000002: high.key} {
 		seedPrioritySong(t, s, fmt.Sprint(id), key)
-		if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+		if err := s.Store.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
 			t.Fatal(err)
 		}
 	}

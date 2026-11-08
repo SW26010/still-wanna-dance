@@ -13,16 +13,16 @@ func TestSongPageAndFavoriteLifecycleDoNotDownload(t *testing.T) {
 	ctx := context.Background()
 	key := videoKey(payload)
 	seedPrioritySong(t, s, "42", key)
-	if err := s.SetSongPolicy(ctx, 42, SongFavorite); err != nil {
+	if err := s.Store.SetSongPolicy(ctx, 42, SongFavorite); err != nil {
 		t.Fatal(err)
 	}
 	h := &SongUsageImport{}
 	h.Observe(42, time.Now().Add(-time.Hour).UnixMilli())
-	if err := s.ImportSongUsage(ctx, h, true); err != nil {
+	if err := s.Store.ImportSongUsage(ctx, h, true); err != nil {
 		t.Fatal(err)
 	}
 	for n := 1; n <= 60; n++ {
-		if _, err := s.usage.db.Exec("INSERT INTO songs(id,name) VALUES (?,?) ON CONFLICT DO UPDATE SET name=excluded.name", n, fmt.Sprintf("歌曲 %d", n)); err != nil {
+		if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,name) VALUES (?,?) ON CONFLICT DO UPDATE SET name=excluded.name", n, fmt.Sprintf("歌曲 %d", n)); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -211,7 +211,7 @@ func TestDownloadFillCancellationStopsPendingLookup(t *testing.T) {
 			var target PreviewTarget
 			if tc.fixed {
 				target = seedPreview(t, s, payload)
-			} else if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(1)"); err != nil {
+			} else if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES(1)"); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(t.Context())
@@ -245,7 +245,7 @@ func TestDownloadFillCancellationStopsPendingLookup(t *testing.T) {
 			close(release)
 			s.wg.Wait()
 			var mapped string
-			err := s.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped)
+			err := s.Store.db.QueryRow("SELECT md5 FROM song_media WHERE song_id=1").Scan(&mapped)
 			if !stopped || tc.fixed && (err != nil || mapped != target.Resource) || !tc.fixed && !errors.Is(err, sql.ErrNoRows) {
 				t.Fatalf("canceled=%t mapped=%q error=%v", stopped, mapped, err)
 			}
@@ -459,14 +459,14 @@ func TestFixedResourceFillWithoutSongAssociation(t *testing.T) {
 				cfg.ResolvePlayback = func(context.Context, string) (string, error) { queries.Add(1); return videoURL("new media"), nil }
 			})
 			target := seedPreview(t, s, payload)
-			if _, err := s.db.Exec("DELETE FROM song_media"); err != nil {
+			if _, err := s.Store.db.Exec("DELETE FROM song_media"); err != nil {
 				t.Fatal(err)
 			}
 			if local {
 				if err := os.WriteFile(cfg.videoFile(target.Resource), []byte(payload), 0600); err != nil {
 					t.Fatal(err)
 				}
-			} else if _, err := s.db.Exec("INSERT INTO media_urls VALUES(?, 'cf', ?)", target.Resource, videoURL(payload)); err != nil {
+			} else if _, err := s.Store.db.Exec("INSERT INTO media_urls VALUES(?, 'cf', ?)", target.Resource, videoURL(payload)); err != nil {
 				t.Fatal(err)
 			}
 			result, err := s.NewDownloadFill(t.Context(), false, false).RunResource(target.Resource)
@@ -478,7 +478,7 @@ func TestFixedResourceFillWithoutSongAssociation(t *testing.T) {
 				t.Fatal("fixed file missing", err)
 			}
 			var count int
-			if err := s.db.QueryRow("SELECT count(*) FROM song_media").Scan(&count); err != nil || count != 0 {
+			if err := s.Store.db.QueryRow("SELECT count(*) FROM song_media").Scan(&count); err != nil || count != 0 {
 				t.Fatal("invented song mapping", count, err)
 			}
 		})
@@ -627,7 +627,7 @@ func TestFixedResourceFillReusesCompletedCheck(t *testing.T) {
 			if changed {
 				wantURL = oldURL
 			}
-			urls, err := s.ResourceURLs(t.Context(), target.Resource, "cf", 10)
+			urls, err := s.Store.ResourceURLs(t.Context(), target.Resource, "cf", 10)
 			if err != nil || len(urls) != 1 || urls[0].URL != wantURL {
 				t.Fatal("unexpected saved resource address", urls, err)
 			}

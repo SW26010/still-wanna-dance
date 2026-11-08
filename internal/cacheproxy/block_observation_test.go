@@ -300,7 +300,7 @@ func TestBlockObservationOpensDuringHandoffWithCatalogName(t *testing.T) {
 	catalog, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected upstream request") })
 	key := strings.Repeat("a", 32)
 	title, fallback := "星河", "远山"
-	if err := catalog.SyncCatalog(context.Background(), Catalog{Source: "test", Revision: "20261020000000", Songs: []CatalogSong{
+	if err := catalog.Store.SyncCatalog(context.Background(), Catalog{Source: "test", Revision: "20261020000000", Songs: []CatalogSong{
 		{ID: 42, MD5: key, Name: &title}, {ID: 84, MD5: key, Name: &fallback},
 	}}); err != nil {
 		t.Fatal(err)
@@ -311,7 +311,7 @@ func TestBlockObservationOpensDuringHandoffWithCatalogName(t *testing.T) {
 	} {
 		t.Run("song="+tc.song, func(t *testing.T) {
 			_, s := testSession(t)
-			s.ctx, s.usage = context.Background(), catalog.usage
+			s.ctx, s.Store = context.Background(), catalog.Store
 			v := video{key: key, songID: tc.song, size: 2*rangeBlockSize + 37}
 			s.resourceUses = map[string]*resourceUse{key: {video: v}}
 			s.useBlocks = map[useBlockID]int{{key, 1}: 1}
@@ -431,13 +431,13 @@ func TestBlockObservationSharedVideoCatalogCacheAndSourceIdentity(t *testing.T) 
 	catalog, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected upstream request") })
 	key := strings.Repeat("a", 32)
 	title, otherTitle := "星河", "远山"
-	if err := catalog.SyncCatalog(context.Background(), Catalog{Source: "test", Revision: "20261020000000", Songs: []CatalogSong{
+	if err := catalog.Store.SyncCatalog(context.Background(), Catalog{Source: "test", Revision: "20261020000000", Songs: []CatalogSong{
 		{ID: 42, MD5: key, Name: &title}, {ID: 84, MD5: key, Name: &otherTitle},
 	}}); err != nil {
 		t.Fatal(err)
 	}
 	_, s := testSession(t)
-	s.ctx, s.usage = context.Background(), catalog.usage
+	s.ctx, s.Store = context.Background(), catalog.Store
 	first := &downloadDemand{ctx: s.ctx, key: key, song: "42", playback: true, lastBlock: 1}
 	second := &downloadDemand{ctx: s.ctx, key: key, song: "84", playback: true, firstBlock: 1, lastBlock: 2}
 	s.demands = map[*downloadDemand]bool{first: true}
@@ -448,7 +448,7 @@ func TestBlockObservationSharedVideoCatalogCacheAndSourceIdentity(t *testing.T) 
 		t.Fatal("initial catalog title missing", b)
 	}
 	// A changed catalog title makes an unwanted repeat lookup observable.
-	if _, err := catalog.usage.db.Exec("UPDATE songs SET name = ? WHERE id = 42", "目录新标题"); err != nil {
+	if _, err := catalog.Store.usage.db.Exec("UPDATE songs SET name = ? WHERE id = 42", "目录新标题"); err != nil {
 		t.Fatal(err)
 	}
 	s.demands[second], s.useBlocks[useBlockID{key, 1}] = true, 1

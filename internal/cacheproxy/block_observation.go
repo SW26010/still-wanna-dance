@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
 	"strconv"
 	"sync"
@@ -594,11 +593,7 @@ func (o *blockObserver) labelVideos(snapshot *BlockSnapshot) {
 	for _, b := range snapshot.Blocks {
 		videos[b.Resource] = chooseBlockVideo(videos[b.Resource], blockVideo{SongID: b.SongID, Title: b.Title}, o.videos[b.Resource].SongID)
 	}
-	type lookup struct {
-		Resource string `json:"resource"`
-		SongID   string `json:"songID"`
-	}
-	var missing []lookup
+	var missing []resourceLabelLookup
 	for key, v := range videos {
 		old, exists := o.videos[key]
 		if v.SongID == "" && old.SongID != "" {
@@ -608,33 +603,15 @@ func (o *blockObserver) labelVideos(snapshot *BlockSnapshot) {
 		}
 		videos[key] = v
 		if v.Title == "" && (!exists || old.SongID != v.SongID) {
-			missing = append(missing, lookup{key, v.SongID})
+			missing = append(missing, resourceLabelLookup{key, v.SongID})
 		}
 	}
-	if len(missing) > 0 && o.s.usage != nil {
-		data, _ := json.Marshal(missing)
-		ctx, cancel := context.WithTimeout(o.ctx, 2*time.Second)
-		defer cancel()
-		rows, err := o.s.usage.db.QueryContext(ctx, `
-			WITH requested AS (
-				SELECT json_extract(value,'$.resource') resource,
-				       json_extract(value,'$.songID') song_id FROM json_each(?)
-			)
-			SELECT r.resource, COALESCE(CAST(s.id AS TEXT),r.song_id,''),
-			       substr(COALESCE(s.name,''),1,300)
-			FROM requested r LEFT JOIN songs s ON s.id=COALESCE(NULLIF(r.song_id,''),
-				(SELECT sm.song_id FROM song_media sm WHERE sm.md5=r.resource ORDER BY sm.song_id LIMIT 1))`, string(data))
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var key string
-				var v blockVideo
-				if rows.Scan(&key, &v.SongID, &v.Title) == nil {
-					videos[key] = v
-				}
-			}
+	if len(missing) > 0 && o.s.Store != nil {
+		for key, label := range o.s.Store.resourceLabels(o.ctx, missing) {
+			videos[key] = label
 		}
 	}
+
 	o.videos = videos
 	for id, b := range snapshot.Blocks {
 		v := videos[b.Resource]

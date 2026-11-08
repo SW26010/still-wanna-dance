@@ -21,10 +21,10 @@ func TestMediaOnlyImportUsesActualBudgetAndMappingScore(t *testing.T) {
 	if err := insertSeedFixture(s.Store, seedJSON(t, "20261029000000", []string{a, b}, mediaseed.Mapping{ID: 1, MD5: b})); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
+	if err := s.Store.usage.write([]usageEvent{{songID: "1", at: time.Now().UnixMilli(), summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
-	allowed, err := s.KnownMedia(t.Context())
+	allowed, err := s.Store.KnownMedia(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

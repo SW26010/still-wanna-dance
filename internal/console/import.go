@@ -252,7 +252,7 @@ func (c *Console) idleImport(id uint64) (videoImportTask, error) {
 }
 
 func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) error {
-	allowed, err := engine.KnownMedia(ctx)
+	allowed, err := engine.Store.KnownMedia(ctx)
 	if err != nil {
 		return err
 	}

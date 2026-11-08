@@ -21,30 +21,30 @@ func TestCatalogHTTPSAuthorityAndEqualBackupPriority(t *testing.T) {
 				s, _ := setup(t, nil)
 				before, after := "previous", "incoming"
 				catalog := Catalog{Revision: "20261107000000", Source: previous, Songs: []CatalogSong{{ID: 1, Name: &before}}}
-				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+				if err := s.Store.SyncCatalog(t.Context(), catalog); err != nil {
 					t.Fatal(err)
 				}
 				catalog.Source, catalog.Songs[0].Name = incoming, &after
-				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+				if err := s.Store.SyncCatalog(t.Context(), catalog); err != nil {
 					t.Fatal(err)
 				}
 				wantSource, wantName := previous, before
 				if incoming == UdonCatalogURL && previous != UdonCatalogURL {
 					wantSource, wantName = incoming, after
 				}
-				status, err := s.CatalogStatus(t.Context())
+				status, err := s.Store.CatalogStatus(t.Context())
 				if err != nil || status.Source != wantSource {
 					t.Fatal(status, err)
 				}
 				var name string
-				if err := s.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&name); err != nil || name != wantName {
+				if err := s.Store.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&name); err != nil || name != wantName {
 					t.Fatal(name, err)
 				}
 				catalog.Revision = "20261108000000"
-				if err := s.SyncCatalog(t.Context(), catalog); err != nil {
+				if err := s.Store.SyncCatalog(t.Context(), catalog); err != nil {
 					t.Fatal(err)
 				}
-				status, err = s.CatalogStatus(t.Context())
+				status, err = s.Store.CatalogStatus(t.Context())
 				if err != nil || status.Source != incoming || status.Revision != catalog.Revision {
 					t.Fatal("newer version must still win", status, err)
 				}
@@ -59,7 +59,7 @@ func TestCatalogNewerBackupWarningNeedsObservedUdon(t *testing.T) {
 	s.Store.log = slog.New(slog.NewJSONHandler(&logs, nil))
 	at := time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
 	backup := Catalog{Revision: "20261003000000", Source: WannaCatalogURL, ObservedAt: at, Songs: []CatalogSong{{ID: 1}}}
-	if err := s.SyncCatalog(t.Context(), backup); err != nil {
+	if err := s.Store.SyncCatalog(t.Context(), backup); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(logs.String(), "catalog_backup_newer_than_udon") {
@@ -69,7 +69,7 @@ func TestCatalogNewerBackupWarningNeedsObservedUdon(t *testing.T) {
 	udon.Source = UdonCatalogURL
 	udon.Revision = "20261002000000"
 	udon.ObservedAt = at.Add(time.Second)
-	if err := s.SyncCatalog(t.Context(), udon); !errors.Is(err, ErrCatalogOlder) {
+	if err := s.Store.SyncCatalog(t.Context(), udon); !errors.Is(err, ErrCatalogOlder) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"catalog_backup_newer_than_udon", WannaCatalogURL, backup.Revision, udon.Revision, "observed_at", "udon_observed_at"} {
@@ -116,19 +116,19 @@ func TestUdonAuthorityAndOlderBackupFill(t *testing.T) {
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	name, canonical := "backup", "udon"
 	backup := Catalog{Revision: "20261002000000", Source: KivaCatalogURL, Songs: []CatalogSong{{ID: 1, MD5: a, Name: &name}}}
-	if err := s.SyncCatalog(ctx, backup); err != nil {
+	if err := s.Store.SyncCatalog(ctx, backup); err != nil {
 		t.Fatal(err)
 	}
 	udon := Catalog{Revision: backup.Revision, Source: UdonCatalogURL, Songs: []CatalogSong{{ID: 1, Name: &canonical}, {ID: 2}}}
-	if err := s.SyncCatalog(ctx, udon); err != nil {
+	if err := s.Store.SyncCatalog(ctx, udon); err != nil {
 		t.Fatal(err)
 	}
 	backup.Songs[0].MD5 = b
-	if err := s.SyncCatalog(ctx, backup); err != nil {
+	if err := s.Store.SyncCatalog(ctx, backup); err != nil {
 		t.Fatal("same-version backup cannot replace Udon", err)
 	}
 	old := Catalog{Revision: "20261001000000", Source: WannaCatalogURL, Songs: []CatalogSong{{ID: 1, MD5: b}, {ID: 2, MD5: b}, {ID: 3, MD5: a}}}
-	if err := s.SyncCatalog(ctx, old); !errors.Is(err, ErrCatalogOlder) {
+	if err := s.Store.SyncCatalog(ctx, old); !errors.Is(err, ErrCatalogOlder) {
 		t.Fatal(err)
 	}
 	assertSongResource(t, s, "1", a)
@@ -136,25 +136,25 @@ func TestUdonAuthorityAndOlderBackupFill(t *testing.T) {
 	assertSongResource(t, s, "3", a)
 	var title, source string
 	var members int
-	if err := s.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&title); err != nil || title != canonical {
+	if err := s.Store.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&title); err != nil || title != canonical {
 		t.Fatal(title, err)
 	}
-	if err := s.db.QueryRow("SELECT source FROM catalog_state WHERE catalog_key='songs_list'").Scan(&source); err != nil || source != UdonCatalogURL {
+	if err := s.Store.db.QueryRow("SELECT source FROM catalog_state WHERE catalog_key='songs_list'").Scan(&source); err != nil || source != UdonCatalogURL {
 		t.Fatal(source, err)
 	}
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id IN (1,2)").Scan(&members); err != nil || members != 2 {
+	if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id IN (1,2)").Scan(&members); err != nil || members != 2 {
 		t.Fatal(members, err)
 	}
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id=3").Scan(&members); err != nil || members != 0 {
+	if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM catalog_members WHERE song_id=3").Scan(&members); err != nil || members != 0 {
 		t.Fatal(members, err)
 	}
 	// A newer backup legitimately advances song metadata, still only filling MD5 holes.
 	backup.Revision = "20261003000000"
-	if err := s.SyncCatalog(ctx, backup); err != nil {
+	if err := s.Store.SyncCatalog(ctx, backup); err != nil {
 		t.Fatal(err)
 	}
 	assertSongResource(t, s, "1", a)
-	if err := s.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&title); err != nil || title != name {
+	if err := s.Store.db.QueryRow("SELECT name FROM songs WHERE id=1").Scan(&title); err != nil || title != name {
 		t.Fatal(title, err)
 	}
 }
@@ -165,7 +165,7 @@ func TestSongURLCommitOrderAndCatalogFill(t *testing.T) {
 
 	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
 	c := Catalog{Revision: "20261001000000", Source: KivaCatalogURL, Songs: []CatalogSong{{ID: 42, MD5: a}}}
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
 	o := PlaybackObservation{SongID: 42, Node: "cf", URL: "https://play.udon.dance/files/1/42-new.mp4?e=" + b + "&s=24"}
@@ -179,7 +179,7 @@ func TestSongURLCommitOrderAndCatalogFill(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Revision = "20261002000000"
-	if err := s.SyncCatalog(ctx, c); err != nil {
+	if err := s.Store.SyncCatalog(ctx, c); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.recordSongVideo(ctx, "42", video{key: a}); err != nil {
@@ -187,7 +187,7 @@ func TestSongURLCommitOrderAndCatalogFill(t *testing.T) {
 	}
 	assertSongResource(t, s, "42", a)
 	var n int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM media_urls").Scan(&n); err != nil || n != 2 {
+	if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM media_urls").Scan(&n); err != nil || n != 2 {
 		t.Fatal(n, err)
 	}
 }

@@ -24,8 +24,8 @@ func TestBlockingDoesNotCancelAdmittedPreparation(t *testing.T) {
 					t.Fatal(err)
 				}
 				t.Cleanup(func() { db.Close() })
-				s.db = db
-				s.usage = &usageStore{db: db}
+				s.Store.db = db
+				s.Store.usage = &usageStore{db: db}
 				ctx := t.Context()
 				if kind == "queue" {
 					if err := s.UpdatePrefetchQueue([]int64{1}, false); err != nil {
@@ -39,7 +39,7 @@ func TestBlockingDoesNotCancelAdmittedPreparation(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer release()
-				if err := s.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
+				if err := s.Store.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
 					t.Fatal(err)
 				}
 				synctest.Wait()
@@ -134,7 +134,7 @@ func TestPreparationRechecksBlockedSongAfterCapacityWait(t *testing.T) {
 				if !pending || calls.Load() != 0 {
 					t.Fatal("waiting candidate created work", pending, calls.Load())
 				}
-				if err := s.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
+				if err := s.Store.SetSongPolicy(ctx, 1, SongBlocked); err != nil {
 					t.Fatal(err)
 				}
 				release()

@@ -45,7 +45,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	t.Cleanup(func() { engine.Close() })
 	name1, name2, name3 := "未下载的收藏测试", "屏蔽测试", "已保存的收藏测试"
 	key := fmt.Sprintf("%x", md5.Sum([]byte("saved")))
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Revision: "20261021000000", Source: "test", Songs: []cacheproxy.CatalogSong{
 		{ID: 1, Name: &name1, MD5: strings.Repeat("a", 32)},
 		{ID: 2, Name: &name2, MD5: strings.Repeat("b", 32)},
 		{ID: 3, Name: &name3, MD5: key},
@@ -108,7 +108,7 @@ func TestSongPreferencesBrowser(t *testing.T) {
 	if resolutions.Load() != 0 || c.batch.Running || c.queue.snapshot().Running || c.httpServer != nil {
 		t.Fatal("preferences started network or service activity", resolutions.Load())
 	}
-	policies, err := c.service.SongPolicies(t.Context())
+	policies, err := c.service.Store.SongPolicies(t.Context())
 	if err != nil || policies[1] != cacheproxy.SongFavorite || policies[2] != cacheproxy.SongBlocked || policies[3] != cacheproxy.SongFavorite {
 		t.Fatal(policies, err)
 	}

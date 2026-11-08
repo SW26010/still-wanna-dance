@@ -15,7 +15,7 @@ func TestRequestHistoryChangesFollowCommitAndPruning(t *testing.T) {
 	u := store.usage
 	u.unlimited = true
 	revision, changed, closed := store.RequestHistoryChanges()
-	if revision != 0 || closed || u.started || store.engine.Load() != nil {
+	if revision != 0 || closed || u.started || store.binding != nil {
 		t.Fatal("observation started work or returned an invalid initial state")
 	}
 	_, other, _ := store.RequestHistoryChanges()

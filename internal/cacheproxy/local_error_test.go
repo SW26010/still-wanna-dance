@@ -24,10 +24,10 @@ func TestFixedResourceFillReportsAddressStorageFailure(t *testing.T) {
 		}
 	})
 	target := seedPreview(t, s, payload)
-	if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(2); INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
+	if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES(2); INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
+	if _, err := s.Store.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := s.PrefetchDownload(withExpectedMD5(t.Context(), target.Resource), 1)
@@ -87,7 +87,7 @@ func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 }
 func TestObservationStorageFailureIsRetained(t *testing.T) {
 	s, _ := setup(t, func(http.ResponseWriter, *http.Request) {})
-	if _, err := s.usage.db.Exec(`CREATE TRIGGER fail_observation BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'disk failure'); END`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`CREATE TRIGGER fail_observation BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'disk failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -100,7 +100,7 @@ func TestObservationStorageFailureIsRetained(t *testing.T) {
 func TestIndexFailureStopsNewDownloads(t *testing.T) {
 	var calls atomic.Int32
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) })
-	if _, err := s.usage.db.Exec(`CREATE TRIGGER fail_media BEFORE INSERT ON media BEGIN SELECT RAISE(FAIL, 'index failure'); END`); err != nil {
+	if _, err := s.Store.usage.db.Exec(`CREATE TRIGGER fail_media BEFORE INSERT ON media BEGIN SELECT RAISE(FAIL, 'index failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrLocalStorage) {

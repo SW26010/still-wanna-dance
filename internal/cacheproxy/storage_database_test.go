@@ -19,7 +19,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := s.usage.db.Exec(mutation); err != nil {
+			if _, err := s.Store.usage.db.Exec(mutation); err != nil {
 				t.Fatal(err)
 			}
 			s.Close()
@@ -79,7 +79,7 @@ func TestRecentReaderNeverRepairsSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec("DROP INDEX request_events_time"); err != nil {
+	if _, err := s.Store.usage.db.Exec("DROP INDEX request_events_time"); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
@@ -117,10 +117,10 @@ func TestStorageInitializationIdentity(t *testing.T) {
 	}
 	defer s.Close()
 	var identity, version int
-	if err := s.usage.db.QueryRow("PRAGMA application_id").Scan(&identity); err != nil {
+	if err := s.Store.usage.db.QueryRow("PRAGMA application_id").Scan(&identity); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.usage.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+	if err := s.Store.usage.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
 	if identity != storageApplicationID || version != storageSchemaVersion {

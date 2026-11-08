@@ -50,7 +50,7 @@ func TestMediaURLsSharedIdentityCommitOrderAndRestart(t *testing.T) {
 	write(43, a, "cf", "shared")
 	write(42, a, "nya", "other-node")
 	for _, id := range []int64{42, 43} {
-		urls, err := s.SongURLs(t.Context(), id, "cf")
+		urls, err := s.Store.SongURLs(t.Context(), id, "cf")
 		if err != nil || len(urls) != 1 || urls[0].URL != address(a, "shared") {
 			t.Fatal(urls, err)
 		}
@@ -61,11 +61,11 @@ func TestMediaURLsSharedIdentityCommitOrderAndRestart(t *testing.T) {
 	// began earlier. No timestamps, source-song hints or failed markers exist.
 	write(42, a, "cf", "last-commit")
 	assertSongResource(t, s, "42", a)
-	old, err := s.ResourceURLs(t.Context(), b, "cf", 1)
+	old, err := s.Store.ResourceURLs(t.Context(), b, "cf", 1)
 	if err != nil || len(old) != 1 || old[0].URL != address(b, "changed") {
 		t.Fatal(old, err)
 	}
-	all, err := s.AvailableMediaURLs(t.Context())
+	all, err := s.Store.AvailableMediaURLs(t.Context())
 	if err != nil || len(all) != 2 {
 		t.Fatal(all, err)
 	}
@@ -93,7 +93,7 @@ func TestMediaURLValidationDoesNotChangeExistingEvidence(t *testing.T) {
 	if err := s.ObserveSongURL(t.Context(), o); err != nil {
 		t.Fatal(err)
 	}
-	before, err := s.SongURLs(t.Context(), 42, "")
+	before, err := s.Store.SongURLs(t.Context(), 42, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestMediaURLValidationDoesNotChangeExistingEvidence(t *testing.T) {
 			t.Fatal("invalid observation accepted")
 		}
 	}
-	after, err := s.SongURLs(t.Context(), 42, "")
+	after, err := s.Store.SongURLs(t.Context(), 42, "")
 	if err != nil || !reflect.DeepEqual(before, after) || s.StorageError() != nil {
 		t.Fatal(after, err, s.StorageError())
 	}

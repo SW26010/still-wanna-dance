@@ -137,7 +137,7 @@ func TestResourceAddressEligibilityPrecedesCandidateLimit(t *testing.T) {
 	if err != nil || !got.savedAddress || got.songID != "" || queries.Load() != 0 {
 		t.Fatalf("address=%+v queries=%d err=%v", got, queries.Load(), err)
 	}
-	all, err := s.ResourceURLs(t.Context(), v.key, "", 40)
+	all, err := s.Store.ResourceURLs(t.Context(), v.key, "", 40)
 	if err != nil || len(all) != 34 {
 		t.Fatalf("historical observations=%d err=%v", len(all), err)
 	}
@@ -153,10 +153,10 @@ func TestResourcePreviewKeepsAliasLimit(t *testing.T) {
 	})
 	target := seedPreview(t, s, payload)
 	for id := 2; id <= 9; id++ {
-		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, target.Resource); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, target.Resource); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -222,10 +222,10 @@ func TestResourceAddressRetriesAfterIndependentLookupFailure(t *testing.T) {
 				}
 			})
 			target := seedPreview(t, s, payload)
-			if _, err := s.db.Exec("INSERT INTO songs(id) VALUES(2)"); err != nil {
+			if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES(2)"); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
+			if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES(2,?)", target.Resource); err != nil {
 				t.Fatal(err)
 			}
 			addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: "1", batch: true}

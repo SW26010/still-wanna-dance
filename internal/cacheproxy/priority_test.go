@@ -20,7 +20,7 @@ func seedPrioritySong(t *testing.T, s *Server, id, key string) {
 		{`INSERT OR IGNORE INTO media(md5,byte_size) VALUES (?,10)`, []any{key}},
 		{`INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, []any{id, key}},
 	} {
-		if _, err := s.usage.db.Exec(q.sql, q.args...); err != nil {
+		if _, err := s.Store.usage.db.Exec(q.sql, q.args...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -32,15 +32,15 @@ func TestEffectivePriorityReplacesPriorAcrossVersions(t *testing.T) {
 	seedPrioritySong(t, s, "1981", first)
 	seedPrioritySong(t, s, "1981", second)
 	now := time.Now().UnixMilli()
-	scores, err := s.songPriorities(context.Background(), []int64{1981, 999999}, now)
+	scores, err := s.Store.songPriorities(context.Background(), []int64{1981, 999999}, now)
 	if err != nil || scores[1981] != initialpriority.Score(1981) || scores[999999] != 0 {
 		t.Fatalf("%v %v", scores, err)
 	}
 	old := now - (700 * 24 * time.Hour).Milliseconds()
-	if err := s.usage.write([]usageEvent{{songID: "1981", at: old, summaryOnly: true}}); err != nil {
+	if err := s.Store.usage.write([]usageEvent{{songID: "1981", at: old, summaryOnly: true}}); err != nil {
 		t.Fatal(err)
 	}
-	scores, err = s.songPriorities(context.Background(), []int64{1981}, now)
+	scores, err = s.Store.songPriorities(context.Background(), []int64{1981}, now)
 	want := retentionScore(1, old, now)
 	if err != nil || math.Abs(scores[1981]-want) > 1e-10 || scores[1981] >= initialpriority.Score(1981) {
 		t.Fatalf("prior not replaced: %v %v", scores, err)
@@ -62,7 +62,7 @@ func TestRetentionUsesEffectiveSongPriority(t *testing.T) {
 				if mode == "old-demand" {
 					at -= (700 * 24 * time.Hour).Milliseconds()
 				}
-				if err := s.usage.write([]usageEvent{{songID: "1981", at: at, summaryOnly: true}}); err != nil {
+				if err := s.Store.usage.write([]usageEvent{{songID: "1981", at: at, summaryOnly: true}}); err != nil {
 					t.Fatal(err)
 				}
 			}

@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
 	"time"
 )
@@ -71,33 +70,13 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 	defer stop()
 	for i := range result.Tasks {
 		task := &result.Tasks[i]
-		ids := []byte("[]") // json_each(null) would produce a null song ID.
-		if len(task.songIDs) > 0 {
-			ids, _ = json.Marshal(task.songIDs)
-		}
-		rows, err := s.usage.db.QueryContext(ctx, `SELECT ids.song_id, COALESCE(substr(s.name,1,300),'') FROM
-		 (SELECT song_id FROM song_media WHERE md5=? UNION SELECT CAST(value AS INTEGER) AS song_id FROM json_each(?)) ids
-		 LEFT JOIN songs s ON s.id=ids.song_id ORDER BY ids.song_id LIMIT 21`, task.Resource, string(ids))
+		songs, err := s.Store.resourceSongLabels(ctx, task.Resource, task.songIDs)
 		if err != nil {
 			return ActiveDownloads{}, err
 		}
-		for rows.Next() {
-			var song CacheSong
-			if err = rows.Scan(&song.ID, &song.Title); err != nil {
-				rows.Close()
-				return ActiveDownloads{}, err
-			}
-			if len(task.Songs) == 20 {
-				task.MoreSongs = true
-			} else {
-				task.Songs = append(task.Songs, song)
-			}
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return ActiveDownloads{}, err
-		}
+		task.MoreSongs = len(songs) > 20
+		task.Songs = songs[:min(len(songs), 20)]
 	}
+
 	return result, nil
 }

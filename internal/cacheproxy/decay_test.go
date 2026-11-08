@@ -62,14 +62,14 @@ func TestExponentialPriorityCombinesDifferentVersionAges(t *testing.T) {
 	seedPrioritySong(t, s, "1981", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	seedPrioritySong(t, s, "1981", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 	now := time.Now().UnixMilli()
-	if err := s.usage.write([]usageEvent{
+	if err := s.Store.usage.write([]usageEvent{
 		{songID: "1981", at: now - (120 * 24 * time.Hour).Milliseconds(), summaryOnly: true},
 		{songID: "1981", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	for _, delta := range []time.Duration{0, 60 * 24 * time.Hour} {
-		scores, err := s.songPriorities(context.Background(), []int64{1981}, now+delta.Milliseconds())
+		scores, err := s.Store.songPriorities(context.Background(), []int64{1981}, now+delta.Milliseconds())
 		want := 1.25
 		if delta != 0 {
 			want = .625

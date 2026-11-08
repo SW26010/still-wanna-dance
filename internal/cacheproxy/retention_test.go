@@ -51,7 +51,7 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 		seedPrioritySong(t, s, id, strings.Repeat(id, 32))
 	}
 	for _, e := range []usageEvent{{songID: "1", at: now, summaryOnly: true}, {songID: "2", at: now - (100 * 24 * time.Hour).Milliseconds(), summaryOnly: true}} {
-		if err := s.usage.write([]usageEvent{e}); err != nil {
+		if err := s.Store.usage.write([]usageEvent{e}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -60,7 +60,7 @@ func TestRetentionPriorityAndVersions(t *testing.T) {
 	prefetch := retainedPath(t, s, cfg, "3")
 	metadata := filepath.Join(filepath.Dir(cfg.Store.path), "notes.json")
 	copyPath := cfg.videoFile(strings.Repeat("4", 32))
-	s.usage.write([]usageEvent{{songID: "4", at: now - 1, summaryOnly: true}})
+	s.Store.usage.write([]usageEvent{{songID: "4", at: now - 1, summaryOnly: true}})
 	for _, p := range []string{hot, cold, prefetch, copyPath, metadata} {
 		putRetained(t, p, 10)
 	}
@@ -138,7 +138,7 @@ func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startGET("1", "")
+	s.Store.usage.startGET("1", "")
 	setRetentionLimit(t, s, int64(len(payload)))
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); !errors.Is(err, ErrNotRetained) {
 		t.Fatal("ineligible prefetch did not report retention denial", err)
@@ -155,7 +155,7 @@ func TestProtectedLowPriorityDoesNotEvictHotVideo(t *testing.T) {
 	putRetained(t, hot, 10)
 	putRetained(t, low, 10)
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startGET("1", "")
+	s.Store.usage.startGET("1", "")
 	setRetentionLimit(t, s, 10)
 	v := video{key: strings.Repeat("2", 32)}
 	s.pinVideo(v)
@@ -212,7 +212,7 @@ func TestReleaseOnlyCleansAfterLastReference(t *testing.T) {
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
-	s.usage.startGET("1", "")
+	s.Store.usage.startGET("1", "")
 	setRetentionLimit(t, s, 10)
 	v := video{key: strings.Repeat("a", 32)}
 	s.pinVideo(v)
@@ -230,8 +230,8 @@ func TestRetentionWithinLimitSkipsUsageStatistics(t *testing.T) {
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, 10)
 	// Policies are still needed below budget, but scoring is not.
-	s.usage.flush()
-	if _, err := s.usage.db.Exec("DROP TABLE song_usage"); err != nil {
+	s.Store.usage.flush()
+	if _, err := s.Store.usage.db.Exec("DROP TABLE song_usage"); err != nil {
 		t.Fatal(err)
 	}
 	for _, limit := range []int64{11, 10} {
@@ -257,7 +257,7 @@ func TestRetentionUsesResourceFingerprint(t *testing.T) {
 	putRetained(t, hot, 10)
 	putRetained(t, cold, 10)
 	now := time.Now().UnixMilli()
-	if err := s.usage.write([]usageEvent{
+	if err := s.Store.usage.write([]usageEvent{
 		{songID: "1", at: now, summaryOnly: true},
 	}); err != nil {
 		t.Fatal(err)
@@ -275,8 +275,8 @@ func TestRetentionUsesResourceFingerprint(t *testing.T) {
 // used by the worker and explicitly index their externally seeded files.
 func setRetentionLimit(t *testing.T, s *Server, limit int64) {
 	t.Helper()
-	s.retentionRunMu.Lock()
-	defer s.retentionRunMu.Unlock()
+	s.Store.retentionRunMu.Lock()
+	defer s.Store.retentionRunMu.Unlock()
 	s.retentionMu.Lock()
 	s.cfg.VideoBudgetBytes = limit
 	s.cfg.CacheUnlimited = false
@@ -315,18 +315,18 @@ func TestRetentionReleaseDoesNotWaitForWorker(t *testing.T) {
 	path := testVideoFile(t, cfg, payload)
 	writeTestFile(t, path, payload)
 	setRetentionLimit(t, s, 1)
-	s.retentionRunMu.Lock()
+	s.Store.retentionRunMu.Lock()
 	done := make(chan *responseRecorder, 1)
 	go func() { done <- request(s, "HEAD", videoURL(payload), nil) }()
 	select {
 	case w := <-done:
 		assertResponse(t, w, 200, "")
 	case <-time.After(3 * time.Second):
-		s.retentionRunMu.Unlock()
+		s.Store.retentionRunMu.Unlock()
 		t.Fatal("HTTP release waited for the eviction worker")
 	}
 	expectRetained(t, path, true)
-	s.retentionRunMu.Unlock()
+	s.Store.retentionRunMu.Unlock()
 	expectRetained(t, path, false)
 }
 
@@ -407,9 +407,9 @@ func TestRetentionReconciliationDuringPublication(t *testing.T) {
 		}
 		// Serialize with the current scan without starting a new reconciliation
 		// that could conceal a publication lost by the previous scan.
-		s.retentionRunMu.Lock()
+		s.Store.retentionRunMu.Lock()
 		got := retainedBytes(s)
-		s.retentionRunMu.Unlock()
+		s.Store.retentionRunMu.Unlock()
 		if want := int64(len(payload)); got != want {
 			t.Fatalf("concurrent publication accounting: %d, want %d", got, want)
 		}

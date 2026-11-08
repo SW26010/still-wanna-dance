@@ -15,5 +15,5 @@ func syncTestCatalog(s *Server, ctx context.Context, refs map[string]string) err
 		n, _ := strconv.ParseInt(id, 10, 64)
 		c.Songs = append(c.Songs, CatalogSong{ID: n, MD5: key})
 	}
-	return s.SyncCatalog(ctx, c)
+	return s.Store.SyncCatalog(ctx, c)
 }

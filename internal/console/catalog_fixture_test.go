@@ -33,5 +33,5 @@ func syncTestCatalog(c *Console, s *cacheproxy.Server, ctx context.Context, refs
 		n, _ := strconv.ParseInt(id, 10, 64)
 		catalog.Songs = append(catalog.Songs, cacheproxy.CatalogSong{ID: n, MD5: key})
 	}
-	return s.SyncCatalog(ctx, catalog)
+	return s.Store.SyncCatalog(ctx, catalog)
 }

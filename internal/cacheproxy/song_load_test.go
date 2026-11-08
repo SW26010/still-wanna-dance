@@ -213,7 +213,7 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 			if queries.Load() != 1 || downloads.Load() != 2 {
 				t.Fatal("duplicated lookup/download", queries.Load(), downloads.Load())
 			}
-			if urls, err := s.SongURLs(ctx, 42, ""); err != nil || len(urls) != 1 || urls[0].URL != stale {
+			if urls, err := s.Store.SongURLs(ctx, 42, ""); err != nil || len(urls) != 1 || urls[0].URL != stale {
 				t.Fatal("failure discarded resource address", urls, err)
 			}
 		})

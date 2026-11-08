@@ -132,7 +132,7 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 	assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=35-"}), 206, payload[35:])
 	request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=99-"})
 	request(s, "HEAD", videoURL(payload), nil)
-	s.usage.flush()
+	s.Store.usage.flush()
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 10})
 	if err != nil || len(page.Requests) != 4 {
 		t.Fatal(page, err)
@@ -161,7 +161,7 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 	}
 	defer restarted.Close()
 	assertResponse(t, request(restarted, "GET", videoURL(payload), map[string]string{"Range": "bytes=7-8"}), 206, payload[7:9])
-	restarted.usage.flush()
+	restarted.Store.usage.flush()
 	page, err = ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 10})
 	if err != nil || page.Requests[0].Sources.LocalBytes != 8 || page.Requests[3].Sources.LocalBytes != 16 {
 		t.Fatal(page, err)
@@ -171,11 +171,11 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Stop the worker before changing retention. Pruning removes their aggregate contribution too.
-	if err := s.usage.close(); err != nil {
+	if err := s.Store.usage.close(); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.retention, s.usage.unlimited = time.Hour, false
-	if _, err := s.usage.prune(time.Now().Add(48 * time.Hour)); err != nil {
+	s.Store.usage.retention, s.Store.usage.unlimited = time.Hour, false
+	if _, err := s.Store.usage.prune(time.Now().Add(48 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	if err := cfg.Store.Close(); err != nil {

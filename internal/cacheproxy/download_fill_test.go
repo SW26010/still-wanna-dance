@@ -16,7 +16,7 @@ import (
 
 func fillTestCatalog(t *testing.T, s *Server, songs []CatalogSong) LocalCatalog {
 	t.Helper()
-	if err := s.SyncCatalog(t.Context(), Catalog{Revision: "20261028000000", Source: "test", Songs: songs}); err != nil {
+	if err := s.Store.SyncCatalog(t.Context(), Catalog{Revision: "20261028000000", Source: "test", Songs: songs}); err != nil {
 		t.Fatal(err)
 	}
 	local, release, err := s.ReadLocalCatalog(t.Context())
@@ -78,7 +78,7 @@ func TestDownloadFillUsesBlockedSelectedSongAsAddressHint(t *testing.T) {
 		{ID: 1, MD5: videoKey(payload)},
 		{ID: 2, MD5: videoKey(payload)},
 	})
-	if err := s.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
+	if err := s.Store.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
 		t.Fatal(err)
 	}
 	result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, s.PrefetchDownload, nil)
@@ -88,7 +88,7 @@ func TestDownloadFillUsesBlockedSelectedSongAsAddressHint(t *testing.T) {
 		t.Fatalf("result=%+v attempts=%v error=%v", result, attempts, err)
 	}
 	var blockedDemands int
-	if err := s.db.QueryRow("SELECT COALESCE(SUM(demand_count), 0) FROM song_usage WHERE song_id=1").Scan(&blockedDemands); err != nil || blockedDemands != 0 {
+	if err := s.Store.db.QueryRow("SELECT COALESCE(SUM(demand_count), 0) FROM song_usage WHERE song_id=1").Scan(&blockedDemands); err != nil || blockedDemands != 0 {
 		t.Fatalf("blocked song demands=%d error=%v", blockedDemands, err)
 	}
 }
@@ -105,7 +105,7 @@ func TestDownloadFillFavoriteOrderIncludesUnselectedAliasesAndUnresolvedSongs(t 
 			// The selected ordinary alias inherits its resource's favorite priority.
 			delete(local.Files.References, "9000004")
 			for _, id := range []int64{9000002, 9000004} {
-				if err := s.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
+				if err := s.Store.SetSongPolicy(t.Context(), id, SongFavorite); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -156,10 +156,10 @@ func TestDownloadFillDoesNotResolveUnselectedAliases(t *testing.T) {
 		{ID: nextID, MD5: videoKey("next resource")},
 	})
 	for id := int64(9000200); id < 9000220; id++ {
-		if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
+		if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -218,14 +218,14 @@ func TestDownloadFillCanResolveSelectedHistoricalSongs(t *testing.T) {
 				}
 			})
 			fillTestCatalog(t, s, []CatalogSong{{ID: 9000100, MD5: videoKey("current resource")}})
-			if _, err := s.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", videoKey(payload), len(payload)); err != nil {
+			if _, err := s.Store.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", videoKey(payload), len(payload)); err != nil {
 				t.Fatal(err)
 			}
 			for _, id := range []int64{9000200, 9000201} {
-				if _, err := s.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (?)", id); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := s.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
+				if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (?,?)", id, videoKey(payload)); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -267,7 +267,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	})
 	// The current aliases rank this resource first. Retry must preserve this
 	// resource's budget after the first candidate was admitted and then failed.
-	if err := s.SyncCatalog(t.Context(), Catalog{Revision: "20261027000000", Source: "test", Songs: []CatalogSong{{ID: retainedID, MD5: videoKey(payload)}}}); err != nil {
+	if err := s.Store.SyncCatalog(t.Context(), Catalog{Revision: "20261027000000", Source: "test", Songs: []CatalogSong{{ID: retainedID, MD5: videoKey(payload)}}}); err != nil {
 		t.Fatal(err)
 	}
 	local := fillTestCatalog(t, s, []CatalogSong{

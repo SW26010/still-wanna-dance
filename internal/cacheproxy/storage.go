@@ -2,8 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"path/filepath"
 )
 
@@ -19,39 +17,13 @@ const upsertMediaSQL = `INSERT INTO media(md5, byte_size)
 
 // recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {
-	_, err := s.usage.db.ExecContext(ctx, upsertMediaSQL, v.key, v.size)
+	err := s.Store.recordMediaSize(ctx, v.key, v.size)
 	return s.storageError(err)
 }
 
 // Each explicit caller records its own mapping after the shared flight completes.
-func (s *Server) recordSongVideo(ctx context.Context, id string, v video) (resultErr error) {
-	defer func() { resultErr = s.storageError(resultErr) }()
-	// Protect the resource through commit and cleanup-query invalidation,
-	// including callers that do not already own a request/worker pin.
+func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	var promote bool
-	return s.Store.writeMapping(ctx, func() (bool, error) {
-		var current string
-		err := s.usage.db.QueryRowContext(ctx, `SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&current)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return false, err
-		}
-		promote = current == "" || current == v.key
-		if !promote {
-			s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", v.key)
-		}
-		return current != v.key, nil
-	}, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", id); err != nil {
-			return err
-		}
-		if promote {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO song_media(song_id, md5) VALUES (?, ?)
- ON CONFLICT(song_id) DO NOTHING`, id, v.key); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	return s.storageError(s.Store.recordSongMapping(ctx, id, v.key, s.cfg.Logger))
 }

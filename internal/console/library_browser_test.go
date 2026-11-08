@@ -53,7 +53,7 @@ func TestLibraryBrowser(t *testing.T) {
 	}
 	c.service = engine
 	name := "共享视频"
-	if err := engine.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261024000000", Songs: []cacheproxy.CatalogSong{{ID: 1, Name: &name, MD5: key}, {ID: 8603, Name: &name, MD5: key}}}); err != nil {
+	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261024000000", Songs: []cacheproxy.CatalogSong{{ID: 1, Name: &name, MD5: key}, {ID: 8603, Name: &name, MD5: key}}}); err != nil {
 		t.Fatal(err)
 	}
 	// The old real demand must precede the larger bundled prior in the actual API/UI.

@@ -14,7 +14,7 @@ import (
 func assertSongResource(t *testing.T, s *Server, id, key string) {
 	t.Helper()
 	var got string
-	if err := s.usage.db.QueryRow(`SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&got); err != nil || got != key {
+	if err := s.Store.usage.db.QueryRow(`SELECT md5 FROM song_media WHERE song_id=?`, id).Scan(&got); err != nil || got != key {
 		t.Fatalf("song %s: key=%s want=%s err=%v", id, got, key, err)
 	}
 }
@@ -43,10 +43,10 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 		t.Fatal(files, err)
 	}
 	var songs, versions int
-	if err := s.usage.db.QueryRow(`SELECT count(*) FROM songs`).Scan(&songs); err != nil {
+	if err := s.Store.usage.db.QueryRow(`SELECT count(*) FROM songs`).Scan(&songs); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&versions); err != nil {
+	if err := s.Store.usage.db.QueryRow(`SELECT count(*) FROM media`).Scan(&versions); err != nil {
 		t.Fatal(err)
 	}
 	if songs != 2 || versions != 1 {
@@ -79,7 +79,7 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 	restarted.wg.Wait()
 	expectRetained(t, files[0], true)
 	var key string
-	if err := restarted.usage.db.QueryRow(`SELECT md5 FROM song_media WHERE song_id='140'`).Scan(&key); err != nil {
+	if err := restarted.Store.usage.db.QueryRow(`SELECT md5 FROM song_media WHERE song_id='140'`).Scan(&key); err != nil {
 		t.Fatal(err)
 	}
 	assertSongResource(t, restarted, "138", key)

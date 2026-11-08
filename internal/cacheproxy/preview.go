@@ -102,7 +102,7 @@ func (s *Server) ServePreview(w http.ResponseWriter, r *http.Request, target Pre
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	checked, err := s.PreviewMetadata(r.Context(), s.cfg.libraryPaths(), target)
+	checked, err := s.Store.PreviewMetadata(r.Context(), s.cfg.libraryPaths(), target)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ErrSongBlocked) {

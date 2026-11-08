@@ -21,13 +21,13 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		events = append(events, usageEvent{at: 1000 + int64(i/3), completedAt: 2000, key: key, songID: "42", method: "GET", outcome: "completed"})
 	}
 	events = append(events, usageEvent{at: 1200, method: "HEAD"})
-	if err := s.usage.write(events); err != nil {
+	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?)`, key, strings.Repeat("b", 32)); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'new mapping'),(43,'new association'); INSERT INTO media(md5) VALUES(?),(?)`, key, strings.Repeat("b", 32)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO song_media VALUES(42,?),(43,?)`, strings.Repeat("b", 32), key); err != nil {
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO song_media VALUES(42,?),(43,?)`, strings.Repeat("b", 32), key); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -69,7 +69,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 func TestHistoryNamesFollowRecordedSongIDAndCurrentCatalog(t *testing.T) {
 	s, cfg := setup(t, nil)
 	key := strings.Repeat("a", 32)
-	if err := s.usage.write([]usageEvent{
+	if err := s.Store.usage.write([]usageEvent{
 		{at: 1004, songID: "42", key: key, method: "GET"},
 		{at: 1003, songID: "43", key: key, method: "GET"},
 		{at: 1002, songID: "404", key: key, method: "GET"},
@@ -77,7 +77,7 @@ func TestHistoryNamesFollowRecordedSongIDAndCurrentCatalog(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'旧名称'),(43,NULL),(99,'仅资源关联');
+	if _, err := s.Store.usage.db.Exec(`INSERT INTO songs(id,name) VALUES(42,'旧名称'),(43,NULL),(99,'仅资源关联');
 INSERT INTO media(md5) VALUES(?); INSERT INTO song_media VALUES(99,?)`, key, key); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ INSERT INTO media(md5) VALUES(?); INSERT INTO song_media VALUES(99,?)`, key, key
 			t.Fatalf("recorded identity or current name: %+v", r)
 		}
 	}
-	if _, err := s.usage.db.Exec("UPDATE songs SET name='新名称' WHERE id=42"); err != nil {
+	if _, err := s.Store.usage.db.Exec("UPDATE songs SET name='新名称' WHERE id=42"); err != nil {
 		t.Fatal(err)
 	}
 	after, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
@@ -148,7 +148,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 		e.method = "GET"
 		events = append(events, e)
 	}
-	if err := s.usage.write(events); err != nil {
+	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -169,11 +169,11 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	}
 	// Stop automatic pruning before changing the fixture retention interval.
 	// Its startup timer uses the wall clock; this check uses the fixed 'now'.
-	if err := s.usage.close(); err != nil {
+	if err := s.Store.usage.close(); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.retention, s.usage.unlimited = 30*time.Minute, false
-	if _, err := s.usage.prune(now); err != nil {
+	s.Store.usage.retention, s.Store.usage.unlimited = 30*time.Minute, false
+	if _, err := s.Store.usage.prune(now); err != nil {
 		t.Fatal(err)
 	}
 	r, err = ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
@@ -195,7 +195,7 @@ func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
 		if w.Code != tc.status {
 			t.Fatal(w.Code)
 		}
-		s.usage.flush()
+		s.Store.usage.flush()
 		page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 1})
 		if err != nil {
 			t.Fatal(err)
@@ -231,7 +231,7 @@ func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) 
 	afterResolution := time.Now().UnixMilli()
 	close(resume)
 	<-done
-	s.usage.flush()
+	s.Store.usage.flush()
 	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 50})
 	if err != nil || len(page.Requests) != 1 {
 		t.Fatal(page, err)
@@ -307,7 +307,7 @@ func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
 func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 	s, cfg := setup(t, nil)
 	// Name ordering deliberately disagrees with numeric song ID ordering.
-	if _, err := s.usage.db.Exec("INSERT INTO songs(id,name) VALUES(10,'A'),(2,'Z')"); err != nil {
+	if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,name) VALUES(10,'A'),(2,'Z')"); err != nil {
 		t.Fatal(err)
 	}
 	keys := []string{strings.Repeat("b", 32), strings.Repeat("a", 32), ""}
@@ -317,7 +317,7 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 		events = append(events, usageEvent{at: 1000 + int64(i/6), completedAt: 2000, key: keys[i%3], songID: songs[i%3], method: "GET", outcome: "completed"})
 	}
 	events = append(events, usageEvent{at: 1010, method: "HEAD"})
-	if err := s.usage.write(events); err != nil {
+	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
 	for _, field := range []string{"time", "song", "resource"} {
@@ -369,7 +369,7 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 						t.Fatal("accepted a cursor from another order")
 					}
 					q.Cursor = page.NextCursor
-					if _, err := s.usage.db.Exec("UPDATE request_events SET completed_at=completed_at+1"); err != nil {
+					if _, err := s.Store.usage.db.Exec("UPDATE request_events SET completed_at=completed_at+1"); err != nil {
 						t.Fatal(err)
 					}
 				}

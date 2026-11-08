@@ -43,7 +43,7 @@ func TestHistoryHidesOnlyAdjacentCanceledRequests(t *testing.T) {
 			if tc.change != nil {
 				tc.change(&first, &next)
 			}
-			if err := s.usage.write([]usageEvent{first}); err != nil {
+			if err := s.Store.usage.write([]usageEvent{first}); err != nil {
 				t.Fatal(err)
 			}
 			q := RequestQuery{Limit: 50, HideAdjacentCanceled: true}
@@ -56,7 +56,7 @@ func TestHistoryHidesOnlyAdjacentCanceledRequests(t *testing.T) {
 			if tc.middle != nil {
 				events = append([]usageEvent{*tc.middle}, events...)
 			}
-			if err := s.usage.write(events); err != nil {
+			if err := s.Store.usage.write(events); err != nil {
 				t.Fatal(err)
 			}
 			after, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
@@ -92,7 +92,7 @@ func TestHistoryFilteredPaginationAndRange(t *testing.T) {
 			usageEvent{at: i * 10000, method: "GET", key: key, songID: song, outcome: "canceled", status: 200},
 			usageEvent{at: i*10000 + 1000, method: "GET", key: key, songID: song, outcome: "completed", status: 206})
 	}
-	if err := s.usage.write(events); err != nil {
+	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
 	for _, sort := range []string{"time", "song", "resource"} {

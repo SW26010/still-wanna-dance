@@ -13,9 +13,9 @@ type queueMetadata struct {
 	title  string
 }
 
-func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
+func (s *Store) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
 	result := make(map[string]queueMetadata)
-	if s.usage == nil || len(ids) == 0 {
+	if s == nil || s.usage == nil || len(ids) == 0 {
 		return result, nil
 	}
 	encoded, err := json.Marshal(ids)
@@ -26,7 +26,7 @@ func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queu
  FROM json_each(?) q LEFT JOIN songs s ON s.id=q.value
  LEFT JOIN song_media sm ON sm.song_id=s.id LEFT JOIN media m ON m.md5=sm.md5`, string(encoded))
 	if err != nil {
-		return nil, s.storageError(err)
+		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -35,13 +35,18 @@ func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queu
 		var seconds sql.NullFloat64
 		var title string
 		if err := rows.Scan(&id, &size, &seconds, &title); err != nil {
-			return nil, s.storageError(err)
+			return nil, err
 		}
 		if id > 0 {
 			result[strconv.FormatInt(id, 10)] = queueMetadata{estimateMediaTiming(size.Int64, seconds.Float64), title}
 		}
 	}
-	return result, s.storageError(rows.Err())
+	return result, rows.Err()
+}
+
+func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
+	result, err := s.Store.queueTimings(ctx, ids)
+	return result, s.storageError(err)
 }
 
 // Names for presentation come from the same local catalog snapshot as timing.

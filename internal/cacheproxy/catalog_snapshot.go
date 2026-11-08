@@ -165,17 +165,12 @@ func (s *Server) readLocalCatalog(ctx context.Context, target *DownloadTarget) (
 		return LocalCatalog{}, func() {}, context.Canceled
 	}
 	keys := map[string]bool{}
-	s.mappingMu.Lock()
-	result, err := s.Store.readCatalogLocked(ctx, target)
-	if err == nil {
-		for _, song := range result.Songs {
-			if key := song.MD5; key != "" && !keys[key] {
-				s.pinVideo(video{key: key})
-				keys[key] = true
-			}
+	result, err := s.Store.readCatalogRetaining(ctx, target, func(key string) {
+		if !keys[key] {
+			s.pinVideo(video{key: key})
+			keys[key] = true
 		}
-	}
-	s.mappingMu.Unlock()
+	})
 	release := func() {
 		for key := range keys {
 			s.releaseVideo(video{key: key})
@@ -212,4 +207,18 @@ func (result *LocalCatalog) checkFiles(ctx context.Context, videoDir string) err
 		}
 	}
 	return err
+}
+
+func (s *Store) readCatalogRetaining(ctx context.Context, target *DownloadTarget, retain func(string)) (LocalCatalog, error) {
+	s.mappingMu.Lock()
+	defer s.mappingMu.Unlock()
+	result, err := s.readCatalogLocked(ctx, target)
+	if err == nil {
+		for _, song := range result.Songs {
+			if song.MD5 != "" {
+				retain(song.MD5)
+			}
+		}
+	}
+	return result, err
 }

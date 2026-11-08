@@ -103,3 +103,23 @@ Windows PowerShell 的 `Start-Process` 将 Shell 启动的原生异常转成不�
 保留检查失败历史：沙箱内完整桌面回归受文件重命名、链接及实例归属检查限制，同一包在普通 Windows 权限下通过。早期菜单像素检查从窗口 DC 读取失败，改用屏幕 DC 后又读取到淡入动画前的旧画面；普通权限下也出现，因此未将取像素失败归为产品或单纯沙箱问题。移除该不可靠的自动断言，采用上述原生偏好回读和实际桌面检查；探针、初次失败日志与最终回归保存在忽略目录 `artifacts/tray-menu-theme-20261104/`。
 
 旧系统、接口缺失和真实高对比度环境未实测，保留实现中的系统默认菜单退路；未执行读屏器、跨屏 DPI 或正式发行 ZIP 验收。不新增 VRC 台账项。
+
+## 2026-11-08：TaskDialog 默认 DPI 与高缩放补齐
+
+本轮修复的是前次 TaskDialog 迁移的 DPI 适配缺口，未声称复现了具体模糊、裁切或跨屏故障。前次「清单没有 DPI 声明」只描述当时状态，现由本节及[配置生命周期](../settings-lifecycle.md)替代。按照微软[进程默认 DPI 建议](https://learn.microsoft.com/en-us/windows/win32/hidpi/setting-the-default-dpi-awareness-for-a-process)，嵌入清单默认选择 `PerMonitorV2`，旧系统按清单退回 Per-Monitor；不在窗口创建后尝试修改进程默认模式。TaskDialog 与托盘共用锁定线程内的 PMv2 作用域，创建窗口前设置、返回或错误时恢复原上下文。路径选择器独立进程保持原有 DPI 作用域。窗口重排继续交由 Windows 的 PMv2 对话框行为处理，没有新增手工缩放或 DPI 状态字段。
+
+**本机实际范围：** 只有一台 3840×2160、200% 缩放显示器。用旧 syso 运行 `TestProcessDefaultDPIAwareness`，实际失败于 `embedded manifest did not select Per-Monitor V2`，证明默认模式缺口；重建资源后该检查通过。独立原生子进程的冲突／普通错误／显式 DPI-unaware 调用三例通过：实际窗口上下文均为 PMv2；200% 显示器上的 `GetDpiForWindow` 为 192，窗口为 732×461 物理像素；UI Automation 检查文字和按钮有可见边界且位于窗口内，窗口位于显示器工作区；内容可读取、关闭后进程结束，调用线程恢复原上下文。MTA 故障注入确认 STA 初始化失败时也恢复 DPI。隔离托盘创建／两种退出以及原生选择器 DPI 作用域回归通过，未操作用户配置、游戏或 hosts，也未更改系统缩放。
+
+**跨屏限制：** 当前缺少第二台不同缩放显示器，因此真实跨屏 DPI 变化仍未验证，不以 API 上下文、200% 截图或合成消息替代。`TestWindowsTaskDialog/conflict` 已准备自动枚举实际显示器、将测试窗口往返移动，检查目标 DPI、跨 DPI 时窗口尺寸变化、窗口／文字／按钮边界与最终退出；当前日志明确写出 `Mixed-DPI transition NOT VERIFIED`。后续具备不同缩放显示器时，由开发者设置 `SWD_TASK_DIALOG_TEST=1` 并经 `scripts/with-test-temp.ps1` 运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/desktop -run '^TestWindowsTaskDialog$' -count=1 -v`，核对跨屏日志与各屏视觉表现。其他缩放比例、旧系统兼容与读屏器未在本轮验证，不新增 VRC 台账项。
+
+已查看实际 200% 原生截图；证据在忽略目录 `artifacts/startup-conflict/taskdialog-dpi-final.log` 与 `taskdialog-dpi-200.png`。采图脚本首次因 PowerShell 字符串替换产生语法错误，修正后仅捕获并关闭独立测试窗口，没有改动产品行为。相关 Go vet、标准桌面构建、资源重复生成逐字节一致及精确哈希登记校验通过。测试构建为 `artifacts/startup-conflict/SWD-taskdialog.exe`（dev-taskdialog-dpi）；未替换正在运行的程序，未提交或推送。
+
+## 2026-11-08：冲突提示省略默认配置路径
+
+复用程序默认路径函数与配置身份比较，已有实例使用 EXE 旁 config.json 时不重复展示配置行，自定义配置仍显示完整配置路径；程序位置、PID 及原生布局保持不变。扩展既有 TaskDialog 子进程检查，默认／自定义配置、普通错误和 DPI-unaware 调用四例通过，UI Automation 确认默认路径不出现、自定义路径保留，关闭后进程结束。200% 显示器上 PMv2 检查通过；仍无不同缩放的第二台显示器，不扩大混合 DPI 验证结论。
+
+## 2026-11-08：冲突正文精简与适度加宽
+
+正文精简后，200% 实际截图仍将末尾「启动。」孤立换行；改用同一系统组件的 TaskDialogIndirect，仅冲突提示设置 220 对话框单位。按 [TASKDIALOGCONFIG](https://learn.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-taskdialogconfig) 的 cxWidth 契约交由 Windows 缩放，普通错误保持宽度 0；结构遵循 Windows SDK 的 packed ABI，字符串在模态调用期间固定，继续复用 STA／PMv2 和原有失败回退。
+
+使用较长程序路径的真实子进程截图确认正文完整单行，默认配置提示的程序标签与路径同一行且测试路径不再省略；自定义配置仍展示配置路径。200% 下默认配置窗口由 732×461 变为 906×399 物理像素，文字及按钮边界在窗口和工作区内。默认／自定义配置、普通错误、DPI-unaware 调用四例及 Go vet 通过，原生调用返回后恢复 DPI 上下文并正常退出。截图位于忽略目录 artifacts/conflict-dialog-copy/{conflict,conflict-custom}.png。首次直接运行测试 EXE 的 PowerShell 参数被拆分导致启动拒绝，改用既有 Go 测试入口通过。仍只有一台显示器，混合 DPI 与其他实际系统缩放比例未验证。

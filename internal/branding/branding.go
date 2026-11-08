@@ -1,7 +1,7 @@
 // Package branding shares the application artwork between the WebUI and desktop.
-// The Windows resource is checked in so ordinary builds also have an EXE icon.
+// The Windows resource includes the icon, Common Controls v6 and default PMv2 DPI manifest.
 //
-//go:generate go run github.com/akavel/rsrc@v0.10.2 -arch amd64 -ico logo.ico -o logo_windows_amd64.syso
+//go:generate go run github.com/akavel/rsrc@v0.10.2 -arch amd64 -ico logo.ico -manifest app.manifest -o logo_windows_amd64.syso
 package branding
 
 import (

@@ -64,6 +64,10 @@ func flagValue(name string) string {
 // Startup may fail before any Console, log writer or configuration is usable.
 // The isolated server serves the same embedded WebUI without those resources.
 func recoverApplication(cause error) error {
+	var conflict *desktop.InstanceConflictError
+	if errors.As(cause, &conflict) {
+		return cause
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	identity, identityErr := desktop.NewIdentity(flagValue("config"))

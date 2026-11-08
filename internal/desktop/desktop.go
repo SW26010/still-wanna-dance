@@ -196,6 +196,8 @@ type Options struct {
 	Open    bool
 	State   func() State
 	Command func(int) error
+	// Ready runs once after the tray icon has been registered. It must not block.
+	Ready func()
 	// CommandReportsErrors means Command sends failures to the application-wide
 	// fault notifier, which owns browser opening and its native fallback.
 	CommandReportsErrors bool

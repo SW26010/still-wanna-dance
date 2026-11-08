@@ -29,10 +29,6 @@ func OpenBrowser(url string) error {
 	return nil
 }
 
-func ShowError(err error) {
-	user32.NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(wide(err.Error()))), uintptr(unsafe.Pointer(wide("Still Wanna Dance"))), 0x10)
-}
-
 type point struct{ X, Y int32 }
 type windowClass struct {
 	Style                              uint32
@@ -93,9 +89,8 @@ type tray struct {
 func Run(ctx context.Context, o Options) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if proc := user32.NewProc("SetThreadDpiAwarenessContext"); proc.Find() == nil {
-		old, _, _ := proc.Call(^uintptr(3))
-		defer proc.Call(old)
+	if restoreDPI, err := enterPerMonitorDPI(); err == nil {
+		defer restoreDPI()
 	}
 	t := &tray{options: o, finished: make(chan struct{}), shutdownDone: make(chan struct{})}
 	defer close(t.finished)
@@ -146,6 +141,9 @@ func Run(ctx context.Context, o Options) error {
 		case <-t.finished:
 		}
 	}()
+	if o.Ready != nil {
+		o.Ready()
+	}
 	if o.Open {
 		go func() {
 			if err := OpenBrowser(o.URL); err != nil {

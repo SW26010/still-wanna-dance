@@ -11,7 +11,11 @@ type Props = {
 };
 export function BlockDemandView({ showHeading, ...props }: Props & { showHeading: boolean }) {
   const focus = useFocusRecovery();
-  const demands = useMemo(() => [...props.data.demands.values()].sort(compareDemands), [props.data.demands]);
+  const demands = useMemo(() => {
+    const all = [...props.data.demands.values()];
+    const readingSongs = new Set(all.filter(demand => demand.kind === 'get' && demand.songID).map(demand => demand.songID));
+    return all.filter(demand => demand.kind !== 'handoff' && !(demand.kind === 'queue' && demand.position === 1 && readingSongs.has(demand.songID))).sort(compareDemands);
+  }, [props.data.demands]);
   return <section {...focus} tabIndex={-1} className="block-demand-view" aria-label="视频需求视图">
     <div className="demand-view-heading" hidden={!showHeading}><Text weight="semibold" size={300}>需求视图</Text><Caption1>{demands.length} 项需求</Caption1></div>
     {demands.length ? <div className="demand-list" role="list" aria-label="视频需求列表">
@@ -80,7 +84,7 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
     props.onPick(hits, event.clientX, event.clientY, pinned, event.currentTarget);
   };
   return <div className="demand-row-slot" role="listitem" aria-posinset={position} aria-setsize={total}>
-    <div className={`demand-row${demand.kind === 'handoff' ? ' demand-handoff' : ''}`} data-demand-id={demand.id} style={{ borderColor: demand.kind === 'handoff' ? '#fff' : videoColor(demand, props.palette) }}>
+    <div className="demand-row" data-demand-id={demand.id} style={{ borderColor: videoColor(demand, props.palette) }}>
       <div className="demand-row-heading"><Caption1 className="demand-source">{demandLabel(demand)}</Caption1><div className="demand-video-heading"><Text size={300} className={'demand-video-title'+(!demand.title&&!demand.songID?' resource-id':'')} title={title}>{title}</Text><Caption1 className="demand-progress" title={`当前需求中 ${available} / ${blocks.length} 块本地可用`} aria-label={`${demandLabel(demand)}，${title}，需求就绪进度 ${percent}%`}>{percent}%</Caption1></div><Caption1 title={demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '视频总块数尚未知'}>{blocks.length} 块</Caption1></div>
       <div ref={strip} className="demand-block-strip">
         <canvas ref={canvas} width={0} height={0} className="demand-block-canvas" style={{ width, height }} tabIndex={0} role="group" aria-label={`${demandLabel(demand)}，${title}，需要 ${blocks.length} 个块，${demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '总块数尚未知'}。左右键选择，Home 和 End 跳到首尾。`}

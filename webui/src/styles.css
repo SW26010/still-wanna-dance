@@ -2,7 +2,7 @@
 html { scrollbar-gutter: stable; }
 body { margin: 0; }
 #root > .app-provider { min-height: 100vh; background: var(--colorNeutralBackground2); }
-.shell { max-width: 1560px; margin: auto; padding: var(--spacingHorizontalXXL); }
+.shell { padding: var(--spacingHorizontalXXL); }
 .shell > header, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalM); }
 .shell > header { justify-content: space-between; padding-bottom: var(--spacingVerticalXXL); }
 .shell > header > span { color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase200); }

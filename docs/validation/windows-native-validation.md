@@ -123,3 +123,24 @@ Windows PowerShell 的 `Start-Process` 将 Shell 启动的原生异常转成不�
 正文精简后，200% 实际截图仍将末尾「启动。」孤立换行；改用同一系统组件的 TaskDialogIndirect，仅冲突提示设置 220 对话框单位。按 [TASKDIALOGCONFIG](https://learn.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-taskdialogconfig) 的 cxWidth 契约交由 Windows 缩放，普通错误保持宽度 0；结构遵循 Windows SDK 的 packed ABI，字符串在模态调用期间固定，继续复用 STA／PMv2 和原有失败回退。
 
 使用较长程序路径的真实子进程截图确认正文完整单行，默认配置提示的程序标签与路径同一行且测试路径不再省略；自定义配置仍展示配置路径。200% 下默认配置窗口由 732×461 变为 906×399 物理像素，文字及按钮边界在窗口和工作区内。默认／自定义配置、普通错误、DPI-unaware 调用四例及 Go vet 通过，原生调用返回后恢复 DPI 上下文并正常退出。截图位于忽略目录 artifacts/conflict-dialog-copy/{conflict,conflict-custom}.png。首次直接运行测试 EXE 的 PowerShell 参数被拆分导致启动拒绝，改用既有 Go 测试入口通过。仍只有一台显示器，混合 DPI 与其他实际系统缩放比例未验证。
+
+## 2026-11-12：路径选择器改为 EXE 原生助手
+
+基线 `f957843f` 加本轮工作区修改。此前同机诊断中，PowerShell 路径从创建进程到窗口可见约 999 毫秒；本轮移除该入口的 PowerShell、WinForms 和现场 C# 编译，复用当前 EXE 的内部 `-path-dialog` 模式。助手直接调用 Windows `IFileDialog`，保持一次请求一个进程、stdin/stdout JSON、STA／PMv2、三种选择模式、本地代理所属窗口与取消清理；图标直接读取内嵌资源。现行契约见[配置生命周期](../settings-lifecycle.md)，复跑入口见[开发说明](../development.md)。验证构建来自提交前的工作区快照。
+
+**实际行为：** `TestPathDialogConfiguration` 使用真实 Shell COM 对象检查选择选项及缺失目录向最近存在父目录回退。`TestPathDialogNative` 分别通过测试助手和标准桌面 EXE，自动选定已有／新命名数据库、已有文件和目录，并取消窗口或取消请求。确认返回中文及带空格路径、已有文件原字节不变、新数据库未创建；标题图标与内嵌 SWD 图标逐像素一致，窗口 PMv2、透明代理不可见，助手退出后对话框与代理均销毁，原前台窗口仍可操作。测试助手另确认成功与取消后恢复调用线程原 DPI；MTA 注入确认 STA 初始化失败也恢复 DPI。全部资料均在临时目录中。
+
+**失败与修复：** 最初沙箱内创建与前台应用关联的窗口被拒绝（`Access is denied`）；配置回归也在原子重命名时出现 `The handle is invalid`。保留这些环境失败，使用同一临时目录包装器在普通 Windows 用户权限下复验通过。原生实现最初使用 `WS_POPUP`，选择和取消正常，但标题实际继承了前台应用图标，像素检查失败；增加等待或显式设置代理图标均未修复。隔离对照读取旧 WinForms 所属窗口样式后，改回透明 overlapped 所属窗口，保持与前台窗口的归属关系，图标检查通过。对照探针首次因 C# 类型与属性同名而编译失败，修正后才取得样式结果；没有将探针或等待写入产品实现。
+
+标准构建为忽略目录 `artifacts/path-picker-native/SWD.exe`，版本 `dev-native-picker`，SHA256 `8250c9c62f6046e510ca52d4cf5881432ca70d30723cc6c6a28e29f0073b2064`。使用它测试的耗时均从 `Process.Start` 到每 10 毫秒枚举首次观察到可见对话框，包含采样和消息调度误差，不表示第一帧绘制完成：
+
+| 条件 | 结果 |
+| --- | --- |
+| 与 vet 并行的首次 EXE 全模式检查 | 6 次为 1097–1482 毫秒，行为通过；保留在 `production-native.log`，不拿轻量测试进程的较快结果覆盖此批次 |
+| 独立进程初始化探针 | 无效请求约 42 毫秒退出；Go inittrace 显示包初始化约 30 毫秒，无配置／托盘初始化 |
+| 不并行构建或 vet，EXE 连续 5 次目录选择 | 237、234、244、243、233 毫秒；中位数约 237 毫秒 |
+| 相同空闲条件，EXE 再做 6 个原生行为场景 | 245–342 毫秒；三种模式、接受、取消及请求取消全部通过 |
+
+这些数据表明空闲条件下已移除主要额外开销，同时保留负载期间的高耗时样本。此前 PowerShell 诊断与本轮不是严格同批配对，不计算百分比收益，不设置 CI 计时阈值或承诺固定打开时间。未测用户正在使用的页面完整点击链路、实际目录、系统冷缓存或混合 DPI 跨屏；页面离开与正常退出的前后端取消链路未修改，复用其既有机制及本轮定向取消回归，不把受控请求取消称作真实浏览器关闭验收。
+
+路径选择、配置恢复、重启、共用 DPI／图标机制的定向 Go 回归、相关包 vet、WebUI 嵌入一致性和标准桌面构建通过。可选真实浏览器／托盘用例未设置专用环境变量时明确 skip，不计作本轮通过；本轮未启动游戏或修改 hosts，不新增 VRC 台账项。完整本地证据在忽略目录 `artifacts/path-picker-native/`：`regression.log`、`helper-native.log`、`production-native.log`、`production-native-idle.log`、`production-folder-latency.log`、`init-trace.log`，以及图标失败对照图与旧窗口样式探针。所有本轮选择器子进程均已等待退出。

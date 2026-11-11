@@ -1,73 +1,137 @@
-//go:build windows
-
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
-
-	"still-wanna-dance/internal/branding"
 )
 
-// Compile the embedded COM definitions with the actual Windows PowerShell
-// runtime, without displaying a dialog or reading any user's selected folder.
-func TestFolderDialogDefinitionLoads(t *testing.T) {
-	output := runFolderDialogProbe(t, "[Console]::Out.Write([SWDFolderDialog].FullName)")
-	if output != "SWDFolderDialog" {
-		t.Fatalf("unexpected result: %s", output)
+func TestPathDialogHelperProcess(t *testing.T) {
+	if os.Getenv("SWD_PATH_DIALOG_CHILD") != "1" {
+		return
+	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	// Verify successful selection/cancellation also restores the caller's DPI.
+	user32.NewProc("SetThreadDpiAwarenessContext").Call(^uintptr(0))
+	if err := RunPathDialog(os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	current, _, _ := user32.NewProc("GetThreadDpiAwarenessContext").Call()
+	if equal, _, _ := user32.NewProc("AreDpiAwarenessContextsEqual").Call(current, ^uintptr(0)); equal == 0 {
+		fmt.Fprintln(os.Stderr, "picker did not restore caller's DPI context")
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// Exercise the actual Shell configuration without displaying any window.
+func TestPathDialogConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	for _, mode := range []string{"folder", "open", "database"} {
+		t.Run(mode, func(t *testing.T) {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			if err := windows.CoInitializeEx(0, windows.COINIT_APARTMENTTHREADED); err != nil && err != syscall.Errno(windows.S_FALSE) {
+				t.Fatal(err)
+			}
+			defer windows.CoUninitialize()
+			initial := filepath.Join(dir, "moved", "subdirectory")
+			if mode != "folder" {
+				initial = filepath.Join(initial, "已有 资料.sqlite")
+			}
+			dialog, err := newFileDialog(PathDialog{Mode: mode, Title: "选择资料", Initial: initial})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer syscall.SyscallN(dialog.vtbl.Release, uintptr(unsafe.Pointer(dialog)))
+			var options uint32
+			if err := dialog.call(dialog.vtbl.GetOptions, uintptr(unsafe.Pointer(&options))); err != nil {
+				t.Fatal(err)
+			}
+			common := uint32(fosForceFilesystem | fosPathMustExist | fosNoChangeDir | fosDontAddToRecent | fosNoTestFileCreate)
+			if options&common != common || (options&fosPickFolders != 0) != (mode == "folder") || (mode == "database" && options&(fosFileMustExist|fosOverwritePrompt) != 0) || (mode == "open" && options&fosFileMustExist == 0) {
+				t.Fatalf("wrong selection options: 0x%x", options)
+			}
+			var folder *shellItem
+			if err := dialog.call(dialog.vtbl.GetFolder, uintptr(unsafe.Pointer(&folder))); err != nil {
+				t.Fatal(err)
+			}
+			defer syscall.SyscallN(folder.vtbl.Release, uintptr(unsafe.Pointer(folder)))
+			var path *uint16
+			hr, _, _ := syscall.SyscallN(folder.vtbl.GetDisplayName, uintptr(unsafe.Pointer(folder)), 0x80058000, uintptr(unsafe.Pointer(&path)))
+			if err := pathDialogHRESULT("GetDisplayName", hr); err != nil {
+				t.Fatal(err)
+			}
+			defer windows.CoTaskMemFree(unsafe.Pointer(path))
+			if got := windows.UTF16PtrToString(path); got != dir {
+				t.Fatalf("initial folder %q, want nearest existing parent %q", got, dir)
+			}
+		})
 	}
 }
 
-// Exercise the real user32 API on the same STA thread as the picker. In
-// particular, an exception must restore the helper's original DPI context.
-func TestFolderDialogDPIContext(t *testing.T) {
-	output := runFolderDialogProbe(t, `
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class DpiProbe {
-  [DllImport("user32.dll")]
-  public static extern IntPtr GetThreadDpiAwarenessContext();
-  [DllImport("user32.dll")]
-  public static extern bool AreDpiAwarenessContextsEqual(IntPtr a, IntPtr b);
-}
-'@
-$before = [DpiProbe]::GetThreadDpiAwarenessContext()
-$scopeType = [SWDFolderDialog].GetNestedType('DpiScope', [Reflection.BindingFlags]::NonPublic)
-$scope = [Activator]::CreateInstance($scopeType, $true)
-try {
-  $during = [DpiProbe]::GetThreadDpiAwarenessContext()
-  if (-not [DpiProbe]::AreDpiAwarenessContextsEqual($during, [IntPtr]::new(-4))) {
-    throw 'folder dialog is not per-monitor-v2 aware'
-  }
-  try { throw 'simulated dialog failure' } catch { } finally { $scope.Dispose() }
-  $after = [DpiProbe]::GetThreadDpiAwarenessContext()
-  if (-not [DpiProbe]::AreDpiAwarenessContextsEqual($before, $after)) {
-    throw 'folder dialog did not restore DPI context'
-  }
-  [Console]::Out.Write('PMv2/restored')
-} finally { $scope.Dispose() }
-`)
-	if output != "PMv2/restored" {
-		t.Fatalf("unexpected DPI probe: %s", output)
+func TestPathDialogDPIContextRestoredOnFailure(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	// An MTA forces STA initialization to fail before displaying any window.
+	if err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED); err != nil && err != syscall.Errno(windows.S_FALSE) {
+		t.Fatal(err)
+	}
+	defer windows.CoUninitialize()
+	previous, _, _ := user32.NewProc("SetThreadDpiAwarenessContext").Call(^uintptr(0))
+	defer user32.NewProc("SetThreadDpiAwarenessContext").Call(previous)
+	if _, err := showPathDialog(PathDialog{Mode: "folder"}); err == nil {
+		t.Fatal("MTA caller unexpectedly opened an STA dialog")
+	}
+	current, _, _ := user32.NewProc("GetThreadDpiAwarenessContext").Call()
+	if equal, _, _ := user32.NewProc("AreDpiAwarenessContextsEqual").Call(current, ^uintptr(0)); equal == 0 {
+		t.Fatal("failed picker did not restore DPI context")
 	}
 }
 
-// Opt-in desktop check: inspect the actual common dialog's caption icon, then
-// close only this test dialog from its own STA message loop. No user input needed.
+func pathDialogTestCommand(ctx context.Context) *exec.Cmd {
+	if exe := os.Getenv("SWD_PATH_PICKER_EXE"); exe != "" {
+		return exec.CommandContext(ctx, exe, "-path-dialog")
+	}
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestPathDialogHelperProcess$")
+	cmd.Env = append(os.Environ(), "SWD_PATH_DIALOG_CHILD=1")
+	return cmd
+}
+
+// The protocol/parent-cancellation path runs even without an interactive desktop.
+func TestPathDialogCommand(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := runPathDialogCommand(ctx, pathDialogTestCommand(ctx), PathDialog{Mode: "folder"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled request: %v", err)
+	}
+	ctx, stop := context.WithTimeout(t.Context(), 10*time.Second)
+	defer stop()
+	if _, err := runPathDialogCommand(ctx, pathDialogTestCommand(ctx), PathDialog{Mode: "invalid"}); err == nil || !strings.Contains(err.Error(), "无效的路径选择模式") {
+		t.Fatalf("lost helper failure: %v", err)
+	}
+}
+
+// Opt-in real desktop checks. Every HWND is found by this child's PID and all
+// dialogs are accepted/canceled automatically; no user data or app is opened.
 func TestPathDialogNative(t *testing.T) {
 	if os.Getenv("SWD_PATH_PICKER_EVIDENCE") == "" {
-		t.Skip("set SWD_PATH_PICKER_EVIDENCE for native path and icon checks")
+		t.Skip("set SWD_PATH_PICKER_EVIDENCE for native path, icon, DPI and cancellation checks")
 	}
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "已有 资料.sqlite")
@@ -75,23 +139,119 @@ func TestPathDialogNative(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		mode, initial string
-		accept        bool
+		mode, initial, action string
 	}{
-		{"database", existing, true},
-		{"database", filepath.Join(dir, "新建 资料.sqlite"), true},
-		{"open", existing, true},
-		{"folder", dir, true},
-		{"database", existing, false},
+		{"database", existing, "accept"},
+		{"database", filepath.Join(dir, "新建 资料.sqlite"), "accept"},
+		{"open", existing, "accept"},
+		{"folder", dir, "accept"},
+		{"database", existing, "cancel"},
+		{"folder", dir, "context"},
 	} {
-		t.Run(tc.mode+"/"+filepath.Base(tc.initial)+"/"+strconv.FormatBool(tc.accept), func(t *testing.T) {
-			selected := runNativePathProbe(t, tc.mode, tc.initial, tc.accept)
-			want := ""
-			if tc.accept {
-				want = tc.initial
+		t.Run(tc.mode+"/"+tc.action+"/"+filepath.Base(tc.initial), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+			defer cancel()
+			cmd := pathDialogTestCommand(ctx)
+			request, _ := json.Marshal(PathDialog{Mode: tc.mode, Title: "SWD native picker verification", Initial: tc.initial})
+			cmd.Stdin = bytes.NewReader(request)
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			var output, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &output, &stderr
+			foreground, _, _ := user32.NewProc("GetForegroundWindow").Call()
+			foregroundEnabled, _, _ := user32.NewProc("IsWindowEnabled").Call(foreground)
+			started := time.Now()
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
 			}
-			if selected != want {
-				t.Fatalf("selected %q, want %q", selected, want)
+			defer cmd.Process.Kill()
+			done := make(chan error, 1)
+			go func() { done <- cmd.Wait() }()
+			var hwnd uintptr
+			find := syscall.NewCallback(func(window, _ uintptr) uintptr {
+				var pid uint32
+				user32.NewProc("GetWindowThreadProcessId").Call(window, uintptr(unsafe.Pointer(&pid)))
+				visible, _, _ := user32.NewProc("IsWindowVisible").Call(window)
+				if pid == uint32(cmd.Process.Pid) && visible != 0 && dialogClass(window) == "#32770" {
+					hwnd = window
+				}
+				return 1
+			})
+			for hwnd == 0 {
+				select {
+				case err := <-done:
+					t.Fatalf("picker ended before visible: %v\n%s", err, &stderr)
+				case <-ctx.Done():
+					t.Fatal("picker did not appear")
+				default:
+				}
+				user32.NewProc("EnumWindows").Call(find, 0)
+				if hwnd == 0 {
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+			t.Logf("process-to-visible: %s", time.Since(started))
+			awareness, _, _ := user32.NewProc("GetWindowDpiAwarenessContext").Call(hwnd)
+			if equal, _, _ := user32.NewProc("AreDpiAwarenessContextsEqual").Call(awareness, perMonitorV2); equal == 0 {
+				t.Error("picker is not Per-Monitor V2")
+			}
+			owner, _, _ := user32.NewProc("GetWindow").Call(hwnd, 4) // GW_OWNER
+			var ownerPID uint32
+			user32.NewProc("GetWindowThreadProcessId").Call(owner, uintptr(unsafe.Pointer(&ownerPID)))
+			if owner == 0 || ownerPID != uint32(cmd.Process.Pid) {
+				t.Error("picker has no local proxy owner")
+			}
+			if visible, _, _ := user32.NewProc("IsWindowVisible").Call(owner); visible != 0 {
+				t.Error("proxy owner is visible")
+			}
+			// Querying the caption icon also waits for the Shell's UI thread.
+			icon, _, _ := user32.NewProc("SendMessageW").Call(hwnd, 0x7f, 0, 0) // WM_GETICON / ICON_SMALL
+			if icon == 0 {
+				icon, _, _ = user32.NewProc("SendMessageW").Call(hwnd, 0x7f, 2, 0)
+			}
+			if icon == 0 {
+				t.Error("picker has no caption icon")
+			} else {
+				checkPathDialogIcon(t, icon)
+			}
+			switch tc.action {
+			case "accept":
+				user32.NewProc("PostMessageW").Call(hwnd, wmCommand, 1, 0) // IDOK
+			case "cancel":
+				user32.NewProc("PostMessageW").Call(hwnd, wmClose, 0, 0)
+			case "context":
+				cancel()
+			}
+			err := <-done
+			if tc.action == "context" {
+				if err == nil || ctx.Err() == nil {
+					t.Fatal("cancellation did not terminate helper", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("picker: %v\n%s", err, &stderr)
+				}
+				var result pathDialogResult
+				if err := json.Unmarshal(output.Bytes(), &result); err != nil {
+					t.Fatal(err, output.String())
+				}
+				want := ""
+				if tc.action == "accept" {
+					want = tc.initial
+				}
+				if result.Path != want {
+					t.Fatalf("selected %q, want %q", result.Path, want)
+				}
+			}
+			if valid, _, _ := user32.NewProc("IsWindow").Call(hwnd); valid != 0 {
+				t.Error("picker survived helper exit")
+			}
+			if valid, _, _ := user32.NewProc("IsWindow").Call(owner); valid != 0 {
+				t.Error("proxy survived helper exit")
+			}
+			if valid, _, _ := user32.NewProc("IsWindow").Call(foreground); valid != 0 && foregroundEnabled != 0 {
+				if enabled, _, _ := user32.NewProc("IsWindowEnabled").Call(foreground); enabled == 0 {
+					t.Error("helper exit left the foreground window disabled")
+				}
 			}
 		})
 	}
@@ -99,105 +259,46 @@ func TestPathDialogNative(t *testing.T) {
 		t.Fatal("selection modified existing file", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "新建 资料.sqlite")); !os.IsNotExist(err) {
-		t.Fatal("native selection created a file", err)
+		t.Fatal("selection created a file", err)
 	}
 }
 
-func runNativePathProbe(t *testing.T, mode, initial string, accept bool) string {
+func checkPathDialogIcon(t *testing.T, actual uintptr) {
 	t.Helper()
-	probe := `
-Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
-using System;
-using System.IO;
-using System.Text;
-using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-public static class NativeIconProbe {
-  delegate bool WindowVisitor(IntPtr window, IntPtr data);
-  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
-  [DllImport("user32.dll")] static extern bool EnumThreadWindows(uint thread, WindowVisitor visitor, IntPtr data);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr window, StringBuilder text, int max);
-  [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
-  static Timer timer;
-  static byte[] iconBytes;
-  static string result;
-  static bool accept;
-  static int attempts;
-  public static void Start(string iconBase64, bool select) {
-    accept = select;
-    iconBytes = Convert.FromBase64String(iconBase64);
-    result = "dialog not observed";
-    attempts = 0;
-    timer = new Timer(); timer.Interval = 300;
-    timer.Tick += delegate {
-      EnumThreadWindows(GetCurrentThreadId(), delegate(IntPtr window, IntPtr data) {
-        var title = new StringBuilder(256); GetWindowText(window, title, 256);
-        if (title.ToString() != "SWD icon verification") return true;
-        try {
-          IntPtr handle = SendMessage(window, 0x7f, IntPtr.Zero, IntPtr.Zero); // WM_GETICON / ICON_SMALL
-          if (handle == IntPtr.Zero) handle = SendMessage(window, 0x7f, new IntPtr(2), IntPtr.Zero);
-          if (handle == IntPtr.Zero) throw new Exception("dialog has no caption icon");
-          using (var actualIcon = Icon.FromHandle(handle))
-          using (var actual = actualIcon.ToBitmap())
-          using (var stream = new MemoryStream(iconBytes))
-          using (var expectedIcon = new Icon(stream, actual.Size))
-          using (var expected = expectedIcon.ToBitmap()) {
-            if (actual.Size != expected.Size) throw new Exception("icon size mismatch");
-            for (int x = 0; x < actual.Width; x++) for (int y = 0; y < actual.Height; y++)
-              if (actual.GetPixel(x,y) != expected.GetPixel(x,y)) throw new Exception("dialog caption does not use SWD artwork");
-          }
-          result = "brand-icon/verified";
-        } catch (Exception error) { result = error.Message; }
-        // A titled HWND can be enumerated before Shell finishes initializing it.
-        // Bound the readiness wait; a persistent wrong/missing icon still fails.
-        if (result != "brand-icon/verified" && ++attempts < 10) return false;
-        timer.Stop();
-        bool confirm = accept && result == "brand-icon/verified";
-        SendMessage(window, confirm ? 0x111u : 0x10u, confirm ? new IntPtr(1) : IntPtr.Zero, IntPtr.Zero); // IDOK or WM_CLOSE
-        return false;
-      }, IntPtr.Zero);
-    };
-    timer.Start();
-  }
-  public static string Finish() { timer.Dispose(); return result; }
-}
-'@
-$icon = $request.icon
-[NativeIconProbe]::Start($icon, ACCEPT_SELECTION)
-$selected = [SWDFolderDialog]::Select('SWD icon verification', 'INITIAL_PATH', 'DIALOG_MODE', $icon)
-$probeResult = [NativeIconProbe]::Finish()
-if ($probeResult -ne 'brand-icon/verified') { throw $probeResult }
-[Console]::Out.Write($selected)
-`
-	probe = strings.ReplaceAll(probe, "INITIAL_PATH", strings.ReplaceAll(initial, "'", "''"))
-	probe = strings.ReplaceAll(probe, "DIALOG_MODE", mode)
-	probe = strings.ReplaceAll(probe, "ACCEPT_SELECTION", "$"+strconv.FormatBool(accept))
-	return runFolderDialogProbe(t, probe)
-}
-
-func runFolderDialogProbe(t *testing.T, probe string) string {
-	t.Helper()
-	system, err := windows.GetSystemDirectory()
+	bits := func(icon uintptr) ([]byte, int) {
+		t.Helper()
+		var info struct {
+			IsIcon, X, Y uint32
+			Mask, Color  uintptr
+		}
+		if ok, _, err := user32.NewProc("GetIconInfo").Call(icon, uintptr(unsafe.Pointer(&info))); ok == 0 {
+			t.Fatal(err)
+		}
+		gdi := windows.NewLazySystemDLL("gdi32.dll")
+		defer gdi.NewProc("DeleteObject").Call(info.Mask)
+		defer gdi.NewProc("DeleteObject").Call(info.Color)
+		var bitmap struct {
+			Type, Width, Height, WidthBytes int32
+			Planes, BitsPixel               uint16
+			Bits                            uintptr
+		}
+		if ok, _, err := gdi.NewProc("GetObjectW").Call(info.Color, unsafe.Sizeof(bitmap), uintptr(unsafe.Pointer(&bitmap))); ok == 0 {
+			t.Fatal(err)
+		}
+		data := make([]byte, bitmap.WidthBytes*bitmap.Height)
+		if n, _, err := gdi.NewProc("GetBitmapBits").Call(info.Color, uintptr(len(data)), uintptr(unsafe.Pointer(&data[0]))); int(n) != len(data) {
+			t.Fatal("read icon pixels", err)
+		}
+		return data, int(bitmap.Width)
+	}
+	actualBits, size := bits(actual)
+	expected, err := makeIconAtSize(size, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, _, found := strings.Cut(folderDialogScript, "$selected = [SWDFolderDialog]::Select")
-	if !found {
-		t.Fatal("missing dialog entry point")
+	defer user32.NewProc("DestroyIcon").Call(expected)
+	expectedBits, _ := bits(expected)
+	if !bytes.Equal(actualBits, expectedBits) {
+		t.Error("picker caption does not use SWD artwork")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, filepath.Join(system, "WindowsPowerShell", "v1.0", "powershell.exe"), "-NoProfile", "-NonInteractive", "-STA", "-Command", definition+"\n"+probe)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	input, err := json.Marshal(map[string]any{"title": "test", "initial": "", "icon": branding.ICO})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd.Stdin = strings.NewReader(string(input))
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("dialog definitions: %v: %s", err, output)
-	}
-	return string(output)
 }

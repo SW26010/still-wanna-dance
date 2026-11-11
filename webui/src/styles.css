@@ -148,7 +148,6 @@ form.actions { align-items: flex-end; }
 .demand-list { transition-property: none; }
 .demand-row-slot { padding-bottom: var(--spacingVerticalS); box-sizing: border-box; }
 .demand-row { border: 1px solid; border-radius: var(--borderRadiusMedium); box-sizing: border-box; overflow: hidden; background: var(--timeline-background); }
-.demand-handoff { box-shadow: inset 0 0 0 1px var(--timeline-grid); }
 .demand-row-heading { padding: var(--spacingVerticalXS) var(--spacingHorizontalM) 0; }
 .demand-video-heading { display: flex; align-items: center; gap: var(--spacingHorizontalS); flex: 1; min-width: 0; }
 .demand-video-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

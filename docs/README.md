@@ -25,6 +25,7 @@
 | [验证机制](live-acceptance-process.md)、[VRC 台账](live-acceptance-backlog.md)、[非 VRC 跟进](validation-followups.md) | 当前验证分工和真正剩余的场景；不在其他文档重复维护待验清单 |
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | 设置编辑与存储边界 | [模块重构验证](validation/architecture-modules-20261108.md)记录独立设置编辑器、前端控制器及 Store／Server 边界的实现、回归与验证限制 |
+| 曲库封面与图片缓存 | [封面视图验证](validation/song-covers-20261111.md)记录分页加载顺序、四路上限、DNS／代理、缓存落盘及浏览器协作；现行规则见[曲库封面视图](webui-design.md#曲库封面视图)和[存储契约](storage.md) |
 | RC1 冻结与交付 | [v1.0.0-rc.1 验证](validation/rc1-release-20261105.md)记录本机预检、保留的失败和正式交付状态 |
 | RC2 冻结与交付 | [v1.0.0-rc.2 验证](validation/rc2-release-20261108.md)记录业务冻结、测试引用修正及本机和公开交付验证 |
 | 故障触发 WebUI | [启动、故障去重与原生兜底验证](validation/fault-webui-20261104.md)；现行规则见[配置生命周期](settings-lifecycle.md) |

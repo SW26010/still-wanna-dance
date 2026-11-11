@@ -5,47 +5,24 @@ import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { Feedback, StatusBadge, useThemePreference } from './ui';
-import { useApp, useFocusRecovery } from './hooks';
+import { useApp, useFocusRecovery, useRunToggle } from './hooks';
 import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
 import { blockY, drawTimeline, hitBlocks, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
 import { gib } from './types';
-import { bootstrap } from './bootstrap';
 
 type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
 const blockSize = 16; // CSS px, chosen to match the current card title's font size.
-const speedUnitKey = 'swd-download-speed-mbps-run';
-
-function readSpeedInBits() {
-  try { return localStorage.getItem(speedUnitKey) === bootstrap.token; }
-  catch { return false; }
-}
 
 export function BlockTimeline({ visible }: { visible: boolean }) {
   const app = useApp(), documentVisible = useDocumentVisible();
   const container = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [speedInBits, setSpeedInBits] = useState(readSpeedInBits);
-  useEffect(() => {
-    const sync = (event: StorageEvent) => {
-      if (event.key === speedUnitKey || event.key === null) setSpeedInBits(readSpeedInBits());
-    };
-    addEventListener('storage', sync);
-    return () => removeEventListener('storage', sync);
-  }, []);
-  const toggleSpeedUnit = () => {
-    const next = !speedInBits;
-    setSpeedInBits(next);
-    // The existing token changes on each SWD run; no program settings are saved.
-    try {
-      if (next) localStorage.setItem(speedUnitKey, bootstrap.token);
-      else localStorage.removeItem(speedUnitKey);
-    } catch { /* Keep the in-page choice if browser storage is unavailable. */ }
-  };
+  const [speedInBits, toggleSpeedUnit] = useRunToggle('swd-download-speed-mbps-run');
   useEffect(() => {
     // A resize/scroll can enqueue multiple transitions for this same element.
     // Apply the latest entry, including when a long panel crosses the viewport.

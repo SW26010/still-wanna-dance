@@ -9,7 +9,7 @@ createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:18473');
   const p = url.pathname;
   res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   try {
     if(p==='/__fixture/events'&&req.method==='POST'){
       let raw='';for await(const chunk of req)raw+=chunk;

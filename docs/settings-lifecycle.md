@@ -28,6 +28,8 @@ WebUI 的 `useSettingsController` 统一持有草稿、变更比较、保存、�
 
 播放地址入口固定为 CF，已移除 `downloadUpstream` 设置。直连自动吞吐探测采用内部固定周期，已移除 `throughputIntervalMinutes` 设置，具体规则见[上游检测与测速](upstream-channels.md#上游检测与测速)。旧配置中的这两个字段不生效，再次保存设置时移除；其他未知字段仍按原规则保留，不增加配置版本或迁移流程。
 
+首页速度单位与曲库列表／封面视图选择属于当前程序运行的界面偏好，复用绑定本次程序令牌的浏览器存储；刷新、重开网页与同源多标签页共用，程序重启后失效。它们不保存到启动配置，不产生待重启状态。
+
 歌曲屏蔽与收藏属于本地曲库偏好，不属于本页的启动配置。其保存后对后续决策的生效边界见[歌曲偏好设计](download-resource-design.md#8-歌曲屏蔽与收藏)；不纳入 `activeSettings` / `restartRequired`，也不因标记变更启动下载任务。
 
 「忽略 VRCX 导入建议」是当前配置实例的界面选择，主配置以 `vrcxImportDismissed` 保存；不进入可编辑的 `settings` / `activeSettings`，不应用待重启设置，普通设置保存保留该字段。默认与完整生命周期统一见[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)。

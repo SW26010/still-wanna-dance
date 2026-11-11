@@ -318,8 +318,8 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   const rem=await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).fontSize));
   expect((await cells.nth(2).boundingBox())!.width).toBeGreaterThanOrEqual(6*rem);
   expect((await cells.nth(3).boundingBox())!.width).toBeGreaterThanOrEqual(6*rem);
-  const fullText=async(cell:Locator,text:string,name:string)=>{
-    const target=cell.locator('.fui-TableCellLayout'),main=target.locator('.fui-TableCellLayout__main');
+  const fullText=async(cell:Locator,text:string,name:string,target=cell.locator('.fui-TableCellLayout'))=>{
+    const main=cell.locator('.fui-TableCellLayout__main');
     expect(await main.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
     await target.hover();
     const tooltip=page.getByRole('tooltip');await expect(tooltip).toHaveText(text);
@@ -357,7 +357,8 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   expect((await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).boundingBox())!.width).toBeLessThan(48);
   const related=resourceData[key].songs.map(song=>song.title).join(' / ');
   await expect(resources.locator('tbody tr').first().getByRole('cell').nth(1)).toContainText(related);
-  await fullText(resources.locator('tbody tr').first().getByRole('cell').nth(1),related,'related');
+  const relatedCell=resources.locator('tbody tr').first().getByRole('cell').nth(1);
+  await fullText(relatedCell,songs[0].title,'related',relatedCell.getByRole('link').first());
   await resources.getByRole('button',{name:`资源 ${key} 的详情`,exact:true}).hover();
   await expect(page.getByRole('group',{name:`资源 ${key} 的详情`,exact:true})).toBeVisible();
   await page.keyboard.press('Escape');await page.mouse.move(0,0);

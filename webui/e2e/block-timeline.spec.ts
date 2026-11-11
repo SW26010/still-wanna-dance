@@ -178,6 +178,45 @@ test('removed demand rows restore focus to their region without stealing outside
   await expect(region.locator('canvas')).toHaveCount(0); await expect(outside).toBeFocused();
 });
 
+test('demand rows hide handoffs and only suppress the same song at the queue head while GET is active', async ({ page }, info) => {
+  const f = await setup(page);
+  const queue = demand(1, f.blocks, { kind: 'queue', position: 1 });
+  const later = demand(2, f.blocks, { kind: 'queue', position: 2 });
+  const handoff = demand(3, f.blocks, { kind: 'handoff' });
+  const get = demand(4, [f.blocks[0]]), secondGet = demand(5, [f.blocks[1]]);
+  const manual = demand(6, f.blocks, { kind: 'batch' });
+  await f.emit({ demands: [queue, later, handoff, manual] });
+  const headings = f.panel.locator('.demand-row-heading');
+  await expect(headings).toHaveText([/队列 #1/, /队列 #2/, /手动下载/]);
+  await f.open();
+  await f.panel.locator('[data-demand-id="1/fixture-resource"] canvas').focus();
+  await f.emit({ demands: [get, secondGet] });
+  await expect(headings).toHaveText([/读取 #4/, /读取 #5/, /队列 #2/, /手动下载/]);
+  await expect(f.panel.getByRole('region', { name: '视频需求视图' })).toBeFocused();
+  await expect(f.panel.locator('.demand-view-heading')).toHaveText('需求视图4 项需求');
+  const items = f.panel.getByRole('listitem');
+  await expect(items).toHaveCount(4);
+  await expect(items.last()).toHaveAttribute('aria-posinset', '4');
+  await expect(items.last()).toHaveAttribute('aria-setsize', '4');
+  await f.panel.screenshot({ path: info.outputPath('filtered-demand-rows.png') });
+  await f.emit({ removedDemands: [get.id] });
+  await expect(headings).toHaveText([/读取 #5/, /队列 #2/, /手动下载/]);
+  await f.emit({ removedDemands: [secondGet.id] });
+  await expect(headings).toHaveText([/队列 #1/, /队列 #2/, /手动下载/]);
+  // Shared resources alone do not establish song identity; unknown songs stay separate too.
+  await f.emit({ demands: [{ ...get, songID: '84' }] });
+  await expect(headings).toHaveText([/读取 #4/, /队列 #1/, /队列 #2/, /手动下载/]);
+  await f.emit({ demands: [{ ...get, songID: '' }, { ...queue, songID: '' }] });
+  await expect(headings).toHaveText([/读取 #4/, /队列 #1/, /队列 #2/, /手动下载/]);
+  await f.emit({ reset: true, blocks: f.blocks, demands: [handoff] });
+  await f.detail(f.blocks[0], [{ id: 3, kind: 'handoff', songID: '42', title: '星河', position: 0, needBy: f.at, expiresAt: f.at + 30000, windowClosed: false }]);
+  await expect(headings).toHaveCount(0);
+  await expect(f.panel.locator('.demand-view-heading')).toHaveText('需求视图0 项需求');
+  await expect(f.panel).toContainText('当前没有使用需求');
+  await f.canvas.focus(); await f.canvas.press('Home');
+  await expect(page.getByRole('group', { name: '块需求详情' })).toContainText('短期交接');
+});
+
 test('event deltas, overlap selection, source changes and untimed demands stay inspectable', async ({ page }) => {
   const f = await setup(page);
   const first = block(100, f.at), second = block(101, f.at + 1), untimed = block(102, 0, { opportunistic: true });
@@ -312,9 +351,9 @@ test('fixed squares, three state layers and demand memberships share selection a
   await f.emit({ reset: true, blocks, used: blocks.length, active: 1, demands: [manual, queue2, queue1, get] });
   await f.open();
   const rows = f.panel.locator('.demand-row'), headings = f.panel.locator('.demand-row-heading');
-  await expect(headings).toHaveText([/读取 #4.*星河.*3 块/, /队列 #1.*星河.*3 块/, /队列 #2.*远山.*1 块/, /手动下载.*星河.*63 块/]);
+  await expect(headings).toHaveText([/读取 #4.*星河.*3 块/, /队列 #2.*远山.*1 块/, /手动下载.*星河.*63 块/]);
   const borders = await rows.evaluateAll(els => els.map(el => getComputedStyle(el).borderLeftColor));
-  expect(borders[0]).toBe(borders[1]); expect(borders[0]).toBe(borders[3]); expect(borders[0]).not.toBe(borders[2]);
+  expect(borders[0]).toBe(borders[2]); expect(borders[0]).not.toBe(borders[1]);
   await expect.poll(f.totalStreams).toBe(1);
   await f.panel.getByRole('switch', { name: '分层显示' }).check();
   await expect(f.viewport).toHaveAttribute('data-layers', '3');
@@ -336,10 +375,10 @@ test('fixed squares, three state layers and demand memberships share selection a
   const strokes = await readStrokes();
   expect(new Set(strokes.slice(-3).map(s => s.color)).size).toBe(1);
   await f.panel.screenshot({ path: info.outputPath('three-layers-and-demands.png') });
-  const strip = rows.nth(3).locator('canvas');
+  const strip = rows.nth(2).locator('canvas');
   await strip.focus(); await strip.press('End');
   await expect(popup).toContainText('块 64/'); await expect.poll(f.totalStreams).toBe(2);
-  expect(await rows.nth(3).locator('.demand-block-strip').evaluate(el => el.scrollWidth === el.clientWidth && el.scrollLeft === 0)).toBe(true);
+  expect(await rows.nth(2).locator('.demand-block-strip').evaluate(el => el.scrollWidth === el.clientWidth && el.scrollLeft === 0)).toBe(true);
   await strip.press('Escape'); await expect(popup).toHaveCount(0);
   await f.emit({ demands: [{ ...queue2, position: 1 }], removedDemands: [queue1.id, manual.id] });
   await expect(headings).toHaveText([/读取 #4/, /队列 #1.*远山/]);
@@ -442,7 +481,7 @@ test('protection is translucent and sparse demands keep their positions within t
   const f = await setup(page);
   const protectedBlock = block(0, f.at - 150000, { state: 'protected', inUse: false, protected: true, sources: 0, needBy: 0, timeBasis: 'last-need-by', protectionUntil: f.at + 45000 });
   const middle = block(9, f.at + 150000, { state: 'available' }), later = block(15, f.at + 300000, { state: 'waiting' });
-  const first = demand(1, [middle, later], { totalBlocks: 20 }), second = demand(2, [later], { kind: 'queue', position: 1, totalBlocks: 20 });
+  const first = demand(1, [middle, later], { totalBlocks: 20 }), second = demand(2, [later], { kind: 'queue', position: 2, totalBlocks: 20 });
   for (const b of [protectedBlock, middle, later]) await f.detail(b, b.inUse ? undefined : []);
   await f.emit({ reset: true, blocks: [protectedBlock, middle, later], demands: [first, second], used: 2, active: 0 });
   await f.open();
@@ -477,7 +516,7 @@ test('protection is translucent and sparse demands keep their positions within t
   await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
 });
 
-test('video colors survive handoff and reconnect, with white handoff borders and full video numbering', async ({ page }, info) => {
+test('video colors survive hidden handoff and reconnect with full video numbering', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await setup(page);
@@ -504,18 +543,16 @@ test('video colors survive handoff and reconnect, with white handoff borders and
   const changed = [first, second].map(b => ({ ...b, songID: '', sources: 1 }));
   await f.detail(changed[0], [{ id: 2, kind: 'handoff', songID: '42', title: '星河 · 测试歌曲', position: 0, needBy: first.needBy, expiresAt: f.at + 30000, windowClosed: false }]);
   await f.emit({ blocks: changed, demands: [handoff], removedDemands: [queue.id], used: 2, active: 0 });
-  await expect(row).toContainText('短期交接');
-  await expect(row).toHaveCSS('border-left-color', 'rgb(255, 255, 255)');
+  await expect(row).toHaveCount(0);
+  await expect(f.panel).toContainText('当前没有使用需求');
   expect((await sample()).fill).toEqual(original.fill);
-  const stripFill = () => strip.evaluate(c => [...(c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round((20 + 12 * (c.clientWidth - 40) / 44) * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data]);
-  await expect.poll(stripFill).toEqual(original.fill);
-  await strip.focus(); await strip.press('Home');
+  await f.canvas.focus(); await f.canvas.press('Home');
   const popup = page.getByRole('group', { name: '块需求详情' });
   await expect(popup).toContainText('块 13/45');
   await expect(popup).toContainText('星河 · 测试歌曲');
   await expect(popup).toContainText('交接截止');
   await f.panel.screenshot({ path: info.outputPath('handoff-and-numbering.png') });
-  await strip.press('Escape');
+  await f.canvas.press('Escape');
   await f.panel.getByText('需求视图', { exact: true }).click();
   await f.panel.screenshot({ path: info.outputPath('handoff-overview.png') });
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
@@ -524,10 +561,12 @@ test('video colors survive handoff and reconnect, with white handoff borders and
   await f.emit({ reset: true, blocks: changed.map(b => ({ ...b, songID: '84' })), demands: [{ ...queue, songID: '84' }], used: 2 });
   await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   await expect(row).toHaveCSS('border-left-color', border);
+  const stripFill = () => strip.evaluate(c => [...(c as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round((20 + 12 * (c.clientWidth - 40) / 44) * devicePixelRatio), 20 * devicePixelRatio, 1, 1).data]);
+  await expect.poll(stripFill).toEqual(original.fill);
   expect((await sample()).fill).toEqual(original.fill);
 });
 
-test('handoff follows GET and fitted demand blocks keep earlier positions on top in both views', async ({ page }, info) => {
+test('fitted demand blocks keep earlier positions on top in both views', async ({ page }, info) => {
   // Keep the fitted pitch below the 16px block size so these blocks overlap.
   await page.setViewportSize({ width: 900, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -542,7 +581,7 @@ test('handoff follows GET and fitted demand blocks keep earlier positions on top
     demand(3, blocks, { kind: 'handoff' }), demand(4, blocks),
   ] });
   await f.open();
-  await expect(f.panel.locator('.demand-row-heading')).toHaveText([/读取 #4/, /短期交接/, /队列 #1/, /手动下载/]);
+  await expect(f.panel.locator('.demand-row-heading')).toHaveText([/读取 #4/, /手动下载/]);
   const popup = page.getByRole('group', { name: '块需求详情' });
   const timelinePixels = () => f.canvas.evaluate((c, y) => {
     const ctx = (c as HTMLCanvasElement).getContext('2d')!;
@@ -720,7 +759,7 @@ test('offscreen timeline stops painting while demand events continue and unchang
     };
   });
   const f = await setup(page);
-  const rows = [demand(1, f.blocks), demand(2, f.blocks, { kind: 'queue', position: 1 })];
+  const rows = [demand(1, f.blocks), demand(2, f.blocks, { kind: 'queue', position: 2 })];
   await f.emit({ demands: rows }); await f.open(); await f.canvas.scrollIntoViewIfNeeded();
   const paints = () => page.evaluate(() => ({ ...(window as unknown as { observationPaints: { timeline: number; demands: number } }).observationPaints }));
   await expect.poll(async () => (await paints()).timeline).toBeGreaterThan(2);
@@ -1039,12 +1078,13 @@ test('untimed spacing adapts to width and count, caps overlap and releases overf
   paint = await readPaint(); expect(paint[1].x - paint[0].x).toBeLessThanOrEqual(22);
   expect(await f.canvas.evaluate(c => c.clientHeight)).toBe(canvasHeight);
 
-  const overflowing = await emit(200); await f.detail(overflowing[199]);
+  const overflowCount = Math.ceil(await f.canvas.evaluate(c => c.clientWidth) / 8) + 1;
+  const overflowing = await emit(overflowCount); await f.detail(overflowing[overflowCount - 1]);
   await expect.poll(async () => { const p = await readPaint(); return p[1].x - p[0].x; }).toBe(8);
-  expect((await readPaint()).length).toBeLessThan(200);
+  expect((await readPaint()).length).toBeLessThan(overflowCount);
   await expect(f.panel.getByRole('slider')).toHaveCount(0);
   await f.panel.screenshot({ path: info.outputPath('untimed-overflow.png') });
-  await f.canvas.press('End'); await expect(popup).toContainText('块 200/200');
+  await f.canvas.press('End'); await expect(popup).toContainText(`块 ${overflowCount}/${overflowCount}`);
   await popup.getByRole('button', { name: '关闭块详情' }).click(); await page.mouse.move(0, 0);
 
   await emit(12);

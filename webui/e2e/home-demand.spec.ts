@@ -16,7 +16,7 @@ async function setup(page: Page) {
   }));
   const demands = [
     { id: '1/video', sourceID: 1, kind: 'get', songID: '42', title: '夏日的风', position: 0, resource: 'video', totalBlocks: 4, blocks: ['video/0', 'video/1'] },
-    { id: '2/video', sourceID: 2, kind: 'queue', songID: '42', title: '夏日的风', position: 1, resource: 'video', totalBlocks: 4, blocks: ['video/1', 'video/2'] },
+    { id: '2/video', sourceID: 2, kind: 'queue', songID: '42', title: '夏日的风', position: 2, resource: 'video', totalBlocks: 4, blocks: ['video/1', 'video/2'] },
   ];
   const emit = async (kind: string, state: unknown) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind, state } });
   await emit('blocks', { at, running: true, reset: true, capacity: 4096, used: 3, active: 1, open: 1, prepareAheadMS: 500000, downloadGraceMS: 30000, blocks, demands, removed: [], removedDemands: [] });

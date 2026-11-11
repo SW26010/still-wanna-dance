@@ -23,6 +23,8 @@ pnpm --dir webui check
 
 设置字段校验的真实 Console 联调可设置 `SWD_SETTINGS_VALIDATION_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestSettingsValidationBrowser$' -count=1 -v`，验证缺少节点的拒绝不落盘、不产生桌面打开通知，以及合法 SOCKS5 设置保存后保持待重启边界。只使用隔离配置，不启动代理或网关。
 
+Windows 路径选择器的普通检查包含实际 Shell 选项、初始目录回退、助手错误协议及 DPI 失败恢复，不显示窗口。设置 `SWD_PATH_PICKER_EVIDENCE=1` 后，通过同一临时目录入口运行 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/desktop -run '^TestPathDialogNative$' -count=1 -v`，自动选择或取消临时资料，检查三种模式、SWD 图标、PMv2 和请求取消后的窗口／进程清理；日志记录进程启动到可见窗口的采样耗时，不设 CI 时间阈值。默认运行测试进程内的真实助手实现；可另设 `SWD_PATH_PICKER_EXE` 为当前构建的桌面 EXE 绝对路径，验证实际内部入口及相同原生行为。需要普通 Windows 桌面权限；沙箱拒绝与外部前台窗口关联时保留失败并在普通用户权限下复验，不修改用户窗口或系统设置。
+
 启动配置修复的真实进程／浏览器检查可设置 `SWD_RECOVERY_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./cmd/still-wanna-dance-console -run '^TestApplicationRecoveryAfterInvalidConfiguration$' -count=1 -v`。覆盖损坏 JSON 只读、预算矛盾与多个无效字段保留原值、保存、重启到新会话、320px 布局与退出。替代进程不接受条款，不启动游戏或修改 hosts；普通 Go 测试不设置此变量时仅验证恢复入口与退出且保持配置不变。
 
 恢复页与正常设置共用表单的操作联调可设置 `SWD_RECOVERY_SETTINGS_BROWSER_EVIDENCE`，执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestRecoverySharedSettingsBrowser$' -count=1 -v`。隔离目录替代路径选择结果，真实创建数据库及校验／加密保存 Mihomo 配置；权限助手使用私有 hosts 夹具，验证取消后保留草稿、重试提交及退出清理，不触及系统 hosts。

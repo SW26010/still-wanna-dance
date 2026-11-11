@@ -31,7 +31,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 桌面侧栏宽 144px，从页头下方延伸至视口底部内边距；按页头实际高度分配可用空间，适应页头换行，不使用固定页头高度或额外撑出短页面滚动条。长页面保留浏览器滚动和侧栏 sticky 定位。加速、历史、曲库、网络位于顶部，设置、关于通过可伸缩留白推至底部，不使用分隔线或固定 footer；所有入口保留在同一个 NavDrawerBody 中。空间不足时先收缩留白，留白耗尽后全部入口一起滚动，保留组件默认行高、内边距与键盘顺序。窄屏保留 260px 标准 overlay 抽屉，并沿用同一分组与滚动规则。
 
-六个主页面共用页头与标题容器；应用内的关于页面同样保留后台状态。根滚动容器使用标准 [`scrollbar-gutter: stable`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scrollbar-gutter)，使长短页面切换时可用宽度一致；短页面不强制显示滚动条或产生额外滚动范围。
+六个主页面共用页头与标题容器；应用内的关于页面同样保留后台状态。应用外壳随窗口宽度伸展，不设全局最大宽度，保留响应式内边距；字段、弹窗及浮层继续按各自内容控制宽度。根滚动容器使用标准 [`scrollbar-gutter: stable`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scrollbar-gutter)，使长短页面切换时可用宽度一致；短页面不强制显示滚动条或产生额外滚动范围。
 
 网络页检测卡片和嵌入面板按正常文档流排列，iframe 高度随视口变化并保留最低可操作高度，面板内部自行滚动；不按猜测的页头高度写固定补偿值。小视口保留最低可操作高度，空间不足时允许外层正常滚动，确保导航和面板操作可达。自有控件使用 Fluent 间距和颜色 token，面板不另套 Card、Dialog 或第二层标签。
 

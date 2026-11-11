@@ -32,6 +32,15 @@ var visibleErrors = runtime.GOOS == "windows"
 var openWebUI = desktop.OpenBrowser
 
 func main() {
+	// Dispatch before normal startup (including flag/config resolution). Helper
+	// failures belong to the caller, never to the application's recovery UI.
+	if len(os.Args) == 2 && os.Args[1] == "-path-dialog" {
+		if err := desktop.RunPathDialog(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	err := run()
 	var restart *restartRequest
 	if errors.As(err, &restart) {

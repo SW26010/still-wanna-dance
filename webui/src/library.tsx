@@ -1,19 +1,20 @@
 import {StorageConfirmationNotice} from './storage-directory';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Badge,Button,Field,Input,Link,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,ToggleButton,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
-import {useApp,useFocusRecovery,useResource} from './hooks';
+import {Badge,Button,Field,Input,Link,MenuItem,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,ToggleButton,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
+import {useApp,useFocusRecovery,useResource,useRunToggle} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
 import {Feedback,Notification,RecordDetails} from './ui';
 import {RecordTable,TableText,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
-import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular} from '@fluentui/react-icons';
+import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular,GridRegular,TextBulletListRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
+import {LibraryCoverCard,useLibraryCovers} from './library-covers';
 import {InventoryPanel,useCacheActions} from './cache';
 import {StorageBudgetNotice} from './cache-capacity';
 import {BatchPanel} from './home-library';
 import {ImportPanel} from './settings';
 import {VRCXImport,useVRCX} from './vrcx';
-import {date,mb,type Download,type LibraryPage,type LibraryResource,type SongPolicy} from './types';
+import {date,mb,type Download,type LibraryPage,type LibrarySong,type LibraryResource,type SongPolicy} from './types';
 
 export const songHref=(id:string)=>'#/library?song='+encodeURIComponent(id);
 export const resourceHref=(key:string)=>'#/library?resource='+encodeURIComponent(key);
@@ -36,10 +37,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const [view,setView]=useState(resource||requestedView==='resources'?'resources':'songs'),[search,setSearch]=useState(''),[filter,setFilter]=useState('');
   const [query,setQuery]=useState<TableSort&{q:string;filter:string}>({q:'',sort:'score',direction:'descending',filter:''}),[offset,setOffset]=useState(0);
   const [pending,setPending]=useState(false);
+  const [covers,toggleCovers]=useRunToggle('swd-library-covers-run');
+  const [coverDetails,setCoverDetails]=useState<string>();
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const dialogFocusTarget=useRestoreFocusTarget();
-  const page=useResource<LibraryPage>('library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)}),visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
+  const pagePath='library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset)});
+  useEffect(()=>setCoverDetails(undefined),[covers,view,visible,app.stopped,pagePath]);
+  const page=useResource<LibraryPage>(pagePath,visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending||!!page.error);
@@ -49,6 +54,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   useEffect(()=>{if(visible&&(actions.result?.error||actions.result?.entries?.length))fileResult.current?.focus();},[visible,actions.result]);
   const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data||!!page.error;
   const resources=page.data?.resources||{};
+  const nextCoverPage=offset+50<(page.data?.total||0)?'library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset+50)}):'';
+  const coverImages=useLibraryCovers(page.data?.songs.map(song=>song.id).join(',')||'',nextCoverPage,visible&&view==='songs'&&covers&&!app.stopped&&!page.error&&page.loadedPath===pagePath);
   useEffect(()=>{
     if(page.data&&offset>=page.data.total&&offset>0)setOffset(0);
   },[page.data,offset]);
@@ -88,10 +95,29 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     if(local?.protected)return <Tooltip content="正在使用、校验或准备播放，暂不能删除。" relationship="description"><Badge appearance="tint" color="warning" tabIndex={0}>受保护</Badge></Tooltip>;
     return <Badge appearance="tint" color={task?'brand':local?'success':'informative'}>{task?'下载中':local?'已保存':'未保存'}</Badge>;
   };
-  const fileActions=(r:LibraryResource|undefined)=>r?.local&&<>
+  const fileActions=(r:LibraryResource|undefined,menu=false)=>r?.local&&(menu?<>
+    <MenuItem icon={<FolderOpenRegular/>} disabled={disabled||!r.local.known} onClick={()=>void actions.operate('open',[r.local!])}>定位文件</MenuItem>
+    <MenuItem icon={<DeleteRegular/>} disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}>删除本地视频</MenuItem></>:<>
     <Tooltip content="定位文件" relationship="label"><Button size="small" appearance="subtle" icon={<FolderOpenRegular/>} aria-label="定位文件" disabled={disabled||!r.local.known} onClick={()=>void actions.operate('open',[r.local!])}/></Tooltip>
-    <Tooltip content="删除本地视频" relationship="label"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>;
-  const previewAction=(target:PreviewSelection,unavailableReason='')=><Tooltip content={unavailableReason||'预览视频'} relationship="description"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<PlayRegular/>} aria-label="预览" disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}/></Tooltip>;
+    <Tooltip content="删除本地视频" relationship="label"><Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<DeleteRegular/>} aria-label="删除本地视频" disabled={disabled||!r.local.known||r.local.protected} onClick={()=>void actions.operate('delete',[r.local!])}/></Tooltip></>);
+  const previewAction=(target:PreviewSelection,unavailableReason='',menu=false)=>{
+    const action=menu?<MenuItem icon={<PlayRegular/>} disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}>预览</MenuItem>:<Button {...dialogFocusTarget} size="small" appearance="subtle" icon={<PlayRegular/>} aria-label="预览" disabled={disabled||!!page.data?.videoError||!!unavailableReason} disabledFocusable={!!unavailableReason} onClick={()=>setPreview(target)}/>;
+    return unavailableReason?<Tooltip content={unavailableReason} relationship="description">{action}</Tooltip>:action;
+  };
+  const songPreview=(song:LibrarySong):PreviewSelection=>({songID:song.id,label:song.title||'歌曲 '+song.id});
+  const songPreviewReason=(song:LibrarySong)=>song.policy==='blocked'?'歌曲已屏蔽，请先解除屏蔽。':!song.resource?'尚不知道对应资源，请先更新曲库。':'';
+  const songOperations=(song:LibrarySong,menu=false)=>{
+    const r=resources[song.resource],unavailable=disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked';
+    return <>{previewAction(songPreview(song),songPreviewReason(song),menu)}{menu?<MenuItem icon={<ArrowDownloadRegular/>} disabled={unavailable} onClick={()=>download({songID:song.id})}>下载歌曲</MenuItem>:<Tooltip content="下载歌曲" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载歌曲" disabled={unavailable} onClick={()=>download({songID:song.id})}/></Tooltip>}{fileActions(r,menu)}</>;
+  };
+  const songPreferences=(song:LibrarySong,transparent=false)=><div className="inline row-actions" role="group" aria-label={`歌曲 ${song.id} 的偏好`}>
+    <Tooltip content={song.policy==='favorite'?'取消收藏':'收藏'} relationship="description"><ToggleButton size="small" appearance={transparent?'transparent':'subtle'} aria-label="收藏" checked={song.policy==='favorite'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-favorite-icon',children:song.policy==='favorite'?<HeartFilled/>:<HeartRegular/>}} onClick={()=>void save(song.id,song.policy==='favorite'?'normal':'favorite')}/></Tooltip>
+    <Tooltip content={song.policy==='blocked'?'取消屏蔽':'屏蔽'} relationship="description"><ToggleButton size="small" appearance="transparent" aria-label="屏蔽" checked={song.policy==='blocked'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-blocked-icon',children:song.policy==='blocked'?<ProhibitedRegular/>:<CircleRegular/>}} onClick={()=>void save(song.id,song.policy==='blocked'?'normal':'blocked')}/></Tooltip>
+  </div>;
+  const songDetails=(song:LibrarySong,full=false)=>{
+    const r=resources[song.resource];
+    return <dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd>{full&&<><dt>ID</dt><dd>{song.id}</dd><dt>需求分</dt><dd>{scoreFormat.format(song.score*100)}</dd></>}<dt>分数来源</dt><dd>{song.hasDemand?'真实分数':'初始分数'}</dd>{full&&<><dt>偏好</dt><dd>{policyLabels[song.policy]}</dd><dt>本地状态</dt><dd>{sharedState(r)}</dd></>}<dt>资源</dt><dd>{song.resource?<Link className="resource-id" href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl>;
+  };
   const storageBudget=<StorageBudgetNotice settings={s.activeSettings} usedBytes={page.error||page.data?.videoError?undefined:page.data?.totalBytes} checkedAt={page.loadedAt}/>;
   return <div className="page-stack library-page">
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
@@ -108,7 +134,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
         {history.pending&&<p role="status">正在处理 VRCX 历史…</p>}
       </Feedback><Feedback error>{history.message}</Feedback></div>}
       {(song||resource)&&<div className="toolbar"><span>查看{song?'歌曲 ID '+song:<>资源 <span className="resource-id">{resource}</span></>}</span><Link href="#/library">返回完整曲库</Link></div>}
-      <div className="toolbar spread"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,sort:'score',direction:'descending',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
+      <div className="toolbar spread"><div className="inline library-view-options"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>{setView(String(v.value));setOffset(0);setFilter('');setQuery(q=>({...q,sort:'score',direction:'descending',filter:''}));}}><Tab id="library-tab-songs" aria-controls="library-results" value="songs" disabled={!!resource}>按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources" disabled={!!song}>按资源</Tab></TabList>
+        <Tooltip content={covers?'切换到列表视图':'切换到封面视图'} relationship="label"><Button size="small" appearance="subtle" className={view==='songs'?undefined:'library-view-toggle-hidden'} icon={covers?<TextBulletListRegular/>:<GridRegular/>} aria-label={covers?'切换到列表视图':'切换到封面视图'} aria-controls="library-results" onClick={toggleCovers}/></Tooltip></div>
       <form className="inline library-search" onSubmit={e=>{e.preventDefault();setOffset(0);setQuery(q=>({...q,q:search,filter}));page.refresh();}}>
         <Field label="搜索曲库" orientation="horizontal" className="search-field"><Input type="search" maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setSearch(v.value)}/></Field>
         <Field label="筛选" orientation="horizontal"><Select value={filter} onChange={(_,v)=>setFilter(v.value)}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
@@ -120,7 +147,9 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
       {actions.result&&(actions.result.error||!!actions.result.entries?.length)&&<section ref={fileResult} tabIndex={-1} aria-label="文件操作结果" className="content-stack file-results"><Feedback error={actions.result.error}>{actions.result.text}{actions.result.message&&<p className="wrap">{actions.result.message}</p>}</Feedback>
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell><span className={entry.label===entry.key?'resource-id':undefined}>{entry.label}</span></TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
-      <RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
+      {view==='songs'&&covers?<ul className="library-cover-grid" aria-label="曲库封面" aria-busy={page.loading}>{page.data?.songs.map(song=><li key={song.id}>
+        <LibraryCoverCard id={song.id} title={song.title||'歌曲 '+song.id} enabled={visible&&!app.stopped&&!page.error&&page.loadedPath===pagePath} open={coverDetails===song.id} onOpenChange={open=>setCoverDetails(current=>open?song.id:current===song.id?undefined:current)} cover={coverImages[song.id]} preferences={songPreferences(song,true)} details={songDetails(song,true)} operations={songOperations(song,true)} previewDisabled={disabled||!!page.data?.videoError||!!songPreviewReason(song)} previewReason={songPreviewReason(song)} onPreview={()=>setPreview(songPreview(song))}/>
+      </li>)}</ul>:<RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
         <TableHeader><TableRow>{view==='songs'?<><SortHeader column="id" label="ID" sort={query} onSortChange={changeSort} disabled={disabled}/><SortHeader column="title" label="名称" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column table-name-column"/><TableHeaderCell className="table-metadata-column">歌手</TableHeaderCell><TableHeaderCell className="table-metadata-column">舞者</TableHeaderCell><SortHeader column="score" label="需求分" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。"/><DescriptionHeader label="偏好">屏蔽会拒绝新的播放和下载请求。再次点击可取消。</DescriptionHeader></>:<><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-resource-column"/><TableHeaderCell className="table-fill-column table-name-column">关联歌曲</TableHeaderCell><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
           <TableHeaderCell>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
         <TableBody>{view==='songs'?page.data?.songs.map(song=>{
@@ -130,11 +159,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
             <TableCell className="table-metadata-column"><TableText>{song.artist||'未知歌手'}</TableText></TableCell>
             <TableCell className="table-metadata-column"><TableText>{song.dancer||'未知'}</TableText></TableCell>
             <TableCell aria-label={`${source} ${score}`}><span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span></TableCell>
-            <TableCell><div className="inline row-actions" role="group" aria-label={`歌曲 ${song.id} 的偏好`}>
-              <Tooltip content={song.policy==='favorite'?'取消收藏':'收藏'} relationship="description"><ToggleButton size="small" appearance="subtle" aria-label="收藏" checked={song.policy==='favorite'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-favorite-icon',children:song.policy==='favorite'?<HeartFilled/>:<HeartRegular/>}} onClick={()=>void save(song.id,song.policy==='favorite'?'normal':'favorite')}/></Tooltip>
-              <Tooltip content={song.policy==='blocked'?'取消屏蔽':'屏蔽'} relationship="description"><ToggleButton size="small" appearance="transparent" aria-label="屏蔽" checked={song.policy==='blocked'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-blocked-icon',children:song.policy==='blocked'?<ProhibitedRegular/>:<CircleRegular/>}} onClick={()=>void save(song.id,song.policy==='blocked'?'normal':'blocked')}/></Tooltip>
-            </div></TableCell>
-            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({songID:song.id,label:song.title||'歌曲 '+song.id},song.policy==='blocked'?'歌曲已屏蔽，请先解除屏蔽。':!song.resource?'尚不知道对应资源，请先更新曲库。':'')}<Tooltip content="下载歌曲" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载歌曲" disabled={disabled||!!page.data?.videoError||s.batch.running||!!r?.local||song.policy==='blocked'} onClick={()=>download({songID:song.id})}/></Tooltip>{fileActions(r)}<RecordDetails openOnHover title={`歌曲 ${song.id} 的详情`}><dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd><dt>分数来源</dt><dd>{source}</dd><dt>资源</dt><dd>{song.resource?<Link className="resource-id" href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl></RecordDetails></div></TableCell>
+            <TableCell>{songPreferences(song)}</TableCell>
+            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{songOperations(song)}<RecordDetails openOnHover title={`歌曲 ${song.id} 的详情`}>{songDetails(song)}</RecordDetails></div></TableCell>
           </TableRow>;
         }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
           <TableCell className="table-resource-column"><span className="resource-id">{key}</span></TableCell>
@@ -142,7 +168,7 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
           <TableCell><TableCellLayout>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
           <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Tooltip content="下载资源" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载资源" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}/></Tooltip>{fileActions(r)}<RecordDetails openOnHover title={`资源 ${key} 的详情`} heading={<>资源 <span className="resource-id">{key}</span> 的详情</>}><p className="wrap resource-id">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div></TableCell>
         </TableRow>;})}</TableBody>
-      </RecordTable>
+      </RecordTable>}
       {page.data?.total===0&&<p className="empty-state">{song||resource?'当前条件下没有匹配项。':'没有匹配项，请调整搜索或更新清单。'}</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
         previous={()=>{setOffset(Math.max(0,offset-50));focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{setOffset(offset+50);focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}

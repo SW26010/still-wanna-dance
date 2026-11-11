@@ -6,6 +6,28 @@ import { active, type Status } from './types';
 import { usePageFeedback } from './page-feedback';
 import {isShutdownAction,useLifecycle,type ShutdownAction} from './lifecycle';
 
+// A browser preference shared across tabs, valid only for this SWD run.
+export function useRunToggle(key:string) {
+  const read=useCallback(()=>{
+    try {return localStorage.getItem(key)===bootstrap.token;}
+    catch {return false;}
+  },[key]);
+  const [value,setValue]=useState(read);
+  useEffect(()=>{
+    const sync=(event:StorageEvent)=>{if(event.key===key||event.key===null)setValue(read());};
+    addEventListener('storage',sync);
+    return()=>removeEventListener('storage',sync);
+  },[key,read]);
+  const toggle=()=>{
+    const next=!value;setValue(next);
+    try {
+      if(next)localStorage.setItem(key,bootstrap.token);
+      else localStorage.removeItem(key);
+    }catch{/* Keep the in-page choice if browser storage is unavailable. */}
+  };
+  return [value,toggle] as const;
+}
+
 // When an update removes or hides the focused control, return to its region.
 export function useFocusRecovery() {
   const ref=useRef<HTMLDivElement>(null), focused=useRef<HTMLElement>(null);
@@ -26,6 +48,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
   const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const [loadedRevision, setLoadedRevision] = useState<number>();
   const [loadedAt, setLoadedAt] = useState<number>();
+  const [loadedPath,setLoadedPath]=useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey(v => v + 1), []);
   useEffect(() => {
@@ -42,7 +65,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
       pending = true; setLoading(true);
       try {
         const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
-        if (!disposed) { setData(next); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); delay = typeof interval === 'number' ? interval : interval(next); }
+        if (!disposed) { setData(next); setLoadedPath(path); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); delay = typeof interval === 'number' ? interval : interval(next); }
       } catch (e) { if (!disposed) { setError(String(e)); if (!retain) setData(undefined); } }
       finally {
         pending = false;
@@ -61,7 +84,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
     if(subscribe){addEventListener('pagehide',suspend);addEventListener('pageshow',resume);}
     return () => { disposed = true; suspend(); controller.abort(); document.removeEventListener('visibilitychange', visibility); if(subscribe){removeEventListener('pagehide',suspend);removeEventListener('pageshow',resume);} };
   }, [path, enabled, revision, refreshKey, interval, retain, subscribe]);
-  return { data, error, loading, refresh, loadedRevision, loadedAt };
+  return { data, error, loading, refresh, loadedRevision, loadedAt,loadedPath };
 }
 
 export function useConfirmation() {

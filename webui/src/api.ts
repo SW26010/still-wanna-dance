@@ -40,6 +40,12 @@ export async function request<T>(path: string, body?: unknown, signal?: AbortSig
   return decode<T>(await fetchAPI(path,body,signal));
 }
 
+export async function requestBlob(path:string,signal:AbortSignal):Promise<Blob> {
+  const response=await fetchAPI(path,undefined,signal);
+  if(!response.ok)await decode<never>(response);
+  return response.blob();
+}
+
 export async function downloadFile(path:string,filename:string,signal:AbortSignal):Promise<Headers> {
   const response=await fetchAPI(path,undefined,signal);
   if(!response.ok)await decode<never>(response);

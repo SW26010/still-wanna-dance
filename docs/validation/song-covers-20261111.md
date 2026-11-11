@@ -1,0 +1,98 @@
+# 曲库封面视图与图片缓存验证
+
+日期：2026-11-11。现行规则见[曲库封面视图](../webui-design.md#曲库封面视图)、[封面存储与上游边界](../storage.md)。本轮只涉及 WebUI 与图片缓存，没有启动 VRC、修改 hosts 或替换日常程序；不新增游戏专属验收项。
+
+## 已验证范围
+
+- 默认歌曲列表、启动和原有视频功能不获取封面；选择封面视图后，当前页已有图片直接显示，网络按当前页缺图、下一页缺图、当前已有图片更新的顺序处理。每页使用原有 50 项分页、搜索和排序，切页取消旧需求，下一页查询失败不妨碍当前页显示。
+- 浏览器四个加载 worker，服务端对整个配置实例再限制四个图片网络请求；同 ID 下载合并为一个文件写入，取消与退出能收尾。已有文件读取可以绕过尚未完成的更新请求。
+- 真实 Console、SQLite、HTTP 接口与 Edge 完成默认无请求、图片解码、文件落盘、收藏保存、页面刷新以及上游不可用后仍显示已有缓存。截图和结果保存在忽略目录 `artifacts/song-covers/real-browser/`。图片来源为受控 JPEG，不冒充本轮全库或公网图片覆盖率验证。
+- TLS 与真实 SOCKS5 协议对照验证封面请求保持 `aya.kiva.moe` Host/SNI 和 `small{id}.jpg` 路径。直连通过已有 resolver 的普通 DialContext，代理把域名交给所选 SOCKS5；不向视频资源集合注册图片域名，不创建视频引擎、Monitor 或候选优选。Mihomo 使用同一正式上游客户端，未单独开展封面专属 Mihomo 公网验证。
+- 本地状态查询不联网；缓存跨 cache 实例读取、内容相同不重写、内容更新原子替换。404、重定向、HTML、截断和超大正文不落盘；已有图片更新失败保留原文件。不安全缓存条目只影响对应图片。
+- Fluent v9 Card／CardPreview／CardFooter、ToggleButton、Menu、Popover 与现有预览 Dialog 协作：点击封面播放，偏好按钮直接标记，菜单共享列表操作和禁用条件。详情支持悬停、菜单键盘打开、Escape 与焦点恢复。收藏／屏蔽透明叠在图片上，选中后仍无常驻底色。
+- 1280px 浅色、390px 深色及 320px forced-colors 布局检查通过，图片缺失保留卡片尺寸，页面没有横向溢出。检查了 `artifacts/webui-tests/library-covers-*/covers.png`；夹具山形图片仅用于验证布局和图片显示。
+
+## 检查入口与结果
+
+普通 Windows 权限下经现有临时目录包装器运行：
+
+```powershell
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console ./internal/apppaths -count=1
+./scripts/with-test-temp.ps1 pnpm --dir webui test library.spec.ts library-covers.spec.ts library-refresh.spec.ts library-refresh-retry.spec.ts library-download-completion.spec.ts --workers=4
+```
+
+Console 和 apppaths 包通过；Edge 72/72 通过。后续透明图标、详情焦点恢复和缓存读取边界的定向检查复用 `TestSongCover*` 与 `library-covers.spec.ts`，封面浏览器 6/6 通过。`pnpm --dir webui build`、`pnpm --dir webui check`、Console 的 `go vet -tags=no_easytier` 与差异格式检查通过；构建产物及清单随源码更新。
+
+使用已有 w64devkit 的 GCC，设置 `CGO_ENABLED=1` 与 `CC` 后，`go test -race -tags=no_easytier ./internal/console -run '^TestSongCover' -count=1` 通过，覆盖同 ID 合并、多图四路上限、取消／退出和代理协作。
+
+真实服务联调设置 `SWD_COVERS_BROWSER_EVIDENCE` 为绝对证据目录后运行 `TestSongCoverBrowser`。该测试创建独立数据库与配置，使用受控图片上游，不读取日常数据库，也不启动网关或游戏。离线图片保留与偏好持久化由真实服务检查，不仅依赖浏览器内存夹具。
+
+## 首轮失败及修正
+
+- 沙箱内 Go 测试在既有条款夹具的原子替换处报 `renameat .terms.json.swd-tmp terms.json: The handle is invalid.`，未进入图片断言；沙箱内 Edge 也在页面断言前启动失败。按开发文档已知 Windows 沙箱限制，在普通权限下用同一包装器执行后通过。
+- 初版把图标组作为 CardPreview 的第二个直接子元素，被组件的图片铺满样式扩成白色覆盖层；改成一个媒体容器，图片与透明按钮在容器内部布局。
+- 初版整张 Card 使用 PopoverTrigger，悬停时焦点跳到详情链接，且外层触发器对 Enter 的按钮增强拦截了内部菜单的键盘动作。改为独立定位的标准 Popover，悬停不自动聚焦；菜单明确打开详情时聚焦内容，关闭后回到菜单按钮。修正前的键盘测试多次在找不到“详情”菜单项处超时；修正后全部通过，没有扩大超时或弱化断言。
+
+失败及修正按实际发生顺序保留于本节；首轮默认浏览器输出目录在后续运行时重建，原截图未另行归档，不将本节当作原始 trace。
+
+## 同日 P2 与卡片展示跟进
+
+复现了菜单明确打开详情后外部点击不能关闭：旧处理过滤所有 `click/contextmenu`，包括 Fluent 的关闭事件。同一条 Edge 回归在修正前因浮层仍可见失败，修正后通过；现在允许全部 `data.open === false` 的关闭事件，保留 Escape、焦点恢复及封面点击播放。修正前截图与错误上下文独立保存在 `artifacts/song-covers-followup/before/`，单项修正结果在 `after/`，后续套件使用 `regression/`，不会覆盖修正前材料。
+
+按用户要求去掉可用封面、预览按钮与菜单的“预览视频”提示，不能预览时仍解释具体原因；卡片底部在 ID 与菜单之间显示名称，使用 Fluent Text 单行省略，全文仍可在详情中读取。封面上的收藏／屏蔽图标在原 Fluent 图标上加轻微同色描边，保持透明背景、现有形态及偏好操作语义。1280px 浅色、390px 深色和 320px forced-colors 均检查了长名称截断、操作位置与无横向溢出；同时验证悬停封面只显示详情而无额外预览 Tooltip。
+
+跟进验证：`library-covers.spec.ts` 与 `library.spec.ts` 的 Edge 回归 50/50 通过；WebUI 构建、`pnpm --dir webui check` 和 `git diff --check` 通过。另检查了 `regression/` 中宽屏浅色和窄屏深色截图，确认歌曲名省略及透明图标的实际展示。
+
+## 同日详情半透明背景跟进
+
+封面详情 Popover 使用当前 Fluent 主题表面色的 85% 不透明度，文字保持不透明，菜单打开的同一详情沿用此样式。Edge 封面套件 8/8 通过，检查了 `artifacts/song-covers-translucent/` 中浅色与深色的详情截图。首轮高对比度截图仍透出后方内容，随后改为 forced-colors 下使用系统 Canvas 实色背景；320px 定向复验通过，截图保留在 `artifacts/song-covers-translucent-forced-colors/`。WebUI 构建、产物一致性与差异格式检查通过。
+
+## 2026-11-12 同 ID 并发刷新结果共享
+
+本节记录当时的并发修复；其中“后续独立刷新仍回源”的频率规则已由下文“程序会话内一次更新检查”替代，并发结果共享与取消接手规则继续适用。
+
+旧 `pending` 只提供等待信号；等待者醒来后重新进入刷新分支，因此仍会再次回源。使用真实 `songCoverCache.read` 与受控 HTTP Transport，在 `testing/synctest` 中固定一个回源者和两个等待者，成功及 404 两种场景均复现三次请求而非一次；失败输出保留在 `artifacts/song-covers-shared-refresh/before.log`。
+
+在现有待处理请求中保存结果，并在完成信号发出后供等待者共享；仅重叠请求复用，后续独立刷新仍回源，不新增定时器或负缓存。原请求取消后有效等待者可接手，等待者取消不会终止原请求，关闭缓存时不启动接手请求。新增回归覆盖这些取消边界；原有四路上限、缓存显示与 DNS／代理测试一并通过。单项修正及封面定向结果分别保留在 `after.log` 和 `regression.log`。
+
+`go test -race -tags=no_easytier ./internal/console -run '^TestSongCover' -count=1` 经既有补丁及临时目录入口通过（68.115 秒），使用现有 w64devkit GCC，输出保留在同目录 `race.log`。Console 的 `go vet -tags=no_easytier` 与 `git diff --check` 通过；本次仅调整后台合并逻辑，沿用已有界面验证范围，未执行公网或游戏验收。
+
+## 2026-11-12 已确认的交互审查第 1、2、4 项
+
+封面视图统一持有当前详情歌曲 ID，打开另一首歌的详情时替换旧浮层；切页、切换视图或离开页面时关闭。非操作区域持续悬停 500ms 后展开，经过收藏、屏蔽或菜单按钮不触发；移出后保留 250ms 的移入浮层时间，浮层内可持续阅读，菜单详情仍即时打开并支持外部点击与 Escape 关闭。可播放封面在悬停或键盘聚焦时显示 Fluent 播放图标，不增加文字提示或额外焦点。屏蔽图标及详情透明度保持既有规则。
+
+三条新回归在修改前分别检出即时展开、同时存在两个详情、缺少播放标记；截图和错误上下文保留在 `artifacts/song-covers-ux-changes/before/`。首轮修改后原有收藏操作阻塞，trace 确认播放按钮聚焦时的图层截获了偏好按钮的点击；为媒体建立局部图层边界并将偏好按钮置于上方后修复，原失败保留在 `after/` 和 `action-trace/`。新增键盘检查最初错误假定视图切换按钮后的 Tab 会直达封面，实际中间还有搜索控件；改为从封面前一焦点用真实 Tab 进入，未修改页面焦点顺序。测试启动另遇夹具端口短暂占用，端口释放后重跑，未结束其他进程或更改共用测试端口。
+
+最终 `library-covers.spec.ts` 与 `library.spec.ts` 的 Edge 回归 53/53 通过（17.2 秒），覆盖悬停计时边界、离开前取消、按钮排除、详情互斥、移入阅读、播放标记、原有播放／偏好／文件操作及深浅主题和 forced-colors 窄屏；结果和截图保留在 `regression/`。检查了播放标记的实际截图。WebUI 构建、产物一致性与差异格式检查通过。
+
+## 2026-11-12 程序会话内一次更新检查
+
+根据后续要求，每张已有封面在后台程序本次运行期间最多完成一次更新检查；新下载的图片视为已检查，失败后保留旧图并停止本会话后续检查。记录由 Console 内存统一持有，页面刷新、视图切换及多标签页共用，程序重启后重置。取消的未完成请求不计入检查，缺图和文件丢失仍可再次按需下载。状态接口返回 `cached` 与本会话仍待检查的 `refresh` ID，前端只调度后者；后端同时复核资格，覆盖跨标签页竞争，不持久化检查记录。
+
+修改前，同会话重复刷新成功及 404 的旧图仍再次回源，失败输出保留在 `artifacts/song-covers-session/before.log`。更新后的封面 Go 定向与 race 检查通过，race 为 74.341 秒，覆盖会话共享、重启后更新、更新失败保留旧文件、本地文件丢失后的恢复下载、取消接手及原有四路／代理／DNS 行为。浏览器封面回归 12/12 通过，确认回到封面视图只显示缓存、不再次调度已检查图片。
+
+隔离真实 Console、SQLite 与 Edge 联调通过：初次三首歌共三次回源，刷新浏览器并让上游离线后，仅缺图重试一次，总请求数为四；两张已有图片未再检查，离线可显示、收藏仍持久化、视频引擎未启动。结果保留在同目录 `real-browser/` 与 `real-browser.log`，单元／race／浏览器结果分别保留于 `regression.log`、`race.log`、`browser/`。Console vet、WebUI 构建、产物一致性与差异格式检查通过。
+
+## 2026-11-12 下一页预取容错与预览文档收尾
+
+核查确认：下一页曲目查询已单独容错，但下一页缓存状态查询仍会抛入外层处理，从而跳过当前页已有图片的更新检查。新增两条 Edge 故障注入回归：修改前曲目查询失败场景通过，缓存状态失败场景仍能显示已有图片，但应有的两次当前页更新检查为零。失败截图和上下文保留在 `artifacts/song-covers-prefetch-failure/before/`。
+
+将下一页曲目、缓存状态及缺图预取统一置于独立容错范围，失败后继续当前页会话内尚未完成的更新检查，取消仍由原有 AbortSignal 和 worker 条件控制。封面浏览器套件 14/14 通过，结果保留在 `after/`；WebUI 构建、产物一致性与差异格式检查通过。本次未变更后台及会话检查规则，沿用既有 Go 与真实服务证据。
+
+同步清理 `webui-design.md` 的预览段落和歌曲／资源操作列，以及 `webui-content.md` 中相同旧说明：可用预览不显示 Tooltip，不可预览时保留原因说明；下载、定位和删除等原有提示保持不变。预览不计入历史和需求分的业务规则保留。
+
+## 2026-11-12 列表／封面选择保留到本次程序运行结束
+
+列表／封面选择与首页速度单位共用 `useRunToggle`：将浏览器存储中的选择绑定现有程序令牌，程序重启后旧令牌失效；导航、定位、刷新、关闭重开及同源标签页共用，不新增配置或后台字段。首页速度单位迁移到该共用机制，保留原存储键及操作行为。新程序会话默认列表，恢复本次已选封面视图后沿用按需加载与会话内一次更新检查。
+
+修改前，新增回归在定位到歌曲后发现封面视图丢失，失败截图和上下文保留在 `artifacts/library-view-run/before/`。修改后曲库封面与首页需求套件 26/26 通过（10.9 秒），覆盖视图定位／刷新／关闭重开／多标签页同步、旧会话选择失效及不保存设置，同时回归首页速度单位的同等生命周期；结果保留在 `browser/`。
+
+隔离真实 Console、SQLite 与 Edge 联调通过（1.46 秒）：初次仍为列表且无图片请求，选择封面后刷新保持封面；已有图片离线显示、不重复检查，仅缺图重试，偏好持久化且不启动视频引擎。结果保留在同目录 `real-browser/` 与 `real-browser.log`。WebUI 构建、产物一致性与差异格式检查通过；未修改 Go 业务逻辑，未重跑不受影响的 race 或游戏检查。
+
+## 2026-11-12 审查收尾与提交前验证
+
+按用户后续展示要求，播放标记调整为 40px；封面右上角收藏／屏蔽纵向排列，收藏常显，屏蔽未选中时仅在按钮区域悬停或聚焦时显示、已选中时常显，无悬停设备保持可见。沿用现有封面操作及响应式检查，15/15 通过，检查了 `artifacts/song-covers-vertical-policy/` 与 `artifacts/song-covers-block-hover/` 的实际截图；源码、构建及当前设计说明已同步。
+
+相对 HEAD `4d6aef73` 的 Standards／Spec 两轴审查中，规范轴未发现确认问题；需求轴复现一项 P2：旧卡片悬停 200ms 后通过键盘提交搜索或翻页，暂缓新查询响应，剩余 300ms 到达时旧详情会重新打开。独立审查证据位于 `artifacts/spec-review-cover-probe/`。正式回归在修改前的搜索和翻页两种场景均失败，截图及错误上下文保留于 `artifacts/song-covers-hover-query/before/`。
+
+修正后，详情启用条件要求已加载数据的查询身份与当前查询一致，复用现有停用逻辑取消悬停计时并关闭旧详情；旧数据保留加载期间禁用菜单，新结果完成后正常恢复交互。两种回归均验证加载期间不重开、加载完成不残留、再次悬停可正常展开。封面、列表及首页需求浏览器回归 70/70 通过（21.4 秒），结果保留在同目录 `after/`；WebUI 构建、产物一致性和差异格式检查通过。Go 缓存／并发／代理／DNS、race 与真实服务联调复用前述仍适用证据，未修改其业务逻辑。

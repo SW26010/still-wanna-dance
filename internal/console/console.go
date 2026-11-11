@@ -102,6 +102,7 @@ type Console struct {
 	queueDesired        bool // queue enable intent; independent of manual downloads
 	closing             bool
 	client              *http.Client
+	covers              songCoverCache
 	checksumURL         string
 	apiBase             string
 	dns                 directResolver
@@ -424,6 +425,7 @@ func (c *Console) BeginShutdown() {
 
 func (c *Console) Close() error {
 	c.BeginShutdown()
+	c.covers.close()
 	grace, cancel := context.WithTimeout(context.Background(), lifecycleWriteTimeout)
 	c.lifecycle.close(grace)
 	cancel()
@@ -490,7 +492,7 @@ func (c *Console) Close() error {
 func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 	// Reject DNS rebinding and cross-origin writes; no external page can obtain the token.
 	if r.Host != c.address {
 		http.Error(w, "invalid host", 403)

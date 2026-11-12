@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -40,6 +41,7 @@ type Store struct {
 	closeErr            error
 	failure             error
 	failed              chan struct{}
+	metadataUpdated     time.Time // Committed metadata changes in this Store session; guarded by mu.
 
 	// One shared wakeup channel coalesces changes without retaining subscribers.
 	historyRevision uint64
@@ -219,6 +221,14 @@ func (s *Store) changed(queue bool) {
 	if s.binding != nil {
 		s.binding.changed(queue)
 	}
+}
+
+// MetadataUpdatedAt reports actual committed catalog/mapping changes, not
+// repeated observations or successful checks. It never reads the database.
+func (s *Store) MetadataUpdatedAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.metadataUpdated
 }
 
 // A binding is an engine's synchronous invalidation lease. Store knows neither

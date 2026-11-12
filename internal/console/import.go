@@ -31,6 +31,7 @@ type ImportStatus struct {
 	CleanupAvailable bool   `json:"cleanupAvailable"`
 	Error            string `json:"error"`
 	Detail           string `json:"detail"`
+	receipts         int    // Incremental cleanup eligibility; never serialized.
 }
 
 func insideImportRoot(root, path string) bool {
@@ -153,7 +154,9 @@ func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, 
 		}
 		c.mu.Lock()
 		c.importCancel = nil
-		status := c.importTask.status(c.settings)
+		durable, settings := *c.importTask, c.settings
+		c.mu.Unlock()
+		status := durable.status(settings)
 		if cleanup {
 			status.Phase = "清理结束"
 			if status.CleanupAvailable {
@@ -166,9 +169,10 @@ func (c *Console) launchImport(engine *cacheproxy.Server, task videoImportTask, 
 		if errors.Is(err, context.Canceled) && cleanup {
 			status.Phase = "清理已暂停，继续清理需要重新确认"
 		}
+		c.mu.Lock()
 		c.importStatus = status
 		c.mu.Unlock()
-		if ctx.Err() == nil {
+		if ctx.Err() == nil || (err != nil && !errors.Is(err, context.Canceled)) {
 			// Keep classification and identity from the worker. Per-file
 			// failures may exist in the retained result without a return error.
 			failure := err
@@ -229,7 +233,7 @@ func (c *Console) discardImport(id uint64, confirmed bool) error {
 	if !confirmed || !valid {
 		return rejectRequest(errors.New("请确认结束本次导入并刷新状态"))
 	}
-	if err := os.Remove(c.files().State("video-import")); err != nil && !os.IsNotExist(err) {
+	if err := c.removeImportState(); err != nil {
 		return err
 	}
 	c.mu.Lock()
@@ -241,17 +245,19 @@ func (c *Console) discardImport(id uint64, confirmed bool) error {
 
 func (c *Console) idleImport(id uint64) (videoImportTask, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closing || c.importStatus.Running || c.importTask == nil || id != c.importTask.ID {
+		c.mu.Unlock()
 		return videoImportTask{}, rejectRequest(errors.New("本次导入不可操作，请刷新状态"))
 	}
-	if c.importTask.status(c.settings).ScopeMismatch {
+	task, scopeMismatch := *c.importTask, c.importStatus.ScopeMismatch
+	c.mu.Unlock()
+	if scopeMismatch {
 		return videoImportTask{}, rejectRequest(errors.New("本次导入的数据位置与当前生效位置不一致，请恢复原位置后重启，或放弃本次导入"))
 	}
-	return c.importTask.clone(), nil
+	return task.clone(), nil
 }
 
-func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) error {
+func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) (result error) {
 	allowed, err := engine.Store.KnownMedia(ctx)
 	if err != nil {
 		return err
@@ -274,6 +280,11 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task
 			return err
 		}
 	}
+	progress, err := c.beginImportProgress(task)
+	if err != nil {
+		return err
+	}
+	defer progress.finish(&result)
 	c.setImportPhase("正在校验并导入")
 	for i := range task.Files {
 		item := &task.Files[i]
@@ -299,7 +310,7 @@ func (c *Console) runImport(ctx context.Context, engine *cacheproxy.Server, task
 			item.Result = "imported"
 		}
 		// Even if pause arrives after publication, first commit its receipt.
-		if err := c.commitImportTask(task); err != nil {
+		if err := progress.record(i, *item, item.Receipt != nil); err != nil {
 			return err
 		}
 	}
@@ -327,7 +338,12 @@ func (c *Console) cleanupImport(id uint64, confirmed bool) error {
 	return nil
 }
 
-func (c *Console) runImportCleanup(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) error {
+func (c *Console) runImportCleanup(ctx context.Context, engine *cacheproxy.Server, task videoImportTask) (result error) {
+	progress, err := c.beginImportProgress(task)
+	if err != nil {
+		return err
+	}
+	defer progress.finish(&result)
 	for i := range task.Files {
 		item := &task.Files[i]
 		if item.Receipt == nil {
@@ -351,7 +367,7 @@ func (c *Console) runImportCleanup(ctx context.Context, engine *cacheproxy.Serve
 		default:
 			item.CleanupError = err.Error()
 		}
-		if err := c.commitImportTask(task); err != nil {
+		if err := progress.record(i, *item, true); err != nil {
 			return err
 		}
 	}

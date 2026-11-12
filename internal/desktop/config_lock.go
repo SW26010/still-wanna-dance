@@ -39,7 +39,7 @@ func (l *configLease) CleanWorkFiles() error {
 	if err := workfiles.CheckDir(p.Root); err != nil {
 		return err
 	}
-	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("throughput"), p.State("video-import")} {
+	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("throughput"), p.State("video-import"), p.VideoImport} {
 		if err := cleanConfigWorkFile(path); err != nil {
 			return err
 		}

@@ -17,7 +17,7 @@ func TestLayoutIsLazyAndSeparatesSiblingConfigurations(t *testing.T) {
 		if q.Root != filepath.Join(p.Root, name+".d") || q.DefaultDatabase != filepath.Join(name+".d", "data", "database", "storage.sqlite") || q.DefaultVideo != filepath.Join(name+".d", "videos") {
 			t.Fatal(q)
 		}
-		if q.Terms == p.Terms || q.LogDir == p.LogDir || q.Lock == p.Lock || q.State("batch-last-success") == p.State("batch-last-success") {
+		if q.Terms == p.Terms || q.VideoImport == p.VideoImport || q.LogDir == p.LogDir || q.Lock == p.Lock || q.State("batch-last-success") == p.State("batch-last-success") {
 			t.Fatal("shared companions", q)
 		}
 	}

@@ -85,7 +85,7 @@ func openStore(path string, create bool) (*Store, error) {
 		if create {
 			return nil, fmt.Errorf("数据库文件已存在，不会覆盖：%w", os.ErrExist)
 		}
-		if err := validateDatabaseFile(path); err != nil {
+		if err := CheckDatabaseFile(path); err != nil {
 			return nil, err
 		}
 	} else if !create || !os.IsNotExist(err) {
@@ -122,7 +122,7 @@ func openStore(path string, create bool) (*Store, error) {
 			unlock()
 			return nil, err
 		}
-		if err := validateDatabaseFile(path); err != nil {
+		if err := CheckDatabaseFile(path); err != nil {
 			unlock()
 			return nil, err
 		}

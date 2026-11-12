@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
-	"still-wanna-dance/internal/workfiles"
 )
 
 func prepareImportRecovery(t *testing.T, names ...string) (*Console, videoImportTask) {
@@ -143,13 +143,17 @@ func TestImportRecoverySaveFailureStopsBeforeNextFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := c.files().State("video-import")
-	before, err := os.ReadFile(path)
+	path := c.files().VideoImport
+	db, err := openImportStore(path, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	slot := filepath.Join(filepath.Dir(path), workfiles.TempName(path))
-	if err := os.WriteFile(slot, []byte("occupied work slot"), 0600); err != nil {
+	_, err = db.Exec(`CREATE TRIGGER fail_progress BEFORE UPDATE ON items BEGIN SELECT RAISE(ABORT, 'injected save failure'); END`)
+	if err := errors.Join(err, db.Close()); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
 		t.Fatal(err)
 	}
 	err = c.runImport(t.Context(), engine, task)
@@ -170,7 +174,12 @@ func TestImportRecoverySaveFailureStopsBeforeNextFile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(task.VideoDir, key("b")+".mp4")); !os.IsNotExist(err) {
 		t.Fatal("processed next file after save failure", err)
 	}
-	if err := os.Remove(slot); err != nil {
+	db, err = openImportStore(path, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec("DROP TRIGGER fail_progress")
+	if err := errors.Join(err, db.Close()); err != nil {
 		t.Fatal(err)
 	}
 	c = restartTestConsole(t, c)
@@ -312,12 +321,23 @@ func TestImportCrashWorker(t *testing.T) {
 	task, mode, marker := c.importTask.clone(), os.Getenv("SWD_IMPORT_CRASH_MODE"), os.Getenv("SWD_IMPORT_CRASH_MARKER")
 	if mode == "stage" || mode == "copy" {
 		err = c.runImport(importStageCrashContext{context.Background(), task.VideoDir, marker}, engine, task)
-	} else if mode == "published" {
+	} else if mode == "published" || mode == "progress" {
 		allowed, e := engine.Store.KnownMedia(t.Context())
 		if e != nil {
 			t.Fatal(e)
 		}
-		_, err = engine.ImportSnapshotVideo(t.Context(), task.Files[0].File, allowed)
+		var receipt *cacheproxy.ImportedVideo
+		receipt, err = engine.ImportSnapshotVideo(t.Context(), task.Files[0].File, allowed)
+		if err == nil && mode == "progress" {
+			// Leave the writer open: kill must recover a committed WAL, without
+			// relying on the checkpoint performed by a graceful connection close.
+			progress, e := c.beginImportProgress(task)
+			if e != nil {
+				t.Fatal(e)
+			}
+			task.Files[0].Result, task.Files[0].Receipt = "imported", receipt
+			err = progress.record(0, task.Files[0], true)
+		}
 	} else {
 		err = engine.RemoveImportedSource(t.Context(), *task.Files[0].Receipt)
 	}
@@ -331,7 +351,7 @@ func TestImportCrashWorker(t *testing.T) {
 }
 
 func TestImportCrashRecovery(t *testing.T) {
-	for _, mode := range []string{"stage", "published", "cleanup", "copy"} {
+	for _, mode := range []string{"stage", "published", "progress", "cleanup", "copy"} {
 		t.Run(mode, func(t *testing.T) {
 			if mode == "copy" && os.Getenv("SWD_IMPORT_TEST_VOLUME") == "" {
 				t.Skip("set SWD_IMPORT_TEST_VOLUME for cross-volume copy interruption")
@@ -433,6 +453,9 @@ func TestImportCrashRecovery(t *testing.T) {
 			c = restartTestConsole(t, c)
 			if c.importStatus.Running || c.service != nil {
 				t.Fatal("crash restart started work")
+			}
+			if mode == "progress" && (c.importStatus.Imported != 1 || c.importTask.Files[0].Receipt == nil) {
+				t.Fatal("committed WAL receipt lost after kill", c.importStatus)
 			}
 			if mode != "cleanup" {
 				if err := c.resumeImport(task.ID); err != nil {

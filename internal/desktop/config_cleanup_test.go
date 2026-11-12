@@ -28,12 +28,15 @@ func TestConfigCleanupBelongsToLiveLease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("video-import"), p.State("webui-port")}
+	owned := []string{p.Config, p.Terms, p.State("throughput"), p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("video-import"), p.VideoImport, p.State("webui-port")}
 	for _, target := range owned {
 		put(target)
 		put(filepath.Join(filepath.Dir(target), workfiles.TempName(target)))
 	}
 	unknown := []string{filepath.Join(dir, workfiles.TempName("b.json")), filepath.Join(dir, ".settings-123"), p.ChannelKey, p.ChannelKey + ".corrupt-123", filepath.Join(p.StateDir, ".snapshot-123"), filepath.Join(p.StateDir, "throughput.json.corrupt-123")}
+	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
+		unknown = append(unknown, p.VideoImport+suffix)
+	}
 	for _, name := range []string{
 		".batch.json.swd-tmp", ".attempt.json.swd-tmp",
 		".setup-apply-" + strings.Repeat("a", 64) + ".json.swd-tmp",

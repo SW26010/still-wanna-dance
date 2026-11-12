@@ -9,9 +9,11 @@ import (
 	"still-wanna-dance/internal/workfiles"
 )
 
-// Database aliases must not create separate writer leases or SQLite companion
-// namespaces for one physical file. This restriction does not apply to videos.
-func validateDatabaseFile(path string) error {
+// CheckDatabaseFile checks physical file identity, not its SQLite schema. Both
+// the library and independent instance-state databases use the same contract:
+// aliases must not create separate leases or SQLite companion namespaces for
+// one physical file. This restriction does not apply to videos.
+func CheckDatabaseFile(path string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err

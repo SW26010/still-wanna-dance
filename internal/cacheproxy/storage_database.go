@@ -39,7 +39,7 @@ func inspectDatabaseFile(path string, selectable bool) (*sql.DB, error) {
 	if err := workfiles.CheckDir(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
-	if err := validateDatabaseFile(path); err != nil {
+	if err := CheckDatabaseFile(path); err != nil {
 		return nil, err
 	}
 	return connectStorageDatabaseForSelection(path, "ro", false, selectable)

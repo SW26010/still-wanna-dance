@@ -513,7 +513,7 @@ GET、队列预加载和手动补齐在每次新建歌曲需求前检查屏蔽�
 | 完整块写入与可用性 | [local_blocks.go](../internal/cacheproxy/local_blocks.go) 的 store/has/available/ReadAt 统一维护完整块；普通写入关闭后可读，未完成块只在执行缓冲中存在。 |
 | 跨块读取与等待 | [stream.go](../internal/cacheproxy/stream.go) 提供独立偏移、Read/Seek/Close；缺块回调向调度器登记独立读取等待，返回、出错或取消共用一次性撤销；不持有 Blocking 属性。终止错误及上下文原因明确返回，已有可读字节不受独立发布结果门控。 |
 | 引用与回收 | 引擎、会话和 spool 持有存储引用，实际块 I/O 与合并 snapshot 持有文件引用；退休块先从可用集合移除，最后 I/O 引用释放后删除。替换块使用独立路径，旧删除不误伤新块。按 auto/on/off 策略逐块回收，auto 仅在有效视频存储预算为零时开启。 |
-| 持久化准入 | [publication_admission.go](../internal/cacheproxy/publication_admission.go) 复用库存、资源评分和全部同分排序，按完整大小预留；较高分候选可撤销低分预留。资源（含收藏）预算为零、超预算或不应保留时不进入合并/MD5；共用第 8 项的屏蔽与收藏策略。 |
+| 持久化准入 | [publication_admission.go](../internal/cacheproxy/publication_admission.go) 按完整大小预留；准入和发布前复核均先检查屏蔽策略及按 MD5 去重的库存与预留总量，未超预算时跳过全库评分和排序。预算竞争时复用资源评分和全部同分排序，较高分候选可撤销低分预留。资源（含收藏）预算为零、超预算或不应保留时不进入合并/MD5；共用第 8 项的屏蔽与收藏策略。 |
 | 合并、校验与发布 | [block_publication.go](../internal/cacheproxy/block_publication.go) 的 publishBlocks 在预留后取得完整 snapshot，顺序合并、长度/MD5 检查，再同步关闭并原子发布。发布前重新核对保护及保留集合，与实际回收串行；成功转正式库存，放弃释放预留。 |
 | 准备结果 | 完整块可读、GET 交付完成与正式发布成功是不同结果。共享 flight 反馈一次准备结果；来源自己决定退出，下载完成不删除队列或 GET 的使用依据。 |
 | 退出与下一次启动 | 关闭引擎释放运行期资源；异常残留由既有受管临时文件清理删除，下次启动不恢复它们。完整文件校验、导入、库存、容量统计和正式格式保持既有契约。 |

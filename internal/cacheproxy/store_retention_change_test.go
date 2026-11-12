@@ -448,6 +448,11 @@ func TestPublicationDecisionExcludesPreferenceAfterPolicyRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.cfg.CacheUnlimited, s.cfg.VideoBudgetBytes = false, 24
+	// Force budget competition so this decision reaches the usage-flush
+	// barrier; spare-budget admission deliberately skips ranking.
+	const occupant = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	s.retained = map[string]retainedVideo{occupant: {key: occupant, size: 24}}
+	s.retainedBytes = 24
 	var reservation *publicationReservation
 	defer func() {
 		if reservation != nil {

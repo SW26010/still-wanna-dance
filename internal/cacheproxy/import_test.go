@@ -1,8 +1,10 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -160,5 +162,83 @@ func TestImportCancelledAndMissingSources(t *testing.T) {
 	}
 	if receipt, err := s.ImportVideo(context.Background(), source+".moved", nil); err == nil || receipt != nil {
 		t.Fatal("missing import succeeded")
+	}
+}
+
+func TestImportCleanupValidatesCurrentContent(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		independent bool
+		corrupt     string
+	}{
+		{"hard-link-changed", false, "source"},
+		{"independent-source-changed", true, "source"},
+		{"independent-destination-changed", true, "destination"},
+		{"independent-valid", true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _ := setup(t, nil)
+			data := []byte("original video")
+			key := fmt.Sprintf("%x", md5.Sum(data))
+			source := filepath.Join(t.TempDir(), "video.mp4")
+			if err := os.WriteFile(source, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := s.ImportVideo(context.Background(), source, map[string]bool{key: true})
+			if err != nil || receipt == nil {
+				t.Fatal(receipt, err)
+			}
+			if tc.independent {
+				if err := os.Remove(receipt.Destination); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(receipt.Destination, data, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.corrupt != "" {
+				path := source
+				if tc.corrupt == "destination" {
+					path = receipt.Destination
+				}
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, bytes.Repeat([]byte("x"), len(data)), 0600); err != nil {
+					t.Fatal(err)
+				}
+				// Keep size, identity and modification time unchanged: only a
+				// fresh content check can detect corruption since import.
+				if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err = s.RemoveImportedSource(context.Background(), *receipt)
+			if tc.corrupt == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := os.Stat(source); !os.IsNotExist(err) {
+					t.Fatal("source remains", err)
+				}
+			} else {
+				if err == nil {
+					t.Fatal("corrupt content allowed source deletion")
+				}
+				if changed := errors.Is(err, ErrImportSourceChanged); changed != (tc.independent && tc.corrupt == "source") {
+					t.Fatalf("wrong source-change classification: %v", err)
+				}
+				if _, err := os.Stat(source); err != nil {
+					t.Fatal("source removed", err)
+				}
+			}
+			if tc.corrupt != "destination" && tc.independent {
+				got, err := os.ReadFile(receipt.Destination)
+				if err != nil || !bytes.Equal(got, data) {
+					t.Fatal("destination lost", err)
+				}
+			}
+		})
 	}
 }

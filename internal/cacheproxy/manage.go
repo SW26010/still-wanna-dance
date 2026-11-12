@@ -191,14 +191,6 @@ func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSel
 	s.retentionMu.Unlock()
 	removed := false
 	defer func() { s.finishVideoRemoval(item.Key, removed) }()
-	// Independent local scanners share this gate. Do not wait for a check.
-	slot := verificationLocks.slot(pathIdentity(s.cfg.videosDir()) + item.Key)
-	select {
-	case slot <- struct{}{}:
-		defer func() { <-slot }()
-	default:
-		return "protected"
-	}
 	if _, err := CacheDirectory(s.cfg.videosDir()); err != nil {
 		return "unsafe"
 	}

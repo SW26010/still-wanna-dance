@@ -2,8 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"crypto/md5" // The observed protocol supplies MD5; this is integrity checking, not authentication.
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -213,24 +211,6 @@ func (r contextReader) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	return r.r.Read(p)
-}
-
-func checkOpenFile(ctx context.Context, f *os.File, v video) error {
-	info, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() || info.Size() != v.size {
-		return fmt.Errorf("%w: local video size mismatch", errInvalidCache)
-	}
-	h := md5.New()
-	if _, err := io.Copy(h, contextReader{ctx, f}); err != nil {
-		return err
-	}
-	if hex.EncodeToString(h.Sum(nil)) != v.key {
-		return fmt.Errorf("%w: local video checksum mismatch", errInvalidCache)
-	}
-	return nil
 }
 
 func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResult, source string, resultErr error) {

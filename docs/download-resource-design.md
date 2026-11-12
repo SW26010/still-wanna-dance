@@ -513,6 +513,7 @@ GET、队列预加载和手动补齐在每次新建歌曲需求前检查屏蔽�
 
 | 能力 | 实现与生命周期 |
 | --- | --- |
+| 正式视频读取 | [verified.go](../internal/cacheproxy/verified.go) 打开按不可变内容使用的 MD5 文件，仅检查普通文件及属性，不读取正文校验；同资源共享句柄，各响应独立读取位置，最后一个资源引用释放后关闭。资源引用与删除预留统一协调读取和删除。 |
 | 资源与块身份 | [local_resource.go](../internal/cacheproxy/local_resource.go) 的运行期注册表持有资源，资源键及块号决定共享；新会话使用当前地址，不持有旧候选或重定向游标。完整视频继续使用既有 MD5 身份。 |
 | 完整块写入与可用性 | [local_blocks.go](../internal/cacheproxy/local_blocks.go) 的 store/has/available/ReadAt 统一维护完整块；普通写入关闭后可读，未完成块只在执行缓冲中存在。 |
 | 跨块读取与等待 | [stream.go](../internal/cacheproxy/stream.go) 提供独立偏移、Read/Seek/Close；缺块回调向调度器登记独立读取等待，返回、出错或取消共用一次性撤销；不持有 Blocking 属性。终止错误及上下文原因明确返回，已有可读字节不受独立发布结果门控。 |

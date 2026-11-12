@@ -59,8 +59,8 @@ func TestVerifiedHandleSharedAcrossResponses(t *testing.T) {
 			t.Fatal("concurrent callers performed separate validations")
 		}
 	}
-	// Both prepare and the handler must reuse this handle. Hashing it a second
-	// time at its current EOF would fail, and seeking it would affect the offset.
+	// Preparation and responses reuse the handle without reading or seeking it;
+	// each response keeps its own SectionReader offset.
 	for range count {
 		wg.Go(func() {
 			assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=10-13"}), 206, "abcd")
@@ -184,23 +184,37 @@ func TestVideoReadsDoNotWaitForPublicationCapacity(t *testing.T) {
 	}
 }
 
-func TestVerifiedValidationCancellationDoesNotPoisonNextCaller(t *testing.T) {
-	s, v := seedVerifiedTest(t)
-	s.pinVideo(v)
-	defer s.releaseVideo(v)
-	unlock, err := verificationLocks.acquire(context.Background(), pathIdentity(s.cfg.videosDir())+v.key)
+func TestPublishedFileNeedsNoPlaybackHash(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
+	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := http.NewRequest("GET", videoURL(payload), nil)
+	v, err := s.parse(r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	release := sync.OnceFunc(unlock)
-	defer release()
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	if _, err := s.verifiedFile(ctx, v); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("validation ignored cancellation: %v", err)
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
+	f, err := s.verifiedFile(context.Background(), v)
+	if err != nil {
+		t.Fatal(err)
 	}
-	release()
+	if offset, err := f.file.Seek(0, io.SeekCurrent); err != nil || offset != 0 {
+		t.Fatalf("playback unexpectedly read published bytes: %d, %v", offset, err)
+	}
+}
+
+func TestVerifiedFileCancellationDoesNotPoisonNextCaller(t *testing.T) {
+	s, v := seedVerifiedTest(t)
+	s.pinVideo(v)
+	defer s.releaseVideo(v)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.verifiedFile(ctx, v); !errors.Is(err, context.Canceled) {
+		t.Fatalf("file open ignored cancellation: %v", err)
+	}
 	if _, err := s.verifiedFile(context.Background(), v); err != nil {
-		t.Fatalf("canceled validation poisoned next caller: %v", err)
+		t.Fatalf("canceled file open poisoned next caller: %v", err)
 	}
 }

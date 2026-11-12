@@ -144,11 +144,10 @@ func newStore(path string, db *sql.DB, unlock func() error) *Store {
 	s.usage = newUsage(db, s.log)
 	s.historyChanged = make(chan struct{})
 	s.usage.onHistoryChange = s.notifyHistoryChanged
-	// These are already accepted background writes. Any failed transaction,
-	// including a timeout or constraint failure, means observations were lost.
-	s.usage.onError = func(err error) {
-		s.retainFailure(fmt.Errorf("后台数据库写入失败：%w: %w", ErrLocalStorage, err))
-	}
+	// Lost observations are logged and reported by usage.close. Only terminal
+	// storage faults disable downloads; background conflicts and timeouts use
+	// the same classification as synchronous Store operations.
+	s.usage.onError = s.rememberFailure
 	return s
 }
 

@@ -3,6 +3,7 @@ package console
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,13 +25,14 @@ const maxSongCoverBytes = 1 << 20
 // Only an authenticated cover-view page demand enters this cache. It has no
 // scheduler, channel candidates, probes or background refresh.
 type songCoverCache struct {
-	mu      sync.Mutex
-	pending map[string]*songCoverLoad
-	checked map[string]struct{} // Completed upstream attempts in this program session.
-	slots   chan struct{}
-	closed  bool
-	cancel  map[string]context.CancelFunc
-	wg      sync.WaitGroup
+	mu        sync.Mutex
+	pending   map[string]*songCoverLoad
+	checked   map[string]struct{}          // Completed upstream attempts in this program session.
+	validated map[string][sha256.Size]byte // Latest fully decoded content per cache path.
+	slots     chan struct{}
+	closed    bool
+	cancel    map[string]context.CancelFunc
+	wg        sync.WaitGroup
 }
 
 type songCoverLoad struct {
@@ -45,7 +47,7 @@ func (s *songCoverCache) read(ctx context.Context, client *http.Client, dir, id,
 	// Published files are atomic and can be displayed even while another tab
 	// is waiting for this same image's update check to finish.
 	if mode != "refresh" {
-		data, err := readSongCover(dir, id)
+		data, err := s.readSongCover(dir, id)
 		if err != nil {
 			return nil, 500, err
 		}
@@ -126,7 +128,30 @@ func validSongCover(data []byte) bool {
 	return err == nil
 }
 
-func readSongCover(dir, id string) ([]byte, error) {
+// Reuse full validation only for identical bytes. Old files are checked on
+// first use; changed files are checked again, even if size and mtime match.
+// Keep only a digest per path, never JPEG bytes or decoded pixel buffers.
+func (s *songCoverCache) validCover(filename string, data []byte) bool {
+	digest := sha256.Sum256(data)
+	s.mu.Lock()
+	previous, ok := s.validated[filename]
+	s.mu.Unlock()
+	if ok && previous == digest {
+		return true
+	}
+	if !validSongCover(data) {
+		return false
+	}
+	s.mu.Lock()
+	if s.validated == nil {
+		s.validated = make(map[string][sha256.Size]byte)
+	}
+	s.validated[filename] = digest
+	s.mu.Unlock()
+	return true
+}
+
+func (s *songCoverCache) readSongCover(dir, id string) ([]byte, error) {
 	if err := workfiles.CheckFutureDir(dir); err != nil {
 		return nil, errors.New("封面缓存目录不可用")
 	}
@@ -147,7 +172,7 @@ func readSongCover(dir, id string) ([]byte, error) {
 			if err != nil {
 				return nil, errors.New("无法读取封面缓存")
 			}
-			if validSongCover(data) {
+			if s.validCover(filepath.Join(dir, id+".jpg"), data) {
 				return data, nil
 			}
 		} else if statErr != nil && !os.IsNotExist(statErr) {
@@ -161,7 +186,7 @@ func readSongCover(dir, id string) ([]byte, error) {
 
 func (s *songCoverCache) load(ctx context.Context, client *http.Client, dir, id, mode string) ([]byte, int, error) {
 	filename := filepath.Join(dir, id+".jpg")
-	cached, err := readSongCover(dir, id)
+	cached, err := s.readSongCover(dir, id)
 	if err != nil {
 		return nil, 500, err
 	}
@@ -218,7 +243,7 @@ func (s *songCoverCache) load(ctx context.Context, client *http.Client, dir, id,
 		return nil, 502, errors.New("暂时无法获取封面")
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxSongCoverBytes+1))
-	if err != nil || !validSongCover(data) {
+	if err != nil || !s.validCover(filename, data) {
 		return nil, 502, errors.New("封面图片无效")
 	}
 	if err := ctx.Err(); err != nil {
@@ -294,7 +319,7 @@ func (c *Console) songCoverStateAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for _, id := range ids {
-		data, err := readSongCover(dir, id)
+		data, err := c.covers.readSongCover(dir, id)
 		// A bad cache entry must not prevent displaying other valid images.
 		// Its individual image request will report the actual local error.
 		if err == nil && len(data) > 0 {

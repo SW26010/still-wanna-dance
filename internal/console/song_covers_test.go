@@ -32,6 +32,71 @@ func coverJPEG(t *testing.T) []byte {
 	return body.Bytes()
 }
 
+// Keep compressed input small while making repeated pixel-buffer allocation
+// visible. The ordinary read path should allocate for JPEG bytes, not pixels.
+func TestSongCoverCachedReadsAvoidPixelAllocations(t *testing.T) {
+	var body bytes.Buffer
+	if err := jpeg.Encode(&body, image.NewRGBA(image.Rect(0, 0, 1280, 720)), nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "18.jpg"), body.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var cache songCoverCache
+	defer cache.close()
+	cache.checked = map[string]struct{}{"18": {}}
+	for _, mode := range []string{"cached", "refresh"} {
+		t.Run(mode, func(t *testing.T) {
+			if _, status, err := cache.read(t.Context(), nil, dir, "18", mode); err != nil || status != 200 {
+				t.Fatal(status, err)
+			}
+			result := testing.Benchmark(func(b *testing.B) {
+				for b.Loop() {
+					if _, status, err := cache.read(t.Context(), nil, dir, "18", mode); err != nil || status != 200 {
+						b.Fatal(status, err)
+					}
+				}
+			})
+			t.Logf("cached read: %s, %s", result.String(), result.MemString())
+			if result.AllocedBytesPerOp() > 256<<10 {
+				t.Fatalf("cached JPEG read allocated %d bytes; pixel decoding entered the display path", result.AllocedBytesPerOp())
+			}
+		})
+	}
+}
+
+func BenchmarkSongCoverCachedPage(b *testing.B) {
+	var body bytes.Buffer
+	if err := jpeg.Encode(&body, image.NewRGBA(image.Rect(0, 0, 1280, 720)), nil); err != nil {
+		b.Fatal(err)
+	}
+	dir := b.TempDir()
+	ids := make([]string, 50)
+	for i := range ids {
+		ids[i] = fmt.Sprint(i + 1)
+		if err := os.WriteFile(filepath.Join(dir, ids[i]+".jpg"), body.Bytes(), 0600); err != nil {
+			b.Fatal(err)
+		}
+	}
+	var cache songCoverCache
+	defer cache.close()
+	for _, id := range ids {
+		if _, status, err := cache.read(b.Context(), nil, dir, id, "cached"); err != nil || status != 200 {
+			b.Fatal(status, err)
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		for _, id := range ids {
+			if _, status, err := cache.read(b.Context(), nil, dir, id, "cached"); err != nil || status != 200 {
+				b.Fatal(status, err)
+			}
+		}
+	}
+}
+
 func coverRequest(c *Console, method, query, token string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, "http://"+c.address+"/api/library/cover?"+query, nil)
 	r.Header.Set("X-SWD-Token", token)
@@ -137,6 +202,59 @@ func TestSongCoverFailureIsNotCachedAndCanRecover(t *testing.T) {
 				t.Fatal("explicit retry did not recover", w.Code, calls)
 			}
 		})
+	}
+}
+
+func TestSongCoverChangedCacheIsValidatedAndCanRecover(t *testing.T) {
+	c := testConsole(t)
+	body := coverJPEG(t)
+	var calls int
+	c.client.Transport = catalogTransport(func(*http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(body))}, nil
+	})
+	if w := coverRequest(c, "GET", "id=18", c.token); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	filename := filepath.Join(c.files().Root, "data", "covers", "18.jpg")
+	info, err := os.Stat(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Preserve size, timestamp and the readable JPEG header. A metadata-only
+	// validation cache or DecodeConfig alone would incorrectly trust this file.
+	broken := bytes.Clone(body)
+	clear(broken[len(broken)/2:])
+	if _, err := jpeg.DecodeConfig(bytes.NewReader(broken)); err != nil || validSongCover(broken) {
+		t.Fatal("fixture must have a readable header but invalid pixels", err)
+	}
+	if err := os.WriteFile(filename, broken, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(filename, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("GET", "http://"+c.address+"/api/library/covers?ids=18", nil)
+	r.Header.Set("X-SWD-Token", c.token)
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"cached":[]`) || calls != 1 {
+		t.Fatal("inspection trusted damaged pixels or fetched upstream", w.Code, w.Body.String(), calls)
+	}
+	if w := coverRequest(c, "GET", "id=18&mode=cached", c.token); w.Code != 404 || calls != 1 {
+		t.Fatal("cached read trusted damaged pixels or fetched upstream", w.Code, calls)
+	}
+	var restarted songCoverCache
+	defer restarted.close()
+	if _, status, err := restarted.read(t.Context(), nil, filepath.Dir(filename), "18", "cached"); status != 404 || err == nil {
+		t.Fatal("new session trusted damaged pixels", status, err)
+	}
+	if w := coverRequest(c, "GET", "id=18&mode=refresh", c.token); w.Code != 200 || !bytes.Equal(w.Body.Bytes(), body) || calls != 2 {
+		t.Fatal("damaged cache did not recover after the session check", w.Code, calls)
+	}
+	data, err := os.ReadFile(filename)
+	if err != nil || !bytes.Equal(data, body) {
+		t.Fatal("recovered image not published", err)
 	}
 }
 

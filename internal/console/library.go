@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 	"unicode/utf16"
@@ -10,6 +11,11 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 )
+
+type libraryPage struct {
+	cacheproxy.LibraryPage
+	Covers map[string]songCoverChoice `json:"covers,omitempty"`
+}
 
 func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
@@ -40,6 +46,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size" || q.Sort == "recent" || q.Sort == "resource" && q.View == "resources")
 	valid = valid && (q.Direction == "" || q.Direction == "ascending" || q.Direction == "descending")
 	valid = valid && (q.Filter == "" || q.Filter == "saved" || q.Filter == "missing" || q.View != "resources" && (q.Filter == "normal" || q.Filter == "favorite" || q.Filter == "blocked"))
+	valid = valid && (values.Get("covers") == "" || values.Get("covers") == "1" && q.View != "resources")
 	if !valid {
 		preserveResponseFault(w, rejectRequest(err))
 		http.Error(w, "无效查询", 400)
@@ -92,7 +99,15 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range local {
 		entry.Protected = entry.Protected || scanning
 	}
-	writeJSON(w, page)
+	result := libraryPage{LibraryPage: page}
+	if values.Get("covers") == "1" {
+		ids := make([]string, 0, len(page.Songs))
+		for _, song := range page.Songs {
+			ids = append(ids, song.ID)
+		}
+		result.Covers = c.covers.choices(filepath.Join(c.files().Root, "data", "covers"), ids)
+	}
+	writeJSON(w, result)
 }
 
 func validLibraryResource(key string) bool {

@@ -52,7 +52,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();
   const dialogFocusTarget=useRestoreFocusTarget();
-  const pagePath='library?'+new URLSearchParams({...query,offset:String(offset)});
+  const pagePath='library?'+new URLSearchParams({...query,offset:String(offset),...(view==='songs'&&covers?{covers:'1'}:{})});
   useEffect(()=>setCoverDetails(undefined),[covers,view,visible,app.stopped,pagePath]);
   const page=useResource<LibraryPage>(pagePath,visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
   const resultQuery=readLibraryQuery(page.loadedPath||pagePath);
@@ -71,8 +71,8 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const disabled=app.unavailable||pending||actions.pending||pageUnavailable;
   const resources=page.data?.resources||{};
   const resourceRows=page.data?.keys.map(key=>resources[key])??[];
-  const nextCoverPage=offset+50<(page.data?.total||0)?'library?'+new URLSearchParams({...query,offset:String(offset+50)}):'';
-  const coverImages=useLibraryCovers(page.data?.songs.map(song=>song.id).join(',')||'',nextCoverPage,visible&&view==='songs'&&covers&&!app.stopped&&!page.error&&page.loadedPath===pagePath);
+  const nextCoverPage=offset+50<(page.data?.total||0)?'library?'+new URLSearchParams({...query,offset:String(offset+50),covers:'1'}):'';
+  const coverImages=useLibraryCovers(page.data,nextCoverPage,visible&&view==='songs'&&covers&&!app.stopped&&!page.error&&page.loadedPath===pagePath);
   useEffect(()=>{
     if(visible&&page.loadedPath===pagePath&&page.data&&offset>=page.data.total&&offset>0)navigate({offset:0},true);
   },[visible,page.data,page.loadedPath,pagePath,offset]);
@@ -189,7 +189,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
         {!!actions.result.entries?.length&&<Table size="small" aria-label="未删除的视频"><TableHeader><TableRow><TableHeaderCell>视频</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{actions.result.entries.map(entry=><TableRow key={entry.key}><TableCell><span className={entry.label===entry.key?'resource-id':undefined}>{entry.label}</span></TableCell><TableCell>{entry.reason}</TableCell></TableRow>)}</TableBody></Table>}
       </section>}
       {view==='songs'&&covers?<ul className="library-cover-grid" aria-label="曲库封面" aria-busy={page.loading}>{page.data?.songs.map(song=><li key={song.id}>
-        <LibraryCoverCard id={song.id} title={song.title||'歌曲 '+song.id} group={song.group} enabled={visible&&!app.stopped&&!page.error&&page.loadedPath===pagePath} open={coverDetails===song.id} onOpenChange={open=>setCoverDetails(current=>open?song.id:current===song.id?undefined:current)} cover={coverImages[song.id]} preferences={songPreferences(song,true)} details={songDetails(song,true)} operations={songOperations(song,true)} previewDisabled={disabled||!!page.data?.videoError||!!songPreviewReason(song)} previewReason={songPreviewReason(song)} onPreview={()=>setPreview(songPreview(song))}/>
+        <LibraryCoverCard id={song.id} title={song.title||'歌曲 '+song.id} group={song.group} selection={page.data?.covers?.[song.id]?.source} enabled={visible&&!app.stopped&&!page.error&&page.loadedPath===pagePath} open={coverDetails===song.id} onOpenChange={open=>setCoverDetails(current=>open?song.id:current===song.id?undefined:current)} cover={coverImages[song.id]} preferences={songPreferences(song,true)} details={songDetails(song,true)} operations={songOperations(song,true)} previewDisabled={disabled||!!page.data?.videoError||!!songPreviewReason(song)} previewReason={songPreviewReason(song)} onPreview={()=>setPreview(songPreview(song))}/>
       </li>)}</ul>:view==='songs'?<RecordDataTable key="songs" busy={page.loading} regionLabel="曲库表格" label="曲库歌曲" className="song-table" columns={songColumns} items={page.data?.songs} getRowId={song=>song.id} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>:<RecordDataTable key="resources" busy={page.loading} regionLabel="曲库表格" label="曲库资源" columns={resourceColumns} items={resourceRows} getRowId={resource=>resource.key} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>}
       {!page.error&&page.data?.total===0&&<p className="empty-state">没有匹配项，请调整搜索或更新清单。</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}

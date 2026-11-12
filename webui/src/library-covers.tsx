@@ -3,28 +3,63 @@ import {Button,Card,CardFooter,CardPreview,Menu,MenuItem,MenuList,MenuPopover,Me
 import {MoreHorizontalRegular,PlayCircleFilled} from '@fluentui/react-icons';
 import {request,requestBlob} from './api';
 import {categoryCover} from './category-covers';
-import type {LibraryPage} from './types';
+import type {LibraryCoverChoice,LibraryPage} from './types';
 
-type Cover={source:string};
+type Cover={source?:string;unavailable?:boolean};
+type CachedCover={source:string;bytes:number};
+const retainedCoverLimit=150,retainedCoverBudget=8*1024*1024;
 
 // Each page demand has four workers. The server also caps all tabs together at
 // four network requests. Replacing/leaving a page cancels the old demand.
-export function useLibraryCovers(ids:string,nextPage:string,enabled:boolean) {
-  const [covers,setCovers]=useState<Record<string,Cover>>({});
+export function useLibraryCovers(page:LibraryPage|undefined,nextPage:string,enabled:boolean) {
+  const demand=JSON.stringify(page?.covers?{ids:page.songs.map(song=>song.id),choices:page.covers}:null);
+  const [covers,setCovers]=useState<{demand:string;images:Record<string,Cover>}>({demand:'',images:{}});
+  const cached=useRef(new Map<string,CachedCover>()),urls=useRef(new Set<string>());
   const [documentVisible,setDocumentVisible]=useState(!document.hidden);
   useEffect(()=>{const update=()=>setDocumentVisible(!document.hidden);document.addEventListener('visibilitychange',update);return()=>document.removeEventListener('visibilitychange',update);},[]);
+  useEffect(()=>()=>{for(const url of urls.current)URL.revokeObjectURL(url);urls.current.clear();cached.current.clear();},[]);
   useEffect(()=>{
-    if(!enabled||!documentVisible||!ids)return;
-    const controller=new AbortController(),urls=new Set<string>();
-    const current=ids.split(','),currentSet=new Set(current);
-    setCovers({});
+    // Retire replaced/evicted URLs after React has committed their replacements.
+    const retained=new Set([...cached.current.values(),...Object.values(covers.images)].map(cover=>cover.source));
+    for(const url of urls.current)if(!retained.has(url)){URL.revokeObjectURL(url);urls.current.delete(url);}
+  },[covers]);
+  useEffect(()=>{
+    if(!enabled||!documentVisible||demand==='null')return;
+    const controller=new AbortController(),cache=cached.current;
+    const {ids:current,choices:selection}:{ids:string[];choices:Record<string,LibraryCoverChoice>}=JSON.parse(demand);
+    const currentSet=new Set(current),unavailable=new Set<string>();
+    const publish=()=>{
+      // Current-page images are the active working set; budget retained others.
+      let bytes=[...cache].reduce((total,[id,cover])=>total+(currentSet.has(id)?0:cover.bytes),0);
+      for(const [id,cover] of cache){
+        if(cache.size<=retainedCoverLimit&&bytes<=retainedCoverBudget)break;
+        if(!currentSet.has(id)){bytes-=cover.bytes;cache.delete(id);}
+      }
+      const images:Record<string,Cover>=Object.fromEntries(cache);
+      for(const id of unavailable)if(!images[id])images[id]={unavailable:true};
+      setCovers({demand,images});
+    };
+    for(const id of current){
+      if(selection[id].source==='category'){cache.delete(id);continue;}
+      const cover=cache.get(id);if(cover){cache.delete(id);cache.set(id,cover);}
+    }
+    publish();
     const show=async(id:string,mode:string)=>{
+      let pending:string|undefined;
       try {
+        if(mode!=='refresh'&&cache.has(id))return;
         const blob=await requestBlob('library/cover?'+new URLSearchParams({id,...(mode?{mode}:{})}),controller.signal);
-        if(controller.signal.aborted||!currentSet.has(id))return;
-        const source=URL.createObjectURL(blob);urls.add(source);
-        setCovers(previous=>({...previous,[id]:{source}}));
-      }catch{/* Keep any existing image or category background on failure. */}
+        if(controller.signal.aborted)return;
+        const source=URL.createObjectURL(blob);pending=source;
+        const image=new Image();image.src=source;await image.decode();
+        if(controller.signal.aborted)return;
+        urls.current.add(source);pending=undefined;
+        cache.delete(id);cache.set(id,{source,bytes:blob.size});
+        publish();
+      }catch{
+        if(!controller.signal.aborted&&currentSet.has(id)&&selection[id].source==='local'&&mode!=='refresh'&&!cache.has(id)){unavailable.add(id);publish();}
+      }
+      finally{if(pending)URL.revokeObjectURL(pending);}
     };
     const workers=async(tasks:{id:string;mode:string}[])=>{
       let next=0;
@@ -34,36 +69,41 @@ export function useLibraryCovers(ids:string,nextPage:string,enabled:boolean) {
     };
     void (async()=>{
       try {
-        const {cached,refresh}=await request<{cached:string[];refresh:string[]}>('library/covers?'+new URLSearchParams({ids}),undefined,controller.signal);
-        const available=new Set(cached);
         // Show existing current-page files first; these reads cannot download.
-        await workers(current.filter(id=>available.has(id)).map(id=>({id,mode:'cached'})));
-        await workers(current.filter(id=>!available.has(id)).map(id=>({id,mode:''})));
-        // Only metadata is read for the next page, using the same search/sort.
-        // Its failure must not prevent current images or their update checks.
+        await workers(current.filter(id=>selection[id].source==='local').map(id=>({id,mode:'cached'})));
+        await workers(current.filter(id=>selection[id].source==='category').map(id=>({id,mode:''})));
+        // Prepare next-page files and decoded images using the same search/sort.
+        // Cached reads cannot download; failures must not skip current updates.
         try {
-          const next=nextPage?(await request<LibraryPage>(nextPage,undefined,controller.signal)).songs.map(song=>song.id):[];
-          if(next.length&&!controller.signal.aborted){
-            const state=await request<{cached:string[]}>('library/covers?'+new URLSearchParams({ids:next.join(',')}),undefined,controller.signal);
-            const nextCached=new Set(state.cached);
-            await workers(next.filter(id=>!currentSet.has(id)&&!nextCached.has(id)).map(id=>({id,mode:''})));
+          const next=nextPage?await request<LibraryPage>(nextPage,undefined,controller.signal):undefined;
+          if(next?.covers&&!controller.signal.aborted){
+            const choices=next.covers,ids=next.songs.map(song=>song.id).filter(id=>!currentSet.has(id));
+            for(const id of ids)if(choices[id].source==='category')cache.delete(id);
+            publish();
+            await workers(ids.map(id=>({id,mode:choices[id].source==='local'?'cached':''})));
           }
         }catch{/* Optional next-page prefetch must not skip current-page checks. */}
-        await workers(refresh.map(id=>({id,mode:'refresh'})));
-      }catch{/* Cover metadata failure leaves loaded images and category backgrounds. */}
+        await workers(current.filter(id=>selection[id].refresh).map(id=>({id,mode:'refresh'})));
+      }catch{/* Failed work leaves loaded images or the selected category source. */}
     })();
-    return()=>{controller.abort();for(const url of urls)URL.revokeObjectURL(url);};
-  },[ids,nextPage,enabled,documentVisible]);
-  return enabled&&documentVisible?covers:{};
+    return()=>controller.abort();
+  },[demand,nextPage,enabled,documentVisible]);
+  return covers.demand===demand?covers.images:{};
 }
 
-export function LibraryCoverCard({id,title,group,enabled,open,onOpenChange,cover,preferences,details,operations,previewDisabled,previewReason,onPreview}:{
-  id:string;title:string;group:string;enabled:boolean;cover?:Cover;preferences:ReactNode;details:ReactNode;operations:ReactNode;
+function CoverImage({source,fallback}:{source?:string;fallback:string}) {
+  const [displayed,setDisplayed]=useState<string>(),[failed,setFailed]=useState<string>();
+  const candidate=source&&source===failed?fallback:source;
+  // Keep the shown image during updates; React retains the loaded candidate by key.
+  return [...new Set([displayed,candidate])].filter((url):url is string=>!!url).map(url=><img key={url} src={url} alt="" width={480} height={360} className={url===displayed?'is-ready':undefined} onLoad={()=>{if(url===candidate)setDisplayed(url);}} onError={()=>{if(url===candidate)setFailed(url);}}/>);
+}
+
+export function LibraryCoverCard({id,title,group,selection,enabled,open,onOpenChange,cover,preferences,details,operations,previewDisabled,previewReason,onPreview}:{
+  id:string;title:string;group:string;selection?:LibraryCoverChoice['source'];enabled:boolean;cover?:Cover;preferences:ReactNode;details:ReactNode;operations:ReactNode;
   open:boolean;onOpenChange:(open:boolean)=>void;
   previewDisabled:boolean;previewReason:string;onPreview:()=>void;
 }) {
   const [menuOpen,setMenuOpen]=useState(false),[detailsAction,setDetailsAction]=useState(false);
-  const [failedSource,setFailedSource]=useState<string>();
   const target=useRef<HTMLDivElement>(null),enterTimer=useRef<ReturnType<typeof setTimeout>>(undefined),leaveTimer=useRef<ReturnType<typeof setTimeout>>(undefined);
   const menuButton=useRef<HTMLButtonElement>(null),detailSurface=useRef<HTMLDivElement>(null);
   const clearEnter=()=>{clearTimeout(enterTimer.current);enterTimer.current=undefined;};
@@ -90,8 +130,9 @@ export function LibraryCoverCard({id,title,group,enabled,open,onOpenChange,cover
     document.addEventListener('keydown',escape);
     return()=>document.removeEventListener('keydown',escape);
   },[open]);
-  const playButton=<Button {...focusTarget} className="library-cover-play" style={{backgroundImage:`url("${categoryCover(group)}")`}} appearance="transparent" aria-label={`预览歌曲 ${id}：${title}`} disabled={previewDisabled} disabledFocusable={!!previewReason} onClick={()=>{setOpen(false);onPreview();}}>
-    {cover?.source&&cover.source!==failedSource&&<img key={cover.source} src={cover.source} alt="" width={480} height={360} onError={()=>setFailedSource(cover.source)}/>}
+  const fallback=categoryCover(group),source=cover?.source||(selection==='category'||cover?.unavailable?fallback:undefined);
+  const playButton=<Button {...focusTarget} className="library-cover-play" appearance="transparent" aria-label={`预览歌曲 ${id}：${title}`} disabled={previewDisabled} disabledFocusable={!!previewReason} onClick={()=>{setOpen(false);onPreview();}}>
+    <CoverImage source={source} fallback={fallback}/>
     <span className="library-cover-play-indicator" aria-hidden="true"><PlayCircleFilled/></span>
   </Button>;
   return <Popover unstable_disableAutoFocus={!detailsAction} open={enabled&&open&&!menuOpen} onOpenChange={(_,data)=>{if(!data.open)setOpen(false);}} positioning={{target:target.current,strategy:'fixed',autoSize:'height',overflowBoundaryPadding:16}}>

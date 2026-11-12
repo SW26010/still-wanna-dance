@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
 for(const endpoint of ['inventory','downloads'] as const)for(const failure of ['503','timeout'] as const)test(`${endpoint} keeps following active work after ${failure} until completion`,async({page})=>{
-  await mockAPI(page);
+  await mockAPI(page,{libraryView:'list'});
   let reads=0,fail=false,complete=false;
   await page.route('**/api/'+endpoint,route=>{
     reads++;

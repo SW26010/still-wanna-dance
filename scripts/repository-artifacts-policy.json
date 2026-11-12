@@ -1865,6 +1865,13 @@
       "bytes": 1307772,
       "sha256": "28cc3428aa5e810f8a24fda8a6bd6df1e15c360022b12c67d5ce84e1e7913c64",
       "reason": "Production WebUI after removing unread cover error state while preserving loaded/category fallbacks, with source attribution including user-supplied community artwork; generated assets match webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1309074,
+      "sha256": "f88cd984e26ee14b886ea2019d247ca0e9aeffe14e8126c08ee446aeeecefa00",
+      "reason": "Production WebUI uses page-provided cover choices, neutral loading surfaces and bounded Blob reuse; loaded image elements survive category-to-local promotion without a source-kind React key. Bundle matches webui/build-manifest.json."
     }
   ]
 }

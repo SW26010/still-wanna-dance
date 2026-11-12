@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -51,7 +50,7 @@ func TestMD5PlaybackCheckRedactsTransportURL(t *testing.T) {
 
 func TestMD5IdentityAcrossDifferentResourceVersions(t *testing.T) {
 	var downloads atomic.Int32
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveFixtureContent(w, r, payload) })
 	first := videoURL(payload)
 	second := strings.Replace(strings.Replace(first, "1344-660524b4ebadb", "9876-entirelyDifferent", 1), "/2403/", "/9999/", 1)
 	for i, target := range []string{first, second} {
@@ -114,7 +113,7 @@ func TestMD5ReferenceSnapshotCatalogUpdatesAndMissing(t *testing.T) {
 func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 	var downloads atomic.Int32
 	started, finish := make(chan struct{}), make(chan struct{})
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 			close(started)
 			select {
@@ -154,7 +153,7 @@ func TestMD5PlaybackImmediatelyReturnsAndMismatchOnlyLogs(t *testing.T) {
 }
 
 func TestMD5UnknownIDColdLoadMappingSurvivesCatalog(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
 	s.wg.Wait()
@@ -171,7 +170,7 @@ func TestMD5UnknownIDColdLoadMappingSurvivesCatalog(t *testing.T) {
 
 func TestMD5PublishedFilesTrustedAcrossRestart(t *testing.T) {
 	var downloads atomic.Int32
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveFixtureContent(w, r, payload) })
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}

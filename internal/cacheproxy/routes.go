@@ -67,6 +67,9 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 		}
 		attempts.redirects++
 		next.Header = r.Header.Clone()
+		// Entity conditions belong to the original target URI. The final
+		// response is checked against the resource's bound endpoint and ETag.
+		next.Header.Del("If-Match")
 		r = next
 	}
 }
@@ -197,41 +200,4 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		return nil, errors.New("no executable resource channel")
 	}
 	return nil, errors.Join(failures...)
-}
-
-func (s *Server) openUpstream(ctx context.Context, v video, block int64, attempts *resourceAttempts) (*http.Response, string, error) {
-	r, err := s.routeRequest(ctx, v)
-	if err != nil {
-		return nil, "", err
-	}
-	start := block * s.cfg.BlockSize
-	end := start + blockBytes(v.size, block, s.cfg.BlockSize)
-	r.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
-	for {
-		resp, err := s.videoResponse(r, v, attempts)
-		if err != nil {
-			return nil, "", applog.SafeError(err)
-		}
-		switch {
-		case resp.StatusCode == http.StatusPartialContent:
-			err = validateRangeResponse(resp, start, end, v.size)
-		case resp.StatusCode != http.StatusOK:
-			err = fmt.Errorf("upstream status %d", resp.StatusCode)
-		case resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity":
-			err = errors.New("unexpected upstream encoding")
-		case resp.ContentLength >= 0 && resp.ContentLength != v.size:
-			err = errors.New("upstream content length mismatch")
-		}
-		if err != nil {
-			resp.Body.Close()
-			// Retry this validated endpoint on the next measured channel.
-			if resp.Request != nil {
-				r = resp.Request.Clone(ctx)
-			}
-			candidates := s.candidates(r, attempts)
-			candidates.err = err
-			continue
-		}
-		return resp, v.host, nil
-	}
 }

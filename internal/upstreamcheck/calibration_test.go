@@ -269,7 +269,7 @@ func calibrationLoopsDiscardedVideoAndSnapshots(t *testing.T) {
 	}
 }
 
-func TestCalibrationSequentialFallbackDoesNotCheckIntegrity(t *testing.T) {
+func TestCalibrationRangeDoesNotCheckIntegrity(t *testing.T) {
 	for _, corrupt := range []bool{false, true} {
 		t.Run(fmt.Sprint(corrupt), func(t *testing.T) {
 			data := make([]byte, 32<<20)
@@ -279,10 +279,14 @@ func TestCalibrationSequentialFallbackDoesNotCheckIntegrity(t *testing.T) {
 			var requests atomic.Int32
 			repeated := make(chan struct{})
 			c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
-				if requests.Add(1) == 2 {
+				if requests.Add(1) == 33 {
 					close(repeated)
 				}
-				return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(data)), Body: io.NopCloser(bytes.NewReader(data))}, nil
+				resp := calibrationRange(r, nil)
+				var start, end int64
+				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+				resp.Body = io.NopCloser(bytes.NewReader(data[start : end+1]))
+				return resp, nil
 			}))
 			if err := c.Start(); err != nil {
 				t.Fatal(err)
@@ -290,8 +294,8 @@ func TestCalibrationSequentialFallbackDoesNotCheckIntegrity(t *testing.T) {
 			<-repeated
 			c.Cancel()
 			s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return !s.Running })
-			if s.Phase != "canceled" || s.PeakActive != 1 || s.Completed != 0 || requests.Load() < 2 {
-				t.Fatalf("sequential/integrity behavior changed: %+v requests=%d", s, requests.Load())
+			if s.Phase != "canceled" || s.PeakActive != 1 || c.bytes.Load() < 32<<20 || s.Failures != 0 || requests.Load() < 33 {
+				t.Fatalf("Range discard unexpectedly checked integrity: %+v requests=%d", s, requests.Load())
 			}
 		})
 	}
@@ -299,9 +303,12 @@ func TestCalibrationSequentialFallbackDoesNotCheckIntegrity(t *testing.T) {
 
 func TestCalibrationDoesNotStopAtOneGiB(t *testing.T) {
 	reached := make(chan struct{})
+	var read atomic.Int64
+	var once sync.Once
 	fixture, _ := calibrationManyVideosSized(t, 1, 2<<30, func(r *http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: 2 << 30,
-			Body: io.NopCloser(&calibrationThresholdReader{ctx: r.Context(), reached: reached})}, nil
+		resp := calibrationRangeSized(r, nil, 2<<30)
+		resp.Body = io.NopCloser(io.LimitReader(&calibrationThresholdReader{ctx: r.Context(), reached: reached, read: &read, once: &once}, resp.ContentLength))
+		return resp, nil
 	})
 	c := calibrationForTest(t, fixture)
 	c.limits.minimum = 10 * time.Second
@@ -324,17 +331,18 @@ func TestCalibrationDoesNotStopAtOneGiB(t *testing.T) {
 type calibrationThresholdReader struct {
 	ctx     context.Context
 	reached chan struct{}
-	read    int64
+	read    *atomic.Int64
+	once    *sync.Once
 }
 
 func (r *calibrationThresholdReader) Read(p []byte) (int, error) {
-	if r.read > 1<<30 {
-		close(r.reached)
+	if r.read.Load() > 1<<30 {
+		r.once.Do(func() { close(r.reached) })
 		<-r.ctx.Done()
 		return 0, r.ctx.Err()
 	}
 	clear(p)
-	r.read += int64(len(p))
+	r.read.Add(int64(len(p)))
 	return len(p), nil
 }
 
@@ -401,12 +409,13 @@ func TestCalibrationTimeLimitAndRetirement(t *testing.T) {
 func TestCalibrationDoesNotNeedWritableTemporaryStorage(t *testing.T) {
 	var requests atomic.Int32
 	repeated := make(chan struct{})
-	c := calibrationForTest(t, calibrationTransport(func(*http.Request) (*http.Response, error) {
+	c := calibrationForTest(t, calibrationTransport(func(r *http.Request) (*http.Response, error) {
 		if requests.Add(1) == 2 {
 			close(repeated)
 		}
-		return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: 32 << 20,
-			Body: io.NopCloser(io.LimitReader(zeroCalibrationReader{}, 32<<20))}, nil
+		resp := calibrationRange(r, nil)
+		resp.Body = io.NopCloser(io.LimitReader(zeroCalibrationReader{}, resp.ContentLength))
+		return resp, nil
 	}))
 	root := t.TempDir()
 	file := filepath.Join(root, "file")
@@ -420,7 +429,7 @@ func TestCalibrationDoesNotNeedWritableTemporaryStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-repeated
-	s, _ := c.Snapshot()
+	s := awaitCalibration(t, c, func(s CalibrationStatus) bool { return s.Bytes >= 32<<20 || !s.Running })
 	if !s.Running || c.bytes.Load() < 32<<20 {
 		t.Fatalf("discard depended on storage: %+v", s)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,7 +33,7 @@ func TestSongRetryKeepsSelectedResource(t *testing.T) {
 						return
 					}
 					freshRequests.Add(1)
-					io.WriteString(w, body)
+					serveFixtureContent(w, r, body)
 				}, func(cfg *Config) {
 					cfg.CacheUnlimited = true
 					cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {

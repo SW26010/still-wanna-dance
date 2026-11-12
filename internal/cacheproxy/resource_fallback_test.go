@@ -8,60 +8,13 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"still-wanna-dance/internal/upstreamrequest"
 )
-
-func TestFullResponseFallbackUsesFullAttemptTimeout(t *testing.T) {
-	for _, tc := range []struct {
-		name       string
-		candidates int
-		timeout    time.Duration
-		succeeds   bool
-	}{
-		{"single", 1, time.Second, true},
-		{"with-backup", 2, time.Second, true},
-		{"attempt-deadline", 2, 200 * time.Millisecond, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
-				w.WriteHeader(200)
-				w.(http.Flusher).Flush()
-				select {
-				case <-time.After(700 * time.Millisecond):
-					io.WriteString(w, payload)
-				case <-r.Context().Done():
-				}
-			})
-			s.cfg.DownloadTimeout = tc.timeout
-			var backup atomic.Int32
-			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
-				transports := []http.RoundTripper{s.client.Transport}
-				if tc.candidates > 1 {
-					transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
-						backup.Add(1)
-						return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(payload)), Body: io.NopCloser(bytes.NewReader([]byte(payload))), Request: r}, nil
-					}))
-				}
-				return transports
-			}
-			_, err := s.Prefetch(context.Background(), videoURL(payload))
-			if tc.succeeds && err != nil {
-				t.Fatal(err)
-			}
-			if !tc.succeeds && !errors.Is(err, context.DeadlineExceeded) {
-				t.Fatalf("attempt deadline lost: %v", err)
-			}
-			if backup.Load() != 0 {
-				t.Fatalf("accepted full response was restarted: %d", backup.Load())
-			}
-		})
-	}
-}
 
 type stalledResourceBody struct{ ctx context.Context }
 
@@ -230,13 +183,15 @@ func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
 func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 	for _, failure := range []string{"short", "wrong-range", "changed-etag"} {
 		t.Run(failure, func(t *testing.T) {
-			s, _ := setup(t, nil)
+			s, _ := setup(t, nil, func(c *Config) { c.DownloadGrowInterval = 0 })
 			body := bytes.Repeat([]byte("z"), int(2*rangeBlockSize+16))
 			original := videoURL(string(body))
-			// Each later block uses all five redirects and must still be able
+			// Each cold block uses all five redirects and must still be able
 			// to retry the final endpoint on its backup channel.
 			final := original + "&hop=5"
 			var originalFirst, originalBackup, finalFirst, finalBackup atomic.Int32
+			var entered atomic.Int32
+			allStarted, prefixRead := make(chan struct{}), make(chan struct{})
 			s.cfg.ResourceTransports = func(target string) []http.RoundTripper {
 				var transports []http.RoundTripper
 				for channel := range 2 {
@@ -249,9 +204,16 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 								return nil, errors.New("A backup unavailable")
 							}
 							originalFirst.Add(1)
-							if start > 0 {
-								return &http.Response{StatusCode: 307, Header: http.Header{"Location": {original + "&hop=1"}}, Body: http.NoBody, Request: r}, nil
+							// All cold tasks start before any final endpoint is known.
+							if entered.Add(1) == 3 {
+								close(allStarted)
 							}
+							select {
+							case <-allStarted:
+							case <-r.Context().Done():
+								return nil, r.Context().Err()
+							}
+							return &http.Response{StatusCode: 307, Header: http.Header{"Location": {original + "&hop=1"}}, Body: http.NoBody, Request: r}, nil
 						} else if target != final {
 							hop, err := strconv.Atoi(r.URL.Query().Get("hop"))
 							if err != nil || hop < 1 || hop >= 5 {
@@ -261,11 +223,22 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 						}
 						resp := &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}, "Etag": {`"stable"`}}, ContentLength: end - start + 1, Body: io.NopCloser(bytes.NewReader(body[start : end+1])), Request: r}
 						if target == final {
-							if r.Header.Get("If-Match") != `"stable"` {
-								t.Error("entity condition lost")
-							}
 							if channel == 0 {
 								finalFirst.Add(1)
+								if r.Header.Get("If-Match") != "" {
+									t.Error("redirect forwarded a foreign entity condition")
+								}
+								if start == 0 {
+									resp.Body = &rangeCountedBody{ReadCloser: resp.Body, closed: sync.OnceFunc(func() { close(prefixRead) })}
+									return resp, nil
+								}
+								// Establish the final endpoint's entity before injecting
+								// an independent body/validation failure there.
+								select {
+								case <-prefixRead:
+								case <-r.Context().Done():
+									return nil, r.Context().Err()
+								}
 								switch failure {
 								case "short":
 									resp.Body = io.NopCloser(bytes.NewReader(body[start:end]))
@@ -276,6 +249,9 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 								}
 							} else {
 								finalBackup.Add(1)
+								if r.Header.Get("If-Match") != `"stable"` {
+									t.Error("final endpoint retry lost its own entity condition")
+								}
 							}
 						}
 						return resp, nil
@@ -283,12 +259,14 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 				}
 				return transports
 			}
-			if _, err := s.Prefetch(context.Background(), original); err != nil {
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			if _, err := s.Prefetch(ctx, original); err != nil {
 				t.Fatal(err)
 			}
-			// Each later block must start from A independently; only that
-			// block's retry resumes at B.
-			if originalFirst.Load() != 3 || originalBackup.Load() != 0 || finalFirst.Load() != 2 || finalBackup.Load() != 2 {
+			// This initial concurrent wave starts at A; each block's retry
+			// stays at B and retains B's own entity condition.
+			if originalFirst.Load() != 3 || originalBackup.Load() != 0 || finalFirst.Load() != 3 || finalBackup.Load() != 2 {
 				t.Fatalf("A first=%d A backup=%d B first=%d B backup=%d", originalFirst.Load(), originalBackup.Load(), finalFirst.Load(), finalBackup.Load())
 			}
 		})

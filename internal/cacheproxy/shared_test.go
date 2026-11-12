@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -23,9 +22,9 @@ func TestSharedResourceMappingsSurviveUpdatesAndRestart(t *testing.T) {
 	const fresh = "replacement video"
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "99-") {
-			io.WriteString(w, fresh)
+			serveFixtureContent(w, r, fresh)
 		} else {
-			io.WriteString(w, payload)
+			serveFixtureContent(w, r, payload)
 		}
 	})
 	ctx := context.Background()
@@ -94,7 +93,7 @@ func TestConcurrentSongsShareFlightAndRecordEveryMapping(t *testing.T) {
 		}
 		select {
 		case <-release:
-			io.WriteString(w, payload)
+			serveFixtureContent(w, r, payload)
 		case <-r.Context().Done():
 		}
 	})

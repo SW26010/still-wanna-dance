@@ -37,7 +37,7 @@ func retainedPath(t *testing.T, s *Server, cfg Config, id string) string {
 }
 
 func TestCanonicalPublicationMetadataRestartAndEviction(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	name := "My song"
 	v, err := s.parse(httptest.NewRequest("GET", videoURL(payload), nil))
 	if err != nil {
@@ -110,7 +110,7 @@ func TestActiveReaderAndFailedDownloadKeepExistingVersion(t *testing.T) {
 					io.WriteString(w, "bad")
 					return
 				}
-				io.WriteString(w, payload)
+				serveFixtureContent(w, r, payload)
 			})
 			oldPath := testVideoFile(t, cfg, "old version")
 			writeTestFile(t, oldPath, "old version")

@@ -17,7 +17,7 @@ func completedRangeFlight(t *testing.T, s *Server, body string) (*flight, video)
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := s.newLocalResource(v, &http.Response{Header: make(http.Header)}, s.cfg.Logger)
+	d, err := s.newLocalResource(v, s.cfg.Logger)
 	if err != nil {
 		t.Fatal(err)
 	}

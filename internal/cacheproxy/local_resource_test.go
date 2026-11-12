@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -32,7 +33,7 @@ func TestLocalResourceLifetimePreservesCompleteBlocksAndReaders(t *testing.T) {
 		body := "complete block " + strconv.Itoa(i)
 		r, _ := http.NewRequest("GET", videoURL(body), nil)
 		v, _ := s.parseResolved(r)
-		d, err := s.newLocalResource(v, &http.Response{Header: make(http.Header)}, s.cfg.Logger)
+		d, err := s.newLocalResource(v, s.cfg.Logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,7 +119,7 @@ func TestLateLocalReaderPreservesNewFlightAddress(t *testing.T) {
 	}
 	// Retained blocks can outlive their old flight; a delayed GET may still
 	// take its completed/ErrNotRetained branch after the next flight starts.
-	local, err := s.newLocalResource(oldVideo, &http.Response{StatusCode: http.StatusPartialContent, Header: make(http.Header)}, s.cfg.Logger)
+	local, err := s.newLocalResource(oldVideo, s.cfg.Logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func TestLateLocalReaderPreservesNewFlightAddress(t *testing.T) {
 }
 
 func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
-	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
+	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
 			oldURL := videoURL(string(body))
@@ -165,7 +166,7 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 				}
 				w.Header().Set("ETag", `"current-endpoint"`)
 				if status == http.StatusOK {
-					w.Write(body)
+					serveFixtureContent(w, r, string(body))
 					return
 				}
 				var start, end int64
@@ -182,7 +183,10 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 				w.Write(body[start : end+1])
 			})
 			v := parsedVideo(t, s, string(body))
-			local, err := s.newLocalResource(v, &http.Response{StatusCode: http.StatusPartialContent, Header: http.Header{"Etag": {`"old-endpoint"`}}}, s.cfg.Logger)
+			local, err := s.newLocalResource(v, s.cfg.Logger)
+			if err == nil {
+				err = local.acceptEntity(v, `"old-endpoint"`)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -210,6 +214,93 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 			reader.Close()
 			if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
 				t.Fatal("old entity survived its last reader", err)
+			}
+		})
+	}
+}
+
+func TestChangedRedirectTargetDoesNotKeepOldStrongValidator(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		finalEntry, sameTag bool
+	}{
+		{"alias_changes_target", false, false},
+		{"bound_endpoint_redirects", true, false},
+		{"same_etag_at_different_endpoint", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const blockSize = 8
+			body := "01234567abcdefghABCDEFGH"
+			entry := videoURL(body)
+			oldURL := strings.Replace(entry, "/1344-", "/1345-", 1)
+			newURL := strings.Replace(entry, "/1344-", "/1346-", 1)
+			var changed atomic.Bool
+			var stale atomic.Int32
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "/1344-") {
+					target := oldURL
+					if changed.Load() {
+						target = newURL
+					}
+					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+					return
+				}
+				if changed.Load() && strings.Contains(r.URL.Path, "/1345-") {
+					http.Redirect(w, r, newURL, http.StatusTemporaryRedirect)
+					return
+				}
+				tag := `"old-endpoint"`
+				if strings.Contains(r.URL.Path, "/1346-") && !tc.sameTag {
+					tag = `"current-endpoint"`
+				}
+				if condition := r.Header.Get("If-Match"); condition != "" && condition != tag {
+					stale.Add(1)
+					w.WriteHeader(http.StatusPreconditionFailed)
+					return
+				}
+				w.Header().Set("ETag", tag)
+				serveFixtureContent(w, r, body)
+			}, func(c *Config) { c.BlockSize = blockSize; c.DownloadGrowInterval = 0 })
+			assertResponse(t, request(s, "GET", entry, map[string]string{"Range": "bytes=0-7"}), 206, body[:8])
+			s.wg.Wait()
+			v := parsedVideo(t, s, body)
+			local, err := s.acquireLocalResource(v)
+			if err != nil || local == nil {
+				t.Fatal("first request did not retain its entity blocks", err)
+			}
+			oldPath := localBlockPath(t, local.storage, 0)
+			sp := local.makeSpool(nil)
+			reader := sp.reader(t.Context(), int64(len(body)))
+			sp.release()
+			local.storage.release()
+			defer reader.Close()
+			changed.Store(true)
+			if tc.finalEntry {
+				entry = oldURL
+			}
+			var statuses []int
+			for range 2 {
+				response := request(s, "GET", entry, map[string]string{"Range": "bytes=8-15"})
+				statuses = append(statuses, response.Code)
+				if response.Code == 206 && response.Body.String() != body[8:16] {
+					t.Fatal("wrong redirected content")
+				}
+				s.wg.Wait()
+			}
+			firstStatus := 206
+			if tc.finalEntry {
+				firstStatus = 502
+			} // Reject the old bound entity before accepting new blocks.
+			if statuses[0] != firstStatus || statuses[1] != 206 || stale.Load() != 0 {
+				t.Fatalf("changed redirect retained a foreign entity condition: statuses=%v stale=%d", statuses, stale.Load())
+			}
+			got := make([]byte, blockSize)
+			if _, err := io.ReadFull(reader, got); err != nil || string(got) != body[:8] {
+				t.Fatal("retiring entity broke old reader", err)
+			}
+			reader.Close()
+			if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+				t.Fatal("old entity blocks were not released", err)
 			}
 		})
 	}

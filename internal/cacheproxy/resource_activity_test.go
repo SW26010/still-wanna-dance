@@ -21,7 +21,7 @@ func TestResourceLoadHookCoversDownloadAndReleasesOnFailure(t *testing.T) {
 					w.WriteHeader(503)
 					return
 				}
-				fmt.Fprint(w, payload)
+				serveFixtureContent(w, r, payload)
 			})
 			s.cfg.BeginResourceLoad = func() func() {
 				begins.Add(1)

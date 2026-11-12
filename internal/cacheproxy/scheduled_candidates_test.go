@@ -31,12 +31,12 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				_, release := addTestDemand(t, s, context.Background(), w.v, kind == "get")
 				defer release()
 			}
-			plan, _, _ := w.plan(now, false)
-			if len(plan) != 1 || plan[0].need.Owner == "" {
-				t.Fatal("scheduled extra blocks before Range/entity initialization", len(plan))
+			plan, _, _ := w.plan(now)
+			if len(plan) != 64 || plan[0].need.Owner == "" {
+				t.Fatal("cold resource did not expose all missing blocks", len(plan))
 			}
 			w.f.ranges.done = map[int64]bool{0: true, 2: true, 63: true}
-			plan, _, _ = w.plan(now, true)
+			plan, _, _ = w.plan(now)
 			if len(plan) != 61 {
 				t.Fatal("resource candidates were capped or completed blocks retained", len(plan))
 			}
@@ -87,7 +87,7 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
 			_, closeDemand := addTestDemand(t, s, ctx, session.v, true)
 			defer closeDemand()
-			plan, changed, active := session.plan(now, true)
+			plan, changed, active := session.plan(now)
 			for block := int64(0); block < session.v.size/rangeBlockSize; block++ {
 				key := fmt.Sprintf("%s/%d", session.v.key, block)
 				task, merged, err := s.scheduler.Schedule(key, rangeBlockSize, run(key), plan[block].need)
@@ -190,7 +190,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Hour), limit: w.v.size, media: mediaTiming{w.v.size, time.Hour}})
 	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
-	plan, changed, active := w.plan(time.Now(), true)
+	plan, changed, active := w.plan(time.Now())
 	_, _, err := w.reconcile(plan, time.Now(), changed, active)
 	if err != nil || len(w.jobs) != 16 || w.capacity == nil {
 		t.Fatal("capacity should defer excess registration", len(w.jobs), err)
@@ -198,11 +198,11 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	first := w.jobs[0].task
 	first.Close()
 	<-first.Done()
-	if _, err := w.reapCompleted(); err != nil || w.jobs[0] != nil {
+	if err := w.reapCompleted(); err != nil || w.jobs[0] != nil {
 		t.Fatal("stopped task was not retired before current usage is reconsidered", err)
 	}
 	w.f.ranges.done[0] = true
-	plan, changed, active = w.plan(time.Now(), true)
+	plan, changed, active = w.plan(time.Now())
 	if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil || w.jobs[16] == nil {
 		t.Fatal("freed capacity was not reused", err)
 	}
@@ -232,7 +232,7 @@ func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer release()
-		plan, changed, active := session.plan(time.Now(), true)
+		plan, changed, active := session.plan(time.Now())
 		if _, _, err := session.reconcile(plan, time.Now(), changed, active); err != nil {
 			t.Fatal("new video failed at metadata capacity", err)
 		}

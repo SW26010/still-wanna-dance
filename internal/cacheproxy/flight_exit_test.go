@@ -42,7 +42,7 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		reconcileSession(t, w)
 		release() // Batch withdrawal has no handoff, so this plan is idle.
 		now := time.Now()
-		plan, changed, active := w.plan(now, false)
+		plan, changed, active := w.plan(now)
 		if len(plan) != 0 {
 			t.Fatal("test did not capture an idle plan")
 		}
@@ -54,7 +54,7 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		if w.f.preempted || w.jobs[0].retiring {
 			t.Fatal("stale plan committed flight/task retirement")
 		}
-		plan, changed, active = w.plan(now, false)
+		plan, changed, active = w.plan(now)
 		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || retry {
 			t.Fatal("fresh GET plan was not applied", retry, err)
 		}
@@ -74,7 +74,7 @@ func TestNewGETDuringBlockStop(t *testing.T) {
 
 func testNewGETDuringCleanup(t *testing.T, stopBlock bool) {
 	t.Helper()
-	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
+	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			s, cfg := setup(t, nil)
 			events := make(chan string, 8)
@@ -146,6 +146,14 @@ func testNewGETDuringCleanup(t *testing.T, stopBlock bool) {
 				t.Fatal("first GET did not stream", err)
 			}
 			<-events // The first attachment precedes the handoff/cleanup gap.
+			// The local reader is now exposed before HTTP starts.
+			for loads.Load() == 0 {
+				select {
+				case <-ctx.Done():
+					t.Fatal(ctx.Err())
+				case <-time.After(time.Millisecond):
+				}
+			}
 			reader.Close()
 			cancelFirst()
 			if !stopBlock {

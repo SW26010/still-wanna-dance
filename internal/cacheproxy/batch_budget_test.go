@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -149,7 +148,7 @@ func TestBatchBudgetFailedPrefetchReleasesReservation(t *testing.T) {
 					http.Error(w, "controlled upstream failure", http.StatusServiceUnavailable)
 					return
 				}
-				io.WriteString(w, nextPayload)
+				serveFixtureContent(w, r, nextPayload)
 			})
 			s.cfg.CacheUnlimited = false
 			s.cfg.VideoBudgetBytes = int64(len(payload))

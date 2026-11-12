@@ -51,7 +51,7 @@ func TestPlaybackCheckKeepsCompletedStorageFailureOnCancellation(t *testing.T) {
 
 func TestStorageFailureStopsDownloadsButKeepsHits(t *testing.T) {
 	var calls atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) }, func(cfg *Config) { fixtureFaultableBlocks(t, cfg) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); serveFixtureContent(w, r, payload) }, func(cfg *Config) { fixtureFaultableBlocks(t, cfg) })
 	ctx := context.Background()
 	if _, err := s.Prefetch(ctx, videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestObservationStorageFailureIsRetained(t *testing.T) {
 
 func TestIndexFailureStopsNewDownloads(t *testing.T) {
 	var calls atomic.Int32
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte(payload)) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); serveFixtureContent(w, r, payload) })
 	if _, err := s.Store.usage.db.Exec(`CREATE TRIGGER fail_media BEFORE INSERT ON media BEGIN SELECT RAISE(FAIL, 'index failure'); END`); err != nil {
 		t.Fatal(err)
 	}

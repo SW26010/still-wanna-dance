@@ -56,7 +56,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			var downloads atomic.Int32
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
-				fmt.Fprint(w, body)
+				serveTestVideo(w, r, body)
 			}))
 			defer origin.Close()
 			var mu sync.Mutex
@@ -149,9 +149,9 @@ func TestMD5CatalogScanAndFillUseSinglePresenceSnapshot(t *testing.T) {
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloads.Add(1)
 		if r.URL.Query().Get("e") == digest(b) {
-			fmt.Fprint(w, b)
+			serveTestVideo(w, r, b)
 		} else {
-			fmt.Fprint(w, a)
+			serveTestVideo(w, r, a)
 		}
 	}))
 	defer origin.Close()

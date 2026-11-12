@@ -6,7 +6,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 
@@ -126,7 +125,7 @@ func TestSongLoadingFailedCacheDoesNotSwitchAfterBody(t *testing.T) {
 func TestSongLoadingUsesCachedAddressWithoutWaitingForQuery(t *testing.T) {
 	for _, queue := range []bool{false, true} {
 		t.Run(fmt.Sprint("queue=", queue), func(t *testing.T) {
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			target := videoURL(payload)
@@ -180,7 +179,7 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 					w.WriteHeader(403)
 					return
 				}
-				io.WriteString(w, payload)
+				serveFixtureContent(w, r, payload)
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
@@ -222,7 +221,7 @@ func TestSongLoadingFailedCacheReusesPendingQuery(t *testing.T) {
 
 func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
 	started := make(chan struct{})
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 		cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
 			close(started)
 			<-ctx.Done()
@@ -335,7 +334,7 @@ func TestCachedCandidatesOnlyUseCFEntry(t *testing.T) {
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Query().Get("node") == "nya" {
 					forbidden.Add(1)
-					fmt.Fprint(w, payload)
+					serveFixtureContent(w, r, payload)
 					return
 				}
 				w.WriteHeader(502)

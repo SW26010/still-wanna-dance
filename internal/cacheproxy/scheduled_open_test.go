@@ -27,7 +27,13 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			defer f.progress.finish(nil)
+			local, err := s.newLocalResource(v, s.cfg.Logger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.ranges = local
 			w := newDownloadSession(s, ctx, v, f)
+			w.exposeLocalReads(local)
 			defer w.releaseResourceWatch()
 			defer func() {
 				if f.spool != nil {
@@ -87,8 +93,8 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 				}
 				stop(context.Canceled)
 				result := <-done
-				if !errors.Is(result.Err, context.Canceled) || f.ranges != nil {
-					t.Fatal("did not stop before initialization", result.Err)
+				if !errors.Is(result.Err, context.Canceled) || f.ranges.has(0) {
+					t.Fatal("canceled request exposed an incomplete block", result.Err)
 				}
 			}
 			if result := w.run(ctx, new(blocksched.Progress), 0); result.Err != nil {

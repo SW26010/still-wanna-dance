@@ -2,12 +2,12 @@ package cacheproxy
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,14 +24,18 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	var count atomic.Int32
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		count.Add(1)
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		io.WriteString(w, body[:rangeBlockSize])
-		w.(http.Flusher).Flush()
-		select {
-		case <-release:
-			io.WriteString(w, body[rangeBlockSize:])
-		case <-r.Context().Done():
+		var start, end int64
+		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+		if start > 0 {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
 		}
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+		w.WriteHeader(206)
+		io.WriteString(w, body[start:end+1])
 	})
 	var handlers sync.WaitGroup
 	tailStarted := make(chan struct{})
@@ -79,7 +83,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	// A resolver dropping its connection must not cancel the shared download.
 	resp.Body.Close()
 	// Missing bytes now delay the response headers too. Start the request
-	// independently, then release the sequential-only upstream's body.
+	// independently, then release the missing range response.
 	var remaining *http.Response
 	var tailErr error
 	tailDone := make(chan struct{})
@@ -107,7 +111,7 @@ func TestColdStreamStartsBeforeCompletionAndSharesSeekingReaders(t *testing.T) {
 	}
 	s.wg.Wait()
 	handlers.Wait() // Receiving the last byte can precede the handler's deferred spool release.
-	if count.Load() != 1 {
+	if count.Load() != 2 {
 		t.Fatal("duplicate downloads", count.Load())
 	}
 	assertNoPartial(t, cfg.tempDir())
@@ -121,14 +125,23 @@ func TestDeliveredCorruptStreamNeverPublishes(t *testing.T) {
 	unblock := func() { once.Do(func() { close(release) }) }
 	defer unblock()
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		io.WriteString(w, body[:rangeBlockSize])
-		w.(http.Flusher).Flush()
-		select {
-		case <-release:
-			io.WriteString(w, strings.Repeat("b", len(body)-int(rangeBlockSize)))
-		case <-r.Context().Done():
+		var start, end int64
+		fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+		if start > 0 {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
 		}
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+		w.WriteHeader(206)
+		if start == 0 {
+			io.WriteString(w, body[start:end+1])
+		} else {
+			io.WriteString(w, strings.Repeat("b", int(end-start+1)))
+		}
+
 	})
 	local := httptest.NewServer(s)
 	defer local.Close()
@@ -165,15 +178,7 @@ func TestDeliveredCorruptStreamNeverPublishes(t *testing.T) {
 func TestLargeStreamPayloadRemainsExact(t *testing.T) {
 	body := strings.Repeat("0123456789abcdef", 512*1024)
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		for offset := 0; offset < len(body); offset += 1440 {
-			end := offset + 1440
-			if end > len(body) {
-				end = len(body)
-			}
-			io.WriteString(w, body[offset:end])
-			w.(http.Flusher).Flush()
-		}
+		serveFixtureContent(w, r, body)
 	})
 	started := time.Now()
 	assertResponse(t, request(s, "GET", videoURL(body), nil), 200, body)

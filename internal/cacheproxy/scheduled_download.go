@@ -3,9 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"net/http"
 	"sort"
-	"sync"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
@@ -24,84 +22,37 @@ type scheduledBlock struct {
 	retiring   bool
 }
 
-// A plan keeps the initialization view and notification captured with its
-// blocks. The coordinator must use that same view when deciding how to wait.
+// A plan keeps the resource change notification captured with its blocks.
 type sessionPlan struct {
-	blocks      map[int64]blockUse
-	changed     <-chan struct{}
-	at          time.Time
-	active      bool
-	initialized bool
+	blocks  map[int64]blockUse
+	changed <-chan struct{}
+	at      time.Time
+	active  bool
 }
 
 type downloadSession struct {
-	s           *Server
-	ctx         context.Context
-	v           video
-	f           *flight
-	wake        chan struct{}
-	initialized chan struct{}
-	initOnce    sync.Once
-	reads       *blocksched.ReadRequests
-	jobs        map[int64]*scheduledBlock // resource coordinator only
-	finished    map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
-	capacity    <-chan struct{}
-	refetchAt   time.Time // Earliest protection entry of missing completed work; recomputed by plan.
-	changes     *resourceChange
-	leaseUntil  time.Time // Stable between confirmations; unrelated events cannot renew it.
+	s          *Server
+	ctx        context.Context
+	v          video
+	f          *flight
+	wake       chan struct{}
+	reads      *blocksched.ReadRequests
+	jobs       map[int64]*scheduledBlock // resource coordinator only
+	finished   map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
+	capacity   <-chan struct{}
+	refetchAt  time.Time // Earliest protection entry of missing completed work; recomputed by plan.
+	changes    *resourceChange
+	leaseUntil time.Time // Stable between confirmations; unrelated events cannot renew it.
 }
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
-	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), initialized: make(chan struct{}), jobs: make(map[int64]*scheduledBlock)}
+	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), jobs: make(map[int64]*scheduledBlock)}
 	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
 	s.mu.Lock()
 	w.changes = s.watchResourceLocked(v.key)
 	s.mu.Unlock()
 	return w
 }
-func (w *downloadSession) initialize(d *localResource) {
-	w.f.ranges = d
-	w.exposeLocalReads(d)
-	w.f.progress.setStage("range_download")
-	w.initOnce.Do(func() { close(w.initialized) })
-}
-
-// Existing readers may already be exposed. Bind their waits and future reads
-// to this execution, then publish its context under the admission lock before
-// opening a new sequential spool.
-func (w *downloadSession) beginSequential(ctx context.Context, block int64) {
-	w.reads.Bind(block)
-	w.s.mu.Lock()
-	w.f.sequentialCtx = ctx
-	w.s.mu.Unlock()
-}
-
-// beginSequential must bind reads first: every missing block uses this spool's
-// ordinary per-block wait, which ReadRequests redirects to the single body.
-func (w *downloadSession) sequentialSpool() (*spool, error) {
-	d := w.f.ranges
-	if d == nil {
-		var err error
-		d, err = w.s.newLocalResource(w.v, &http.Response{StatusCode: http.StatusOK, Header: make(http.Header)}, w.f.log)
-		if err != nil {
-			return nil, err
-		}
-		w.f.ranges = d
-	}
-	return w.exposeLocalReads(d), nil
-}
-
-func (w *downloadSession) rangesInitialized() bool {
-	select {
-	case <-w.initialized:
-		return true
-	default:
-		return false
-	}
-}
-
-// Existing complete blocks are readable before a replacement response tells us
-// whether its execution is Range or sequential. Readability is not initialization.
 func (w *downloadSession) exposeLocalReads(d *localResource) *spool {
 	if w.f.spool != nil {
 		return w.f.spool
@@ -128,8 +79,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	executor := downloadExecutor{s: w.s, v: w.v, f: w.f, session: w}
-	return blocksched.Result{Err: executor.run(ctx, block, p)}
+	return blocksched.Result{Err: w.s.readRange(ctx, w.f, block, p)}
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
@@ -149,9 +99,7 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	return nil
 }
 
-// plan projects one initialization view. The running session uses nextPlan to
-// discard this snapshot if initialization changes while it is being built.
-func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]blockUse, <-chan struct{}, bool) {
+func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct{}, bool) {
 	w.refetchAt = time.Time{}
 	if !w.nextRenewal().After(now) {
 		w.leaseUntil = now.Add(sourceLease)
@@ -171,14 +119,6 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 		}
 		plan[block] = use
 	}
-	if !initialized {
-		// Malformed Range still needs response metadata before ServeContent rejects it.
-		for d := range w.s.demands {
-			if d.key == w.v.key && d.playback && d.clock == nil {
-				plan[0] = mergeUse(plan[0], blockUse{need: blocksched.Need{Owner: w.v.key, LeaseUntil: w.leaseUntil, Opportunistic: true}, nextExpiry: w.leaseUntil})
-			}
-		}
-	}
 	changed := w.changes.changed
 	w.s.mu.Unlock()
 	requested := w.reads.Requested()
@@ -187,16 +127,7 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 			plan[block] = blockUse{} // The scheduler owns the independent read request.
 		}
 	}
-	var local *localResource
-	if initialized {
-		local = w.f.ranges // Initialization publishes the executor's resource view.
-	} else {
-		// Before initialization, the executor may still be assigning f.ranges.
-		// Reuse engine-owned availability without reading that unpublished field.
-		w.s.retentionMu.Lock()
-		local = w.s.localResources[w.v.key]
-		w.s.retentionMu.Unlock()
-	}
+	local := w.f.ranges
 	aggressiveReclamation := w.s.aggressiveBlockReclamation()
 	for b, use := range plan {
 		// A completed write can precede Done. Keep an existing execution's
@@ -224,21 +155,6 @@ func (w *downloadSession) plan(now time.Time, initialized bool) (map[int64]block
 			}
 			delete(plan, b)
 		}
-	}
-	if !initialized && len(plan) > 0 {
-		initial := blocks
-		for b := range plan {
-			initial = min(initial, b)
-		}
-		for b := range w.jobs {
-			initial = b
-			break
-		}
-		var merged blockUse
-		for _, use := range plan {
-			merged = mergeUse(merged, use)
-		}
-		plan = map[int64]blockUse{initial: merged}
 	}
 	return plan, changed, active
 }
@@ -342,8 +258,8 @@ func maxTime(a, b time.Time) time.Time {
 	return a
 }
 
-// reapCompleted distinguishes a complete sequential body from a completed range.
-func (w *downloadSession) reapCompleted() (bool, error) {
+// reapCompleted drains task results after response and write cleanup.
+func (w *downloadSession) reapCompleted() error {
 	for block, j := range w.jobs {
 		if j.task == nil {
 			continue
@@ -352,7 +268,7 @@ func (w *downloadSession) reapCompleted() (bool, error) {
 		case <-j.task.Done():
 			if errors.Is(j.task.Err(), blocksched.ErrExpired) {
 				w.s.expireDownload(w.f, w.v.key, block)
-				return false, j.task.Err()
+				return j.task.Err()
 			}
 			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
 				j.task, j.merged = nil, nil
@@ -362,21 +278,10 @@ func (w *downloadSession) reapCompleted() (bool, error) {
 			// The scheduler's plain cancellation is still a stopped old task;
 			// transport failures carry their own upstream error marker.
 			j.retiring = j.retiring || j.task.Err() == context.Canceled
-			// A stopped sequential body has already exposed its spool. Only
-			// Range work can be recreated within this session. Done publishes
-			// the executor's sequentialCtx before we inspect it here.
-			if j.retiring && errors.Is(j.task.Err(), context.Canceled) && w.f.sequentialCtx != nil {
-				return false, errPreempted
-			}
 			if err := j.task.Err(); err != nil && !(j.retiring && errors.Is(err, context.Canceled)) {
-				return false, err
+				return err
 			}
 			delete(w.jobs, block)
-			// Done publishes the executor's initialization before we decide
-			// whether it downloaded an entire sequential response.
-			if !w.rangesInitialized() && !j.retiring {
-				return true, nil
-			} // sequential 200, ready for independent local publication
 			if j.task.Err() == nil && !w.f.discard && w.s.aggressiveBlockReclamation() {
 				if w.finished == nil {
 					w.finished = make(map[int64]bool)
@@ -386,7 +291,7 @@ func (w *downloadSession) reapCompleted() (bool, error) {
 		default:
 		}
 	}
-	return false, nil
+	return nil
 }
 
 func (w *downloadSession) close(result error) error {
@@ -417,26 +322,16 @@ func (w *downloadSession) releaseResourceWatch() {
 	}
 }
 
-// nextPlan discards a single-block plan if initialization completed while it
-// was being built. Later initialization stays observable through the plan's
-// initialization view during the ordinary coordinator wait.
-func (w *downloadSession) nextPlan() (sessionPlan, bool, error) {
-	for {
-		if w.ctx.Err() != nil {
-			return sessionPlan{}, false, context.Cause(w.ctx)
-		}
-		whole, err := w.reapCompleted()
-		if err != nil || whole {
-			return sessionPlan{}, whole, err
-		}
-		initialized := w.rangesInitialized()
-		now := time.Now()
-		blocks, changed, active := w.plan(now, initialized)
-		if !initialized && w.rangesInitialized() {
-			continue
-		}
-		return sessionPlan{blocks: blocks, changed: changed, at: now, active: active, initialized: initialized}, false, nil
+func (w *downloadSession) nextPlan() (sessionPlan, error) {
+	if w.ctx.Err() != nil {
+		return sessionPlan{}, context.Cause(w.ctx)
 	}
+	if err := w.reapCompleted(); err != nil {
+		return sessionPlan{}, err
+	}
+	now := time.Now()
+	blocks, changed, active := w.plan(now)
+	return sessionPlan{blocks: blocks, changed: changed, at: now, active: active}, nil
 }
 
 func (w *downloadSession) waitForChanges(timer *time.Timer, plan sessionPlan, until time.Time) {
@@ -453,57 +348,54 @@ func (w *downloadSession) waitForChanges(timer *time.Timer, plan sessionPlan, un
 		}
 	}
 	timer.Reset(max(time.Millisecond, wait))
-	var init <-chan struct{}
-	if !plan.initialized {
-		init = w.initialized
-	}
 	select {
 	case <-w.ctx.Done():
 	case <-w.wake:
 	case <-plan.changed:
 	case <-w.capacity:
 	case <-timer.C:
-	case <-init:
 	}
 }
 
 func (s *Server) publishScheduled(ctx context.Context, path string, v video, f *flight) (result error) {
+	if f.ranges == nil {
+		if f.discard {
+			f.ranges = &localResource{blockSize: s.cfg.BlockSize, video: resourceVideo(v), done: make(map[int64]bool)}
+		} else {
+			var err error
+			f.ranges, err = s.newLocalResource(v, f.log)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	w := newDownloadSession(s, ctx, v, f)
 	defer func() { result = w.close(result) }()
-	if f.ranges != nil && (!f.ranges.sequential || f.ranges.complete()) {
-		w.initialize(f.ranges)
-	} else if f.ranges != nil {
-		w.exposeLocalReads(f.ranges)
-	}
+	w.exposeLocalReads(f.ranges)
+	f.progress.setStage("range_download")
 	timer := time.NewTimer(sourceRenewInterval)
 	defer timer.Stop()
 	for {
-		plan, whole, err := w.nextPlan()
+		plan, err := w.nextPlan()
 		if err != nil {
 			return err
-		}
-		if whole {
-			break
 		}
 		// Planning filters completed blocks, so an empty plan can mean the
 		// last range just finished. Check completion after that filtering and
 		// before withdrawing demands; drain task results before hashing.
-		complete := false
-		if plan.initialized {
-			complete = f.ranges.complete()
-			if !complete && !f.discard && s.aggressiveBlockReclamation() {
-				complete = len(plan.blocks) == 0 && w.refetchAt.IsZero() && w.allFetched()
-				if complete && len(w.jobs) == 0 && !s.preemptFlight(f, plan.changed) {
-					continue // A new source invalidated completion based on old work.
-				}
+		complete := f.ranges.complete()
+		if !complete && !f.discard && s.aggressiveBlockReclamation() {
+			complete = len(plan.blocks) == 0 && w.refetchAt.IsZero() && w.allFetched()
+			if complete && len(w.jobs) == 0 && !s.preemptFlight(f, plan.changed) {
+				continue // A new source invalidated completion based on old work.
 			}
-			if complete && len(w.jobs) == 0 {
-				break
-			}
+		}
+		if complete && len(w.jobs) == 0 {
+			break
 		}
 		// A reader can accept the last bytes before the executor reports Done.
 		// Drain that execution and its publication instead of treating delivery
-		// as abandonment. This also covers sequential bodies awaiting EOF.
+		// as abandonment.
 		select {
 		case <-f.streaming:
 			complete = complete || f.spool != nil && f.spool.hasAllBytes(v.size)

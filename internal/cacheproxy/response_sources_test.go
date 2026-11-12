@@ -125,7 +125,7 @@ func TestResponseSourcesRegistrationAndCancellation(t *testing.T) {
 }
 
 func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(c *Config) { c.BlockSize = 8 })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(c *Config) { c.BlockSize = 8 })
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 	s.wg.Wait()
 	assertResponse(t, request(s, "GET", videoURL(payload), map[string]string{"Range": "bytes=7-8"}), 206, payload[7:9])

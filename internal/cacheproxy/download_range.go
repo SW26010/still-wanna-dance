@@ -5,25 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"strings"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/blocksched"
 )
 
-func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *http.Response, progress *blocksched.Progress) error {
-	s, flight := e.s, e.f
-	if initial != nil {
-		defer initial.Body.Close()
-	}
+func (s *Server) readRange(ctx context.Context, flight *flight, block int64, progress *blocksched.Progress) error {
 	download := flight.ranges
+	s.retentionMu.Lock()
 	v := download.video
+	s.retentionMu.Unlock()
 	sp := flight.spool
-	etag := download.etag
-	if strings.HasPrefix(etag, "W/") {
-		etag = ""
-	}
 	var bytes []byte
 	defer func() {
 		if bytes != nil {
@@ -39,47 +31,42 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
 	blockVideo := v
-	resp := initial
 	attempts := new(resourceAttempts)
-	if resp != nil {
-		if body, ok := resp.Body.(*resourceBody); ok {
-			attempts = body.attempts
-		}
-	}
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {
 			return context.Cause(ctx)
 		}
-		transferCtx := ctx
 		var err error
 		var data []byte
 		exhausted := false
 		received := false
+		bodyStarted := false
 		err = func() error {
-			if resp == nil {
-				req, err := s.routeRequest(transferCtx, blockVideo)
-				if err != nil {
-					return err
-				}
-				req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
-				if etag != "" {
+			req, err := s.routeRequest(ctx, blockVideo)
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end-1))
+			s.retentionMu.Lock()
+			if videoAddress(download.video) == videoAddress(blockVideo) {
+				if etag := download.strongETag(); etag != "" {
 					req.Header.Set("If-Match", etag)
 				}
-				candidates := s.candidates(req, attempts)
-				candidates.attempts.RetrySingle = true
-				if candidates.done {
-					exhausted = true
-					return last
-				}
-				resp, err = s.videoResponse(req, v, attempts)
-				if err != nil {
-					return err
-				}
+			}
+			s.retentionMu.Unlock()
+			candidates := s.candidates(req, attempts)
+			if candidates.done {
+				exhausted = true
+				return last
+			}
+			resp, err := s.videoResponse(req, v, attempts)
+			if err != nil {
+				return err
 			}
 			defer resp.Body.Close()
 			body := resp.Body
-			stop := context.AfterFunc(transferCtx, func() { body.Close() })
+			stop := context.AfterFunc(ctx, func() { body.Close() })
 			defer stop()
 			if resp.Request != nil {
 				selected, err := s.parse(resp.Request)
@@ -89,16 +76,28 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
 			}
 			received = true
+			flight.log.Debug("upstream_response", "upstream_host", blockVideo.host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
+				if errors.Is(err, errRangeUnsupported) {
+					flight.log.Warn("range_unsupported", "upstream_host", blockVideo.host, "status", resp.StatusCode, "block", block)
+				}
 				return err
 			}
-			if etag != "" && resp.Header.Get("ETag") != etag {
-				return errors.New("upstream entity changed between ranges")
+			s.retentionMu.Lock()
+			entityErr := download.acceptEntity(blockVideo, resp.Header.Get("ETag"))
+			s.retentionMu.Unlock()
+			if entityErr != nil {
+				if errors.Is(entityErr, errEntityAddressChanged) {
+					s.forgetLocalResource(v.key, download)
+				}
+				return entityErr
 			}
+			flight.progress.setHost(blockVideo.host)
+			bodyStarted = true
 			if flight.discard {
 				// Stream into io.Discard's small reusable buffer; never allocate
 				// a block-sized buffer, spool, or whole-video checksum state.
-				n, err := io.Copy(io.Discard, io.LimitReader(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, end-start+1))
+				n, err := io.Copy(io.Discard, io.LimitReader(contextReader{ctx, progressReader{upstreamReader{body}, flight.progress}}, end-start+1))
 				if err != nil {
 					return err
 				}
@@ -113,7 +112,7 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 			if *buffer == nil {
 				*buffer = s.rangeBuffer()
 			}
-			data, err = readRangeBlock(contextReader{transferCtx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[:end-start+1])
+			data, err = readRangeBlock(contextReader{ctx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[:end-start+1])
 			if err != nil {
 				return err
 			}
@@ -125,7 +124,6 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 			}
 			return nil
 		}()
-		resp = nil
 		if exhausted {
 			break
 		}
@@ -141,11 +139,11 @@ func (e *downloadExecutor) readRange(ctx context.Context, block int64, initial *
 				if requestErr == nil {
 					candidate := s.candidates(req, attempts)
 					candidate.err = err
-					candidate.attempts.RetrySingle = true
+					candidate.attempts.RetrySingle = bodyStarted
 				}
 			}
 			last = applog.SafeError(err)
-			if errors.Is(err, errTooManyVideoRedirects) {
+			if !received || errors.Is(err, errTooManyVideoRedirects) || errors.Is(err, errEntityAddressChanged) {
 				break
 			}
 			continue
@@ -170,4 +168,16 @@ func (s *Server) rangeBuffer() []byte {
 	default:
 		return make([]byte, s.cfg.BlockSize+1)
 	}
+}
+
+// Mark errors at the network reader, before io.Copy combines source reads and
+// local writes. Filesystem failures must never affect upstream route health.
+type upstreamReader struct{ io.Reader }
+
+func (r upstreamReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err != nil && err != io.EOF {
+		err = fmt.Errorf("%w: %w", errUpstreamDownload, err)
+	}
+	return n, err
 }

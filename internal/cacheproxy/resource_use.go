@@ -17,8 +17,7 @@ type resourceUse struct {
 }
 
 func (s *Server) continueResourceUseLocked(v video, f *flight) {
-	refetch := f.err == nil || (f.ranges == nil || !f.ranges.sequential) &&
-		(errors.Is(f.err, ErrNotRetained) || errors.Is(f.err, errPreempted) || errors.Is(f.err, blocksched.ErrExpired))
+	refetch := f.err == nil || (errors.Is(f.err, ErrNotRetained) || errors.Is(f.err, errPreempted) || errors.Is(f.err, blocksched.ErrExpired))
 	if use := s.resourceUses[v.key]; use != nil {
 		use.refetch = refetch
 		return
@@ -45,7 +44,7 @@ func (s *Server) startResourceUseLocked(v video) {
 	go s.coordinateResourceUse(u)
 }
 
-// Both Range and sequential downloads call this after a successful complete
+// Range downloads call this after a successful complete
 // block write. Observation is notified regardless of the reclamation policy.
 func (s *Server) notifyBlockStored() {
 	s.notifyBlockObservation()

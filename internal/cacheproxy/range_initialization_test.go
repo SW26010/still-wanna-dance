@@ -3,133 +3,30 @@ package cacheproxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
-// The source context is inspected during planning. Gate the 206 initialization
-// there once a real HTTP reader is waiting, without adding a production hook.
-type initializeDuringPlanContext struct {
-	context.Context
-	scheduler  *blocksched.Scheduler
-	tailKey    string
-	preflight  <-chan struct{}
-	preplanned chan struct{}
-	preOnce    sync.Once
-	armed      <-chan struct{}
-	entered    chan struct{}
-	initialize func()
-	firstRead  <-chan struct{}
-	raceOnce   sync.Once
-}
-
-func (c *initializeDuringPlanContext) Err() error {
-	select {
-	case <-c.preflight:
-		c.preOnce.Do(func() { close(c.preplanned) })
-	default:
-	}
-	select {
-	case <-c.armed:
-		if c.scheduler.Observation().Tasks[c.tailKey].Readers > 0 {
-			c.raceOnce.Do(func() {
-				close(c.entered)
-				c.initialize()
-				select {
-				case <-c.firstRead:
-				case <-c.Done():
-				}
-			})
-		}
-	default:
-	}
-	return c.Context.Err()
-}
-
-type rangeInitializationGate struct {
-	attached     chan struct{}
-	stageEntered chan struct{}
-	release      <-chan struct{}
-	once         sync.Once
-}
-
-// Hold only the range stage message; other handlers can log while it waits.
-type rangeInitializationHandler struct {
-	slog.Handler
-	gate *rangeInitializationGate
-}
-
-func (h rangeInitializationHandler) Handle(ctx context.Context, record slog.Record) error {
-	if record.Message == "cache_task_attached" {
-		select {
-		case h.gate.attached <- struct{}{}:
-		default:
-		}
-	}
-	if record.Message == "download_stage" {
-		record.Attrs(func(attr slog.Attr) bool {
-			if attr.Key == "stage" && attr.Value.String() == "range_download" {
-				h.gate.once.Do(func() {
-					close(h.gate.stageEntered)
-					<-h.gate.release
-				})
-			}
-			return true
-		})
-	}
-	return h.Handler.Handle(ctx, record)
-}
-
-func (h rangeInitializationHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return rangeInitializationHandler{Handler: h.Handler.WithAttrs(attrs), gate: h.gate}
-}
-
-func (h rangeInitializationHandler) WithGroup(name string) slog.Handler {
-	return rangeInitializationHandler{Handler: h.Handler.WithGroup(name), gate: h.gate}
-}
-
-type blockedInitialRange struct {
-	ctx     context.Context
-	started chan struct{}
-	release <-chan struct{}
-	reader  io.Reader
-	once    sync.Once
-}
-
-func (b *blockedInitialRange) Read(p []byte) (int, error) {
-	b.once.Do(func() { close(b.started) })
-	select {
-	case <-b.release:
-		return b.reader.Read(p)
-	case <-b.ctx.Done():
-		return 0, b.ctx.Err()
-	}
-}
-
-func (b *blockedInitialRange) Close() error { return nil }
-
-func TestHTTPSeekDuringRangeInitialization(t *testing.T) {
-	const blockSize = 8 * 1024
-	body := bytes.Repeat([]byte("01234567"), 3*blockSize/8)
-	initialRequest, headers := make(chan struct{}), make(chan struct{})
-	stageRelease, firstRead, prefixRelease := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	releaseHeaders := sync.OnceFunc(func() { close(headers) })
-	releaseStage := sync.OnceFunc(func() { close(stageRelease) })
-	releasePrefix := sync.OnceFunc(func() { close(prefixRelease) })
-	defer releaseHeaders()
-	defer releaseStage()
-	defer releasePrefix()
-	gate := &rangeInitializationGate{attached: make(chan struct{}, 2), stageEntered: make(chan struct{}), release: stageRelease}
+func TestPreviewGrowthDoesNotWaitForResponseHeaders(t *testing.T) {
+	const blockSize = 1024
+	body := bytes.Repeat([]byte("p"), 20*blockSize)
+	headers, started := make(chan struct{}), make(chan struct{}, 20)
+	release := sync.OnceFunc(func() { close(headers) })
+	defer release()
 	s, _ := setup(t, nil, func(c *Config) {
 		c.BlockSize = blockSize
-		c.Logger = slog.New(rangeInitializationHandler{Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}), gate: gate})
+		c.DownloadConcurrencySoftLimit = 16
+		c.DownloadGrowInterval = 10 * time.Millisecond
+		c.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(string(body)), nil }
 	})
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
@@ -137,76 +34,122 @@ func TestHTTPSeekDuringRangeInitialization(t *testing.T) {
 			if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil {
 				return nil, err
 			}
-			var responseBody io.ReadCloser = io.NopCloser(bytes.NewReader(body[start : end+1]))
-			if start == 0 {
-				close(initialRequest)
+			started <- struct{}{}
+			select {
+			case <-headers:
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
+			return &http.Response{StatusCode: 206, ContentLength: end - start + 1, Request: r,
+				Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}},
+				Body: io.NopCloser(publishReaderFunc(func([]byte) (int, error) {
+					<-r.Context().Done()
+					return 0, r.Context().Err()
+				}))}, nil
+		})}
+	}
+	target := seedPreview(t, s, string(body))
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.ServePreview(httptest.NewRecorder(), httptest.NewRequest("GET", "http://127.0.0.1/media/preview", nil).WithContext(ctx), target)
+	}()
+	defer func() { cancel(); <-done }()
+	for range 16 {
+		select {
+		case <-started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("preview did not grow to 16 while all response headers remained blocked")
+		}
+	}
+	t.Log("held all response headers: active=16")
+}
+
+func TestConcurrentRangeEntityIsCheckedBeforeWriting(t *testing.T) {
+	const blockSize = 1024
+	body := strings.Repeat("e", 2*blockSize)
+	prefix, entity := make(chan struct{}), make(chan struct{})
+	s, _ := setup(t, nil, func(c *Config) { c.BlockSize = blockSize; c.DownloadGrowInterval = 0 })
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			response := fixtureRangeResponse(r, body)
+			if r.Header.Get("Range") == "bytes=0-1023" {
+				close(prefix)
 				select {
-				case <-headers:
+				case <-entity:
 				case <-r.Context().Done():
 					return nil, r.Context().Err()
 				}
-				responseBody = &blockedInitialRange{ctx: r.Context(), started: firstRead, release: prefixRelease, reader: bytes.NewReader(body[start : end+1])}
+				response.Header.Set("ETag", `"old"`)
+			} else {
+				select {
+				case <-prefix:
+				case <-r.Context().Done():
+					return nil, r.Context().Err()
+				}
+				response.Header.Set("ETag", `"current"`)
+				reader := response.Body
+				var once sync.Once
+				response.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) { once.Do(func() { close(entity) }); return reader.Read(p) }))
 			}
-			return &http.Response{StatusCode: http.StatusPartialContent, ContentLength: end - start + 1, Request: r,
-				Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}, "ETag": {`"stable"`}}, Body: responseBody}, nil
+			return response, nil
 		})}
 	}
-	target := videoURL(string(body))
-	r, _ := http.NewRequest(http.MethodGet, target, nil)
-	v, err := s.parseResolved(r)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	_, err := s.Prefetch(ctx, videoURL(body))
+	if !errors.Is(err, errUpstreamDownload) || !strings.Contains(err.Error(), "entity changed") {
+		t.Fatal("mismatched in-flight entity was accepted", err)
+	}
+	v := parsedVideo(t, s, body)
+	if _, err := os.Stat(s.cfg.videoFile(v.key)); !os.IsNotExist(err) {
+		t.Fatal("published inconsistent entities", err)
+	}
+	local, err := s.acquireLocalResource(v)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	demand, release := addTestDemand(t, s, ctx, v, false)
-	defer release()
-	preflight, armed := make(chan struct{}), make(chan struct{})
-	probe := &initializeDuringPlanContext{Context: demand.ctx, scheduler: s.scheduler,
-		tailKey: downloadTaskKey(v.key, v.size, 2), preflight: preflight, preplanned: make(chan struct{}),
-		armed: armed, entered: make(chan struct{}), initialize: releaseStage, firstRead: firstRead}
-	s.mu.Lock()
-	demand.ctx = probe
-	s.mu.Unlock()
-	background := context.WithValue(ctx, sourceDemandKey{}, demand)
-	go func() { _, _, _ = s.obtainMode(background, v, true) }()
-	wait := func(ch <-chan struct{}, what string) {
-		t.Helper()
-		select {
-		case <-ch:
-		case <-ctx.Done():
-			t.Fatalf("timed out waiting for %s", what)
+	if local != nil {
+		defer local.storage.release()
+		if local.has(0) {
+			t.Fatal("stored block before entity validation")
 		}
 	}
-	wait(initialRequest, "initial request")
-	wait(gate.attached, "background attachment")
-	responses := make(chan *responseRecorder, 1)
-	go func() {
-		responses <- request(s, http.MethodGet, target, map[string]string{"Range": fmt.Sprintf("bytes=%d-", len(body)-128)})
-	}()
-	wait(gate.attached, "HTTP attachment")
-	// Let the coordinator consume the already-attached HTTP demand before the
-	// response headers expose the stream and its tail reader registers.
-	close(preflight)
-	s.mu.Lock()
-	s.notifyResourceChangedLocked(v.key)
-	s.mu.Unlock()
-	wait(probe.preplanned, "pre-initialization plan")
-	// The notification is emitted under this lock; wait until the plan has
-	// captured its replacement change channel before exposing the stream.
-	s.mu.Lock()
-	s.mu.Unlock()
-	close(armed)
-	releaseHeaders()
-	wait(gate.stageEntered, "range initialization stage")
-	wait(probe.entered, "tail read during planning")
-	wait(firstRead, "initialization completion")
-	select {
-	case response := <-responses:
-		if response.aborted || response.Code != http.StatusPartialContent || !bytes.Equal(response.Body.Bytes(), body[len(body)-128:]) {
-			t.Fatalf("tail response: status=%d bytes=%d aborted=%t", response.Code, response.Body.Len(), response.aborted)
-		}
-	case <-time.After(1500 * time.Millisecond):
-		t.Fatal("tail read did not complete while the first range was blocked")
+}
+
+func TestUnsupportedRangeWarnsWithoutReadingWholeResponse(t *testing.T) {
+	for _, fallback := range []bool{false, true} {
+		t.Run(fmt.Sprint(fallback), func(t *testing.T) {
+			s, logs := loggingServer(t, nil)
+			var reads, closes, calls atomic.Int32
+			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+				transports := []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+					calls.Add(1)
+					return &http.Response{StatusCode: 200, Header: make(http.Header), Request: r, ContentLength: int64(len(payload)),
+						Body: &rangeCountedBody{ReadCloser: io.NopCloser(publishReaderFunc(func([]byte) (int, error) { reads.Add(1); return 0, io.EOF })), closed: func() { closes.Add(1) }}}, nil
+				})}
+				if fallback {
+					transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) { return fixtureRangeResponse(r, payload), nil }))
+				}
+				return transports
+			}
+			_, err := s.Prefetch(t.Context(), videoURL(payload)+"&token=private-token")
+			if (err == nil) != fallback || reads.Load() != 0 || closes.Load() != 1 || calls.Load() != 1 || s.StorageError() != nil {
+				t.Fatalf("unsupported response: fallback=%v err=%v reads=%d closes=%d calls=%d", fallback, err, reads.Load(), closes.Load(), calls.Load())
+			}
+			warned := false
+			for _, record := range logs.records(t) {
+				if record["msg"] == "range_unsupported" && record["level"] == "WARN" {
+					warned = true
+				}
+				if strings.Contains(fmt.Sprint(record), "private-token") {
+					t.Fatal("warning exposed signed URL")
+				}
+			}
+			if !warned {
+				t.Fatal("missing unsupported Range warning")
+			}
+		})
 	}
 }

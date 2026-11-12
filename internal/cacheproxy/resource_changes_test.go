@@ -36,8 +36,8 @@ func TestConsumptionOnlyNotifiesItsResource(t *testing.T) {
 				if shared {
 					futureGET(t, s, "a", 2)
 				}
-				_, changedA, _ := a.plan(time.Now(), true)
-				before, changedB, _ := b.plan(time.Now(), true)
+				_, changedA, _ := a.plan(time.Now())
+				before, changedB, _ := b.plan(time.Now())
 				capacity := s.DemandCapacityChanged()
 				g := &getConsumption{s: s, demand: d, size: a.v.size}
 				g.start(http.StatusOK, nil)
@@ -46,7 +46,7 @@ func TestConsumptionOnlyNotifiesItsResource(t *testing.T) {
 				assertNotification(t, changedA, true)
 				assertNotification(t, changedB, false)
 				assertNotification(t, capacity, !shared)
-				after, _, _ := b.plan(time.Now(), true)
+				after, _, _ := b.plan(time.Now())
 				for block, use := range before {
 					if after[block] != use {
 						t.Errorf("unrelated resource block %d changed after consumption", block)
@@ -86,7 +86,7 @@ func TestDownloadLeaseRenewalIgnoresOrdinaryReplans(t *testing.T) {
 		s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
 		w, _ := futureGET(t, s, "content", 4)
 		start := time.Now()
-		plan, _, _ := w.plan(start, true)
+		plan, _, _ := w.plan(start)
 		var publications atomic.Int32
 		w.f.log = demandPublicationLog(&publications)
 		for block, use := range plan {
@@ -99,7 +99,7 @@ func TestDownloadLeaseRenewalIgnoresOrdinaryReplans(t *testing.T) {
 		}
 		for second := 1; second <= 35; second++ {
 			time.Sleep(time.Second)
-			plan, changed, active := w.plan(time.Now(), true)
+			plan, changed, active := w.plan(time.Now())
 			publications.Store(0)
 			if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil {
 				t.Fatal(err)
@@ -124,14 +124,14 @@ func TestResourceSnapshotRejectsOnlyRelevantChanges(t *testing.T) {
 	s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
 	a := testResourceSession(t, s, video{key: "a", size: rangeBlockSize})
 	b := testResourceSession(t, s, video{key: "b", size: rangeBlockSize})
-	_, changedA, _ := a.plan(time.Now(), true)
-	_, changedB, _ := b.plan(time.Now(), true)
+	_, changedA, _ := a.plan(time.Now())
+	_, changedB, _ := b.plan(time.Now())
 	futureGET(t, s, "b", 1)
 	if !s.preemptFlight(a.f, changedA) || s.preemptFlight(b.f, changedB) {
 		t.Fatal("retirement ignored a new source or depended on an unrelated resource")
 	}
-	_, changedA, _ = a.plan(time.Now(), true)
-	_, changedB, _ = b.plan(time.Now(), true)
+	_, changedA, _ = a.plan(time.Now())
+	_, changedB, _ = b.plan(time.Now())
 	capacity := s.DemandCapacityChanged()
 	s.notifyResourceAvailability("b")
 	assertNotification(t, changedA, false)
@@ -200,7 +200,7 @@ func TestGETClockChangeNotifiesDependentQueueResources(t *testing.T) {
 		var changes []<-chan struct{}
 		for _, key := range []string{"queue-a", "queue-b", "unrelated"} {
 			w := testResourceSession(t, s, video{key: key, size: 20 * rangeBlockSize})
-			_, changed, _ := w.plan(time.Now(), true)
+			_, changed, _ := w.plan(time.Now())
 			sessions = append(sessions, w)
 			changes = append(changes, changed)
 		}
@@ -209,11 +209,11 @@ func TestGETClockChangeNotifiesDependentQueueResources(t *testing.T) {
 		for i, changed := range changes {
 			assertNotification(t, changed, i < 2)
 		}
-		plan, _, _ := sessions[0].plan(time.Now(), true)
+		plan, _, _ := sessions[0].plan(time.Now())
 		if plan[0].need.ReadyBy != end || protectionFor(s, "queue-a", 0).start != end.Add(-s.protectionAhead()) {
 			t.Fatal("queue download and protection failed to follow GET clock")
 		}
-		_, changed, _ := sessions[1].plan(time.Now(), true)
+		_, changed, _ := sessions[1].plan(time.Now())
 		release()
 		// Leaving live playback changes idle eligibility even when the
 		// future queue start remains exactly the same.
@@ -230,16 +230,16 @@ func TestQueueResourceReplacementNotifiesBothIdentities(t *testing.T) {
 		registerQueueResource(t, s, "1", "old")
 		old := testResourceSession(t, s, video{key: "old", size: 20 * rangeBlockSize})
 		next := testResourceSession(t, s, video{key: "new", size: 20 * rangeBlockSize})
-		_, oldChanged, _ := old.plan(time.Now(), true)
-		_, newChanged, _ := next.plan(time.Now(), true)
+		_, oldChanged, _ := old.plan(time.Now())
+		_, newChanged, _ := next.plan(time.Now())
 		registerQueueResource(t, s, "1", "new")
 		assertNotification(t, oldChanged, true)
 		assertNotification(t, newChanged, true)
-		plan, _, _ := old.plan(time.Now(), true)
+		plan, _, _ := old.plan(time.Now())
 		if len(plan) != 0 || !protectionFor(s, "old", 0).start.IsZero() {
 			t.Fatal("replaced queue content retained active usage/protection")
 		}
-		plan, _, _ = next.plan(time.Now(), true)
+		plan, _, _ = next.plan(time.Now())
 		if len(plan) != 20 || protectionFor(s, "new", 0).start.IsZero() {
 			t.Fatal("replacement content lost usage/protection")
 		}

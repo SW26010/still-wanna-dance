@@ -28,7 +28,7 @@ func TestDownloadFillSharesPendingLookupWithPreview(t *testing.T) {
 			defer finish()
 			var calls atomic.Int32
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-				io.WriteString(w, payload)
+				serveFixtureContent(w, r, payload)
 			}, func(cfg *Config) {
 				cfg.CacheUnlimited = true
 				cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
@@ -115,7 +115,7 @@ func TestDownloadFillCancellationKeepsSharedPendingLookup(t *testing.T) {
 			finish := sync.OnceFunc(func() { close(release) })
 			defer finish()
 			var calls atomic.Int32
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 				cfg.CacheUnlimited = true
 				cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 					calls.Add(1)
@@ -276,7 +276,7 @@ func TestDownloadFillCancellationAndSavedAddressCheck(t *testing.T) {
 				downloadOnce.Do(func() { close(downloadStarted) })
 				select {
 				case <-releaseDownload:
-					io.WriteString(w, payload)
+					serveFixtureContent(w, r, payload)
 				case <-r.Context().Done():
 				}
 			}, func(cfg *Config) {
@@ -383,7 +383,7 @@ func TestFixedResourceFillChecksSavedAddress(t *testing.T) {
 					io.WriteString(w, "replacement")
 					return
 				}
-				io.WriteString(w, payload)
+				serveFixtureContent(w, r, payload)
 			}, func(cfg *Config) {
 				cfg.CacheUnlimited = true
 				cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
@@ -454,7 +454,7 @@ func TestFixedResourceFillWithoutSongAssociation(t *testing.T) {
 	for _, local := range []bool{false, true} {
 		t.Run(map[bool]string{false: "saved_address", true: "local_file"}[local], func(t *testing.T) {
 			var queries atomic.Int32
-			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 				cfg.CacheUnlimited = true
 				cfg.ResolvePlayback = func(context.Context, string) (string, error) { queries.Add(1); return videoURL("new media"), nil }
 			})
@@ -492,7 +492,7 @@ func TestFixedResourceFillReusesCheckAfterMappingChanges(t *testing.T) {
 	s, _ = setup(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("address") == "fresh" {
 			freshDownloads.Add(1)
-			io.WriteString(w, payload)
+			serveFixtureContent(w, r, payload)
 			return
 		}
 		select {
@@ -551,7 +551,7 @@ func TestFixedResourceFillReusesCompletedCheck(t *testing.T) {
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Query().Get("address") == "fresh" {
 					freshDownloads.Add(1)
-					io.WriteString(w, body)
+					serveFixtureContent(w, r, body)
 					return
 				}
 				select {

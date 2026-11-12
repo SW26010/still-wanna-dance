@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -12,7 +11,7 @@ import (
 func TestPlaybackArrivalObservedBeforeUpstreamResolution(t *testing.T) {
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
 		t.Run(method, func(t *testing.T) {
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 			var arrivals []time.Time
 			s.cfg.BeginVideoRequest = func(at time.Time) func() {
 				return func() { arrivals = append(arrivals, at) }
@@ -67,7 +66,7 @@ func TestPlaybackArrivalObservedBeforeUpstreamResolution(t *testing.T) {
 }
 
 func TestVideoObservationExcludesPrefetchAndNonVideo(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	var arrivals []time.Time
 	s.cfg.BeginVideoRequest = func(at time.Time) func() { return func() { arrivals = append(arrivals, at) } }
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {

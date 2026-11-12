@@ -26,6 +26,23 @@ func videoURL(body string) string {
 	return fmt.Sprintf("http://play.udon.dance/files/2403/1344-660524b4ebadb.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
 }
 
+func serveFixtureContent(w http.ResponseWriter, r *http.Request, body string) {
+	http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
+}
+
+// In-memory transport fixtures honor the same requested Range as ServeContent.
+func fixtureRangeResponse(r *http.Request, body string) *http.Response {
+	if r.Header.Get("Range") == "" {
+		return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(body)), Request: r, Body: io.NopCloser(strings.NewReader(body))}
+	}
+	var start, end int64
+	if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil || start < 0 || end < start || end >= int64(len(body)) {
+		panic("invalid fixture Range")
+	}
+	return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, len(body))}},
+		ContentLength: end - start + 1, Request: r, Body: io.NopCloser(strings.NewReader(body[start : end+1]))}
+}
+
 func setup(t *testing.T, handler http.HandlerFunc, configure ...func(*Config)) (*Server, Config) {
 	t.Helper()
 	upstream := httptest.NewServer(handler)
@@ -96,7 +113,7 @@ func TestColdHotCrossHostAndHTTP(t *testing.T) {
 		if r.Host != "play.udon.dance" || r.Method != "GET" || r.Header.Get("Range") != "bytes=0-35" || r.URL.RawQuery == "" {
 			t.Errorf("unexpected origin request: %v", r)
 		}
-		io.WriteString(w, payload)
+		serveFixtureContent(w, r, payload)
 	})
 	w := request(s, "GET", videoURL(payload), nil)
 	assertResponse(t, w, 200, payload)
@@ -186,10 +203,20 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 	for _, mode := range []string{"status", "redirect", "short", "long", "checksum", "encoding", "truncated"} {
 		t.Run(mode, func(t *testing.T) {
 			var count atomic.Int32
+			var bad atomic.Bool
+			bad.Store(true)
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
-				if count.Add(1) > 1 {
-					io.WriteString(w, payload)
+				count.Add(1)
+				if !bad.Load() {
+					serveFixtureContent(w, r, payload)
 					return
+				}
+				if mode == "short" || mode == "long" || mode == "checksum" || mode == "truncated" {
+					w.Header().Set("Content-Range", "bytes 0-35/36")
+					if mode == "truncated" {
+						w.Header().Set("Content-Length", "36")
+					}
+					w.WriteHeader(206)
 				}
 				switch mode {
 				case "status":
@@ -206,7 +233,7 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 					io.WriteString(w, strings.Repeat("x", len(payload)))
 				case "encoding":
 					w.Header().Set("Content-Encoding", "gzip")
-					io.WriteString(w, payload)
+					serveFixtureContent(w, r, payload)
 				case "truncated":
 					w.Header().Set("Content-Length", "36")
 					io.WriteString(w, "short")
@@ -223,8 +250,13 @@ func TestBadUpstreamNeverPublishesAndRetries(t *testing.T) {
 			}
 			s.wg.Wait()
 			assertNoPartial(t, cfg.tempDir())
+			bad.Store(false)
 			assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-			if count.Load() != 2 {
+			want := int32(2)
+			if mode == "long" || mode == "truncated" {
+				want = 3
+			}
+			if count.Load() != want {
 				t.Fatal(count.Load())
 			}
 		})
@@ -240,7 +272,7 @@ func TestSharedDownloadSurvivesClientCancellation(t *testing.T) {
 		}
 		select {
 		case <-release:
-			io.WriteString(w, payload)
+			serveFixtureContent(w, r, payload)
 		case <-r.Context().Done():
 		}
 	})
@@ -282,6 +314,8 @@ func TestOwnershipCapacityTimeoutAndShutdown(t *testing.T) {
 	started := make(chan struct{}, 2)
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "36")
+		w.Header().Set("Content-Range", "bytes 0-35/36")
+		w.WriteHeader(206)
 		io.WriteString(w, "0123")
 		w.(http.Flusher).Flush()
 		started <- struct{}{}
@@ -335,7 +369,7 @@ func TestHKGColdAndRealHTTP(t *testing.T) {
 		if r.Host != "nya.xin.moe" {
 			t.Error(r.Host)
 		}
-		io.WriteString(w, payload)
+		serveFixtureContent(w, r, payload)
 	})
 	local := httptest.NewServer(s)
 	defer local.Close()

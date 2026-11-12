@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,7 +32,7 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 				started <- r.URL.Path
 				select {
 				case <-release:
-					io.WriteString(w, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
+					serveTestVideo(w, r, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
 				case <-r.Context().Done():
 				}
 			}))

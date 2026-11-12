@@ -194,7 +194,7 @@ func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
 			t.Fatal("future estimate was pulled forward", future)
 		}
 		// Keep the published snapshot across the old absolute t=65 entry.
-		plan, _, _ := w.plan(time.Now(), true)
+		plan, _, _ := w.plan(time.Now())
 		if !plan[1].refetchAt(s.protectionAhead()).IsZero() {
 			t.Fatal("out-of-window resource retained an absolute refetch timer")
 		}
@@ -205,7 +205,7 @@ func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
 		}
 		// A new GET restores absolute timing.
 		holdQueuePlaybackUntil(t, s, base.Add(60*time.Second))
-		plan, _, _ = w.plan(time.Now(), true)
+		plan, _, _ = w.plan(time.Now())
 		if plan[1].need.WindowClosed || !protectionFor(s, w.v.key, 1).active(time.Now()) {
 			t.Fatal("new GET failed to restore the fixed playback clock")
 		}

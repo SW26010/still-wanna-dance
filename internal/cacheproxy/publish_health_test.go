@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -19,7 +20,9 @@ func (f publishReaderFunc) Read(p []byte) (int, error) { return f(p) }
 type publishTransport struct{ body io.Reader }
 
 func (t publishTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(t.body), ContentLength: int64(len(payload)), Request: r}, nil
+	response := fixtureRangeResponse(r, payload)
+	response.Body = io.NopCloser(t.body)
+	return response, nil
 }
 
 func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
@@ -111,7 +114,7 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 	}
 }
 
-func TestSequentialStopDoesNotRetainIncompleteBlock(t *testing.T) {
+func TestRangeStopDoesNotRetainIncompleteBlock(t *testing.T) {
 	s, cfg := setup(t, nil)
 	r, _ := http.NewRequest("GET", videoURL(payload), nil)
 	v, _ := s.parseResolved(r)
@@ -137,7 +140,7 @@ func TestSequentialStopDoesNotRetainIncompleteBlock(t *testing.T) {
 				<-r.Context().Done()
 				return copy(p, payload[:3]), context.Canceled
 			})
-			return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: v.size, Body: io.NopCloser(body), Request: r}, nil
+			return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload))}}, ContentLength: v.size, Body: io.NopCloser(body), Request: r}, nil
 		})}
 	}
 	_, release := addTestDemand(t, s, context.Background(), v, false)

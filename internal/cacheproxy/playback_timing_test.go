@@ -12,7 +12,7 @@ import (
 
 func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, string(body)) })
 	r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
 	v, _ := s.parseResolved(r)
 	if _, err := s.Store.usage.db.Exec("INSERT INTO media(md5,byte_size) VALUES (?,?)", v.key, v.size); err != nil {
@@ -42,7 +42,7 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 
 func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, string(body)) })
 	target := videoURL(string(body))
 	r, _ := http.NewRequest("GET", target, nil)
 	v, _ := s.parseResolved(r)
@@ -122,7 +122,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 		time.Sleep(10 * time.Second) // Resolution/download delays do not move the clock.
 		check := func(block int64, want time.Time) {
 			t.Helper()
-			plan, _, _ := w.plan(time.Now(), true)
+			plan, _, _ := w.plan(time.Now())
 			if plan[block].need.Owner == "" {
 				t.Fatal("missing block", block)
 			}
@@ -130,7 +130,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 				t.Fatal(block, p.need, want)
 			}
 		}
-		plan, _, _ := w.plan(time.Now(), true)
+		plan, _, _ := w.plan(time.Now())
 		if plan[0].need.Owner != "" {
 			t.Fatal("GET created a deadline before its range")
 		}

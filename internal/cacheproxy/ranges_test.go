@@ -148,7 +148,7 @@ func TestRangeFailuresDoNotPublish(t *testing.T) {
 						w.Header().Set("ETag", `"two"`)
 					case "ignored":
 						w.WriteHeader(200)
-						w.Write(body)
+						serveFixtureContent(w, r, string(body))
 						return
 					case "short":
 						end--

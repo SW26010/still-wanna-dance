@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"strings"
 	"sync"
 )
@@ -13,13 +12,44 @@ import (
 // The engine owns the registry reference. Flights and old spools retain their
 // own references, without retaining response cursors or half-block prefixes.
 type localResource struct {
-	blockSize  int64 // Immutable for both stored blocks and storage-free measurements.
-	mu         sync.Mutex
-	storage    *blockFiles
-	video      video // Identity is immutable; routing changes only before a new flight starts.
-	etag       string
-	sequential bool           // A 200 origin must reopen a single response after stopping.
-	done       map[int64]bool // Availability only for the storage-free diagnostic loader.
+	blockSize int64 // Immutable for both stored blocks and storage-free measurements.
+	mu        sync.Mutex
+	storage   *blockFiles
+	video     video  // Identity is immutable; routing is protected by Server.retentionMu.
+	etag      string // protected by mu; the first valid response establishes the entity
+	entitySet bool
+	done      map[int64]bool // Availability only for the storage-free diagnostic loader.
+}
+
+func (d *localResource) strongETag() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if strings.HasPrefix(d.etag, "W/") {
+		return ""
+	}
+	return d.etag
+}
+
+var errEntityAddressChanged = errors.New("upstream entity address changed between ranges")
+
+// The caller holds Server.retentionMu when the resource is shared. Bind the
+// validator to the validated final endpoint, rather than its redirecting alias.
+func (d *localResource) acceptEntity(v video, etag string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.entitySet {
+		d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
+		d.etag, d.entitySet = etag, true
+	}
+	if d.etag != "" && !strings.HasPrefix(d.etag, "W/") {
+		if videoAddress(d.video) != videoAddress(v) {
+			return errEntityAddressChanged
+		}
+		if d.etag != etag {
+			return errors.New("upstream entity changed between ranges")
+		}
+	}
+	return nil
 }
 
 func (d *localResource) has(block int64) bool {
@@ -66,7 +96,7 @@ func resourceVideo(v video) video {
 	return video{key: v.key, size: v.size, host: v.host, path: v.path, query: v.query}
 }
 
-func (s *Server) newLocalResource(v video, first *http.Response, log *slog.Logger) (*localResource, error) {
+func (s *Server) newLocalResource(v video, log *slog.Logger) (*localResource, error) {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
 	if s.localResources == nil {
@@ -77,7 +107,7 @@ func (s *Server) newLocalResource(v video, first *http.Response, log *slog.Logge
 		return nil, errors.New("local resource size mismatch")
 	}
 	if d == nil {
-		d = &localResource{blockSize: s.cfg.BlockSize, storage: newBlockFiles(s.cfg.tempDir(), v.size, s.cfg.BlockSize, log), video: resourceVideo(v), etag: first.Header.Get("ETag"), sequential: first.StatusCode == http.StatusOK}
+		d = &localResource{blockSize: s.cfg.BlockSize, storage: newBlockFiles(s.cfg.tempDir(), v.size, s.cfg.BlockSize, log), video: resourceVideo(v)}
 		d.storage.onDiskChange = s.observeBlockCacheBytes
 		s.localResources[v.key] = d
 	}
@@ -107,7 +137,7 @@ func (s *Server) reuseLocalResource(v video, d *localResource) *localResource {
 		return nil
 	}
 	s.retentionMu.Lock()
-	changed := d.etag != "" && !strings.HasPrefix(d.etag, "W/") && videoAddress(d.video) != videoAddress(v)
+	changed := d.strongETag() != "" && videoAddress(d.video) != videoAddress(v)
 	if !changed {
 		d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
 	}

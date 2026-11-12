@@ -43,7 +43,7 @@ func TestEachResourceAttemptHasAnIndependentTimeout(t *testing.T) {
 						calls++
 						select {
 						case <-time.After(900 * time.Millisecond):
-							return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(payload)), Request: r}, nil
+							return fixtureRangeResponse(r, payload), nil
 						case <-r.Context().Done():
 							return nil, r.Context().Err()
 						}

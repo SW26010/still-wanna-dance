@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"os"
@@ -133,7 +132,7 @@ func TestHistoricalUsageReplacementRollbackAndRestart(t *testing.T) {
 }
 
 func TestHistoricalUsageConcurrentGETAndImports(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	ctx := context.Background()
 	if _, err := s.PrefetchSong(ctx, "1", videoURL(payload)); err != nil {
 		t.Fatal(err)

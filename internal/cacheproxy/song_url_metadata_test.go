@@ -149,7 +149,7 @@ func TestSongURLInvalidMetadataDoesNotWrite(t *testing.T) {
 }
 
 func TestSongURLCanceledTransactionDoesNotDisableColdLoads(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	// Reacquiring the only connection waits for database/sql's cancellation
 	// worker to finish rollback, deterministically putting it ahead of Commit.
 	s.Store.usage.db.SetMaxOpenConns(1)

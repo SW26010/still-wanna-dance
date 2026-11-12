@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -29,7 +28,7 @@ func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 					if r.URL.Query().Get("redirected") == "1" {
 						bodies.Add(1)
-						return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(payload)), Body: io.NopCloser(strings.NewReader(payload)), Request: r}, nil
+						return fixtureRangeResponse(r, payload), nil
 					}
 					next := target + "&redirected=1"
 					if kind == "cross-host" {

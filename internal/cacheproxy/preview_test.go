@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -296,7 +295,7 @@ func TestPreviewMalformedRangeDoesNotResolveOrDownload(t *testing.T) {
 }
 
 func TestPreviewClockDoesNotAnchorGameQueue(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	target := seedPreview(t, s, payload)
 	if err := s.UpdatePrefetchQueue([]int64{1}, true); err != nil {
 		t.Fatal(err)
@@ -333,67 +332,62 @@ func (w *previewWriteHook) Write(p []byte) (int, error) {
 }
 
 func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
-	for _, sequential := range []bool{false, true} {
-		t.Run(fmt.Sprint("sequential=", sequential), func(t *testing.T) {
-			body := strings.Repeat("x", int(3*rangeBlockSize))
-			var downloads atomic.Int32
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-				downloads.Add(1)
-				w.Header().Set("ETag", `"old-validator"`)
-				http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
-			}, func(cfg *Config) {
-				cfg.CacheUnlimited = false
-				cfg.VideoBudgetBytes = 0
-				cfg.ResolvePlayback = func(context.Context, string) (string, error) {
-					t.Error("cached blocks triggered API")
-					return "", fmt.Errorf("offline")
-				}
-			})
-			target := seedPreview(t, s, body)
-			r, _ := http.NewRequest("GET", videoURL(body), nil)
-			v, _ := s.parseResolved(r)
-			status := http.StatusPartialContent
-			if sequential {
-				status = http.StatusOK
-			}
-			local, err := s.newLocalResource(v, &http.Response{StatusCode: status, Header: http.Header{"Etag": {`"old-validator"`}}}, s.cfg.Logger)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer local.storage.release()
-			for block := int64(0); block < 2; block++ {
-				if err := local.storage.store(block, []byte(body[block*rangeBlockSize:(block+1)*rangeBlockSize])); err != nil {
-					t.Fatal(err)
-				}
-			}
-			// Unknown catalog size must use the existing resource, without API work.
-			if _, err := s.Store.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
-				t.Fatal(err)
-			}
-			target.Size = 0
-			assertResponse(t, previewResponse(s, target, map[string]string{"Range": "bytes=0-15"}), 206, body[:16])
-			if downloads.Load() != 0 {
-				t.Fatal("readable Range contacted upstream")
-			}
-			// Reclamation after serving begins must retain the normal refill path.
-			w := &previewWriteHook{ResponseRecorder: httptest.NewRecorder(), after: func() {
-				local.storage.removeFiles(local.storage.retire(func(block int64) bool { return block == 1 }))
-				s.notifyResourceAvailability(v.key)
-			}}
-			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-			defer cancel()
-			read := httptest.NewRequest("GET", "http://127.0.0.1/media/preview", nil).WithContext(ctx)
-			read.Header.Set("Range", fmt.Sprintf("bytes=0-%d", 2*rangeBlockSize-1))
-			s.ServePreview(w, read, target)
-			if w.Code != 206 || w.Body.String() != body[:2*rangeBlockSize] || downloads.Load() != 1 {
-				t.Fatal(w.Code, w.Body.Len(), downloads.Load())
-			}
-		})
+	body := strings.Repeat("x", int(3*rangeBlockSize))
+	var downloads atomic.Int32
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		downloads.Add(1)
+		w.Header().Set("ETag", `"old-validator"`)
+		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = false
+		cfg.VideoBudgetBytes = 0
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
+			t.Error("cached blocks triggered API")
+			return "", fmt.Errorf("offline")
+		}
+	})
+	target := seedPreview(t, s, body)
+	r, _ := http.NewRequest("GET", videoURL(body), nil)
+	v, _ := s.parseResolved(r)
+	local, err := s.newLocalResource(v, s.cfg.Logger)
+	if err == nil {
+		err = local.acceptEntity(v, `"old-validator"`)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer local.storage.release()
+	for block := int64(0); block < 2; block++ {
+		if err := local.storage.store(block, []byte(body[block*rangeBlockSize:(block+1)*rangeBlockSize])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Unknown catalog size must use the existing resource, without API work.
+	if _, err := s.Store.db.Exec("UPDATE media SET byte_size=NULL WHERE md5=?", target.Resource); err != nil {
+		t.Fatal(err)
+	}
+	target.Size = 0
+	assertResponse(t, previewResponse(s, target, map[string]string{"Range": "bytes=0-15"}), 206, body[:16])
+	if downloads.Load() != 0 {
+		t.Fatal("readable Range contacted upstream")
+	}
+	// Reclamation after serving begins must retain the normal refill path.
+	w := &previewWriteHook{ResponseRecorder: httptest.NewRecorder(), after: func() {
+		local.storage.removeFiles(local.storage.retire(func(block int64) bool { return block == 1 }))
+		s.notifyResourceAvailability(v.key)
+	}}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	read := httptest.NewRequest("GET", "http://127.0.0.1/media/preview", nil).WithContext(ctx)
+	read.Header.Set("Range", fmt.Sprintf("bytes=0-%d", 2*rangeBlockSize-1))
+	s.ServePreview(w, read, target)
+	if w.Code != 206 || w.Body.String() != body[:2*rangeBlockSize] || downloads.Load() != 1 {
+		t.Fatal(w.Code, w.Body.Len(), downloads.Load())
 	}
 }
 
 func TestPreviewKnownAddressBeyondAPILookupBudget(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 			t.Error("known URL ignored")
 			return "", fmt.Errorf("offline")
@@ -505,122 +499,5 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 				t.Fatal("duplicate download", downloads.Load())
 			}
 		})
-	}
-}
-
-func TestPreviewExistingSequentialBlocksBindEarlierReadersTo200Execution(t *testing.T) {
-	testPreviewSequentialReaders(t, true)
-}
-
-func TestPreviewFreshSequentialReadersShare200Execution(t *testing.T) {
-	testPreviewSequentialReaders(t, false)
-}
-
-func testPreviewSequentialReaders(t *testing.T, existing bool) {
-	t.Helper()
-	body := strings.Repeat("s", int(3*rangeBlockSize))
-	entered, headers, bodyGate := make(chan struct{}, 1), make(chan struct{}), make(chan struct{})
-	var allowHeaders, allowBody sync.Once
-	defer allowHeaders.Do(func() { close(headers) })
-	defer allowBody.Do(func() { close(bodyGate) })
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		entered <- struct{}{}
-		select {
-		case <-headers:
-		case <-r.Context().Done():
-			return
-		}
-		w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-		w.WriteHeader(http.StatusOK)
-		w.(http.Flusher).Flush()
-		select {
-		case <-bodyGate:
-		case <-r.Context().Done():
-			return
-		}
-		io.WriteString(w, body)
-	}, func(cfg *Config) {
-		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(body), nil }
-	})
-	target := seedPreview(t, s, body)
-	r, _ := http.NewRequest("GET", videoURL(body), nil)
-	v, _ := s.parseResolved(r)
-	if existing {
-		local, err := s.newLocalResource(v, &http.Response{StatusCode: 200, Header: make(http.Header)}, s.cfg.Logger)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer local.storage.release()
-		if err := local.storage.store(0, []byte(body[:rangeBlockSize])); err != nil {
-			t.Fatal(err)
-		}
-	}
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	firstCtx, cancelFirst := context.WithCancel(ctx)
-	defer cancelFirst()
-	run := func(ctx context.Context, block int64) <-chan *httptest.ResponseRecorder {
-		done := make(chan *httptest.ResponseRecorder, 1)
-		go func() {
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest("GET", "http://127.0.0.1/media/preview", nil).WithContext(ctx)
-			r.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", block*rangeBlockSize, (block+1)*rangeBlockSize-1))
-			s.ServePreview(w, r, target)
-			done <- w
-		}()
-		return done
-	}
-	wait := func(check func() bool) {
-		t.Helper()
-		for !check() {
-			select {
-			case <-ctx.Done():
-				t.Fatal("timed out waiting for read mapping")
-			case <-time.After(time.Millisecond):
-			}
-		}
-	}
-	first := run(firstCtx, 1)
-	select {
-	case <-entered:
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	}
-	key1, key2 := downloadTaskKey(v.key, v.size, 1), downloadTaskKey(v.key, v.size, 2)
-	var second <-chan *httptest.ResponseRecorder
-	if existing {
-		second = run(ctx, 2)
-		wait(func() bool {
-			obs := s.scheduler.Observation()
-			return obs.Tasks[key1].Readers == 1 && obs.Tasks[key2].Readers == 1
-		})
-		allowHeaders.Do(func() { close(headers) })
-	} else {
-		allowHeaders.Do(func() { close(headers) })
-		wait(func() bool { return s.scheduler.Observation().Tasks[key1].Readers == 1 })
-		second = run(ctx, 2)
-	}
-	wait(func() bool {
-		obs := s.scheduler.Observation()
-		return obs.Tasks[key1].Readers == 2 && obs.Tasks[key2].Readers == 0
-	})
-	cancelFirst()
-	select {
-	case <-first:
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	}
-	wait(func() bool {
-		obs := s.scheduler.Observation()
-		return obs.Tasks[key1].Readers == 1 && !obs.Tasks[key1].Retiring
-	})
-	allowBody.Do(func() { close(bodyGate) })
-	select {
-	case w := <-second:
-		if w.Code != 206 || w.Body.String() != body[2*rangeBlockSize:] {
-			t.Fatal(w.Code, w.Body.Len())
-		}
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
 	}
 }

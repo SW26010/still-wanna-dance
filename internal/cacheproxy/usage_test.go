@@ -25,7 +25,7 @@ func recordDemand(u *usageStore, id string, at time.Time) {
 func TestSongDemandReverseCompletion(t *testing.T) {
 	for _, gap := range []int64{10, 35} {
 		t.Run(time.Duration(gap*time.Second.Nanoseconds()).String(), func(t *testing.T) {
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 			if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestSongDemandReverseCompletion(t *testing.T) {
 }
 
 func TestCacheAccessSurvivesRequestCleanupAndRestart(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	old := time.Now().Add(-31 * 24 * time.Hour)
 	s.Store.usage.now = func() time.Time { return old }
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
@@ -157,7 +157,7 @@ func TestSongDemandConcurrentAndClose(t *testing.T) {
 }
 
 func TestOnlyExplicitSongGETAddsDemand(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestRequestRetentionConfig(t *testing.T) {
 }
 
 func TestRequestRetentionNonePreservesHTTPSummaries(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(c *Config) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(c *Config) {
 		c.RequestRetentionDays, c.RequestRetentionUnlimited = 0, false
 	})
 	if _, err := s.PrefetchSong(context.Background(), "1", videoURL(payload)); err != nil {

@@ -118,7 +118,7 @@ func TestRetentionStartupAndUnknownFiles(t *testing.T) {
 func TestOversizedVideoStillServed(t *testing.T) {
 	for _, limit := range []int64{0, 1} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
-			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 			setRetentionLimit(t, s, limit)
 			assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 			// Close waits for the independent download worker and its eviction pass.
@@ -134,7 +134,7 @@ func TestOversizedVideoStillServed(t *testing.T) {
 	}
 }
 func TestPrefetchDoesNotDisplacePopularVideo(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, len(payload))
 	seedPrioritySong(t, s, "1", strings.Repeat("1", 32))
@@ -358,7 +358,7 @@ func TestRetentionReconciliationCorrectsExternalChanges(t *testing.T) {
 }
 
 func TestRetentionPublicationAndEvictionAccounting(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	setRetentionLimit(t, s, 100)
 	for i := 0; i < 2; i++ {
 		if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
@@ -384,7 +384,7 @@ func TestRetentionPublicationAndEvictionAccounting(t *testing.T) {
 }
 
 func TestRetentionReconciliationDuringPublication(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(payload)) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	setRetentionLimit(t, s, 1<<20)
 	stop := make(chan struct{})
 	done := make(chan struct{})

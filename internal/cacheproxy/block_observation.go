@@ -345,14 +345,8 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 	result.Used = len(s.useBlocks)
 	result.Blocks = make(map[string]BlockView, len(projected))
 	sizes := make(map[string]int64)
-	sequential := make(map[string]int64)
 	for key, f := range s.flights {
 		sizes[key] = f.size
-		if f.sequentialCtx != nil && f.sequentialCtx.Err() == nil && f.progress != nil {
-			f.progress.mu.Lock()
-			sequential[key] = f.progress.bytes / s.cfg.BlockSize
-			f.progress.mu.Unlock()
-		}
 	}
 	for key, u := range s.resourceUses {
 		sizes[key] = u.video.size
@@ -439,9 +433,6 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		}
 		if available && b.InUse {
 			b.State = "available"
-		}
-		if current, ok := sequential[b.Resource]; ok && b.InUse && !available && current == b.Block {
-			b.State = "downloading"
 		}
 		b.ByteOffset = b.Block * s.cfg.BlockSize
 		b.Bytes = blockBytes(sizes[b.Resource], b.Block, s.cfg.BlockSize)

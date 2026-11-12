@@ -27,8 +27,8 @@ func TestLeaseStopCompletesBeforeCoordinatorRetirement(t *testing.T) {
 		w.jobs[0] = &scheduledBlock{task: task}
 		time.Sleep(time.Second)
 		<-task.Done()
-		if whole, err := w.reapCompleted(); whole || err != nil || len(w.jobs) != 0 {
-			t.Fatal("completed lease retirement failed a newly attached GET", whole, err, len(w.jobs))
+		if err := w.reapCompleted(); err != nil || len(w.jobs) != 0 {
+			t.Fatal("completed lease retirement failed a newly attached GET", err, len(w.jobs))
 		}
 	})
 }
@@ -48,7 +48,13 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			defer cancel(nil)
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
+			local, err := s.newLocalResource(v, s.cfg.Logger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.ranges = local
 			w := newDownloadSession(s, ctx, v, f)
+			w.exposeLocalReads(local)
 			defer w.releaseResourceWatch()
 			defer func() {
 				f.progress.finish(nil)

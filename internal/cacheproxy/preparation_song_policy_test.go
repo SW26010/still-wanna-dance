@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -80,7 +81,7 @@ func TestPreparationRechecksBlockedSongAfterCapacityWait(t *testing.T) {
 				cfg.ResourceTransports = func(string) []http.RoundTripper {
 					return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 						calls.Add(1)
-						return &http.Response{StatusCode: http.StatusOK, Request: r, Header: make(http.Header),
+						return &http.Response{StatusCode: http.StatusPartialContent, Request: r, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload))}},
 							ContentLength: int64(len(payload)), Body: io.NopCloser(strings.NewReader(payload))}, nil
 					})}
 				}

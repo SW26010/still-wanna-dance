@@ -25,7 +25,7 @@ func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
 		for _, failed := range []bool{false, true} {
 			t.Run(fmt.Sprintf("fixed=%v/failed=%v", fixed, failed), func(t *testing.T) {
 				logs := new(logCapture)
-				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }, func(cfg *Config) {
+				s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 					cfg.CacheUnlimited = true
 					cfg.Logger = slog.New(slog.NewJSONHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 					cfg.ResolvePlayback = func(context.Context, string) (string, error) {
@@ -238,7 +238,7 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) {
 		close(entered)
 		<-release
-		io.WriteString(w, payload)
+		serveFixtureContent(w, r, payload)
 	})
 	defer unblock()
 	var wg sync.WaitGroup
@@ -310,7 +310,9 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 }
 
 func TestLogsSeparateGETDeliveryFromIntegrityFailure(t *testing.T) {
-	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, strings.Repeat("x", len(payload))) })
+	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		serveFixtureContent(w, r, strings.Repeat("x", len(payload)))
+	})
 	request(s, "GET", videoURL(payload), nil)
 	s.wg.Wait()
 	s.Close()
@@ -342,7 +344,7 @@ func TestLogsPreserveResourceHostAcrossRedirect(t *testing.T) {
 			http.Redirect(w, r, strings.Replace(videoURL(payload), "play.udon.dance", "nya.xin.moe", 1), http.StatusFound)
 			return
 		}
-		io.WriteString(w, payload)
+		serveFixtureContent(w, r, payload)
 	})
 	if _, err := s.Prefetch(t.Context(), videoURL(payload)); err != nil {
 		t.Fatal(err)
@@ -350,15 +352,15 @@ func TestLogsPreserveResourceHostAcrossRedirect(t *testing.T) {
 	s.Close()
 	found := 0
 	for _, record := range logs.records(t) {
-		if record["msg"] == "upstream_response" || record["msg"] == "range_unavailable" {
+		if record["msg"] == "upstream_response" {
 			found++
 			if record["host"] != "play.udon.dance" || record["upstream_host"] != "nya.xin.moe" {
 				t.Fatal("redirect lost original or actual upstream host", record)
 			}
 		}
 	}
-	if found != 2 {
-		t.Fatal("missing upstream or sequential fallback record", found)
+	if found != 1 {
+		t.Fatal("missing upstream response record", found)
 	}
 }
 
@@ -393,7 +395,7 @@ func (w brokenWriter) WriteHeader(int)           {}
 func (w brokenWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 func TestLogsClientWriteFailureAfter200(t *testing.T) {
-	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, logs := loggingServer(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}

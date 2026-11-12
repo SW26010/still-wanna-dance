@@ -203,7 +203,7 @@ func TestRequestRetrySuccessDoesNotKeepTimeout(t *testing.T) {
 		return []http.RoundTripper{
 			resourceTransportFunc(func(*http.Request) (*http.Response, error) { return nil, context.DeadlineExceeded }),
 			resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
-				return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(payload)), Body: io.NopCloser(strings.NewReader(payload)), Request: r}, nil
+				return fixtureRangeResponse(r, payload), nil
 			}),
 		}
 	}
@@ -218,7 +218,7 @@ func TestRequestRetrySuccessDoesNotKeepTimeout(t *testing.T) {
 }
 
 func TestLocalPlaybackHistoryIgnoresBackgroundLookupFailure(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	if _, err := s.PrefetchSong(t.Context(), "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}

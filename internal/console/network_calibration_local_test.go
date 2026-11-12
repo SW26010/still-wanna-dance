@@ -51,8 +51,9 @@ func TestNetworkCalibrationReusesMetadataPriorityAndPersistence(t *testing.T) {
 	c.client.CloseIdleConnections()
 	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
 		if strings.HasPrefix(r.URL.Path, "/files/") {
-			return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: 128 << 20,
-				Body: io.NopCloser(io.LimitReader(calibrationZeroReader{}, 128<<20))}, nil
+			var start, end int64
+			fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+			return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes %d-%d/%d", start, end, 128<<20)}}, ContentLength: end - start + 1, Request: r, Body: io.NopCloser(io.LimitReader(calibrationZeroReader{}, end-start+1))}, nil
 		}
 		if r.URL.Path != "/Api/Songs/play" {
 			t.Error("calibration requested a catalog")
@@ -282,8 +283,11 @@ func TestNetworkCalibrationAvailableLocalSamplesDoNotSyncCatalog(t *testing.T) {
 							wantPlayback = 1
 						}
 						after, err := c.store.CatalogStatus(t.Context())
-						if err != nil || state.Phase != "failed" || state.Reason != wantReason || state.PreparedVideos != wantPrepared || state.Bytes != 0 || playback.Load() != wantPlayback || media.Load() != wantMedia || unexpected.Load() != 0 || before != after || c.service != nil {
-							t.Fatalf("insufficient local candidates changed scope: phase=%s prepared=%d playback=%d unexpected=%d catalog_changed=%t err=%v", state.Phase, state.PreparedVideos, playback.Load(), unexpected.Load(), before != after, err)
+						// Multiple cold Range tasks can reach the transport before the
+						// resource coordinator observes the first task's failure.
+						mediaReached := media.Load() > 0
+						if err != nil || state.Phase != "failed" || state.Reason != wantReason || state.PreparedVideos != wantPrepared || state.Bytes != 0 || playback.Load() != wantPlayback || mediaReached != (wantMedia > 0) || unexpected.Load() != 0 || before != after || c.service != nil {
+							t.Fatalf("insufficient local candidates changed scope: phase=%s reason=%s prepared=%d playback=%d media=%d unexpected=%d catalog_changed=%t err=%v", state.Phase, state.Reason, state.PreparedVideos, playback.Load(), media.Load(), unexpected.Load(), before != after, err)
 						}
 						break
 					}

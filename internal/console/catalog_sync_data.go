@@ -89,9 +89,6 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		}
 	}
 	if usable {
-		if ctx.Err() == nil {
-			c.catalogDataUpdated()
-		}
 		return usable, ctx.Err()
 	}
 	return false, errors.Join(catalogRefreshError(failures), ctx.Err())

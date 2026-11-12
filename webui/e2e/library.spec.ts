@@ -158,8 +158,9 @@ async function libraryFixture(page:Page,videoError?:string) {
   const songs=[1,2,3].map(id=>({id:String(id),title:id<3?'共同视频'+id:'缺失视频',artist:'歌手资料',dancer:'舞者资料',group:'社团资料',score:123.456,hasDemand:true,policy:'normal' as const,resource:id<3?key:missing}));
   await page.route('**/api/library?**',async route=>{
     const p=new URL(route.request().url()).searchParams;queries.push(p);
-    const chosen=songs.filter(s=>(!p.get('song')||s.id===p.get('song'))&&(!p.get('q')||s.title.includes(p.get('q')!)));
-    const keys=Object.keys(resources).filter(k=>!p.get('resource')||k===p.get('resource'));
+    const text=p.get('q')||'';
+    const chosen=songs.filter(s=>text.startsWith('id:')?s.id===text.slice(3):text.startsWith('md5:')?s.resource===text.slice(4):s.title.includes(text));
+    const keys=Object.keys(resources).filter(k=>text.startsWith('md5:')?k===text.slice(4):!text||chosen.some(s=>s.resource===k));
     const offset=Number(p.get('offset')||0);
     const data:LibraryPage={videoError,storageID:'fixture',databaseID:'fixture-db',songs:chosen.slice(offset,offset+50),keys:keys.slice(offset,offset+50),resources,total:p.get('view')==='resources'?keys.length:chosen.length,fileCount:1,totalBytes:12345};
     await route.fulfill({json:data});
@@ -309,13 +310,147 @@ test('historical object links retain exact identity and explain missing objects'
   await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'999',resource:'c'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:5,status:200,outcome:'completed'}],hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   await page.getByRole('link',{name:'ID 999',exact:true}).click();
-  await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
-  expect(queries.at(-1)?.get('song')).toBe('999');
+  await expect(page.getByText('没有匹配项，请调整搜索或更新清单。')).toBeVisible();
+  expect(queries.at(-1)?.get('q')).toBe('id:999');
   await page.goBack();
   await page.getByRole('link',{name:'c'.repeat(12)+'…',exact:true}).click();
   await expect(page.getByRole('tab',{name:'按资源'})).toHaveAttribute('aria-selected','true');
-  await expect(page.getByText('当前条件下没有匹配项。')).toBeVisible();
-  expect(queries.at(-1)?.get('resource')).toBe('c'.repeat(32));
+  await expect(page.getByText('没有匹配项，请调整搜索或更新清单。')).toBeVisible();
+  expect(queries.at(-1)?.get('q')).toBe('md5:'+'c'.repeat(32));
+});
+
+test('object links become editable searches across both views and browser history',async({page})=>{
+  const {queries}=await libraryFixture(page);
+  await page.goto('/#/library?resource='+key);
+  const search=page.getByRole('searchbox',{name:'搜索曲库',exact:true});
+  await expect(search).toHaveValue('md5:'+key);
+  await expect(page).toHaveURL(/#\/library\?view=resources&q=md5%3A/);
+  await expect(page.getByRole('link',{name:'返回完整曲库',exact:true})).toHaveCount(0);
+  await page.getByRole('tab',{name:'按歌曲',exact:true}).click();
+  await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
+  await expect(search).toHaveValue('md5:'+key);
+  await page.goBack();await expect(page.getByRole('tab',{name:'按资源',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('table',{name:'曲库资源'}).getByRole('link',{name:'共同视频一',exact:true}).click();
+  await expect(search).toHaveValue('id:1');
+  await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(1);
+  await page.reload();await expect(search).toHaveValue('id:1');
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();
+  await expect(page.getByRole('table',{name:'曲库资源'}).locator('tbody tr')).toHaveCount(1);
+  await search.fill('缺失视频');await search.press('Enter');
+  await expect(page.getByRole('table',{name:'曲库资源'})).toContainText(missing);
+  await page.goBack();await expect(search).toHaveValue('id:1');
+  await page.goForward();await expect(search).toHaveValue('缺失视频');
+  await search.fill('');await search.press('Enter');
+  await expect(page.getByRole('table',{name:'曲库资源'}).locator('tbody tr')).toHaveCount(2);
+  expect(queries.every(q=>!q.has('song')&&!q.has('resource'))).toBe(true);
+});
+
+for(const view of ['songs','resources'] as const)test(`rejected ${view} query retains the successful second-page summary`,async({page})=>{
+  const {songs,resources}=await libraryFixture(page);
+  if(view==='songs')for(let id=4;id<=60;id++)songs.push({...songs[2],id:String(id),title:'额外歌曲 '+id});
+  else for(let id=3;id<=60;id++){
+    const key=id.toString(16).padStart(32,'0');
+    resources[key]={key,size:null,duration:null,songs:[],songCount:0,local:null};
+  }
+  await page.route('**/api/library?**',async route=>{
+    if(new URL(route.request().url()).searchParams.get('q')==='id:0')await route.fulfill({status:400,json:{error:'id: 后请输入正整数歌曲 ID，例如 id:2367',code:'invalid_library_search'}});
+    else await route.fallback();
+  });
+  await page.goto('/#/library?view='+view);
+  const table=page.getByRole('table',{name:view==='songs'?'曲库歌曲':'曲库资源'}),pager=page.getByRole('navigation',{name:'曲库分页'}),search=page.getByRole('searchbox',{name:'搜索曲库',exact:true});
+  await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
+  await expect(pager).toContainText('第 2 页');await expect(table.locator('tbody tr')).toHaveCount(10);
+  const rows=await table.locator('tbody').innerText(),summary=await pager.getByRole('status').innerText();
+  await search.fill('id:0');await search.press('Enter');
+  await expect(search).toHaveAttribute('aria-invalid','true');
+  expect(await table.locator('tbody').innerText()).toBe(rows);
+  await expect(pager.getByRole('status')).toHaveText(summary);
+  await expect(page.getByRole('button',{name:'上一页曲库',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'下一页曲库',exact:true})).toBeDisabled();
+  await search.fill('');await search.press('Enter');
+  await expect(search).not.toHaveAttribute('aria-invalid','true');
+  await expect(table.locator('tbody tr')).toHaveCount(50);await expect(pager).toContainText('第 1 页');
+});
+
+for(const width of [320,390,1280])test(`invalid field searches keep the layout stable at ${width}px`,async({page},info)=>{
+  await libraryFixture(page);
+  await page.route('**/api/library?**',async route=>{
+    const q=new URL(route.request().url()).searchParams.get('q');
+    if(q==='id:0'||q==='md5:abc')await route.fulfill({status:400,json:{error:q==='id:0'?'id: 后请输入正整数歌曲 ID，例如 id:2367':'md5: 后请输入完整的 32 位资源标识',code:'invalid_library_search'}});
+    else await route.fallback();
+  });
+  await page.setViewportSize({width,height:844});await page.goto('/#/library');
+  const search=page.getByRole('searchbox',{name:'搜索曲库',exact:true});
+  const searchBox=page.locator('.library-search-box'),clear=page.getByRole('button',{name:'清空搜索',exact:true});
+  const table=page.getByRole('table',{name:'曲库歌曲'});
+  const stable=[page.getByRole('combobox',{name:'筛选',exact:true}),page.getByRole('button',{name:'查找',exact:true}),page.getByRole('tablist',{name:'曲库视图',exact:true}),table,page.getByRole('navigation',{name:'曲库分页'}),searchBox,clear];
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+  await page.evaluate(()=>window.scrollTo(0,0));
+  const positions=async()=>Promise.all(stable.map(target=>target.evaluate(el=>{const box=el.getBoundingClientRect();return {x:box.x+scrollX,y:box.y+scrollY,width:box.width,height:box.height};})));
+  const before=await positions();
+  await expect(page.locator('.library-search-error')).toHaveCount(0);
+  const fullInput=await search.boundingBox(),clearBox=await clear.boundingBox();
+  expect(fullInput!.x+fullInput!.width).toBeCloseTo(clearBox!.x,0);
+  await search.fill('id:0');await search.press('Enter');
+  await expect(search).toHaveAttribute('aria-invalid','true');await expect(search).toHaveAccessibleDescription(/正整数歌曲 ID/);
+  await expect(page.getByRole('button',{name:'查找',exact:true})).toBeEnabled();
+  await expect(page.getByText('检查失败',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('group',{name:'本地视频',exact:true})).toContainText('1 个');
+  expect(await positions()).toEqual(before);
+  const error=page.getByRole('button',{name:'搜索曲库：错误',exact:true});
+  const box=await searchBox.boundingBox(),icon=await error.boundingBox(),dismiss=await clear.boundingBox();
+  expect((await search.boundingBox())!.width).toBeLessThan(fullInput!.width);
+  expect(icon!.x).toBeGreaterThanOrEqual(box!.x);expect(icon!.y).toBeGreaterThanOrEqual(box!.y);
+  expect(icon!.x+icon!.width).toBeLessThanOrEqual(dismiss!.x);expect(dismiss!.x+dismiss!.width).toBeLessThanOrEqual(box!.x+box!.width);
+  expect(icon!.y+icon!.height).toBeLessThanOrEqual(box!.y+box!.height);
+  await error.hover();await expect(page.getByRole('tooltip')).toContainText('正整数歌曲 ID');
+  expect(await positions()).toEqual(before);
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);await error.focus();
+  await expect(page.getByRole('tooltip')).toContainText('正整数歌曲 ID');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await search.fill('md5:abc');await search.press('Enter');
+  await expect(search).toHaveAccessibleDescription(/32 位资源标识/);
+  expect(await positions()).toEqual(before);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('invalid-query-mobile.png'),fullPage:false});
+  await clear.click();await expect(search).toHaveValue('');await expect(search).toBeFocused();
+  expect(await positions()).toEqual(before);
+  await search.press('Enter');
+  await expect(search).not.toHaveAttribute('aria-invalid','true');
+  await expect(error).toHaveCount(0);
+  await expect(page.locator('.library-search-error')).toHaveCount(0);
+  expect((await search.boundingBox())!.width).toBe(fullInput!.width);
+  await searchBox.screenshot({path:info.outputPath('normal-search.png')});
+  await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(3);
+  expect(await positions()).toEqual(before);
+});
+
+test('query URL restores sorting, filters and pagination without moving tab focus',async({page})=>{
+  const {songs,queries}=await libraryFixture(page);
+  for(let id=4;id<=60;id++)songs.push({...songs[2],id:String(id),title:'额外歌曲 '+id});
+  await page.goto('/#/library');
+  const search=page.getByRole('searchbox',{name:'搜索曲库',exact:true}),filter=page.getByRole('combobox',{name:'筛选',exact:true});
+  await search.fill('额外歌曲');await filter.selectOption('missing');await search.press('Enter');
+  await search.fill('尚未提交的搜索');
+  const header=page.getByRole('button',{name:'按名称排序',exact:true});await header.click();
+  await expect(header).toBeFocused();
+  await expect(search).toHaveValue('尚未提交的搜索');
+  await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
+  await expect(search).toHaveValue('尚未提交的搜索');
+  await expect(page.getByRole('navigation',{name:'曲库分页'})).toContainText('第 2 页');
+  const url=page.url();await page.reload();
+  await expect(search).toHaveValue('额外歌曲');await expect(filter).toHaveValue('missing');
+  await expect(page.getByRole('navigation',{name:'曲库分页'})).toContainText('第 2 页');
+  await expect(header.locator('..')).toHaveAttribute('aria-sort','ascending');
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'按资源',exact:true})).toBeFocused();
+  await expect(search).toHaveValue('额外歌曲');await expect(filter).toHaveValue('');
+  expect(queries.at(-1)?.get('offset')).toBe('0');expect(queries.at(-1)?.get('sort')).toBe('score');
+  await page.goBack();await expect(page).toHaveURL(url);
+  await expect(page.getByRole('navigation',{name:'曲库分页'})).toContainText('第 2 页');
+  await expect(filter).toHaveValue('missing');
+  await search.focus();await expect(page.getByRole('tooltip')).toContainText('id:2367');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
 });
 
 for(const width of [320,390,1280])test(`library layout at ${width}px`,async({page},info)=>{

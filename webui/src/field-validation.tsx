@@ -5,6 +5,10 @@ import {ErrorCircleRegular,WarningRegular} from '@fluentui/react-icons';
 export const FieldErrors = createContext<Record<string,string>>({});
 export const FieldIssues = createContext<Record<string,{message:string;severity:'error'|'warning'}>>({});
 
+export function FieldIssueIcon({label,message,warning=false}:{label:string;message?:string;warning?:boolean}) {
+  return message?<Tooltip content={message} relationship="description"><Button type="button" size="small" appearance="transparent" icon={warning?<WarningRegular style={{color:tokens.colorPaletteYellowForeground1}}/>:<ErrorCircleRegular style={{color:tokens.colorPaletteRedForeground1}}/>} aria-label={label+(warning?'：警告':'：错误')}/></Tooltip>:null;
+}
+
 // Keep one small icon column in the control row. The Field owns the accessible
 // error description, but its message is visually hidden, never a new text row.
 export function ValidationField({name,error,label,children,...props}: Omit<FieldProps,'label'> & {name?:string;error?:string;label:string}) {
@@ -13,7 +17,7 @@ export function ValidationField({name,error,label,children,...props}: Omit<Field
   return <Field {...props} label={label} validationState={message?severity:'none'}
     validationMessage={message?{children:message,className:'field-error-description'}:undefined} validationMessageIcon={null}>
     {controlProps=><div className="validation-control"><div className="validation-input">{typeof children==='function'?children(controlProps):children}</div><span className="validation-icon">
-      {message&&<Tooltip content={message} relationship="description"><Button type="button" size="small" appearance="transparent" icon={warning?<WarningRegular style={{color:tokens.colorPaletteYellowForeground1}}/>:<ErrorCircleRegular style={{color:tokens.colorPaletteRedForeground1}}/>} aria-label={label+(warning?'：警告':'：错误')}/></Tooltip>}
+      <FieldIssueIcon label={label} message={message} warning={warning}/>
     </span></div>}
   </Field>;
 }

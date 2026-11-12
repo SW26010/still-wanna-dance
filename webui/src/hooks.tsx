@@ -46,6 +46,7 @@ export type ResourceSubscription = (invalidate:()=>void)=>()=>void;
 // One request at a time, abort stale reads on route/save/pause, suspend hidden tabs.
 export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false, subscribe?:ResourceSubscription) {
   const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
+  const [errorCode,setErrorCode]=useState<string>();
   const [loadedRevision, setLoadedRevision] = useState<number>();
   const [loadedAt, setLoadedAt] = useState<number>();
   const [loadedPath,setLoadedPath]=useState<string>();
@@ -65,8 +66,8 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
       pending = true; setLoading(true);
       try {
         const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
-        if (!disposed) { setData(next); setLoadedPath(path); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); delay = typeof interval === 'number' ? interval : interval(next); }
-      } catch (e) { if (!disposed) { setError(String(e)); if (!retain) setData(undefined); } }
+        if (!disposed) { setData(next); setLoadedPath(path); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); setErrorCode(undefined); delay = typeof interval === 'number' ? interval : interval(next); }
+      } catch (e) { if (!disposed) { setError(String(e)); setErrorCode(e instanceof APIError?e.code:undefined); if (!retain) setData(undefined); } }
       finally {
         pending = false;
         if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (delay > 0) timer = setTimeout(run, delay); }
@@ -84,7 +85,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
     if(subscribe){addEventListener('pagehide',suspend);addEventListener('pageshow',resume);}
     return () => { disposed = true; suspend(); controller.abort(); document.removeEventListener('visibilitychange', visibility); if(subscribe){removeEventListener('pagehide',suspend);removeEventListener('pageshow',resume);} };
   }, [path, enabled, revision, refreshKey, interval, retain, subscribe]);
-  return { data, error, loading, refresh, loadedRevision, loadedAt,loadedPath };
+  return { data, error, errorCode, loading, refresh, loadedRevision, loadedAt,loadedPath };
 }
 
 export function useConfirmation() {

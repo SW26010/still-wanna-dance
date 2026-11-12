@@ -11,7 +11,7 @@ import (
 func TestMetadataTraversalAndCancellation(t *testing.T) {
 	pending := []int64{73, 91}
 	var s *Sync
-	s = New(Options{SongCandidates: func(context.Context) []int64 { s.UpdatedAt(); return slices.Clone(pending) }})
+	s = New(Options{SongCandidates: func(context.Context) []int64 { s.CatalogError(); return slices.Clone(pending) }})
 	defer s.Close()
 	for i, want := range []int64{73, 91, 73, 42} {
 		if i == 3 {

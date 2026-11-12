@@ -112,7 +112,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await page.keyboard.press('Escape');await page.mouse.move(0,0);
   const resource=row.getByRole('link',{name:'a'.repeat(12)+'…',exact:true});
   await resource.focus();await expect(page.getByRole('tooltip')).toHaveText('a'.repeat(32));
-  await expect(resource).toHaveAttribute('href','#/library?resource='+'a'.repeat(32));
+  await expect(resource).toHaveAttribute('href','#/library?view=resources&q=md5%3A'+'a'.repeat(32));
   await page.keyboard.press('Escape');
   await row.getByRole('button',{name:'请求 1 的明细',exact:true}).hover();
   await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toContainText('a'.repeat(32));
@@ -289,7 +289,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   expect(await songName.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
   const songBox=await songName.boundingBox(),idBox=await songCell.getByRole('link',{name:'ID 42',exact:true}).boundingBox();
   expect(idBox!.y).toBeGreaterThanOrEqual(songBox!.y+songBox!.height-1);
-  await expect(songCell.getByRole('link')).toHaveAttribute('href','#/library?song=42');
+  await expect(songCell.getByRole('link')).toHaveAttribute('href','#/library?view=songs&q=id%3A42');
   await expect(table.locator('tbody tr').nth(1).getByRole('cell').nth(1)).toHaveText('未知');
   await expect(table.locator('tbody tr').nth(3).getByRole('cell').nth(1)).toContainText('未知名称');
   await expect(table.getByRole('link',{name:'ID 404',exact:true})).toBeVisible();

@@ -39,8 +39,8 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(page.Requests) > 50 {
-			t.Fatal("unbounded page")
+		if len(page.Requests) > 50 || page.Total == nil || *page.Total != 1201 {
+			t.Fatalf("unbounded page or cursor changed total: %+v", page)
 		}
 		for _, r := range page.Requests {
 			if seen[r.ID] || r.SongID != "42" || r.SongTitle != "new mapping" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
@@ -60,7 +60,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		t.Fatal("history truncated", len(seen))
 	}
 	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{From: 1100, To: 1101, Limit: 50})
-	if err != nil || len(page.Requests) != 3 {
+	if err != nil || len(page.Requests) != 3 || page.Total == nil || *page.Total != 3 {
 		t.Fatal("time boundaries", page, err)
 	}
 }
@@ -349,6 +349,9 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 					page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
 					if err != nil {
 						t.Fatal(err)
+					}
+					if page.Total == nil || *page.Total != int64(len(want)) {
+						t.Fatalf("sort or cursor changed total: %+v", page)
 					}
 					for _, r := range page.Requests {
 						got = append(got, r.ID)

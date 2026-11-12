@@ -7,7 +7,7 @@ async function coversFixture(page:Page,count=3) {
   const key='a'.repeat(32),local={...api.files[0],key},songs:LibrarySong[]=Array.from({length:count},(_,i)=>({id:String(i+1),title:`封面测试歌曲 ${i+1}`,artist:'测试歌手',dancer:'测试舞者',group:'测试社团',policy:'normal',score:0.12345,hasDemand:i!==1,resource:key}));
   await page.route('**/api/library?**',async route=>{
     const q=new URL(route.request().url()).searchParams;queries.push(q);
-    const offset=Number(q.get('offset')||0),selected=songs.filter(s=>!q.get('q')||s.title.includes(q.get('q')!));
+    const text=q.get('q')||'',offset=Number(q.get('offset')||0),selected=songs.filter(s=>text.startsWith('id:')?s.id===text.slice(3):s.title.includes(text));
     const data:LibraryPage={storageID:'fixture',databaseID:'fixture-db',songs:selected.slice(offset,offset+50),resources:{[key]:{key,size:1024,duration:null,songs:[{id:'1',title:songs[0].title}],songCount:1,local}},keys:[key],total:selected.length,fileCount:1,totalBytes:1024};
     await route.fulfill({json:data});
   });
@@ -89,7 +89,7 @@ test('cover view survives navigation, reload and reopening only within this prog
   await page.getByRole('tab',{name:'按资源',exact:true}).click();await page.getByRole('tab',{name:'按歌曲',exact:true}).click();
   await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
   await page.goto('/#/library?song=1');await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  await page.getByRole('link',{name:'返回完整曲库',exact:true}).click();
+  await page.getByRole('searchbox',{name:'搜索曲库'}).fill('');await page.getByRole('button',{name:'查找',exact:true}).click();
   await page.reload();await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
   const other=await context.newPage(),second=await coversFixture(other);await other.goto('/#/library');
   await expect(other.getByRole('list',{name:'曲库封面'})).toBeVisible();

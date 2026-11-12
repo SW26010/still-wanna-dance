@@ -212,15 +212,15 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 }
 
 func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) {
-	// Refresh before measurement expiry; DNS supplies its own change signal.
-	// A one-second floor prevents tiny TTLs/failures creating a busy loop.
+	// Refresh measurements before their own expiry. DNS leases only govern
+	// candidate eligibility; the resolver refreshes them and signals changes.
 	for _, op := range operations {
 		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
 			if r.State != "available" {
 				continue
 			}
 			margin := min(m.policy.Lifetime/3, m.policy.RequestTimeout*2+m.policy.ResourceTimeout)
-			next := r.ValidUntil.Add(-margin)
+			next := r.ObservedAt.Add(m.policy.Lifetime - margin)
 			if floor := time.Now().Add(time.Second); next.Before(floor) {
 				next = floor
 			}

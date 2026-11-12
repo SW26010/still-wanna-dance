@@ -31,7 +31,10 @@ func TestLibraryBrowser(t *testing.T) {
 	const body = "library browser video"
 	key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 	var downloads atomic.Int32
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); fmt.Fprint(w, body) }))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloads.Add(1)
+		http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
+	}))
 	defer origin.Close()
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", fmt.Sprintf("http://nya.xin.moe/files/2403/1-abc.mp4?e=%s&s=%d", key, len(body)))
@@ -44,6 +47,7 @@ func TestLibraryBrowser(t *testing.T) {
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.LocalProtectionGrace = 0
+	cfg.ResolvePlayback = c.resolvePlayback
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 	}

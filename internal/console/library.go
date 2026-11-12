@@ -17,7 +17,21 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := r.URL.Query()
-	q := cacheproxy.LibraryQuery{View: values.Get("view"), Search: values.Get("q"), Sort: values.Get("sort"), Direction: values.Get("direction"), Filter: values.Get("filter"), SongID: values.Get("song"), Resource: values.Get("resource")}
+	q := cacheproxy.LibraryQuery{View: values.Get("view"), Search: values.Get("q"), Sort: values.Get("sort"), Direction: values.Get("direction"), Filter: values.Get("filter")}
+	// Legacy object links become ordinary field searches, never extra constraints.
+	song, resource := values.Get("song"), values.Get("resource")
+	if song != "" || resource != "" {
+		if q.Search != "" || song != "" && resource != "" {
+			preserveResponseFault(w, rejectRequest(nil))
+			http.Error(w, "请只使用一个搜索条件", 400)
+			return
+		}
+		if song != "" {
+			q.Search = "id:" + song
+		} else {
+			q.Search = "md5:" + resource
+		}
+	}
 	var err error
 	if raw := values.Get("offset"); raw != "" {
 		q.Offset, err = strconv.Atoi(raw)
@@ -26,16 +40,15 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	valid = valid && (q.View == "" || q.View == "songs" || q.View == "resources") && (q.Sort == "" || q.Sort == "id" || q.Sort == "title" || q.Sort == "score" || q.Sort == "size" || q.Sort == "recent" || q.Sort == "resource" && q.View == "resources")
 	valid = valid && (q.Direction == "" || q.Direction == "ascending" || q.Direction == "descending")
 	valid = valid && (q.Filter == "" || q.Filter == "saved" || q.Filter == "missing" || q.View != "resources" && (q.Filter == "normal" || q.Filter == "favorite" || q.Filter == "blocked"))
-	if q.SongID != "" {
-		id, e := strconv.ParseInt(q.SongID, 10, 64)
-		valid = valid && e == nil && id > 0 && strconv.FormatInt(id, 10) == q.SongID && q.View != "resources"
-	}
-	if q.Resource != "" {
-		valid = valid && validLibraryResource(q.Resource)
-	}
 	if !valid {
 		preserveResponseFault(w, rejectRequest(err))
 		http.Error(w, "无效查询", 400)
+		return
+	}
+	if _, err := cacheproxy.ParseLibrarySearch(q.Search); err != nil {
+		preserveResponseFault(w, rejectRequest(err))
+		w.WriteHeader(400)
+		writeJSON(w, map[string]string{"error": err.Error(), "code": "invalid_library_search"})
 		return
 	}
 	c.mu.Lock()

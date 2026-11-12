@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,7 +55,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if err != nil || page.Total != 2 || !slices.Contains(page.Keys, missing) || !slices.Contains(page.Keys, hidden) {
 		t.Fatal(page, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Search: "md5:" + orphan})
 	if err != nil || page.Total != 1 || page.Resources[orphan].SongCount != 0 {
 		t.Fatal(page, err)
 	}
@@ -62,7 +63,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if err != nil || len(removed) != 1 || removed[0].Result != "deleted" {
 		t.Fatal(removed, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: orphan})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Search: "md5:" + orphan})
 	if err != nil || page.Total != 1 || page.Resources[orphan].Local != nil || page.FileCount != 1 || page.TotalBytes != 6 {
 		t.Fatal(page, err)
 	}
@@ -73,7 +74,7 @@ func TestLibrarySharedResourcesAndScope(t *testing.T) {
 	if err := os.Remove(cfg.videoFile(shared)); err != nil {
 		t.Fatal(err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Resource: shared})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{View: "resources", Search: "md5:" + shared})
 	if err != nil || page.Total != 1 || page.Resources[shared].Local != nil {
 		t.Fatal(page, err)
 	}
@@ -121,13 +122,68 @@ func TestLibraryPagesScoresAndExactIdentity(t *testing.T) {
 	if len(seen) != 121 {
 		t.Fatal(len(seen))
 	}
-	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{SongID: "9000001"})
+	page, err := ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Search: "id:9000001"})
 	if err != nil || page.Total != 1 || page.Songs[0].ID != "9000001" || page.Songs[0].Resource != "" {
 		t.Fatal(page, err)
 	}
-	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{SongID: "9999999"})
+	page, err = ReadLibraryPage(ctx, cfg.libraryPaths(), LibraryQuery{Search: "id:9999999"})
 	if err != nil || page.Total != 0 {
 		t.Fatal(page, err)
+	}
+}
+
+func TestLibraryFieldSearchAcrossViews(t *testing.T) {
+	s, cfg := setup(t, nil)
+	shared, other := videoKey("field search shared"), videoKey("field search other")
+	for id, key := range map[string]string{"1": shared, "2": shared, "3": other} {
+		seedPrioritySong(t, s, id, key)
+	}
+	// Text collisions must not leak into either exact query or the resource reverse lookup.
+	if _, err := s.Store.usage.db.Exec(`UPDATE songs SET name=? WHERE id=3; INSERT INTO songs(id,name) VALUES (4,'unmapped')`, "1 "+shared); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		search, view string
+		want         []string
+	}{
+		{"  ID:1  ", "songs", []string{"1"}},
+		{"id:1", "resources", []string{shared}},
+		{"MD5:" + strings.ToUpper(shared), "songs", []string{"1", "2"}},
+		{"md5:" + shared, "resources", []string{shared}},
+		{"id:4", "songs", []string{"4"}},
+		{"id:4", "resources", nil},
+		{"id:99999", "songs", nil},
+		{"md5:" + videoKey("absent"), "resources", nil},
+		{shared, "songs", []string{"1", "2", "3"}},
+		{"unmapped", "songs", []string{"4"}},
+	} {
+		t.Run(tc.view+"/"+tc.search, func(t *testing.T) {
+			page, err := ReadLibraryPage(t.Context(), cfg.libraryPaths(), LibraryQuery{Search: tc.search, View: tc.view, Sort: "id", Direction: "ascending"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := page.Keys
+			if tc.view == "songs" {
+				got = nil
+				for _, song := range page.Songs {
+					got = append(got, song.ID)
+				}
+			}
+			if !slices.Equal(got, tc.want) || page.Total != len(tc.want) {
+				t.Fatalf("got %v total %d, want %v", got, page.Total, tc.want)
+			}
+		})
+	}
+}
+
+func TestLibrarySearchRejectsMalformedFieldsBeforeStorage(t *testing.T) {
+	for _, search := range []string{"id:", "id:0", "id:-1", "id:01", "id:9223372036854775808", "id:1 2", "id:1 md5:" + videoKey("x"), "md5:", "md5:abc", "md5:" + strings.Repeat("g", 32)} {
+		if _, err := ReadLibraryPage(t.Context(), fixtureLibrary(t.TempDir()), LibraryQuery{Search: search}); err == nil || !strings.Contains(err.Error(), "后请输入") {
+			t.Fatalf("%q did not return a field-format error: %v", search, err)
+		}
+	}
+	if _, err := ParseLibrarySearch("title:ordinary text"); err != nil {
+		t.Fatal("unknown prefixes remain ordinary text", err)
 	}
 }
 

@@ -52,15 +52,6 @@ func (c *Console) catalogChecked(err error) {
 	m.CatalogChecked(err)
 }
 
-func (c *Console) catalogDataUpdated() {
-	c.mu.Lock()
-	m := c.metadata
-	c.mu.Unlock()
-	if m != nil {
-		m.Updated()
-	}
-}
-
 // Keep the catalog status API as a projection of the shared detection lifecycle.
 type catalogSyncStatus struct {
 	Initializing bool      `json:"initializing"`
@@ -74,8 +65,10 @@ type catalogSyncStatus struct {
 func (c *Console) catalogSyncSnapshotLocked() catalogSyncStatus {
 	var s catalogSyncStatus
 	if c.metadata != nil {
-		s.Updated = c.metadata.UpdatedAt()
 		s.Error = c.metadata.CatalogError()
+	}
+	if c.store != nil {
+		s.Updated = c.store.MetadataUpdatedAt()
 	}
 	if n := c.networkDiagnostics; n != nil {
 		v, _ := n.connectivitySnapshot()

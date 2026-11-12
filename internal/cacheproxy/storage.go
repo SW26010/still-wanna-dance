@@ -13,7 +13,8 @@ func (c Config) videoFile(key string) string {
 }
 
 const upsertMediaSQL = `INSERT INTO media(md5, byte_size)
- VALUES (?, NULLIF(?,0)) ON CONFLICT(md5) DO UPDATE SET byte_size=COALESCE(excluded.byte_size,media.byte_size)`
+ VALUES (?, NULLIF(?,0)) ON CONFLICT(md5) DO UPDATE SET byte_size=excluded.byte_size
+ WHERE excluded.byte_size IS NOT NULL AND excluded.byte_size IS NOT media.byte_size`
 
 // recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {

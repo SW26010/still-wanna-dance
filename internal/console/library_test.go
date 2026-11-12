@@ -26,6 +26,13 @@ func TestLibraryAPIReadOnlyAndValidation(t *testing.T) {
 		{"/api/library?filter=no", c.token, "", 400},
 		{"/api/library?song=01", c.token, "", 400},
 		{"/api/library?resource=invalid", c.token, "", 400},
+		{"/api/library?q=id:1", c.token, "", 200},
+		{"/api/library?view=resources&q=ID:1", c.token, "", 200},
+		{"/api/library?q=md5:" + strings.Repeat("A", 32), c.token, "", 200},
+		{"/api/library?q=id:0", c.token, "", 400},
+		{"/api/library?q=md5:abc", c.token, "", 400},
+		{"/api/library?song=1&q=test", c.token, "", 400},
+		{"/api/library?song=1&resource=" + strings.Repeat("a", 32), c.token, "", 400},
 		{"/api/library?q=" + strings.Repeat("x", 301), c.token, "", 400},
 	} {
 		r := httptest.NewRequest("GET", "http://"+c.address+tc.path, nil)

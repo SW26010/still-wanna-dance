@@ -2,6 +2,38 @@ import {test,expect,type Locator,type Page} from '@playwright/test';
 import {mockAPI, choosePath} from './api';
 import type {LibraryPage,LibraryResource,SongPolicy} from '../src/types';
 
+test('preview retries an expired GET instead of reporting an unsupported video',async({page})=>{
+  await libraryFixture(page);
+  let requests=0;
+  await page.route('**/api/library/preview',route=>route.fulfill({json:{url:'/media/preview?expired'}}));
+  await page.route('**/media/preview?**',async route=>{
+    requests++;
+    if(requests===1)await route.fulfill({status:504,body:'Gateway Timeout'});
+    else await route.abort('connectionreset');
+  });
+  await page.goto('/#/library');
+  await page.getByRole('table',{name:'曲库歌曲'}).getByRole('button',{name:'预览',exact:true}).first().click();
+  await expect.poll(()=>requests,{timeout:5000}).toBeGreaterThan(1);
+  await expect(page.getByRole('dialog')).not.toContainText('编码不受支持');
+  await page.getByRole('button',{name:'关闭预览',exact:true}).click();
+  const stopped=requests;
+  await page.waitForTimeout(1500);
+  expect(requests).toBe(stopped);
+});
+
+test('preview bounds retries when the media remains unavailable',async({page})=>{
+  await libraryFixture(page);
+  let requests=0;
+  await page.route('**/api/library/preview',route=>route.fulfill({json:{url:'/media/preview?unavailable'}}));
+  await page.route('**/media/preview?**',async route=>{requests++;await route.fulfill({status:504,body:'Gateway Timeout'});});
+  await page.goto('/#/library');
+  await page.getByRole('table',{name:'曲库歌曲'}).getByRole('button',{name:'预览',exact:true}).first().click();
+  await expect(page.getByRole('dialog')).toContainText('自动重试未成功',{timeout:10000});
+  expect(requests).toBe(4);
+  await page.clock.install();await page.clock.runFor(30000);
+  expect(requests).toBe(4);
+});
+
 test('preview is lazy, uses the selected entry, and releases its native source',async({page})=>{
   await libraryFixture(page);
   const preparations:unknown[]=[],media:string[]=[];

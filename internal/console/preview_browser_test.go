@@ -37,7 +37,12 @@ func TestPreviewBrowser(t *testing.T) {
 	key := fmt.Sprintf("%x", md5.Sum(body))
 	var downloads atomic.Int32
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		downloads.Add(1)
+		// Let the first real GET reach need-by + 30s. The browser must issue
+		// a new GET after the resulting 504, rather than treating it as a codec failure.
+		if downloads.Add(1) == 1 {
+			<-r.Context().Done()
+			return
+		}
 		http.ServeContent(w, r, "synthetic.mp4", time.Time{}, bytes.NewReader(body))
 	}))
 	defer origin.Close()
@@ -89,11 +94,11 @@ func TestPreviewBrowser(t *testing.T) {
 	if err != nil || len(recent.Requests) != 0 {
 		t.Fatal("preview entered history", recent, err)
 	}
-	if downloads.Load() != 1 {
+	if downloads.Load() != 2 {
 		t.Fatal("cached preview redownloaded", downloads.Load())
 	}
 	if c.httpServer != nil || c.queue.snapshot().Running || !c.activation.FirstRequest.IsZero() {
 		t.Fatal("preview changed game state")
 	}
-	t.Logf("decoded synthetic MP4, seek/pause/replay/navigation/cross-origin passed; upstream requests=%d", downloads.Load())
+	t.Logf("recovered from real need-by expiry; decoded synthetic MP4, seek/pause/replay/navigation/cross-origin passed; upstream requests=%d", downloads.Load())
 }

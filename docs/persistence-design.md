@@ -82,7 +82,7 @@ SWD/
       inventory.json
       batch-last-success.json       # 最近成功的完整批量任务结果
       batch-last-attempt.json       # 最近结束的任务，包括失败或中止
-      video-import.json             # 当前视频导入清单、进度与清理回执
+      video-import.sqlite           # 当前视频导入清单、进度与清理回执；独立于核心库
       mihomo/                       # 现有依赖 Home，按实际需要产生
   videos/                           # 完整视频，按需备份
     {md5}.mp4

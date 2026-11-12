@@ -12,7 +12,7 @@ import (
 const ConfigVersion = 8
 
 type Paths struct {
-	Config, Root, Lock, StateDir, Terms, ChannelKey, LogDir, DefaultDatabase, DefaultVideo string
+	Config, Root, Lock, StateDir, Terms, ChannelKey, VideoImport, LogDir, DefaultDatabase, DefaultVideo string
 }
 
 func DefaultConfig(executable string) string {
@@ -33,7 +33,7 @@ func ForConfig(config string) Paths {
 	}
 	state := filepath.Join(root, "data", "state")
 	return Paths{Config: config, Root: root, Lock: filepath.Join(root, "config.lock"),
-		StateDir: state, Terms: filepath.Join(state, "terms.json"), ChannelKey: filepath.Join(state, "channel.key"),
+		StateDir: state, Terms: filepath.Join(state, "terms.json"), ChannelKey: filepath.Join(state, "channel.key"), VideoImport: filepath.Join(state, "video-import.sqlite"),
 		LogDir: filepath.Join(root, "logs"), DefaultDatabase: filepath.Join(prefix, "data", "database", "storage.sqlite"), DefaultVideo: filepath.Join(prefix, "videos")}
 }
 

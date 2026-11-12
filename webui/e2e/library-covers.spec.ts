@@ -26,15 +26,12 @@ async function coversFixture(page:Page,count=3) {
   return {...api,songs,requested,modes,queries};
 }
 
-test('cover view loads current and next pages in priority order and preserves toolbar',async({page})=>{
+test('default cover view loads current and next pages in priority order and preserves toolbar',async({page})=>{
   const {requested,modes,queries}=await coversFixture(page,75);
   await page.setViewportSize({width:1280,height:800});
   await page.goto('/#/library');
-  await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
-  expect(requested).toEqual([]);
   const search=page.getByRole('searchbox',{name:'搜索曲库'}),tabs=page.getByRole('tablist',{name:'曲库视图'});
   const before={search:await search.boundingBox(),tabs:await tabs.boundingBox()};
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   const grid=page.getByRole('list',{name:'曲库封面'});
   await expect(grid.getByRole('listitem')).toHaveCount(50);
   await expect.poll(()=>requested.includes('1')).toBe(true);
@@ -50,6 +47,7 @@ test('cover view loads current and next pages in priority order and preserves to
   expect(requested.includes('50')).toBe(true);expect(requested.includes('51')).toBe(true);
   await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
   await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  expect(await search.boundingBox()).toEqual(before.search);expect(await tabs.boundingBox()).toEqual(before.tabs);
   await page.getByRole('tab',{name:'按资源',exact:true}).click();
   await expect(page.getByRole('button',{name:'切换到封面视图',exact:true})).toBeHidden();
   await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
@@ -65,7 +63,7 @@ for(const failure of ['page','cache'] as const)test(`next-page ${failure} failur
     if(new URL(route.request().url()).searchParams.get('ids')?.startsWith('51,')){failed=true;await route.fulfill({status:503,body:'下一页缓存状态暂时不可用'});}
     else await route.fallback();
   });
-  await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto('/#/library');
   await expect.poll(()=>failed).toBe(true);
   for(const id of ['1','3'])await expect(page.getByRole('group',{name:`歌曲 ${id}`,exact:true}).locator('img')).toHaveJSProperty('naturalWidth',480);
   await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
@@ -73,7 +71,6 @@ for(const failure of ['page','cache'] as const)test(`next-page ${failure} failur
 
 test('returning to cover view reads cached files without another session update',async({page})=>{
   const {modes}=await coversFixture(page);await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
   await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
   await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
@@ -83,25 +80,26 @@ test('returning to cover view reads cached files without another session update'
   await expect(page.getByRole('list',{name:'曲库封面'}).locator('img')).toHaveCount(2);
 });
 
-test('cover view survives navigation, reload and reopening only within this program run',async({page,context})=>{
+test('selected list view survives navigation, reload and reopening until the next program run',async({page,context})=>{
   const first=await coversFixture(page);await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
-  await page.getByRole('tab',{name:'按资源',exact:true}).click();await page.getByRole('tab',{name:'按歌曲',exact:true}).click();
   await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  await page.goto('/#/library?song=1');await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  await page.getByRole('searchbox',{name:'搜索曲库'}).fill('');await page.getByRole('button',{name:'查找',exact:true}).click();
-  await page.reload();await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  const other=await context.newPage(),second=await coversFixture(other);await other.goto('/#/library');
-  await expect(other.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  await other.getByRole('button',{name:'切换到列表视图',exact:true}).click();
+  await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();await page.getByRole('tab',{name:'按歌曲',exact:true}).click();
   await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  await page.goto('/#/library?song=1');await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  await page.getByRole('searchbox',{name:'搜索曲库'}).fill('');await page.getByRole('button',{name:'查找',exact:true}).click();
+  await page.reload();await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  const other=await context.newPage(),second=await coversFixture(other);await other.goto('/#/library');
+  await expect(other.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
   await other.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
+  await other.getByRole('button',{name:'切换到列表视图',exact:true}).click();
+  await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
   await page.close();await other.close();
   const reopened=await context.newPage(),third=await coversFixture(reopened);await reopened.goto('/#/library');
-  await expect(reopened.getByRole('list',{name:'曲库封面'})).toBeVisible();
-  await reopened.evaluate(()=>localStorage.setItem('swd-library-covers-run','previous-run'));
-  await reopened.reload();await expect(reopened.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  await expect(reopened.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  await reopened.evaluate(()=>localStorage.setItem('swd-library-list-run','previous-run'));
+  await reopened.reload();await expect(reopened.getByRole('list',{name:'曲库封面'})).toBeVisible();
   expect([...first.calls,...second.calls,...third.calls].filter(call=>call.path==='settings')).toEqual([]);
 });
 
@@ -110,7 +108,7 @@ test('cards share preference, preview, details and file actions with the list',a
   const preparations:unknown[]=[];
   await page.route('**/api/library/preview',async route=>{preparations.push(route.request().postDataJSON());await route.fulfill({json:{url:'/media/preview?cover-test'}});});
   await page.route('**/media/preview?**',route=>route.fulfill({status:502,body:'fixture'}));
-  await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto('/#/library');
   const card=page.getByRole('group',{name:'歌曲 1',exact:true}),image=card.getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true});
   await card.hover();
   const details=page.getByRole('group',{name:'歌曲 1 的详情',exact:true});
@@ -151,7 +149,7 @@ test('four downloads run at once and changing pages cancels the previous demand'
     await new Promise<void>(resolve=>release.push(resolve));
     await route.fulfill({status:404,body:'missing'}).catch(()=>{});
   });
-  await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto('/#/library');
   await expect.poll(()=>requested.length).toBe(4);
   expect(requested.every(id=>Number(id)<=50)).toBe(true);
   await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
@@ -166,7 +164,6 @@ test('four downloads run at once and changing pages cancels the previous demand'
 
 test('card details opened from the menu dismiss on an outside click',async({page})=>{
   await coversFixture(page);await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   const card=page.getByRole('group',{name:'歌曲 1',exact:true});
   await card.getByRole('button',{name:'歌曲 1 的操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'详情',exact:true}).click();
@@ -178,7 +175,6 @@ test('card details opened from the menu dismiss on an outside click',async({page
 
 test('hovering the cover shows details without a preview tooltip',async({page})=>{
   await coversFixture(page);await page.clock.install();await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   await page.getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true}).hover();
   await page.clock.runFor(1000);
   await expect(page.getByRole('group',{name:'歌曲 1 的详情',exact:true})).toBeVisible();
@@ -187,7 +183,6 @@ test('hovering the cover shows details without a preview tooltip',async({page})=
 
 test('hover details wait for intent, stay readable and ignore card actions',async({page})=>{
   await coversFixture(page);await page.clock.install({time:new Date('2026-11-12T00:00:00Z')});await page.clock.pauseAt(new Date('2026-11-12T00:00:01Z'));await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   const card=page.getByRole('group',{name:'歌曲 1',exact:true}),image=card.getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true});
   const detail=page.getByRole('group',{name:'歌曲 1 的详情',exact:true});
   await image.hover();await page.clock.runFor(499);await expect(detail).toBeHidden();
@@ -214,7 +209,7 @@ for(const change of ['search','page'] as const)test(`pending hover details are c
     if(changing&&(change==='page'?q.get('offset')==='50':q.get('q')==='封面')){started=true;await response;}
     await route.fallback();
   });
-  await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto('/#/library');
   await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
   if(change==='search')await page.getByRole('searchbox',{name:'搜索曲库'}).focus();
   await page.getByRole('group',{name:'歌曲 1',exact:true}).getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true}).hover();
@@ -237,7 +232,6 @@ for(const change of ['search','page'] as const)test(`pending hover details are c
 
 test('opening another song detail replaces the previous detail',async({page})=>{
   await coversFixture(page);await page.clock.install();await page.setViewportSize({width:1280,height:900});await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   await page.getByRole('button',{name:'歌曲 1 的操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'详情',exact:true}).click();
   const first=page.getByRole('group',{name:'歌曲 1 的详情',exact:true}),second=page.getByRole('group',{name:'歌曲 2 的详情',exact:true});
@@ -249,7 +243,7 @@ test('opening another song detail replaces the previous detail',async({page})=>{
 });
 
 test('the play indicator appears on hover or keyboard focus without changing actions',async({page},info)=>{
-  await coversFixture(page);await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await coversFixture(page);await page.goto('/#/library');
   const card=page.getByRole('group',{name:'歌曲 1',exact:true}),image=card.getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true});
   const indicator=image.locator('.library-cover-play-indicator');
   await page.mouse.move(0,0);await expect(indicator).toBeHidden();
@@ -266,7 +260,7 @@ for(const [width,theme,forcedColors] of [[1280,'light','none'],[390,'dark','none
   const {requested,songs}=await coversFixture(page);
   songs[0].title='很长的歌曲名称以及不能换行的英文歌曲名称LongSongTitle'.repeat(4);
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme,forcedColors});
-  await page.goto('/#/library');await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto('/#/library');
   const card=page.getByRole('group',{name:'歌曲 2',exact:true});
   await card.scrollIntoViewIfNeeded();await expect(card).toContainText('暂无封面');
   await page.getByRole('button',{name:'查找',exact:true}).click();

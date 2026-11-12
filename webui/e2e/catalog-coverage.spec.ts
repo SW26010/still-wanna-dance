@@ -4,7 +4,7 @@ import {expectWithClock} from './clock';
 
 test('existing catalog shows background sync errors until a successful check clears them',async({page})=>{
   await page.clock.install();
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   const error='清单歌曲字段格式无效：playerCount';
   api.state.catalogSync={initializing:false,checking:false,error};
   await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:true,totalSongs:2,coveredSongs:1,updated:'2026-11-01T00:00:00Z',catalogRevision:'20261101000000',catalog:{revision:'20261101000000',source:'kiva'}}}));
@@ -36,7 +36,7 @@ test('catalog recovery clears only the sync error and retains independent invent
 });
 
 for(const width of [1280,390,320])test(`coverage keeps a compact layout and explains uncertain data at ${width}px`,async({page},info)=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   let known=true,unresolved=0;
   await page.route('**/api/inventory',r=>r.fulfill({json:{coverageKnown:known,totalSongs:known?3:0,coveredSongs:known?1:0,unresolvedSongs:known?unresolved:0,updated:'2026-10-29T00:00:00Z',catalogRevision:known?'20261029000000':''}}));
   api.state.batch={scanOnly:true,total:3,checked:3,hits:1,missing:0,unresolved:2,phase:'本地检查完成'};
@@ -113,7 +113,7 @@ test('failed coverage check hides the old percentage and explains the file error
 });
 
 for(const width of [1280,390,320])test(`catalog initialization keeps positions and explains progress in the tooltip at ${width}px`,async({page},info)=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   await page.setViewportSize({width,height:900});
   await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none',reducedMotion:'no-preference'});
   const complete={coverageKnown:true,totalSongs:3,coveredSongs:2,updated:'2026-10-29T01:00:06Z',catalogRevision:'20261029000000',catalog:{revision:'20261029000000'}};

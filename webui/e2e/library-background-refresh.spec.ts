@@ -2,8 +2,8 @@ import {test,expect,type Page} from '@playwright/test';
 import {mockAPI} from './api';
 import {expectWithClock} from './clock';
 
-async function heldRefresh(page:Page) {
-  const api=await mockAPI(page);
+async function heldRefresh(page:Page,libraryView:'list'|'covers'='list') {
+  const api=await mockAPI(page,{libraryView});
   let hold=false,reads=0,release!:()=>void;
   const pending=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/library?*',async route=>{
@@ -105,7 +105,7 @@ test('saving during background refresh waits for the post-save revision before a
 });
 
 for(const [width,theme] of [[1280,'light'],[390,'dark']] as const)test(`cover refresh preserves images and open details at ${width}px`,async({page},info)=>{
-  const refresh=await heldRefresh(page);
+  const refresh=await heldRefresh(page,'covers');
   let coverReads=0;
   await page.route('**/api/library/covers?*',route=>route.fulfill({json:{cached:[],refresh:[]}}));
   await page.route('**/api/library/cover?*',route=>{
@@ -114,7 +114,6 @@ for(const [width,theme] of [[1280,'light'],[390,'dark']] as const)test(`cover re
   });
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme});
   await page.goto('/#/library');
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   const grid=page.getByRole('list',{name:'曲库封面'}),card=grid.getByRole('group',{name:'歌曲 1',exact:true});
   const image=card.locator('img'),favorite=card.getByRole('button',{name:'收藏',exact:true});
   await expect(image).toBeVisible();await expect.poll(()=>coverReads).toBe(2);

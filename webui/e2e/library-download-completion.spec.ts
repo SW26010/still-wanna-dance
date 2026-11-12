@@ -4,7 +4,7 @@ import {expectWithClock} from './clock';
 import type {Download} from '../src/types';
 
 for(const view of ['songs','resources'] as const)for(const scenario of ['shared','after batch stops','another download remains'] as const)test(`completed ${scenario} download refreshes ${view} and usage once`,async({page},info)=>{
-  const api=await mockAPI(page),file=api.files[0];
+  const api=await mockAPI(page,{libraryView:'list'}),file=api.files[0];
   api.state.batch.running=scenario==='after batch stops';
   let saved=false,libraryReads=0,downloadReads=0;
   const task:Download={id:1,resource:file.key,host:'fixture',stage:'download',size:100,bytes:75,bytesPerSecond:10,idleMS:0};

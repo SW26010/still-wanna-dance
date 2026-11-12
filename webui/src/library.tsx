@@ -1,6 +1,6 @@
 import {StorageConfirmationNotice} from './storage-directory';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Badge,Button,Field,SearchBox,Link,MenuItem,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,ToggleButton,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
+import {Badge,Button,Field,SearchBox,Link,MenuItem,Select,Tab,TabList,Table,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout,Text,ToggleButton,Tooltip,tokens,useRestoreFocusTarget} from '@fluentui/react-components';
 import {useApp,useFocusRecovery,useResource,useRunToggle} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
@@ -57,6 +57,8 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const page=useResource<LibraryPage>(pagePath,visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
   const resultQuery=readLibraryQuery(page.loadedPath||pagePath);
   const searchError=page.errorCode==='invalid_library_search'?page.error.replace(/^Error: /,''):'';
+  const resultUnit=resultQuery.view==='songs'?'首歌曲':'个资源';
+  const resultCount=page.data&&!waitingForDatabase&&(!page.error||!!searchError)?<>共 <Text weight="bold">{page.data.total.toLocaleString()}</Text> {resultUnit}</>:'—';
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   // Same-query reads retain an actionable snapshot; query/save changes must wait for their own result.
@@ -172,7 +174,10 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
       <div className="toolbar spread"><div className="inline library-view-options"><TabList aria-label="曲库视图" selectedValue={view} onTabSelect={(_,v)=>navigate({view:v.value==='resources'?'resources':'songs',offset:0,filter:'',sort:'score',direction:'descending'})}><Tab id="library-tab-songs" aria-controls="library-results" value="songs">按歌曲</Tab><Tab id="library-tab-resources" aria-controls="library-results" value="resources">按资源</Tab></TabList>
         <Tooltip content={covers?'切换到列表视图':'切换到封面视图'} relationship="label"><Button size="small" appearance="subtle" className={view==='songs'?undefined:'library-view-toggle-hidden'} icon={covers?<TextBulletListRegular/>:<GridRegular/>} aria-label={covers?'切换到列表视图':'切换到封面视图'} aria-controls="library-results" onClick={toggleCovers}/></Tooltip></div>
       <form className="inline library-search" onSubmit={e=>{e.preventDefault();navigate({q:search.trim(),filter,offset:0});if(query.q===search.trim()&&query.filter===filter&&offset===0)page.refresh();}}>
+        <div className="inline library-search-query">
+        <Text className="library-result-count">{resultCount}</Text>
         <Field label="搜索曲库" orientation="horizontal" className="search-field" validationState={searchError?'error':'none'} validationMessage={searchError?{children:searchError,className:'field-error-description'}:undefined} validationMessageIcon={null}>{controlProps=><Tooltip content="输入名称、ID、歌手、舞者或资源；精确查询可用 id:2367 或 md5:完整的32位资源标识。" relationship="description"><SearchBox {...controlProps} className="library-search-box" contentBefore={null} contentAfter={{className:'library-search-actions',children:searchError?<span className="library-search-error"><FieldIssueIcon label="搜索曲库" message={searchError}/></span>:null}} dismiss={{'aria-label':'清空搜索'}} maxLength={300} placeholder="名称、ID、歌手、舞者或资源" value={search} onChange={(_,v)=>setDraft(d=>({...d,search:v.value}))}/></Tooltip>}</Field>
+        </div>
         <Field label="筛选" orientation="horizontal"><Select value={filter} onChange={(_,v)=>setDraft(d=>({...d,filter:v.value}))}><option value="">全部</option><option value="saved">已保存视频</option><option value="missing">缺失视频</option>{view==='songs'&&Object.entries(policyLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</Select></Field>
         <Button appearance="primary" type="submit" disabled={app.unavailable||pending||actions.pending||waitingForDatabase||!page.error&&pageUnavailable}>查找</Button>
       </form>
@@ -189,7 +194,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
       {!page.error&&page.data?.total===0&&<p className="empty-state">没有匹配项，请调整搜索或更新清单。</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
         previous={()=>{navigate({offset:Math.max(0,offset-50)});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{navigate({offset:offset+50});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}
-        summary={waitingForDatabase?'待确认存储':page.error&&!searchError?'曲库读取失败，请刷新重试。':!page.data?searchError?'查询格式有误，请修改后重试。':'正在读取曲库…':paginationSummary(resultQuery.offset/50+1,page.data.total,50,resultQuery.view==='songs'?'首歌曲':'个资源')}/>
+        summary={waitingForDatabase?'待确认存储':page.error&&!searchError?'曲库读取失败，请刷新重试。':!page.data?searchError?'查询格式有误，请修改后重试。':'正在读取曲库…':paginationSummary(resultQuery.offset/50+1,page.data.total,50,resultUnit)}/>
       </div>
     </section>
     <VRCXImport model={history}/>

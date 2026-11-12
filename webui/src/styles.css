@@ -194,6 +194,9 @@ form.actions { align-items: flex-end; }
 .toolbar { padding-block: var(--spacingVerticalS); }
 .toolbar.spread { justify-content: space-between; }
 .library-search { align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
+.library-search-query { flex-wrap: nowrap; min-width: 0; max-width: 100%; }
+.library-search-query > .search-field { min-width: 0; }
+.library-result-count { flex-shrink: 0; white-space: nowrap; }
 .library-search .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
 .library-search .library-search-box { width: 18rem; min-width: 0; max-width: 100%; padding-inline: var(--spacingHorizontalS); }
 .library-search .library-search-box > input { padding-inline: 0; }

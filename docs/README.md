@@ -26,6 +26,7 @@
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | 设置编辑与存储边界 | [模块重构验证](validation/architecture-modules-20261108.md)记录独立设置编辑器、前端控制器及 Store／Server 边界的实现、回归与验证限制 |
 | 库存维护与决策互斥 | [扫描临界区验证](validation/retention-scan-20261112.md)记录扫描阻塞偏好写入的复现、锁范围缩减及库存增量一致性检查 |
+| 临时块读取句柄 | [复用验证](validation/block-read-reuse-20261113.md)记录流读取／合并快照的重复开关复现、当前块句柄与文件引用生命周期、热缓存对照及基线已有的 Range 用例失败 |
 | 视频导入进度保存 | [按项持久化验证](validation/video-import-progress-20261112.md)记录独立状态 SQLite、旧 JSON 迁移、回执和暂停恢复及线性写入检查；现行规则见[视频导入](video-import.md) |
 | 曲库封面与图片缓存 | [封面视图验证](validation/song-covers-20261111.md)记录分页加载顺序、四路上限、DNS／代理、缓存落盘及浏览器协作；现行规则见[曲库封面视图](webui-design.md#曲库封面视图)和[存储契约](storage.md) |
 | 曲库重复刷新与检测调度 | [开发验证](validation/library-refresh-20261112.md)记录短 DNS 租约导致密集检测、重复观测通知的修复及事务／浏览器回归；现行规则见[上游刷新与交接](upstream-channels.md#刷新与交接)和[曲库读取与刷新](webui-design.md#曲库读取与刷新) |

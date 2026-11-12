@@ -1,7 +1,6 @@
 package cacheproxy
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -185,43 +184,6 @@ func (f *blockFiles) unpin(b *localBlockFile) {
 	}
 }
 
-func readBlockFile(b *localBlockFile, p []byte, offset int64) (int, error) {
-	file, err := os.Open(b.path)
-	if err != nil {
-		return 0, err
-	}
-	n, err := file.ReadAt(p, offset)
-	return n, errors.Join(err, file.Close())
-}
-
-func (f *blockFiles) ReadAt(p []byte, offset int64) (int, error) {
-	if offset < 0 {
-		return 0, errors.New("negative block read offset")
-	}
-	n := 0
-	for len(p) > 0 && offset < f.size {
-		block := offset / f.blockSize
-		b, err := f.pin(block)
-		if err != nil {
-			return n, err
-		}
-		within := offset % f.blockSize
-		length := min(int64(len(p)), b.size-within)
-		read, err := readBlockFile(b, p[:length], within)
-		f.unpin(b)
-		n += read
-		offset += int64(read)
-		p = p[read:]
-		if err != nil {
-			return n, err
-		}
-	}
-	if len(p) > 0 {
-		return n, io.EOF
-	}
-	return n, nil
-}
-
 // Reclamation detaches an identity atomically with its protection decision.
 // Disk removal happens after the caller releases the protection lock. A later
 // store has its own unique path, so stale cleanup cannot delete replacement data.
@@ -262,13 +224,7 @@ func (f *blockFiles) removeFiles(files []*localBlockFile) {
 
 // A merge needs an atomic complete snapshot. Subsequent reclamation can remove
 // availability for new reads, but cannot remove these exact files until Close.
-type blockSnapshot struct {
-	owner  *blockFiles
-	blocks []*localBlockFile
-	once   sync.Once
-}
-
-func (f *blockFiles) snapshot() (*blockSnapshot, error) {
+func (f *blockFiles) snapshot() (*blockReader, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
@@ -277,43 +233,11 @@ func (f *blockFiles) snapshot() (*blockSnapshot, error) {
 	if int64(len(f.files)) != blockCount(f.size, f.blockSize) {
 		return nil, errBlockUnavailable
 	}
-	s := &blockSnapshot{owner: f, blocks: make([]*localBlockFile, blockCount(f.size, f.blockSize))}
+	s := &blockReader{owner: f, blocks: make([]*localBlockFile, blockCount(f.size, f.blockSize))}
 	for block := range s.blocks {
 		b := f.files[int64(block)]
 		b.pins++
 		s.blocks[block] = b
 	}
 	return s, nil
-}
-
-func (s *blockSnapshot) ReadAt(p []byte, offset int64) (int, error) {
-	if offset < 0 {
-		return 0, errors.New("negative snapshot read offset")
-	}
-	n := 0
-	for len(p) > 0 && offset < s.owner.size {
-		b := s.blocks[offset/s.owner.blockSize]
-		within := offset % s.owner.blockSize
-		length := min(int64(len(p)), b.size-within)
-		read, err := readBlockFile(b, p[:length], within)
-		n += read
-		offset += int64(read)
-		p = p[read:]
-		if err != nil {
-			return n, err
-		}
-	}
-	if len(p) > 0 {
-		return n, io.EOF
-	}
-	return n, nil
-}
-
-func (s *blockSnapshot) Close() error {
-	s.once.Do(func() {
-		for _, b := range s.blocks {
-			s.owner.unpin(b)
-		}
-	})
-	return nil
 }

@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 type firstBodyRecorder struct {
@@ -66,5 +69,47 @@ func TestStreamResponseCompletesBeforeVerification(t *testing.T) {
 				t.Fatalf("full response waited for verification: %d %q %v", w.Code, w.Body.String(), reader.err)
 			}
 		})
+	}
+}
+
+func TestStreamResponsePreservesCancellationDuringSeek(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		for _, byteRange := range []string{"", "bytes=4-8"} {
+			t.Run(method+"/"+byteRange, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					blocks, _ := readerTestBlocks(t)
+					spool := (&localResource{storage: blocks}).makeSpool(nil)
+					defer spool.release()
+					ctx, cancel := context.WithCancelCause(context.Background())
+					defer cancel(nil)
+					reader := spool.reader(ctx, blocks.size)
+					defer reader.Close()
+					cancel(blocksched.ErrExpired)
+					synctest.Wait() // Ensure the local reader has closed before Seek.
+
+					request := httptest.NewRequest(method, "/video.mp4", nil)
+					request.Header.Set("Range", byteRange)
+					response := httptest.NewRecorder()
+					pending := serveStream(response, request, video{size: blocks.size}, reader)
+					if pending.committed {
+						t.Fatalf("ServeContent committed a response before stream error handling: status=%d body=%q", response.Code, response.Body.String())
+					}
+					if method == http.MethodGet {
+						if !errors.Is(reader.err, blocksched.ErrExpired) || cacheErrorStatus(reader.err) != http.StatusGatewayTimeout {
+							t.Fatal("GET lost its expiry cause", reader.err)
+						}
+					} else {
+						pending.commit()
+						want := http.StatusOK
+						if byteRange != "" {
+							want = http.StatusPartialContent
+						}
+						if reader.err != nil || response.Code != want || response.Body.Len() != 0 {
+							t.Fatal("HEAD could not read immutable metadata", reader.err, response.Code, response.Body.String())
+						}
+					}
+				})
+			})
+		}
 	}
 }

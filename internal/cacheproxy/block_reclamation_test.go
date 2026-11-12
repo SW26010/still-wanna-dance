@@ -74,35 +74,37 @@ func TestBlockReclamationKeepsExactPinnedFileUntilReadEnds(t *testing.T) {
 	d := reclamationResource(t, s, w.v)
 	d.storage.retain() // An execution can still submit a replacement block.
 	defer d.storage.release()
-	old, err := d.storage.pin(0)
-	if err != nil {
+	reader := d.storage.reader()
+	defer reader.Close()
+	data := make([]byte, 1)
+	if _, err := reader.ReadAt(data, 0); err != nil || data[0] != 0 {
 		t.Fatal(err)
 	}
-	unpin := sync.OnceFunc(func() { d.storage.unpin(old) })
-	defer unpin()
+	oldPath := localBlockPath(t, d.storage, 0)
 	s.reclaimLocalBlocks()
 	if d.has(0) || s.localResources[w.v.key] != d {
 		t.Fatal("reclamation kept availability or detached an active writer")
 	}
-	if _, err := os.Stat(old.path); err != nil {
+	if _, err := os.Stat(oldPath); err != nil {
 		t.Fatal("in-progress read lost its file", err)
 	}
 	if err := d.storage.store(0, bytes.Repeat([]byte{1}, int(w.v.size))); err != nil {
 		t.Fatal(err)
 	}
 	fresh := localBlockPath(t, d.storage, 0)
-	if fresh == old.path {
+	if fresh == oldPath {
 		t.Fatal("replacement reused a retired path")
 	}
-	data := make([]byte, 1)
-	if _, err := readBlockFile(old, data, 0); err != nil || data[0] != 0 {
+	if _, err := reader.ReadAt(data, 1); err != nil || data[0] != 0 {
 		t.Fatal("old read switched to replacement data", err)
 	}
-	unpin()
-	if _, err := os.Stat(old.path); !os.IsNotExist(err) {
+	reader.Close()
+	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
 		t.Fatal("last I/O reference did not reclaim retired file", err)
 	}
-	if _, err := d.storage.ReadAt(data, 0); err != nil || data[0] != 1 {
+	freshReader := d.storage.reader()
+	defer freshReader.Close()
+	if _, err := freshReader.ReadAt(data, 0); err != nil || data[0] != 1 {
 		t.Fatal("old cleanup deleted replacement", err)
 	}
 }

@@ -54,8 +54,9 @@ func (s *spool) reader(ctx context.Context, size int64) *spoolReader {
 	}
 	s.refs++
 	ctx, cancel := context.WithCancel(ctx)
-	r := &spoolReader{spool: s, ctx: ctx, cancel: cancel, size: size,
+	r := &spoolReader{spool: s, local: s.blocks.reader(), ctx: ctx, cancel: cancel, size: size,
 		sources: readSources{size: size, blockSize: s.blocks.blockSize}}
+	r.stopClose = context.AfterFunc(ctx, func() { r.local.Close() })
 	return r
 }
 
@@ -71,9 +72,12 @@ func (s *spool) release() {
 type spoolReader struct {
 	sources       readSources
 	spool         *spool
+	local         *blockReader
 	ctx           context.Context
 	cancel        context.CancelFunc
+	stopClose     func() bool
 	closeOnce     sync.Once
+	closeErr      error
 	size, offset  int64
 	err           error
 	releaseDemand func()
@@ -82,13 +86,15 @@ type spoolReader struct {
 
 func (r *spoolReader) Close() error {
 	r.closeOnce.Do(func() {
+		r.stopClose()
 		r.cancel()
 		if r.releaseDemand != nil {
 			r.releaseDemand()
 		}
+		r.closeErr = r.local.Close()
 		r.spool.release()
 	})
-	return nil
+	return r.closeErr
 }
 
 func (r *spoolReader) Read(p []byte) (int, error) {
@@ -116,24 +122,17 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		complete, failure, changed := s.complete, s.err, s.changed
 		demand := s.demand
 		s.mu.Unlock()
-		available := s.blocks.available(r.offset)
-		if available > r.size {
-			available = r.size
-		}
-		if available > r.offset {
-			next := int64(len(p))
-			if next > available-r.offset {
-				next = available - r.offset
-			}
-			n, err := s.blocks.ReadAt(p[:next], r.offset)
-			r.offset += int64(n)
+		next := min(int64(len(p)), r.size-r.offset)
+		n, err := r.local.ReadAt(p[:next], r.offset)
+		r.offset += int64(n)
+		if !errors.Is(err, errBlockUnavailable) || n > 0 {
 			if errors.Is(err, errBlockUnavailable) {
-				if n > 0 {
-					return n, nil
-				}
-				continue // Re-check availability and register a genuine missing read.
+				err = nil // Deliver the prefix before waiting for the next block.
 			}
 			if err != nil {
+				if cause := context.Cause(r.ctx); cause != nil {
+					err = cause
+				}
 				r.err = err
 			}
 			return n, err
@@ -190,6 +189,9 @@ func (r *spoolReader) Seek(offset int64, whence int) (int64, error) {
 	}
 	if offset < 0 {
 		return 0, errors.New("negative seek")
+	}
+	if err := r.local.seek(offset); err != nil {
+		return 0, err
 	}
 	r.offset = offset
 	return offset, nil

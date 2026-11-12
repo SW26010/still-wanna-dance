@@ -49,11 +49,41 @@ func TestRangeTailReadableWhilePrefixBlocked(t *testing.T) {
 			case <-r.Context().Done():
 				return
 			}
-		} else if r.Header.Get("If-Match") != `"stable"` {
-			t.Error("missing entity condition")
+		} else if condition := r.Header.Get("If-Match"); condition != "" && condition != `"stable"` {
+			t.Error("foreign entity condition", condition)
 		}
 		w.Write(body[start : end+1])
 	})
+	// The server can flush headers before the client accepts their validator.
+	// Hold the prefix response until another cold block has built its request.
+	headers := make(chan struct{})
+	coldRequest := make(chan string, 1)
+	releaseHeaders := sync.OnceFunc(func() { close(headers) })
+	defer releaseHeaders()
+	origin := s.client.Transport
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			first := r.Header.Get("Range") == fmt.Sprintf("bytes=0-%d", rangeBlockSize-1)
+			if !first {
+				select {
+				case coldRequest <- r.Header.Get("If-Match"):
+				default:
+				}
+				releaseHeaders()
+			}
+			response, err := origin.RoundTrip(r)
+			if err != nil || !first {
+				return response, err
+			}
+			select {
+			case <-headers:
+				return response, nil
+			case <-r.Context().Done():
+				response.Body.Close()
+				return nil, context.Cause(r.Context())
+			}
+		})}
+	}
 	defer func() {
 		select {
 		case <-release:
@@ -92,6 +122,9 @@ func TestRangeTailReadableWhilePrefixBlocked(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	if condition := receiveDemandEvent(t, coldRequest); condition != "" {
+		t.Fatal("cold request used an unknown validator", condition)
+	}
 	select {
 	case <-f.done:
 		t.Fatal("completed through a hole")

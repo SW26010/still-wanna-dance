@@ -47,15 +47,11 @@ func (s *Server) verifiedFile(ctx context.Context, v video) (*verifiedFile, erro
 		s.verified[v.key] = entry
 		s.verifyMu.Unlock()
 
-		select {
-		case s.localChecks <- struct{}{}:
-			entry.file, entry.err = os.Open(s.cfg.videoFile(v.key))
-			if entry.err == nil {
-				_, entry.err = validateLocalFile(ctx, s.cfg.videosDir(), entry, v, false)
-			}
-			<-s.localChecks
-		case <-ctx.Done():
-			entry.err = ctx.Err()
+		// Opening an immutable published file only checks its attributes; it
+		// must not wait for whole-file merge, checksum and publication work.
+		entry.file, entry.err = os.Open(s.cfg.videoFile(v.key))
+		if entry.err == nil {
+			_, entry.err = validateLocalFile(ctx, s.cfg.videosDir(), entry, v, false)
 		}
 		s.verifyMu.Lock()
 		if entry.err != nil {

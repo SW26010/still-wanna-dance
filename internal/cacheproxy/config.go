@@ -76,7 +76,8 @@ type Config struct {
 	// Unlimited retention is explicit and takes precedence over the day limit.
 	RequestRetentionDays      int
 	RequestRetentionUnlimited bool
-	// MaxLocalValidations bounds concurrent local file validations.
+	// MaxLocalValidations bounds concurrent whole-file merge, checksum and
+	// publication work. Ordinary file opens and metadata checks do not use it.
 	// Usage capacity and upstream block execution have independent limits.
 	MaxLocalValidations int
 	Logger              *slog.Logger

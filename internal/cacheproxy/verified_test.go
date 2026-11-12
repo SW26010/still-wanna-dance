@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -120,21 +121,85 @@ func TestVerifiedHandleSurvivesPathReplacement(t *testing.T) {
 	}
 }
 
-func TestVerifiedValidationCapacityAndCancellation(t *testing.T) {
+func TestVideoReadsDoNotWaitForPublicationCapacity(t *testing.T) {
+	for _, tc := range []struct {
+		name, method, rangeValue, body string
+		local                          bool
+		status                         int
+	}{
+		{"local GET", http.MethodGet, "", payload, true, http.StatusOK},
+		{"local Range", http.MethodGet, "bytes=10-13", "abcd", true, http.StatusPartialContent},
+		{"local HEAD", http.MethodHead, "", "", true, http.StatusOK},
+		{"cold GET", http.MethodGet, "", payload, false, http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				if tc.local {
+					t.Error("local hit made an upstream request")
+				}
+				serveFixtureContent(w, r, payload)
+			})
+			v := parsedVideo(t, s, payload)
+			if tc.local {
+				if err := os.WriteFile(cfg.videoFile(v.key), []byte(payload), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Hold every whole-file publication slot before the first local open
+			// (including the missing-file check that precedes a cold download).
+			for range cap(s.localChecks) {
+				s.localChecks <- struct{}{}
+			}
+			release := sync.OnceFunc(func() {
+				for range cap(s.localChecks) {
+					<-s.localChecks
+				}
+			})
+			t.Cleanup(release)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			r := httptest.NewRequest(tc.method, videoURL(payload), nil).WithContext(ctx)
+			if tc.rangeValue != "" {
+				r.Header.Set("Range", tc.rangeValue)
+			}
+			out := httptest.NewRecorder()
+			s.ServeHTTP(out, r)
+			if ctx.Err() != nil || out.Code != tc.status || out.Body.String() != tc.body || out.Header().Get("Content-Length") == "" {
+				t.Fatalf("read waited for publication capacity: context=%v status=%d headers=%v body=%q", ctx.Err(), out.Code, out.Header(), out.Body.String())
+			}
+			if len(s.localChecks) != cap(s.localChecks) {
+				t.Fatal("read consumed or released a publication slot")
+			}
+			if !tc.local {
+				if _, err := os.Stat(cfg.videoFile(v.key)); !os.IsNotExist(err) {
+					t.Fatal("publication bypassed occupied capacity", err)
+				}
+				release()
+				s.wg.Wait()
+				if got, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(got) != payload {
+					t.Fatal("publication did not resume after capacity was released", err)
+				}
+			}
+		})
+	}
+}
+
+func TestVerifiedValidationCancellationDoesNotPoisonNextCaller(t *testing.T) {
 	s, v := seedVerifiedTest(t)
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	for range cap(s.localChecks) {
-		s.localChecks <- struct{}{}
+	unlock, err := verificationLocks.acquire(context.Background(), pathIdentity(s.cfg.videosDir())+v.key)
+	if err != nil {
+		t.Fatal(err)
 	}
+	release := sync.OnceFunc(unlock)
+	defer release()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	if _, err := s.verifiedFile(ctx, v); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("validation bypassed capacity or ignored cancellation: %v", err)
+		t.Fatalf("validation ignored cancellation: %v", err)
 	}
-	for range cap(s.localChecks) {
-		<-s.localChecks
-	}
+	release()
 	if _, err := s.verifiedFile(context.Background(), v); err != nil {
 		t.Fatalf("canceled validation poisoned next caller: %v", err)
 	}

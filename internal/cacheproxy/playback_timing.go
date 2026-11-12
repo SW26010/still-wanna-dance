@@ -77,7 +77,7 @@ func (s *Server) playbackContext(r *http.Request, v video, at time.Time) (contex
 		if date, err := http.ParseTime(r.Header.Get("If-Range")); err == nil {
 			// ServeContent applies a date range only to a matching local file;
 			// cold spools have no modification time. Use the same verified handle
-			// and quota as serving, with a pin for its complete lifetime.
+			// as serving, with a pin for its complete lifetime.
 			s.pinVideo(v)
 			file, verifyErr := s.verifiedFile(r.Context(), v)
 			matches := verifyErr == nil && file.info.ModTime().Unix() == date.Unix()

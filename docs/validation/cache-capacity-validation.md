@@ -141,3 +141,18 @@ Windows / AMD Ryzen 7 9850X3D，`BenchmarkPublicationAdmissionSpareBudget`，`-b
 - 发布预留替换、收藏预留预算、合并等待取消、提交时库存／保护复核，以及准入与偏好写入互斥的六项定向 race 回归通过（45.927 秒），见 `artifacts/publication-admission-race-focused.log`。此前较宽的 race 选择在运行其他存储故障用例时触及 180 秒包级时限；保留超时日志，不记为通过。
 - 缓存整包运行 213.253 秒，仍有两项失败：`TestPlaybackAPIStreamsAndReusesVideoCache` 在无效解析地址切换时得到 502，`TestStoppedSessionReusesOnlyCompleteBlocks/valid` 在资源地址跨 Range 改变后等待事件超时。用修改前提交 `6e2a7426` 导出的独立源码对照：前者重复 30 次失败 4 次，后者连续 3 次失败；当前代码前者重复 10 次失败 1 次。两者均在本次改动前存在，整包不能记为通过，本轮不扩展修复。证据为 `artifacts/publication-admission-baseline-{playback,confirmation}.log`、`artifacts/publication-admission-current-playback.log`。
 - `git diff --check` 通过；本次没有新增必须依赖 VRC 的验证事项，没有启动游戏或修改 hosts。
+
+### 同日跟进：两项整包旧失败
+
+上述整包失败另行定向排查，确认均为测试前提与现行行为不一致，本次只修改测试，不调整产品的响应完成、映射提交或实体校验规则。
+
+- `TestPlaybackAPIStreamsAndReusesVideoCache`：修改前重复 60 次失败 4 次。注入的解析器只返回地址，歌曲映射由共享下载结束后的独立记录保存；HTTP 正文交付完成不保证映射已提交。临时测试用日志门阻塞 `cache_task_finished` 后的收尾，固定得到“正文已交付、映射尚不存在、切换无效地址后返回 502”；释放后等待后台完成，映射可读且同一请求返回 200，连续 3 次一致。正式用例在切换无效地址前等待后台工作并断言歌曲映射，随后仍验证已知歌曲返回正确正文、未知歌曲拒绝无效地址及下载次数不增加；重复 60 次通过。
+- `TestStoppedSessionReusesOnlyCompleteBlocks/valid`：修改前连续 2 次在等待部分正文事件时失败，下载实际已因 `upstream entity address changed between ranges` 结束。夹具让前三块使用原地址、第 4 块重定向至另一地址，却对所有块给出相同强 ETag，与强校验器绑定最终地址的契约冲突。强 ETag 场景改为使用同一地址，重定向游标重置仍由弱 ETag 场景验证并保留两次重定向断言。全部 8 种场景各重复 3 次通过；完整块复用、未完成块从头下载、实体变化／错误范围／错误正文拒绝及关闭清理断言保留。
+
+复现、受控探针及验证日志保存在忽略目录 `artifacts/legacy-cache-failures-20261112/`：`playback-before.log`、`stopped-before.log`、`playback-mapping-probe.log`、`playback-after.log` 和 `stopped-after.log`；探针源码另存为 `playback-mapping-probe.go.txt`，已从测试包移除。历史失败日志继续保留。本次没有新增必须依赖 VRC 的剩余事项，没有启动游戏或修改 hosts。
+
+普通 Windows 权限下，`./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -count=1 -timeout=10m -json` 的整包回归通过（191.373 秒，529 个顶层用例通过、零失败），完整结构化日志为 `full-after.jsonl`。CPU 专项、跨卷、受限卷耗尽、符号链接权限及辅助子进程等仍按各自环境条件跳过，不计为通过。
+
+Windows race 首轮将上述两项、`TestStoppedInitialRequestStartsWithFreshCandidates` 与 `TestChangedRedirectTargetDoesNotKeepOldStrongValidator` 合计四组重复 3 次，触及 5 分钟包级总时限，最后仍在执行额外的候选重启场景；此前未报告数据竞态。该轮不记通过，保留 `race-after.log`；没有增加测试内部等待、重试或削弱断言。
+
+同一四组使用 `-race -count=1 -timeout=5m -v` 复验全部通过（105.951 秒），记录为 `race-once-after.log`，包括全部 8 种块复用场景、重定向候选重启和不同地址相同 ETag 的隔离检查，无数据竞态报告。`git diff --check` 通过。

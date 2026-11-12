@@ -110,6 +110,10 @@ func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 			t.Errorf("%s: %d", query, w.Code)
 		}
 	}
+	// Delivery precedes publication and the explicit song mapping. Establish
+	// the local-song fallback before making subsequent API checks fail.
+	s.wg.Wait()
+	assertPlaybackSong(t, s, "42", payload)
 	invalidRedirect.Store(true)
 	assertResponse(t, request(s, "GET", target, nil), 200, payload)
 	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=43", nil); w.Code != 502 {

@@ -58,7 +58,9 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 					mu.Unlock()
 					return nil, errors.New("controlled first-channel failure")
 				}
-				if start/rangeBlockSize == 3 && r.URL.Query().Get("endpoint") == "" {
+				// Strong validators are bound to one final address. Exercise
+				// redirect cursor resets only in the weak-validator scenario.
+				if mode == "weak" && start/rangeBlockSize == 3 && r.URL.Query().Get("endpoint") == "" {
 					redirects++
 					mu.Unlock()
 					return &http.Response{StatusCode: 307, Header: http.Header{"Location": {r.URL.String() + "&endpoint=B"}}, Body: http.NoBody, Request: r}, nil
@@ -226,7 +228,11 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 			t.Fatal("complete block reused or incomplete block restarted incorrectly", starts)
 		}
 	}
-	if failedChannel != 2 || redirects != 2 {
+	wantRedirects := 0
+	if mode == "weak" {
+		wantRedirects = 2
+	}
+	if failedChannel != 2 || redirects != wantRedirects {
 		t.Fatalf("new task reused an old request cursor: %d, %d", failedChannel, redirects)
 	}
 	assertNoPartial(t, cfg.tempDir())

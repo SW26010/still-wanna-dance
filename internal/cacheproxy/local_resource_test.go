@@ -201,6 +201,11 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 			defer reader.Close()
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
+			// Establish the new address's entity before requiring its validator
+			// on subsequent requests. Cold blocks need not wait for this response.
+			assertResponse(t, request(s, http.MethodGet, currentURL, map[string]string{"Range": fmt.Sprintf("bytes=0-%d", rangeBlockSize-1)}),
+				http.StatusPartialContent, string(body[:rangeBlockSize]))
+			s.wg.Wait()
 			if _, err := s.Prefetch(ctx, currentURL); err != nil {
 				t.Fatal("same content at the current address failed", err)
 			}

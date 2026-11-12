@@ -17,7 +17,7 @@ import (
 )
 
 func TestParallelRangeEntityValidation(t *testing.T) {
-	for _, validator := range []string{"missing", "weak", "strong-missing", "strong-weak", "strong-changed", "weak-corrupt"} {
+	for _, validator := range []string{"missing", "weak", "strong-stable", "strong-missing", "strong-weak", "strong-changed", "weak-corrupt"} {
 		t.Run(validator, func(t *testing.T) {
 			body := bytes.Repeat([]byte("x"), int(5*rangeBlockSize+137))
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +57,15 @@ func TestParallelRangeEntityValidation(t *testing.T) {
 				}
 			})
 			target := videoURL(string(body))
+			if strings.HasPrefix(validator, "strong-") {
+				// Accept the entity through a completed Range before testing
+				// conditions and response validation on later parallel requests.
+				assertResponse(t, request(s, http.MethodGet, target, map[string]string{"Range": fmt.Sprintf("bytes=0-%d", rangeBlockSize-1)}),
+					http.StatusPartialContent, string(body[:rangeBlockSize]))
+				s.wg.Wait()
+			}
 			_, err := s.Prefetch(context.Background(), target)
-			wantFailure := strings.HasPrefix(validator, "strong-") || validator == "weak-corrupt"
+			wantFailure := strings.HasPrefix(validator, "strong-") && validator != "strong-stable" || validator == "weak-corrupt"
 			if (err != nil) != wantFailure {
 				t.Fatalf("failure=%v, want %v", err, wantFailure)
 			}

@@ -41,6 +41,8 @@ Windows amd64、Go 1.27.3、Ryzen 7 9850X3D。`BenchmarkBlockRead` 创建 64 个
 
 针对 Range 失败，当前源码连续 20 次有 2 次失败，见 `range-tail-recheck.log`。另用 `git archive` 从未修改的 `157e2512b15e` 导出隔离检出，连续 50 次有 6 次相同失败，见 `range-tail-baseline.log`；因此它在本次改动前已存在。用例以服务端发送前缀响应头作为同步点，不能保证客户端已记录 ETag；这解释了实体条件断言存在时序窗口，后续修正应明确同步客户端实体建立。此次保持该用例及下载策略原样，保留既有失败，不通过跳过或放宽断言取得整包通过。
 
+后续状态：句柄复用已提交为 `a8681a61`。同日的[Range 实体条件与测试同步验证](range-entity-timing-20261113.md)进一步固定复现并修正了测试的实体建立前提，完成整包与定向 race；该记录替代本项未解决状态，上述旧构建失败及数据继续保留。
+
 ## 评审收尾：取消后的 Seek
 
 评审指出取消回调先关闭本地 reader 后，Seek 会返回 `os.ErrClosed`，丢失来源到期原因。新增 `TestStreamResponsePreservesCancellationDuringSeek`，在来源以 `blocksched.ErrExpired` 结束并等待关闭回调完成后，调用真实 `serveStream`／`http.ServeContent`。普通／Range × GET／HEAD 四种组合在修复前均提前提交 500，正文为 `seeker can't seek`，见 `seek-cancel-before.log`。即使 Seek 同时记录错误，已提交的响应也无法由外层改成 504。

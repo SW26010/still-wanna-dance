@@ -142,7 +142,8 @@ form.actions { align-items: flex-end; }
 .timeline-sources li + li { margin-top: 8px; }
 .timeline-sources span { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2); }
 .timeline-resource { color: var(--colorNeutralForeground3); overflow-wrap: anywhere; margin-top: 12px; }
-.block-demand-view { display: grid; gap: var(--spacingVerticalS); padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
+/* Let the column shrink below the canvas's previously measured pixel width. */
+.block-demand-view { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacingVerticalS); padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
 .demand-view-heading, .demand-row-heading { display: flex; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; }
 .demand-view-heading { justify-content: space-between; }
 .demand-list { transition-property: none; }

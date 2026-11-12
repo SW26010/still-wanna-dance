@@ -2228,3 +2228,13 @@ TaskDialog 后续 DPI 适配及 200% 实测见 [2026-11-08 原生 DPI 验证](wi
 同日 P2 收尾确认通用夹具固定返回 `category`，遗漏了图片下载后分页转为 `local` 的真实路径。夹具新增本地封面集合，成功下载时同步；宽屏与窄屏回归明确检查 `category → local`、Blob 地址不变及原图片节点仍连接。补齐夹具后两项均先因原图片节点被移除而失败，移除 `CoverImage` 上按来源标记设置的 `key` 后通过，实际图片仍按 URL 保留身份。完整封面／后台刷新回归首次 **32/33**，其中一项布局测试在更新检查标记改变时仍要求请求数不变；固定该布局场景的标记并保留原断言后，最终 **33/33** 通过。真实 Console 的 JPEG 检查也补验同页来源转换时保留原节点：初次、收藏触发来源更新、切回视图、离线重载的回源累计为 **3／4／5／6**，各次新增请求均为仍缺图的第二首，不与上轮不同流程的 3／4／5 混用。失败、最终回归及真实服务结果位于忽略目录 `artifacts/cover-source-promotion/before.log`、`after.log`、`final.log`、`live.log` 和 `live/result.json`。TypeScript、构建／内嵌一致性、精确产物登记及差异检查通过；复用上轮不受影响的其余后端证据，未重建日常 EXE、提交或推送。
 
 同日应用户要求构建 `bin/SWD.exe`，版本 `dev-cover-selection`。构建时实际 HEAD 已为 `e32c065ba49a1e7bbb99f5fed895043626471c27`，程序标记为 development／dirty；WebUI 源码与内嵌产物一致性及桌面构建通过。输出 60,355,072 字节，SHA-256 为 `dd6e05613548fb65fbbd248740da912ad4879dda0aa4ff304850da1b4c007c32`，`-build-info` 确认 Go 1.27.3、Windows amd64、UTC 构建时间 `2026-11-12T18:57:39.574Z`。只执行立即退出的身份读取，未正常启动应用或访问日常配置；日志、身份与源码差异快照位于 `artifacts/cover-selection/desktop-*`，未提交或推送。
+
+## 2026-11-13：需求视图随窗口收窄
+
+修复首页需求条随窗口放宽后无法自动收窄的问题。新增浏览器回归在同一页面执行 `900 → 1440 → 900px`：修复前两条需求均从 645px 增至 1185px，收窄后仍为 1185px，宽度恢复断言失败。尺寸探针确认外层视图已缩至 669px，但隐式 Grid 列仍为 1185px；画布上次测得的固定像素宽度撑住了列的自动最小宽度。仅将需求视图的列设为 `minmax(0, 1fr)`，两次独立对照均恢复 645px，原有 ResizeObserver 能正常重新测量；正式修复只保留该 CSS 约束，没有新增监听、状态或刷新逻辑，临时探针已移除。
+
+- `./scripts/with-test-temp.ps1 pnpm --dir webui test home-demand.spec.ts block-timeline.spec.ts --workers=4 --output=../artifacts/demand-resize/after`：普通用户权限下 **46/46 项 Edge 回归通过**。新增用例继续覆盖 `390 → 1280 → 320px` 的连续调整、全部需求条保持在面板内、画布宽度跟随容器及页面无横向溢出；已有用例覆盖展开时间轴后的收窄、块端点选择、深色与强制颜色布局。
+- `pnpm --dir webui build`、`pnpm --dir webui check`、`node scripts/check-webui.mjs` 及 `git diff --check` 通过，已同步内嵌 CSS 和构建清单。已查看修复前截断截图及修复后展开时间轴的窄屏截图。
+- 首次沙箱内 Edge 启动因管道关闭失败，未执行页面断言，随后中断该次测试；普通用户权限下先复现产品失败，再完成对照与修复后回归。失败回执和截图保存在忽略目录 `artifacts/demand-resize/before/`、`before-edge/`，修复后截图在同目录 `after/`，环境失败不计为功能验证。
+
+本轮使用内存接口验证真实浏览器布局，不涉及后端业务或 VRC 剩余风险；未操作日常数据、启动游戏、修改 hosts 或重建日常桌面 EXE，未提交或推送。

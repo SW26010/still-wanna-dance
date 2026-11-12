@@ -20,7 +20,7 @@ type publicationReservation struct {
 }
 
 // One shared resource flight owns one reservation. Admission and final rename
-// serialize with retention, while merge/hash I/O runs independently.
+// serialize with retention, while merge/hash and disk preparation run independently.
 func (s *Server) reservePublication(ctx context.Context, v video) (result *publicationReservation, resultErr error) {
 	resultErr = s.Store.retentionDecision(func() error {
 		if err := ctx.Err(); err != nil {
@@ -157,7 +157,7 @@ func (s *Server) releasePublication(r *publicationReservation) {
 	r.cancel(nil)
 }
 
-func (s *Server) commitPublication(r *publicationReservation, file *os.File, path string, v video, f *flight) error {
+func (s *Server) commitPreparedPublication(r *publicationReservation, source string, item retainedVideo) error {
 	return s.Store.retentionDecision(func() error {
 		if err := r.ctx.Err(); err != nil {
 			return context.Cause(r.ctx)
@@ -170,13 +170,25 @@ func (s *Server) commitPublication(r *publicationReservation, file *os.File, pat
 			return err
 		}
 		s.retentionMu.Lock()
-		accepted := s.publications[v.key] == r
+		accepted := s.publications[item.key] == r
 		s.retentionMu.Unlock()
 		if !accepted {
 			return ErrNotRetained
 		}
+		if err := r.ctx.Err(); err != nil {
+			return context.Cause(r.ctx)
+		}
 		// No other admission/retention pass can change this decision until inventory
 		// settlement. The worker's video pin also excludes explicit file deletion.
-		return s.commitPublishedFile(r.ctx, file, path, v, f)
+		if err := os.Rename(source, item.path); err != nil {
+			return err
+		}
+		s.retentionMu.Lock()
+		s.retainVideoLocked(item.key, &item)
+		if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.VideoBudgetBytes {
+			s.requestRetentionLocked()
+		}
+		s.retentionMu.Unlock()
+		return nil
 	})
 }

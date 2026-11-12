@@ -61,11 +61,19 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 	return s.commitPublication(reservation, file, path, v, flight)
 }
 
-func (s *Server) commitPublishedFile(ctx context.Context, file *os.File, path string, v video, flight *flight) error {
-	flight.progress.setStage("publish")
-	if err := ctx.Err(); err != nil {
-		return err
+type publicationFile interface {
+	Name() string
+	Sync() error
+	Close() error
+}
+
+func (s *Server) commitPublication(r *publicationReservation, file publicationFile, path string, v video, flight *flight) error {
+	if err := r.ctx.Err(); err != nil {
+		return context.Cause(r.ctx)
 	}
+	flight.progress.setStage("publish")
+	// The staging file is private. Complete disk preparation before taking the
+	// shared decision lock; admission and policies are rechecked afterward.
 	if err := file.Sync(); err != nil {
 		return err
 	}
@@ -76,15 +84,6 @@ func (s *Server) commitPublishedFile(ctx context.Context, file *os.File, path st
 	if err != nil {
 		return err
 	}
-	if err := os.Rename(file.Name(), path); err != nil {
-		return err
-	}
-	s.retentionMu.Lock()
 	item := retainedVideo{path: path, key: v.key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
-	s.retainVideoLocked(v.key, &item)
-	if !s.cfg.CacheUnlimited && s.retainedBytes > s.cfg.VideoBudgetBytes {
-		s.requestRetentionLocked()
-	}
-	s.retentionMu.Unlock()
-	return nil
+	return s.commitPreparedPublication(r, file.Name(), item)
 }

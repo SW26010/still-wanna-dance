@@ -957,3 +957,15 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - 关联包 vet、嵌入资源一致性及桌面构建通过。没有重跑无关的全量浏览器或游戏流程；此前预览超时联调的结论按原范围保留。本轮仍未取得 race 结果，沿用上节已确认的 gcc 环境缺口。
 
 新开发构建为 `dev-range-redirect-fix-20261112`，更新同一忽略目录中的 `SWD.exe`；当前运行实例未替换或重启，未修改 hosts，未提交或推送。
+
+## 2026-11-12：发布文件准备移出保留决策锁
+
+确认评审反馈：`commitPublication` 原先通过 Store 的 `retentionDecision` 持有 `retentionRunMu`，再调用 `commitPublishedFile` 执行同步、关闭和属性读取。新增[发布准备回归](../../internal/cacheproxy/publication_preparation_test.go)在真实提交入口暂停 `Sync`／`Close`；旧实现的地址写入、收藏／屏蔽及另一资源发布无法在暂停期间完成，两种场景均在 3 秒断言处失败。定向探针确认此时其他资源的引用与释放、数据库直接读取仍可完成，阻塞来自保留决策锁。原失败与诊断日志保存在忽略目录 `artifacts/publication-preparation/before.log`、`diagnosis.log`。
+
+现在先在锁外完成私有临时文件的同步、关闭和属性读取，再由 `commitPreparedPublication` 在同一次保留决策锁内复核取消、屏蔽、保护和预算资格，执行重命名并登记库存。准备期间资格可能被撤销，最终复核仍拒绝发布；文件准备错误直接返回，不登记正式库存。现行边界见[下载资源设计](../download-resource-design.md#7-不保留块下载暂停与恢复)。
+
+- 原受控阻塞回归通过；地址写入、收藏、另一份文件发布与屏蔽均在第一份文件仍暂停时完成，被屏蔽的文件恢复后返回 `ErrNotRetained`。新增取消与高优先级预留挤出的回归同样确认不发布、不增加库存。
+- 发布、保留、偏好／映射串行、零预算、完整性及冷热读取的 51 项顶层定向测试通过（15.676 秒，无 skip）；缓存包 `go vet`、相关文件 gofmt 和 `git diff --check` 通过。结果在 `regression.log`、`vet.log`，首次修复后检查在 `after.log`。
+- Go 1.27.3、GCC 16.2.0 下，8 项发布准备、资格复核与写入串行定向 Windows race 测试在普通用户权限下通过（87.354 秒，无 skip），结果在 `race-native.log`。首次沙箱运行被 `ThreadSanitizer: failed to restore address` 中止，没有可定位的数据竞争报告；失败保留在 `race.log`，不计为通过。
+
+以上证据使用真实 Store 写入及文件发布，通过通道注入同步／关闭等待，不代表已测真实慢盘延迟或实际播放收益。本轮未启动 VRC、修改 hosts、替换运行实例或执行 commit／push。

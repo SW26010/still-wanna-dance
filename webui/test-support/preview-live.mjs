@@ -26,25 +26,44 @@ try {
     await writeFile(join(output,'preview.mp4'),Buffer.from(video));
     console.log(JSON.stringify({generated:true,bytes:video.length}));
   } else {
-    const errors=[],mediaRequests=[];
+    const errors=[],mediaRequests=[],mediaStatuses=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(r.url().includes('/media/preview?'))mediaRequests.push({url:r.url(),range:r.headers().range,site:r.headers()['sec-fetch-site']});});
+    page.on('response',r=>{if(r.url().includes('/media/preview?'))mediaStatuses.push(r.status());});
     await page.goto(baseURL+'/#/library');
     const songs=page.getByRole('table',{name:'曲库歌曲'});
     await expect(songs.getByRole('button',{name:'预览',exact:true})).toHaveCount(2);
     expect(mediaRequests).toHaveLength(0);
     await songs.getByRole('button',{name:'预览',exact:true}).first().click();
     const video=page.getByLabel('曲库预览播放器');
-    await expect.poll(()=>video.evaluate(v=>v.currentTime),{timeout:30000}).toBeGreaterThan(0.2);
+    await expect.poll(()=>video.evaluate(v=>v.currentTime),{timeout:45000}).toBeGreaterThan(0.2);
+    expect(mediaStatuses).toContain(504);
+    await expect(page.getByRole('dialog')).not.toContainText('自动重试未成功');
     const source=await video.evaluate(v=>v.currentSrc);
     expect(new URL(source).origin).toBe(new URL(baseURL).origin);
     await video.evaluate(v=>{v.pause();v.currentTime=8;});
     await expect.poll(()=>video.evaluate(v=>v.seeking)).toBe(false);
     await video.evaluate(v=>v.play());
     await expect.poll(()=>video.evaluate(v=>v.currentTime)).toBeGreaterThan(8.2);
+    // Exercise native reload at an existing playback position, both playing
+    // and paused. The real server expiry above covers the actual error event.
+    const interrupt=()=>video.evaluate(v=>new Promise(resolve=>{
+      v.addEventListener('emptied',()=>resolve(),{once:true});
+      Object.defineProperty(v,'error',{configurable:true,value:{code:2}});
+      v.dispatchEvent(new Event('error'));delete v.error;
+    }));
+    await interrupt();
+    await expect.poll(()=>video.evaluate(v=>v.currentTime),{timeout:10000}).toBeGreaterThan(8.5);
+    expect(await video.evaluate(v=>v.paused)).toBe(false);
     await video.evaluate(v=>v.pause());
+    const pausedAt=await video.evaluate(v=>v.currentTime);
+    await interrupt();
     // Pause/resume crosses the ordinary 2-second handoff without inventing a session.
     await page.waitForTimeout(3000);
+    expect(await video.evaluate(v=>v.paused)).toBe(true);
+    await video.evaluate(v=>v.play());
+    await expect.poll(()=>video.evaluate(v=>v.currentTime)).toBeGreaterThan(pausedAt);
+    await video.evaluate(v=>v.pause());
     await video.evaluate(v=>{v.currentTime=2;return v.play();});
     await expect.poll(()=>video.evaluate(v=>v.currentTime)).toBeGreaterThan(2.2);
     await page.screenshot({path:join(output,'preview-desktop.png')});
@@ -77,6 +96,6 @@ try {
     }),source);
     expect(blocked).toBe(true);
     if(crossOriginStatus!==null)expect(crossOriginStatus).toBe(403);
-    await writeFile(join(output,'results.json'),JSON.stringify({resource:key,decoded:true,seek:true,pauseResume:true,resourceReplay:true,navigationCleanup:true,crossOriginBlocked:true,crossOriginStatus,mediaRequests:mediaRequests.length,errors},null,2));
+    await writeFile(join(output,'results.json'),JSON.stringify({resource:key,expiryRecovery:true,retryPosition:true,retryPaused:true,mediaStatuses,decoded:true,seek:true,pauseResume:true,resourceReplay:true,navigationCleanup:true,crossOriginBlocked:true,crossOriginStatus,mediaRequests:mediaRequests.length,errors},null,2));
   }
 }finally{await browser.close();}

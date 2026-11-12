@@ -33,11 +33,13 @@ for(const [view,theme] of [['songs','light'],['songs','dark'],['resources','ligh
     return {name:button.getAttribute('aria-label'),color:style.color,background:style.backgroundColor,opacity:style.opacity,icon:icon&&getComputedStyle(icon).color};
   }));
   const before=await appearance(),bounds=await table.boundingBox();
+  const count=page.locator('.library-result-count'),countText=await count.innerText();
   await preview.focus();
   await page.screenshot({path:info.outputPath('before.png'),animations:'disabled'});
   try {
     await refresh.start();
     await expect(table).toHaveAttribute('aria-busy','true');
+    await expect(count).toHaveText(countText);
     await expect(preview).toBeEnabled();
     await expect(preview).toBeFocused();
     await expect(row.getByRole('button',{name:'定位文件',exact:true})).toBeEnabled();

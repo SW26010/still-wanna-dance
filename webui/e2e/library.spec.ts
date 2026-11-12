@@ -236,9 +236,12 @@ test('library pagination stays bounded and applies the submitted search',async({
   for(let id=4;id<=121;id++)songs.push({...songs[2],id:String(id),title:'额外歌曲 '+id});
   await page.goto('/#/library');
   const list=page.getByRole('table',{name:'曲库歌曲'});
+  const count=page.locator('.library-result-count');
   await expect(list.getByRole('row')).toHaveCount(51);
+  await expect(count).toHaveText('共 121 首歌曲');
   await page.getByRole('button',{name:'下一页曲库'}).click();
   await expect(page.getByText('第2/3页 · 共 121 首歌曲',{exact:true})).toBeVisible();
+  await expect(count).toHaveText('共 121 首歌曲');
   await expect(list.getByRole('row')).toHaveCount(51);
   await page.getByRole('button',{name:'下一页曲库'}).click();
   await expect(list.getByRole('row')).toHaveCount(22);
@@ -246,14 +249,17 @@ test('library pagination stays bounded and applies the submitted search',async({
   await expect(pager).toContainText('第3/3页 · 共 121 首歌曲');
   await expect(page.getByRole('button',{name:'下一页曲库',exact:true})).toBeDisabled();
   await page.getByLabel('搜索曲库').fill('额外歌曲 121');
+  await expect(count).toHaveText('共 121 首歌曲');
   await page.getByRole('button',{name:'查找',exact:true}).click();
   await expect(list.getByRole('row')).toHaveCount(2);
   await expect(pager).toContainText('第1/1页 · 共 1 首歌曲');
+  await expect(count).toHaveText('共 1 首歌曲');
   expect(queries.at(-1)?.get('q')).toBe('额外歌曲 121');
   expect(queries.at(-1)?.get('offset')).toBe('0');
   await page.getByLabel('搜索曲库').fill('没有这首歌曲');
   await page.getByRole('button',{name:'查找',exact:true}).click();
   await expect(pager.getByRole('status')).toHaveText('共 0 首歌曲');
+  await expect(count).toHaveText('共 0 首歌曲');
 });
 
 test('protected files stay saved while preference toggles switch, clear and retain state on failure',async({page})=>{
@@ -368,10 +374,13 @@ for(const view of ['songs','resources'] as const)test(`rejected ${view} query re
   await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
   await expect(pager).toContainText('第2/');await expect(table.locator('tbody tr')).toHaveCount(10);
   const rows=await table.locator('tbody').innerText(),summary=await pager.getByRole('status').innerText();
+  const count=page.locator('.library-result-count'),countText=await count.innerText();
+  expect(countText).toBe(`共 60 ${view==='songs'?'首歌曲':'个资源'}`);
   await search.fill('id:0');await search.press('Enter');
   await expect(search).toHaveAttribute('aria-invalid','true');
   expect(await table.locator('tbody').innerText()).toBe(rows);
   await expect(pager.getByRole('status')).toHaveText(summary);
+  await expect(count).toHaveText(countText);
   await expect(page.getByRole('button',{name:'上一页曲库',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'下一页曲库',exact:true})).toBeDisabled();
   await search.fill('');await search.press('Enter');
@@ -467,6 +476,11 @@ for(const width of [320,390,1280])test(`library layout at ${width}px`,async({pag
   Object.assign(songs[1],{policy:'favorite'});Object.assign(songs[2],{policy:'blocked'});
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light',forcedColors:width===320?'active':'none'});
   await page.goto('/#/library');await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  const count=page.locator('.library-result-count');
+  await expect(count).toHaveText('共 3 首歌曲');
+  const countBox=(await count.boundingBox())!,searchLabel=(await page.getByText('搜索曲库',{exact:true}).boundingBox())!;
+  expect(countBox.x+countBox.width).toBeLessThanOrEqual(searchLabel.x);
+  expect(Math.abs(countBox.y+countBox.height/2-searchLabel.y-searchLabel.height/2)).toBeLessThanOrEqual(1);
   const checkProtection=async(table:Locator,view:string)=>{
     const column=table.getByRole('columnheader',{name:'本地状态',exact:true});
     const before=(await column.boundingBox())!;

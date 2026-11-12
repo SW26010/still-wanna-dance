@@ -96,6 +96,7 @@ test('resource headers use server sorting and can restore demand order',async({p
   await page.goto('/#/library?view=resources');
   const table=page.getByRole('table',{name:'曲库资源'});
   await expect(page.getByRole('navigation',{name:'曲库分页',exact:true})).toContainText('第1/1页 · 共 2 个资源');
+  await expect(page.locator('.library-result-count')).toHaveText('共 2 个资源');
   const size=table.getByRole('button',{name:'按大小排序',exact:true});
   await size.click();
   await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('size');

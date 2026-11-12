@@ -276,11 +276,11 @@ func TestRetentionUsesResourceFingerprint(t *testing.T) {
 func setRetentionLimit(t *testing.T, s *Server, limit int64) {
 	t.Helper()
 	s.Store.retentionRunMu.Lock()
-	defer s.Store.retentionRunMu.Unlock()
 	s.retentionMu.Lock()
 	s.cfg.VideoBudgetBytes = limit
 	s.cfg.CacheUnlimited = false
 	s.retentionMu.Unlock()
+	s.Store.retentionRunMu.Unlock()
 	if err := s.reconcileRetention(); err != nil {
 		t.Fatal(err)
 	}
@@ -407,9 +407,9 @@ func TestRetentionReconciliationDuringPublication(t *testing.T) {
 		}
 		// Serialize with the current scan without starting a new reconciliation
 		// that could conceal a publication lost by the previous scan.
-		s.Store.retentionRunMu.Lock()
+		s.retentionScanMu.Lock()
 		got := retainedBytes(s)
-		s.Store.retentionRunMu.Unlock()
+		s.retentionScanMu.Unlock()
 		if want := int64(len(payload)); got != want {
 			t.Fatalf("concurrent publication accounting: %d, want %d", got, want)
 		}

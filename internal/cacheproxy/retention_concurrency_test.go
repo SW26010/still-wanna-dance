@@ -1,10 +1,44 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"database/sql"
+	"fmt"
+	"log/slog"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestRetentionReconciliationFailureDoesNotWaitForDecision(t *testing.T) {
+	for _, unlimited := range []bool{false, true} {
+		t.Run(fmt.Sprintf("unlimited=%v", unlimited), func(t *testing.T) {
+			s := retentionChangeEngine(t)
+			s.cfg.VideoDir = filepath.Join(t.TempDir(), "missing")
+			s.cfg.CacheUnlimited = unlimited
+			var logs bytes.Buffer
+			s.cfg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			// A mapping/preference decision can be active while inventory I/O
+			// discovers a directory failure. Reporting it needs no policy lock.
+			s.Store.retentionRunMu.Lock()
+			done := make(chan struct{})
+			defer func() {
+				s.Store.retentionRunMu.Unlock()
+				<-done
+			}()
+			go func() { s.runRetention(true); close(done) }()
+			select {
+			case <-done:
+				if !strings.Contains(logs.String(), "cache_eviction_failed") {
+					t.Fatal("inventory error was not reported", logs.String())
+				}
+			case <-time.After(time.Second):
+				t.Fatal("directory reconciliation waited for a policy decision")
+			}
+		})
+	}
+}
 
 func waitForDatabaseWait(t *testing.T, db *sql.DB, before int64) {
 	t.Helper()

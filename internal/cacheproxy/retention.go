@@ -102,12 +102,9 @@ func (s *Server) trimCache() {
 }
 
 func (s *Server) runRetention(reconcile bool) {
-	_ = s.Store.retentionDecision(func() error {
-		if err := s.trimCachePass(reconcile); err != nil {
-			s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
-		}
-		return nil
-	})
+	if err := s.trimCachePass(reconcile); err != nil {
+		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
+	}
 }
 
 func (s *Server) requestRetentionLocked() {
@@ -165,6 +162,10 @@ func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
 }
 
 func (s *Server) reconcileRetention() error {
+	// Directory I/O excludes only other scans. Publications and removals keep
+	// updating the inventory, and their changes override this snapshot below.
+	s.retentionScanMu.Lock()
+	defer s.retentionScanMu.Unlock()
 	// Directory reconciliation can also discover externally removed files.
 	var changed []string
 	defer func() {
@@ -181,6 +182,7 @@ func (s *Server) reconcileRetention() error {
 		s.retentionMu.Unlock()
 	}()
 	found := make(map[string]retainedVideo)
+	var foundBytes int64
 	add := func(path, key string) error {
 		info, err := os.Lstat(path)
 		if os.IsNotExist(err) {
@@ -194,6 +196,7 @@ func (s *Server) reconcileRetention() error {
 		}
 		item := retainedVideo{path: path, key: key, size: info.Size(), recent: info.ModTime().UnixMilli(), modified: info.ModTime().UnixNano()}
 		found[key] = item
+		foundBytes += item.size
 		return nil
 	}
 	entries, err := os.ReadDir(s.cfg.videosDir())
@@ -207,28 +210,42 @@ func (s *Server) reconcileRetention() error {
 			}
 		}
 	}
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	for key := range s.retentionChanges {
-		delete(found, key)
-		if item, ok := s.retained[key]; ok {
-			found[key] = item
+	// Settling a scan may grow inventory. Serialize this final merge with
+	// admission/publication so inventory cannot grow midway through a decision.
+	return s.Store.retentionDecision(func() error {
+		s.retentionMu.Lock()
+		defer s.retentionMu.Unlock()
+		for key := range s.retentionChanges {
+			foundBytes -= found[key].size
+			delete(found, key)
+			if item, ok := s.retained[key]; ok {
+				found[key] = item
+				foundBytes += item.size
+			}
 		}
-	}
-	for key := range s.retained {
-		if _, exists := found[key]; !exists {
-			changed = append(changed, key)
+		for key := range s.retained {
+			if _, exists := found[key]; !exists {
+				changed = append(changed, key)
+			}
 		}
-	}
-	s.retained = found
-	s.retainedBytes = 0
-	for _, item := range found {
-		s.retainedBytes += item.size
-	}
-	return nil
+		s.retained = found
+		s.retainedBytes = foundBytes
+		return nil
+	})
 }
 
 func (s *Server) trimCachePass(reconcile bool) error {
+	// Inventory I/O does not depend on song policy. Read the current policy
+	// only after reconciliation, under the same exclusion as its effects.
+	if reconcile {
+		if err := s.reconcileRetention(); err != nil {
+			return err
+		}
+	}
+	return s.Store.retentionDecision(s.trimCacheDecision)
+}
+
+func (s *Server) trimCacheDecision() error {
 	policies, err := s.resourcePolicies(context.Background())
 	if err != nil {
 		return err
@@ -238,13 +255,6 @@ func (s *Server) trimCachePass(reconcile bool) error {
 	limit := s.cfg.VideoBudgetBytes
 	unlimited := s.cfg.CacheUnlimited
 	s.retentionMu.Unlock()
-	// Resource-use coordination needs complete-file availability in every
-	// budget mode. Unlimited skips eviction, not inventory reconciliation.
-	if reconcile {
-		if err := s.reconcileRetention(); err != nil {
-			return err
-		}
-	}
 	// Blocking is a resource removal policy, independent of capacity. Reuse
 	// existing protection and deletion reservations, including active readers.
 	s.retentionMu.Lock()

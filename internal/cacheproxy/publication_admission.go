@@ -37,29 +37,27 @@ func (s *Server) reservePublication(ctx context.Context, v video) (result *publi
 		if policies[v.key].blocked || !unlimited && (limit == 0 || v.size > limit) {
 			return ErrNotRetained
 		}
-		var priorities map[string]ResourcePriority
-		if !unlimited {
-			var err error
-			priorities, err = s.retentionPriorities(ctx)
-			if err != nil {
-				return err
-			}
-		}
 		now := time.Now()
 		child, cancel := context.WithCancelCause(ctx)
 		r := &publicationReservation{item: retainedVideo{key: v.key, path: s.cfg.videoFile(v.key), size: v.size, recent: now.UnixMilli(), modified: now.UnixNano()}, ctx: child, cancel: cancel}
 		s.retentionMu.Lock()
-		defer s.retentionMu.Unlock()
 		if s.publications == nil {
 			s.publications = make(map[string]*publicationReservation)
 		}
 		// Concurrent callers are coalesced by obtain, before reaching publication.
 		if s.publications[v.key] != nil {
+			s.retentionMu.Unlock()
 			cancel(nil)
 			return errors.New("duplicate resource publication")
 		}
 		s.publications[v.key] = r
-		s.selectPublicationsLocked(priorities, policies)
+		s.retentionMu.Unlock()
+		if err := s.selectPublications(ctx, policies); err != nil {
+			s.releasePublication(r)
+			return err
+		}
+		s.retentionMu.Lock()
+		defer s.retentionMu.Unlock()
 		if s.publications[v.key] != r {
 			return ErrNotRetained
 		}
@@ -72,7 +70,10 @@ func (s *Server) reservePublication(ctx context.Context, v video) (result *publi
 // Retained protected videos are fixed occupants. Other videos and pending
 // publications use the existing eviction order; a better candidate can displace
 // a lower reservation. Ordinary file pins defer physical removal, not ranking.
-func (s *Server) selectPublicationsLocked(priorities map[string]ResourcePriority, policies map[string]resourcePolicy) {
+// The caller holds Store's retention decision lock through admission or commit.
+// Inventory can only shrink while priorities are loaded without retentionMu.
+func (s *Server) selectPublications(ctx context.Context, policies map[string]resourcePolicy) error {
+	s.retentionMu.Lock()
 	// Even unlimited storage cannot publish an entirely blocked resource.
 	for key, r := range s.publications {
 		if policies[key].blocked {
@@ -80,9 +81,17 @@ func (s *Server) selectPublicationsLocked(priorities map[string]ResourcePriority
 			r.cancel(ErrNotRetained)
 		}
 	}
-	if s.cfg.CacheUnlimited {
-		return
+	if s.cfg.CacheUnlimited || !s.publicationBudgetExceededLocked() {
+		s.retentionMu.Unlock()
+		return nil
 	}
+	s.retentionMu.Unlock()
+	priorities, err := s.retentionPriorities(ctx)
+	if err != nil {
+		return err
+	}
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
 	videos := make([]retainedVideo, 0, len(s.retained)+len(s.publications))
 	var total int64
 	for _, item := range s.retained {
@@ -117,6 +126,26 @@ func (s *Server) selectPublicationsLocked(priorities map[string]ResourcePriority
 			r.cancel(ErrNotRetained)
 		}
 	}
+	return nil
+}
+
+// Formal inventory already accounts for reservations that have been published.
+// Subtract from the remaining budget to avoid overflowing a sum of reservations.
+func (s *Server) publicationBudgetExceededLocked() bool {
+	remaining := s.cfg.VideoBudgetBytes - s.retainedBytes
+	if remaining < 0 {
+		return true
+	}
+	for key, r := range s.publications {
+		if _, exists := s.retained[key]; exists {
+			continue
+		}
+		if r.item.size > remaining {
+			return true
+		}
+		remaining -= r.item.size
+	}
+	return false
 }
 
 func (s *Server) releasePublication(r *publicationReservation) {
@@ -137,19 +166,10 @@ func (s *Server) commitPublication(r *publicationReservation, file *os.File, pat
 		if err != nil {
 			return err
 		}
-		s.retentionMu.Lock()
-		unlimited := s.cfg.CacheUnlimited
-		s.retentionMu.Unlock()
-		var priorities map[string]ResourcePriority
-		if !unlimited {
-			var err error
-			priorities, err = s.retentionPriorities(r.ctx)
-			if err != nil {
-				return err
-			}
+		if err := s.selectPublications(r.ctx, policies); err != nil {
+			return err
 		}
 		s.retentionMu.Lock()
-		s.selectPublicationsLocked(priorities, policies)
 		accepted := s.publications[v.key] == r
 		s.retentionMu.Unlock()
 		if !accepted {

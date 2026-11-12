@@ -156,38 +156,49 @@ func TestFavoritePublicationReservationsCannotAccumulatePastBudget(t *testing.T)
 }
 
 func TestPublicationRechecksProtectionBeforeRename(t *testing.T) {
-	s, cfg := setup(t, nil)
-	f, v := completedRangeFlight(t, s, payload)
-	oldKey := videoKey(strings.Repeat("o", len(payload)))
-	seedPrioritySong(t, s, "9000001", oldKey)
-	seedPrioritySong(t, s, "9000002", v.key)
-	putRetained(t, cfg.videoFile(oldKey), len(payload))
-	setRetentionLimit(t, s, v.size)
-	r, err := s.reservePublication(context.Background(), v)
-	if err != nil {
-		t.Fatal(err)
+	for _, initiallyFull := range []bool{false, true} {
+		t.Run(fmt.Sprintf("initially-full=%t", initiallyFull), func(t *testing.T) {
+			s, cfg := setup(t, nil)
+			f, v := completedRangeFlight(t, s, payload)
+			oldKey := videoKey(strings.Repeat("o", len(payload)))
+			seedPrioritySong(t, s, "9000001", oldKey)
+			seedPrioritySong(t, s, "9000002", v.key)
+			if initiallyFull {
+				putRetained(t, cfg.videoFile(oldKey), len(payload))
+			}
+			setRetentionLimit(t, s, v.size)
+			r, err := s.reservePublication(context.Background(), v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.releasePublication(r)
+			if !initiallyFull {
+				// An import/reconciliation can consume space while merge I/O runs.
+				putRetained(t, cfg.videoFile(oldKey), len(payload))
+				s.runRetention(true)
+			}
+			file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Remove(file.Name())
+			defer file.Close()
+			if _, err := io.WriteString(file, payload); err != nil {
+				t.Fatal(err)
+			}
+			s.retentionMu.Lock()
+			if s.protection == nil {
+				s.protection = make(map[string]map[int64]blockProtection)
+			}
+			s.protection[oldKey] = map[int64]blockProtection{0: {start: time.Now()}}
+			s.retentionMu.Unlock()
+			if err := s.commitPublication(r, file, cfg.videoFile(v.key), v, f); !errors.Is(err, ErrNotRetained) {
+				t.Fatal("publication ignored a newly protected occupant", err)
+			}
+			expectRetained(t, cfg.videoFile(v.key), false)
+			expectRetained(t, cfg.videoFile(oldKey), true)
+		})
 	}
-	defer s.releasePublication(r)
-	file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-	defer file.Close()
-	if _, err := io.WriteString(file, payload); err != nil {
-		t.Fatal(err)
-	}
-	s.retentionMu.Lock()
-	if s.protection == nil {
-		s.protection = make(map[string]map[int64]blockProtection)
-	}
-	s.protection[oldKey] = map[int64]blockProtection{0: {start: time.Now()}}
-	s.retentionMu.Unlock()
-	if err := s.commitPublication(r, file, cfg.videoFile(v.key), v, f); !errors.Is(err, ErrNotRetained) {
-		t.Fatal("publication ignored a newly protected occupant", err)
-	}
-	expectRetained(t, cfg.videoFile(v.key), false)
-	expectRetained(t, cfg.videoFile(oldKey), true)
 }
 
 func TestZeroBudgetStreamsWithoutWholeVideoVerificationOrPublication(t *testing.T) {

@@ -125,3 +125,19 @@
 本次不改变默认保护／回收规则，无新增必须依赖 VRC 的验收场景；浏览器结果只证明夹具所覆盖的界面行为，真实配置读写由 Go 检查覆盖。
 
 完整 Go 回归最终通过：`internal/cacheproxy`（205.317 秒）及 `internal/console`，使用仓库默认测试时限和隔离临时目录入口，证据为 `artifacts/cache-reclamation-tests-final.log`。
+
+## 2026-11-12 空闲预算下的发布准入
+
+确认旧实现取得发布预留和正式文件重命名前均无条件加载全库评分，空间充足时也构造并排序候选。现在两个阶段共用同一选择入口，先检查屏蔽策略，再使用已有库存字节数和按 MD5 去重的发布预留判断是否超预算；仅在预算竞争时加载评分和排序，不增加评分缓存或累计预留状态。现行契约见[持久化准入](../download-resource-design.md#6-本地资源管理的存储与外部契约)。
+
+Windows / AMD Ryzen 7 9850X3D，`BenchmarkPublicationAdmissionSpareBudget`，`-benchtime=10x -count=1`，2 万条合成映射、有限且空闲的预算：单次预留修复前约 12.12 ms / 8,615,906 B / 160,045 次分配，修复后约 0.205 ms / 2,305 B / 40 次分配。这里只测预留，不含合并、MD5 和文件同步，不代表实际播放收益。
+
+分配回归先在旧实现失败：空库约 139 次，2,000 条映射约 15,746 次；修复后通过，并覆盖准入和真实文件提交、恰好填满预算及已发布预留的去重。已有低分预留替换、收藏预算、零预算和保护回归通过，补充了空闲准入后库存增加、提交时重新拒绝的场景。首轮定向检查中，一项旧并发测试依赖无条件统计排空而失败；夹具已明确制造预算竞争，继续用原屏障验证策略读取后的互斥。
+
+所有 Go 命令使用 `scripts/with-test-temp.ps1 node scripts/go-patches.mjs` 入口。定向测试及缓存包 vet 通过；沙箱完整回归遇到硬链接／目录联接拒绝等失败，race 首轮报 `ThreadSanitizer: failed to restore address`，不能记为通过。按开发说明使用普通 Windows 权限复核的日志保存在忽略目录 `artifacts/publication-admission-{full,race}-normal.log`。
+
+普通权限复核结果：
+
+- 发布预留替换、收藏预留预算、合并等待取消、提交时库存／保护复核，以及准入与偏好写入互斥的六项定向 race 回归通过（45.927 秒），见 `artifacts/publication-admission-race-focused.log`。此前较宽的 race 选择在运行其他存储故障用例时触及 180 秒包级时限；保留超时日志，不记为通过。
+- 缓存整包运行 213.253 秒，仍有两项失败：`TestPlaybackAPIStreamsAndReusesVideoCache` 在无效解析地址切换时得到 502，`TestStoppedSessionReusesOnlyCompleteBlocks/valid` 在资源地址跨 Range 改变后等待事件超时。用修改前提交 `6e2a7426` 导出的独立源码对照：前者重复 30 次失败 4 次，后者连续 3 次失败；当前代码前者重复 10 次失败 1 次。两者均在本次改动前存在，整包不能记为通过，本轮不扩展修复。证据为 `artifacts/publication-admission-baseline-{playback,confirmation}.log`、`artifacts/publication-admission-current-playback.log`。
+- `git diff --check` 通过；本次没有新增必须依赖 VRC 的验证事项，没有启动游戏或修改 hosts。

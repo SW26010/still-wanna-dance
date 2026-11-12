@@ -47,7 +47,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
     localNavigation.current=next;onNavigate(next,replace);
   };
   const [pending,setPending]=useState(false);
-  const [covers,toggleCovers]=useRunToggle('swd-library-covers-run');
+  const [list,toggleCovers]=useRunToggle('swd-library-list-run'),covers=!list;
   const [coverDetails,setCoverDetails]=useState<string>();
   const history=useVRCX();
   const [preview,setPreview]=useState<PreviewSelection>();

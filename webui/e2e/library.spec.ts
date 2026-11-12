@@ -149,7 +149,7 @@ for(const width of [320,390])test(`long record details remain inside the viewpor
 });
 
 async function libraryFixture(page:Page,videoError?:string) {
-  const api=await mockAPI(page),queries:URLSearchParams[]=[];
+  const api=await mockAPI(page,{libraryView:'list'}),queries:URLSearchParams[]=[];
   const local={...api.files[0],key,songs:[{id:'1',title:'共同视频一'},{id:'2',title:'共同视频二'}],songCount:2};
   const resources:Record<string,LibraryResource>={
     [key]:{key,size:12345,duration:null,songs:local.songs,songCount:2,local},

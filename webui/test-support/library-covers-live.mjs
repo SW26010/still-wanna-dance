@@ -8,9 +8,7 @@ try {
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   const state=async()=>await (await page.request.get(baseURL+'/test/cover-state')).json();
-  await page.goto(baseURL+'/#/library');await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
-  expect(await state()).toEqual({requests:0,engine:false});
-  await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
+  await page.goto(baseURL+'/#/library');await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
   const first=page.getByRole('group',{name:'歌曲 1',exact:true});
   await expect(first.locator('img')).toHaveJSProperty('naturalWidth',480);
   await expect(page.getByRole('group',{name:'歌曲 2',exact:true})).toContainText('暂无封面');
@@ -33,5 +31,5 @@ try {
   await page.mouse.move(0,0);await page.keyboard.press('Escape');
   await page.screenshot({path:join(output,'covers-dark-narrow.png')});
   expect((await state()).engine).toBe(false);expect(errors).toEqual([]);
-  await writeFile(join(output,'result.json'),JSON.stringify({defaultViewRequests:0,firstPageRequests:3,requestsAfterBrowserReload:4,coverViewSurvivedReload:true,sessionCachedUpdatesSkipped:true,offlineCachedImagesVisible:true,favoritePersisted:true,engineStarted:false,errors},null,2));
+  await writeFile(join(output,'result.json'),JSON.stringify({defaultView:'covers',firstPageRequests:3,requestsAfterBrowserReload:4,coverViewSurvivedReload:true,sessionCachedUpdatesSkipped:true,offlineCachedImagesVisible:true,favoritePersisted:true,engineStarted:false,errors},null,2));
 }finally{await browser.close();}

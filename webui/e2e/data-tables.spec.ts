@@ -3,7 +3,7 @@ import {mockAPI} from './api';
 import type {LibraryPage} from '../src/types';
 
 test('library sorts the query before paging, preserves search order and uses keyboard headers',async({page})=>{
-  await mockAPI(page);
+  await mockAPI(page,{libraryView:'list'});
   const queries:URLSearchParams[]=[];
   const songs=Array.from({length:53},(_,i)=>({id:String(i+1),title:'Song '+String(53-i).padStart(3,'0'),artist:'Artist',dancer:'',group:'',policy:'normal' as const,score:i+1,hasDemand:true,resource:''}));
   await page.route('**/api/library?**',route=>{
@@ -110,7 +110,7 @@ test('resource headers use server sorting and can restore demand order',async({p
 });
 
 for(const [path,label] of [['library','曲库歌曲'],['timeline','请求历史列表']])test(`${label} shrinks names before overflowing at medium width`,async({page},info)=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   for(const file of api.files)file.songs[0].title='长歌曲名称'.repeat(30);
   await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'长歌曲名称'.repeat(30),resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'canceled',sources:{downloadBytes:1,cacheBytes:1,localBytes:1}}],hasMore:false,nextCursor:''}}));
   await page.setViewportSize({width:1050,height:900});await page.goto('/#/'+path);

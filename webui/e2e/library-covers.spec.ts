@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+import {readFileSync} from 'node:fs';
 import {mockAPI} from './api';
 import type {LibraryPage,LibrarySong} from '../src/types';
 
@@ -25,6 +26,57 @@ async function coversFixture(page:Page,count=3) {
   });
   return {...api,songs,requested,modes,queries};
 }
+
+test('all bundled category images decode at the recorded size',async({page})=>{
+  await coversFixture(page);await page.goto('/#/library');
+  const manifest=JSON.parse(readFileSync(new URL('../../docs/research/category-cover-assets-20261112.json',import.meta.url),'utf8'));
+  const paths:string[]=manifest.assets.map((asset:{file:string})=>'/'+asset.file.replace('internal/console/',''));
+  const pixels=await page.evaluate(async paths=>Promise.all(paths.map(async path=>{
+    const image=new Image();image.src=path;await image.decode();return [image.naturalWidth,image.naturalHeight];
+  })),paths);
+  expect(pixels).toHaveLength(manifest.assetCount);
+  expect(pixels.every(pixel=>pixel[0]===manifest.encoding.pixels[0]&&pixel[1]===manifest.encoding.pixels[1])).toBe(true);
+});
+
+test('category artwork stays visible while loading, missing or undecodable and yields to the real cover',async({page},info)=>{
+  const {songs}=await coversFixture(page,4);
+  songs[0].group='Just Dance Solo';songs[1].group='Fitness Marshall';songs[2].group='K-POP Dance Practice';songs[3].group='__proto__';
+  await page.route('**/api/library/covers?**',route=>route.fulfill({json:{cached:[],refresh:[]}}));
+  let release!:()=>void;
+  const pending=new Promise<void>(resolve=>release=resolve);
+  await page.route('**/api/library/cover?**',async route=>{
+    const id=new URL(route.request().url()).searchParams.get('id');
+    if(id==='1'){
+      await pending;
+      return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect width="480" height="360" fill="#9bc8b3"/></svg>'});
+    }
+    if(id==='3')return route.fulfill({contentType:'image/jpeg',body:'not an image'});
+    return route.fulfill({status:404,body:'暂无封面'});
+  });
+  await page.setViewportSize({width:1280,height:900});await page.goto('/#/library');
+  const buttons=songs.map(song=>page.getByRole('group',{name:`歌曲 ${song.id}`,exact:true}).locator('.library-cover-play'));
+  try {
+    for(const [index,slug] of ['just-dance-solo','fitness-marshall','default','default'].entries()){
+      await expect(buttons[index]).toHaveCSS('background-image',new RegExp(`/category-covers/${slug}\\.webp`));
+      const pixels=await buttons[index].evaluate(async element=>{
+        const image=new Image();image.src=getComputedStyle(element).backgroundImage.match(/^url\("(.+)"\)$/)![1];
+        await image.decode();return [image.naturalWidth,image.naturalHeight];
+      });
+      expect(pixels).toEqual([320,240]);
+      const box=(await buttons[index].boundingBox())!;expect(box.width/box.height).toBeCloseTo(4/3,2);
+    }
+    await expect(buttons[2].locator('img')).toHaveCount(0);
+    await page.mouse.move(0,0);await page.screenshot({path:info.outputPath('category-fallbacks.png'),animations:'disabled'});
+    await page.emulateMedia({colorScheme:'dark'});await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:info.outputPath('category-fallbacks-dark-narrow.png'),animations:'disabled'});
+  }finally{release();}
+  await expect(buttons[0].locator('img')).toHaveJSProperty('naturalWidth',480);
+  await expect(buttons[1].locator('img')).toHaveCount(0);
+  await expect(buttons[2].locator('img')).toHaveCount(0);
+  await expect(buttons[3].locator('img')).toHaveCount(0);
+  await page.setViewportSize({width:1280,height:900});await page.emulateMedia({colorScheme:'light'});
+  await page.screenshot({path:info.outputPath('real-cover-replaces-category.png'),animations:'disabled'});
+});
 
 test('default cover view loads current and next pages in priority order and preserves toolbar',async({page})=>{
   const {requested,modes,queries}=await coversFixture(page,75);
@@ -262,9 +314,10 @@ for(const [width,theme,forcedColors] of [[1280,'light','none'],[390,'dark','none
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme,forcedColors});
   await page.goto('/#/library');
   const card=page.getByRole('group',{name:'歌曲 2',exact:true});
-  await card.scrollIntoViewIfNeeded();await expect(card).toContainText('暂无封面');
+  await card.scrollIntoViewIfNeeded();await expect(card.locator('.library-cover-play')).toHaveCSS('background-image',/category-covers\/default\.webp/);
+  await expect.poll(()=>requested.filter(id=>id==='2').length).toBe(1);
   await page.getByRole('button',{name:'查找',exact:true}).click();
-  await expect(card).toContainText('暂无封面');expect(requested.filter(id=>id==='2')).toHaveLength(1);
+  await expect(card.locator('img')).toHaveCount(0);expect(requested.filter(id=>id==='2')).toHaveLength(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const firstCard=page.getByRole('group',{name:'歌曲 1',exact:true}),title=firstCard.locator('.library-cover-title');
   await expect(title).toHaveText(songs[0].title);await expect(title).toHaveCSS('text-overflow','ellipsis');

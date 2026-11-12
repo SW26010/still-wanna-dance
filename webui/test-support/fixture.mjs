@@ -57,8 +57,8 @@ createServer(async (req, res) => {
     }
     if (p.startsWith('/assets/')) {
       const file = p === '/assets/logo.svg' ? new URL('../branding/logo.svg', root) : new URL(p.slice(1), root);
-      if (!p.match(/^\/assets\/(webui\/app\.(js|css)|logo\.svg|storage-benefit\.svg)$/)) { res.writeHead(404); return res.end(); }
-      res.setHeader('Content-Type', p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : 'image/svg+xml');
+      if (!p.match(/^\/assets\/(webui\/(app\.(js|css)|category-covers\/[a-z0-9-]+\.webp)|logo\.svg|storage-benefit\.svg)$/)) { res.writeHead(404); return res.end(); }
+      res.setHeader('Content-Type', p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : p.endsWith('.webp') ? 'image/webp' : 'image/svg+xml');
       return res.end(await readFile(file));
     }
     if (p === '/favicon.ico' || p === '/favicon-light.ico') {

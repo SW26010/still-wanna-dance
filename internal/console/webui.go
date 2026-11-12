@@ -100,6 +100,8 @@ func serveWebUIAsset(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	case strings.HasSuffix(name, ".txt"):
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	case strings.HasSuffix(name, ".webp"):
+		w.Header().Set("Content-Type", "image/webp")
 	default:
 		http.NotFound(w, r)
 		return true

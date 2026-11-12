@@ -11,7 +11,17 @@ try {
   await page.goto(baseURL+'/#/library');await expect(page.getByRole('list',{name:'曲库封面'})).toBeVisible();
   const first=page.getByRole('group',{name:'歌曲 1',exact:true});
   await expect(first.locator('img')).toHaveJSProperty('naturalWidth',480);
-  await expect(page.getByRole('group',{name:'歌曲 2',exact:true})).toContainText('暂无封面');
+  const missing=page.getByRole('group',{name:'歌曲 2',exact:true});
+  await expect(missing.locator('.library-cover-play')).toHaveCSS('background-image',/category-covers\/fitness-marshall\.webp/);
+  await expect(missing.locator('img')).toHaveCount(0);
+  const artwork=await page.evaluate(async()=>{
+    const files=['just-dance-solo','fitness-marshall','default'];
+    return Promise.all(files.map(async file=>{
+      const image=new Image();image.src='/assets/webui/category-covers/'+file+'.webp';await image.decode();
+      return {file,width:image.naturalWidth,height:image.naturalHeight};
+    }));
+  });
+  expect(artwork.every(image=>image.width===320&&image.height===240)).toBe(true);
   await expect.poll(async()=>(await state()).requests).toBe(3);
   await first.getByRole('button',{name:'收藏',exact:true}).click();
   await expect(first.getByRole('button',{name:'收藏',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -31,5 +41,5 @@ try {
   await page.mouse.move(0,0);await page.keyboard.press('Escape');
   await page.screenshot({path:join(output,'covers-dark-narrow.png')});
   expect((await state()).engine).toBe(false);expect(errors).toEqual([]);
-  await writeFile(join(output,'result.json'),JSON.stringify({defaultView:'covers',firstPageRequests:3,requestsAfterBrowserReload:4,coverViewSurvivedReload:true,sessionCachedUpdatesSkipped:true,offlineCachedImagesVisible:true,favoritePersisted:true,engineStarted:false,errors},null,2));
+  await writeFile(join(output,'result.json'),JSON.stringify({defaultView:'covers',firstPageRequests:3,requestsAfterBrowserReload:4,coverViewSurvivedReload:true,sessionCachedUpdatesSkipped:true,offlineCachedImagesVisible:true,missingCategoryArtworkVisible:true,artwork,favoritePersisted:true,engineStarted:false,errors},null,2));
 }finally{await browser.close();}

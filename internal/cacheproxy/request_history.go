@@ -131,7 +131,7 @@ func (q RequestQuery) nextCursor(last RecentRequest) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
-func (q RequestQuery) window(getOnly bool) (string, []any) {
+func (q RequestQuery) conditions(getOnly bool) ([]string, []any) {
 	var conditions []string
 	var args []any
 	if getOnly {
@@ -160,6 +160,16 @@ func (q RequestQuery) window(getOnly bool) (string, []any) {
 		conditions = append(conditions, "requested_at<?")
 		args = append(args, q.To)
 	}
+	return conditions, args
+}
+
+func (q RequestQuery) count() (string, []any) {
+	conditions, args := q.conditions(true)
+	return "SELECT count(*) FROM request_events INDEXED BY request_events_time WHERE " + strings.Join(conditions, " AND "), args
+}
+
+func (q RequestQuery) window(getOnly bool) (string, []any) {
+	conditions, args := q.conditions(getOnly)
 	if q.Cursor != "" {
 		c, _ := q.cursor() // Validate is called before building the query.
 		_, direction := q.sorting()

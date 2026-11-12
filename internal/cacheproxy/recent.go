@@ -31,6 +31,7 @@ type RecentRequests struct {
 	NextCursor string          `json:"nextCursor"`
 	StorageID  string          `json:"storageID"`
 	Requests   []RecentRequest `json:"requests"`
+	Total      *int64          `json:"total,omitempty"` // Full filtered count, only requested by history queries.
 	HasMore    bool            `json:"hasMore"`
 }
 
@@ -59,8 +60,22 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback()
+	if getOnly {
+		// Count and page share a snapshot; the cursor only limits the page.
+		count, args := query.count()
+		var total int64
+		if err := tx.QueryRowContext(ctx, count, args...).Scan(&total); err != nil {
+			return result, err
+		}
+		result.Total = &total
+	}
 	window, args := query.window(getOnly)
-	rows, err := db.QueryContext(ctx, `SELECT event_id, requested_at, COALESCE(resource_md5,''), method, range_header,
+	rows, err := tx.QueryContext(ctx, `SELECT event_id, requested_at, COALESCE(resource_md5,''), method, range_header,
  outcome, transferred_bytes, elapsed_ms, status, COALESCE(CAST(song_id AS TEXT),''), COALESCE(s.name,''), completed_at, response_bytes, first_body_ns, first_body_blocking, download_bytes, cache_bytes, local_bytes
  FROM (`+window+`) e LEFT JOIN songs s ON s.id=e.song_id
  ORDER BY `+query.order(), args...)

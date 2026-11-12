@@ -2,12 +2,18 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 func TestStoreBusinessOperationsWithoutVideoEngine(t *testing.T) {
@@ -115,8 +121,11 @@ func TestEngineBorrowsStoreAndCannotCloseItsOwner(t *testing.T) {
 
 func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 	for name, fault := range map[string]string{
-		"readonly":    "PRAGMA query_only=1",
-		"transaction": "CREATE TRIGGER reject_usage BEFORE INSERT ON song_usage BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
+		"readonly": "PRAGMA query_only=1",
+		"full": `CREATE TABLE fill(data BLOB);
+CREATE TRIGGER fill_disk BEFORE INSERT ON song_usage BEGIN INSERT INTO fill VALUES(zeroblob(1048576)); END;
+VACUUM;
+PRAGMA max_page_count=1`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "personal.sqlite"))
@@ -132,8 +141,16 @@ func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 			}
 			store.usage.startGET("3", strings.Repeat("a", 32))
 			store.usage.flush()
-			if store.Error() == nil {
+			if !errors.Is(store.Error(), ErrLocalStorage) {
 				t.Fatal("background write failure only went to log")
+			}
+			wantCode := sqlite3.SQLITE_READONLY
+			if name == "full" {
+				wantCode = sqlite3.SQLITE_FULL
+			}
+			var databaseErr *sqlite.Error
+			if !errors.As(store.Error(), &databaseErr) || databaseErr.Code()&0xff != wantCode {
+				t.Fatalf("retained error=%v, want SQLite code %d", store.Error(), wantCode)
 			}
 			select {
 			case <-store.failureDone():
@@ -142,6 +159,105 @@ func TestStoreReportsBackgroundWriteFailure(t *testing.T) {
 			}
 			if err := store.Close(); err == nil {
 				t.Fatal("close concealed an uncommitted write failure")
+			}
+		})
+	}
+}
+
+func TestBackgroundWriteConflictDoesNotDisableColdDownloads(t *testing.T) {
+	for _, conflict := range []string{"busy", "constraint"} {
+		t.Run(conflict, func(t *testing.T) {
+			store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "personal.sqlite"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			var writeErr error
+			onError := store.usage.onError
+			store.usage.onError = func(err error) {
+				writeErr = err
+				onError(err)
+			}
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				serveFixtureContent(w, r, payload)
+			}))
+			defer upstream.Close()
+			cfg := fixtureConfig()
+			cfg.Store = store
+			prepareFixtureVideo(t, &cfg, t.TempDir())
+			for host := range cfg.Origins {
+				cfg.Origins[host] = strings.TrimPrefix(upstream.URL, "http://")
+			}
+			engine, err := New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer engine.Close()
+			store.usage.flush()
+			wantCode := sqlite3.SQLITE_CONSTRAINT
+			var release func()
+			if conflict == "busy" {
+				// A separate SQLite connection holds a real writer lock. Avoid
+				// spending the production busy timeout in this deterministic test.
+				if _, err := store.db.Exec("PRAGMA busy_timeout=0"); err != nil {
+					t.Fatal(err)
+				}
+				locker, err := openFixtureDatabase(store.path, true)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer locker.Close()
+				if _, err := locker.Exec("BEGIN IMMEDIATE"); err != nil {
+					t.Fatal(err)
+				}
+				release = func() {
+					if _, err := locker.Exec("ROLLBACK"); err != nil {
+						t.Fatal(err)
+					}
+				}
+				wantCode = sqlite3.SQLITE_BUSY
+			} else {
+				if _, err := store.db.Exec("CREATE TRIGGER reject_usage BEFORE INSERT ON song_usage BEGIN SELECT RAISE(ABORT, 'fixture conflict'); END"); err != nil {
+					t.Fatal(err)
+				}
+				release = func() {
+					if _, err := store.db.Exec("DROP TRIGGER reject_usage"); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			store.usage.startGET("3", strings.Repeat("a", 32))
+			store.usage.flush()
+			var databaseErr *sqlite.Error
+			if !errors.As(writeErr, &databaseErr) || databaseErr.Code()&0xff != wantCode {
+				t.Fatalf("background error=%v, want SQLite code %d", writeErr, wantCode)
+			}
+			release()
+			if err := store.SetSongPolicy(t.Context(), 4, SongFavorite); err != nil {
+				t.Fatal("SQL did not recover after conflict ended", err)
+			}
+			if source, err := engine.Prefetch(t.Context(), videoURL(payload)); err != nil || source != "MISS" {
+				t.Fatalf("cold download rejected after SQL recovered: source=%s error=%v", source, err)
+			}
+			if store.Error() != nil {
+				t.Fatal("recoverable write error retained as terminal failure", store.Error())
+			}
+			select {
+			case <-store.FailureDone():
+				t.Fatal("recoverable write error signaled terminal failure")
+			default:
+			}
+			store.usage.startGET("4", strings.Repeat("b", 32))
+			store.usage.flush()
+			var count int
+			if err := store.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=4").Scan(&count); err != nil || count != 1 {
+				t.Fatal("background writes did not resume", count, err)
+			}
+			if err := engine.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(); !errors.Is(err, writeErr) {
+				t.Fatal("close concealed the lost background observation", err)
 			}
 		})
 	}

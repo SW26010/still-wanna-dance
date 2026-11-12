@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/blocksched"
@@ -31,7 +32,9 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, pro
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
 	blockVideo := v
-	attempts := new(resourceAttempts)
+	attempts := &resourceAttempts{deadline: func() time.Time {
+		return s.scheduler.TaskDeadline(downloadTaskKey(v.key, v.size, block))
+	}}
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {

@@ -53,6 +53,36 @@ func AttemptError(ctx context.Context, err error) error {
 	return err
 }
 
+// NewAttempt gives headers a share of the remaining deadline while preserving
+// the full timeout for the request and body. headerDeadline optionally supplies
+// an earlier scheduling deadline that is not enforced by ctx; its owner still
+// controls cancellation. remaining includes the current candidate and must be
+// positive. The caller owns cancellation through response body close.
+func NewAttempt(ctx context.Context, source *http.Client, timeout time.Duration, remaining int, headerDeadline time.Time) (context.Context, *http.Client, context.CancelFunc) {
+	budget := timeout
+	deadline, _ := ctx.Deadline()
+	if !headerDeadline.IsZero() && (deadline.IsZero() || headerDeadline.Before(deadline)) {
+		deadline = headerDeadline
+	}
+	if !deadline.IsZero() {
+		budget = min(budget, time.Until(deadline)/time.Duration(remaining))
+	}
+	bounded, stop := context.WithTimeout(ctx, timeout)
+	child, cancel := context.WithCancelCause(bounded)
+	timer := time.AfterFunc(budget, func() { cancel(context.DeadlineExceeded) })
+	client := *source
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client.Transport = headerBudgetTransport{RoundTripper: transport, stop: timer.Stop}
+	return child, &client, func() {
+		timer.Stop()
+		cancel(nil)
+		stop()
+	}
+}
+
 // Fetch performs complete, validated reads in candidate order with a fixed URL.
 // Header waits share the caller's deadline; a progressing body retains the full
 // attempt/caller deadline. No preference survives an operation.
@@ -64,24 +94,10 @@ func Fetch[T any](ctx context.Context, target string, clients []*http.Client, ti
 		if ctx.Err() != nil {
 			return zero, context.Cause(ctx)
 		}
-		budget := timeout
-		if deadline, ok := ctx.Deadline(); ok {
-			budget = min(budget, time.Until(deadline)/time.Duration(len(clients)-index))
-		}
-		bounded, stop := context.WithTimeout(ctx, timeout)
-		child, cancel := context.WithCancelCause(bounded)
-		timer := time.AfterFunc(budget, func() { cancel(context.DeadlineExceeded) })
-		client := *source
-		transport := client.Transport
-		if transport == nil {
-			transport = http.DefaultTransport
-		}
-		client.Transport = headerBudgetTransport{RoundTripper: transport, stop: timer.Stop}
-		value, err := read(child, &client, target)
+		child, client, cancel := NewAttempt(ctx, source, timeout, len(clients)-index, time.Time{})
+		value, err := read(child, client, target)
 		err = AttemptError(child, err)
-		timer.Stop()
-		cancel(nil)
-		stop()
+		cancel()
 		if err == nil {
 			return value, nil
 		}

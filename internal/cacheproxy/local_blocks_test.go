@@ -31,7 +31,9 @@ func TestBlockFilesCompleteBlocksAndIndependentLifetime(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.release() // Ending old execution must not remove complete reusable data.
-	got, err := io.ReadAll(io.NewSectionReader(f, rangeBlockSize-7, 26))
+	reader := f.reader()
+	defer reader.Close()
+	got, err := io.ReadAll(io.NewSectionReader(reader, rangeBlockSize-7, 26))
 	if err != nil || !bytes.Equal(got, body[rangeBlockSize-7:]) || !f.complete() {
 		t.Fatal("cross-block reuse failed", err)
 	}
@@ -79,7 +81,9 @@ func TestBlockFilesReclamationCannotDeleteNewBlockOrPinnedSnapshot(t *testing.T)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("retired block remained after final I/O reference", err)
 	}
-	got, err := io.ReadAll(io.NewSectionReader(f, 0, 8))
+	reader := f.reader()
+	defer reader.Close()
+	got, err := io.ReadAll(io.NewSectionReader(reader, 0, 8))
 	if err != nil || string(got) != "new-data" {
 		t.Fatal("stale cleanup deleted replacement", err)
 	}

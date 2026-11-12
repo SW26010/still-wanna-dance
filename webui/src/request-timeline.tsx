@@ -1,9 +1,9 @@
 import {useCallback,useEffect,useLayoutEffect,useRef,useState,type Ref} from 'react';
-import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Subtitle2,Tooltip,makeStyles,typographyStyles,TableHeader,TableRow,TableHeaderCell,TableBody,TableCell,TableCellLayout} from '@fluentui/react-components';
+import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Subtitle2,Tooltip,makeStyles,typographyStyles,TableCellLayout} from '@fluentui/react-components';
 import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
-import {RecordTable,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
+import {RecordDataTable,TablePagination,type RecordColumn,type TableSort} from './data-table';
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
 import {requestOutcome,requestOutcomeDescription} from './requests';
 import {songHref,resourceHref} from './library';
@@ -94,21 +94,19 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
   const history=useResource<History>('history?'+query,visible&&!app.stopped,app.revision,0,false,live?subscribe:undefined);
   useLayoutEffect(()=>{if(focusOnMount&&visible){const target=focusSort?focus.ref.current?.querySelector<HTMLElement>('th[aria-sort="ascending"] [role="button"],th[aria-sort="descending"] [role="button"]'):focus.ref.current;target?.focus({preventScroll:true});if(!focusSort)target?.scrollIntoView({block:'start'});}},[]);
   const disabled=app.unavailable||(history.loading&&!history.data);
+  const columns:RecordColumn<RequestRecord>[]=[
+    {columnId:'time',label:'收到时间',sortable:true,defaultDirection:'descending',renderCell:r=><TableCellLayout description={r.completedAt==null?'结束：未知':date(r.completedAt)}>{date(r.at)}</TableCellLayout>},
+    {columnId:'song',label:'请求歌曲',sortable:true,description:'按歌曲 ID 排序。',className:'table-fill-column table-name-column',renderCell:r=>r.songID?<TableCellLayout appearance="primary" truncate description={<Link href={songHref(r.songID)}>ID {r.songID}</Link>}>{r.songTitle||'未知名称'}</TableCellLayout>:'未知'},
+    {columnId:'resource',label:'视频资源',sortable:true,renderCell:r=>r.resource?<Tooltip content={<span className="resource-id">{r.resource}</span>} relationship="description"><Link className="resource-id" href={resourceHref(r.resource)}>{r.resource.length>12?r.resource.slice(0,12)+'…':r.resource}</Link></Tooltip>:'未知'},
+    {columnId:'result',label:'结果',renderCell:r=><TableCellLayout description={`HTTP ${r.status||'未返回'}`}><Tooltip content={requestOutcomeDescription(r)} relationship="description"><span tabIndex={0}>{requestOutcome(r)}</span></Tooltip></TableCellLayout>},
+    {columnId:'delivery',label:'交付',description:'已写出字节占本次响应范围的比例。',renderCell:r=><Tooltip content={`已写出 ${deliveredBytes(r.bytes)}${r.responseBytes!=null?` / 应交付 ${deliveredBytes(r.responseBytes)}`:' / 应交付未知'}`} relationship="description"><span tabIndex={0}>{r.responseBytes!=null&&r.responseBytes>0?`${(r.bytes/r.responseBytes*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:'—'}</span></Tooltip>},
+    {columnId:'sources',label:'来源',description:sourceExplanation,renderCell:r=><SourceShares sources={r.sources}/>},
+    {columnId:'details',label:'',headerProps:{'aria-label':'详情'},className:'table-details-column',renderCell:r=><RecordDetails openOnHover title={`请求 ${r.id} 的明细`}><dl className="detail-grid"><dt>结果</dt><dd>{requestOutcome(r)} · {requestOutcomeDescription(r)}</dd>{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource?<span className="resource-id">{r.resource}</span>:'未知'}</dd><dt>按块折算字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails>},
+  ];
   return <div {...focus} tabIndex={-1} aria-label="历史查询结果" className="content-stack">
     <Notification message={visible?(history.error?'历史读取失败，请重新查询。':connectionError||undefined):undefined} error/>
     {history.loading&&!history.data&&!connectionError&&<Spinner size="small" label="正在读取历史"/>}
-    <RecordTable busy={history.loading} regionLabel="请求历史表格" label="请求历史列表">
-      <TableHeader><TableRow><SortHeader column="time" label="收到时间" sort={sort} onSortChange={onSortChange} defaultDirection="descending" disabled={disabled}/><SortHeader column="song" label="请求歌曲" sort={sort} onSortChange={onSortChange} disabled={disabled} className="table-fill-column table-name-column" description="按歌曲 ID 排序。"/><SortHeader column="resource" label="视频资源" sort={sort} onSortChange={onSortChange} disabled={disabled}/><TableHeaderCell>结果</TableHeaderCell><DescriptionHeader label="交付">已写出字节占本次响应范围的比例。</DescriptionHeader><DescriptionHeader label="来源">{sourceExplanation}</DescriptionHeader><TableHeaderCell className="table-details-column" aria-label="详情"/></TableRow></TableHeader>
-      <TableBody>{history.data?.requests.map(r=><TableRow key={history.data!.storageID+':'+r.id}>
-        <TableCell><TableCellLayout description={r.completedAt==null?'结束：未知':date(r.completedAt)}>{date(r.at)}</TableCellLayout></TableCell>
-        <TableCell className="table-fill-column table-name-column">{r.songID?<TableCellLayout appearance="primary" truncate description={<Link href={songHref(r.songID)}>ID {r.songID}</Link>}>{r.songTitle||'未知名称'}</TableCellLayout>:'未知'}</TableCell>
-        <TableCell>{r.resource?<Tooltip content={<span className="resource-id">{r.resource}</span>} relationship="description"><Link className="resource-id" href={resourceHref(r.resource)}>{r.resource.length>12?r.resource.slice(0,12)+'…':r.resource}</Link></Tooltip>:'未知'}</TableCell>
-        <TableCell><TableCellLayout description={`HTTP ${r.status||'未返回'}`}><Tooltip content={requestOutcomeDescription(r)} relationship="description"><span tabIndex={0}>{requestOutcome(r)}</span></Tooltip></TableCellLayout></TableCell>
-        <TableCell><Tooltip content={`已写出 ${deliveredBytes(r.bytes)}${r.responseBytes!=null?` / 应交付 ${deliveredBytes(r.responseBytes)}`:' / 应交付未知'}`} relationship="description"><span tabIndex={0}>{r.responseBytes!=null&&r.responseBytes>0?`${(r.bytes/r.responseBytes*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:'—'}</span></Tooltip></TableCell>
-        <TableCell><SourceShares sources={r.sources}/></TableCell>
-        <TableCell className="table-details-column"><RecordDetails openOnHover title={`请求 ${r.id} 的明细`}><dl className="detail-grid"><dt>结果</dt><dd>{requestOutcome(r)} · {requestOutcomeDescription(r)}</dd>{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource?<span className="resource-id">{r.resource}</span>:'未知'}</dd><dt>按块折算字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails></TableCell>
-      </TableRow>)}</TableBody>
-    </RecordTable>
+    <RecordDataTable busy={history.loading} regionLabel="请求历史表格" label="请求历史列表" columns={columns} items={history.data?.requests} getRowId={request=>history.data!.storageID+':'+request.id} sort={sort} onSortChange={onSortChange} sortDisabled={disabled}/>
     {!history.error&&history.data?.requests.length===0&&<p className="empty-state">当前筛选条件下暂无请求记录。</p>}
     <TablePagination label="历史" disabled={disabled||!!history.error} canPrevious={pageNumber>1} canNext={!!history.data?.hasMore&&!!history.data.nextCursor}
       previous={previous} next={()=>next(history.data!.nextCursor)}

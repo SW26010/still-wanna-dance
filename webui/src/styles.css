@@ -251,6 +251,9 @@ form.actions { align-items: flex-end; }
 .table-region { max-width: 100%; overflow-x: auto; background: var(--colorNeutralBackground1); }
 .table-region:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: 2px; }
 .data-table :is(th, td) { white-space: nowrap; }
+/* Native auto layout shares space between prose columns; only short fields stay compact. */
+.song-table :is(th, td) { width: 1px; }
+.data-table .table-text-column { width: auto; min-width: 6rem; white-space: normal; overflow-wrap: anywhere; }
 /* Bound long identities while short fields keep their intrinsic content width. */
 .data-table .table-fill-column { width: 100%; min-width: 12rem; max-width: 0; }
 .resource-id, .fui-Link.resource-id, .fui-Text.resource-id { font-family: var(--fontFamilyMonospace); }
@@ -259,7 +262,6 @@ form.actions { align-items: flex-end; }
 .data-table .table-details-column { width: 1px; }
 .data-table .record-details-trigger { min-width: 0; }
 .data-table .table-name-column { min-width: 8rem; }
-.data-table .table-metadata-column { width: 12%; min-width: 6rem; max-width: 0; }
 .data-table .inline { flex-wrap: nowrap; }
 .table-source-shares { display: grid; grid-template-columns: repeat(2, max-content); column-gap: var(--spacingHorizontalS); }
 .cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }

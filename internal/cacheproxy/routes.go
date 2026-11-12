@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/upstreamrequest"
@@ -84,7 +85,8 @@ type resourceCandidates struct {
 }
 type resourceAttempts struct {
 	targets   map[string]*resourceCandidates
-	redirects int // Shared across all retries of this block execution.
+	redirects int              // Shared across all retries of this block execution.
+	deadline  func() time.Time // Current scheduler deadline; does not freeze demand changes.
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {
@@ -173,13 +175,17 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		client := *s.client
 		client.Transport = transport
-		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.DownloadTimeout)
+		var deadline time.Time
+		if attempts.deadline != nil {
+			deadline = attempts.deadline()
+		}
+		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, s.cfg.DownloadTimeout, len(transports)-index, deadline)
 		if s.cfg.BeginResourceLoad != nil {
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })
 		}
 		request := r.Clone(ctx)
-		resp, err := client.Do(request)
+		resp, err := attemptClient.Do(request)
 		if err == nil && resp.StatusCode < 500 {
 			closeBody := sync.OnceValue(resp.Body.Close)
 			stopBody := context.AfterFunc(ctx, func() { closeBody() })

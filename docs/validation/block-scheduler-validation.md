@@ -969,3 +969,18 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - Go 1.27.3、GCC 16.2.0 下，8 项发布准备、资格复核与写入串行定向 Windows race 测试在普通用户权限下通过（87.354 秒，无 skip），结果在 `race-native.log`。首次沙箱运行被 `ThreadSanitizer: failed to restore address` 中止，没有可定位的数据竞争报告；失败保留在 `race.log`，不计为通过。
 
 以上证据使用真实 Store 写入及文件发布，通过通道注入同步／关闭等待，不代表已测真实慢盘延迟或实际播放收益。本轮未启动 VRC、修改 hosts、替换运行实例或执行 commit／push。
+
+## 2026-11-12：响应头等待为备用通道保留期限
+
+确认评审反馈：资源请求把为慢正文保留的 `DownloadTimeout` 同时用于无响应头的等待。新增 `TestResourceHeaderTimeoutLeavesTimeForFallback`，在 30 秒父级期限、2／6 个候选下，旧实现连续三次只调用首通道（`calls=[0] elapsed=30s`），备用通道未执行。
+
+从已有 `Fetch` 提取共用的 `upstreamrequest.NewAttempt`：响应头等待按较早截止的剩余时间和剩余候选数分配；收到响应头就停止该预算，正文继续沿用完整的单次尝试总时限及适用的父级／任务截止。取消、正文关闭和有界候选游标保持原生命周期，没有新增超时配置。
+
+真实调度器通过主动取消执行下载截止，通常没有 `Context.Deadline`；仅复用 Context 预算时，`TestScheduledHeaderTimeoutLeavesTimeForFallback` 仍在第 30 秒失败（`calls=[1 0]`）。现在执行器通过只读 `TaskDeadline` 在每次 HTTP 尝试前取得当前截止；不复制调度状态，也不把会随需求变化的截止固化为正文时限。真实调度、块执行及 Range 校验链路在第 15 秒转到备用通道并完成读取。现行契约见[超时规则](../download-resource-design.md#单次尝试超时与下载延续截止)。
+
+- 上述两个新增顶层用例与既有独立尝试超时、正文超时关闭／释放用例各连续三次通过。覆盖 2／6 候选、慢正文超过响应头份额、更早的父级截止、备用通道启动前的截止更新及正文期间的截止延后。
+- `blocksched`、`upstreamrequest`、`playbacksource`、`upstreamcheck` 整包普通测试通过。缓存整包执行后有 13 项硬链接、目录联接及相关子进程检查受 Windows 沙箱权限限制失败；同一 13 项在普通用户环境保持原断言复验全部通过（3.373 秒），没有把最初整包失败改写为通过。
+- Console 的 Catalog／Checksum／UpstreamFallback／PlaybackSource 关联选择范围在沙箱初始化夹具时遇到 `renameat: The handle is invalid`；同一选择范围在普通用户环境通过（16.955 秒）。开发说明已记录此 `os.Root.Rename` 限制。
+- Go 1.27.3、GCC 16.2.0 下，缓存、调度、共用请求机制共 8 项顶层定向 Windows race 检查各连续三次通过；六个受影响包的 `go vet`、相关 Go 文件格式检查和 `git diff --check` 通过。
+
+失败摘录及检查结果位于忽略目录 `artifacts/header-budget-20261112/`：`failure-summary.txt` 明确为工具输出摘录，`regression.log` 保留缓存整包失败及其他四包结果，`cache-native.log`、`console-native.log`、`race.log` 保存对应复验。虚拟时间与受控传输证明预算、回退、正文和取消边界，不外推为真实公网耗时或游戏音画收益。本轮验证未启动 VRC、修改 hosts 或替换运行实例，不新增 VRC 专属待验项。

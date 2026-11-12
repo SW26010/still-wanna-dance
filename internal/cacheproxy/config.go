@@ -40,8 +40,9 @@ type Config struct {
 	// It owns network selection and evidence recording, never download execution.
 	// Nil uses the standalone resolver under the same source policy.
 	ResolvePlayback func(context.Context, string) (string, error)
-	// DownloadTimeout bounds each upstream attempt (headers and body), including
-	// a sequential response, and each local validation/publication phase.
+	// DownloadTimeout bounds each upstream attempt (headers and body) and each
+	// local validation/publication phase. Header waits also reserve time for
+	// remaining candidates when the caller or scheduler has a deadline.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
 	// BlockSize is the download/storage block size in bytes; zero uses

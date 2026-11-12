@@ -20,6 +20,19 @@ func Expired(readyBy, now time.Time) bool {
 	return !readyBy.IsZero() && !Deadline(readyBy).After(now)
 }
 
+// TaskDeadline returns the current finite deadline, or zero for untimed/missing
+// work. Executors may use it to budget attempts; the scheduler owns cancellation
+// and demand changes can still move the deadline before expiry.
+func (s *Scheduler) TaskDeadline(key string) time.Time {
+	var deadline time.Time
+	s.call(func(st *state) {
+		if j := st.jobs[key]; j != nil {
+			deadline = Deadline(j.need.ReadyBy)
+		}
+	})
+	return deadline
+}
+
 // One indexed heap covers queued and executing tasks. Updates come from actual
 // demand changes; expired tasks are retired before a command can update them.
 func (s *state) updateDeadline(j *job) {

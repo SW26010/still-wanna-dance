@@ -8,6 +8,7 @@ try {
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(baseURL+'/#/library');
+  await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
   const songs=page.getByRole('table',{name:'曲库歌曲'});
   await expect(songs.getByText('未保存',{exact:true})).toHaveCount(2);
   const rows=songs.getByRole('row');

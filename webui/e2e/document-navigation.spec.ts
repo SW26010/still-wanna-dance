@@ -49,7 +49,7 @@ test('document tabs and body links preserve navigation and drafts',async({page})
 });
 
 for(const width of [390,1280])test(`library buttons locate persistent modules without leaving the list (${width})`,async({page})=>{
-  const api=await mockAPI(page);await page.setViewportSize({width,height:900});
+  const api=await mockAPI(page,{libraryView:'list'});await page.setViewportSize({width,height:900});
   await page.emulateMedia({colorScheme:width===390?'dark':'light'});
   await page.goto('/#/settings');
   const originalDocument=await page.evaluate(()=>performance.timeOrigin);

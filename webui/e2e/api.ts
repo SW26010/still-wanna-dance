@@ -10,7 +10,11 @@ export function statusFixture(): Status {
   const settings: Settings = {theme:'system',logLevel:'info',retainFavorites:true,databasePath:'C:\\UI-Test\\storage\\storage.sqlite',videoDir:'D:\\Videos',blockCacheDir:'',videoBudgetBytes:40*1073741824,videoStorageMode:'unlimited',requestRetentionMode:'unlimited',requestRetentionDays:0,prepareAheadSeconds:500,downloadConcurrencySoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,exitWithVRChat:false,queueWithGateway:true,restoreHostsOnStopOrExit:true,vrchatLogDir:''};
   return {vrcxImportAvailable:true,videoImportSuggested:false,running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:'C:\\UI-Test\\logs',defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,defaultBlockCacheDir:'C:\\UI-Test\\work',portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]},catalogSync:{initializing:false,checking:false}};
 }
-export async function mockAPI(page: Page) {
+export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'covers'}={}) {
+  if(libraryView)await page.addInitScript(view=>{
+    if(view==='list')localStorage.setItem('swd-library-list-run','browser-fixture-token');
+    else localStorage.removeItem('swd-library-list-run');
+  },libraryView);
   await page.routeWebSocket('**/api/lifecycle',socket=>socket.send(JSON.stringify({action:'running'})));
   const fixtureID=crypto.randomUUID();
   await page.context().addCookies([{name:'fixture-id',value:fixtureID,url:'http://127.0.0.1:18473'}]);
@@ -61,7 +65,7 @@ export async function mockAPI(page: Page) {
     if (match('GET inventory')) data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
     if (match('GET downloads')) data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (match('GET songs')) data={storageID:'fixture',entries:[],total:0};
-    if(match('GET history'))data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
+    if(match('GET history'))data={storageID:'fixture',requests:[],total:0,hasMore:false,nextCursor:''};
     if(match('GET response-sources'))data={downloadBytes:0,cacheBytes:0,localBytes:0};
     if(match('GET latency'))data={from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (match('GET requests')) data={storageID:'fixture',requests:[],hasMore:false};

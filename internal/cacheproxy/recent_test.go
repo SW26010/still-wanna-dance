@@ -119,7 +119,7 @@ func TestRecentWindowOrderingAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(r.Requests) != 50 || !r.HasMore {
+	if len(r.Requests) != 50 || !r.HasMore || r.Total != nil {
 		t.Fatalf("HTTP page: %+v", r)
 	}
 	for i := 1; i < len(r.Requests); i++ {

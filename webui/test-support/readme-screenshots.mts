@@ -99,6 +99,7 @@ try {
   await page.mouse.move(0, 0);
   await page.screenshot({ path: 'docs/images/webui-acceleration.png', animations: 'disabled' });
   await page.goto('/#/library');
+  await page.getByRole('button', { name: '切换到列表视图', exact: true }).click();
   await expect(page.getByRole('table', { name: '曲库歌曲' }).getByText(songs[7].title, { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 650 });
   await page.screenshot({ path: 'docs/images/webui-library.png', animations: 'disabled' });

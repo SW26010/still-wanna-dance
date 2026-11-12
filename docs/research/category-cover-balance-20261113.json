@@ -1,0 +1,986 @@
+{
+  "measuredOn": "2026-11-13",
+  "assetCount": 44,
+  "scope": "Existing 4:3 composition, precomposed background, WebP method 6 and one global size/quality setting; no product changes",
+  "reference": "Source/master directly resized for each displayed foreground size; not the original game texture",
+  "displayPixels": {
+    "220": "Typical card at 1x",
+    "440": "220 CSS px at 2x",
+    "688": "344 CSS px narrow-screen card at 2x"
+  },
+  "blurRadius": "Scaled with output width to preserve visual strength",
+  "current": "512x384-q88",
+  "baselineMatchesProductionBytes": true,
+  "profiles": [
+    {
+      "profile": "384x288-q75",
+      "pixels": [
+        384,
+        288
+      ],
+      "quality": 75,
+      "totalBytes": 346318,
+      "savingVsCurrentPercent": 58.72,
+      "averageRgbMaeAt440": 3.19815,
+      "averageSsimAt220": 0.98872,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.979288
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.9808
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.980886
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.982667
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.983007
+        }
+      ],
+      "averageSsimAt440": 0.968417,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.916692
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.937518
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.945458
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.947576
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.952602
+        }
+      ],
+      "averageSsimAt688": 0.9523,
+      "worstAt688": [
+        {
+          "asset": "choyoung",
+          "ssim": 0.828272
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.851746
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.917788
+        },
+        {
+          "asset": "southvibes",
+          "ssim": 0.922002
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.922845
+        }
+      ]
+    },
+    {
+      "profile": "384x288-q80",
+      "pixels": [
+        384,
+        288
+      ],
+      "quality": 80,
+      "totalBytes": 416038,
+      "savingVsCurrentPercent": 50.41,
+      "averageRgbMaeAt440": 2.86874,
+      "averageSsimAt220": 0.99139,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.983599
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.986434
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.986477
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.986727
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.986838
+        }
+      ],
+      "averageSsimAt440": 0.974189,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.929012
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.947233
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.956464
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.958367
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.960727
+        }
+      ],
+      "averageSsimAt688": 0.958928,
+      "worstAt688": [
+        {
+          "asset": "choyoung",
+          "ssim": 0.841918
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.864327
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.927274
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.929383
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.933851
+        }
+      ]
+    },
+    {
+      "profile": "384x288-q85",
+      "pixels": [
+        384,
+        288
+      ],
+      "quality": 85,
+      "totalBytes": 508546,
+      "savingVsCurrentPercent": 39.38,
+      "averageRgbMaeAt440": 2.55313,
+      "averageSsimAt220": 0.99363,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.987927
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.989473
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.989905
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.989999
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.990326
+        }
+      ],
+      "averageSsimAt440": 0.979436,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.94256
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.955289
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.965885
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.967628
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.968135
+        }
+      ],
+      "averageSsimAt688": 0.96499,
+      "worstAt688": [
+        {
+          "asset": "choyoung",
+          "ssim": 0.8502
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.878833
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.934651
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.937529
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.941745
+        }
+      ]
+    },
+    {
+      "profile": "384x288-q88",
+      "pixels": [
+        384,
+        288
+      ],
+      "quality": 88,
+      "totalBytes": 587946,
+      "savingVsCurrentPercent": 29.91,
+      "averageRgbMaeAt440": 2.36269,
+      "averageSsimAt220": 0.994879,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.99058
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.991766
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.991971
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.992248
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.992334
+        }
+      ],
+      "averageSsimAt440": 0.982537,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.952409
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.9579
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.97093
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.972368
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.972952
+        }
+      ],
+      "averageSsimAt688": 0.968652,
+      "worstAt688": [
+        {
+          "asset": "choyoung",
+          "ssim": 0.853039
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.889847
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.939159
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.942276
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.947348
+        }
+      ]
+    },
+    {
+      "profile": "448x336-q75",
+      "pixels": [
+        448,
+        336
+      ],
+      "quality": 75,
+      "totalBytes": 418000,
+      "savingVsCurrentPercent": 50.17,
+      "averageRgbMaeAt440": 2.8397,
+      "averageSsimAt220": 0.990664,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.982704
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.984706
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.984761
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.98478
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.985222
+        }
+      ],
+      "averageSsimAt440": 0.97395,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.92915
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.954155
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.955745
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.958499
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.961325
+        }
+      ],
+      "averageSsimAt688": 0.960072,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.86633
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.873623
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.93019
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.931322
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.933425
+        }
+      ]
+    },
+    {
+      "profile": "448x336-q80",
+      "pixels": [
+        448,
+        336
+      ],
+      "quality": 80,
+      "totalBytes": 502094,
+      "savingVsCurrentPercent": 40.15,
+      "averageRgbMaeAt440": 2.52142,
+      "averageSsimAt220": 0.992888,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.98674
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.988604
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.988689
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.988795
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.989053
+        }
+      ],
+      "averageSsimAt440": 0.979059,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.942129
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.964551
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.96523
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.968062
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.968576
+        }
+      ],
+      "averageSsimAt688": 0.966281,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.881173
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.890486
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.937854
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.939534
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.941239
+        }
+      ]
+    },
+    {
+      "profile": "448x336-q85",
+      "pixels": [
+        448,
+        336
+      ],
+      "quality": 85,
+      "totalBytes": 615124,
+      "savingVsCurrentPercent": 26.67,
+      "averageRgbMaeAt440": 2.22511,
+      "averageSsimAt220": 0.994716,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.989731
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.991313
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.99165
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.991759
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.991794
+        }
+      ],
+      "averageSsimAt440": 0.98362,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.953362
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.971306
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.972488
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.973712
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.974234
+        }
+      ],
+      "averageSsimAt688": 0.971833,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.894846
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.896813
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.944027
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.950325
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.950417
+        }
+      ]
+    },
+    {
+      "profile": "448x336-q88",
+      "pixels": [
+        448,
+        336
+      ],
+      "quality": 88,
+      "totalBytes": 714522,
+      "savingVsCurrentPercent": 14.82,
+      "averageRgbMaeAt440": 2.02184,
+      "averageSsimAt220": 0.995789,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.992243
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.993092
+        },
+        {
+          "asset": "fol2estz",
+          "ssim": 0.99322
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.99339
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.993528
+        }
+      ],
+      "averageSsimAt440": 0.986482,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.962932
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.976419
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.976772
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.977335
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.978659
+        }
+      ],
+      "averageSsimAt688": 0.975401,
+      "worstAt688": [
+        {
+          "asset": "choyoung",
+          "ssim": 0.900649
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.906956
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.94923
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.955302
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.95536
+        }
+      ]
+    },
+    {
+      "profile": "512x384-q75",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 75,
+      "totalBytes": 488042,
+      "savingVsCurrentPercent": 41.82,
+      "averageRgbMaeAt440": 2.53261,
+      "averageSsimAt220": 0.99221,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.985924
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.986937
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.987451
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.987642
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.987795
+        }
+      ],
+      "averageSsimAt440": 0.978517,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.942365
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.962737
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.964029
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.966815
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.969238
+        }
+      ],
+      "averageSsimAt688": 0.966293,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.884624
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.916525
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.941039
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.941975
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.942571
+        }
+      ]
+    },
+    {
+      "profile": "512x384-q80",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 80,
+      "totalBytes": 586584,
+      "savingVsCurrentPercent": 30.08,
+      "averageRgbMaeAt440": 2.23109,
+      "averageSsimAt220": 0.99408,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.988994
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.989996
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.990385
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.990489
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.990623
+        }
+      ],
+      "averageSsimAt440": 0.983098,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.954503
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.970298
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.971528
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.973216
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.975451
+        }
+      ],
+      "averageSsimAt688": 0.972072,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.901623
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.928536
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.948231
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.948678
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.952142
+        }
+      ]
+    },
+    {
+      "profile": "512x384-q85",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 85,
+      "totalBytes": 719346,
+      "savingVsCurrentPercent": 14.25,
+      "averageRgbMaeAt440": 1.94639,
+      "averageSsimAt220": 0.995574,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.991824
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.992629
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.99304
+        },
+        {
+          "asset": "liu-doudou",
+          "ssim": 0.99317
+        },
+        {
+          "asset": "kids",
+          "ssim": 0.993173
+        }
+      ],
+      "averageSsimAt440": 0.986973,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.966872
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.977866
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.978654
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.979248
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.979852
+        }
+      ],
+      "averageSsimAt688": 0.977148,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.918604
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.935439
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.953831
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.957653
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.959388
+        }
+      ]
+    },
+    {
+      "profile": "512x384-q88",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 88,
+      "totalBytes": 838886,
+      "savingVsCurrentPercent": 0.0,
+      "averageRgbMaeAt440": 1.75713,
+      "averageSsimAt220": 0.996464,
+      "worstAt220": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.993749
+        },
+        {
+          "asset": "manako",
+          "ssim": 0.993942
+        },
+        {
+          "asset": "fol2estz",
+          "ssim": 0.994028
+        },
+        {
+          "asset": "lisa-rhee",
+          "ssim": 0.99421
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.994333
+        }
+      ],
+      "averageSsimAt440": 0.989409,
+      "worstAt440": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.974513
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.980906
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.982811
+        },
+        {
+          "asset": "tml-crew",
+          "ssim": 0.982828
+        },
+        {
+          "asset": "nanakawa-miko",
+          "ssim": 0.983801
+        }
+      ],
+      "averageSsimAt688": 0.980392,
+      "worstAt688": [
+        {
+          "asset": "sunny-funny-fitness",
+          "ssim": 0.930191
+        },
+        {
+          "asset": "choyoung",
+          "ssim": 0.939094
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssim": 0.95777
+        },
+        {
+          "asset": "ellen-brian",
+          "ssim": 0.961566
+        },
+        {
+          "asset": "wata",
+          "ssim": 0.964921
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "profile": "512x384-q80",
+    "totalBytes": 586584,
+    "savingVsCurrentPercent": 30.08,
+    "reason": "Retain pixel dimensions for high-DPI cards while reducing encoding cost; small visible differences at typical card sizes, with some loss in enlarged detail.",
+    "productionChanged": false,
+    "scope": "Recommendation within the 12 measured WebP profiles and the current small-card fallback use; no universal optimum claim",
+    "status": "Earlier comparison prioritizing 2x desktop headroom; superseded by the measured-layout recommendation",
+    "supersededBy": "category-cover-size-20261113.json"
+  }
+}

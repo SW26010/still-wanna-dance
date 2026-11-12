@@ -137,6 +137,13 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 		refs = append(refs, assetRefs.FindAllStringSubmatch(page.Body.String(), -1)...)
 	}
 	refs = append(refs, []string{"", "/assets/storage-benefit.svg"}, []string{"", "/assets/logo.svg"}, []string{"", "/favicon-light.ico"})
+	categoryCovers, err := webUIAssets.ReadDir("assets/webui/category-covers")
+	if err != nil || len(categoryCovers) != 44 {
+		t.Fatal("offline category artwork missing", err, len(categoryCovers))
+	}
+	for _, cover := range categoryCovers {
+		refs = append(refs, []string{"", "/assets/webui/category-covers/" + cover.Name()})
+	}
 	seen := make(map[string]bool)
 	for _, ref := range refs {
 		path := ref[1]
@@ -158,6 +165,9 @@ func TestPageLoadsEmbeddedAssets(t *testing.T) {
 			}
 			if strings.HasSuffix(path, ".ico") {
 				wantType = "image/x-icon"
+			}
+			if strings.HasSuffix(path, ".webp") {
+				wantType = "image/webp"
 			}
 			if w.Header().Get("Content-Type") != wantType {
 				t.Fatal(w.Header())

@@ -31,6 +31,7 @@ try {
     page.on('request',r=>{if(r.url().includes('/media/preview?'))mediaRequests.push({url:r.url(),range:r.headers().range,site:r.headers()['sec-fetch-site']});});
     page.on('response',r=>{if(r.url().includes('/media/preview?'))mediaStatuses.push(r.status());});
     await page.goto(baseURL+'/#/library');
+    await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
     const songs=page.getByRole('table',{name:'曲库歌曲'});
     await expect(songs.getByRole('button',{name:'预览',exact:true})).toHaveCount(2);
     expect(mediaRequests).toHaveLength(0);

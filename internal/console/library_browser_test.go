@@ -44,6 +44,7 @@ func TestLibraryBrowser(t *testing.T) {
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
 	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.LocalProtectionGrace = 0
+	cfg.ResolvePlayback = c.resolvePlayback
 	for host := range cfg.Origins {
 		cfg.Origins[host] = strings.TrimPrefix(origin.URL, "http://")
 	}

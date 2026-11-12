@@ -47,10 +47,12 @@ export function App() {
   const documentPage=isDocumentPage(page);
   const model = useConsole(accepted&&!bootstrap.recovery, page), main = useRef<HTMLElement>(null), initial = useRef(true);
   const tabAnchor=useRef<string|null>(null);
-  const selectTab=(next:string)=>{
+  const selectTab=(next:string,replace=false)=>{
     if(location.hash==='#'+next)return;
     // Keep browser history without native fragment navigation moving tab focus.
-    history.pushState(null,'','#'+next);tabAnchor.current=next;setAnchor(next);
+    if(replace)history.replaceState(null,'','#'+next);
+    else history.pushState(null,'','#'+next);
+    tabAnchor.current=next;setAnchor(next);
   };
   useEffect(() => {
     const originalHash=location.hash;
@@ -125,7 +127,7 @@ export function App() {
       {feedback}
       {bootstrap.recovery&&!model.stopped&&<MessageBar intent="error"><MessageBarBody><MessageBarTitle>SWD 启动失败</MessageBarTitle><p className="wrap">{bootstrap.recovery.reason}</p><p>可前往<Link href="#/settings">修改设置</Link>。如果配置无法读取，请根据原因修复文件或运行环境，再重新启动 SWD。</p></MessageBarBody></MessageBar>}
       {bootstrap.recovery&&<RecoverySettings visible={page==='settings'} anchor={anchor} onTabSelect={selectTab}/>}
-      {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor} onTabSelect={selectTab}/>
+      {s && <VRCXProvider target={s.activeSettings.databasePath} page={page}><div hidden={page !== 'home'}><Home visible={page==='home'}/></div><div hidden={page !== 'timeline'}><RequestTimeline visible={page==='timeline'}/></div><div hidden={page!=='library'}><Library visible={page==='library'} anchor={anchor} onNavigate={selectTab}/></div><SettingsAndNetwork settingsVisible={page==='settings'} networkVisible={page==='network'} anchor={anchor} onTabSelect={selectTab}/>
       </VRCXProvider>}
       <div hidden={page!=='about'}><AboutPage visible={accepted&&page==='about'} anchor={anchor} onTabSelect={selectTab} paths={s?{...bootstrap.paths,Database:s.activeSettings.databasePath,Videos:s.activeSettings.videoDir}:bootstrap.paths||{}} update={s?.update} refreshUpdate={model.refresh} updateUnavailable={!accepted||!s||!!model.status.error||model.stopped}/></div>
       </main>

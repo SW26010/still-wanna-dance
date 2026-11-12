@@ -14,8 +14,49 @@ import (
 
 type LibraryQuery struct {
 	View, Search, Sort, Direction, Filter string
-	SongID, Resource                      string // Exact object links, independent of text search.
 	Offset                                int
+}
+
+// LibrarySearch uses the same exact fields in both library views.
+type LibrarySearch struct {
+	text, songID, md5 string
+}
+
+func ParseLibrarySearch(raw string) (LibrarySearch, error) {
+	text := strings.ToLower(strings.TrimSpace(raw))
+	field, value, found := strings.Cut(text, ":")
+	switch {
+	case found && field == "id":
+		id, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != value {
+			return LibrarySearch{}, errors.New("id: 后请输入正整数歌曲 ID，例如 id:2367")
+		}
+		return LibrarySearch{songID: value}, nil
+	case found && field == "md5":
+		if len(value) != 32 || strings.IndexFunc(value, func(c rune) bool { return !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') }) >= 0 {
+			return LibrarySearch{}, errors.New("md5: 后请输入完整的 32 位资源标识")
+		}
+		return LibrarySearch{md5: value}, nil
+	default:
+		return LibrarySearch{text: text}, nil
+	}
+}
+
+func (q LibrarySearch) matchesResource(key string) bool {
+	if q.md5 != "" {
+		return key == q.md5
+	}
+	return q.songID == "" && (q.text == "" || strings.Contains(key, q.text))
+}
+
+func (q LibrarySearch) matchesSong(song LibrarySong) bool {
+	if q.songID != "" {
+		return song.ID == q.songID
+	}
+	if q.md5 != "" {
+		return song.Resource == q.md5
+	}
+	return q.text == "" || song.ID == q.text || strings.Contains(strings.ToLower(song.Title+"\n"+song.Artist+"\n"+song.Dancer+"\n"+song.Group+"\n"+song.Resource), q.text)
 }
 
 type LibrarySong struct {
@@ -67,7 +108,11 @@ func ReadLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery) (L
 }
 
 func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, now int64) (LibraryPage, error) {
-	paths, err := paths.Resolve()
+	search, err := ParseLibrarySearch(q.Search)
+	if err != nil {
+		return LibraryPage{}, err
+	}
+	paths, err = paths.Resolve()
 	page := LibraryPage{StorageID: CacheStorageID(paths), DatabaseID: DatabaseID(paths.DatabasePath), Songs: []LibrarySong{}, Keys: []string{}, Resources: map[string]*LibraryResource{}}
 	if err != nil {
 		return page, err
@@ -85,11 +130,10 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 	if db != nil {
 		defer db.Close()
 	}
-	search := strings.ToLower(strings.TrimSpace(q.Search))
 	resources := map[string]*libraryCandidate{}
 	resource := func(key string) *libraryCandidate {
 		if resources[key] == nil {
-			resources[key] = &libraryCandidate{LibraryResource: LibraryResource{Key: key, Songs: []CacheSong{}}, match: search == "" || strings.Contains(key, search)}
+			resources[key] = &libraryCandidate{LibraryResource: LibraryResource{Key: key, Songs: []CacheSong{}}, match: search.matchesResource(key)}
 		}
 		return resources[key]
 	}
@@ -176,7 +220,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 			}
 			song.ID, song.Score = strconv.FormatInt(id, 10), effectiveSongPriority(id, count, score, last, now)
 			song.HasDemand = count > 0
-			match := search == "" || song.ID == search || strings.Contains(strings.ToLower(song.Title+"\n"+song.Artist+"\n"+song.Dancer+"\n"+song.Group+"\n"+song.Resource), search)
+			match := search.matchesSong(song)
 			saved := false
 			if song.Resource != "" {
 				r := resource(song.Resource)
@@ -195,7 +239,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 				}
 				saved = r.saved
 			}
-			if match && (q.SongID == "" || q.SongID == song.ID) && (q.Resource == "" || q.Resource == song.Resource) && libraryFilter(q.Filter, saved, song.Policy) {
+			if match && libraryFilter(q.Filter, saved, song.Policy) {
 				songs = append(songs, song)
 			}
 		}
@@ -264,7 +308,7 @@ func readLibraryPage(ctx context.Context, paths LibraryPaths, q LibraryQuery, no
 	} else {
 		var candidates []*libraryCandidate
 		for _, r := range resources {
-			if r.match && (q.Resource == "" || r.Key == q.Resource) && libraryFilter(q.Filter, r.saved, SongNormal) {
+			if r.match && libraryFilter(q.Filter, r.saved, SongNormal) {
 				candidates = append(candidates, r)
 			}
 		}

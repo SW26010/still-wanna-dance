@@ -4,7 +4,7 @@ import {ArrowDownload20Regular,ArrowExpand20Regular,Dismiss20Regular} from '@flu
 import {downloadFile} from './api';
 import {useApp,useResource} from './hooks';
 import {Feedback,Notification,Panel} from './ui';
-import {RecordTable,TablePagination} from './data-table';
+import {RecordTable,TablePagination,paginationSummary} from './data-table';
 import {date} from './types';
 
 interface LogEntry {time:string;level:string;message:string;fields:{key:string;value:string}[];file:string;line:number;raw:string}
@@ -94,7 +94,7 @@ function LogResults({result,queryRevision,loading,error,visible,children,action}
       </TableRow>)}</TableBody>
     </RecordTable>
     {!open&&result&&!entries.length&&<p className="empty-state">{result.files.length?'当前筛选条件下没有日志。':'尚无程序日志文件。'}</p>}
-    {!open&&<TablePagination label="日志" disabled={loading||!!error||!result} canPrevious={currentPage>0} canNext={!!result&&(currentPage+1)*pageSize<result.entries.length} previous={()=>move(currentPage-1)} next={()=>move(currentPage+1)} summary={error?'日志读取失败':!result?'正在读取日志…':`第 ${currentPage+1} 页 · 共 ${result.entries.length.toLocaleString()} 条${result.matches>result.limit?'（最近记录）':''}`}/>}
+    {!open&&<TablePagination label="日志" disabled={loading||!!error||!result} canPrevious={currentPage>0} canNext={!!result&&(currentPage+1)*pageSize<result.entries.length} previous={()=>move(currentPage-1)} next={()=>move(currentPage+1)} summary={error?'日志读取失败':!result?'正在读取日志…':paginationSummary(currentPage+1,result.entries.length,pageSize)+(result.matches>result.limit?'（最近记录）':'')}/>}
   </div>;
   return <Dialog open={open} onOpenChange={(_,data)=>setExpanded(data.open)}>
     <Panel title="程序日志" id="logs" action={<div className="inline">{action}<Tooltip content="展开日志表格" relationship="label"><DialogTrigger disableButtonEnhancement><Button appearance="subtle" icon={<ArrowExpand20Regular/>} aria-label="展开日志表格" aria-haspopup="dialog"/></DialogTrigger></Tooltip></div>}>

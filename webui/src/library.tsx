@@ -5,7 +5,7 @@ import {useApp,useFocusRecovery,useResource,useRunToggle} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
 import {Feedback,Notification,RecordDetails} from './ui';
-import {RecordDataTable,TableText,TablePagination,type RecordColumn,type TableSort} from './data-table';
+import {RecordDataTable,TableText,TablePagination,paginationSummary,type RecordColumn,type TableSort} from './data-table';
 import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular,GridRegular,TextBulletListRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {LibraryCoverCard,useLibraryCovers} from './library-covers';
@@ -189,7 +189,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
       {!page.error&&page.data?.total===0&&<p className="empty-state">没有匹配项，请调整搜索或更新清单。</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
         previous={()=>{navigate({offset:Math.max(0,offset-50)});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{navigate({offset:offset+50});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}
-        summary={waitingForDatabase?'待确认存储':page.error&&!searchError?'曲库读取失败，请刷新重试。':!page.data?searchError?'查询格式有误，请修改后重试。':'正在读取曲库…':`共 ${page.data.total} ${resultQuery.view==='songs'?'首歌曲':'个资源'} · 第 ${resultQuery.offset/50+1} 页`}/>
+        summary={waitingForDatabase?'待确认存储':page.error&&!searchError?'曲库读取失败，请刷新重试。':!page.data?searchError?'查询格式有误，请修改后重试。':'正在读取曲库…':paginationSummary(resultQuery.offset/50+1,page.data.total,50,resultQuery.view==='songs'?'首歌曲':'个资源')}/>
       </div>
     </section>
     <VRCXImport model={history}/>

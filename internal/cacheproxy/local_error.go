@@ -74,10 +74,9 @@ func (s *Store) metadataWriteError(ctx context.Context, err error) error {
 	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
 		err = ctx.Err()
 	}
-	// Input validation has already succeeded before this boundary. Preserve the
-	// existing terminal failure contract for an unexpected transaction failure,
-	// including a constraint/trigger failure that invalidates this write.
-	if !isLocalStorageError(err) {
+	// Share the Store's database classification: a lock or constraint conflict
+	// fails this transaction without disabling future downloads.
+	if !isDatabaseStorageError(err) {
 		return err
 	}
 	if !errors.Is(err, ErrLocalStorage) {

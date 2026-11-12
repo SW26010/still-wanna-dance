@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-
 	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
@@ -102,8 +104,9 @@ func TestSongURLMetadataAndObservationRollbackTogether(t *testing.T) {
 				}
 				next := o
 				next.URL = strings.ReplaceAll(strings.ReplaceAll(o.URL, "old.mp4", "new.mp4"), "s=12", "s=24")
-				if err := s.ObserveSongURL(ctx, next); !errors.Is(err, ErrLocalStorage) || !errors.Is(s.StorageError(), ErrLocalStorage) {
-					t.Fatalf("storage failure not retained: %v", err)
+				var databaseErr *sqlite.Error
+				if err := s.ObserveSongURL(ctx, next); !errors.As(err, &databaseErr) || databaseErr.Code()&0xff != sqlite3.SQLITE_CONSTRAINT || errors.Is(err, ErrLocalStorage) || s.StorageError() != nil {
+					t.Fatalf("constraint must reject only this transaction: error=%v retained=%v", err, s.StorageError())
 				}
 				if existing {
 					var size int64
@@ -199,7 +202,7 @@ func TestSongURLTransactionErrorClassification(t *testing.T) {
 	cancel()
 	expired, stop := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer stop()
-	diskError := errors.New("disk write failure")
+	diskError := &os.PathError{Op: "write", Path: "storage.sqlite", Err: errors.New("disk write failure")}
 	for _, tc := range []struct {
 		name    string
 		ctx     context.Context
@@ -207,7 +210,7 @@ func TestSongURLTransactionErrorClassification(t *testing.T) {
 		want    error
 		storage bool
 	}{
-		{"active transaction ended", context.Background(), sql.ErrTxDone, sql.ErrTxDone, true},
+		{"active transaction ended", context.Background(), sql.ErrTxDone, sql.ErrTxDone, false},
 		{"cancellation and disk error", canceled, diskError, diskError, true},
 		{"deadline rollback", expired, sql.ErrTxDone, context.DeadlineExceeded, false},
 		{"wrapped rollback", canceled, fmt.Errorf("commit: %w", sql.ErrTxDone), context.Canceled, false},

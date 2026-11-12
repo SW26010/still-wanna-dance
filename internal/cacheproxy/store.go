@@ -254,8 +254,14 @@ func (s *Store) Error() error {
 }
 
 func (s *Store) rememberFailure(err error) {
+	if isDatabaseStorageError(err) {
+		s.retainFailure(fmt.Errorf("数据库读写失败：%w: %w", ErrLocalStorage, err))
+	}
+}
+
+func isDatabaseStorageError(err error) bool {
 	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return
+		return false
 	}
 	var databaseErr *sqlite.Error
 	var pathErr *os.PathError
@@ -266,9 +272,7 @@ func (s *Store) rememberFailure(err error) {
 			fault = true
 		}
 	}
-	if fault {
-		s.retainFailure(fmt.Errorf("数据库读写失败：%w: %w", ErrLocalStorage, err))
-	}
+	return fault
 }
 
 func (s *Store) retainFailure(err error) {

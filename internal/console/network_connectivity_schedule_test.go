@@ -1,7 +1,6 @@
 package console
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -215,14 +214,7 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 func TestAutomaticConnectivityStopsOnStorageFailureAndBacksOff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := automaticTestConsole(t)
-		db, err := sql.Open("sqlite", c.settings.DatabasePath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-		if _, err := db.Exec("CREATE TRIGGER fail_detection_catalog BEFORE INSERT ON songs BEGIN SELECT RAISE(FAIL, 'test storage failure'); END"); err != nil {
-			t.Fatal(err)
-		}
+		failDatabaseWrites(t, c.settings.DatabasePath)
 		var catalogs, playback atomic.Int32
 		c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 			if r.URL.Path == "/Api/Songs/play" {

@@ -21,8 +21,6 @@ func (c *Console) serveManagement(w http.ResponseWriter, r *http.Request) {
 		handler = c.libraryAPI
 	case r.URL.Path == "/api/library/cover":
 		handler = c.songCoverAPI
-	case r.URL.Path == "/api/library/covers":
-		handler = c.songCoverStateAPI
 	case r.Method == http.MethodGet && r.URL.Path == "/api/downloads":
 		handler = c.serveDownloads
 	case r.Method == http.MethodGet && r.URL.Path == "/api/import/space":

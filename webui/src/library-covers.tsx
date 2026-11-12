@@ -1,10 +1,11 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {Button,Card,CardFooter,CardPreview,Menu,MenuItem,MenuList,MenuPopover,MenuTrigger,Popover,PopoverSurface,Subtitle2,Text,Tooltip,useRestoreFocusTarget} from '@fluentui/react-components';
-import {ImageRegular,MoreHorizontalRegular,PlayCircleFilled} from '@fluentui/react-icons';
-import {APIError,request,requestBlob} from './api';
+import {MoreHorizontalRegular,PlayCircleFilled} from '@fluentui/react-icons';
+import {request,requestBlob} from './api';
+import {categoryCover} from './category-covers';
 import type {LibraryPage} from './types';
 
-type Cover={source?:string;error?:string};
+type Cover={source:string};
 
 // Each page demand has four workers. The server also caps all tabs together at
 // four network requests. Replacing/leaving a page cancels the old demand.
@@ -23,9 +24,7 @@ export function useLibraryCovers(ids:string,nextPage:string,enabled:boolean) {
         if(controller.signal.aborted||!currentSet.has(id))return;
         const source=URL.createObjectURL(blob);urls.add(source);
         setCovers(previous=>({...previous,[id]:{source}}));
-      }catch(problem){
-        if(!controller.signal.aborted&&currentSet.has(id))setCovers(previous=>previous[id]?.source?previous:{...previous,[id]:{error:problem instanceof APIError?problem.message:'封面暂时无法读取'}});
-      }
+      }catch{/* Keep any existing image or category background on failure. */}
     };
     const workers=async(tasks:{id:string;mode:string}[])=>{
       let next=0;
@@ -51,19 +50,20 @@ export function useLibraryCovers(ids:string,nextPage:string,enabled:boolean) {
           }
         }catch{/* Optional next-page prefetch must not skip current-page checks. */}
         await workers(refresh.map(id=>({id,mode:'refresh'})));
-      }catch(problem){if(!controller.signal.aborted)setCovers(previous=>Object.fromEntries(current.map(id=>[id,previous[id]?.source?previous[id]:{error:problem instanceof APIError?problem.message:'封面暂时无法读取'}])));}
+      }catch{/* Cover metadata failure leaves loaded images and category backgrounds. */}
     })();
     return()=>{controller.abort();for(const url of urls)URL.revokeObjectURL(url);};
   },[ids,nextPage,enabled,documentVisible]);
   return enabled&&documentVisible?covers:{};
 }
 
-export function LibraryCoverCard({id,title,enabled,open,onOpenChange,cover,preferences,details,operations,previewDisabled,previewReason,onPreview}:{
-  id:string;title:string;enabled:boolean;cover?:Cover;preferences:ReactNode;details:ReactNode;operations:ReactNode;
+export function LibraryCoverCard({id,title,group,enabled,open,onOpenChange,cover,preferences,details,operations,previewDisabled,previewReason,onPreview}:{
+  id:string;title:string;group:string;enabled:boolean;cover?:Cover;preferences:ReactNode;details:ReactNode;operations:ReactNode;
   open:boolean;onOpenChange:(open:boolean)=>void;
   previewDisabled:boolean;previewReason:string;onPreview:()=>void;
 }) {
   const [menuOpen,setMenuOpen]=useState(false),[detailsAction,setDetailsAction]=useState(false);
+  const [failedSource,setFailedSource]=useState<string>();
   const target=useRef<HTMLDivElement>(null),enterTimer=useRef<ReturnType<typeof setTimeout>>(undefined),leaveTimer=useRef<ReturnType<typeof setTimeout>>(undefined);
   const menuButton=useRef<HTMLButtonElement>(null),detailSurface=useRef<HTMLDivElement>(null);
   const clearEnter=()=>{clearTimeout(enterTimer.current);enterTimer.current=undefined;};
@@ -90,8 +90,8 @@ export function LibraryCoverCard({id,title,enabled,open,onOpenChange,cover,prefe
     document.addEventListener('keydown',escape);
     return()=>document.removeEventListener('keydown',escape);
   },[open]);
-  const playButton=<Button {...focusTarget} className="library-cover-play" appearance="transparent" aria-label={`预览歌曲 ${id}：${title}`} disabled={previewDisabled} disabledFocusable={!!previewReason} onClick={()=>{setOpen(false);onPreview();}}>
-    {cover?.source?<img src={cover.source} alt="" width={480} height={360}/>:<span className="library-cover-placeholder"><ImageRegular aria-hidden="true"/><span>{cover?.error||'封面'}</span></span>}
+  const playButton=<Button {...focusTarget} className="library-cover-play" style={{backgroundImage:`url("${categoryCover(group)}")`}} appearance="transparent" aria-label={`预览歌曲 ${id}：${title}`} disabled={previewDisabled} disabledFocusable={!!previewReason} onClick={()=>{setOpen(false);onPreview();}}>
+    {cover?.source&&cover.source!==failedSource&&<img key={cover.source} src={cover.source} alt="" width={480} height={360} onError={()=>setFailedSource(cover.source)}/>}
     <span className="library-cover-play-indicator" aria-hidden="true"><PlayCircleFilled/></span>
   </Button>;
   return <Popover unstable_disableAutoFocus={!detailsAction} open={enabled&&open&&!menuOpen} onOpenChange={(_,data)=>{if(!data.open)setOpen(false);}} positioning={{target:target.current,strategy:'fixed',autoSize:'height',overflowBoundaryPadding:16}}>

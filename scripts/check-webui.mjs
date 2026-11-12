@@ -12,9 +12,14 @@ export function webuiManifest(root) {
     if (e.isSymbolicLink()) throw Error('Unexpected Web UI symlink: ' + name);
     return e.isDirectory() ? walk(name) : [name];
   });
-  const inputs = [...walk('webui/src'), 'LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','docs/research/cache-priority/study-data.json','webui/build.mjs', 'webui/package.json', 'webui/pnpm-lock.yaml', 'webui/pnpm-workspace.yaml', 'webui/tsconfig.json', 'docs/licenses/fluentui-system-icons-LICENSE', 'scripts/check-webui.mjs'];
-  // Match Git LF blobs on Windows as well as Linux.
-  const hashes = names => Object.fromEntries(names.sort().map(name => [name, crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name),'utf8').replaceAll('\r\n','\n')).digest('hex')]));
+  const covers = walk('internal/console/assets/webui/category-covers');
+  // Runtime artwork has a total budget; lossless editing masters stay outside the executable.
+  if (covers.reduce((bytes, name) => bytes + fs.statSync(path.join(root, name)).size, 0) > 1024 * 1024) {
+    throw Error('Category cover assets exceed the 1 MiB runtime budget');
+  }
+  const inputs = [...walk('webui/src'), ...covers, 'LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','docs/research/cache-priority/study-data.json','docs/research/category-cover-assets-20261112.json','webui/build.mjs', 'webui/package.json', 'webui/pnpm-lock.yaml', 'webui/pnpm-workspace.yaml', 'webui/tsconfig.json', 'docs/licenses/fluentui-system-icons-LICENSE', 'scripts/check-webui.mjs','scripts/prepare-category-covers.py'];
+  // Match Git LF text on Windows and hash image bytes without decoding them.
+  const hashes = names => Object.fromEntries(names.sort().map(name => [name, crypto.createHash('sha256').update(name.endsWith('.webp')?fs.readFileSync(path.join(root,name)):fs.readFileSync(path.join(root,name),'utf8').replaceAll('\r\n','\n')).digest('hex')]));
   return {schemaVersion:1, inputs:hashes(inputs), outputs:hashes([...webuiOutputs])};
 }
 export function checkWebUI(root) {

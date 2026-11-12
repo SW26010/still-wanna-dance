@@ -1,0 +1,1372 @@
+{
+  "measuredOn": "2026-11-13",
+  "reference": "Uncompressed 512x384 composition from exact archived inputs, not the original game textures",
+  "productionDecision": "Use q88 4:3 delivery images after the user rejected the 5.51 MiB lossless runtime cost; retain originals and lossless masters separately.",
+  "sourceArchive": {
+    "file": "category-cover-sources-20261113.zip",
+    "bytes": 20772944,
+    "sha256": "22ea4a1b6dfe7e600a500b5b147e55f7a91e76f3c960fa2c860a508b0735d910",
+    "inputImages": 44,
+    "originalDownloads": 16,
+    "files": 63,
+    "zipCRCVerified": true,
+    "Pillow": "13.0.0",
+    "libwebp": "1.6.0"
+  },
+  "inputChecks": {
+    "officialOriginalToPngPixelIdentical": 16,
+    "screenshotMasterPngPixelIdentical": 26,
+    "unchangedOriginalInputs": 2
+  },
+  "summary": [
+    {
+      "mode": "q88",
+      "assets": 44,
+      "totalBytes": 838886,
+      "maxBytes": 45872,
+      "pixelIdenticalImages": 0,
+      "averageForegroundSsimAtCardWidth220": 0.996441,
+      "averageForegroundSsimAtCardWidth440": 0.989698
+    },
+    {
+      "mode": "q95",
+      "assets": 44,
+      "totalBytes": 1356712,
+      "maxBytes": 65270,
+      "pixelIdenticalImages": 0,
+      "averageForegroundSsimAtCardWidth220": 0.99792,
+      "averageForegroundSsimAtCardWidth440": 0.994668
+    },
+    {
+      "mode": "lossless",
+      "assets": 44,
+      "totalBytes": 5779122,
+      "maxBytes": 237736,
+      "pixelIdenticalImages": 44,
+      "averageForegroundSsimAtCardWidth220": 1,
+      "averageForegroundSsimAtCardWidth440": 1
+    }
+  ],
+  "measurements": [
+    {
+      "asset": "just-dance-solo",
+      "mode": "q88",
+      "bytes": 24396,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 3.27346,
+      "psnr": 30.5103,
+      "foregroundSsimAtCardWidth220": 0.995161,
+      "foregroundSsimAtCardWidth440": 0.991499
+    },
+    {
+      "asset": "just-dance-solo",
+      "mode": "q95",
+      "bytes": 35082,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 3.02066,
+      "psnr": 30.7551,
+      "foregroundSsimAtCardWidth220": 0.996019,
+      "foregroundSsimAtCardWidth440": 0.994003
+    },
+    {
+      "asset": "just-dance-solo",
+      "mode": "lossless",
+      "bytes": 168994,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "just-dance-duet",
+      "mode": "q88",
+      "bytes": 22714,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.83017,
+      "psnr": 38.305,
+      "foregroundSsimAtCardWidth220": 0.997371,
+      "foregroundSsimAtCardWidth440": 0.991287
+    },
+    {
+      "asset": "just-dance-duet",
+      "mode": "q95",
+      "bytes": 34872,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.38734,
+      "psnr": 40.3175,
+      "foregroundSsimAtCardWidth220": 0.998519,
+      "foregroundSsimAtCardWidth440": 0.995886
+    },
+    {
+      "asset": "just-dance-duet",
+      "mode": "lossless",
+      "bytes": 139284,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "just-dance-trio",
+      "mode": "q88",
+      "bytes": 29652,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.3946,
+      "psnr": 35.931,
+      "foregroundSsimAtCardWidth220": 0.997721,
+      "foregroundSsimAtCardWidth440": 0.991412
+    },
+    {
+      "asset": "just-dance-trio",
+      "mode": "q95",
+      "bytes": 44492,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.9623,
+      "psnr": 37.1589,
+      "foregroundSsimAtCardWidth220": 0.9986,
+      "foregroundSsimAtCardWidth440": 0.995749
+    },
+    {
+      "asset": "just-dance-trio",
+      "mode": "lossless",
+      "bytes": 174692,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "just-dance-crew",
+      "mode": "q88",
+      "bytes": 24460,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.87233,
+      "psnr": 39.1237,
+      "foregroundSsimAtCardWidth220": 0.997728,
+      "foregroundSsimAtCardWidth440": 0.990688
+    },
+    {
+      "asset": "just-dance-crew",
+      "mode": "q95",
+      "bytes": 38548,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.38528,
+      "psnr": 41.3688,
+      "foregroundSsimAtCardWidth220": 0.998777,
+      "foregroundSsimAtCardWidth440": 0.995622
+    },
+    {
+      "asset": "just-dance-crew",
+      "mode": "lossless",
+      "bytes": 164516,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "just-dance-fan-made",
+      "mode": "q88",
+      "bytes": 31370,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.13083,
+      "psnr": 37.2806,
+      "foregroundSsimAtCardWidth220": 0.998261,
+      "foregroundSsimAtCardWidth440": 0.992533
+    },
+    {
+      "asset": "just-dance-fan-made",
+      "mode": "q95",
+      "bytes": 46504,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.65985,
+      "psnr": 38.89,
+      "foregroundSsimAtCardWidth220": 0.998979,
+      "foregroundSsimAtCardWidth440": 0.996392
+    },
+    {
+      "asset": "just-dance-fan-made",
+      "mode": "lossless",
+      "bytes": 179168,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "mash-up",
+      "mode": "q88",
+      "bytes": 20156,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.04515,
+      "psnr": 37.7988,
+      "foregroundSsimAtCardWidth220": 0.996599,
+      "foregroundSsimAtCardWidth440": 0.990098
+    },
+    {
+      "asset": "mash-up",
+      "mode": "q95",
+      "bytes": 32162,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.5658,
+      "psnr": 39.9347,
+      "foregroundSsimAtCardWidth220": 0.997872,
+      "foregroundSsimAtCardWidth440": 0.994501
+    },
+    {
+      "asset": "mash-up",
+      "mode": "lossless",
+      "bytes": 153546,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "kids",
+      "mode": "q88",
+      "bytes": 19120,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.72277,
+      "psnr": 39.5218,
+      "foregroundSsimAtCardWidth220": 0.994519,
+      "foregroundSsimAtCardWidth440": 0.986974
+    },
+    {
+      "asset": "kids",
+      "mode": "q95",
+      "bytes": 30734,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.34316,
+      "psnr": 41.6463,
+      "foregroundSsimAtCardWidth220": 0.99674,
+      "foregroundSsimAtCardWidth440": 0.992435
+    },
+    {
+      "asset": "kids",
+      "mode": "lossless",
+      "bytes": 152364,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "disney-party",
+      "mode": "q88",
+      "bytes": 20134,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.77242,
+      "psnr": 39.2281,
+      "foregroundSsimAtCardWidth220": 0.996359,
+      "foregroundSsimAtCardWidth440": 0.989953
+    },
+    {
+      "asset": "disney-party",
+      "mode": "q95",
+      "bytes": 31498,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.37139,
+      "psnr": 41.1879,
+      "foregroundSsimAtCardWidth220": 0.997797,
+      "foregroundSsimAtCardWidth440": 0.994022
+    },
+    {
+      "asset": "disney-party",
+      "mode": "lossless",
+      "bytes": 148224,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "hip-hop-dance-experience",
+      "mode": "q88",
+      "bytes": 29498,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.09546,
+      "psnr": 37.9598,
+      "foregroundSsimAtCardWidth220": 0.999282,
+      "foregroundSsimAtCardWidth440": 0.994577
+    },
+    {
+      "asset": "hip-hop-dance-experience",
+      "mode": "q95",
+      "bytes": 44812,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.59292,
+      "psnr": 39.8786,
+      "foregroundSsimAtCardWidth220": 0.999642,
+      "foregroundSsimAtCardWidth440": 0.997364
+    },
+    {
+      "asset": "hip-hop-dance-experience",
+      "mode": "lossless",
+      "bytes": 178724,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "smurfs-dance-party",
+      "mode": "q88",
+      "bytes": 24894,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.79846,
+      "psnr": 39.6056,
+      "foregroundSsimAtCardWidth220": 0.997353,
+      "foregroundSsimAtCardWidth440": 0.989725
+    },
+    {
+      "asset": "smurfs-dance-party",
+      "mode": "q95",
+      "bytes": 40042,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.29405,
+      "psnr": 42.3809,
+      "foregroundSsimAtCardWidth220": 0.998668,
+      "foregroundSsimAtCardWidth440": 0.994758
+    },
+    {
+      "asset": "smurfs-dance-party",
+      "mode": "lossless",
+      "bytes": 166912,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "michael-jackson",
+      "mode": "q88",
+      "bytes": 24542,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.66051,
+      "psnr": 40.3792,
+      "foregroundSsimAtCardWidth220": 0.997699,
+      "foregroundSsimAtCardWidth440": 0.990841
+    },
+    {
+      "asset": "michael-jackson",
+      "mode": "q95",
+      "bytes": 40218,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.13163,
+      "psnr": 43.8266,
+      "foregroundSsimAtCardWidth220": 0.998749,
+      "foregroundSsimAtCardWidth440": 0.995257
+    },
+    {
+      "asset": "michael-jackson",
+      "mode": "lossless",
+      "bytes": 165750,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "abba",
+      "mode": "q88",
+      "bytes": 31110,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.11747,
+      "psnr": 38.1747,
+      "foregroundSsimAtCardWidth220": 0.998273,
+      "foregroundSsimAtCardWidth440": 0.991296
+    },
+    {
+      "asset": "abba",
+      "mode": "q95",
+      "bytes": 46954,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.59297,
+      "psnr": 40.4446,
+      "foregroundSsimAtCardWidth220": 0.999117,
+      "foregroundSsimAtCardWidth440": 0.995563
+    },
+    {
+      "asset": "abba",
+      "mode": "lossless",
+      "bytes": 193994,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "fitdance",
+      "mode": "q88",
+      "bytes": 7192,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.11224,
+      "psnr": 42.1288,
+      "foregroundSsimAtCardWidth220": 0.994705,
+      "foregroundSsimAtCardWidth440": 0.993822
+    },
+    {
+      "asset": "fitdance",
+      "mode": "q95",
+      "bytes": 12482,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.93858,
+      "psnr": 43.1918,
+      "foregroundSsimAtCardWidth220": 0.995432,
+      "foregroundSsimAtCardWidth440": 0.99497
+    },
+    {
+      "asset": "fitdance",
+      "mode": "lossless",
+      "bytes": 65064,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "fitness-marshall",
+      "mode": "q88",
+      "bytes": 20470,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.55066,
+      "psnr": 40.9604,
+      "foregroundSsimAtCardWidth220": 0.995251,
+      "foregroundSsimAtCardWidth440": 0.983499
+    },
+    {
+      "asset": "fitness-marshall",
+      "mode": "q95",
+      "bytes": 36860,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.07768,
+      "psnr": 44.1965,
+      "foregroundSsimAtCardWidth220": 0.997511,
+      "foregroundSsimAtCardWidth440": 0.991961
+    },
+    {
+      "asset": "fitness-marshall",
+      "mode": "lossless",
+      "bytes": 154058,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "golfy-dance-fitness",
+      "mode": "q88",
+      "bytes": 17180,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.45576,
+      "psnr": 37.754,
+      "foregroundSsimAtCardWidth220": 0.99708,
+      "foregroundSsimAtCardWidth440": 0.991653
+    },
+    {
+      "asset": "golfy-dance-fitness",
+      "mode": "q95",
+      "bytes": 27716,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.16022,
+      "psnr": 38.8274,
+      "foregroundSsimAtCardWidth220": 0.998546,
+      "foregroundSsimAtCardWidth440": 0.996079
+    },
+    {
+      "asset": "golfy-dance-fitness",
+      "mode": "lossless",
+      "bytes": 106354,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "mylee-dance",
+      "mode": "q88",
+      "bytes": 17540,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.54854,
+      "psnr": 39.2827,
+      "foregroundSsimAtCardWidth220": 0.99431,
+      "foregroundSsimAtCardWidth440": 0.98686
+    },
+    {
+      "asset": "mylee-dance",
+      "mode": "q95",
+      "bytes": 29344,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.22653,
+      "psnr": 41.1544,
+      "foregroundSsimAtCardWidth220": 0.996065,
+      "foregroundSsimAtCardWidth440": 0.992622
+    },
+    {
+      "asset": "mylee-dance",
+      "mode": "lossless",
+      "bytes": 132812,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "song",
+      "mode": "q88",
+      "bytes": 18462,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.47412,
+      "psnr": 41.5769,
+      "foregroundSsimAtCardWidth220": 0.995828,
+      "foregroundSsimAtCardWidth440": 0.987146
+    },
+    {
+      "asset": "song",
+      "mode": "q95",
+      "bytes": 31504,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.05107,
+      "psnr": 44.6068,
+      "foregroundSsimAtCardWidth220": 0.997815,
+      "foregroundSsimAtCardWidth440": 0.99353
+    },
+    {
+      "asset": "song",
+      "mode": "lossless",
+      "bytes": 151702,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "southvibes",
+      "mode": "q88",
+      "bytes": 45872,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.52471,
+      "psnr": 36.0788,
+      "foregroundSsimAtCardWidth220": 0.99808,
+      "foregroundSsimAtCardWidth440": 0.990369
+    },
+    {
+      "asset": "southvibes",
+      "mode": "q95",
+      "bytes": 65270,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.01228,
+      "psnr": 37.6632,
+      "foregroundSsimAtCardWidth220": 0.998853,
+      "foregroundSsimAtCardWidth440": 0.995298
+    },
+    {
+      "asset": "southvibes",
+      "mode": "lossless",
+      "bytes": 237736,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "sunny-funny-fitness",
+      "mode": "q88",
+      "bytes": 20804,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.58149,
+      "psnr": 41.0683,
+      "foregroundSsimAtCardWidth220": 0.993642,
+      "foregroundSsimAtCardWidth440": 0.976271
+    },
+    {
+      "asset": "sunny-funny-fitness",
+      "mode": "q95",
+      "bytes": 39852,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.04608,
+      "psnr": 44.859,
+      "foregroundSsimAtCardWidth220": 0.996575,
+      "foregroundSsimAtCardWidth440": 0.989832
+    },
+    {
+      "asset": "sunny-funny-fitness",
+      "mode": "lossless",
+      "bytes": 144866,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "tml-crew",
+      "mode": "q88",
+      "bytes": 29800,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 2.02581,
+      "psnr": 38.3344,
+      "foregroundSsimAtCardWidth220": 0.9958,
+      "foregroundSsimAtCardWidth440": 0.983193
+    },
+    {
+      "asset": "tml-crew",
+      "mode": "q95",
+      "bytes": 49466,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.52361,
+      "psnr": 40.6035,
+      "foregroundSsimAtCardWidth220": 0.997845,
+      "foregroundSsimAtCardWidth440": 0.991969
+    },
+    {
+      "asset": "tml-crew",
+      "mode": "lossless",
+      "bytes": 196224,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "kkardio-dance",
+      "mode": "q88",
+      "bytes": 22532,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.6655,
+      "psnr": 36.6346,
+      "foregroundSsimAtCardWidth220": 0.997086,
+      "foregroundSsimAtCardWidth440": 0.990596
+    },
+    {
+      "asset": "kkardio-dance",
+      "mode": "q95",
+      "bytes": 33690,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.29001,
+      "psnr": 37.9055,
+      "foregroundSsimAtCardWidth220": 0.998354,
+      "foregroundSsimAtCardWidth440": 0.995764
+    },
+    {
+      "asset": "kkardio-dance",
+      "mode": "lossless",
+      "bytes": 123334,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "ajdancefit",
+      "mode": "q88",
+      "bytes": 6218,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.40661,
+      "psnr": 48.0285,
+      "foregroundSsimAtCardWidth220": 0.999347,
+      "foregroundSsimAtCardWidth440": 0.997104
+    },
+    {
+      "asset": "ajdancefit",
+      "mode": "q95",
+      "bytes": 9122,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.2642,
+      "psnr": 51.6957,
+      "foregroundSsimAtCardWidth220": 0.999576,
+      "foregroundSsimAtCardWidth440": 0.998658
+    },
+    {
+      "asset": "ajdancefit",
+      "mode": "lossless",
+      "bytes": 20036,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "liu-doudou",
+      "mode": "q88",
+      "bytes": 11720,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.22736,
+      "psnr": 43.1595,
+      "foregroundSsimAtCardWidth220": 0.994563,
+      "foregroundSsimAtCardWidth440": 0.987383
+    },
+    {
+      "asset": "liu-doudou",
+      "mode": "q95",
+      "bytes": 21052,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.9133,
+      "psnr": 45.7857,
+      "foregroundSsimAtCardWidth220": 0.996953,
+      "foregroundSsimAtCardWidth440": 0.992644
+    },
+    {
+      "asset": "liu-doudou",
+      "mode": "lossless",
+      "bytes": 117826,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "dj-raphi",
+      "mode": "q88",
+      "bytes": 12396,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.41165,
+      "psnr": 40.5266,
+      "foregroundSsimAtCardWidth220": 0.996107,
+      "foregroundSsimAtCardWidth440": 0.990522
+    },
+    {
+      "asset": "dj-raphi",
+      "mode": "q95",
+      "bytes": 20172,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.10457,
+      "psnr": 42.4453,
+      "foregroundSsimAtCardWidth220": 0.997836,
+      "foregroundSsimAtCardWidth440": 0.994805
+    },
+    {
+      "asset": "dj-raphi",
+      "mode": "lossless",
+      "bytes": 110538,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "mr-alex",
+      "mode": "q88",
+      "bytes": 25786,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.62545,
+      "psnr": 40.8412,
+      "foregroundSsimAtCardWidth220": 0.997181,
+      "foregroundSsimAtCardWidth440": 0.989064
+    },
+    {
+      "asset": "mr-alex",
+      "mode": "q95",
+      "bytes": 42370,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.10258,
+      "psnr": 44.2757,
+      "foregroundSsimAtCardWidth220": 0.998468,
+      "foregroundSsimAtCardWidth440": 0.995062
+    },
+    {
+      "asset": "mr-alex",
+      "mode": "lossless",
+      "bytes": 164862,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "default",
+      "mode": "q88",
+      "bytes": 17670,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.70149,
+      "psnr": 36.5367,
+      "foregroundSsimAtCardWidth220": 0.995865,
+      "foregroundSsimAtCardWidth440": 0.992445
+    },
+    {
+      "asset": "default",
+      "mode": "q95",
+      "bytes": 26654,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.45395,
+      "psnr": 37.3181,
+      "foregroundSsimAtCardWidth220": 0.997039,
+      "foregroundSsimAtCardWidth440": 0.994944
+    },
+    {
+      "asset": "default",
+      "mode": "lossless",
+      "bytes": 111470,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "ellen-brian",
+      "mode": "q88",
+      "bytes": 17052,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.55208,
+      "psnr": 40.6791,
+      "foregroundSsimAtCardWidth220": 0.994246,
+      "foregroundSsimAtCardWidth440": 0.981383
+    },
+    {
+      "asset": "ellen-brian",
+      "mode": "q95",
+      "bytes": 32166,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.1435,
+      "psnr": 43.3595,
+      "foregroundSsimAtCardWidth220": 0.996751,
+      "foregroundSsimAtCardWidth440": 0.990502
+    },
+    {
+      "asset": "ellen-brian",
+      "mode": "lossless",
+      "bytes": 157312,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "fol2estz",
+      "mode": "q88",
+      "bytes": 12736,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.23278,
+      "psnr": 42.3218,
+      "foregroundSsimAtCardWidth220": 0.993867,
+      "foregroundSsimAtCardWidth440": 0.989508
+    },
+    {
+      "asset": "fol2estz",
+      "mode": "q95",
+      "bytes": 23494,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.93623,
+      "psnr": 44.7632,
+      "foregroundSsimAtCardWidth220": 0.995916,
+      "foregroundSsimAtCardWidth440": 0.993335
+    },
+    {
+      "asset": "fol2estz",
+      "mode": "lossless",
+      "bytes": 105878,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "lisa-rhee",
+      "mode": "q88",
+      "bytes": 11438,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.22826,
+      "psnr": 42.8803,
+      "foregroundSsimAtCardWidth220": 0.994113,
+      "foregroundSsimAtCardWidth440": 0.986988
+    },
+    {
+      "asset": "lisa-rhee",
+      "mode": "q95",
+      "bytes": 19954,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.91185,
+      "psnr": 45.6374,
+      "foregroundSsimAtCardWidth220": 0.996701,
+      "foregroundSsimAtCardWidth440": 0.992501
+    },
+    {
+      "asset": "lisa-rhee",
+      "mode": "lossless",
+      "bytes": 112342,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "choyoung",
+      "mode": "q88",
+      "bytes": 15980,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.93052,
+      "psnr": 38.7278,
+      "foregroundSsimAtCardWidth220": 0.99714,
+      "foregroundSsimAtCardWidth440": 0.989597
+    },
+    {
+      "asset": "choyoung",
+      "mode": "q95",
+      "bytes": 28524,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.59201,
+      "psnr": 40.0143,
+      "foregroundSsimAtCardWidth220": 0.998399,
+      "foregroundSsimAtCardWidth440": 0.994595
+    },
+    {
+      "asset": "choyoung",
+      "mode": "lossless",
+      "bytes": 139846,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "upvote-entertainment",
+      "mode": "q88",
+      "bytes": 4148,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.12668,
+      "psnr": 52.6361,
+      "foregroundSsimAtCardWidth220": 0.999524,
+      "foregroundSsimAtCardWidth440": 0.998172
+    },
+    {
+      "asset": "upvote-entertainment",
+      "mode": "q95",
+      "bytes": 5154,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.06698,
+      "psnr": 57.1945,
+      "foregroundSsimAtCardWidth220": 0.999986,
+      "foregroundSsimAtCardWidth440": 0.999872
+    },
+    {
+      "asset": "upvote-entertainment",
+      "mode": "lossless",
+      "bytes": 5750,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "wawa-dance",
+      "mode": "q88",
+      "bytes": 6278,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.18754,
+      "psnr": 50.7531,
+      "foregroundSsimAtCardWidth220": 0.999227,
+      "foregroundSsimAtCardWidth440": 0.997119
+    },
+    {
+      "asset": "wawa-dance",
+      "mode": "q95",
+      "bytes": 7908,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.1026,
+      "psnr": 55.2218,
+      "foregroundSsimAtCardWidth220": 0.99998,
+      "foregroundSsimAtCardWidth440": 0.999841
+    },
+    {
+      "asset": "wawa-dance",
+      "mode": "lossless",
+      "bytes": 10896,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "other-kpop",
+      "mode": "q88",
+      "bytes": 15024,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.28965,
+      "psnr": 41.5187,
+      "foregroundSsimAtCardWidth220": 0.997435,
+      "foregroundSsimAtCardWidth440": 0.992042
+    },
+    {
+      "asset": "other-kpop",
+      "mode": "q95",
+      "bytes": 23960,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.92816,
+      "psnr": 43.8052,
+      "foregroundSsimAtCardWidth220": 0.998486,
+      "foregroundSsimAtCardWidth440": 0.995903
+    },
+    {
+      "asset": "other-kpop",
+      "mode": "lossless",
+      "bytes": 97010,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "nanakawa-miko",
+      "mode": "q88",
+      "bytes": 22670,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.55888,
+      "psnr": 41.1509,
+      "foregroundSsimAtCardWidth220": 0.995564,
+      "foregroundSsimAtCardWidth440": 0.983953
+    },
+    {
+      "asset": "nanakawa-miko",
+      "mode": "q95",
+      "bytes": 40054,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.04557,
+      "psnr": 44.7783,
+      "foregroundSsimAtCardWidth220": 0.997668,
+      "foregroundSsimAtCardWidth440": 0.992736
+    },
+    {
+      "asset": "nanakawa-miko",
+      "mode": "lossless",
+      "bytes": 153424,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "penta",
+      "mode": "q88",
+      "bytes": 14444,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.34817,
+      "psnr": 42.2187,
+      "foregroundSsimAtCardWidth220": 0.994731,
+      "foregroundSsimAtCardWidth440": 0.987015
+    },
+    {
+      "asset": "penta",
+      "mode": "q95",
+      "bytes": 24188,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.98779,
+      "psnr": 44.9356,
+      "foregroundSsimAtCardWidth220": 0.997058,
+      "foregroundSsimAtCardWidth440": 0.992613
+    },
+    {
+      "asset": "penta",
+      "mode": "lossless",
+      "bytes": 133542,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "manako",
+      "mode": "q88",
+      "bytes": 15518,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.47156,
+      "psnr": 41.0433,
+      "foregroundSsimAtCardWidth220": 0.993954,
+      "foregroundSsimAtCardWidth440": 0.9868
+    },
+    {
+      "asset": "manako",
+      "mode": "q95",
+      "bytes": 28024,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.07211,
+      "psnr": 43.7602,
+      "foregroundSsimAtCardWidth220": 0.99679,
+      "foregroundSsimAtCardWidth440": 0.992886
+    },
+    {
+      "asset": "manako",
+      "mode": "lossless",
+      "bytes": 133390,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "wata",
+      "mode": "q88",
+      "bytes": 24688,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.74982,
+      "psnr": 39.9175,
+      "foregroundSsimAtCardWidth220": 0.996096,
+      "foregroundSsimAtCardWidth440": 0.987041
+    },
+    {
+      "asset": "wata",
+      "mode": "q95",
+      "bytes": 42366,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.23612,
+      "psnr": 43.0627,
+      "foregroundSsimAtCardWidth220": 0.997887,
+      "foregroundSsimAtCardWidth440": 0.993449
+    },
+    {
+      "asset": "wata",
+      "mode": "lossless",
+      "bytes": 169754,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "palseong",
+      "mode": "q88",
+      "bytes": 14650,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.45057,
+      "psnr": 40.8594,
+      "foregroundSsimAtCardWidth220": 0.994694,
+      "foregroundSsimAtCardWidth440": 0.989018
+    },
+    {
+      "asset": "palseong",
+      "mode": "q95",
+      "bytes": 24048,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.12224,
+      "psnr": 43.2233,
+      "foregroundSsimAtCardWidth220": 0.996691,
+      "foregroundSsimAtCardWidth440": 0.99336
+    },
+    {
+      "asset": "palseong",
+      "mode": "lossless",
+      "bytes": 112750,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "merochin",
+      "mode": "q88",
+      "bytes": 14494,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.87473,
+      "psnr": 42.8899,
+      "foregroundSsimAtCardWidth220": 0.997767,
+      "foregroundSsimAtCardWidth440": 0.990225
+    },
+    {
+      "asset": "merochin",
+      "mode": "q95",
+      "bytes": 25384,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.52401,
+      "psnr": 47.4252,
+      "foregroundSsimAtCardWidth220": 0.998958,
+      "foregroundSsimAtCardWidth440": 0.996623
+    },
+    {
+      "asset": "merochin",
+      "mode": "lossless",
+      "bytes": 85964,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "tuoqi",
+      "mode": "q88",
+      "bytes": 10200,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.06958,
+      "psnr": 43.6961,
+      "foregroundSsimAtCardWidth220": 0.995751,
+      "foregroundSsimAtCardWidth440": 0.990324
+    },
+    {
+      "asset": "tuoqi",
+      "mode": "q95",
+      "bytes": 17908,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.77835,
+      "psnr": 46.497,
+      "foregroundSsimAtCardWidth220": 0.997599,
+      "foregroundSsimAtCardWidth440": 0.994668
+    },
+    {
+      "asset": "tuoqi",
+      "mode": "lossless",
+      "bytes": 98364,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "porushi",
+      "mode": "q88",
+      "bytes": 10120,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.04233,
+      "psnr": 43.887,
+      "foregroundSsimAtCardWidth220": 0.996641,
+      "foregroundSsimAtCardWidth440": 0.990967
+    },
+    {
+      "asset": "porushi",
+      "mode": "q95",
+      "bytes": 17402,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 0.79562,
+      "psnr": 46.5439,
+      "foregroundSsimAtCardWidth220": 0.998115,
+      "foregroundSsimAtCardWidth440": 0.995057
+    },
+    {
+      "asset": "porushi",
+      "mode": "lossless",
+      "bytes": 86192,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "other-acgn",
+      "mode": "q88",
+      "bytes": 21532,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.58793,
+      "psnr": 40.1722,
+      "foregroundSsimAtCardWidth220": 0.998192,
+      "foregroundSsimAtCardWidth440": 0.993327
+    },
+    {
+      "asset": "other-acgn",
+      "mode": "q95",
+      "bytes": 33486,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.14288,
+      "psnr": 42.8493,
+      "foregroundSsimAtCardWidth220": 0.999007,
+      "foregroundSsimAtCardWidth440": 0.996919
+    },
+    {
+      "asset": "other-acgn",
+      "mode": "lossless",
+      "bytes": 128564,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "vrchat-dance",
+      "mode": "q88",
+      "bytes": 14298,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.42238,
+      "psnr": 40.7865,
+      "foregroundSsimAtCardWidth220": 0.996222,
+      "foregroundSsimAtCardWidth440": 0.990333
+    },
+    {
+      "asset": "vrchat-dance",
+      "mode": "q95",
+      "bytes": 23696,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.06204,
+      "psnr": 42.8363,
+      "foregroundSsimAtCardWidth220": 0.997843,
+      "foregroundSsimAtCardWidth440": 0.995127
+    },
+    {
+      "asset": "vrchat-dance",
+      "mode": "lossless",
+      "bytes": 110066,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    },
+    {
+      "asset": "other",
+      "mode": "q88",
+      "bytes": 17928,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.53344,
+      "psnr": 39.6606,
+      "foregroundSsimAtCardWidth220": 0.997067,
+      "foregroundSsimAtCardWidth440": 0.992097
+    },
+    {
+      "asset": "other",
+      "mode": "q95",
+      "bytes": 27524,
+      "pixelsIdenticalToComposedReference": false,
+      "meanAbsoluteRgbError": 1.21705,
+      "psnr": 41.5359,
+      "foregroundSsimAtCardWidth220": 0.998285,
+      "foregroundSsimAtCardWidth440": 0.995729
+    },
+    {
+      "asset": "other",
+      "mode": "lossless",
+      "bytes": 115028,
+      "pixelsIdenticalToComposedReference": true,
+      "meanAbsoluteRgbError": 0,
+      "psnr": null,
+      "foregroundSsimAtCardWidth220": 1,
+      "foregroundSsimAtCardWidth440": 1
+    }
+  ]
+}

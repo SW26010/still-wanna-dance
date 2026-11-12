@@ -100,6 +100,19 @@ test('README screenshots require an exact registered image and stay below the wa
   }
 });
 
+test('category artwork is limited to exact reviewed offline WebP files', () => {
+  const file='internal/console/assets/webui/category-covers/default.webp',bytes=Buffer.from([82,73,70,70,0,255]);
+  const exception={path:file,kind:'category-cover',bytes:bytes.length,sha256:sha256(bytes),reason:'Reviewed offline category artwork'};
+  const allowed={...policy,exceptions:[exception]};
+  assert.deepEqual(classify(file,bytes,allowed),{});
+  assert.ok(classify(file,Buffer.concat([bytes,Buffer.from('changed')]),allowed).error);
+  for(const change of [{bytes:1},{reason:''},{path:'docs/evidence/private.webp'},{path:'internal/console/assets/webui/category-covers/private.exe'}]){
+    const changed={...exception,...change};
+    assert.ok(classify(changed.path,bytes,{...policy,exceptions:[changed]}).error);
+  }
+  assert.ok(classify(file,bytes,{...allowed,warnBytes:bytes.length-1}).error);
+});
+
 test('rejects a binary introduced then deleted before HEAD', () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), 'swd-artifact-policy-'));
   const git = (...args) => execFileSync('git', args, { cwd, windowsHide: true }).toString().trim();

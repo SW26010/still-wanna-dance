@@ -4,6 +4,8 @@ Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实�
 
 ## 文件归属
 
+曲库离线默认封面位于 `internal/console/assets/webui/category-covers/*.webp`，属于运行必需的产品素材。每张限定 256 KiB 以内，按精确路径、字节数、SHA256 及来源理由登记为 `category-cover`；运行素材合计限定 1 MiB，由 WebUI 构建检查按文件实际大小校验。只允许这一目录的 WebP，不放宽原始截图或调查附件规则。成品为单一运行素材来源，类别映射位于 `webui/src/category-covers.ts`，来源与处理参数见[成品清单](research/category-cover-assets-20261112.json)。原图／无损母版另行归档，作为唯一编辑输入；运行成品采用用户确认的 320 × 240（4:3）WebP q50，44 张共 215,088 字节，每次从经哈希核对的母版生成，只新增最后一次有损编码，不将无损母版内嵌进 EXE。流程与来源包见[母版归档与受控导出](research/category-cover-sources-20261112.md#母版归档与受控导出)。替换素材时同步来源清单、精确产物登记并重新构建 WebUI；原始截图与高清母版继续留在忽略目录或版本化附件。
+
 | 内容 | 位置 |
 | --- | --- |
 | 开发验证、实机报告与关键统计 | `docs/validation/`、`docs/acceptance/` 与 `docs/evidence/<batch>/`；历史设计和调查归入 `docs/history/` |

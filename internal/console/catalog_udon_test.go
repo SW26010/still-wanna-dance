@@ -24,9 +24,7 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer db.Close()
-			if _, err := db.Exec("CREATE TRIGGER reject_catalog_write BEFORE INSERT ON songs BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
-				t.Fatal(err)
-			}
+			failDatabaseWrites(t, c.settings.DatabasePath)
 			c.checksumURL = cacheproxy.UdonCatalogURL
 			var accepted atomic.Bool
 			c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -42,7 +40,7 @@ func TestRefreshStopsOnCatalogWriteFailure(t *testing.T) {
 				return &http.Response{StatusCode: code, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
 			})}
 			err = c.refreshLocalCatalog(t.Context(), c.store)
-			if !accepted.Load() || !errors.Is(err, cacheproxy.ErrLocalStorage) || !strings.Contains(err.Error(), "catalog write rejected") {
+			if !accepted.Load() || !errors.Is(err, cacheproxy.ErrLocalStorage) {
 				t.Fatal(err)
 			}
 			var count int

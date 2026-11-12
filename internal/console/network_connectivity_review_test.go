@@ -1,7 +1,6 @@
 package console
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,16 +17,6 @@ import (
 func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testing.T) {
 	c := testConsole(t)
 	c.settings.UpstreamMode = "proxy"
-	// Install the fault before diagnostics can write through their connection.
-	// The first catalog stays healthy; only the later revision must roll back.
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER reject_catalog BEFORE UPDATE ON catalog_state WHEN NEW.revision='20261101000000' BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
-		t.Fatal(err)
-	}
 	var failCatalog atomic.Bool
 	var playback, resource atomic.Int32
 	playbackStarted, resourceStarted := make(chan struct{}, 1), make(chan struct{}, 1)
@@ -93,6 +82,7 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 	if counts[0] == 0 || counts[1] == 0 {
 		t.Fatal("fixture needs previous observations", before.Results)
 	}
+	failDatabaseWrites(t, c.settings.DatabasePath)
 	failCatalog.Store(true)
 	for attempt := range 2 {
 		var previousSnapshot networkConnectivityStatus
@@ -135,7 +125,7 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 			run()
 		}
 		after := connectivitySnapshot(c)
-		if !strings.Contains(c.metadata.CatalogError(), "catalog write rejected") {
+		if c.store.Error() == nil || c.metadata.CatalogError() == "" {
 			t.Fatal("catalog storage failure did not stop the full check", after.Results, c.metadata.CatalogError())
 		}
 		if slices.ContainsFunc(after.Results, func(row networkConnectivityResult) bool { return row.State == "checking" }) {

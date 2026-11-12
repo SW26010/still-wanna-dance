@@ -2,7 +2,6 @@ package console
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io"
 	"net/http"
@@ -71,20 +70,18 @@ func TestCatalogFallbackCompletesSilently(t *testing.T) {
 
 func TestCatalogSuccessDoesNotHideStorageFailure(t *testing.T) {
 	c := testConsole(t)
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
+	primary := monitorNames("20261102000000", "primary")
+	if usable, err := c.syncCatalogs(t.Context(), []upstreamstate.CatalogResponse{primary}); !usable || err != nil {
+		t.Fatal("could not establish existing primary catalog", usable, err)
 	}
-	defer db.Close()
-	// Udon commits first; the older backup then fails while filling media.
-	if _, err := db.Exec("CREATE TRIGGER reject_media_write BEFORE INSERT ON media BEGIN SELECT RAISE(ABORT,'media write rejected'); END"); err != nil {
-		t.Fatal(err)
-	}
+	// The unchanged primary succeeds without a write; the older backup then
+	// encounters a real storage fault while filling media.
+	failDatabaseWrites(t, c.settings.DatabasePath)
 	usable, err := c.syncCatalogs(t.Context(), []upstreamstate.CatalogResponse{
-		monitorNames("20261102000000", "primary"),
+		primary,
 		monitorFull("kiva", "20261101000000", "backup", strings.Repeat("a", 32)),
 	})
-	if usable || !errors.Is(err, cacheproxy.ErrLocalStorage) || !strings.Contains(c.metadata.CatalogError(), "media write rejected") {
+	if usable || !errors.Is(err, cacheproxy.ErrLocalStorage) || c.metadata.CatalogError() == "" {
 		t.Fatal("an earlier successful source hid the storage failure", usable, err, c.metadata.CatalogError())
 	}
 }

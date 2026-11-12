@@ -1,7 +1,6 @@
 package console
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,17 +85,9 @@ func TestConnectivityRetryCanceledByStorageFailureKeepsCurrentResourceObservatio
 	if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: 900001, Node: "cf", URL: oldURL}); err != nil {
 		t.Fatal(err)
 	}
-	// Prepare the later catalog fault before any diagnostic writer starts.
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER reject_catalog_retry BEFORE UPDATE ON catalog_state WHEN NEW.revision='20261101000000' BEGIN SELECT RAISE(ABORT,'catalog write rejected'); END"); err != nil {
-		t.Fatal(err)
-	}
 	var failStorage atomic.Bool
 	retryStarted := make(chan struct{})
+	faultInjected := make(chan struct{})
 	var retryOnce sync.Once
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 		resp := automaticConnectivityResponse(r)
@@ -104,6 +95,11 @@ func TestConnectivityRetryCanceledByStorageFailureKeepsCurrentResourceObservatio
 		case r.URL.Path == "/Api/Songs/list" && failStorage.Load():
 			select {
 			case <-retryStarted:
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
+			select {
+			case <-faultInjected:
 			case <-r.Context().Done():
 				return nil, r.Context().Err()
 			}
@@ -137,7 +133,28 @@ func TestConnectivityRetryCanceledByStorageFailureKeepsCurrentResourceObservatio
 		t.Fatal("missing previous resource observation", previous.Results)
 	}
 	failStorage.Store(true)
-	current := runFollowupConnectivity(t, c)
+	if err := c.controlNetworkConnectivity(false); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-retryStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("resource retry did not start")
+	}
+	func() {
+		// A resource retry can begin before the parallel playback observation
+		// commits. Wait for its lifecycle boundary before occupying the journal.
+		c.lifecycleMu.Lock()
+		defer c.lifecycleMu.Unlock()
+		failDatabaseWrites(t, c.settings.DatabasePath)
+	}()
+	close(faultInjected)
+	select {
+	case <-connectivityDoneForTest(c.networkDiagnostics):
+	case <-time.After(5 * time.Second):
+		t.Fatal("connectivity check did not finish after storage failure")
+	}
+	current := connectivitySnapshot(c)
 	var resources []networkConnectivityResult
 	for _, row := range current.Results {
 		if row.Operation == upstreamcheck.Resource {

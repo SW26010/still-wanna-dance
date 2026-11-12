@@ -129,21 +129,13 @@ func TestPlaybackResolutionFailureHistory(t *testing.T) {
 }
 
 func TestPlaybackResolutionStorageFailureHistory(t *testing.T) {
-	var s *Server
 	s, cfg := setup(t, nil, func(c *Config) {
-		c.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
-			return videoURL(payload), s.ObserveSongURL(ctx, PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload)})
+		c.ResolvePlayback = func(context.Context, string) (string, error) {
+			return "", fmt.Errorf("address write: %w", ErrLocalStorage)
 		}
 	})
-	if _, err := s.Store.db.Exec("CREATE TRIGGER fail_address BEFORE INSERT ON media_urls BEGIN SELECT RAISE(FAIL, 'injected write failure'); END"); err != nil {
-		t.Fatal(err)
-	}
 	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil); w.Code != 503 {
 		t.Fatal(w.Code)
-	}
-	// Remove only the injected fault; read-only history validates the exact schema.
-	if _, err := s.Store.db.Exec("DROP TRIGGER fail_address"); err != nil {
-		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)

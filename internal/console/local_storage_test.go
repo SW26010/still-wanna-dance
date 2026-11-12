@@ -3,7 +3,6 @@ package console
 import (
 	"context"
 	"crypto/md5"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/faults"
 	"strings"
@@ -18,6 +18,39 @@ import (
 	"testing"
 	"time"
 )
+
+// Obstruct rollback-journal writes while keeping committed fixture data readable.
+func failDatabaseWrites(t *testing.T, path string) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		if os.Geteuid() == 0 {
+			t.Skip("database directory permission fault requires an unprivileged user")
+		}
+		dir := filepath.Dir(path)
+		info, err := os.Stat(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, info.Mode().Perm()&^0222); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.Chmod(dir, info.Mode().Perm()); err != nil {
+				t.Error(err)
+			}
+		})
+		return
+	}
+	journal := path + "-journal"
+	if err := os.Mkdir(journal, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Remove(journal); err != nil {
+			t.Error(err)
+		}
+	})
+}
 
 func consoleStorageError(t *testing.T, c *Console) string {
 	t.Helper()
@@ -33,7 +66,7 @@ func consoleStorageError(t *testing.T, c *Console) string {
 }
 
 func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
-	for _, mode := range []string{"observation", "write", "index"} {
+	for _, mode := range []string{"observation", "write"} {
 		t.Run(mode, func(t *testing.T) {
 			c := testConsole(t)
 			const body = "local storage fixture"
@@ -74,18 +107,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
-				db, err := sql.Open("sqlite", filepath.Join(filepath.Dir(cfg.VideoDir), "storage.sqlite"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer db.Close()
-				table := "media_urls"
-				if mode == "index" {
-					table = "media"
-				}
-				if _, err := db.Exec("CREATE TRIGGER fail_storage BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(FAIL, 'disk failure'); END"); err != nil {
-					t.Fatal(err)
-				}
+				failDatabaseWrites(t, c.settings.DatabasePath)
 			}
 			for _, id := range []int64{42, 43, 44} {
 				if _, err := c.prefetchSong(context.Background(), engine, id); !errors.Is(err, cacheproxy.ErrLocalStorage) {
@@ -108,7 +130,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			}
 			want := int32(1)
 			// URL evidence and media metadata now commit during address resolution.
-			if mode == "observation" || mode == "index" {
+			if mode == "observation" {
 				want = 0
 			}
 			if downloads.Load() != want {

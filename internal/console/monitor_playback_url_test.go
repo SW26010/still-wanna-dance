@@ -122,9 +122,7 @@ func TestMonitorPlaybackURLStorageFailureRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER fail_probe_metadata BEFORE INSERT ON media BEGIN SELECT RAISE(FAIL, 'test storage failure'); END"); err != nil {
-		t.Fatal(err)
-	}
+	failDatabaseWrites(t, c.settings.DatabasePath)
 	newer := old
 	newer.QueryStartedAt = old.QueryStartedAt.Add(2 * time.Second)
 	newer.ObservedAt = newer.QueryStartedAt.Add(time.Second)

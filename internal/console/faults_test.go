@@ -2,7 +2,6 @@ package console
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -132,15 +131,8 @@ func TestManagementRetainsStorageFailureAcrossSources(t *testing.T) {
 	go func() { defer close(watchDone); c.WatchFaults(watchCtx) }()
 	defer func() { cancelWatch(); <-watchDone }()
 
-	db, err := sql.Open("sqlite", c.settings.DatabasePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err := db.Exec("CREATE TRIGGER fail_storage BEFORE INSERT ON songs BEGIN SELECT RAISE(FAIL, 'fixture storage failure'); END"); err != nil {
-		t.Fatal(err)
-	}
-	err = c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261031000000", Songs: []cacheproxy.CatalogSong{{ID: 42}}})
+	failDatabaseWrites(t, c.settings.DatabasePath)
+	err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261031000000", Songs: []cacheproxy.CatalogSong{{ID: 42}}})
 	if !errors.Is(err, cacheproxy.ErrLocalStorage) {
 		t.Fatal("database failure was not retained", err)
 	}

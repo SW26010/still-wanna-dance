@@ -13,11 +13,13 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 | 页面与主题 | FluentProvider、Card/CardHeader、Text、Image、Divider；程序主题选择及系统跟随、窄屏换行和 reduced-motion |
 | 导航 | NavDrawer/NavItem/Hamburger；桌面左侧 inline 可展开／收起，≤640px 左侧 overlay；页面保留真实链接 |
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button/ToggleButton、Dialog、MessageBar、ProgressBar |
-| 记录列表 | 曲库、请求历史和程序日志共用 RecordTable（Table/TableCell/TableCellLayout）及 TablePagination（Button/Text），需要排序的列表使用 SortHeader（TableHeaderCell），保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；日志仅显示时间、级别、事件和内容，前三列收紧到完整内容所需宽度，超宽文本通过原生横向滚动完整阅读，不另设详情列，事件关键词使用 Field/Input（type="search"）并由原生表单提交。线路检测同样使用 Table，首页需求使用随内容增高的 Canvas 需求列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
+| 记录列表 | 曲库与请求历史使用 RecordDataTable，程序日志使用 RecordTable，均组合 Fluent Table/TableCell/TableCellLayout 并共用 TablePagination（Button/Text）；记录表由同一份有类型的列定义生成表头与单元格，使用 TableHeaderCell 的原生排序，保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；曲库歌曲的名称、歌手、舞者使用 TableCellLayout 默认自然换行并按内容共同分配空间，短字段收紧，具体宽度与截断边界以内容约定为准；日志仅显示时间、级别、事件和内容，前三列收紧到完整内容所需宽度，超宽文本通过原生横向滚动完整阅读，不另设详情列，事件关键词使用 Field/Input（type="search"）并由原生表单提交。线路检测同样使用 Table，首页需求使用随内容增高的 Canvas 需求列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
 | 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
 | 文件与目录选择 | 本地路径共用只读 Field/Input，点击或按 Enter／空格打开 Windows IFileDialog，旁边只保留 Fluent“恢复默认”按钮；默认路径用主题次级色，自选路径用正文色，原生窗口复用 SWD ICO。数据库在同一窗口选择已有文件或新文件名；节点文件内容导入沿用浏览器原生 file input |
 | 必要业务逻辑 | 条款门禁、设置草稿、保存后状态同步、全局排序、曲库偏移量与历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
+
+记录表的列 ID、标题、排序、说明、样式和单元格渲染在各表的 `RecordColumn<TItem>` 数组中维护，`RecordDataTable` 按同一顺序生成表头与数据格，并复用 `RecordTable` 的区域和表格外壳。列宽由浏览器原生自动布局与内容约定中的 CSS 决定；业务层负责服务端查询、排序、分页及行身份。
 
 任务页面及条款弹窗的内容分工见[内容分类](webui-content.md)，平台辅助技术边界见[可访问性约定](webui-accessibility.md)。组件契约以锁定依赖的类型和实现为准；参考 [Fluent 官方接入](https://fluent2.microsoft.design/get-started/develop)与 [GaugeChart](https://microsoft.github.io/fluentui-charting-contrib/docs/Charting-Concepts/GaugeChart)。
 

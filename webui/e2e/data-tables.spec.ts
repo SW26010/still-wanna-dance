@@ -124,3 +124,15 @@ for(const [path,label] of [['library','曲库歌曲'],['timeline','请求历史�
   expect(narrowName).toBeLessThanOrEqual(144);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(900);
 });
+
+test('history headers keep descriptions keyboard-accessible without an empty Tab stop',async({page})=>{
+  await mockAPI(page);
+  await page.route('**/api/history?*',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'示例歌曲',resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'completed',sources:{downloadBytes:0,cacheBytes:0,localBytes:5}}],hasMore:false,nextCursor:''}}));
+  await page.goto('/#/timeline');
+  const table=page.getByRole('table',{name:'请求历史列表',exact:true}),header=table.getByRole('columnheader',{name:'详情',exact:true});
+  await expect(header).toBeVisible();await expect(header).toHaveAccessibleName('详情');
+  const sources=table.getByRole('columnheader',{name:'来源',exact:true}).locator('.fui-TableHeaderCell__button');
+  await sources.focus();await expect(page.getByRole('tooltip')).toBeVisible();
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+  await page.keyboard.press('Tab');await expect(table.getByRole('link',{name:'ID 42',exact:true})).toBeFocused();
+});

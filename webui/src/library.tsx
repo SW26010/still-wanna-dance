@@ -5,7 +5,7 @@ import {useApp,useFocusRecovery,useResource,useRunToggle} from './hooks';
 import {usePageFeedback} from './page-feedback';
 import {APIError,request} from './api';
 import {Feedback,Notification,RecordDetails} from './ui';
-import {RecordTable,TableText,SortHeader,DescriptionHeader,TablePagination,type TableSort} from './data-table';
+import {RecordDataTable,TableText,TablePagination,type RecordColumn,type TableSort} from './data-table';
 import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular,GridRegular,TextBulletListRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {LibraryCoverCard,useLibraryCovers} from './library-covers';
@@ -68,6 +68,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   useEffect(()=>{if(visible&&(actions.result?.error||actions.result?.entries?.length))fileResult.current?.focus();},[visible,actions.result]);
   const disabled=app.unavailable||pending||actions.pending||pageUnavailable;
   const resources=page.data?.resources||{};
+  const resourceRows=page.data?.keys.map(key=>resources[key])??[];
   const nextCoverPage=offset+50<(page.data?.total||0)?'library?'+new URLSearchParams({...query,offset:String(offset+50)}):'';
   const coverImages=useLibraryCovers(page.data?.songs.map(song=>song.id).join(',')||'',nextCoverPage,visible&&view==='songs'&&covers&&!app.stopped&&!page.error&&page.loadedPath===pagePath);
   useEffect(()=>{
@@ -136,6 +137,23 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
     const r=resources[song.resource];
     return <dl className="detail-grid"><dt>名称</dt><dd>{song.title||'未知'}</dd><dt>歌手</dt><dd>{song.artist||'未知'}</dd><dt>舞者 / 社团</dt><dd>{[song.dancer,song.group].filter(Boolean).join(' / ')||'未知'}</dd>{full&&<><dt>ID</dt><dd>{song.id}</dd><dt>需求分</dt><dd>{scoreFormat.format(song.score*100)}</dd></>}<dt>分数来源</dt><dd>{song.hasDemand?'真实分数':'初始分数'}</dd>{full&&<><dt>偏好</dt><dd>{policyLabels[song.policy]}</dd><dt>本地状态</dt><dd>{sharedState(r)}</dd></>}<dt>资源</dt><dd>{song.resource?<Link className="resource-id" href={resourceHref(song.resource)}>{song.resource}</Link>:'未知'}</dd><dt>最近请求</dt><dd>{r?.local?.lastRequest?date(r.local.lastRequest):'无记录'}</dd></dl>;
   };
+  const songColumns:RecordColumn<LibrarySong>[]=[
+    {columnId:'id',label:'ID',sortable:true,renderCell:song=>song.id},
+    {columnId:'title',label:'名称',sortable:true,className:'table-text-column table-name-column',renderCell:song=><TableText primary>{song.title||'未知名称'}</TableText>},
+    {columnId:'artist',label:'歌手',className:'table-text-column',renderCell:song=><TableText>{song.artist||'未知歌手'}</TableText>},
+    {columnId:'dancer',label:'舞者',className:'table-text-column',renderCell:song=><TableText>{song.dancer||'未知'}</TableText>},
+    {columnId:'score',label:'需求分',sortable:true,defaultDirection:'descending',description:'反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。',cellProps:song=>({'aria-label':(song.hasDemand?'真实分数':'初始分数')+' '+scoreFormat.format(song.score*100)}),renderCell:song=>{const score=scoreFormat.format(song.score*100);return <span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span>;}},
+    {columnId:'policy',label:'偏好',description:'屏蔽会拒绝新的播放和下载请求。再次点击可取消。',renderCell:song=>songPreferences(song)},
+    {columnId:'local',label:'本地状态',renderCell:song=>sharedState(resources[song.resource])},
+    {columnId:'actions',label:'操作',renderCell:song=><div className="inline row-actions">{songOperations(song)}<RecordDetails openOnHover title={`歌曲 ${song.id} 的详情`}>{songDetails(song)}</RecordDetails></div>},
+  ];
+  const resourceColumns:RecordColumn<LibraryResource>[]=[
+    {columnId:'resource',label:'视频资源',sortable:true,className:'table-resource-column',renderCell:r=><span className="resource-id">{r.key}</span>},
+    {columnId:'songs',label:'关联歌曲',className:'table-fill-column table-name-column',renderCell:r=><TableCellLayout truncate description={`${r.songCount} 首`}>{r.songs.length?r.songs.map((s,i)=><span key={s.id}>{i>0&&' / '}<Tooltip content={s.title||s.id} relationship="label"><Link href={songHref(s.id)}>{s.title||s.id}</Link></Tooltip></span>):'无关联歌曲'}</TableCellLayout>},
+    {columnId:'size',label:'大小',sortable:true,defaultDirection:'descending',renderCell:r=><TableCellLayout>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout>},
+    {columnId:'local',label:'本地状态',renderCell:r=>sharedState(r)},
+    {columnId:'actions',label:'操作',renderCell:r=>{const key=r.key,local=r.local;return <div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Tooltip content="下载资源" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载资源" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}/></Tooltip>{fileActions(r)}<RecordDetails openOnHover title={`资源 ${key} 的详情`} heading={<>资源 <span className="resource-id">{key}</span> 的详情</>}><p className="wrap resource-id">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div>;}},
+  ];
   const storageBudget=<StorageBudgetNotice settings={s.activeSettings} usedBytes={page.error&&!searchError||page.data?.videoError?undefined:page.data?.totalBytes} checkedAt={page.loadedAt}/>;
   return <div className="page-stack library-page">
     {visible&&!app.stopped&&preview&&page.data&&<LibraryPreview key={page.data.storageID} storageID={page.data.storageID} target={preview} onClose={()=>setPreview(undefined)}/>}
@@ -167,26 +185,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
       </section>}
       {view==='songs'&&covers?<ul className="library-cover-grid" aria-label="曲库封面" aria-busy={page.loading}>{page.data?.songs.map(song=><li key={song.id}>
         <LibraryCoverCard id={song.id} title={song.title||'歌曲 '+song.id} enabled={visible&&!app.stopped&&!page.error&&page.loadedPath===pagePath} open={coverDetails===song.id} onOpenChange={open=>setCoverDetails(current=>open?song.id:current===song.id?undefined:current)} cover={coverImages[song.id]} preferences={songPreferences(song,true)} details={songDetails(song,true)} operations={songOperations(song,true)} previewDisabled={disabled||!!page.data?.videoError||!!songPreviewReason(song)} previewReason={songPreviewReason(song)} onPreview={()=>setPreview(songPreview(song))}/>
-      </li>)}</ul>:<RecordTable busy={page.loading} regionLabel="曲库表格" label={view==='songs'?'曲库歌曲':'曲库资源'}>
-        <TableHeader><TableRow>{view==='songs'?<><SortHeader column="id" label="ID" sort={query} onSortChange={changeSort} disabled={disabled}/><SortHeader column="title" label="名称" sort={query} onSortChange={changeSort} disabled={disabled} className="table-fill-column table-name-column"/><TableHeaderCell className="table-metadata-column">歌手</TableHeaderCell><TableHeaderCell className="table-metadata-column">舞者</TableHeaderCell><SortHeader column="score" label="需求分" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled} description="反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。"/><DescriptionHeader label="偏好">屏蔽会拒绝新的播放和下载请求。再次点击可取消。</DescriptionHeader></>:<><SortHeader column="resource" label="视频资源" sort={query} onSortChange={changeSort} disabled={disabled} className="table-resource-column"/><TableHeaderCell className="table-fill-column table-name-column">关联歌曲</TableHeaderCell><SortHeader column="size" label="大小" sort={query} onSortChange={changeSort} defaultDirection="descending" disabled={disabled}/></>}
-          <TableHeaderCell>本地状态</TableHeaderCell><TableHeaderCell>操作</TableHeaderCell></TableRow></TableHeader>
-        <TableBody>{view==='songs'?page.data?.songs.map(song=>{
-          const r=resources[song.resource],score=scoreFormat.format(song.score*100),source=song.hasDemand?'真实分数':'初始分数';return <TableRow key={song.id}>
-            <TableCell>{song.id}</TableCell>
-            <TableCell className="table-fill-column table-name-column"><TableText primary>{song.title||'未知名称'}</TableText></TableCell>
-            <TableCell className="table-metadata-column"><TableText>{song.artist||'未知歌手'}</TableText></TableCell>
-            <TableCell className="table-metadata-column"><TableText>{song.dancer||'未知'}</TableText></TableCell>
-            <TableCell aria-label={`${source} ${score}`}><span style={{color:song.hasDemand?tokens.colorNeutralForeground1:tokens.colorNeutralForeground3,fontVariantNumeric:'tabular-nums'}}>{score}</span></TableCell>
-            <TableCell>{songPreferences(song)}</TableCell>
-            <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{songOperations(song)}<RecordDetails openOnHover title={`歌曲 ${song.id} 的详情`}>{songDetails(song)}</RecordDetails></div></TableCell>
-          </TableRow>;
-        }):page.data?.keys.map(key=>{const r=resources[key],local=r.local;return <TableRow key={key}>
-          <TableCell className="table-resource-column"><span className="resource-id">{key}</span></TableCell>
-          <TableCell className="table-fill-column table-name-column"><TableCellLayout truncate description={`${r.songCount} 首`}>{r.songs.length?r.songs.map((s,i)=><span key={s.id}>{i>0&&' / '}<Tooltip content={s.title||s.id} relationship="label"><Link href={songHref(s.id)}>{s.title||s.id}</Link></Tooltip></span>):'无关联歌曲'}</TableCellLayout></TableCell>
-          <TableCell><TableCellLayout>{r.size==null?'未知':r.size<1e6?r.size.toLocaleString()+' B':mb(r.size)}</TableCellLayout></TableCell>
-          <TableCell>{sharedState(r)}</TableCell><TableCell><div className="inline row-actions">{previewAction({resource:key,label:r.songs[0]?.title||key})}<Tooltip content="下载资源" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载资源" disabled={disabled||s.batch.running||!!local||r.songCount===0} onClick={()=>download({resource:key})}/></Tooltip>{fileActions(r)}<RecordDetails openOnHover title={`资源 ${key} 的详情`} heading={<>资源 <span className="resource-id">{key}</span> 的详情</>}><p className="wrap resource-id">{key}</p><p>关联歌曲（{r.songCount} 首）</p><ul>{r.songs.map(song=><li key={song.id}><Link href={songHref(song.id)}>{song.title||'未知歌名'}（ID {song.id}）</Link></li>)}</ul>{r.songCount>r.songs.length&&<p>另有 {r.songCount-r.songs.length} 首；可按歌曲 ID 搜索。</p>}<p>最近请求：{local?.lastRequest?date(local.lastRequest):'无记录'}</p></RecordDetails></div></TableCell>
-        </TableRow>;})}</TableBody>
-      </RecordTable>}
+      </li>)}</ul>:view==='songs'?<RecordDataTable key="songs" busy={page.loading} regionLabel="曲库表格" label="曲库歌曲" className="song-table" columns={songColumns} items={page.data?.songs} getRowId={song=>song.id} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>:<RecordDataTable key="resources" busy={page.loading} regionLabel="曲库表格" label="曲库资源" columns={resourceColumns} items={resourceRows} getRowId={resource=>resource.key} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>}
       {!page.error&&page.data?.total===0&&<p className="empty-state">没有匹配项，请调整搜索或更新清单。</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
         previous={()=>{navigate({offset:Math.max(0,offset-50)});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{navigate({offset:offset+50});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}

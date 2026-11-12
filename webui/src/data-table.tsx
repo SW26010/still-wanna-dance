@@ -1,36 +1,44 @@
 import type {ComponentProps,PropsWithChildren,ReactNode} from 'react';
-import {Button,Table,TableCellLayout,TableHeaderCell,Text,Tooltip,type SortDirection,type SlotRenderFunction} from '@fluentui/react-components';
+import {Button,Table,TableBody,TableCell,TableCellLayout,TableHeader,TableHeaderCell,TableRow,Text,Tooltip,type SortDirection,type SlotRenderFunction,type TableColumnDefinition} from '@fluentui/react-components';
 import {ChevronLeftRegular,ChevronRightRegular} from '@fluentui/react-icons';
 import {TableRegion} from './ui';
 
 export type TableSort={sort:string;direction:SortDirection};
+type RecordTableProps=PropsWithChildren<{label:string;regionLabel:string;busy?:boolean;className?:string}>;
+export type RecordColumn<TItem>=Pick<TableColumnDefinition<TItem>,'columnId'|'renderCell'>&{
+  label:string;className?:string;sortable?:boolean;defaultDirection?:SortDirection;description?:ReactNode;
+  headerProps?:Pick<ComponentProps<typeof TableHeaderCell>,'aria-label'>;
+  cellProps?:(item:TItem)=>Omit<ComponentProps<typeof TableCell>,'children'|'className'>;
+};
+type RecordDataTableProps<TItem>=Omit<RecordTableProps,'children'>&{
+  columns:RecordColumn<TItem>[];items?:TItem[];getRowId:(item:TItem)=>string|number;
+  sort:TableSort;onSortChange:(sort:TableSort)=>void;sortDisabled?:boolean;
+};
 
 // Server queries own the rows; Fluent owns table semantics and header interaction.
-export function RecordTable({children,label,regionLabel,busy,className}:PropsWithChildren<{label:string;regionLabel:string;busy?:boolean;className?:string}>) {
+export function RecordTable({children,label,regionLabel,busy,className}:RecordTableProps) {
   return <TableRegion label={regionLabel}><Table size="small" className={'data-table'+(className?' '+className:'')} style={{tableLayout:'auto'}} aria-label={label} aria-busy={busy}>{children}</Table></TableRegion>;
 }
 
-export function TableText({children,primary,description}:{children:string;primary?:boolean;description?:string}) {
-  return <Tooltip content={children} relationship="label"><TableCellLayout truncate tabIndex={0} appearance={primary?'primary':undefined} description={description}>{children}</TableCellLayout></Tooltip>;
+export function RecordDataTable<TItem>({columns,items=[],getRowId,sort,onSortChange,sortDisabled,...props}:RecordDataTableProps<TItem>) {
+  return <RecordTable {...props}>
+    <TableHeader><TableRow>{columns.map(column=>{
+      const id=String(column.columnId),direction=sort.sort===id?sort.direction:undefined;
+      return <TableHeaderCell key={column.columnId} {...column.headerProps} className={column.className} sortable={column.sortable} sortDirection={direction}
+        button={{as:'div',...(column.description?{tabIndex:0}:{}),...(column.sortable?{'aria-label':'按'+column.label+'排序',disabled:sortDisabled,disabledFocusable:sortDisabled,onClick:()=>onSortChange({sort:id,direction:direction===undefined?column.defaultDirection??'ascending':direction==='ascending'?'descending':'ascending'})}:{}),children:column.description?headerTooltip(column.description):undefined}}>
+        {column.label}
+      </TableHeaderCell>;
+    })}</TableRow></TableHeader>
+    <TableBody>{items.map(item=><TableRow key={getRowId(item)}>{columns.map(column=><TableCell key={column.columnId} {...column.cellProps?.(item)} className={column.className}>{column.renderCell(item)}</TableCell>)}</TableRow>)}</TableBody>
+  </RecordTable>;
 }
 
-export function SortHeader({column,label,sort,onSortChange,defaultDirection='ascending',disabled,className,description}:{
-  column:string;label:string;sort:TableSort;onSortChange:(sort:TableSort)=>void;defaultDirection?:SortDirection;disabled?:boolean;
-  className?:string;description?:ReactNode;
-}) {
-  const direction=sort.sort===column?sort.direction:undefined;
-  return <TableHeaderCell sortable sortDirection={direction} className={className}
-    button={{as:'div','aria-label':'按'+label+'排序',disabled,disabledFocusable:disabled,children:description?headerTooltip(description):undefined,onClick:()=>onSortChange({sort:column,direction:direction===undefined?defaultDirection:direction==='ascending'?'descending':'ascending'})}}>
-    {label}
-  </TableHeaderCell>;
+export function TableText({children,primary,description}:{children:string;primary?:boolean;description?:string}) {
+  return <Tooltip content={children} relationship="label"><TableCellLayout tabIndex={0} appearance={primary?'primary':undefined} description={description}>{children}</TableCellLayout></Tooltip>;
 }
 
 function headerTooltip(content:ReactNode):SlotRenderFunction<ComponentProps<'div'>> {
   return (Component,props)=><Tooltip content={<>{content}</>} relationship="description"><Component {...props}/></Tooltip>;
-}
-
-export function DescriptionHeader({label,children}:PropsWithChildren<{label:string}>) {
-  return <TableHeaderCell button={{as:'div',tabIndex:0,children:headerTooltip(children)}}>{label}</TableHeaderCell>;
 }
 
 export function TablePagination({label,summary,previous,next,canPrevious,canNext,disabled}:{

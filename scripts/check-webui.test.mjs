@@ -9,10 +9,17 @@ import {cleanFrontendStore} from './webui-source.mjs';
 test('freshness rejects changed, added, removed source and modified output; accepts Git CRLF checkout',()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'swd-webui-'));
   try {
-    const files=['LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','docs/research/cache-priority/study-data.json','webui/src/main.tsx','webui/build.mjs','webui/package.json','webui/pnpm-lock.yaml','webui/pnpm-workspace.yaml','webui/tsconfig.json','docs/licenses/fluentui-system-icons-LICENSE','scripts/check-webui.mjs',...webuiOutputs];
+    const files=['LICENSE','THIRD-PARTY-NOTICES.txt','docs/licenses/ZASHBOARD-NOTICES.txt','docs/research/cache-priority/study-data.json','docs/research/category-cover-assets-20261112.json','webui/src/main.tsx','webui/build.mjs','webui/package.json','webui/pnpm-lock.yaml','webui/pnpm-workspace.yaml','webui/tsconfig.json','docs/licenses/fluentui-system-icons-LICENSE','scripts/check-webui.mjs','scripts/prepare-category-covers.py',...webuiOutputs];
     for(const name of files){fs.mkdirSync(path.dirname(path.join(temp,name)),{recursive:true});fs.writeFileSync(path.join(temp,name),'original\n');}
+    const image=path.join(temp,'internal/console/assets/webui/category-covers/default.webp'),imageBytes=Buffer.from([82,73,70,70,0,255,13,10]);
+    fs.mkdirSync(path.dirname(image),{recursive:true});fs.writeFileSync(image,imageBytes);
     fs.writeFileSync(path.join(temp,'webui/build-manifest.json'),JSON.stringify(webuiManifest(temp)));
     checkWebUI(temp);
+    const oversized=path.join(path.dirname(image),'oversized.webp');
+    fs.writeFileSync(oversized,Buffer.alloc(1024*1024));assert.throws(()=>webuiManifest(temp),/1 MiB runtime budget/);fs.unlinkSync(oversized);
+    fs.writeFileSync(image,Buffer.from([82,73,70,70,0,254,13,10]));assert.throws(()=>checkWebUI(temp),/Stale/);fs.writeFileSync(image,imageBytes);
+    const pipeline=path.join(temp,'scripts/prepare-category-covers.py');
+    fs.writeFileSync(pipeline,'changed');assert.throws(()=>checkWebUI(temp),/Stale/);fs.writeFileSync(pipeline,'original\n');
     const source=path.join(temp,'webui/src/main.tsx');
     fs.writeFileSync(source,'original\r\n');checkWebUI(temp);
     const study=path.join(temp,'docs/research/cache-priority/study-data.json');

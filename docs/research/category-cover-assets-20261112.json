@@ -1,0 +1,1981 @@
+{
+  "schemaVersion": 1,
+  "preparedOn": "2026-11-12",
+  "catalogRevision": "20261112173704",
+  "groupCount": 50,
+  "assetCount": 44,
+  "totalBytes": 215088,
+  "encoding": {
+    "format": "WebP",
+    "quality": 50,
+    "method": 6,
+    "pixels": [
+      320,
+      240
+    ],
+    "lossless": false,
+    "qualityMeaning": "Lossy image quality; one encoding from originals or lossless masters"
+  },
+  "squareLayout": {
+    "foreground": "contain, centered, no crop",
+    "background": "cover then Gaussian blur and dim",
+    "blurRadiusPixels": 15,
+    "brightness": 0.55
+  },
+  "rights": "Source artwork retains the rights of its original owners; the software license does not grant rights to these images.",
+  "assets": [
+    {
+      "asset": "just-dance-solo",
+      "groups": [
+        "Just Dance Solo"
+      ],
+      "file": "internal/console/assets/webui/category-covers/just-dance-solo.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6340,
+      "sha256": "73ffec82f7e76bf33dcd0ea63c907183a7232ec523794244daed4baa5a530fd8",
+      "layout": "official-wide-center-crop",
+      "source": {
+        "sourcePage": "https://www.xbox.com/en-us/games/store/just-dance-2024-edition/9N3X075GN7V3",
+        "imageUrl": "https://store-images.s-microsoft.com/image/apps.55877.13998847071682156.f55656eb-2f14-4b71-8f8b-0a8f77f562d2.587dc16b-6a0c-4d60-bc62-6793b1e14353",
+        "width": 1920,
+        "height": 1080,
+        "sha256": "99dc6c71ca6694f31afdce29b6a173620bc432e9c31e4d651effa6d395b5b8e9",
+        "kind": "official-web-image",
+        "cropBox": [
+          240,
+          0,
+          1680,
+          1080
+        ]
+      },
+      "encodingInputSHA256": "99dc6c71ca6694f31afdce29b6a173620bc432e9c31e4d651effa6d395b5b8e9",
+      "encodingInputFile": "inputs/just-dance-solo.jpg"
+    },
+    {
+      "asset": "just-dance-duet",
+      "groups": [
+        "Just Dance Duet"
+      ],
+      "file": "internal/console/assets/webui/category-covers/just-dance-duet.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6188,
+      "sha256": "ea9faf1c6f4f11700e237637e2ee082e2cfe77a69de0c4d7db98d3f3bb4e1ddf",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            1251,
+            524
+          ],
+          [
+            1749,
+            524
+          ],
+          [
+            1750,
+            1023
+          ],
+          [
+            1252,
+            1023
+          ]
+        ],
+        "homography": [
+          [
+            0.9996938161800121,
+            -0.002005095478988852,
+            -1249.9896298251103
+          ],
+          [
+            -0.000001714803708555965,
+            0.9976901905327734,
+            -523.2107893141356
+          ],
+          [
+            -5.751426803757908e-19,
+            9.195349589521247e-19,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "8ff16c4b19771bc4a5642b88e806be57a6bbb611ad71403c0a93081820228959",
+      "encodingInputFile": "inputs/just-dance-duet.png"
+    },
+    {
+      "asset": "just-dance-trio",
+      "groups": [
+        "Just Dance Trio"
+      ],
+      "file": "internal/console/assets/webui/category-covers/just-dance-trio.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 8544,
+      "sha256": "5d43edaafbde97b071deb5cec85f1c4970afe8073eaeb1fd95cd6d4e2d5d72d8",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            2134,
+            524
+          ],
+          [
+            2634,
+            523
+          ],
+          [
+            2633,
+            1024
+          ],
+          [
+            2134,
+            1024
+          ]
+        ],
+        "homography": [
+          [
+            1.0061729607209482,
+            9.842619366070768e-7,
+            -2147.600550044096
+          ],
+          [
+            0.002006865423024212,
+            1.0021587679975568,
+            -529.8398680293892
+          ],
+          [
+            0.000004028122559332438,
+            -0.000004027643106008816,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "4bd14c7f97f41524dada21670a1c75935f6bbb844794c1366240d8049323c0b6",
+      "encodingInputFile": "inputs/just-dance-trio.png"
+    },
+    {
+      "asset": "just-dance-crew",
+      "groups": [
+        "Just Dance Crew"
+      ],
+      "file": "internal/console/assets/webui/category-covers/just-dance-crew.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6712,
+      "sha256": "5956da7b9a715f5acdff67290a9828c40e2ea987a3a060f2ff182cdc860c4d05",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            3019,
+            523
+          ],
+          [
+            3519,
+            523
+          ],
+          [
+            3518,
+            1023
+          ],
+          [
+            3017,
+            1023
+          ]
+        ],
+        "homography": [
+          [
+            0.9997912733666039,
+            0.004002537298378962,
+            -3020.888377657143
+          ],
+          [
+            0.0000025724346573147663,
+            1.0017918033745363,
+            -524.3705685777661
+          ],
+          [
+            2.090460437182189e-11,
+            0.000004018120798710686,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "56d1d65a53d22de42a88f3902b4aea89c7342941c55cae373a0adae9ffdd6bdc",
+      "encodingInputFile": "inputs/just-dance-crew.png"
+    },
+    {
+      "asset": "just-dance-fan-made",
+      "groups": [
+        "Just Dance Fan Made"
+      ],
+      "file": "internal/console/assets/webui/category-covers/just-dance-fan-made.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 8596,
+      "sha256": "0d8c453e02b644a4d48baf064298eed845427662c4afdaba40fcada940f494c9",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            372,
+            1323
+          ],
+          [
+            869,
+            1323
+          ],
+          [
+            871,
+            1821
+          ],
+          [
+            374,
+            1821
+          ]
+        ],
+        "homography": [
+          [
+            0.9996929634923912,
+            -0.004018253880480585,
+            -366.9924817104057
+          ],
+          [
+            -0.000003436503013485089,
+            0.9976855548036577,
+            -1320.359556364727
+          ],
+          [
+            -2.309854231513987e-19,
+            1.738191952196403e-19,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "f1d05ba441bdd5035a7b7933c3c72eac5ebded1d7b41910963b575212edf2185",
+      "encodingInputFile": "inputs/just-dance-fan-made.png"
+    },
+    {
+      "asset": "mash-up",
+      "groups": [
+        "Mash-Up"
+      ],
+      "file": "internal/console/assets/webui/category-covers/mash-up.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 5534,
+      "sha256": "7147ca4fafb32d0fb1d528f29a19f28eae627e2eac5b5fc31c08393511ef08b8",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            1252,
+            1324
+          ],
+          [
+            1750,
+            1324
+          ],
+          [
+            1750,
+            1821
+          ],
+          [
+            1253,
+            1821
+          ]
+        ],
+        "homography": [
+          [
+            0.9903601552101989,
+            -0.0019943766123894577,
+            -1237.7103454321937
+          ],
+          [
+            -9.726909774279962e-7,
+            0.990359422750813,
+            -1311.6541578899023
+          ],
+          [
+            -4.852143111883897e-10,
+            -0.000004029044374315225,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "42d84bf5186e0f1b01efae2c3a02cabee66e7c303347fe5b6d17e640daf74ad4",
+      "encodingInputFile": "inputs/mash-up.png"
+    },
+    {
+      "asset": "kids",
+      "groups": [
+        "Kids"
+      ],
+      "file": "internal/console/assets/webui/category-covers/kids.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 5014,
+      "sha256": "8c9f75f459c5fb6df9e2250660f6dd50426f347e83b5ab9107b761b6cd2495f4",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            2134,
+            1324
+          ],
+          [
+            2633,
+            1324
+          ],
+          [
+            2632,
+            1822
+          ],
+          [
+            2134,
+            1822
+          ]
+        ],
+        "homography": [
+          [
+            0.990391470605204,
+            8.314417848155838e-17,
+            -2113.915879415886
+          ],
+          [
+            9.70768596304383e-7,
+            0.9903902566566501,
+            -1311.6987688857325
+          ],
+          [
+            4.832966416606243e-10,
+            -0.000004013448971965204,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "004c4abc7a2c375f8686bc5817c4afc1c98ac21d61ae527f3aa8773d1359a734",
+      "encodingInputFile": "inputs/kids.png"
+    },
+    {
+      "asset": "disney-party",
+      "groups": [
+        "Disney Party"
+      ],
+      "file": "internal/console/assets/webui/category-covers/disney-party.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 5716,
+      "sha256": "7afecad04994e9207d46822b2fecad01909d1c646a8edb2aed0c94ca60bd293b",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 6,
+        "screenshotSHA256": "fd2d3765f3634e724aef0f8ae5ed371af1d29acb7a8734a5ee7583b2e8a9cecd",
+        "cornersTLTRBRBL": [
+          [
+            3017,
+            1324
+          ],
+          [
+            3517,
+            1324
+          ],
+          [
+            3515,
+            1823
+          ],
+          [
+            3016,
+            1822
+          ]
+        ],
+        "homography": [
+          [
+            1.0046026758687567,
+            0.0020182457706440257,
+            -3033.9855562682974
+          ],
+          [
+            0.0000027025079673492878,
+            1.004605252226221,
+            -1330.531779051097
+          ],
+          [
+            0.000004062273072679928,
+            -0.0000040292661931353095,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "f5fa7cff84cbdfcf409d2d36e02b63320f3e77bdd5bdfb160275c84d610c24cd",
+      "encodingInputFile": "inputs/disney-party.png"
+    },
+    {
+      "asset": "hip-hop-dance-experience",
+      "groups": [
+        "Hip Hop Dance Experience"
+      ],
+      "file": "internal/console/assets/webui/category-covers/hip-hop-dance-experience.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 8302,
+      "sha256": "e77eec120b0376af7ff4b0c03194ef98bb4ac18048b9f2a59272e5b1515a7e04",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 7,
+        "screenshotSHA256": "a9f493316345e804da3fb969e74f8132d2589728e3295e4781b1376f9800cbdd",
+        "cornersTLTRBRBL": [
+          [
+            321,
+            475
+          ],
+          [
+            829,
+            477
+          ],
+          [
+            825,
+            978
+          ],
+          [
+            316,
+            977
+          ]
+        ],
+        "homography": [
+          [
+            0.9903635836466944,
+            0.009870097659174579,
+            -323.0193612503398
+          ],
+          [
+            -0.003957121834587953,
+            1.0061675367737588,
+            -477.08453701013684
+          ],
+          [
+            -0.000003956329772466567,
+            0.000003862536323280039,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "330325ea5a006a19ccc6e176200cc8568e8552fbd7d289175400fe7473fe53f9",
+      "encodingInputFile": "inputs/hip-hop-dance-experience.png"
+    },
+    {
+      "asset": "smurfs-dance-party",
+      "groups": [
+        "Smurfs Dance Party"
+      ],
+      "file": "internal/console/assets/webui/category-covers/smurfs-dance-party.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6664,
+      "sha256": "50657887bb96f6ca5553ea869fc870f48faf8aa81e86e0e33c756812955b1871",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 7,
+        "screenshotSHA256": "a9f493316345e804da3fb969e74f8132d2589728e3295e4781b1376f9800cbdd",
+        "cornersTLTRBRBL": [
+          [
+            1216,
+            480
+          ],
+          [
+            1716,
+            482
+          ],
+          [
+            1716,
+            979
+          ],
+          [
+            1214,
+            978
+          ]
+        ],
+        "homography": [
+          [
+            0.9925819654116876,
+            0.003987206956523717,
+            -1209.3161482083603
+          ],
+          [
+            -0.004011999486826463,
+            1.0025783947697777,
+            -476.78290017857535
+          ],
+          [
+            -0.000004070024213050168,
+            0.00000802796571477437,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "da7aa2cd80b30db6bf1e76d133040407cbe165a3022545f084eba7dd1dd84dcf",
+      "encodingInputFile": "inputs/smurfs-dance-party.png"
+    },
+    {
+      "asset": "michael-jackson",
+      "groups": [
+        "Michael Jackson"
+      ],
+      "file": "internal/console/assets/webui/category-covers/michael-jackson.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 7084,
+      "sha256": "73823d235e0dbb83ba470d03ac152d9e4a33426a6cfa510bbca9b50e29e74fd9",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 7,
+        "screenshotSHA256": "a9f493316345e804da3fb969e74f8132d2589728e3295e4781b1376f9800cbdd",
+        "cornersTLTRBRBL": [
+          [
+            2098,
+            484
+          ],
+          [
+            2590,
+            487
+          ],
+          [
+            2592,
+            980
+          ],
+          [
+            2099,
+            979
+          ]
+        ],
+        "homography": [
+          [
+            0.9806214468585309,
+            -0.001985917273898403,
+            -2056.7964233539224
+          ],
+          [
+            -0.005987290481413704,
+            0.9806443557639921,
+            -462.48551107734295
+          ],
+          [
+            -0.000008142513205984109,
+            0.000004104628380610184,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "b839f61b0160757c7fa5f969753d0296afd566118e72ea96f898d2d4dad64f27",
+      "encodingInputFile": "inputs/michael-jackson.png"
+    },
+    {
+      "asset": "abba",
+      "groups": [
+        "ABBA"
+      ],
+      "file": "internal/console/assets/webui/category-covers/abba.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 9324,
+      "sha256": "882c767fc1044c40698aab3c082e24e81ba023b6d01432db792401b458685c63",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 7,
+        "screenshotSHA256": "a9f493316345e804da3fb969e74f8132d2589728e3295e4781b1376f9800cbdd",
+        "cornersTLTRBRBL": [
+          [
+            2967,
+            489
+          ],
+          [
+            3452,
+            492
+          ],
+          [
+            3457,
+            981
+          ],
+          [
+            2970,
+            980
+          ]
+        ],
+        "homography": [
+          [
+            0.9791762382446041,
+            -0.005991206184216407,
+            -2902.6974539701464
+          ],
+          [
+            -0.006044617441172076,
+            0.9752244261294286,
+            -459.36325053474116
+          ],
+          [
+            -0.000008316371450861785,
+            0.000008383263935758407,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "6c712a7ac782a7a0b22b4ab4e9d43291cf9bc628d473a5d4f66b59e644f2fd4a",
+      "encodingInputFile": "inputs/abba.png"
+    },
+    {
+      "asset": "fitdance",
+      "groups": [
+        "FitDance"
+      ],
+      "file": "internal/console/assets/webui/category-covers/fitdance.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 1944,
+      "sha256": "97d9e4a654a298ce05a250d311a5ebc93fec37fc916019dcb1fe9de4a5e07ac0",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://x.com/FitDanceOficial",
+        "imageUrl": "https://pbs.twimg.com/profile_images/1769795078694830081/bwSvSodn.jpg",
+        "width": 400,
+        "height": 400,
+        "sha256": "7449a119629694e5ea616f0f9185b669fb523e6db572edb449aea48faac7364f",
+        "originalArchiveFile": "originals/fitdance-x-base.jpg"
+      },
+      "encodingInputSHA256": "e324d0de3dba675974566e001f3030c0a072555b7f3a3327764dfdbd6b10437e",
+      "encodingInputFile": "inputs/fitdance.png"
+    },
+    {
+      "asset": "fitness-marshall",
+      "groups": [
+        "Fitness Marshall"
+      ],
+      "file": "internal/console/assets/webui/category-covers/fitness-marshall.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4686,
+      "sha256": "a1ad150cb683921cc4254ddc2adb16b2adc941176bbb3c5fc7229f85e2dbb9ea",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/@TheFitnessMarshall",
+        "imageUrl": "https://yt3.googleusercontent.com/w4s_Kjyek1fyKivToAn4DvWnO9tXOC_IF_0yu6sx_vCGWL7M4LsKVRMWOMpqw_fZVgy1Rxsd=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "a1df87acd3fed1bfcc682deacb8b889c7a23ba99a53d197f8b3173ba548eab8f",
+        "originalArchiveFile": "originals/fitness-marshall-official-youtube.jpg"
+      },
+      "encodingInputSHA256": "e394ae679cbf0d602f0bcf71e3736a6d4ef5a579b407e0a40576a766b1ae3b03",
+      "encodingInputFile": "inputs/fitness-marshall.png"
+    },
+    {
+      "asset": "golfy-dance-fitness",
+      "groups": [
+        "Golfy Dance Fitness"
+      ],
+      "file": "internal/console/assets/webui/category-covers/golfy-dance-fitness.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4792,
+      "sha256": "33efee5cdb32604a6ee730fdfc847131713cb781e8853065e9a293bbec62b058",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/@GolfyDanceFitness",
+        "imageUrl": "https://yt3.googleusercontent.com/LmksAFNGhA_LCDrDQojzNepGk1Hq8QUvQNrlDHpIL0prGu_WKxFIM_-yv9oIBwDmmwzcnOyqVg=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "95a42766426d64bd7465b00d6192432e507b2ec9855299c195a885558eeccf20",
+        "originalArchiveFile": "originals/golfy-dance-fitness-youtube.jpg"
+      },
+      "encodingInputSHA256": "072647eca268b9c15a8e37f0984e5c03347771c328ea7a798e39f6b285572bee",
+      "encodingInputFile": "inputs/golfy-dance-fitness.png"
+    },
+    {
+      "asset": "mylee-dance",
+      "groups": [
+        "Mylee Dance"
+      ],
+      "file": "internal/console/assets/webui/category-covers/mylee-dance.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3694,
+      "sha256": "185941a94fb7c8d11ce9a6888a7cc3e4d83eab468ecd7edb84bbf829b303a0df",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/c/MYLEEDanceTV",
+        "imageUrl": "https://yt3.googleusercontent.com/eyoiUrCDB2CvkN9HD1eKzPFYHbETw0zGwTKY5GW8bBGOIhTzlxnz_8LCZw9RDI5j2u6PkZLSP5Q=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "0e25735b713399b2476b67d6b610a4cd6325c0f5b740b1d927f1ff01512ce638",
+        "originalArchiveFile": "originals/mylee-dance-youtube.jpg"
+      },
+      "encodingInputSHA256": "32422df47229bf8f3ec98bbec7b6b89493f08d461e0bd1b7bb34535ea78fcb34",
+      "encodingInputFile": "inputs/mylee-dance.png"
+    },
+    {
+      "asset": "song",
+      "groups": [
+        "Song^_^"
+      ],
+      "file": "internal/console/assets/webui/category-covers/song.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4548,
+      "sha256": "803140a0ab1ada406d3e5ab65357eab676895875108c4cb1a77c1a08a3137064",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 8,
+        "screenshotSHA256": "1a8a4c544bd625c642e495d1ba96c4a3296c3e4e1430fd08364872ec233e1d5f",
+        "cornersTLTRBRBL": [
+          [
+            348,
+            532
+          ],
+          [
+            853,
+            531
+          ],
+          [
+            866,
+            1038
+          ],
+          [
+            367,
+            1038
+          ]
+        ],
+        "homography": [
+          [
+            0.9884315405889191,
+            -0.03714519219485145,
+            -324.6230669274569
+          ],
+          [
+            0.0019019758149588703,
+            0.9727803695050974,
+            -518.5882768885662
+          ],
+          [
+            0.000003834027170400918,
+            -0.000023518860592675313,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "4e3fc54767339786d2a10c2b8da1c851c14f56238e5731000f43457e7d2c6931",
+      "encodingInputFile": "inputs/song.png"
+    },
+    {
+      "asset": "southvibes",
+      "groups": [
+        "SouthVibes"
+      ],
+      "file": "internal/console/assets/webui/category-covers/southvibes.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 11590,
+      "sha256": "8ab7cb29d14e83442b301e1f98235c3dbefc1f37b1946bd175e75dd160814176",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCgF_CL32PraVYKY_sw7oaNA",
+        "imageUrl": "https://yt3.googleusercontent.com/ssEl6W4fr0YgajQmdKeD38zJcLoPBEI5nIHF1m7ds-KDFi8ljrjfWna4J2ZbiVJY_FlZtEtmNQ=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "dd92d34e2b51bdaddd41557e67652c2eac452ccd9d5986469d59dd2bd6354ba9",
+        "originalArchiveFile": "originals/southvibes-youtube.jpg"
+      },
+      "encodingInputSHA256": "dd372a60c925d005f20fab339c735f0c0bc4bc0f425eb87cca13190b84a673d3",
+      "encodingInputFile": "inputs/southvibes.png"
+    },
+    {
+      "asset": "sunny-funny-fitness",
+      "groups": [
+        "Sunny Funny Fitness"
+      ],
+      "file": "internal/console/assets/webui/category-covers/sunny-funny-fitness.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2930,
+      "sha256": "d12ca4b58065ed784ec17cd85ee8c7a4e97e4217aa942a66ca0543e7e4390909",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCTAcO7MyXetuvExV7Lo_L6Q",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lm-dM9OrsEyP-ewU29plNUhGrz8nutBjOjH1q3wkvzO3k=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "e9a648edaa224e4b0fd0264ccb499c19db2113b5fbe8034973a2c435cead927b",
+        "originalArchiveFile": "originals/sunny-funny-fitness-youtube.jpg"
+      },
+      "encodingInputSHA256": "ad09597fa4b109613061f13dec13f1cc0fb9988ab673f6e2d534d22a04f86b8b",
+      "encodingInputFile": "inputs/sunny-funny-fitness.png"
+    },
+    {
+      "asset": "tml-crew",
+      "groups": [
+        "TML Crew"
+      ],
+      "file": "internal/console/assets/webui/category-covers/tml-crew.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 7266,
+      "sha256": "40afab964248a61a60b1e9701c675c41dcd04fd3397edf363bb41b42b5ebb4e2",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCmzRlnYu2x5l-kmjpF08Hnw",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lZ-zQUQGjVA3gOHGh1HE-kIiFOlUPnVYFtKL-TfI-xLmw=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "54c8098370b1382c364a48d1a520f7704c5d09c780874c8d5b18527686413940",
+        "originalArchiveFile": "originals/tml-crew-youtube.jpg"
+      },
+      "encodingInputSHA256": "95c0a8820e10ce431c943941ac79b9e37867dda0ab286b969d88a46f66e88ab8",
+      "encodingInputFile": "inputs/tml-crew.png"
+    },
+    {
+      "asset": "kkardio-dance",
+      "groups": [
+        "Kkardio Dance"
+      ],
+      "file": "internal/console/assets/webui/category-covers/kkardio-dance.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6248,
+      "sha256": "b24947ec6945485fa9ea713dff0b0d4723b71025e28b1cad8385a89e2a484f02",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UC90qhppagynYF6wbqo6I9LQ",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_mTdlvnTFabR1ZrBTc_S2Khvb7OUCx6EPDaqykX32iyGX4=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "33e8192fa0c0e1c8515e34072c72369e20b002df33e6b361701eb9b17065b9b0",
+        "originalArchiveFile": "originals/kkardio-official-youtube.jpg"
+      },
+      "encodingInputSHA256": "96ce9e07e4e07eb2138e1fb891ca3de25657b8eaaa900e7e6aa9c65fa98ac6c3",
+      "encodingInputFile": "inputs/kkardio-dance.png"
+    },
+    {
+      "asset": "ajdancefit",
+      "groups": [
+        "AJDanceFit"
+      ],
+      "file": "internal/console/assets/webui/category-covers/ajdancefit.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 1980,
+      "sha256": "e50447d4a9010afb02b55026203610ed59179b6d7aaa6d82ef2e8776abedee10",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 8,
+        "screenshotSHA256": "1a8a4c544bd625c642e495d1ba96c4a3296c3e4e1430fd08364872ec233e1d5f",
+        "cornersTLTRBRBL": [
+          [
+            1255,
+            1336
+          ],
+          [
+            1751,
+            1336
+          ],
+          [
+            1753,
+            1824
+          ],
+          [
+            1262,
+            1824
+          ]
+        ],
+        "homography": [
+          [
+            0.9609920549872871,
+            -0.013796797769685539,
+            -1188.0195377341986
+          ],
+          [
+            -0.000007627943697924759,
+            0.9668954976672163,
+            -1292.1677668445486
+          ],
+          [
+            3.2189924395027005e-10,
+            -0.000020153077510545818,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "8a70d3afc31510e5fe9bbc3e91e7dba490457c7fddfdde9cd63bbd9d0b6f953c",
+      "encodingInputFile": "inputs/ajdancefit.png"
+    },
+    {
+      "asset": "liu-doudou",
+      "groups": [
+        "刘逗逗不怎么逗"
+      ],
+      "file": "internal/console/assets/webui/category-covers/liu-doudou.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3080,
+      "sha256": "7597f0afa2e3ab2c5a3a9b69106aabfa6e3b1aac21e5e0d282b9315146810217",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 8,
+        "screenshotSHA256": "1a8a4c544bd625c642e495d1ba96c4a3296c3e4e1430fd08364872ec233e1d5f",
+        "cornersTLTRBRBL": [
+          [
+            2133,
+            1337
+          ],
+          [
+            2630,
+            1337
+          ],
+          [
+            2621,
+            1825
+          ],
+          [
+            2131,
+            1824
+          ]
+        ],
+        "homography": [
+          [
+            0.9591745035815521,
+            0.003941609467992189,
+            -2051.599445962984
+          ],
+          [
+            0.000009004528826734567,
+            0.9631068681732383,
+            -1288.0999917875574
+          ],
+          [
+            0.000004079333958034432,
+            -0.000028069617638407214,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "28ae2b29388945e391f1afb9d3691e91455b9435538b43ee5ed04c8b9088f690",
+      "encodingInputFile": "inputs/liu-doudou.png"
+    },
+    {
+      "asset": "dj-raphi",
+      "groups": [
+        "DJ Raphi"
+      ],
+      "file": "internal/console/assets/webui/category-covers/dj-raphi.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3064,
+      "sha256": "aef5dc4e8b7ccb26188a49b2b91fe56152707fd4661199018b9d39e998795aac",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 8,
+        "screenshotSHA256": "1a8a4c544bd625c642e495d1ba96c4a3296c3e4e1430fd08364872ec233e1d5f",
+        "cornersTLTRBRBL": [
+          [
+            3012,
+            1337
+          ],
+          [
+            3510,
+            1337
+          ],
+          [
+            3492,
+            1826
+          ],
+          [
+            3000,
+            1825
+          ]
+        ],
+        "homography": [
+          [
+            0.9681291121636922,
+            0.023826278399804543,
+            -2948.2792146687425
+          ],
+          [
+            0.000025114619737917367,
+            0.9741123842239567,
+            -1302.8795046973285
+          ],
+          [
+            0.00000409126284684877,
+            -0.00002401352397591724,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "9c7ea602f2b963e83febb8d762a4128024d67f626b584e7696ae022f8520cb71",
+      "encodingInputFile": "inputs/dj-raphi.png"
+    },
+    {
+      "asset": "mr-alex",
+      "groups": [
+        "Mr彦Alex"
+      ],
+      "file": "internal/console/assets/webui/category-covers/mr-alex.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 6402,
+      "sha256": "912cef4f6570c246d0a30eca7b2294103c4d7c0b8a71ca4e1b4ae42589497ac5",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 9,
+        "screenshotSHA256": "ea3183034e81a28fbc87fc5151f7fd31c7240a8bb3128e53401a8172ab33f2c9",
+        "cornersTLTRBRBL": [
+          [
+            351,
+            373
+          ],
+          [
+            855,
+            373
+          ],
+          [
+            864,
+            879
+          ],
+          [
+            364,
+            879
+          ]
+        ],
+        "homography": [
+          [
+            0.9918845817208042,
+            -0.025504547346758014,
+            -339.0520726088715
+          ],
+          [
+            -0.000018012402252353117,
+            0.9801200792266925,
+            -365.9906016577693
+          ],
+          [
+            6.971470487444377e-10,
+            -0.000015632599699568767,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "52a3dee4f0e2f1403c3cbe15d44ae4138db0e6f59cb5339c71e03fb4a15d8fcc",
+      "encodingInputFile": "inputs/mr-alex.png"
+    },
+    {
+      "asset": "default",
+      "groups": [
+        "Saskia's Dansschool",
+        "Other Fitness",
+        "K-POP Dance Practice",
+        "THE IDOLM@STER",
+        "黑糖梅",
+        "-溜一口兮-",
+        "Short Choreography"
+      ],
+      "file": "internal/console/assets/webui/category-covers/default.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4500,
+      "sha256": "7ee94a5fefc9d7b649c2a738770dd9f24a9e42122e53980666dbca720975b5a7",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "user-provided-community-artwork",
+        "file": "file_2a34df08-ac8f-49ac-b55a-0c05727a5afb.png",
+        "width": 2048,
+        "height": 2048,
+        "sha256": "adf393d4a2c6b6a29db5fad5f0375d47cd05ebd42d225d3c967ecb13bfd990e0",
+        "suppliedOn": "2026-11-12"
+      },
+      "encodingInputSHA256": "adf393d4a2c6b6a29db5fad5f0375d47cd05ebd42d225d3c967ecb13bfd990e0",
+      "encodingInputFile": "inputs/default.png"
+    },
+    {
+      "asset": "ellen-brian",
+      "groups": [
+        "Ellen & Brian"
+      ],
+      "file": "internal/console/assets/webui/category-covers/ellen-brian.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3472,
+      "sha256": "944071c3284a97debc189cfea2c38d8eeeae83ae06dfb20bc8d5694c2af2a5f7",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/@EllenandBrian",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_ncN6VTVPz6R0Yhd9bsNJHNTxlVYQl4fulHOs7ri0gTSik=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "5850713875b2bf129cf3600bfb0d7a8794df7d021d9494edc575533eab40ee27",
+        "originalArchiveFile": "originals/ellen-and-brian-youtube.jpg"
+      },
+      "encodingInputSHA256": "056aaa46038955f9830c624f7aef72aa150bfea8410cfd3e203379d80a50f60f",
+      "encodingInputFile": "inputs/ellen-brian.png"
+    },
+    {
+      "asset": "fol2estz",
+      "groups": [
+        "Fol2esTz"
+      ],
+      "file": "internal/console/assets/webui/category-covers/fol2estz.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2894,
+      "sha256": "f0bf61a521012e0da44a9b719cab09364fa267509460122ed218e9d8067dbc89",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCzogBN1kUo909dyrnLHFyyQ",
+        "imageUrl": "https://yt3.googleusercontent.com/4sjwRsGbse1CAejmtfkRbfCl5lihdRLxhW0iU0SdJ-v8NSpZnl3iuVrrNvHJ-HNguFITVfMtmw=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "34587914cd322dcee191fd5cc82d0f77582f60c905976423bd64d2ec032e07f0",
+        "originalArchiveFile": "originals/fol2estz-youtube.jpg"
+      },
+      "encodingInputSHA256": "19c8eec5bf50c99e6cfc7d3a642accfa3bd34b5d42391cb46d90701263acf859",
+      "encodingInputFile": "inputs/fol2estz.png"
+    },
+    {
+      "asset": "lisa-rhee",
+      "groups": [
+        "Lisa Rhee"
+      ],
+      "file": "internal/console/assets/webui/category-covers/lisa-rhee.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2782,
+      "sha256": "862dce1a72f09884eef787bd0b481eca05608e8f026c29d214930dc37835782c",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 9,
+        "screenshotSHA256": "ea3183034e81a28fbc87fc5151f7fd31c7240a8bb3128e53401a8172ab33f2c9",
+        "cornersTLTRBRBL": [
+          [
+            2134,
+            1246
+          ],
+          [
+            2632,
+            1246
+          ],
+          [
+            2626,
+            1740
+          ],
+          [
+            2132,
+            1740
+          ]
+        ],
+        "homography": [
+          [
+            0.9719085019771834,
+            0.003938241737406582,
+            -2079.373860207462
+          ],
+          [
+            0.000006681997914820963,
+            0.9719051878348188,
+            -1211.4205215775337
+          ],
+          [
+            -2.1662721298005023e-10,
+            -0.000015976640343786534,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "0acfcccf8c5b902e664a01f9fb9117beac2fac463d6d3b2fbd37967752c43760",
+      "encodingInputFile": "inputs/lisa-rhee.png"
+    },
+    {
+      "asset": "choyoung",
+      "groups": [
+        "초영"
+      ],
+      "file": "internal/console/assets/webui/category-covers/choyoung.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3132,
+      "sha256": "cd8730c3342f720d659d02a8808b7a424f9ff7c40682f493ef7ab105692bb816",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCeU2BHh5BQVMRfc6-ZRXgNw",
+        "imageUrl": "https://yt3.googleusercontent.com/Ts8qn9Ht6dc2hUa2NRE631kwzYKA3_eWDultYdqhfahO0GcAF25cuyghy74_jKi_MDhiGv5W=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "16d36494e13505ff8df064d64286974c260526ce48c7150267a1975da865a3f5",
+        "originalArchiveFile": "originals/choyoung-youtube.jpg"
+      },
+      "encodingInputSHA256": "ccfdd94fa6f0c795def9b45c418039a5d9f69f9a59d9f62c5e5d861ecb7df124",
+      "encodingInputFile": "inputs/choyoung.png"
+    },
+    {
+      "asset": "upvote-entertainment",
+      "groups": [
+        "UPVOTE Entertainment"
+      ],
+      "file": "internal/console/assets/webui/category-covers/upvote-entertainment.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 1852,
+      "sha256": "37a1536bc4fdeee726505dfc92b50b507b19cf7fe58533d24e89cc77e520bc09",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/@upvoteentertainment",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_nl33fwfF0dbt4hBQED6rdd7-tjfj7ANvOnv1kauQAryLg=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "02e380673caec1f2eb0275f1f31109fad5922c3dac09ca13a81850d1fcda4527",
+        "originalArchiveFile": "originals/upvote-entertainment-youtube.jpg"
+      },
+      "encodingInputSHA256": "9a75fa402026766dcc82ed9c08641ad91d1838c0086a889c23fa4f0569fc17da",
+      "encodingInputFile": "inputs/upvote-entertainment.png"
+    },
+    {
+      "asset": "wawa-dance",
+      "groups": [
+        "WAWA DANCE"
+      ],
+      "file": "internal/console/assets/webui/category-covers/wawa-dance.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2456,
+      "sha256": "4925670cba8592461de11736bcdecb19618d1889e255747be5289a8b8cc8a102",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UC0fwn6TtSHwnnrd01yPZmAg",
+        "imageUrl": "https://yt3.googleusercontent.com/9Ab_OwPkSdz17YLI5QRN_h_L5VnITxIhevShNnzb7NWRymxh785ccMXQs4a30QOmJ3pItj6l6g=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "a8c7c91554a5d8584130e249d0e763f3e9256636eb1015f31bc08f302bdeac9f",
+        "originalArchiveFile": "originals/wawa-dance-youtube.jpg"
+      },
+      "encodingInputSHA256": "133fd039efdc41da466a8faf0418b0e582e7725521718d3b32e154681d8f3863",
+      "encodingInputFile": "inputs/wawa-dance.png"
+    },
+    {
+      "asset": "other-kpop",
+      "groups": [
+        "Other K-POP"
+      ],
+      "file": "internal/console/assets/webui/category-covers/other-kpop.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4062,
+      "sha256": "f8163397cf41f777358cc146ad9fe13b9a636dd7844b5d2d0e7a1ee95c372d5f",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 10,
+        "screenshotSHA256": "2a7d242628c56e745a5ce2ce38f9240599b6fc78c63b575528fe764fe8316088",
+        "cornersTLTRBRBL": [
+          [
+            2982,
+            500
+          ],
+          [
+            3472,
+            502
+          ],
+          [
+            3475,
+            995
+          ],
+          [
+            2984,
+            994
+          ]
+        ],
+        "homography": [
+          [
+            0.9894847040791942,
+            -0.0040119482614404504,
+            -2949.0543529271745
+          ],
+          [
+            -0.004030278868345389,
+            0.9854885525986695,
+            -481.1436414702523
+          ],
+          [
+            -0.000004125054425136483,
+            0.000004141892001945705,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "75279293c2f55825eebfaf853c229ff0ec104391bf5715d7f6b3e4b764707baa",
+      "encodingInputFile": "inputs/other-kpop.png"
+    },
+    {
+      "asset": "nanakawa-miko",
+      "groups": [
+        "七河みこ"
+      ],
+      "file": "internal/console/assets/webui/category-covers/nanakawa-miko.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4886,
+      "sha256": "5b6ed9d6ce4c4070d2b753db0d01ce333ac5ec2d6a8e9b2d7839b46c391812c3",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCmlFEXJy7_aGySlI4P5C-Rg",
+        "imageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_np0IujmaMm8DInhK7vn4jLT1cpPh86O9kDWUkWAccW_rg=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "dbab169ce83bb09d42b199c9dace56a6916f7e0b0e066440f981cda9eec8c463",
+        "originalArchiveFile": "originals/nanakawa-miko-youtube.jpg"
+      },
+      "encodingInputSHA256": "68d70307be9d01f6d1993ab67325bca976066ab1f904414790da13d92e6a8907",
+      "encodingInputFile": "inputs/nanakawa-miko.png"
+    },
+    {
+      "asset": "penta",
+      "groups": [
+        "足太ぺんた"
+      ],
+      "file": "internal/console/assets/webui/category-covers/penta.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3796,
+      "sha256": "2b640bfe67ba24968422c642a7efe8b31822db50f20d344a0f6b219407846a46",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 10,
+        "screenshotSHA256": "2a7d242628c56e745a5ce2ce38f9240599b6fc78c63b575528fe764fe8316088",
+        "cornersTLTRBRBL": [
+          [
+            1224,
+            1361
+          ],
+          [
+            1726,
+            1360
+          ],
+          [
+            1726,
+            1862
+          ],
+          [
+            1223,
+            1864
+          ]
+        ],
+        "homography": [
+          [
+            0.9982816269118112,
+            0.0019889815357731913,
+            -1225.0281464400982
+          ],
+          [
+            0.0019951994504752288,
+            1.0002642143315708,
+            -1364.2269949452357
+          ],
+          [
+            -0.000003948859337487936,
+            0.000003965158967018842,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "b46da112c1149add67a35339dd0f9563c00d438f0c31b4168c1c9fbf172305d7",
+      "encodingInputFile": "inputs/penta.png"
+    },
+    {
+      "asset": "manako",
+      "groups": [
+        "まなこ"
+      ],
+      "file": "internal/console/assets/webui/category-covers/manako.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3634,
+      "sha256": "177ddc668dce831f6690ad9d5d31f20636c9f05dc89a11c71df1991dad93b2fb",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 10,
+        "screenshotSHA256": "2a7d242628c56e745a5ce2ce38f9240599b6fc78c63b575528fe764fe8316088",
+        "cornersTLTRBRBL": [
+          [
+            2109,
+            1360
+          ],
+          [
+            2606,
+            1359
+          ],
+          [
+            2608,
+            1858
+          ],
+          [
+            2110,
+            1860
+          ]
+        ],
+        "homography": [
+          [
+            0.9967776244641493,
+            -0.0019925650606144553,
+            -2099.9162251338525
+          ],
+          [
+            0.0020008273868524105,
+            0.9947820067996924,
+            -1357.5462255164673
+          ],
+          [
+            -0.000003998283067612188,
+            0.000004047193600475322,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "ca2a6418154571d968a768d89502b57f74c39ac793c8cd72608285005110a9d1",
+      "encodingInputFile": "inputs/manako.png"
+    },
+    {
+      "asset": "wata",
+      "groups": [
+        "わた"
+      ],
+      "file": "internal/console/assets/webui/category-covers/wata.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 5238,
+      "sha256": "59e4c2d197a985f44ce7fb86f55dad24ce923d6d19eae984d628cb140a5114f6",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCLef73Thh-b-OW6ubcbN5mw",
+        "imageUrl": "https://yt3.googleusercontent.com/HK18LrxEF6crY10VnctCeJ6v0Boc2iONFhbBTwfy-QNvegFLPgl6jXx7Fwe2KbUJ3XBXhSmbe7Y=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "369ba4093c3cd29344129bbb3f5de750a883e8e0d3aa88058425bbba551b6d61",
+        "originalArchiveFile": "originals/wata-youtube.jpg"
+      },
+      "encodingInputSHA256": "5b98502b4ef300811d86a7f014b45d7dde409a477486bae4c8b342d73209c513",
+      "encodingInputFile": "inputs/wata.png"
+    },
+    {
+      "asset": "palseong",
+      "groups": [
+        "팔성"
+      ],
+      "file": "internal/console/assets/webui/category-covers/palseong.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3754,
+      "sha256": "bc33efc5116cb7307a138d95f452b0afe1e0ae4bd185f4b35a37c5aee2b9d55f",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 11,
+        "screenshotSHA256": "4593fa9006bc32c3baac0c661f3175e93e2c34a3d8b1568c32138c370776c4ab",
+        "cornersTLTRBRBL": [
+          [
+            345,
+            488
+          ],
+          [
+            849,
+            488
+          ],
+          [
+            857,
+            992
+          ],
+          [
+            356,
+            992
+          ]
+        ],
+        "homography": [
+          [
+            0.9899993516134238,
+            -0.02162537043758636,
+            -331.41141658719124
+          ],
+          [
+            -0.000015638444185819672,
+            0.9841040736941079,
+            -480.65099322071785
+          ],
+          [
+            6.161692866485828e-10,
+            -0.000011772235117017196,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "145ba57af464cc2fe4b7a7c10914d835e53115513c75b279be204887c13e2159",
+      "encodingInputFile": "inputs/palseong.png"
+    },
+    {
+      "asset": "merochin",
+      "groups": [
+        "めろちん"
+      ],
+      "file": "internal/console/assets/webui/category-covers/merochin.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2942,
+      "sha256": "f5be833977bd21701050093a8a30a63166f1394ebc67eeb36fa74485d3ae86eb",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "official-web-image",
+        "sourcePage": "https://www.youtube.com/channel/UCMcWosflbve0JX78FFdJcCA",
+        "imageUrl": "https://yt3.googleusercontent.com/rDyTb414oiWtXWed4QOYX58ADE8abBEqcB0byyCn2jWiwFe4sul3mTGvpvu_6aVy066M6erxOtQ=s900-c-k-c0x00ffffff-no-rj",
+        "width": 900,
+        "height": 900,
+        "sha256": "a9dc5f6f88c95a84c5675a7b1862ea884c47f18871db309db824dc9d66f9395f",
+        "originalArchiveFile": "originals/melochin-youtube.jpg"
+      },
+      "encodingInputSHA256": "72a87ccdffdccb161567f7e403d09cfc4d26670b4c03e855c0902d413285e4d1",
+      "encodingInputFile": "inputs/merochin.png"
+    },
+    {
+      "asset": "tuoqi",
+      "groups": [
+        "椭奇"
+      ],
+      "file": "internal/console/assets/webui/category-covers/tuoqi.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2632,
+      "sha256": "ad084403f5027466bb9c7bd954b280ed271bdf24cf1a846c1064c21503db5b82",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 11,
+        "screenshotSHA256": "4593fa9006bc32c3baac0c661f3175e93e2c34a3d8b1568c32138c370776c4ab",
+        "cornersTLTRBRBL": [
+          [
+            2129,
+            488
+          ],
+          [
+            2632,
+            488
+          ],
+          [
+            2627,
+            993
+          ],
+          [
+            2127,
+            993
+          ]
+        ],
+        "homography": [
+          [
+            0.9919655236881414,
+            0.003931848571551021,
+            -2114.233504717429
+          ],
+          [
+            0.00000573005991237735,
+            0.9821418190898643,
+            -479.7163662895176
+          ],
+          [
+            -3.790036670699995e-10,
+            -0.000011772486860461643,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "e6284a10c9b6e919fbf0e9e0620da26259172cf8f33fd220e500c5ab4092eb19",
+      "encodingInputFile": "inputs/tuoqi.png"
+    },
+    {
+      "asset": "porushi",
+      "groups": [
+        "ぽるし"
+      ],
+      "file": "internal/console/assets/webui/category-covers/porushi.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 2498,
+      "sha256": "a3fe0bb82fa2f077b5842bd19bc526a8eb0ffdb12aed3f7063949fbe4bb4fe7a",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 11,
+        "screenshotSHA256": "4593fa9006bc32c3baac0c661f3175e93e2c34a3d8b1568c32138c370776c4ab",
+        "cornersTLTRBRBL": [
+          [
+            3018,
+            489
+          ],
+          [
+            3521,
+            489
+          ],
+          [
+            3510,
+            993
+          ],
+          [
+            3011,
+            993
+          ]
+        ],
+        "homography": [
+          [
+            0.9900385582997525,
+            0.013761785541951002,
+            -2995.0875178145375
+          ],
+          [
+            0.000014833187134984654,
+            0.9802137016356766,
+            -479.78929182614
+          ],
+          [
+            -3.5748239956539613e-10,
+            -0.000015697601324131313,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "ad6fa082be1e5b2fea379987f9d686ca3082dfea83c2398f84e91734c85b0d10",
+      "encodingInputFile": "inputs/porushi.png"
+    },
+    {
+      "asset": "other-acgn",
+      "groups": [
+        "Other ACGN Dance"
+      ],
+      "file": "internal/console/assets/webui/category-covers/other-acgn.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 5796,
+      "sha256": "786a90dd9948f28c3365e5525e440b761686faa7aba8adbf2b50ee4ead220518",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 11,
+        "screenshotSHA256": "4593fa9006bc32c3baac0c661f3175e93e2c34a3d8b1568c32138c370776c4ab",
+        "cornersTLTRBRBL": [
+          [
+            3006,
+            1292
+          ],
+          [
+            3503,
+            1292
+          ],
+          [
+            3491,
+            1784
+          ],
+          [
+            2998,
+            1785
+          ]
+        ],
+        "homography": [
+          [
+            0.9572787775490144,
+            0.015548316603667227,
+            -2898.078915816148
+          ],
+          [
+            0.000016519699171991884,
+            0.9591908448945166,
+            -1239.7334618866855
+          ],
+          [
+            -0.000003991454827343762,
+            -0.000015994052002617635,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "3725dea78f880ae02c1f73a11ff845b6ec1bd2a850d4a742b30c3035805a699d",
+      "encodingInputFile": "inputs/other-acgn.png"
+    },
+    {
+      "asset": "vrchat-dance",
+      "groups": [
+        "VRChat Dance"
+      ],
+      "file": "internal/console/assets/webui/category-covers/vrchat-dance.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 3952,
+      "sha256": "a7ad32be29a146635f2ec10c8a870341bc635343f6df67c71be946419c8bffc6",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 12,
+        "screenshotSHA256": "cc5f7c2a61474cebef3203803feb982932f12d23d6752896dde44a079ef7fa28",
+        "cornersTLTRBRBL": [
+          [
+            297,
+            1211
+          ],
+          [
+            811,
+            1209
+          ],
+          [
+            824,
+            1706
+          ],
+          [
+            317,
+            1710
+          ]
+        ],
+        "homography": [
+          [
+            0.9431199303109915,
+            -0.03782818153510701,
+            -234.6945243642759
+          ],
+          [
+            0.0037215670274718315,
+            0.9622989232249733,
+            -1166.8452729708447
+          ],
+          [
+            -0.000007858409578528758,
+            -0.000025922526048915454,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "e1cad0eb89a0e2de1de0de41e62700bbcb89def1c68077106e2cdc39bb748c87",
+      "encodingInputFile": "inputs/vrchat-dance.png"
+    },
+    {
+      "asset": "other",
+      "groups": [
+        "Other"
+      ],
+      "file": "internal/console/assets/webui/category-covers/other.webp",
+      "pixels": [
+        320,
+        240
+      ],
+      "bytes": 4568,
+      "sha256": "541d4c365dd68f78fdacb8d8dcb452b6e8c0f16efb22a45cb5df2a05b42a052c",
+      "layout": "whole-square-on-blurred-dim-background",
+      "source": {
+        "kind": "perspective-corrected-screenshot",
+        "screenshotID": 12,
+        "screenshotSHA256": "cc5f7c2a61474cebef3203803feb982932f12d23d6752896dde44a079ef7fa28",
+        "cornersTLTRBRBL": [
+          [
+            2088,
+            1207
+          ],
+          [
+            2581,
+            1206
+          ],
+          [
+            2573,
+            1692
+          ],
+          [
+            2086,
+            1696
+          ]
+        ],
+        "homography": [
+          [
+            0.930311779622798,
+            0.0038120285807698964,
+            -1947.4889298684664
+          ],
+          [
+            0.001900671411581843,
+            0.9322233708745756,
+            -1129.5578928568832
+          ],
+          [
+            -0.00001204679250662098,
+            -0.000023852589056002053,
+            1
+          ]
+        ],
+        "insetPixels": 0.6
+      },
+      "encodingInputSHA256": "4bf77d22bc3ef2a2262838076d3ed44cd7165cce5f2f26f445a7932e875f4da5",
+      "encodingInputFile": "inputs/other.png"
+    }
+  ],
+  "pipeline": {
+    "script": "scripts/prepare-category-covers.py",
+    "scriptSHA256": "83223b925d1176348309b0be88f6e305a71f4a0b3ead8ba5c1bc420d887e39a3",
+    "Pillow": "13.0.0",
+    "libwebp": "1.6.0",
+    "intermediateStorage": "unchanged original files or lossless PNG masters",
+    "lossyEncodesAddedByProductionExport": 1,
+    "resampling": "perspective correction precedes screenshot PNG masters; one foreground resize during final composition",
+    "inputRule": "Hash-checked masters only; compressed delivery images are never used as generation inputs"
+  },
+  "exportedOn": "2026-11-13"
+}

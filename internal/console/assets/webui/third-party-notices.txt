@@ -13,6 +13,16 @@ Release packages append the actual Go toolchain's notices. See LICENSING.md and
 docs/issue-30-license-audit.md in the corresponding source for scope and evidence.
 
 ========================================================================
+Asset: WannaDance category fallback artwork
+Sources: game screenshots and room/community artwork supplied by the user,
+plus verified official publisher/channel images. Per-image source URLs,
+transformations and hashes are recorded in
+docs/research/category-cover-assets-20261112.json in the corresponding source.
+The illustrations, logos and photographs retain the rights of their respective
+owners. The SWD software license grants no additional rights to this artwork.
+Used as offline category identifiers when individual song artwork is unavailable.
+
+========================================================================
 Asset: GitHub Octicons mark-github-16
 Source: https://github.com/primer/octicons/blob/main/icons/mark-github-16.svg
 Source blob: 0e55a8ef2db1913cb35f81ae09ffdb58b5422319

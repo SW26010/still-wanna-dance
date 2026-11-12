@@ -1,0 +1,871 @@
+{
+  "measuredOn": "2026-11-13",
+  "productionBundle": true,
+  "memoryOnlyCatalogSongs": 50,
+  "browser": "157.0.4341.46",
+  "rows": [
+    {
+      "mode": "default",
+      "viewport": 320,
+      "documentWidth": 320,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 273,
+      "card": {
+        "width": 273,
+        "height": 244.75
+      },
+      "image": {
+        "width": 273,
+        "height": 204.75
+      },
+      "physicalImage": {
+        "width": 273,
+        "height": 205
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 360,
+      "documentWidth": 360,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 313,
+      "card": {
+        "width": 313,
+        "height": 274.75
+      },
+      "image": {
+        "width": 313,
+        "height": 234.75
+      },
+      "physicalImage": {
+        "width": 313,
+        "height": 235
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 390,
+      "documentWidth": 390,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 343,
+      "card": {
+        "width": 343,
+        "height": 297.25
+      },
+      "image": {
+        "width": 343,
+        "height": 257.25
+      },
+      "physicalImage": {
+        "width": 343,
+        "height": 258
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 400,
+      "documentWidth": 400,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 353,
+      "card": {
+        "width": 353,
+        "height": 304.75
+      },
+      "image": {
+        "width": 353,
+        "height": 264.75
+      },
+      "physicalImage": {
+        "width": 353,
+        "height": 265
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 640,
+      "documentWidth": 640,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 3,
+      "gap": "12px",
+      "gridWidth": 593,
+      "card": {
+        "width": 189.656,
+        "height": 182.234
+      },
+      "image": {
+        "width": 189.656,
+        "height": 142.234
+      },
+      "physicalImage": {
+        "width": 190,
+        "height": 143
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 641,
+      "documentWidth": 641,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 2,
+      "gap": "12px",
+      "gridWidth": 410,
+      "card": {
+        "width": 199,
+        "height": 189.25
+      },
+      "image": {
+        "width": 199,
+        "height": 149.25
+      },
+      "physicalImage": {
+        "width": 199,
+        "height": 150
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 768,
+      "documentWidth": 768,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 2,
+      "gap": "12px",
+      "gridWidth": 537,
+      "card": {
+        "width": 262.5,
+        "height": 236.875
+      },
+      "image": {
+        "width": 262.5,
+        "height": 196.875
+      },
+      "physicalImage": {
+        "width": 263,
+        "height": 197
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1024,
+      "documentWidth": 1024,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 4,
+      "gap": "12px",
+      "gridWidth": 793,
+      "card": {
+        "width": 189.25,
+        "height": 181.938
+      },
+      "image": {
+        "width": 189.25,
+        "height": 141.938
+      },
+      "physicalImage": {
+        "width": 190,
+        "height": 142
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1280,
+      "documentWidth": 1280,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1049,
+      "card": {
+        "width": 200.188,
+        "height": 190.141
+      },
+      "image": {
+        "width": 200.188,
+        "height": 150.141
+      },
+      "physicalImage": {
+        "width": 201,
+        "height": 151
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1366,
+      "documentWidth": 1366,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1135,
+      "card": {
+        "width": 217.391,
+        "height": 203.031
+      },
+      "image": {
+        "width": 217.391,
+        "height": 163.031
+      },
+      "physicalImage": {
+        "width": 218,
+        "height": 164
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 6,
+      "gap": "12px",
+      "gridWidth": 1209,
+      "card": {
+        "width": 191.5,
+        "height": 183.625
+      },
+      "image": {
+        "width": 191.5,
+        "height": 143.625
+      },
+      "physicalImage": {
+        "width": 192,
+        "height": 144
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1536,
+      "documentWidth": 1536,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 6,
+      "gap": "12px",
+      "gridWidth": 1305,
+      "card": {
+        "width": 207.5,
+        "height": 195.625
+      },
+      "image": {
+        "width": 207.5,
+        "height": 155.625
+      },
+      "physicalImage": {
+        "width": 208,
+        "height": 156
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1600,
+      "documentWidth": 1600,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 7,
+      "gap": "12px",
+      "gridWidth": 1369,
+      "card": {
+        "width": 185.281,
+        "height": 178.953
+      },
+      "image": {
+        "width": 185.281,
+        "height": 138.953
+      },
+      "physicalImage": {
+        "width": 186,
+        "height": 139
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 1920,
+      "documentWidth": 1920,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 8,
+      "gap": "12px",
+      "gridWidth": 1689,
+      "card": {
+        "width": 200.625,
+        "height": 190.469
+      },
+      "image": {
+        "width": 200.625,
+        "height": 150.469
+      },
+      "physicalImage": {
+        "width": 201,
+        "height": 151
+      }
+    },
+    {
+      "mode": "default",
+      "viewport": 2560,
+      "documentWidth": 2560,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 12,
+      "gap": "12px",
+      "gridWidth": 2329,
+      "card": {
+        "width": 183.078,
+        "height": 177.297
+      },
+      "image": {
+        "width": 183.078,
+        "height": 137.297
+      },
+      "physicalImage": {
+        "width": 184,
+        "height": 138
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 768,
+      "documentWidth": 768,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 2,
+      "gap": "12px",
+      "gridWidth": 537,
+      "card": {
+        "width": 262.5,
+        "height": 236.875
+      },
+      "image": {
+        "width": 262.5,
+        "height": 196.875
+      },
+      "physicalImage": {
+        "width": 263,
+        "height": 197
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 1024,
+      "documentWidth": 1024,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 4,
+      "gap": "12px",
+      "gridWidth": 793,
+      "card": {
+        "width": 189.25,
+        "height": 181.938
+      },
+      "image": {
+        "width": 189.25,
+        "height": 141.938
+      },
+      "physicalImage": {
+        "width": 190,
+        "height": 142
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 1280,
+      "documentWidth": 1280,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1049,
+      "card": {
+        "width": 200.188,
+        "height": 190.141
+      },
+      "image": {
+        "width": 200.188,
+        "height": 150.141
+      },
+      "physicalImage": {
+        "width": 201,
+        "height": 151
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 6,
+      "gap": "12px",
+      "gridWidth": 1209,
+      "card": {
+        "width": 191.5,
+        "height": 183.625
+      },
+      "image": {
+        "width": 191.5,
+        "height": 143.625
+      },
+      "physicalImage": {
+        "width": 192,
+        "height": 144
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 1920,
+      "documentWidth": 1920,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 8,
+      "gap": "12px",
+      "gridWidth": 1689,
+      "card": {
+        "width": 200.625,
+        "height": 190.469
+      },
+      "image": {
+        "width": 200.625,
+        "height": 150.469
+      },
+      "physicalImage": {
+        "width": 201,
+        "height": 151
+      }
+    },
+    {
+      "mode": "navigation-collapsed",
+      "viewport": 2560,
+      "documentWidth": 2560,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 12,
+      "gap": "12px",
+      "gridWidth": 2329,
+      "card": {
+        "width": 183.078,
+        "height": 177.297
+      },
+      "image": {
+        "width": 183.078,
+        "height": 137.297
+      },
+      "physicalImage": {
+        "width": 184,
+        "height": 138
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 390,
+      "documentWidth": 390,
+      "dpr": 1.25,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 343,
+      "card": {
+        "width": 343,
+        "height": 297.25
+      },
+      "image": {
+        "width": 343,
+        "height": 257.25
+      },
+      "physicalImage": {
+        "width": 429,
+        "height": 322
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1280,
+      "documentWidth": 1280,
+      "dpr": 1.25,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1049,
+      "card": {
+        "width": 200.188,
+        "height": 190.141
+      },
+      "image": {
+        "width": 200.188,
+        "height": 150.141
+      },
+      "physicalImage": {
+        "width": 251,
+        "height": 188
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1366,
+      "documentWidth": 1366,
+      "dpr": 1.25,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1135,
+      "card": {
+        "width": 217.391,
+        "height": 203.031
+      },
+      "image": {
+        "width": 217.391,
+        "height": 163.031
+      },
+      "physicalImage": {
+        "width": 272,
+        "height": 204
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1920,
+      "documentWidth": 1920,
+      "dpr": 1.25,
+      "navigationExpanded": "true",
+      "columns": 8,
+      "gap": "12px",
+      "gridWidth": 1689,
+      "card": {
+        "width": 200.625,
+        "height": 190.469
+      },
+      "image": {
+        "width": 200.625,
+        "height": 150.469
+      },
+      "physicalImage": {
+        "width": 251,
+        "height": 189
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 390,
+      "documentWidth": 390,
+      "dpr": 1.5,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 343,
+      "card": {
+        "width": 343,
+        "height": 297.25
+      },
+      "image": {
+        "width": 343,
+        "height": 257.25
+      },
+      "physicalImage": {
+        "width": 515,
+        "height": 386
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1280,
+      "documentWidth": 1280,
+      "dpr": 1.5,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1049,
+      "card": {
+        "width": 200.188,
+        "height": 190.141
+      },
+      "image": {
+        "width": 200.188,
+        "height": 150.141
+      },
+      "physicalImage": {
+        "width": 301,
+        "height": 226
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1366,
+      "documentWidth": 1366,
+      "dpr": 1.5,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1135,
+      "card": {
+        "width": 217.391,
+        "height": 203.031
+      },
+      "image": {
+        "width": 217.391,
+        "height": 163.031
+      },
+      "physicalImage": {
+        "width": 327,
+        "height": 245
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1920,
+      "documentWidth": 1920,
+      "dpr": 1.5,
+      "navigationExpanded": "true",
+      "columns": 8,
+      "gap": "12px",
+      "gridWidth": 1689,
+      "card": {
+        "width": 200.625,
+        "height": 190.469
+      },
+      "image": {
+        "width": 200.625,
+        "height": 150.469
+      },
+      "physicalImage": {
+        "width": 301,
+        "height": 226
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 390,
+      "documentWidth": 390,
+      "dpr": 2,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 343,
+      "card": {
+        "width": 343,
+        "height": 297.25
+      },
+      "image": {
+        "width": 343,
+        "height": 257.25
+      },
+      "physicalImage": {
+        "width": 686,
+        "height": 515
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1280,
+      "documentWidth": 1280,
+      "dpr": 2,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1049,
+      "card": {
+        "width": 200.188,
+        "height": 190.141
+      },
+      "image": {
+        "width": 200.188,
+        "height": 150.141
+      },
+      "physicalImage": {
+        "width": 401,
+        "height": 301
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1366,
+      "documentWidth": 1366,
+      "dpr": 2,
+      "navigationExpanded": "true",
+      "columns": 5,
+      "gap": "12px",
+      "gridWidth": 1135,
+      "card": {
+        "width": 217.391,
+        "height": 203.031
+      },
+      "image": {
+        "width": 217.391,
+        "height": 163.031
+      },
+      "physicalImage": {
+        "width": 435,
+        "height": 327
+      }
+    },
+    {
+      "mode": "dpi-check",
+      "viewport": 1920,
+      "documentWidth": 1920,
+      "dpr": 2,
+      "navigationExpanded": "true",
+      "columns": 8,
+      "gap": "12px",
+      "gridWidth": 1689,
+      "card": {
+        "width": 200.625,
+        "height": 190.469
+      },
+      "image": {
+        "width": 200.625,
+        "height": 150.469
+      },
+      "physicalImage": {
+        "width": 402,
+        "height": 301
+      }
+    }
+  ],
+  "sweep": {
+    "start": 320,
+    "end": 2560,
+    "step": 16,
+    "samples": 141,
+    "minimum": {
+      "mode": "sweep-default",
+      "viewport": 2528,
+      "documentWidth": 2528,
+      "dpr": 1,
+      "navigationExpanded": "true",
+      "columns": 12,
+      "gap": "12px",
+      "gridWidth": 2297,
+      "card": {
+        "width": 180.406,
+        "height": 175.297
+      },
+      "image": {
+        "width": 180.406,
+        "height": 135.297
+      },
+      "physicalImage": {
+        "width": 181,
+        "height": 136
+      }
+    },
+    "maximum": {
+      "mode": "sweep-default",
+      "viewport": 416,
+      "documentWidth": 416,
+      "dpr": 1,
+      "navigationExpanded": "false",
+      "columns": 1,
+      "gap": "12px",
+      "gridWidth": 369,
+      "card": {
+        "width": 369,
+        "height": 316.75
+      },
+      "image": {
+        "width": 369,
+        "height": 276.75
+      },
+      "physicalImage": {
+        "width": 369,
+        "height": 277
+      }
+    }
+  },
+  "errors": [],
+  "sourcePixelCandidates": [
+    {
+      "profile": "256x192-q80",
+      "pixels": [
+        256,
+        192
+      ],
+      "quality": 80,
+      "totalBytes": 256816,
+      "savingVsCurrentPercent": 69.39,
+      "averageSsimAt200": 0.987097,
+      "averageSsimAt300": 0.971821,
+      "averageSsimAt440": 0.951846,
+      "averageSsimAt688": 0.931353
+    },
+    {
+      "profile": "320x240-q80",
+      "pixels": [
+        320,
+        240
+      ],
+      "quality": 80,
+      "totalBytes": 336130,
+      "savingVsCurrentPercent": 59.93,
+      "averageSsimAt200": 0.990712,
+      "averageSsimAt300": 0.981039,
+      "averageSsimAt440": 0.966423,
+      "averageSsimAt688": 0.94881
+    },
+    {
+      "profile": "384x288-q80",
+      "pixels": [
+        384,
+        288
+      ],
+      "quality": 80,
+      "totalBytes": 416038,
+      "savingVsCurrentPercent": 50.41,
+      "averageSsimAt200": 0.992734,
+      "averageSsimAt300": 0.985561,
+      "averageSsimAt440": 0.974189,
+      "averageSsimAt688": 0.958928
+    },
+    {
+      "profile": "512x384-q80",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 80,
+      "totalBytes": 586584,
+      "savingVsCurrentPercent": 30.08,
+      "averageSsimAt200": 0.994974,
+      "averageSsimAt300": 0.990218,
+      "averageSsimAt440": 0.983098,
+      "averageSsimAt688": 0.972072
+    },
+    {
+      "profile": "512x384-q88",
+      "pixels": [
+        512,
+        384
+      ],
+      "quality": 88,
+      "totalBytes": 838886,
+      "savingVsCurrentPercent": 0.0,
+      "averageSsimAt200": 0.996983,
+      "averageSsimAt300": 0.99417,
+      "averageSsimAt440": 0.989409,
+      "averageSsimAt688": 0.980392
+    }
+  ],
+  "recommendation": {
+    "profile": "384x288-q80",
+    "totalBytes": 416038,
+    "savingVsCurrentPercent": 50.41,
+    "reason": "Covers the roughly 372 CSS px single-column limit at 1x, with headroom for common desktop cards at 1.25x/1.5x; accepts some enlargement at 2x.",
+    "smallerAlternative": {
+      "profile": "320x240-q80",
+      "totalBytes": 336130,
+      "tradeoff": "Suitable for desktop-focused use; more enlargement in narrow layouts and at 2x"
+    },
+    "productionChanged": false,
+    "status": "Earlier layout-based proposal; user subsequently accepted 320x240 q80 and requested stronger compression.",
+    "supersededBy": "category-cover-strong-compression-20261113.json"
+  }
+}

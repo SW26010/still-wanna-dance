@@ -19,6 +19,8 @@ test('compact log table shows full content with native horizontal scrolling and 
   expect(queries).toHaveLength(0);
   await page.getByRole('tab',{name:'日志',exact:true}).click();
   await expect(rows(page)).toHaveCount(50);
+  const pager=page.getByRole('navigation',{name:'日志分页',exact:true});
+  await expect(pager.getByRole('status')).toHaveText('第1/2页 · 共 53 条');
   await expect(records(page).getByRole('columnheader')).toHaveText(['时间','级别','事件','内容']);
   await expect(records(page).getByRole('button')).toHaveCount(0);
   await expect(records(page).getByText('<script>literal event</script>',{exact:true})).toBeVisible();
@@ -53,6 +55,7 @@ test('compact log table shows full content with native horizontal scrolling and 
   await page.screenshot({animations:'disabled',path:testInfo.outputPath('compact-logs-wide-content-end.png')});
   await page.getByRole('button',{name:'下一页日志',exact:true}).click();
   await expect(rows(page)).toHaveCount(3);
+  await expect(pager.getByRole('status')).toHaveText('第2/2页 · 共 53 条');
   await expect(page.getByRole('region',{name:'日志查询结果',exact:true})).toBeFocused();
   await page.getByLabel('开始时间',{exact:true}).fill('2026-11-02T09:00');
   await page.getByLabel('结束时间',{exact:true}).fill('2026-11-02T11:00');
@@ -107,7 +110,7 @@ test('expanded log table shows all read records without paging and restores the 
   expect(await dialog.evaluate(element=>element.contains(document.activeElement))).toBe(true);
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(expand).toBeFocused();
   await expect(rows(page)).toHaveCount(50);await expect(rows(page).first()).toContainText('fixture_event_50');
-  await expect(page.getByRole('navigation',{name:'日志分页',exact:true})).toContainText('第 2 页');
+  await expect(page.getByRole('navigation',{name:'日志分页',exact:true})).toContainText('第2/10页 · 共 500 条（最近记录）');
   await expect(limitNotice).toBeVisible();
   await expect(keyword).toHaveValue('draft');expect(queries).toBe(1);
   await expand.click();await expect(dialog.locator('tbody tr')).toHaveCount(500);
@@ -153,17 +156,17 @@ test('browser visibility restoration preserves the log page while explicit queri
   await restore();await expect(dialog.locator('tbody tr').first()).toContainText('snapshot_2');
   await dialog.getByRole('button',{name:'退出日志展开视图',exact:true}).click();
   const pager=page.getByRole('navigation',{name:'日志分页',exact:true});
-  await expect(pager).toContainText('第 2 页');await expect(rows(page).first()).toContainText('fixture_event_50');
+  await expect(pager).toContainText('第2/4页 · 共 153 条');await expect(rows(page).first()).toContainText('fixture_event_50');
   expect(reads).toBe(2);
   await page.getByRole('button',{name:'查询日志',exact:true}).click();
-  await expect(rows(page).first()).toContainText('snapshot_3');await expect(pager).toContainText('第 1 页');
+  await expect(rows(page).first()).toContainText('snapshot_3');await expect(pager).toContainText('第1/');
   await page.getByRole('button',{name:'下一页日志',exact:true}).click();
   await page.getByRole('button',{name:'下一页日志',exact:true}).click();await expect(rows(page).first()).toContainText('fixture_event_100');
-  count=53;await restore();await expect(rows(page)).toHaveCount(3);await expect(pager).toContainText('第 2 页');
+  count=53;await restore();await expect(rows(page)).toHaveCount(3);await expect(pager).toContainText('第2/2页 · 共 53 条');
   await expect(rows(page).first()).toContainText('fixture_event_50');expect(reads).toBe(4);
   fail=true;await restore();
   await expect(page.getByRole('listitem',{name:/^日志读取失败，请重新查询/}).last()).toBeVisible();
-  fail=false;await restore();await expect(rows(page)).toHaveCount(3);await expect(pager).toContainText('第 2 页');
+  fail=false;await restore();await expect(rows(page)).toHaveCount(3);await expect(pager).toContainText('第2/');
   await expect(rows(page).first()).toContainText('fixture_event_50');expect(reads).toBe(6);
 });
 
@@ -217,6 +220,7 @@ test('log range validation, limited results, invalid lines, empty and retry',asy
   failed=false;Object.assign(result,{entries:[],matches:0,skipped:0});
   await page.getByRole('button',{name:'查询日志',exact:true}).click();
   await expect(page.getByText('当前筛选条件下没有日志。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'日志分页',exact:true}).getByRole('status')).toHaveText('共 0 条');
 });
 
 test('log reader remains available when status or business storage fails',async({page})=>{

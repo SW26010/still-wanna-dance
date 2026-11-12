@@ -40,10 +40,11 @@ func TestSongCoverBrowser(t *testing.T) {
 	})
 	key := strings.Repeat("a", 32)
 	names := []string{"封面联调歌曲一", "封面联调歌曲二", "封面联调歌曲三"}
+	groups := []string{"Just Dance Solo", "Fitness Marshall", "未收录类别"}
 	artist, dancer := "联调歌手", "联调舞者"
 	var songs []cacheproxy.CatalogSong
 	for i := range 3 {
-		songs = append(songs, cacheproxy.CatalogSong{ID: int64(i + 1), Name: &names[i], Artist: &artist, Dancer: &dancer, MD5: key})
+		songs = append(songs, cacheproxy.CatalogSong{ID: int64(i + 1), Name: &names[i], Artist: &artist, Dancer: &dancer, GroupName: &groups[i], MD5: key})
 	}
 	if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261111000000", Songs: songs}); err != nil {
 		t.Fatal(err)

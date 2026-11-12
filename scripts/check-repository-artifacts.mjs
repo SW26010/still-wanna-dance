@@ -18,12 +18,13 @@ export function classify(file, bytes, policy) {
   const exception = policy.exceptions.find(e => e.path === file && e.sha256 === (digest ??= sha256(bytes)));
   const productIcon = exception?.kind === 'product-icon' && /^internal\/branding\/logo(?:(?:-light)?\.ico|_windows_amd64\.syso)$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
   const readmeScreenshot = exception?.kind === 'readme-screenshot' && /^docs\/images\/webui-(?:acceleration|library|settings-dark)\.png$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes;
+  const categoryCover = exception?.kind === 'category-cover' && /^internal\/console\/assets\/webui\/category-covers\/[a-z0-9-]+\.webp$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes && typeof exception.reason === 'string' && exception.reason.trim().length > 0;
   const dashboard = exception?.kind === 'embedded-dashboard' && file === 'internal/dashboard/assets/zashboard.zip' && exception.bytes === bytes.length;
   const largeText = exception?.kind === 'large-text' && exception.bytes === bytes.length && typeof exception.reason === 'string' && exception.reason.trim().length > 0;
-  if (binary && exception?.kind !== 'binary-fixture' && !productIcon && !readmeScreenshot && !dashboard) return { error: 'binary content requires an exact documented product or fixture exception' };
-  if (/\.(?:png|jpe?g|webp|gif|ico|zip|gz|7z|exe|dll|mp4|etl|pdf)$/i.test(file) && !productIcon && !readmeScreenshot && !dashboard) return { error: 'generated/binary artifact belongs in an evidence or release archive' };
+  if (binary && exception?.kind !== 'binary-fixture' && !productIcon && !readmeScreenshot && !dashboard && !categoryCover) return { error: 'binary content requires an exact documented product or fixture exception' };
+  if (/\.(?:png|jpe?g|webp|gif|ico|zip|gz|7z|exe|dll|mp4|etl|pdf)$/i.test(file) && !productIcon && !readmeScreenshot && !dashboard && !categoryCover) return { error: 'generated/binary artifact belongs in an evidence or release archive' };
   if (file.endsWith('.svg') && /<(?:image|script)\b|data\s*:/i.test(bytes.toString())) return { error: 'SVG must be vector-only, without embedded raster or scripts' };
-  const allowed = largeText || productIcon || readmeScreenshot || dashboard || (binary && exception?.kind === 'binary-fixture');
+  const allowed = largeText || productIcon || readmeScreenshot || dashboard || categoryCover || (binary && exception?.kind === 'binary-fixture');
   if (bytes.length > policy.maxBytes && !allowed) return { error: largeFileError };
   if (bytes.length > policy.warnBytes && !allowed) return { warning: 'review whether this belongs in an archive' };
   return {};

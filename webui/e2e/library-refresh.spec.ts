@@ -15,7 +15,7 @@ async function checkTime(page:Page,label:'检查本地视频'|'更新曲库') {
 }
 
 test('library reads once per visit and checks local files only on demand',async({page})=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   await page.clock.install({time:new Date('2026-10-28T08:00:00Z')});
   await page.goto('/#/library');
   await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
@@ -41,7 +41,7 @@ test('library reads once per visit and checks local files only on demand',async(
 });
 
 test('catalog refresh tracks completion then stops and retains the last successful timestamp on failure',async({page})=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   let inventory={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z',scanning:false},reads=0;
   await page.route('**/api/inventory',route=>{reads++;return route.fulfill({json:inventory});});
   await page.route('**/api/inventory/scan',route=>{inventory.scanning=true;return route.fulfill({json:{ok:true}});});
@@ -67,7 +67,7 @@ test('catalog refresh tracks completion then stops and retains the last successf
 });
 
 test('import progress refreshes one shared storage snapshot without polling unchanged work or hidden pages',async({page})=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   api.state.import={id:1,running:true,imported:0,checked:0,total:20,phase:'正在校验并导入'};
   await page.clock.install();await page.goto('/#/library');
   const summaries=page.locator('#video-import, #batch').getByText(/^本地视频：已用 /);
@@ -101,7 +101,7 @@ test('import progress refreshes one shared storage snapshot without polling unch
 });
 
 test('summary refresh icons have hover and keyboard labels at desktop and narrow widths',async({page},info)=>{
-  await mockAPI(page);await page.goto('/#/library');
+  await mockAPI(page,{libraryView:'list'});await page.goto('/#/library');
   for(const [group,label] of [['本地视频','检查本地视频'],['曲库覆盖率','更新曲库']]){
     const button=page.getByRole('group',{name:group,exact:true}).getByRole('button',{name:label,exact:true});
     await expect(button).toBeEnabled();await expect(button).toHaveText('');
@@ -129,7 +129,7 @@ test('summary refresh icons have hover and keyboard labels at desktop and narrow
 });
 
 test('completed network checks publish new catalog data without a library timer or another online scan',async({page})=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   const inventory={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z',catalogRevision:'20261016000000',catalog:{revision:'20261016000000',checkedAt:'2026-10-16T00:00:00Z'}};
   let reads=0;
   await page.route('**/api/inventory',route=>{reads++;return route.fulfill({json:inventory});});
@@ -151,7 +151,7 @@ test('completed network checks publish new catalog data without a library timer 
 });
 
 test('batch preparation and gaps between downloads keep progress reads alive until all work finishes',async({page})=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   let tasks:Download[]=[],reads=0;
   await page.route('**/api/downloads',route=>{reads++;return route.fulfill({json:{tasks}});});
   await page.route('**/api/batch/start',route=>{api.state.batch={running:true,phase:'准备清单'};return route.fulfill({json:{ok:true}});});
@@ -181,7 +181,7 @@ test('batch preparation and gaps between downloads keep progress reads alive unt
 });
 
 test('video directory failures preserve the last successful check time until recovery',async({page})=>{
-  await mockAPI(page);
+  await mockAPI(page,{libraryView:'list'});
   let videoError='';
   await page.route('**/api/library?*',route=>route.fulfill({json:{storageID:'fixture',databaseID:'fixture-db',videoError,songs:[],resources:{},keys:[],total:0,fileCount:videoError?0:2,totalBytes:videoError?0:2147483648}}));
   await page.clock.install({time:new Date('2026-10-28T08:00:00Z')});await page.goto('/#/library');
@@ -211,7 +211,7 @@ test('video directory failures preserve the last successful check time until rec
 });
 
 for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const)test(`${kind} refresh keeps the summary and table in place at ${width}px`,async({page},info)=>{
-  const api=await mockAPI(page);
+  const api=await mockAPI(page,{libraryView:'list'});
   const inventory={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z',scanning:false};
   let holdLocal=false,localReads=0,inventoryReads=0,scans=0;
   let releaseLocal=()=>{};

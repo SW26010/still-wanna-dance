@@ -62,7 +62,7 @@ try {
   await expect(page).toHaveURL(/#network-tests$/);
   await expect(page.getByRole('heading',{name:'连通性检测',exact:true})).toBeVisible();
   await page.goto(base+'/#/library');
-  await expect(page.getByRole('table',{name:'曲库歌曲'})).toContainText('canonical Udon metadata');
+  await expect(page.getByRole('list',{name:'曲库封面'})).toContainText('canonical Udon metadata');
   expect(errors).toEqual([]);
   await writeFile(join(output,'result.json'),JSON.stringify({passed:true,realConsole:true,upstream:'controlled HTTP fixture',checks:['all three home actions','home full refresh','shared results and automatic deadline','home title navigation'],screenshots:['active-proxy.png'],errors},null,2));
 } finally {await browser.close();}

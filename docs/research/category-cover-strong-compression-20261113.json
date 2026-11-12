@@ -1,0 +1,270 @@
+{
+  "measuredOn": "2026-11-13",
+  "pixels": [
+    320,
+    240
+  ],
+  "assets": 44,
+  "method": 6,
+  "generation": "Every quality encoded directly from the same uncompressed composition; no q80 re-encoding",
+  "acceptedBaseline": {
+    "quality": 80,
+    "bytes": 336130
+  },
+  "metricScope": "Foreground only, compared to accepted q80 and to the uncompressed 320x240 composition at 200/300 displayed pixels",
+  "summary": [
+    {
+      "quality": 80,
+      "totalBytes": 336130,
+      "savingVs320Q80Percent": 0.0,
+      "averageSsimVsQ80At200": 1.0,
+      "averageSsimVsQ80At300": 1.0,
+      "worstAt300": [
+        {
+          "asset": "just-dance-solo",
+          "ssimVsQ80": 1.0
+        },
+        {
+          "asset": "just-dance-duet",
+          "ssimVsQ80": 1.0
+        },
+        {
+          "asset": "just-dance-trio",
+          "ssimVsQ80": 1.0
+        },
+        {
+          "asset": "just-dance-crew",
+          "ssimVsQ80": 1.0
+        },
+        {
+          "asset": "just-dance-fan-made",
+          "ssimVsQ80": 1.0
+        }
+      ]
+    },
+    {
+      "quality": 70,
+      "totalBytes": 266640,
+      "savingVs320Q80Percent": 20.67,
+      "averageSsimVsQ80At200": 0.988029,
+      "averageSsimVsQ80At300": 0.979101,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.958835
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.9635
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.964991
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssimVsQ80": 0.968267
+        },
+        {
+          "asset": "liu-doudou",
+          "ssimVsQ80": 0.969892
+        }
+      ]
+    },
+    {
+      "quality": 60,
+      "totalBytes": 239376,
+      "savingVs320Q80Percent": 28.78,
+      "averageSsimVsQ80At200": 0.9855,
+      "averageSsimVsQ80At300": 0.974949,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.950308
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.956037
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.959442
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssimVsQ80": 0.96277
+        },
+        {
+          "asset": "mr-alex",
+          "ssimVsQ80": 0.962918
+        }
+      ]
+    },
+    {
+      "quality": 50,
+      "totalBytes": 215088,
+      "savingVs320Q80Percent": 36.01,
+      "averageSsimVsQ80At200": 0.983022,
+      "averageSsimVsQ80At300": 0.971109,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.943018
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.949392
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.953986
+        },
+        {
+          "asset": "mr-alex",
+          "ssimVsQ80": 0.955062
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssimVsQ80": 0.957529
+        }
+      ]
+    },
+    {
+      "quality": 40,
+      "totalBytes": 190832,
+      "savingVs320Q80Percent": 43.23,
+      "averageSsimVsQ80At200": 0.980005,
+      "averageSsimVsQ80At300": 0.966723,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.933779
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.941086
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.946756
+        },
+        {
+          "asset": "mr-alex",
+          "ssimVsQ80": 0.947607
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssimVsQ80": 0.950266
+        }
+      ]
+    },
+    {
+      "quality": 30,
+      "totalBytes": 163382,
+      "savingVs320Q80Percent": 51.39,
+      "averageSsimVsQ80At200": 0.975516,
+      "averageSsimVsQ80At300": 0.96015,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.920006
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.932401
+        },
+        {
+          "asset": "mr-alex",
+          "ssimVsQ80": 0.934729
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.93715
+        },
+        {
+          "asset": "sunny-funny-fitness",
+          "ssimVsQ80": 0.942463
+        }
+      ]
+    },
+    {
+      "quality": 20,
+      "totalBytes": 137494,
+      "savingVs320Q80Percent": 59.09,
+      "averageSsimVsQ80At200": 0.966541,
+      "averageSsimVsQ80At300": 0.948132,
+      "worstAt300": [
+        {
+          "asset": "nanakawa-miko",
+          "ssimVsQ80": 0.903173
+        },
+        {
+          "asset": "mr-alex",
+          "ssimVsQ80": 0.910282
+        },
+        {
+          "asset": "wata",
+          "ssimVsQ80": 0.916582
+        },
+        {
+          "asset": "fitness-marshall",
+          "ssimVsQ80": 0.92153
+        },
+        {
+          "asset": "choyoung",
+          "ssimVsQ80": 0.922546
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "quality": 50,
+    "pixels": [
+      320,
+      240
+    ],
+    "bytes": 215088,
+    "savingVs320Q80Percent": 36.01,
+    "scope": "User accepted 320x240 q80 visually; q50 is the proposed stronger-compression candidate, with visible detail loss when enlarged.",
+    "moreAggressiveAlternative": {
+      "quality": 40,
+      "bytes": 190832,
+      "additionalBytesSavedVsQ50": 24256
+    },
+    "productionChanged": true,
+    "status": "accepted-and-applied",
+    "productionManifest": "category-cover-assets-20261112.json"
+  },
+  "previewValidation": {
+    "browser": "157.0.4341.46",
+    "profiles": [
+      {
+        "quality": "70",
+        "imagesDecoded": 88
+      },
+      {
+        "quality": "60",
+        "imagesDecoded": 88
+      },
+      {
+        "quality": "50",
+        "imagesDecoded": 88
+      },
+      {
+        "quality": "40",
+        "imagesDecoded": 88
+      },
+      {
+        "quality": "30",
+        "imagesDecoded": 88
+      },
+      {
+        "quality": "20",
+        "imagesDecoded": 88
+      }
+    ],
+    "widthControlVerified": true,
+    "errors": []
+  },
+  "comparisonRunChangedProduction": false
+}

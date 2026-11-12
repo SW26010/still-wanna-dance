@@ -4,6 +4,7 @@
 experiments export-ignore
 docs/evidence export-ignore
 
-# Fixed compatibility fixture and reviewed offline product dashboard.
+# Fixed compatibility fixture and reviewed offline product assets.
 internal/cacheproxy/testdata/storage-v2.sqlite binary
 internal/dashboard/assets/zashboard.zip binary
+internal/console/assets/webui/category-covers/*.webp binary

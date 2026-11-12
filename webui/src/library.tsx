@@ -47,12 +47,14 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
   const page=useResource<LibraryPage>(pagePath,visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
   const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
-  const actions=useCacheActions(page.data,page.refresh,visible,page.loading||pending||!!page.error);
+  // Same-query reads retain an actionable snapshot; query/save changes must wait for their own result.
+  const pageUnavailable=!page.data||page.loadedPath!==pagePath||page.loadedRevision!==app.revision||waitingForDatabase||!!page.error;
+  const actions=useCacheActions(page.data,page.refresh,visible,pageUnavailable||pending);
   const fileResult=useRef<HTMLElement>(null);
   useEffect(()=>{if(!visible||app.stopped)setPreview(undefined);},[visible,app.stopped]);
   useEffect(()=>setPreview(undefined),[page.data?.storageID]);
   useEffect(()=>{if(visible&&(actions.result?.error||actions.result?.entries?.length))fileResult.current?.focus();},[visible,actions.result]);
-  const disabled=app.unavailable||pending||actions.pending||page.loading||!page.data||!!page.error;
+  const disabled=app.unavailable||pending||actions.pending||pageUnavailable;
   const resources=page.data?.resources||{};
   const nextCoverPage=offset+50<(page.data?.total||0)?'library?'+new URLSearchParams({...query,view,song,resource,offset:String(offset+50)}):'';
   const coverImages=useLibraryCovers(page.data?.songs.map(song=>song.id).join(',')||'',nextCoverPage,visible&&view==='songs'&&covers&&!app.stopped&&!page.error&&page.loadedPath===pagePath);
@@ -111,8 +113,8 @@ function LibraryView({visible,anchor,song,resource,requestedView}:{visible:boole
     return <>{previewAction(songPreview(song),songPreviewReason(song),menu)}{menu?<MenuItem icon={<ArrowDownloadRegular/>} disabled={unavailable} onClick={()=>download({songID:song.id})}>下载歌曲</MenuItem>:<Tooltip content="下载歌曲" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowDownloadRegular/>} aria-label="下载歌曲" disabled={unavailable} onClick={()=>download({songID:song.id})}/></Tooltip>}{fileActions(r,menu)}</>;
   };
   const songPreferences=(song:LibrarySong,transparent=false)=><div className="inline row-actions" role="group" aria-label={`歌曲 ${song.id} 的偏好`}>
-    <Tooltip content={song.policy==='favorite'?'取消收藏':'收藏'} relationship="description"><ToggleButton size="small" appearance={transparent?'transparent':'subtle'} aria-label="收藏" checked={song.policy==='favorite'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-favorite-icon',children:song.policy==='favorite'?<HeartFilled/>:<HeartRegular/>}} onClick={()=>void save(song.id,song.policy==='favorite'?'normal':'favorite')}/></Tooltip>
-    <Tooltip content={song.policy==='blocked'?'取消屏蔽':'屏蔽'} relationship="description"><ToggleButton size="small" appearance="transparent" aria-label="屏蔽" checked={song.policy==='blocked'} disabled={disabled} disabledFocusable={pending||page.loading} icon={{className:'song-blocked-icon',children:song.policy==='blocked'?<ProhibitedRegular/>:<CircleRegular/>}} onClick={()=>void save(song.id,song.policy==='blocked'?'normal':'blocked')}/></Tooltip>
+    <Tooltip content={song.policy==='favorite'?'取消收藏':'收藏'} relationship="description"><ToggleButton size="small" appearance={transparent?'transparent':'subtle'} aria-label="收藏" checked={song.policy==='favorite'} disabled={disabled} disabledFocusable={pending||pageUnavailable} icon={{className:'song-favorite-icon',children:song.policy==='favorite'?<HeartFilled/>:<HeartRegular/>}} onClick={()=>void save(song.id,song.policy==='favorite'?'normal':'favorite')}/></Tooltip>
+    <Tooltip content={song.policy==='blocked'?'取消屏蔽':'屏蔽'} relationship="description"><ToggleButton size="small" appearance="transparent" aria-label="屏蔽" checked={song.policy==='blocked'} disabled={disabled} disabledFocusable={pending||pageUnavailable} icon={{className:'song-blocked-icon',children:song.policy==='blocked'?<ProhibitedRegular/>:<CircleRegular/>}} onClick={()=>void save(song.id,song.policy==='blocked'?'normal':'blocked')}/></Tooltip>
   </div>;
   const songDetails=(song:LibrarySong,full=false)=>{
     const r=resources[song.resource];

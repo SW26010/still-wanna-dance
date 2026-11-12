@@ -68,14 +68,14 @@ func (s *Store) ObserveSongURL(ctx context.Context, o PlaybackObservation) (resu
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO media_urls(md5,node,url) VALUES (?,?,?)
- ON CONFLICT(md5,node) DO UPDATE SET url=excluded.url`, v.key, o.Node, o.URL); err != nil {
+ ON CONFLICT(md5,node) DO UPDATE SET url=excluded.url WHERE media_urls.url IS NOT excluded.url`, v.key, o.Node, o.URL); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", o.SongID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO song_media(song_id,md5) VALUES (?,?)
- ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5`, o.SongID, v.key); err != nil {
+ ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5 WHERE song_media.md5 IS NOT excluded.md5`, o.SongID, v.key); err != nil {
 			return err
 		}
 		return nil

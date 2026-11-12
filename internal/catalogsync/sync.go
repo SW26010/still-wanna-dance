@@ -15,7 +15,6 @@ type Options struct {
 type Sync struct {
 	mu           sync.Mutex
 	options      Options
-	updated      time.Time
 	catalogError string
 	closed       bool
 	attempted    map[int64]bool
@@ -41,16 +40,6 @@ func (s *Sync) CatalogChecked(err error) {
 }
 func (s *Sync) CatalogError() string { s.mu.Lock(); defer s.mu.Unlock(); return s.catalogError }
 
-func (s *Sync) UpdatedAt() time.Time { s.mu.Lock(); defer s.mu.Unlock(); return s.updated }
-
-// Updated records a business write, including valid responses reused by diagnostics.
-func (s *Sync) Updated() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.closed {
-		s.updated = time.Now()
-	}
-}
 func (s *Sync) Close() {
 	s.mu.Lock()
 	s.closed = true

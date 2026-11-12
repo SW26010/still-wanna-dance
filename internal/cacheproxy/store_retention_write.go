@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // writeMapping serializes mapping snapshots and retention decisions with the
@@ -22,12 +23,35 @@ func (s *Store) writeMapping(ctx context.Context, prepare func() (bool, error), 
 			return err
 		}
 	}
+	var changed bool
 	if needed {
-		if err := s.commitRetentionWrite(ctx, write); err != nil {
+		if err := s.commitRetentionWrite(ctx, func(tx *sql.Tx) error {
+			// Both counters belong to this transaction's connection, excluding
+			// unrelated writes on other connections. No-op UPSERTs must be guarded.
+			var before, after int64
+			if err := tx.QueryRowContext(ctx, "SELECT total_changes()").Scan(&before); err != nil {
+				return err
+			}
+			if err := write(tx); err != nil {
+				return err
+			}
+			if err := tx.QueryRowContext(ctx, "SELECT total_changes()").Scan(&after); err != nil {
+				return err
+			}
+			changed = after != before
+			return nil
+		}); err != nil {
 			return err
 		}
 	}
-	s.changed(false)
+	if changed {
+		s.mu.Lock()
+		s.metadataUpdated = time.Now()
+		s.mu.Unlock()
+	}
+	if changed || !needed {
+		s.changed(false)
+	}
 	return nil
 }
 

@@ -49,7 +49,4 @@ func (c *Console) syncPlaybackURL(ctx context.Context, response upstreamcheck.Pl
 		// A local persistence failure does not change the API's health result.
 		slog.Warn("metadata_sync_url_sync_failed", "song_id", response.SongID, "node", response.Node, "error", applog.SafeError(err))
 	}
-	if err == nil && ctx.Err() == nil {
-		c.catalogDataUpdated()
-	}
 }

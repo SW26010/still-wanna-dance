@@ -195,7 +195,11 @@ form.actions { align-items: flex-end; }
 .toolbar.spread { justify-content: space-between; }
 .library-search { align-items: flex-end; margin-inline-start: auto; max-width: 100%; justify-content: flex-end; }
 .library-search .fui-Field { grid-template-columns: max-content minmax(0,1fr); }
-.library-search .fui-Input { width: 18rem; min-width: 0; max-width: 100%; }
+.library-search .library-search-box { width: 18rem; min-width: 0; max-width: 100%; padding-inline: var(--spacingHorizontalS); }
+.library-search .library-search-box > input { padding-inline: 0; }
+.library-search .library-search-actions { align-items: center; width: auto; height: 24px; padding-inline: 0; overflow: visible; }
+.library-search-error { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex-shrink: 0; }
+.library-search-error > .fui-Button { min-width: 24px; }
 .library-view-options { flex-wrap: nowrap; }
 .library-view-toggle-hidden { visibility: hidden; }
 .library-cover-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(180px,100%),1fr)); gap: var(--spacingHorizontalM); list-style: none; margin: 0; padding: var(--spacingVerticalS) 0; }

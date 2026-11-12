@@ -996,3 +996,17 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - Go 1.27.3、GCC 16.2.0 下，8 项读取／句柄生命周期与发布额度的定向 Windows race 测试在普通用户权限下通过（72.012 秒，无 skip），结果在 `race-native.log`；相关 Go 文件格式和 `git diff --check` 通过。
 
 本轮检查使用真实文件及受控回环上游，从 `ServeHTTP` 验证阻塞与交付边界，不外推为真实慢盘吞吐或游戏播放收益。未启动 VRC、修改 hosts、替换运行实例或执行 commit／push，无需新增 VRC 专属待验项。
+
+## 移除只被测试调用的本地扫描链
+
+移除前核对所有跟踪 Go 源码：`LocalChecker`、`LocalReceipt`、`CheckLocal`／`CheckLocalReceipt` 和 `ReuseLocalSong` 均无生产调用；强制哈希仅由 `TestConcurrentFullScanChecksSharedVideoOnce` 触发。生产读取调用 `validateLocalFile` 时固定传入 `force=false`，只检查普通文件及属性。因此这是维护冗余，不能据此证明当前播放被慢哈希阻塞。
+
+删除 `inspect.go`、扫描状态与回执、强制哈希及其专用测试。普通文件检查收回 `verifiedFile`，继续保留共享句柄、独立读取位置、取消与最后引用释放；下载发布和导入的 MD5 校验保持原流程。同进程检查锁原本用于协调独立扫描器；生产读取已持有资源引用，删除由 `beginVideoRemovalLocked` 预留，离线删除另有独占存储锁，因此一起移除这套扫描锁及其删除保护分支。发布额度 `localChecks`、库存扫描和正式资源引用继续沿用现有机制。现行接口见[本地资源管理](../download-resource-design.md#6-本地资源管理接口与所有权)。
+
+保留并迁移 `TestPublishedFileNeedsNoPlaybackHash` 至 `verified_test.go`；删除保护测试只移除对旧扫描锁的断言，继续验证活动引用、使用保护、删除预留和存储独占。此前记录中的 force checker、独立校验锁及 `verification_store_test.go` 只适用于移除前实现，历史结果不改写。
+
+- 全部 `cmd`／`internal` 包 `go vet` 通过；移除后所有跟踪 Go 源码无旧扫描符号残留，gofmt 与 `git diff --check` 通过。
+- 缓存与 Console 整包普通回归通过（分别 179.269／164.026 秒），使用普通用户权限执行以避开已记录的 Windows 沙箱文件操作限制。
+- 9 项顶层定向 Windows race 检查通过（88.119 秒，无 skip），覆盖句柄共享／释放／路径替换、取消、删除保护、跨重启不可变文件复用，以及发布额度占满时本地 GET／Range／HEAD 和冷 GET 的交付。
+
+原始引用核对、移除前基线和普通／race 回归日志保存在忽略目录 `artifacts/legacy-local-scan-cleanup/`；vet 无诊断输出。这些检查不代表真实慢盘或 VRC 播放性能测量；本轮未启动游戏、修改 hosts、替换运行实例或执行 commit／push。

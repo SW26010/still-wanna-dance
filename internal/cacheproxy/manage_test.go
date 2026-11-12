@@ -166,7 +166,7 @@ func TestCacheDeletionSharedMetadataAndStaleConfirmation(t *testing.T) {
 	}
 }
 
-func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
+func TestCacheDeletionProtectsPinsUsageAndStore(t *testing.T) {
 	root, entries := managementFixture(t, 1)
 	e := entries[0]
 	ctx := context.Background()
@@ -192,15 +192,6 @@ func TestCacheDeletionProtectsPinsUsageChecksAndStore(t *testing.T) {
 		t.Fatal(r, err)
 	}
 	clearTestProtection(s)
-	release, err := verificationLocks.acquire(ctx, pathIdentity(fixtureLibrary(root).VideoDir)+e.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r, err = s.DeleteCache(ctx, selected)
-	release()
-	if err != nil || r[0].Result != "protected" {
-		t.Fatal(r, err)
-	}
 	if _, err = DeleteCacheOffline(ctx, fixtureLibrary(root), selected); err == nil {
 		t.Fatal("offline deletion bypassed store owner")
 	}

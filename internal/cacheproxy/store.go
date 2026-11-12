@@ -236,6 +236,7 @@ type retentionBinding struct{ changed func(queue bool) }
 
 // A decision includes its database snapshot, filesystem publication/deletion,
 // and settlement. Mapping/preference writes cannot interleave with that scope.
+// Inventory scans run independently, before taking the policy snapshot.
 func (s *Store) retentionDecision(decide func() error) error {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()

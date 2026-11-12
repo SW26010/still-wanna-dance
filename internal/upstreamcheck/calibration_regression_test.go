@@ -106,7 +106,7 @@ func TestCalibrationContinuesAfterResourceFailure(t *testing.T) {
 	})
 }
 
-func TestCalibrationNonRangeLoadsReachConfiguredConcurrency(t *testing.T) {
+func TestCalibrationRejectsNonRangeResources(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		candidates := calibrationSavedCandidates(16, 128<<20)
 		transport := transportFunc(func(r *http.Request) (*http.Response, error) {
@@ -118,8 +118,8 @@ func TestCalibrationNonRangeLoadsReachConfiguredConcurrency(t *testing.T) {
 			t.Fatal(err)
 		}
 		s := waitCalibrationResult(c)
-		if s.Reason != "measurement_complete" || s.FullSpeedBPS == nil {
-			t.Fatalf("healthy HTTP 200 resources cannot fill configured concurrency: phase=%s reason=%s prepared=%d bytes=%d peak=%d open=%d", s.Phase, s.Reason, s.PreparedVideos, s.Bytes, s.PeakActive, s.PeakOpen)
+		if s.Phase != "failed" || s.Bytes != 0 || s.FullSpeedBPS != nil {
+			t.Fatalf("unsupported HTTP 200 resources must fail without reading: phase=%s reason=%s prepared=%d bytes=%d peak=%d open=%d", s.Phase, s.Reason, s.PreparedVideos, s.Bytes, s.PeakActive, s.PeakOpen)
 		}
 	})
 }

@@ -28,7 +28,7 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 		registerQueueResource(t, s, "1", w.v.key)
 		q := s.prefetchSources["1"]
 		base := time.Now()
-		_, changed, _ := w.plan(time.Now(), true)
+		_, changed, _ := w.plan(time.Now())
 		preparationChanged := s.QueuePreparationChanged()
 		time.Sleep(75 * time.Second)
 		synctest.Wait()
@@ -105,7 +105,7 @@ func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
 }
 
 func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
-	for _, status := range []int{http.StatusPartialContent, http.StatusOK} {
+	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := fixtureConfig()

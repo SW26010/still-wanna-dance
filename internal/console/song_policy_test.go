@@ -261,9 +261,9 @@ func testBatchFavoriteRetention(t *testing.T, mode string, retain bool, limit in
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloads.Add(1)
 		if strings.Contains(r.URL.Path, "9000003-") {
-			fmt.Fprint(w, "ordinary")
+			serveTestVideo(w, r, "ordinary")
 		} else {
-			fmt.Fprint(w, "favorite")
+			serveTestVideo(w, r, "favorite")
 		}
 	}))
 	defer origin.Close()

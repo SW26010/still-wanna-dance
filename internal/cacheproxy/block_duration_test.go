@@ -16,16 +16,14 @@ import (
 
 func TestBlockDurationSamplesOnlyCompleteRangeExecutions(t *testing.T) {
 	for _, tc := range []struct {
-		name              string
-		size              int64
-		sequential, retry bool
-		samples           int
+		name    string
+		size    int64
+		retry   bool
+		samples int
 	}{
-		{"full_and_tail", rangeBlockSize + 123, false, false, 1},
-		{"tail_only", 123, false, false, 0},
-		{"successful_retry", rangeBlockSize, false, true, 1},
-		{"sequential_same_size", rangeBlockSize, true, false, 0},
-		{"sequential_whole_file", 3 * rangeBlockSize, true, false, 0},
+		{"full_and_tail", rangeBlockSize + 123, false, 1},
+		{"tail_only", 123, false, 0},
+		{"successful_retry", rangeBlockSize, true, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, _ := setup(t, nil)
@@ -44,9 +42,6 @@ func TestBlockDurationSamplesOnlyCompleteRangeExecutions(t *testing.T) {
 					// Response-header waiting is part of T even though no body byte
 					// has arrived; a failed attempt must not reset the admission time.
 					time.Sleep(10 * time.Millisecond)
-					if tc.sequential {
-						return &http.Response{StatusCode: 200, ContentLength: tc.size, Header: make(http.Header), Request: r, Body: io.NopCloser(bytes.NewReader(body))}, nil
-					}
 					var start, end int64
 					fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
 					data := body[start : end+1]

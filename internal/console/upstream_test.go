@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,7 +33,7 @@ func TestPrefetchOnlyUsesCFEntry(t *testing.T) {
 					http.Error(w, "failed", 503)
 					return
 				case "checksum":
-					io.WriteString(w, strings.Repeat("x", len(body)))
+					serveTestVideo(w, r, strings.Repeat("x", len(body)))
 					return
 				case "timeout":
 					<-r.Context().Done()
@@ -44,7 +43,7 @@ func TestPrefetchOnlyUsesCFEntry(t *testing.T) {
 					<-r.Context().Done()
 					return
 				}
-				io.WriteString(w, body)
+				serveTestVideo(w, r, body)
 			}))
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

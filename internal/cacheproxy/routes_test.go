@@ -3,10 +3,8 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +35,7 @@ func TestResourceDownloadUsesMeasuredChannelsWithoutChangingURL(t *testing.T) {
 						if r.URL.String() != target || r.Header.Get("Range") != "bytes=0-35" {
 							t.Error("resource request changed", r)
 						}
-						return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(payload)), ContentLength: int64(len(payload)), Request: r}, nil
+						return fixtureRangeResponse(r, payload), nil
 					}))
 				}
 				return transports

@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,7 +14,7 @@ func TestCatalogMembersIncludeUnresolvedSongsAndKeepHistoricalTargets(t *testing
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		for _, body := range bodies {
 			if videoKey(body) == r.URL.Query().Get("e") {
-				fmt.Fprint(w, body)
+				serveFixtureContent(w, r, body)
 				return
 			}
 		}

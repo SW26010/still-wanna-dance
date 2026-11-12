@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -107,9 +106,10 @@ func TestPrefetchDoesNotPersistRequestHistory(t *testing.T) {
 	for _, status := range []int{200, 503} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(status)
 				if status == 200 {
-					io.WriteString(w, payload)
+					serveFixtureContent(w, r, payload)
+				} else {
+					w.WriteHeader(status)
 				}
 			})
 			_, err := s.PrefetchSong(t.Context(), "42", videoURL(payload))

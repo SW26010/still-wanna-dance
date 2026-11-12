@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -183,7 +182,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 }
 
 func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
 	s.wg.Wait()
 	for _, tc := range []struct {

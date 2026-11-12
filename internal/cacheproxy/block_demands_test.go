@@ -139,7 +139,7 @@ func TestManySharedSourcesUseOneDownloadSummary(t *testing.T) {
 		_, release := addTestDemand(t, s, context.Background(), w.v, false)
 		defer release()
 	}
-	plan, _, _ := w.plan(time.Now(), true)
+	plan, _, _ := w.plan(time.Now())
 	if len(plan) != 20 || useCount(s) != 20 {
 		t.Fatal("shared identities multiplied block quota", len(plan), useCount(s))
 	}

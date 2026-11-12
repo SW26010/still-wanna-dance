@@ -44,7 +44,7 @@ func TestConcurrentFullScanChecksSharedVideoOnce(t *testing.T) {
 }
 
 func TestPublishedFileNeedsNoPlaybackHash(t *testing.T) {
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}

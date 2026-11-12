@@ -29,6 +29,7 @@ func assertUsageWithdrawn(t *testing.T, j *scheduledBlock) {
 func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	t.Helper()
 	w, s := testSession(t)
+	w.v.size = rangeBlockSize
 	task, registered, err := s.scheduler.Schedule("queue", rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
@@ -50,7 +51,7 @@ func reconcileSession(t *testing.T, w *downloadSession) {
 	t.Helper()
 	for {
 		now := time.Now()
-		plan, changed, active := w.plan(now, false)
+		plan, changed, active := w.plan(now)
 		_, retry, err := w.reconcile(plan, now, changed, active)
 		if err != nil {
 			t.Fatal(err)

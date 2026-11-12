@@ -52,7 +52,12 @@ func readRangeBlock(r io.Reader, buf []byte) ([]byte, error) {
 	return buf[:n], nil
 }
 
+var errRangeUnsupported = errors.New("upstream does not support byte ranges")
+
 func validateRangeResponse(r *http.Response, start, end, size int64) error {
+	if r.StatusCode == http.StatusOK {
+		return errRangeUnsupported
+	}
 	if r.StatusCode != http.StatusPartialContent || r.Header.Get("Content-Range") != fmt.Sprintf("bytes %d-%d/%d", start, end-1, size) {
 		return errors.New("upstream returned an invalid or unsupported byte range")
 	}

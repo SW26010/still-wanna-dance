@@ -68,7 +68,7 @@ func TestRangeTransportErrorsRedactSignedURLs(t *testing.T) {
 			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 					if r.Header.Get("Range") != fmt.Sprintf("bytes=0-%d", rangeBlockSize-1) {
-						if failures.Add(1) == 3 {
+						if failures.Add(1) == 2 {
 							select {
 							case <-firstBody:
 							case <-r.Context().Done():
@@ -96,7 +96,7 @@ func TestRangeTransportErrorsRedactSignedURLs(t *testing.T) {
 			if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, cause) {
 				t.Fatalf("lost classification: %v", err)
 			}
-			if failures.Load() != 2 {
+			if failures.Load() != 1 {
 				t.Fatalf("range attempts=%d", failures.Load())
 			}
 			if strings.Contains(err.Error(), "private-") || strings.Contains(err.Error(), "token=") {

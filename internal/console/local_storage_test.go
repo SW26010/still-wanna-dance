@@ -38,7 +38,7 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			c := testConsole(t)
 			const body = "local storage fixture"
 			var queries, downloads atomic.Int32
-			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); fmt.Fprint(w, body) }))
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveTestVideo(w, r, body) }))
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				queries.Add(1)
@@ -149,7 +149,7 @@ func TestStorageFailureStatusSurvivesRecoveryUntilRestart(t *testing.T) {
 						}
 					}
 				}
-				fmt.Fprint(w, body)
+				serveTestVideo(w, r, body)
 			}))
 			defer origin.Close()
 			cfg := fixtureCacheConfig()

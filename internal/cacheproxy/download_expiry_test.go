@@ -56,7 +56,7 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 		defer releaseGET()
 		get.flight = w.f
 		s.expireDownload(w.f, w.v.key, 0)
-		plan, _, _ := w.plan(time.Now(), true)
+		plan, _, _ := w.plan(time.Now())
 		if queue.ctx.Err() != nil || plan[0].need.ReadyBy != queue.queueSource.readyBy(0, rangeBlockSize) || !plan[0].need.Opportunistic || len(s.useHandoffs) != 0 {
 			t.Fatal("old GET failure erased or bypassed remaining source timing", plan[0])
 		}
@@ -141,6 +141,7 @@ func TestExpiredGETBeforeHeadersFailsWithoutUpstream(t *testing.T) {
 	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(-time.Minute), limit: v.size, media: estimateMediaTiming(v.size, 0)})
 	_, reader, err := s.obtain(ctx, v)
 	if reader != nil {
+		_, err = io.ReadAll(reader)
 		reader.Close()
 	}
 	if !errors.Is(err, blocksched.ErrExpired) || cacheErrorStatus(err) != http.StatusGatewayTimeout || ctx.Err() != nil || calls.Load() != 0 {
@@ -152,7 +153,7 @@ func TestExpiredGETBeforeHeadersFailsWithoutUpstream(t *testing.T) {
 }
 
 func TestExpiredGETAllowsManualPreparationAfterCleanup(t *testing.T) {
-	for _, status := range []int{http.StatusOK, http.StatusPartialContent} {
+	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			s, cfg := setup(t, nil)
 			cleanup, gate := make(chan struct{}), make(chan struct{})

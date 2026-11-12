@@ -199,17 +199,17 @@ func TestUnprotectedReclaimedBlockOnlyRestartsForActualRead(t *testing.T) {
 	w.finished = map[int64]bool{0: true}
 	_, release := addTestDemand(t, s, context.Background(), w.v, false)
 	defer release()
-	plan, _, _ := w.plan(time.Now(), true)
+	plan, _, _ := w.plan(time.Now())
 	if _, ok := plan[0]; ok {
 		t.Fatal("unprotected reclaimed block was scheduled again")
 	}
 	endRead := w.reads.Wait(0)
-	plan, _, _ = w.plan(time.Now(), true)
+	plan, _, _ = w.plan(time.Now())
 	if _, ok := plan[0]; !ok {
 		t.Fatal("real read could not request its missing data")
 	}
 	endRead()
-	plan, _, _ = w.plan(time.Now(), true)
+	plan, _, _ = w.plan(time.Now())
 	if _, ok := plan[0]; ok {
 		t.Fatal("ended Read left a synthetic refill request")
 	}
@@ -248,7 +248,7 @@ func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
 					_, closeQueue := addTestDemand(t, s, s.queueDemandContext(ctx, "1"), v, false)
 					defer closeQueue()
 				}
-				plan, _, _ := w.plan(time.Now(), true)
+				plan, _, _ := w.plan(time.Now())
 				if use, ok := plan[0]; !ok || use.need.ReadyBy.IsZero() {
 					t.Fatal("old completion suppressed the new finite usage", plan)
 				}
@@ -273,18 +273,18 @@ func TestReclaimedBlockFollowsProtectionWindowAndWithdrawal(t *testing.T) {
 		})
 		_, releaseGET := addTestDemand(t, s, ctx, w.v, true)
 		defer releaseGET()
-		plan, _, _ := w.plan(time.Now(), true)
+		plan, _, _ := w.plan(time.Now())
 		if _, ok := plan[0]; ok {
 			t.Fatal("future use allowed an unprotected refill")
 		}
 		time.Sleep(time.Second)
-		plan, _, _ = w.plan(time.Now(), true)
+		plan, _, _ = w.plan(time.Now())
 		if _, ok := plan[0]; !ok {
 			t.Fatal("entering the window did not requalify the missing block")
 		}
 		w.jobs[0] = &scheduledBlock{} // A refetch already in progress must also lose qualification.
 		releaseGET()
-		plan, _, _ = w.plan(time.Now(), true)
+		plan, _, _ = w.plan(time.Now())
 		if _, ok := plan[0]; ok {
 			t.Fatal("withdrawn finite usage kept refilling for the untimed source")
 		}
@@ -387,7 +387,7 @@ func TestZeroBudgetRefetchBeforeReadKeepsSharedSession(t *testing.T) {
 
 func TestBlockReclamationWorkerExpiresTailWithReaderStillOpen(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.Write(body) })
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, string(body)) })
 	setRetentionLimit(t, s, 0)
 	assertResponse(t, request(s, "GET", videoURL(string(body)), nil), 200, string(body))
 	s.wg.Wait()

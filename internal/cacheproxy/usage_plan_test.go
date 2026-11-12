@@ -36,7 +36,7 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 					}
 				}
 			}
-			plan, _, _ := w.plan(now, true)
+			plan, _, _ := w.plan(now)
 			if len(plan) != 17 || plan[1].need.Owner != "" || plan[2].need.Owner != "" {
 				t.Fatal("download adapter scheduled already readable handoff blocks", len(plan))
 			}

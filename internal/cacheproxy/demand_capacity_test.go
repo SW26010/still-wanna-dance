@@ -51,7 +51,7 @@ func TestReadableBlocksRetainUseUntilConsumptionOrSourceExit(t *testing.T) {
 		for b := int64(0); b < 20; b++ {
 			w.f.ranges.done[b] = true
 		}
-		w.plan(time.Now(), true)
+		w.plan(time.Now())
 		if useCount(s) != 20 {
 			t.Fatal("local completion released usage capacity")
 		}

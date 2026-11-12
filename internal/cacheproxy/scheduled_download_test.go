@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -25,6 +26,10 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 	t.Helper()
 	s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
+	s.client, s.requests = &http.Client{}, new(requestActivity)
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() })}
+	}
 	t.Cleanup(s.scheduler.Close)
 	t.Cleanup(func() {
 		s.mu.Lock()
@@ -39,11 +44,13 @@ func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 
 func testResourceSession(t *testing.T, s *Server, v video) *downloadSession {
 	t.Helper()
+	if v.host == "" {
+		v.host = "play.udon.dance"
+	}
 	f := &flight{ranges: &localResource{blockSize: s.cfg.BlockSize, done: make(map[int64]bool)}}
 	w := newDownloadSession(s, context.Background(), v, f)
 	t.Cleanup(w.reads.Close)
 	t.Cleanup(w.releaseResourceWatch)
-	close(w.initialized)
 	return w
 }
 
@@ -62,7 +69,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	defer cancel()
 	_, release := addTestDemand(t, s, ctx, w.v, true)
 	defer release()
-	plan, _, _ := w.plan(time.Now(), true)
+	plan, _, _ := w.plan(time.Now())
 	if len(w.reads.Requested()) != 0 {
 		t.Fatal("GET created a synthetic read request")
 	}
@@ -80,7 +87,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 		t.Fatal("completed wait stayed blocking")
 	}
 	cancel()
-	plan, _, _ = w.plan(time.Now(), true)
+	plan, _, _ = w.plan(time.Now())
 	for _, p := range plan {
 		if p.need.LeaseUntil.After(time.Now().Add(handoffGrace)) {
 			t.Fatal("canceled context renewed itself", p)
@@ -96,13 +103,13 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		_, release := addTestDemand(t, s, s.queueDemandContext(context.Background(), "2"), video{key: w.v.key, songID: "2", size: w.v.size}, false)
 		defer release()
 		now := time.Now()
-		plan, _, _ := w.plan(now, false)
+		plan, _, _ := w.plan(now)
 		before, ok := plan[0]
 		if !ok || before.need.ReadyBy.IsZero() {
 			t.Fatal("ordinary queue source missing")
 		}
 		s.UpdatePrefetchQueue([]int64{2, 1}, false)
-		plan, _, _ = w.plan(now, false)
+		plan, _, _ = w.plan(now)
 		after, ok := plan[0]
 		if !ok || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
 			t.Fatal("queue reorder did not update deadline")
@@ -116,7 +123,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			t.Fatal(err)
 		}
 		s.UpdatePrefetchQueue(nil, true)
-		plan, _, _ = w.plan(now, false)
+		plan, _, _ = w.plan(now)
 		until, _, err := w.reconcile(plan, now, nil, false)
 		if err != nil || !until.Equal(now.Add(handoffGrace)) {
 			t.Fatal(until, err)
@@ -164,82 +171,24 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	<-job.Done()
 }
 
-func TestCompletionRechecksRangeInitialization(t *testing.T) {
-	for _, ranged := range []bool{false, true} {
-		t.Run(map[bool]string{false: "sequential_published", true: "first_range_only"}[ranged], func(t *testing.T) {
-			w, s := testSession(t)
-			w.initialized = make(chan struct{})
-			// The worker has not received response headers yet.
-			task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
-				if ranged {
-					w.f.ranges.done[0] = true // Only one of twenty blocks exists.
-					close(w.initialized)
-				}
-				return blocksched.Result{}
-			}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
-			if err != nil {
-				t.Fatal(err)
-			}
-			w.jobs[0] = &scheduledBlock{task: task}
-
-			<-task.Done() // Worker initialization and completion precede observation.
-			published, err := w.reapCompleted()
-			initialized := w.rangesInitialized()
-			if err != nil || published == ranged || initialized != ranged || len(w.jobs) != 0 {
-				t.Fatalf("published=%v initialized=%v jobs=%d err=%v", published, initialized, len(w.jobs), err)
-			}
-			if ranged {
-				_, release := addTestDemand(t, s, context.Background(), w.v, false)
-				defer release()
-				plan, _, _ := w.plan(time.Now(), initialized)
-				if _, ok := plan[1]; !ok {
-					t.Fatal("remaining ranges were not planned")
-				}
-			}
-		})
+func TestCompletedRangeLeavesOtherBlocksPlanned(t *testing.T) {
+	w, s := testSession(t)
+	task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
+		w.f.ranges.done[0] = true
+		return blocksched.Result{}
+	}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestSessionWaitObservesInitializationAfterPlan(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		w, s := testSession(t)
-		w.initialized = make(chan struct{})
-		var cancel context.CancelFunc
-		w.ctx, cancel = context.WithCancel(w.ctx)
-		defer cancel()
-		_, release := addTestDemand(t, s, context.Background(), w.v, false)
-		defer release()
-
-		plan, whole, err := w.nextPlan()
-		if err != nil || whole || plan.initialized || len(plan.blocks) != 1 {
-			t.Fatalf("initial plan: initialized=%v blocks=%d whole=%v err=%v", plan.initialized, len(plan.blocks), whole, err)
-		}
-		assertNotification(t, plan.changed, false)
-		select {
-		case <-w.wake:
-			t.Fatal("unexpected pending wake")
-		default:
-		}
-
-		// No other event is needed when initialization follows the plan.
-		close(w.initialized)
-		timer := time.NewTimer(time.Hour)
-		defer timer.Stop()
-		done := make(chan struct{})
-		go func() {
-			w.waitForChanges(timer, plan, time.Time{})
-			close(done)
-		}()
-		synctest.Wait()
-		select {
-		case <-done:
-		default:
-			t.Fatal("initialization did not wake the session")
-		}
-
-		plan, whole, err = w.nextPlan()
-		if err != nil || whole || !plan.initialized || len(plan.blocks) != 20 {
-			t.Fatalf("initialized plan: initialized=%v blocks=%d whole=%v err=%v", plan.initialized, len(plan.blocks), whole, err)
-		}
-	})
+	w.jobs[0] = &scheduledBlock{task: task}
+	<-task.Done()
+	if err := w.reapCompleted(); err != nil || len(w.jobs) != 0 {
+		t.Fatal("range completion was not drained", err)
+	}
+	_, release := addTestDemand(t, s, context.Background(), w.v, false)
+	defer release()
+	plan, _, _ := w.plan(time.Now())
+	if len(plan) != 19 || plan[1].need.Owner == "" {
+		t.Fatal("completion of one range hid other missing blocks", len(plan))
+	}
 }

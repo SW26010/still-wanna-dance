@@ -114,20 +114,20 @@ func TestReadWaitDoesNotChangeUsageOrHandoffClock(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.WithValue(context.Background(), playbackClockKey{}, clock))
 		_, release := addTestDemand(t, s, ctx, w.v, true)
 		defer release()
-		before, _, _ := w.plan(now, true)
+		before, _, _ := w.plan(now)
 		end := w.reads.Wait(0)
-		during, _, _ := w.plan(now, true)
+		during, _, _ := w.plan(now)
 		if before[0] != during[0] {
 			t.Fatal("read urgency entered the ordinary use contract")
 		}
 		cancel()
 		synctest.Wait()
-		handoff, _, _ := w.plan(now, true)
+		handoff, _, _ := w.plan(now)
 		if handoff[0].need.ReadyBy != clock.at.Add(handoffGrace) || handoff[0].need.LeaseUntil != now.Add(handoffGrace) {
 			t.Fatal("handoff inherited actual read time instead of the source clock")
 		}
 		end()
-		after, _, _ := w.plan(now, true)
+		after, _, _ := w.plan(now)
 		if after[0] != handoff[0] {
 			t.Fatal("read cleanup withdrew or changed handoff usage")
 		}

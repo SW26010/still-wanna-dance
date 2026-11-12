@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,7 +31,7 @@ func queueRetentionFixture(t *testing.T, limit int64, beforeDownload ...func()) 
 		if !strings.Contains(r.URL.Path, "/1-") {
 			data = "other video content"
 		}
-		io.WriteString(w, data)
+		serveTestVideo(w, r, data)
 	}))
 	t.Cleanup(origin.Close)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

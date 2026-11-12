@@ -194,6 +194,10 @@ func TestBrowserWriteProtection(t *testing.T) {
 	}
 }
 
+func serveTestVideo(w http.ResponseWriter, r *http.Request, body string) {
+	http.ServeContent(w, r, "video.mp4", time.Time{}, strings.NewReader(body))
+}
+
 func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 	c := testConsole(t)
 	body := "a complete verified video fixture"
@@ -205,7 +209,7 @@ func TestBatchWorksWithoutCDNAndReusesCache(t *testing.T) {
 		if r.Host != "play.udon.dance" {
 			t.Error("upstream Host not preserved")
 		}
-		io.WriteString(w, body)
+		serveTestVideo(w, r, body)
 	}))
 	defer origin.Close()
 	cfg := fixtureCacheConfig()

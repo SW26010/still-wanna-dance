@@ -15,7 +15,7 @@ func TestBlockCleanupFailureIsLoggedAndRetriedAtStartup(t *testing.T) {
 	r, _ := http.NewRequest("GET", videoURL(payload), nil)
 	v, _ := s.parseResolved(r)
 	var log bytes.Buffer
-	d, err := s.newLocalResource(v, &http.Response{Header: make(http.Header)}, slog.New(slog.NewTextHandler(&log, nil)))
+	d, err := s.newLocalResource(v, slog.New(slog.NewTextHandler(&log, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

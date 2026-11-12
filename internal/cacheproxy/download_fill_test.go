@@ -31,7 +31,7 @@ func TestDownloadFillTriesAllSharedSongCandidates(t *testing.T) {
 	var mu sync.Mutex
 	var attempts []string
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, payload)
+		serveFixtureContent(w, r, payload)
 	}, func(cfg *Config) {
 		cfg.CacheUnlimited = true
 		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
@@ -61,7 +61,7 @@ func TestDownloadFillUsesBlockedSelectedSongAsAddressHint(t *testing.T) {
 	var mu sync.Mutex
 	var attempts []string
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, payload)
+		serveFixtureContent(w, r, payload)
 	}, func(cfg *Config) {
 		cfg.CacheUnlimited = true
 		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
@@ -205,7 +205,7 @@ func TestDownloadFillCanResolveSelectedHistoricalSongs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var mu sync.Mutex
 			var attempts []string
-			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, payload) }, func(cfg *Config) {
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 				cfg.CacheUnlimited = true
 				cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
 					mu.Lock()
@@ -261,7 +261,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 			http.Error(w, "first candidate failed after another resource exhausted budget", http.StatusServiceUnavailable)
 			return
 		}
-		fmt.Fprint(w, payload)
+		serveFixtureContent(w, r, payload)
 	}, func(cfg *Config) {
 		cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, int64(len(payload))
 	})

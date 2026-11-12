@@ -36,7 +36,7 @@ func TestDownloadedPublicationKeepsIndependentTimeout(t *testing.T) {
 	}
 }
 
-func TestSequentialPublicationOutlivesDownloadDeadline(t *testing.T) {
+func TestRangePublicationOutlivesDownloadDeadline(t *testing.T) {
 	s, cfg := setup(t, nil)
 	s.cfg.DownloadTimeout = 3 * time.Second
 	finished := make(chan struct{}, 1)
@@ -56,7 +56,7 @@ func TestSequentialPublicationOutlivesDownloadDeadline(t *testing.T) {
 			for range cap(s.localChecks) {
 				s.localChecks <- struct{}{}
 			}
-			return &http.Response{StatusCode: 200, ContentLength: int64(len(payload)), Header: make(http.Header), Body: io.NopCloser(bytes.NewBufferString(payload)), Request: r}, nil
+			return &http.Response{StatusCode: 206, ContentLength: int64(len(payload)), Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload))}}, Body: io.NopCloser(bytes.NewBufferString(payload)), Request: r}, nil
 		})}
 	}
 	r, _ := http.NewRequest("GET", videoURL(payload), nil)
@@ -69,7 +69,7 @@ func TestSequentialPublicationOutlivesDownloadDeadline(t *testing.T) {
 	}
 	defer reader.Close()
 	if got, err := io.ReadAll(reader); err != nil || string(got) != payload {
-		t.Fatal("sequential bytes were not readable before publication", err)
+		t.Fatal("range bytes were not readable before publication", err)
 	}
 	receiveDemandEvent(t, finished) // Body and task have drained; merge still waits.
 	time.Sleep(max(0, time.Until(deadline)))
@@ -83,7 +83,7 @@ func TestSequentialPublicationOutlivesDownloadDeadline(t *testing.T) {
 	}
 	receiveDemandEvent(t, f.done)
 	if got, err := os.ReadFile(cfg.videoFile(v.key)); f.err != nil || err != nil || string(got) != payload {
-		t.Fatal("sequential publication did not survive its former download deadline", f.err, err)
+		t.Fatal("range publication did not survive its former download deadline", f.err, err)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestExecutionTimeoutExcludesInitialQueueWindow(t *testing.T) {
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 			requests.Add(1)
-			return &http.Response{StatusCode: 200, ContentLength: int64(len(payload)), Header: make(http.Header), Body: io.NopCloser(bytes.NewBufferString(payload)), Request: r}, nil
+			return fixtureRangeResponse(r, payload), nil
 		})}
 	}
 	if err := s.UpdatePrefetchQueue([]int64{1, 2}, false); err != nil {

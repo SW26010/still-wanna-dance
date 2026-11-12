@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -65,7 +64,7 @@ func TestPlaybackSlowCFIntegration(t *testing.T) {
 				if r.URL.Query().Get("e") == fmt.Sprintf("%x", md5.Sum([]byte(old))) {
 					body = old
 				}
-				io.WriteString(w, body)
+				serveTestVideo(w, r, body)
 			}))
 			defer origin.Close()
 			cfg := fixtureCacheConfig()

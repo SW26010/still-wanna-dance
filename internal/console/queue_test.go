@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,7 +30,7 @@ func TestQueueLatestSnapshotDedupAndRetry(t *testing.T) {
 	var mu sync.Mutex
 	requests := map[string]int{}
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
+		serveTestVideo(w, r, body+strings.Split(strings.TrimPrefix(r.URL.Path, "/files/2403/"), "-")[0])
 	}))
 	defer origin.Close()
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -197,7 +197,7 @@ func TestZeroBudgetStreamsWithoutWholeVideoVerificationOrPublication(t *testing.
 	body := strings.Repeat("x", len(payload))
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
-		io.WriteString(w, body)
+		serveFixtureContent(w, r, body)
 	})
 	setRetentionLimit(t, s, 0)
 	for range 20 {
@@ -268,7 +268,7 @@ func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 }
 
 func TestZeroBudgetQueuePreparationReportsTemporaryReadiness(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
 	setRetentionLimit(t, s, 0)
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(payload), nil }
 	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {

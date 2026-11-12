@@ -24,7 +24,7 @@ func TestTargetDownloadUsesSharedPublicationAndBudget(t *testing.T) {
 			const body = "shared complete target"
 			key := fmt.Sprintf("%x", md5.Sum([]byte(body)))
 			var lists, downloads, resolves atomic.Int32
-			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); fmt.Fprint(w, body) }))
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveTestVideo(w, r, body) }))
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/catalog" {

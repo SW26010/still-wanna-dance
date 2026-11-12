@@ -17,7 +17,7 @@ func TestZeroRetentionReusesExistingQueueVideoUntilHandoffExpires(t *testing.T) 
 	var downloads atomic.Int32
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		downloads.Add(1)
-		w.Write([]byte(payload))
+		serveFixtureContent(w, r, payload)
 	})
 	if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
 		t.Fatal(err)

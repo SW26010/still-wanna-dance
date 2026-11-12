@@ -45,7 +45,7 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 					retrying = true
 					mu.Unlock()
 					close(foregroundStarted)
-					return &http.Response{StatusCode: 200, Header: make(http.Header), ContentLength: int64(len(payload)), Request: r,
+					return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload))}}, ContentLength: int64(len(payload)), Request: r,
 						Body: &gatedFirstRange{ctx: r.Context(), gate: foregroundGate, Reader: bytes.NewReader([]byte(payload))}}, nil
 				}
 				var start, end int64

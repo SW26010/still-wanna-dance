@@ -20,14 +20,14 @@ import (
 // This barrier is confined to the test context, with no production hooks.
 type completeDuringPlanContext struct {
 	context.Context
-	streaming <-chan struct{}
-	complete  func()
-	once      sync.Once
+	started  <-chan struct{}
+	complete func()
+	once     sync.Once
 }
 
 func (c *completeDuringPlanContext) Err() error {
 	select {
-	case <-c.streaming:
+	case <-c.started:
 		c.once.Do(c.complete)
 	default:
 	}
@@ -50,15 +50,21 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			gate, finished := make(chan struct{}), make(chan struct{})
+			gate, finished, started := make(chan struct{}), make(chan struct{}), make(chan struct{})
 			s.scheduler.Close()
 			s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 1, Observe: func(e blocksched.Event) {
+				if e.Kind == "started" {
+					close(started)
+				}
 				if e.Kind == "finished" {
 					close(finished)
 				}
 			}})
 			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+					s.mu.Lock()
+					s.notifyResourceChangedLocked(v.key)
+					s.mu.Unlock()
 					return &http.Response{StatusCode: 206, ContentLength: int64(len(upstream)), Request: r,
 						Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", len(upstream)-1, len(upstream))}},
 						Body:   &gatedFirstRange{ctx: r.Context(), gate: gate, Reader: bytes.NewReader(upstream)}}, nil
@@ -68,7 +74,7 @@ func TestLastRangeCompletingDuringPlanStillVerifiesAndPublishes(t *testing.T) {
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			demand, release := addTestDemand(t, s, context.Background(), v, true)
 			defer release()
-			planCtx := &completeDuringPlanContext{Context: demand.ctx, streaming: f.streaming, complete: func() {
+			planCtx := &completeDuringPlanContext{Context: demand.ctx, started: started, complete: func() {
 				close(gate)
 				select {
 				case <-finished:
@@ -128,7 +134,7 @@ func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
 	ready, cleanup := make(chan struct{}), make(chan struct{})
 	finish := sync.OnceFunc(func() { close(cleanup) })
 	defer finish()
-	plan, _, _ := w.plan(time.Now(), true)
+	plan, _, _ := w.plan(time.Now())
 	task, merged, err := s.scheduler.Schedule("draining", rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 		w.f.ranges.finish(0)
 		p.Ready()
@@ -145,7 +151,7 @@ func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
 	}
 	w.jobs[0] = &scheduledBlock{task: task, merged: merged, published: plan[0].need}
 	<-ready
-	plan, changed, active := w.plan(time.Now(), true)
+	plan, changed, active := w.plan(time.Now())
 	if _, _, err := w.reconcile(plan, time.Now(), changed, active); err != nil || w.jobs[0].retiring {
 		t.Fatal("readability canceled successful final cleanup", err)
 	}
@@ -153,7 +159,7 @@ func TestReadableBlockDrainsWithoutCancelingSuccessfulExecution(t *testing.T) {
 	if err := task.Err(); err != nil {
 		t.Fatal("successful execution became cancellation", err)
 	}
-	if _, err := w.reapCompleted(); err != nil || !w.finished[0] {
+	if err := w.reapCompleted(); err != nil || !w.finished[0] {
 		t.Fatal("completed work was lost before zero-budget reclamation", err)
 	}
 }

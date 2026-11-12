@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -26,16 +27,24 @@ func TestActiveSharedLifecycle(t *testing.T) {
 					return
 				}
 				calls.Add(1)
-				io.WriteString(w, body[:rangeBlockSize])
+				var start, end int64
+				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+				w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+				w.WriteHeader(206)
 				w.(http.Flusher).Flush()
+				if start == 0 {
+					io.WriteString(w, body[start:end+1])
+					return
+				}
 				select {
 				case <-release:
 				case <-r.Context().Done():
 					return
 				}
 				if outcome == "complete" || outcome == "redirect" {
-					io.WriteString(w, body[rangeBlockSize:])
+					io.WriteString(w, body[start:end+1])
 				}
+
 			})
 			v := parsedVideo(t, s, body)
 			first, reader, err := s.obtain(context.Background(), v)
@@ -130,7 +139,7 @@ func TestActiveSharedLifecycle(t *testing.T) {
 				t.Fatal("expected failure")
 			}
 			snap, err := s.ActiveDownloads(context.Background())
-			if err != nil || len(snap.Tasks) != 0 || snap.BytesPerSecond != 0 || calls.Load() != 1 {
+			if err != nil || len(snap.Tasks) != 0 || snap.BytesPerSecond != 0 || calls.Load() < 2 || calls.Load() > 3 {
 				t.Fatalf("not cleaned or duplicate upstream: %+v %v calls=%d", snap, err, calls.Load())
 			}
 		})

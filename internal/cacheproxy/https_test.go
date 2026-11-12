@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +24,7 @@ func TestHTTPOriginUsesIndependentDialAndPublicName(t *testing.T) {
 		if r.Host != "play.udon.dance" {
 			t.Errorf("unexpected host %s", r.Host)
 		}
-		io.WriteString(w, payload)
+		serveFixtureContent(w, r, payload)
 	}))
 	defer backend.Close()
 	for _, override := range []string{"", "origin.example:8080"} {
@@ -87,7 +86,7 @@ func TestUpstreamDialFailureNeverFallsBack(t *testing.T) {
 func TestPlaybackAPIStreamsAndReusesVideoCache(t *testing.T) {
 	var downloads atomic.Int32
 	var invalidRedirect atomic.Bool
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); io.WriteString(w, payload) }, func(cfg *Config) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { downloads.Add(1); serveFixtureContent(w, r, payload) }, func(cfg *Config) {
 		cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
 			if invalidRedirect.Load() {
 				return "https://evil.invalid/video", nil

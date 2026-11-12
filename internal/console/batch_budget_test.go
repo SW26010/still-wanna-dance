@@ -48,7 +48,7 @@ func TestBatchStopsAtBudget(t *testing.T) {
 			var downloads atomic.Int32
 			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
-				fmt.Fprint(w, strings.Repeat("x", 10))
+				serveTestVideo(w, r, strings.Repeat("x", 10))
 			}))
 			defer origin.Close()
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

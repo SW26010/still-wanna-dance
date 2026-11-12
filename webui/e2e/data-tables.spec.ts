@@ -18,7 +18,7 @@ test('library sorts the query before paging, preserves search order and uses key
   const score=table.getByRole('columnheader').filter({has:page.getByRole('button',{name:'按需求分排序',exact:true})});
   await expect(score).toHaveAttribute('aria-sort','descending');
   await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
-  await expect(pager).toContainText('第 2 页');
+  await expect(pager).toContainText('第2/2页 · 共 53 首歌曲');
   const id=table.getByRole('button',{name:'按ID排序',exact:true});
   await id.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('id');
@@ -61,13 +61,13 @@ test('history sorting resets the cursor, keeps keyboard focus and suspends live 
     const field=q.get('sort'),sign=q.get('direction')==='ascending'?1:-1;
     const ordered=[...records].sort((a,b)=>sign*(field==='song'?Number(a.songID)-Number(b.songID):field==='resource'?a.resource.localeCompare(b.resource):a.at-b.at));
     const offset=Number(q.get('cursor'));
-    return route.fulfill({json:{storageID:'fixture',requests:ordered.slice(offset,offset+50),hasMore:offset===0,nextCursor:offset===0?'50':''}});
+    return route.fulfill({json:{storageID:'fixture',requests:ordered.slice(offset,offset+50),total:ordered.length,hasMore:offset===0,nextCursor:offset===0?'50':''}});
   });
   await page.goto('/#/timeline');
   const table=page.getByRole('table',{name:'请求历史列表'}),pager=page.getByRole('navigation',{name:'历史分页'});
   await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
   await page.getByRole('button',{name:'下一页历史',exact:true}).click();
-  await expect(pager).toContainText('第 2 页');
+  await expect(pager).toContainText('第2/2页 · 共 54 条');
   const song=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
   await song.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>queries.at(-1)?.get('cursor')).toBe('');
@@ -95,6 +95,7 @@ test('resource headers use server sorting and can restore demand order',async({p
   });
   await page.goto('/#/library?view=resources');
   const table=page.getByRole('table',{name:'曲库资源'});
+  await expect(page.getByRole('navigation',{name:'曲库分页',exact:true})).toContainText('第1/1页 · 共 2 个资源');
   const size=table.getByRole('button',{name:'按大小排序',exact:true});
   await size.click();
   await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('size');
@@ -112,7 +113,7 @@ test('resource headers use server sorting and can restore demand order',async({p
 for(const [path,label] of [['library','曲库歌曲'],['timeline','请求历史列表']])test(`${label} shrinks names before overflowing at medium width`,async({page},info)=>{
   const api=await mockAPI(page,{libraryView:'list'});
   for(const file of api.files)file.songs[0].title='长歌曲名称'.repeat(30);
-  await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'长歌曲名称'.repeat(30),resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'canceled',sources:{downloadBytes:1,cacheBytes:1,localBytes:1}}],hasMore:false,nextCursor:''}}));
+  await page.route('**/api/history?**',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'长歌曲名称'.repeat(30),resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'canceled',sources:{downloadBytes:1,cacheBytes:1,localBytes:1}}],total:1,hasMore:false,nextCursor:''}}));
   await page.setViewportSize({width:1050,height:900});await page.goto('/#/'+path);
   const table=page.getByRole('table',{name:label,exact:true});await expect(table.locator('tbody tr').first()).toBeVisible();
   const metrics=await table.evaluate(el=>({table:el.getBoundingClientRect().width,available:el.parentElement!.clientWidth,name:el.querySelector('tbody td:nth-child(2)')!.getBoundingClientRect().width}));
@@ -127,7 +128,7 @@ for(const [path,label] of [['library','曲库歌曲'],['timeline','请求历史�
 
 test('history headers keep descriptions keyboard-accessible without an empty Tab stop',async({page})=>{
   await mockAPI(page);
-  await page.route('**/api/history?*',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'示例歌曲',resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'completed',sources:{downloadBytes:0,cacheBytes:0,localBytes:5}}],hasMore:false,nextCursor:''}}));
+  await page.route('**/api/history?*',route=>route.fulfill({json:{storageID:'fixture',requests:[{id:1,at:Date.now(),completedAt:Date.now(),songID:'42',songTitle:'示例歌曲',resource:'a'.repeat(32),method:'GET',elapsedMS:5,bytes:5,responseBytes:10,status:206,outcome:'completed',sources:{downloadBytes:0,cacheBytes:0,localBytes:5}}],total:1,hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),header=table.getByRole('columnheader',{name:'详情',exact:true});
   await expect(header).toBeVisible();await expect(header).toHaveAccessibleName('详情');

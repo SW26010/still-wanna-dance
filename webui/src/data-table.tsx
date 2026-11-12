@@ -41,6 +41,11 @@ function headerTooltip(content:ReactNode):SlotRenderFunction<ComponentProps<'div
   return (Component,props)=><Tooltip content={<>{content}</>} relationship="description"><Component {...props}/></Tooltip>;
 }
 
+export function paginationSummary(page:number,total:number,pageSize:number,unit='条') {
+  const count=`共 ${total.toLocaleString()} ${unit}`;
+  return total?`第${page}/${Math.ceil(total/pageSize).toLocaleString()}页 · ${count}`:count;
+}
+
 export function TablePagination({label,summary,previous,next,canPrevious,canNext,disabled}:{
   label:string;summary:ReactNode;previous:()=>void;next:()=>void;canPrevious:boolean;canNext:boolean;disabled?:boolean;
 }) {

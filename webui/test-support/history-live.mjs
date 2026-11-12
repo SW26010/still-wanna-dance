@@ -20,6 +20,7 @@ try {
   expect(sources.downloadBytes+sources.cacheBytes+sources.localBytes).toBe(601*blockBytes);
   expect(sources.localBytes).toBeGreaterThan(0);
   const firstPage=await (await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
+  expect(firstPage.total).toBe(601);
   expect(firstPage.requests.every(r=>!('cache' in r))).toBe(true);
   const status=await(await page.request.get(baseURL+'/api/status',{headers:{'X-SWD-Token':token}})).json();
   expect(status).not.toHaveProperty('traffic');
@@ -29,9 +30,13 @@ try {
   expect(firstPage.requests.every(r=>r.songID==='42'&&r.songTitle==='new current mapping'&&r.resource===key)).toBe(true);
   await expect(page.getByRole('region',{name:'响应来源统计'})).toContainText('本地视频');
   const history=page.getByRole('table',{name:'请求历史列表'});
+  const pager=page.getByRole('navigation',{name:'历史分页',exact:true});
+  await expect(pager).toContainText('第1/13页 · 共 601 条');
   await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   await expect(history.getByText('new current mapping',{exact:true})).toHaveCount(50);
-  await expect(history.getByRole('link',{name:key,exact:true})).toHaveCount(50);
+  const resourceLinks=history.getByRole('link',{name:key.slice(0,12)+'…',exact:true});
+  await expect(resourceLinks).toHaveCount(50);
+  await expect(resourceLinks.first()).toHaveAttribute('href',`#/library?view=resources&q=md5%3A${key}`);
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
   await sourceHeading.hover();
@@ -42,6 +47,7 @@ try {
   const ascendingResponse=page.waitForResponse(r=>r.url().includes('/api/history?')&&new URL(r.url()).searchParams.get('direction')==='ascending');
   await timeHeader.focus();await page.keyboard.press('Enter');
   const ascending=await (await ascendingResponse).json();
+  expect(ascending.total).toBe(601);
   expect(ascending.requests).toHaveLength(50);
   expect(ascending.requests[0].id).toBeLessThan(ascending.requests.at(-1).id);
   expect(ascending.requests[0].bytes).toBe(blockBytes);
@@ -51,7 +57,7 @@ try {
   await page.keyboard.press('Space');await descendingResponse;
   for(let n=2;n<=13;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
-    await expect(page.getByText(`第 ${n} 页 · ${n===13?1:50} 条`,{exact:true})).toBeVisible();
+    await expect(pager.getByRole('status')).toHaveText(`第${n}/13页 · 共 601 条`);
   }
   await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeDisabled();
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});
@@ -64,6 +70,8 @@ try {
   const committed=await(await updated).json();
   await expect(history.getByRole('link',{name:'ID 84',exact:true})).toHaveCount(1);
   expect(committed.requests[0].songID).toBe('84');
+  expect(committed.total).toBe(602);
+  await expect(pager).toContainText('共 602 条');
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   const option=page.getByRole('checkbox',{name:'隐藏相邻中断请求',exact:true});
@@ -71,11 +79,14 @@ try {
   const pairUpdated=page.waitForResponse(async r=>r.url().includes('/api/history?')&&r.ok()&&(await r.json()).requests.some(record=>record.songID==='85'&&record.outcome==='completed'));
   expect((await page.request.post(baseURL+'/__fixture/request?pair=true')).ok()).toBe(true);
   const filtered=await(await pairUpdated).json();
+  expect(filtered.total).toBe(603);
   expect(filtered.requests.filter(r=>r.songID==='85').map(r=>r.outcome)).toEqual(['completed']);
   await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(1);
   await option.uncheck();
   await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(2);
   const raw=await(await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
+  expect(raw.total).toBe(604);
+  await expect(pager).toContainText('共 604 条');
   const pair=raw.requests.filter(r=>r.songID==='85');
   expect(pair.map(r=>r.outcome)).toEqual(['completed','canceled']);
   expect(pair[0].at-pair[1].at).toBeLessThanOrEqual(1000);

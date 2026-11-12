@@ -65,7 +65,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     if (match('GET inventory')) data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
     if (match('GET downloads')) data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (match('GET songs')) data={storageID:'fixture',entries:[],total:0};
-    if(match('GET history'))data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
+    if(match('GET history'))data={storageID:'fixture',requests:[],total:0,hasMore:false,nextCursor:''};
     if(match('GET response-sources'))data={downloadBytes:0,cacheBytes:0,localBytes:0};
     if(match('GET latency'))data={from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (match('GET requests')) data={storageID:'fixture',requests:[],hasMore:false};

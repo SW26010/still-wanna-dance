@@ -3,7 +3,7 @@ import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Subti
 import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
-import {RecordDataTable,TablePagination,type RecordColumn,type TableSort} from './data-table';
+import {RecordDataTable,TablePagination,paginationSummary,type RecordColumn,type TableSort} from './data-table';
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
 import {requestOutcome,requestOutcomeDescription} from './requests';
 import {songHref,resourceHref} from './library';
@@ -12,7 +12,7 @@ const useSummaryStyles=makeStyles({summary:typographyStyles.subtitle2});
 
 type Group={samples:number;p50MS:number|null;p95MS:number|null};
 type Latency={from:number;to:number;blocking:Group;ready:Group};
-type History={storageID:string;requests:RequestRecord[];hasMore:boolean;nextCursor:string};
+type History={storageID:string;requests:RequestRecord[];total:number;hasMore:boolean;nextCursor:string};
 type Range={from:string;to:string};
 const localDate=(value:number)=>{const d=new Date(value);return new Date(value-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
 const milliseconds=(value:string)=>value?new Date(value).getTime():undefined;
@@ -110,6 +110,6 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
     {!history.error&&history.data?.requests.length===0&&<p className="empty-state">当前筛选条件下暂无请求记录。</p>}
     <TablePagination label="历史" disabled={disabled||!!history.error} canPrevious={pageNumber>1} canNext={!!history.data?.hasMore&&!!history.data.nextCursor}
       previous={previous} next={()=>next(history.data!.nextCursor)}
-      summary={history.error?'历史读取失败，请重新查询。':!history.data?'正在读取历史…':`第 ${pageNumber} 页 · ${history.data.requests.length} 条${live&&!connectionError?' · 自动刷新':''}`}/>
+      summary={history.error?'历史读取失败，请重新查询。':!history.data?'正在读取历史…':paginationSummary(pageNumber,history.data.total,50)+(live&&!connectionError?' · 自动刷新':'')}/>
   </div>;
 }

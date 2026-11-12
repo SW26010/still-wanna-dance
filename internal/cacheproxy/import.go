@@ -194,7 +194,12 @@ func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 	if err != nil {
 		return nil, err
 	}
-	digest, err := hashImport(ctx, staged)
+	stagedInfo, err := staged.Stat()
+	digest := key
+	// A hard link shares the source content already hashed in this phase.
+	if err == nil && !sameVerifiedFile(info, stagedInfo) {
+		digest, err = hashImport(ctx, staged)
+	}
 	staged.Close()
 	if err != nil {
 		return nil, err
@@ -270,6 +275,7 @@ func (s *Server) RemoveImportedSource(ctx context.Context, receipt ImportedVideo
 	}
 	s.pinVideo(video{key: receipt.MD5})
 	defer s.releaseVideo(video{key: receipt.MD5})
+	var verified os.FileInfo
 	for _, path := range []string{receipt.Destination, receipt.Source} {
 		info, err := os.Lstat(path)
 		if err != nil {
@@ -285,7 +291,13 @@ func (s *Server) RemoveImportedSource(ctx context.Context, receipt ImportedVideo
 		if err != nil {
 			return err
 		}
-		digest, err := hashImport(ctx, f)
+		opened, err := f.Stat()
+		digest := receipt.MD5
+		// Always hash the destination anew; only its verified hard-link alias
+		// can reuse that result during this cleanup, never across operations.
+		if err == nil && !sameVerifiedFile(verified, opened) {
+			digest, err = hashImport(ctx, f)
+		}
 		if err == nil && path == receipt.Source {
 			err = receipt.ImportFile.check(f)
 		}
@@ -299,6 +311,7 @@ func (s *Server) RemoveImportedSource(ctx context.Context, receipt ImportedVideo
 			}
 			return errors.New("文件 MD5 已改变，未删除")
 		}
+		verified = opened
 	}
 	// Windows does not permit unlinking a source while this handle is open.
 	if err := source.Close(); err != nil {

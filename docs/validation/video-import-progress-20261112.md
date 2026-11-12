@@ -67,4 +67,26 @@ SQLite 文件及伴随文件复用已有数据库物理文件身份校验，拒�
 ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestImportProgressWriteVolumeDoesNotGrowWithManifest$' -bench '^BenchmarkImportItemPublication$' -benchmem -benchtime=200ms -count=1 -v
 ```
 
-本次没有前端协议或操作流程变更，未重跑完整浏览器套件。强杀不等同于真实断电、磁盘耗尽或文件系统故障；没有据此声明这些环境通过，也没有必须依赖 VRC 的新增剩余项。未提交或推送。
+## 同卷硬链接的哈希读取（同日补充）
+
+`ImportSnapshotVideo` 原先分别哈希源文件和暂存文件，`RemoveImportedSource` 又分别哈希目标和源文件；即使两个路径是同一文件，也完整读取两遍。新增 `TestImportHardLinkReadVolume` 使用真实 5 MiB 文件及 Windows `GetProcessIoCounters`，先在原实现上复现并触发单阶段读取预算断言失败，再验证修复：
+
+| 阶段 | 修复前进程读取字节 | 修复后进程读取字节 |
+| --- | ---: | ---: |
+| 导入 | 10,485,776 | 5,242,896 |
+| 清理 | 10,485,760 | 5,242,880 |
+
+视频每份为 5,242,880 字节，导入另有 16 字节的进程读取。此计数是进程读取传输量，包含文件系统缓存命中及少量其他读取，不代表物理设备 I/O 或耗时收益。回归预算允许少量其他读取，但拒绝再次完整读取一份视频，也要求清理重新读取完整内容。
+
+修复复用 `sameVerifiedFile` 比较已打开句柄的文件身份与属性，仅合并同一阶段内的共享内容校验，不引入跨操作哈希缓存。跨卷或被替换为独立副本的目标仍分别计算 MD5，源文件前后快照、路径检查、发布保护和清理错误分类保持原规则。
+
+缓存层全部 `TestImport` 通过，包含真实第二卷的复制／清理；新增检查确认大小、文件身份与修改时间保持不变时，硬链接内容损坏、独立源或目标损坏仍拒绝删除，独立正确副本允许清理。Console 的回执清理／确认、固定清单、取消／退出和强杀恢复定向回归通过，包含跨卷复制中断后恢复，无跳过。缓存层与 Console 的 vet 通过。读取量测试首次在沙箱内被硬链接权限拒绝，尚未到达预算断言；按开发说明在普通用户权限下复现和复验，未修改产品文件操作。
+
+```powershell
+# 进程内设置 SWD_IMPORT_TEST_VOLUME 为已授权的第二卷测试目录。
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^TestImport' -count=1 -v
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestImport(UsesAllKnownMediaWithoutNetworkOrMapping|Cleanup.*|MediaOnlyAndCancellation|EnumerationFreezesPathsAndExcludesStorage|RecoveryUsesFrozenManifestAndRestoresReceipts|PauseAndExitKeepCurrentFilePending|CrashRecovery)$' -count=1 -v
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs vet -tags=no_easytier ./internal/cacheproxy ./internal/console
+```
+
+原始复验日志保存在忽略目录 `artifacts/import-hardlink-md5/`。本次没有前端协议或操作流程变更，未重跑完整浏览器套件。强杀不等同于真实断电、磁盘耗尽或文件系统故障；没有据此声明这些环境通过，也没有必须依赖 VRC 的新增剩余项。

@@ -984,3 +984,15 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - Go 1.27.3、GCC 16.2.0 下，缓存、调度、共用请求机制共 8 项顶层定向 Windows race 检查各连续三次通过；六个受影响包的 `go vet`、相关 Go 文件格式检查和 `git diff --check` 通过。
 
 失败摘录及检查结果位于忽略目录 `artifacts/header-budget-20261112/`：`failure-summary.txt` 明确为工具输出摘录，`regression.log` 保留缓存整包失败及其他四包结果，`cache-native.log`、`console-native.log`、`race.log` 保存对应复验。虚拟时间与受控传输证明预算、回退、正文和取消边界，不外推为真实公网耗时或游戏音画收益。本轮验证未启动 VRC、修改 hosts 或替换运行实例，不新增 VRC 专属待验项。
+
+## 2026-11-12：普通文件打开不再等待整文件发布额度
+
+确认评审反馈：`verifiedFile` 虽然只打开文件并检查属性，仍在 `os.Open` 前申请 `localChecks`，与后台整文件合并、MD5 和发布共用默认 3 个名额。新增 [HTTP 读取回归](../../internal/cacheproxy/verified_test.go)在请求前占满名额；原实现的 36 字节本地 GET、Range、HEAD 和冷 GET 连续两轮均在 1 秒请求期限处失败，没有交付正文。冷下载同样卡在最初的本地文件检查，尚未请求上游。原失败保留在忽略目录 `artifacts/read-publication-capacity/before.log`。
+
+现在普通文件打开及属性检查直接执行，保留同资源句柄共享、检查互斥、文件引用和取消处理；`publishBlocks` 继续从预留后到合并、校验、同步及正式提交持有原额度。没有新增读取池、配置或优先级机制，`MaxLocalValidations` 名称、默认值与发布限制保持不变。现行规则见[本地资源契约](../download-resource-design.md#6-本地资源管理的存储与外部契约)；此前开发记录中普通读取或日期型 If-Range 使用 `localChecks` 的描述只适用于历史实现。
+
+- 原四个 HTTP 场景连续两轮通过；冷 GET 在额度仍占满时交付全部字节，正式文件尚不存在，释放名额后后台校验并发布成功。旧的“普通打开应等待额度”断言改为等待检查互斥时响应取消，并确认后续调用可重试。结果在 `after.log`。
+- 读取、句柄共享和释放、校验取消与失败、发布预留和复核、独立发布期限及零预算的 27 项顶层回归通过（10.935 秒，无 skip）；缓存包 `go vet` 通过。结果在 `regression.log`、`vet.log`。
+- Go 1.27.3、GCC 16.2.0 下，8 项读取／句柄生命周期与发布额度的定向 Windows race 测试在普通用户权限下通过（72.012 秒，无 skip），结果在 `race-native.log`；相关 Go 文件格式和 `git diff --check` 通过。
+
+本轮检查使用真实文件及受控回环上游，从 `ServeHTTP` 验证阻塞与交付边界，不外推为真实慢盘吞吐或游戏播放收益。未启动 VRC、修改 hosts、替换运行实例或执行 commit／push，无需新增 VRC 专属待验项。

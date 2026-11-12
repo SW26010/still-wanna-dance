@@ -77,7 +77,7 @@ type Server struct {
 	prefetchOrder    []int64
 	queueStart       time.Time
 	playbackChecks   map[string]*playbackCheck // protected by mu
-	localChecks      chan struct{}
+	localChecks      chan struct{}             // whole-file merge, checksum and publication capacity
 	requests         *requestActivity
 	scheduler        *blocksched.Scheduler
 	blockObserver    atomic.Pointer[blockObserver] // allocated only while a visualization is subscribed

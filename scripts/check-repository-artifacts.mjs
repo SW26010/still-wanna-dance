@@ -13,7 +13,9 @@ const largeFileError = 'large file requires an exact documented exception';
 export function classify(file, bytes, policy) {
   let binary = bytes.subarray(0, 8000).includes(0);
   try { new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { binary = true; }
-  const exception = policy.exceptions.find(e => e.path === file && e.sha256 === sha256(bytes));
+  // Hash lazily, once per classification, even with many historical exceptions.
+  let digest;
+  const exception = policy.exceptions.find(e => e.path === file && e.sha256 === (digest ??= sha256(bytes)));
   const productIcon = exception?.kind === 'product-icon' && /^internal\/branding\/logo(?:(?:-light)?\.ico|_windows_amd64\.syso)$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
   const readmeScreenshot = exception?.kind === 'readme-screenshot' && /^docs\/images\/webui-(?:acceleration|library|settings-dark)\.png$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes;
   const dashboard = exception?.kind === 'embedded-dashboard' && file === 'internal/dashboard/assets/zashboard.zip' && exception.bytes === bytes.length;

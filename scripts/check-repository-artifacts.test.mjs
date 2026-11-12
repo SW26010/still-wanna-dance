@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, Hash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
@@ -20,6 +20,35 @@ test('large text exceptions require the exact path, hash, size, kind and a reaso
     assert.ok(classify(webuiApp, bytes, { ...policy, exceptions: [{ ...exception, ...change }] }).error);
   }
   assert.ok(classify(webuiApp, Buffer.concat([bytes, Buffer.from('x')]), { ...policy, exceptions: [exception] }).error);
+});
+
+test('historical exceptions hash content once per classification without retaining the digest', t => {
+  const bytes = Buffer.alloc(2048, 65);
+  const exception = { path: webuiApp, kind: 'large-text', bytes: bytes.length, sha256: sha256(bytes), reason: 'Reviewed production bundle' };
+  const historical = ['0'.repeat(64), '1'.repeat(64)].map(digest => ({ ...exception, sha256: digest }));
+  const reviewed = { ...policy, exceptions: [...historical, exception] };
+  const update = Hash.prototype.update;
+  let hashedBytes = 0;
+  t.mock.method(Hash.prototype, 'update', function (data, ...args) {
+    hashedBytes += data.length;
+    return update.call(this, data, ...args);
+  });
+
+  assert.deepEqual(classify(webuiApp, bytes, reviewed), {});
+  assert.equal(hashedBytes, bytes.length, 'historical exceptions must reuse one content digest');
+
+  hashedBytes = 0;
+  assert.ok(classify(webuiApp, bytes, { ...policy, exceptions: historical }).error);
+  assert.equal(hashedBytes, bytes.length, 'a missing exception must also hash content only once');
+
+  hashedBytes = 0;
+  bytes[0] = 66;
+  assert.ok(classify(webuiApp, bytes, reviewed).error);
+  assert.equal(hashedBytes, bytes.length, 'a later call must check the current bytes');
+
+  hashedBytes = 0;
+  assert.ok(classify('other.js', bytes, reviewed).error);
+  assert.equal(hashedBytes, 0, 'unregistered paths need no exception digest');
 });
 
 test('build review proposes Git LF bytes without granting an exception', () => {

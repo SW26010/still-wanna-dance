@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {flushSync} from 'react-dom';
 import {Button,Card,CardFooter,CardPreview,Menu,MenuItem,MenuList,MenuPopover,MenuTrigger,Popover,PopoverSurface,Subtitle2,Text,Tooltip,useRestoreFocusTarget} from '@fluentui/react-components';
 import {MoreHorizontalRegular,PlayCircleFilled} from '@fluentui/react-icons';
 import {request,requestBlob} from './api';
@@ -88,14 +89,21 @@ export function useLibraryCovers(page:LibraryPage|undefined,nextPage:string,enab
     })();
     return()=>controller.abort();
   },[demand,nextPage,enabled,documentVisible]);
-  return covers.demand===demand?covers.images:{};
+  // A new page can use retained local images during its first render. Stale
+  // failures and images whose selected source changed still belong to the old page.
+  return covers.demand===demand?covers.images:Object.fromEntries(Object.entries(covers.images).filter(([id,cover])=>page?.covers?.[id]?.source==='local'&&cover.source));
 }
 
 function CoverImage({source,fallback}:{source?:string;fallback:string}) {
   const [displayed,setDisplayed]=useState<string>(),[failed,setFailed]=useState<string>();
   const candidate=source&&source===failed?fallback:source;
   // Keep the shown image during updates; React retains the loaded candidate by key.
-  return [...new Set([displayed,candidate])].filter((url):url is string=>!!url).map(url=><img key={url} src={url} alt="" width={480} height={360} className={url===displayed?'is-ready':undefined} onLoad={()=>{if(url===candidate)setDisplayed(url);}} onError={()=>{if(url===candidate)setFailed(url);}}/>);
+  return [...new Set([displayed,candidate])].filter((url):url is string=>!!url).map(url=><img key={url}
+    // Cached images can already be complete when mounted. Commit their visible
+    // state before paint instead of waiting for a later load-event render.
+    ref={image=>{if(image?.complete&&image.naturalWidth&&url===candidate&&url!==displayed)setDisplayed(url);}}
+    src={url} alt="" width={480} height={360} className={url===displayed?'is-ready':undefined}
+    onLoad={()=>{if(url===candidate&&url!==displayed)flushSync(()=>setDisplayed(url));}} onError={()=>{if(url===candidate)setFailed(url);}}/>);
 }
 
 export function LibraryCoverCard({id,title,group,selection,enabled,open,onOpenChange,cover,preferences,details,operations,previewDisabled,previewReason,onPreview}:{

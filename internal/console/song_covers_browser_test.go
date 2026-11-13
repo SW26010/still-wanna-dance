@@ -106,7 +106,7 @@ func TestSongCoverPaginationBrowser(t *testing.T) {
 	// Previously downloaded files have already completed this program's update
 	// check. Keep setup local so pagination cannot depend on an upstream response.
 	c.covers.checked = make(map[string]struct{})
-	for i := range 51 {
+	for i := range 100 {
 		id := strconv.Itoa(i + 1)
 		name := "封面翻页歌曲 " + id
 		songs = append(songs, cacheproxy.CatalogSong{ID: int64(i + 1), Name: &name, MD5: key})

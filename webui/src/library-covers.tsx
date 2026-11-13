@@ -101,7 +101,14 @@ function CoverImage({source,fallback}:{source?:string;fallback:string}) {
   return [...new Set([displayed,candidate])].filter((url):url is string=>!!url).map(url=><img key={url}
     // Cached images can already be complete when mounted. Commit their visible
     // state before paint instead of waiting for a later load-event render.
-    ref={image=>{if(image?.complete&&image.naturalWidth&&url===candidate&&url!==displayed)setDisplayed(url);}}
+    ref={image=>{
+      if(!image||url!==candidate||url===displayed)return;
+      if(image.complete&&image.naturalWidth){setDisplayed(url);return;}
+      // Cached loading can complete after this commit but before the first
+      // paint, ahead of the native load event. Check once in that same frame.
+      const frame=requestAnimationFrame(()=>{if(image.complete&&image.naturalWidth)flushSync(()=>setDisplayed(url));});
+      return()=>cancelAnimationFrame(frame);
+    }}
     src={url} alt="" width={480} height={360} className={url===displayed?'is-ready':undefined}
     onLoad={()=>{if(url===candidate&&url!==displayed)flushSync(()=>setDisplayed(url));}} onError={()=>{if(url===candidate)setFailed(url);}}/>);
 }

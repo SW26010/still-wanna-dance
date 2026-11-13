@@ -40,11 +40,15 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const [draft,setDraft]=useState({anchor:browserAnchor,search:query.q,filter:query.filter});
   if(draft.anchor!==browserAnchor)setDraft({anchor:browserAnchor,search:query.q,filter:query.filter});
   const {search,filter}=draft;
-  const localNavigation=useRef('');
+  const localNavigation=useRef(''),pendingPageAnchor=useRef('');
   const navigate=(change:Partial<LibraryQuery>,replace=false)=>{
     const next=libraryAnchor({...query,...change});
     setDraft(current=>({anchor:next,search:change.q??current.search,filter:change.filter??current.filter}));
     localNavigation.current=next;onNavigate(next,replace);
+  };
+  const changePage=(offset:number)=>{
+    pendingPageAnchor.current=libraryAnchor({...query,offset});
+    navigate({offset});
   };
   const [pending,setPending]=useState(false);
   const [list,toggleCovers]=useRunToggle('swd-library-list-run'),covers=!list;
@@ -63,6 +67,14 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   // Same-query reads retain an actionable snapshot; query/save changes must wait for their own result.
   const pageUnavailable=!page.data||page.loadedPath!==pagePath||page.loadedRevision!==app.revision||waitingForDatabase||!!page.error;
+  useLayoutEffect(()=>{
+    if(!pendingPageAnchor.current)return;
+    if(!visible||app.stopped||page.error||pendingPageAnchor.current!==browserAnchor){pendingPageAnchor.current='';return;}
+    if(pageUnavailable)return;
+    // Retained rows stay where they were. Focus and scroll the destination only
+    // after its matching result is committed, before the browser paints it.
+    pendingPageAnchor.current='';focusSection('library-browser');
+  },[visible,app.stopped,browserAnchor,page.error,pageUnavailable]);
   const actions=useCacheActions(page.data,page.refresh,visible,pageUnavailable||pending);
   const fileResult=useRef<HTMLElement>(null);
   useEffect(()=>{if(!visible||app.stopped)setPreview(undefined);},[visible,app.stopped]);
@@ -193,7 +205,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
       </li>)}</ul>:view==='songs'?<RecordDataTable key="songs" busy={page.loading} regionLabel="曲库表格" label="曲库歌曲" className="song-table" columns={songColumns} items={page.data?.songs} getRowId={song=>song.id} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>:<RecordDataTable key="resources" busy={page.loading} regionLabel="曲库表格" label="曲库资源" columns={resourceColumns} items={resourceRows} getRowId={resource=>resource.key} sort={query} onSortChange={changeSort} sortDisabled={disabled}/>}
       {!page.error&&page.data?.total===0&&<p className="empty-state">没有匹配项，请调整搜索或更新清单。</p>}
       <TablePagination label="曲库" disabled={disabled} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)}
-        previous={()=>{navigate({offset:Math.max(0,offset-50)});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}} next={()=>{navigate({offset:offset+50});focus.ref.current?.focus();focus.ref.current?.scrollIntoView({block:'start'});}}
+        previous={()=>changePage(Math.max(0,offset-50))} next={()=>changePage(offset+50)}
         summary={waitingForDatabase?'待确认存储':page.error&&!searchError?'曲库读取失败，请刷新重试。':!page.data?searchError?'查询格式有误，请修改后重试。':'正在读取曲库…':paginationSummary(resultQuery.offset/50+1,page.data.total,50,resultUnit)}/>
       </div>
     </section>

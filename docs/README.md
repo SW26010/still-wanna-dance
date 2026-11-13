@@ -8,7 +8,7 @@
 | --- | --- |
 | 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[功能范围](scope.md)、[日志](logging.md) |
 | 下载架构与运行参数 | [下载需求与资源管理设计](download-resource-design.md)是规则、接口及验证边界的统一依据；[块调度设计](block-scheduler-design.md)解释实现，[运行规则](download-concurrency.md)汇总参数 |
-| 下载时间语义与截止交接拟定方案 | [待实施方案](download-resource-design.md#三拟定方案待实施)记录已确认的 need-by／实际等待语义、GET 截止职责及统一交接：不提供普通启动资格、原 N 不变，退出事件决定范围及固定有效期；当前实现未改变 |
+| 下载截止与交接 | [现行交接规则](download-resource-design.md#常规播放交接与同块需求重新接入)、[截止职责与重新准入](download-resource-design.md#单次尝试超时与下载延续截止)；原 N、独立读取等待和统一闭准入交接已落实，验证及历史失败见[开发记录](validation/block-scheduler-validation.md) |
 | 视频导入、暂停与恢复 | [固定清单、恢复与源文件清理](video-import.md) |
 | 队列与视频保留 | [队列预加载](queue-prefetch.md)、[视频存储预算](cache-retention.md) |
 | 歌曲屏蔽与收藏 | [需求准入、队列计时与资源保留规则](download-resource-design.md#8-歌曲屏蔽与收藏)、[偏好表与版本边界](storage.md#歌曲偏好存储) |

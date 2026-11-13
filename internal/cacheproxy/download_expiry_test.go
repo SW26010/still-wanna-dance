@@ -17,11 +17,113 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func TestDownloadExpiryEndsGETWithoutClientHandoff(t *testing.T) {
+func snapshotUseHandoffs(s *Server) []*useHandoff {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]*useHandoff(nil), s.useHandoffs...)
+}
+
+func TestDownloadExpirySelectsGETsByRemainingSpanAndOwnClock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		now := time.Now()
+		for _, tc := range []struct {
+			name    string
+			at      time.Time
+			offset  int64
+			affixed bool
+			expired bool
+		}{
+			{"expired", now.Add(-blocksched.DownloadGrace), 0, true, true},
+			{"later-clock", now.Add(time.Second - blocksched.DownloadGrace), 0, true, false},
+			{"other-range", now.Add(-blocksched.DownloadGrace), rangeBlockSize, true, false},
+			{"other-flight", now.Add(-blocksched.DownloadGrace), 0, false, false},
+		} {
+			clock := &playbackClock{at: tc.at, offset: tc.offset, limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+			d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
+			defer release()
+			if tc.affixed {
+				d.flight = w.f
+			}
+			defer func() {
+				if got := errors.Is(context.Cause(d.ctx), blocksched.ErrExpired); got != tc.expired {
+					t.Error("GET expiry ignored its own remaining span or clock", tc.name, context.Cause(d.ctx))
+				}
+			}()
+		}
+		s.expireDownload(w.f, w.v.key, 0)
+	})
+}
+
+func TestExpiredGETHandoffUsesFutureUnconsumedRangeAndFixedExpiry(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 8 * rangeBlockSize
+		now := time.Now()
+		clock := &playbackClock{at: now.Add(-40 * time.Second), limit: w.v.size, media: mediaTiming{w.v.size, 80 * time.Second}}
+		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		d.flight = w.f
+		g := &getConsumption{s: s, demand: d, size: w.v.size}
+		g.start(http.StatusOK, nil)
+		g.accept(rangeBlockSize + rangeBlockSize/2) // Block 0 delivered; 1 remains partially delivered.
+		w.f.ranges.done[6] = true                   // Readability does not change usage eligibility.
+		started := make(chan struct{})
+		n := blocksched.Need{Owner: w.v.key, ReadyBy: clock.ready(5 * rangeBlockSize), LeaseUntil: now.Add(time.Hour)}
+		task, demand, err := s.scheduler.Schedule(w.reads.Key(5), rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+			close(started)
+			<-ctx.Done()
+			return blocksched.Result{Err: ctx.Err()}
+		}, n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-started
+		w.jobs[5] = &scheduledBlock{task: task, merged: demand, published: n}
+		s.expireDownload(w.f, w.v.key, 1)
+		handoffs := snapshotUseHandoffs(s)
+		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || len(s.demands) != 0 || len(handoffs) != 1 || useCount(s) != 3 {
+			t.Fatal("sole expired GET failed to transfer its eligible usage", context.Cause(d.ctx), len(handoffs), useCount(s))
+		}
+		h := handoffs[0]
+		if h.span != (useSpan{w.v.key, 5, 8}) || h.clock != *clock || h.until != now.Add(15*time.Second) {
+			t.Fatal("handoff included N<=E, changed N or refreshed its fixed expiry", h)
+		}
+		plan, _, _ := w.plan(now)
+		if !plan[5].need.WindowClosed || plan[6].need.Owner != "" || !plan[7].need.WindowClosed {
+			t.Fatal("handoff gained startup permission or scheduled readable data", plan)
+		}
+		reconcileSession(t, w)
+		time.Sleep(5 * time.Second)
+		s.expireDownload(w.f, w.v.key, 1)
+		release()
+		handoffs = snapshotUseHandoffs(s)
+		if len(handoffs) != 1 || handoffs[0] != h {
+			t.Fatal("replayed source exit replaced or extended handoff")
+		}
+		select {
+		case <-task.Done():
+			t.Fatal("GET expiry canceled the future execution", task.Err())
+		default:
+		}
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+		if useCount(s) != 0 || len(snapshotUseHandoffs(s)) != 0 {
+			t.Fatal("handoff outlived E+15 seconds")
+		}
+		reconcileSession(t, w)
+		if err := task.Err(); !errors.Is(err, context.Canceled) {
+			t.Fatal("E+15 did not stop unsupported execution", err)
+		}
+	})
+}
+
+func TestDownloadExpiryWithoutFutureUsageEndsGET(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		now := time.Now()
-		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: now.Add(-time.Minute), limit: w.v.size, media: estimateMediaTiming(w.v.size, 0)})
+		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: now.Add(-time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, time.Second}})
 		d, release := addTestDemand(t, s, ctx, w.v, true)
 		defer release()
 		d.flight = w.f
@@ -29,7 +131,7 @@ func TestDownloadExpiryEndsGETWithoutClientHandoff(t *testing.T) {
 		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || ctx.Err() != nil || useCount(s) != 0 || len(s.useHandoffs) != 0 {
 			t.Fatal("service expiry lost its cause, canceled the client context or created a handoff")
 		}
-		if d.exit.at.Load().reason != withdrawalNeedEnded || s.protection[w.v.key][0].until != now.Add(s.cfg.LocalProtectionGrace) {
+		if d.exit.at.Load().reason != withdrawalDownloadExpired || s.protection[w.v.key][0].until != now.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("withdrawal did not establish protection at the real source exit")
 		}
 		time.Sleep(time.Second)
@@ -37,6 +139,42 @@ func TestDownloadExpiryEndsGETWithoutClientHandoff(t *testing.T) {
 		release()
 		if s.protection[w.v.key][0].until != now.Add(s.cfg.LocalProtectionGrace) {
 			t.Fatal("replayed failure extended the protection tail")
+		}
+	})
+}
+
+func TestDelayedExpiredGETHandoffKeepsFrozenExitAndIndependentGET(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		exit := time.Now()
+		clock := &playbackClock{at: exit.Add(-blocksched.DownloadGrace), limit: w.v.size, media: mediaTiming{w.v.size, 64 * time.Second}}
+		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		// Delay collection of an already frozen service withdrawal. Block 1's
+		// N=E+2 has passed by collection, but was still future at the real exit.
+		d.exit.recordReason(withdrawalDownloadExpired)
+		d.cancel(blocksched.ErrExpired)
+		time.Sleep(5 * time.Second)
+		w.plan(time.Now())
+		handoffs := snapshotUseHandoffs(s)
+		if len(handoffs) != 1 || handoffs[0].span != (useSpan{w.v.key, 1, 2}) || handoffs[0].until != exit.Add(expiredGETHandoffGrace) {
+			t.Fatal("delayed exit used collection time for eligibility or expiry")
+		}
+		h := handoffs[0]
+		nextClock := &playbackClock{at: time.Now(), offset: rangeBlockSize, limit: w.v.size, media: clock.media}
+		ctx := context.WithValue(context.WithValue(context.Background(), httpGETKey{}, true), playbackClockKey{}, nextClock)
+		next, end := addTestDemand(t, s, ctx, w.v, true)
+		defer end()
+		plan, _, _ := w.plan(time.Now())
+		if plan[1].need.WindowClosed || plan[1].need.ReadyBy != nextClock.at || h.until != exit.Add(expiredGETHandoffGrace) {
+			t.Fatal("handoff blocked a new source or renewed itself")
+		}
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+		plan, _, _ = w.plan(time.Now())
+		if len(snapshotUseHandoffs(s)) != 0 || useCount(s) != 1 || next.ctx.Err() != nil || plan[1].need.WindowClosed || plan[1].need.ReadyBy != nextClock.at {
+			t.Fatal("handoff expiry withdrew the independent source", plan[1])
 		}
 	})
 }
@@ -51,7 +189,7 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 		v.songID = "1"
 		queue, releaseQueue := addTestDemand(t, s, s.queueDemandContext(context.Background(), "1"), v, false)
 		defer releaseQueue()
-		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(-time.Minute), limit: w.v.size, media: estimateMediaTiming(w.v.size, 0)})
+		ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: time.Now().Add(-time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, time.Second}})
 		get, releaseGET := addTestDemand(t, s, ctx, w.v, true)
 		defer releaseGET()
 		get.flight = w.f
@@ -210,7 +348,7 @@ func TestExpiredGETAllowsManualPreparationAfterCleanup(t *testing.T) {
 			if err := receiveDemandEvent(t, manualResult); err != nil {
 				t.Fatal("independent manual demand could not finish after cleanup", err)
 			}
-			if calls.Load() != 2 || !errors.Is(old.err, blocksched.ErrExpired) {
+			if calls.Load() != 2 || old.err != nil {
 				t.Fatal("expired task was reused or retried more than once", calls.Load(), old.err)
 			}
 			if got, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(got) != payload {

@@ -22,7 +22,19 @@ type withdrawalReason uint8
 const (
 	withdrawalSourceGone withdrawalReason = iota
 	withdrawalNeedEnded
+	withdrawalDownloadExpired
 )
+
+func (r withdrawalReason) String() string {
+	switch r {
+	case withdrawalSourceGone:
+		return "source_gone"
+	case withdrawalDownloadExpired:
+		return "download_deadline"
+	default:
+		return "need_ended"
+	}
+}
 
 // blockUse is the source-free contract between demand collection and resource
 // use. Closed contributions retain their own clock without changing open

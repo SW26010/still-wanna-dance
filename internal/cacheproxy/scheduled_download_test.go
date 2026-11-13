@@ -73,7 +73,7 @@ func TestBlockDemandFollowsActualWaitAndIndependentReaders(t *testing.T) {
 	if len(w.reads.Requested()) != 0 {
 		t.Fatal("GET created a synthetic read request")
 	}
-	one, two := w.reads.Wait(12), w.reads.Wait(12)
+	one, two := w.reads.Wait(context.Background(), 12), w.reads.Wait(context.Background(), 12)
 	if !w.reads.Requested()[12] {
 		t.Fatal("independent demands merged destructively")
 	}

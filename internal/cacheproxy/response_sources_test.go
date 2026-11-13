@@ -93,7 +93,7 @@ func TestResponseSourcesRegistrationAndCancellation(t *testing.T) {
 	for _, cancelRead := range []bool{false, true} {
 		sp := &spool{blocks: newBlockFiles(t.TempDir(), 4, 4, nil), changed: make(chan struct{}), refs: 1}
 		ctx, cancel := context.WithCancel(t.Context())
-		sp.demand = func(int64) func() {
+		sp.demand = func(ctx context.Context, _ int64) func() {
 			if !cancelRead {
 				if _, err := sp.WriteAt([]byte("abcd"), 0); err != nil {
 					t.Fatal(err)

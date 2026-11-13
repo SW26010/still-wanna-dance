@@ -49,13 +49,19 @@ func (s *Scheduler) Observation() Observation {
 	s.call(func(st *state) {
 		result.Active, result.Open = st.active, st.control.open
 		for key, j := range st.jobs {
-			result.Tasks[key] = TaskObservation{Running: j.cancel != nil, Retiring: j.retiring, Readers: len(st.reads[key]), Deadline: Deadline(j.need.ReadyBy)}
+			result.Tasks[key] = TaskObservation{Running: j.cancel != nil, Retiring: j.retiring, Deadline: Deadline(j.need.ReadyBy)}
 		}
 		for key, readers := range st.reads {
-			task := result.Tasks[key]
-			task.Readers = len(readers)
-			task.WaitSince = st.withReads(key, Need{}).WaitSince
-			result.Tasks[key] = task
+			task, exists := result.Tasks[key]
+			for w := range readers {
+				if w.ctx.Err() == nil {
+					task.Readers++
+					task.WaitSince = earlier(task.WaitSince, w.at)
+				}
+			}
+			if exists || task.Readers > 0 {
+				result.Tasks[key] = task
+			}
 		}
 	})
 	return result

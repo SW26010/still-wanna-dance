@@ -18,7 +18,7 @@ type spool struct {
 	complete bool
 	err      error
 	refs     int
-	demand   func(int64) func()
+	demand   func(context.Context, int64) func()
 }
 
 // Once all blocks are readable, withdrawing a source must not cancel publication.
@@ -149,7 +149,7 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 			return 0, r.err
 		}
 		if demand != nil && release == nil {
-			release = sync.OnceFunc(demand(r.offset))
+			release = sync.OnceFunc(demand(r.ctx, r.offset))
 			// Cancellation also cleans up if this Read is currently inside a
 			// local file operation. Completion/error uses the same release.
 			stopCancel = context.AfterFunc(r.ctx, release)

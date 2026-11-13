@@ -59,8 +59,8 @@ func TestCanceledSeekReleasesWorkerWithoutCancelingSharedReaders(t *testing.T) {
 	registered := make(chan struct{}, 2)
 	f.spool.mu.Lock()
 	original := f.spool.demand
-	f.spool.demand = func(offset int64) func() {
-		release := original(offset)
+	f.spool.demand = func(ctx context.Context, offset int64) func() {
+		release := original(ctx, offset)
 		if offset == 6*rangeBlockSize {
 			registered <- struct{}{}
 		}

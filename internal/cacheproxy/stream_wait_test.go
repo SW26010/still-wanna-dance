@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -20,8 +21,8 @@ func TestLocalReadWithdrawsOnlyItsOwnWait(t *testing.T) {
 				defer reads.Close()
 				registered := make(chan struct{}, 2)
 				sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
-					demand: func(offset int64) func() {
-						end := reads.Wait(offset / rangeBlockSize)
+					demand: func(ctx context.Context, offset int64) func() {
+						end := reads.Wait(ctx, offset/rangeBlockSize)
 						registered <- struct{}{}
 						return end
 					}}
@@ -86,7 +87,7 @@ func TestReadCancellationDuringWaitRegistration(t *testing.T) {
 		defer reads.Close()
 		enter, proceed := make(chan struct{}), make(chan struct{})
 		sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
-			demand: func(int64) func() { close(enter); <-proceed; return reads.Wait(0) }}
+			demand: func(ctx context.Context, _ int64) func() { close(enter); <-proceed; return reads.Wait(ctx, 0) }}
 		defer sp.release()
 		ctx, cancel := context.WithCancel(context.Background())
 		reader := sp.reader(ctx, 1)
@@ -106,6 +107,44 @@ func TestReadCancellationDuringWaitRegistration(t *testing.T) {
 	})
 }
 
+func TestCanceledReadCannotQualifyBeforeWaitCleanup(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := blocksched.New(blocksched.Config{SoftLimit: 1})
+		defer s.Close()
+		reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		defer reads.Close()
+		registered, cleanup := make(chan struct{}), make(chan struct{})
+		resume := sync.OnceFunc(func() { close(cleanup) })
+		defer resume()
+		sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
+			demand: func(ctx context.Context, _ int64) func() {
+				end := reads.Wait(ctx, 0)
+				close(registered)
+				<-cleanup // Keep asynchronous wait cleanup from finishing yet.
+				return end
+			}}
+		defer sp.release()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		reader := sp.reader(ctx, 1)
+		defer reader.Close()
+		result := make(chan error, 1)
+		go func() { _, err := reader.Read(make([]byte, 1)); result <- err }()
+		<-registered
+		cancel()
+		if len(reads.Requested()) != 0 || len(s.Observation().Tasks) != 0 {
+			t.Fatal("canceled read still qualifies before its delayed cleanup")
+		}
+		if _, _, err := s.Schedule("block", 1, func(context.Context, *blocksched.Progress) blocksched.Result { return blocksched.Result{} }, blocksched.Need{}); !errors.Is(err, blocksched.ErrCapacity) {
+			t.Fatal("canceled read alone started a new execution", err)
+		}
+		resume()
+		if err := <-result; !errors.Is(err, context.Canceled) {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestReadWaitDoesNotChangeUsageOrHandoffClock(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
@@ -115,7 +154,7 @@ func TestReadWaitDoesNotChangeUsageOrHandoffClock(t *testing.T) {
 		_, release := addTestDemand(t, s, ctx, w.v, true)
 		defer release()
 		before, _, _ := w.plan(now)
-		end := w.reads.Wait(0)
+		end := w.reads.Wait(ctx, 0)
 		during, _, _ := w.plan(now)
 		if before[0] != during[0] {
 			t.Fatal("read urgency entered the ordinary use contract")
@@ -145,7 +184,7 @@ func TestOrdinaryDemandCapacityDoesNotCancelReadExecution(t *testing.T) {
 		}
 		w := newDownloadSession(s, context.Background(), video{key: "video", size: rangeBlockSize}, &flight{})
 		defer w.close(nil)
-		endRead := w.reads.Wait(0)
+		endRead := w.reads.Wait(context.Background(), 0)
 		defer endRead()
 		started := make(chan struct{})
 		task, _, err := s.scheduler.Schedule(w.reads.Key(0), rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {

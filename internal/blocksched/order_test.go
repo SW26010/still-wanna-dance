@@ -167,7 +167,7 @@ func TestOpportunisticOrderDoesNotDelayBlockedRead(t *testing.T) {
 		<-started
 		reads := s.NewReadRequests("late", func(int64) string { return "late" }, nil)
 		defer reads.Close()
-		end := reads.Wait(0)
+		end := reads.Wait(context.Background(), 0)
 		defer end()
 		n := need("late", 0, time.Hour)
 		n.OpportunisticOrder = 99

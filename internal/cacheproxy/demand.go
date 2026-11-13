@@ -11,8 +11,12 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-// GET and queue-head handoffs share a fixed lifetime and source-clock shift.
-const handoffGrace = 2 * time.Second
+// Creation events select a lifetime; all handoffs retain the source clock and
+// use the same closed-admission projection.
+const (
+	handoffGrace           = 2 * time.Second
+	expiredGETHandoffGrace = 15 * time.Second
+)
 
 // Resource ownership feeds the block-demand adapter.
 var errPreempted = errors.Join(context.Canceled, errors.New("download stopped without active demand"))
@@ -93,13 +97,6 @@ func (e *sourceExit) active(ctx context.Context) bool {
 	return e.at.Load() == nil
 }
 
-func (e *sourceExit) when() time.Time {
-	if at := e.at.Load(); at != nil {
-		return at.at
-	}
-	return time.Time{}
-}
-
 func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	if !s.beginRequest() {
 		return context.Canceled
@@ -153,7 +150,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			if source.position == 0 {
 				grace = handoffGrace
 			}
-			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt, media: source.timing}, source.origin())
+			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt, media: source.timing}, source.origin(), withdrawalSourceGone)
 			source.use = useSpan{}
 			changed = true
 		}
@@ -258,13 +255,27 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		return
 	}
 	if !d.queue {
+		span := d.useSpan()
+		exit := d.exit.at.Load()
 		grace := time.Duration(0)
 		var clock playbackClock
-		if d.playback && d.clock != nil && d.exit.at.Load().reason == withdrawalSourceGone {
-			grace = handoffGrace
+		if d.playback && d.clock != nil {
 			clock = *d.clock
+			switch exit.reason {
+			case withdrawalSourceGone:
+				grace = handoffGrace
+			case withdrawalDownloadExpired:
+				grace = expiredGETHandoffGrace
+				// Playback time is monotone across the remaining span. Release
+				// N<=E and transfer the future suffix under the same registry lock.
+				first := span.first
+				for span.first < span.last && !clock.ready(span.first*s.cfg.BlockSize).After(exit.at) {
+					span.first++
+				}
+				s.releaseUseLocked(useSpan{span.key, first, span.first}, exit.at)
+			}
 		}
-		s.endUseLocked(d.useSpan(), d.exit.when(), grace, clock, sourceGET)
+		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason)
 	}
 	delete(s.demands, d)
 	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)

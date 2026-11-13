@@ -243,7 +243,7 @@ func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 	}
 	started := make(chan struct{})
 	foreground := testResourceSession(t, s, video{key: "foreground", size: 1})
-	defer foreground.reads.Wait(0)()
+	defer foreground.reads.Wait(context.Background(), 0)()
 	task, _, err := s.scheduler.Schedule(foreground.reads.Key(0), 1, func(context.Context, *blocksched.Progress) blocksched.Result {
 		close(started)
 		return blocksched.Result{}

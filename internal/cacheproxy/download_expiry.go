@@ -6,17 +6,18 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-// A deadline ends the old flight through the ordinary shared error path. The
-// source collection owns the resulting withdrawals, not the scheduler. Manual
-// preparations and later queue clocks survive and may retry after flight cleanup.
+// The source collection handles block deadline feedback. It ends only GETs
+// whose remaining span and own clock have expired, then independently applies
+// queue expiry policy. Resource execution follows the resulting usage plan.
 func (s *Server) expireDownload(f *flight, key string, block int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.refreshUseSourcesLocked(time.Now())
+	now := time.Now()
+	s.refreshUseSourcesLocked(now)
 	var ended []*downloadDemand
 	for d := range s.demands {
-		if d.playback && d.key == key && d.flight == f && d.firstBlock < d.lastBlock {
-			d.exit.recordReason(withdrawalNeedEnded)
+		if d.playback && d.flight == f && d.useSpan().contains(key, block) && d.clock != nil && blocksched.Expired(d.clock.ready(block*s.cfg.BlockSize), now) {
+			d.exit.recordReason(withdrawalDownloadExpired)
 			d.cancel(blocksched.ErrExpired)
 			ended = append(ended, d)
 		}
@@ -28,7 +29,7 @@ func (s *Server) expireDownload(f *flight, key string, block int64) {
 	}
 	// GET withdrawal can genuinely change queue timing. Judge the remaining
 	// queue against that updated clock before ending its own preparation.
-	now := time.Now()
+	now = time.Now()
 	for _, q := range s.prefetchSources {
 		if !q.use.contains(key, block) || !blocksched.Expired(q.readyBy(block, s.cfg.BlockSize), now) {
 			continue

@@ -12,7 +12,7 @@ import (
 func waitForKey(t *testing.T, s *Scheduler, key string) func() {
 	t.Helper()
 	r := s.NewReadRequests(key, func(int64) string { return key }, nil)
-	end := r.Wait(0)
+	end := r.Wait(context.Background(), 0)
 	t.Cleanup(r.Close)
 	return end
 }
@@ -33,7 +33,7 @@ func TestReadWaitsBeforeRegistrationAndIndependentWithdrawal(t *testing.T) {
 		<-started
 		r := s.NewReadRequests("video", func(int64) string { return "shared" }, nil)
 		defer r.Close()
-		one, two := r.Wait(7), r.Wait(7)
+		one, two := r.Wait(context.Background(), 7), r.Wait(context.Background(), 7)
 		if len(r.Requested()) != 1 || !r.Requested()[7] {
 			t.Fatal("read before task registration was lost")
 		}
@@ -77,7 +77,7 @@ func TestReadOnlyTaskSurvivesUsageWithdrawalAndStopsWithLastRead(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
-		end := r.Wait(0)
+		end := r.Wait(context.Background(), 0)
 		task, ordinary, err := s.Schedule("block", 1, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: ctx.Err()}
@@ -96,9 +96,9 @@ func TestReadOnlyTaskSurvivesUsageWithdrawalAndStopsWithLastRead(t *testing.T) {
 			t.Fatal("read-only task survived its last reader")
 		}
 		// Session close removes waits without a task and rejects old readers.
-		r.Wait(3)
+		r.Wait(context.Background(), 3)
 		r.Close()
-		r.Wait(4)()
+		r.Wait(context.Background(), 4)()
 		if len(r.Requested()) != 0 {
 			t.Fatal("closed session acquired a new read")
 		}
@@ -128,7 +128,7 @@ func TestReadWaitDuringRetirementUsesFreshTaskAfterCleanup(t *testing.T) {
 		demand.Close()
 		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 		defer r.Close()
-		end := r.Wait(0)
+		end := r.Wait(context.Background(), 0)
 		defer end()
 		if demand.Update(need("video", 0, time.Hour)) {
 			t.Fatal("read revived a retired ordinary demand")
@@ -183,11 +183,20 @@ func TestReadWaitKeepsSourceDeadline(t *testing.T) {
 		if view := s.Observation().Tasks["block"]; !view.WaitSince.Equal(base.Add(5*time.Second)) || !view.Deadline.Equal(base.Add(90*time.Second)) {
 			t.Error("observation conflated expected use and actual wait", view)
 		}
-		for _, e := range events {
-			if e.Key == "block" && e.Kind == "started" && (!e.WaitSince.Equal(base.Add(5*time.Second)) || !e.ReadyBy.Equal(base.Add(time.Minute)) || !e.Blocking || e.Overdue) {
-				t.Error("event conflated expected use and actual wait", e)
+		s.call(func(*state) {
+			seen := false
+			for _, e := range events {
+				if e.Key == "block" && e.Kind == "started" {
+					seen = true
+					if !e.WaitSince.Equal(base.Add(5*time.Second)) || !e.ReadyBy.Equal(base.Add(time.Minute)) || !e.Blocking || e.Overdue {
+						t.Error("event conflated expected use and actual wait", e)
+					}
+				}
 			}
-		}
+			if !seen {
+				t.Error("missing blocking start event")
+			}
+		})
 		time.Sleep(30 * time.Second)
 		synctest.Wait()
 		select {
@@ -208,7 +217,7 @@ func TestPendingReadDoesNotCreateNeedByDeadline(t *testing.T) {
 		defer s.Close()
 		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 		defer r.Close()
-		end := r.Wait(0)
+		end := r.Wait(context.Background(), 0)
 		time.Sleep(DownloadGrace)
 		task, ordinary, err := s.Schedule("block", 1, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
@@ -234,7 +243,7 @@ func TestReadRegistersBeforeOrdinaryWorkFillsTaskCapacity(t *testing.T) {
 		defer s.Close()
 		r := s.NewReadRequests("video", func(block int64) string { return fmt.Sprint(block) }, nil)
 		defer r.Close()
-		defer r.Wait(1)()
+		defer r.Wait(context.Background(), 1)()
 		blocks := []int64{0, 1}
 		r.OrderRegistration(blocks)
 		started := make(chan int64, 2)

@@ -1,6 +1,7 @@
 package blocksched
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ type ReadRequests struct {
 
 type readWait struct {
 	requests *ReadRequests
+	ctx      context.Context
 	block    int64
 	at       time.Time
 }
@@ -32,11 +34,13 @@ func (s *Scheduler) NewReadRequests(owner string, key func(int64) string, wake c
 func (r *ReadRequests) Key(block int64) string { return r.key(block) }
 
 // Wait records one actual missing read, even before a task exists. The local
-// reader must end it on return, error or cancellation. Repeated cleanup is safe.
-func (r *ReadRequests) Wait(block int64) func() {
-	w := &readWait{requests: r, block: block, at: time.Now()}
+// reader must end it on return, error or cancellation. ctx is that reader's
+// lifetime: canceled reads cannot qualify work while asynchronous cleanup lags.
+// Repeated cleanup is safe.
+func (r *ReadRequests) Wait(ctx context.Context, block int64) func() {
+	w := &readWait{requests: r, ctx: ctx, block: block, at: time.Now()}
 	r.s.call(func(s *state) {
-		if r.closed || s.closing {
+		if r.closed || s.closing || ctx.Err() != nil {
 			return
 		}
 		key := r.Key(w.block)
@@ -60,7 +64,9 @@ func (r *ReadRequests) Requested() map[int64]bool {
 	blocks := make(map[int64]bool)
 	r.s.call(func(s *state) {
 		for w := range r.waits {
-			blocks[w.block] = true
+			if w.ctx.Err() == nil {
+				blocks[w.block] = true
+			}
 		}
 	})
 	return blocks
@@ -109,6 +115,9 @@ func (s *state) endRead(w *readWait) {
 func (s *state) withReads(key string, n Need) priority {
 	p := priority{Need: n}
 	for w := range s.reads[key] {
+		if w.ctx.Err() != nil {
+			continue
+		}
 		if p.Owner == "" {
 			p.Owner = w.requests.owner
 		}

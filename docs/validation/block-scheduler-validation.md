@@ -1,26 +1,12 @@
 # 全局块调度开发记录
 
-## 2026-11-13：分离来源 need-by 与实际读取等待
-
-`d4152f81` 设计的第一步已落实：ReadRequests 只贡献 Blocking 和独立 WaitSince，不再改写来源 ReadyBy。调度截止、TaskDeadline 和响应头预算沿用来源整合后的 ReadyBy + 30 秒；无有限来源的读取不制造有限截止。调度事件增加 `wait_since`，只读调度观测分别保留 WaitSince 与 Deadline，不改变持久化、配置或等待排序。
-
-- 修复前，新增 T+60 need-by／T+5 实际读取的回归复现 T+35 提前截止；无有限 need-by 的等待也在 30 秒后被错误拒绝登记。原始失败保留在 `artifacts/download-handoff/clock-before.log`。
-- 修复后，前者 T+5 立即突破软额度启动、T+35 继续、T+90 截止；后者直到最后读者撤销才取消。多读者等待时间、独立撤销、普通缓增和下次唤醒断言同时更新，旧等待混合时钟断言已替换。
-- 调度器整包通过；缓存包读取与响应头备用预算定向回归、两包 vet 通过。结果在同目录 `clock-package.log`、`clock-after.log`、`clock-vet.log`。后续 GET 截止隔离和统一交接尚未由本步证明；本轮未启动游戏或修改 hosts。
-
-## 2026-11-13：统一交接运行语义
-
-GET 客户端关闭及队首退出均继承原 N、固定 E+2 秒，所有交接投影使用 WindowClosed。来源切换原子转移既有引用；已在途 Run 可以完成，有界内部重试不变；释放额度后不能单凭交接启动排队块。独立来源可以立即接手，撤销后仍按剩余交接及其固定期限处理。
-
-受控真实调度器回路先复现旧平移及开放准入（`artifacts/download-handoff/handoff-before.log`），修复后两种退出均通过运行／排队／完成释放／独立接手／到期取消检查。完整未消费范围、Readable、冻结退出时刻、重复回调、混合来源、使用容量和手动顺序定向回归通过（`handoff-after.log`、`handoff-capacity.log`）。旧 GET 覆盖扫描、plannedNeed.source 及不再使用的 handoff 枚举删除；闭准入贡献的通用整合同时处理过期下载资格，保护依据独立保留。后续 GET 截止及 15 秒交接仍另行验证，未据本步宣称游戏问题已修复。
-
 本页按实现先后保留开发与自动检查记录，各节只描述当时的实现、结果和限制。
 
 **现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段；各次检查不外推为后续实现的结果。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。
 
 第 38 节修正 GET 的覆盖范围并删除固定读取窗口，替代第 27/37 节中“越过起点的块立即到期”“GET 覆盖全部缺块”“当前块及后面两块独立登记”的历史规则。游戏剩余场景及状态以现行[台账](../live-acceptance-backlog.md)为准。
 
-第 72 节将 GET 与队首交接统一为 `E + 2 秒 / N + 2 秒`，替代下文早期队首 20 秒有效期和 need-by 延后 5 秒的规则；历史检查结果仅对应当时实现。
+第 72 节的 `E + 2 秒 / N + 2 秒` 是当时策略，已被文件末尾 2026-11-13 的统一交接取代：原 N 不变、关闭普通启动资格，创建事件选定范围与有效期。更早队首 20 秒／N+5 秒及各次游戏结果保留其历史适用范围。
 
 ## 1. 独立调度核心
 
@@ -1024,3 +1010,41 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - 9 项顶层定向 Windows race 检查通过（88.119 秒，无 skip），覆盖句柄共享／释放／路径替换、取消、删除保护、跨重启不可变文件复用，以及发布额度占满时本地 GET／Range／HEAD 和冷 GET 的交付。
 
 原始引用核对、移除前基线和普通／race 回归日志保存在忽略目录 `artifacts/legacy-local-scan-cleanup/`；vet 无诊断输出。这些检查不代表真实慢盘或 VRC 播放性能测量；本轮未启动游戏、修改 hosts、替换运行实例或执行 commit／push。
+
+## 2026-11-13：分离来源 need-by 与实际读取等待
+
+`d4152f81` 设计的第一步已落实：ReadRequests 只贡献 Blocking 和独立 WaitSince，不再改写来源 ReadyBy。调度截止、TaskDeadline 和响应头预算沿用来源整合后的 ReadyBy + 30 秒；无有限来源的读取不制造有限截止。调度事件增加 `wait_since`，只读调度观测分别保留 WaitSince 与 Deadline，不改变持久化、配置或等待排序。
+
+- 修复前，新增 T+60 need-by／T+5 实际读取的回归复现 T+35 提前截止；无有限 need-by 的等待也在 30 秒后被错误拒绝登记。原始失败保留在 `artifacts/download-handoff/clock-before.log`。
+- 修复后，前者 T+5 立即突破软额度启动、T+35 继续、T+90 截止；后者直到最后读者撤销才取消。多读者等待时间、独立撤销、普通缓增和下次唤醒断言同时更新，旧等待混合时钟断言已替换。
+- 调度器整包通过；缓存包读取与响应头备用预算定向回归、两包 vet 通过。结果在同目录 `clock-package.log`、`clock-after.log`、`clock-vet.log`。后续 GET 截止隔离和统一交接尚未由本步证明；本轮未启动游戏或修改 hosts。
+
+## 2026-11-13：统一交接运行语义
+
+GET 客户端关闭及队首退出均继承原 N、固定 E+2 秒，所有交接投影使用 WindowClosed。来源切换原子转移既有引用；已在途 Run 可以完成，有界内部重试不变；释放额度后不能单凭交接启动排队块。独立来源可以立即接手，撤销后仍按剩余交接及其固定期限处理。
+
+受控真实调度器回路先复现旧平移及开放准入（`artifacts/download-handoff/handoff-before.log`），修复后两种退出均通过运行／排队／完成释放／独立接手／到期取消检查。完整未消费范围、Readable、冻结退出时刻、重复回调、混合来源、使用容量和手动顺序定向回归通过（`handoff-after.log`、`handoff-capacity.log`）。旧 GET 覆盖扫描、plannedNeed.source 及不再使用的 handoff 枚举删除；闭准入贡献的通用整合同时处理过期下载资格，保护依据独立保留。后续 GET 截止及 15 秒交接仍另行验证，未据本步宣称游戏问题已修复。
+
+## 2026-11-13：GET 截止隔离、未来交接与收尾验证
+
+完成设计提交 `d4152f81`：块截止只结束剩余范围包含该块、且自身 N+30 秒已到的附着 GET。需求管理冻结真实 E，原子撤销来源并将未交付且原 N>E 的范围转为 E+15 秒交接；普通交接仍为 E+2 秒，均保留原 N、关闭普通启动资格。协调器在登记拒绝和块完成反馈处重算，保留其他合法执行；其他真实错误继续采用原共享传播。GET 请求结果与资源结果分别记录。
+
+| 设计要求 | 已验证的行为与入口 |
+| --- | --- |
+| 两种时钟及预算 | 调度器的 T+60／T+5 回路在 T+90 截止，无有限 N 不从等待制造截止；实际 Read 不缩短响应头候选预算，事件和观察区分 WaitSince／ReadyBy。见 reads_test、observation_test、attempt_timeout_test。 |
+| 统一交接与容量 | 客户端和队首原 N、固定 E+2 秒；在途继续、排队不启动、完成释放 active、独立来源立即接手。完整未消费引用含可读块，4096／2867 唯一块容量及保护不另设豁免。见 usage_plan_test、block_demands_test、demand_capacity_test。 |
+| 截止资格及固定 E | 多 GET 分别按范围、自身时钟、所附 flight 选择；唯一 GET 的部分交付、N<E、N=E、N>E、未启动和已可读范围；E+15 秒停止无其他依据的执行。通知延迟后仍按原 E 筛选，重放和新 GET 不续期，到期保留独立来源。见 download_expiry_test。 |
+| 真实 GET 与在途复用 | ServeHTTP 真实登记后在来源输入边界预置已等待的时钟，由真实调度计时触发 504 和 expired 请求历史。另一块已传部分字节时保持同一次 Run，新 GET 共享；等待闭准入更新事件后，同一 Run 可执行有界正文重试。见 download_expiry_continuation_test。此夹具不证明真实播放器自动重连。 |
+| 清理与其他错误 | GET 退出与 flight 完成同时可见时保留来源原因；手动来源在旧响应清理完成后，于同一协调器重新执行过期块并发布。取消、队列自身截止、上游终止及请求历史回归保留。见 download_expiry_test、scheduled_cancel_test、request_outcome_test。 |
+| 旧特判清理 | 删除 GET 覆盖扫描、plannedNeed.source、失效来源枚举及 N+2 秒平移。交接整合和执行不按来源、退出理由或普通／新交接区分，通用 WindowClosed、有效期、截止和资源保护继续各司其职。 |
+
+重复检查还发现：来源已取消而 Read 等待的异步撤销未完成时，旧等待偶尔会触发一次新 HTTP。`expiry-boundaries.log` 保留该失败；新增受控注册／清理闸门确定性复现于 `canceled-wait-before.log`。ReadRequests.Wait 现在接收实际读者上下文，登记、Requested、调度合入与观察直接过滤已取消的等待；读取结束仍走原可重复清理，不增加 GET 或交接分支。取消窗口及截止前无上游工作的检查连续十轮通过（`canceled-wait-after.log`）。
+
+最终检查使用 Go 1.27.3、Windows amd64，测试、vet 和构建均经过依赖补丁入口；Go 测试使用隔离临时目录包装器。原始输出位于忽略目录 `artifacts/download-handoff/`：
+
+- 调度器及缓存最终整包通过，缓存 172.304 秒（`packages-final.log`）；`cmd/...`、`internal/...` 全部 vet 及 `no_easytier` 桌面构建通过（`vet-final.log`、`build.log`），构建产物未启动。
+- 定向缓存 Windows race 通过，105.271 秒（`race-final.log` 的缓存包结果）；修正新增事件断言的同步后，整个调度器 race 通过，1.241 秒（`race-scheduler-final.log`）。首次交接集合和后续事件切片的两处新增夹具同步失败分别保留在 `race.log`、`race-final.log`，未改产品逻辑规避 race。
+- 真实 GET／闭准入 Run 内重试回路连续三轮通过（`continuation-http-final.log`）；新响应头预算及 E+15 停止检查通过（`expiry-budget-lease.log`）。
+- Console 块事件与预览回归最终通过，2.416 秒（`console-final.log`）。首次沙箱的 terms 原子替换报 handle invalid（`console.log`），未修改代码绕过；同一检查在普通用户环境通过（`console-native.log`），上下文接口迁移后再经相同环境复验。
+
+现行规则与导航已同步，原待实施章节迁入现行条款，不维护并行方案；已知旧参数和旧游戏结果保持历史边界。游戏中的续读、刷新后音画及黑屏恢复仍待实测，合并到既有 LA-040 并按用户要求暂缓；未启动 VRC、改 hosts、替换运行实例或 push，不据开发回归宣称朋友的故障已解决。

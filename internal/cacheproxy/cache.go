@@ -139,6 +139,11 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	s.mu.Unlock()
 	log.Debug("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	completed := func() (*flight, *spoolReader, error) {
+		// Source failure and resource completion can become observable together.
+		// Keep this GET's reason even when its withdrawal also ended the flight.
+		if err := context.Cause(ctx); err != nil {
+			return f, nil, err
+		}
 		if errors.Is(f.err, ErrNotRetained) && !background {
 			reader, err := s.localBlockReader(ctx, v)
 			if reader != nil {

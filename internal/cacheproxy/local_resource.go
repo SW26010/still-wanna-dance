@@ -88,7 +88,7 @@ func (d *localResource) bytes() int64 {
 	}
 	return size
 }
-func (d *localResource) makeSpool(demand func(int64) func()) *spool {
+func (d *localResource) makeSpool(demand func(context.Context, int64) func()) *spool {
 	d.storage.retain()
 	return &spool{blocks: d.storage, changed: make(chan struct{}), refs: 1, demand: demand}
 }

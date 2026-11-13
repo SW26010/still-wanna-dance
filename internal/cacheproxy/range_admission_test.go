@@ -145,7 +145,11 @@ func TestBlockingReadsKeepInflightRanges(t *testing.T) {
 			waiting := make(chan struct{})
 			signalWait := sync.OnceFunc(func() { close(waiting) })
 			demand := f.spool.demand
-			f.spool.demand = func(offset int64) func() { release := demand(offset); signalWait(); return release }
+			f.spool.demand = func(ctx context.Context, offset int64) func() {
+				release := demand(ctx, offset)
+				signalWait()
+				return release
+			}
 			reader := f.spool.reader(ctx, v.size)
 			defer reader.Close()
 			if seek {

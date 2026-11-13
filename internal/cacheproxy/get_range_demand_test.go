@@ -62,7 +62,7 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			}
 			closeBatch()
 			// Independent blocked readers still share just their current block.
-			one, two := w.reads.Wait(tc.want[0]), w.reads.Wait(tc.want[0])
+			one, two := w.reads.Wait(context.Background(), tc.want[0]), w.reads.Wait(context.Background(), tc.want[0])
 			if !w.reads.Requested()[tc.want[0]] {
 				t.Fatal("lost independent waits")
 			}

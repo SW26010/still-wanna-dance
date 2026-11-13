@@ -1,8 +1,8 @@
 # 以期望完成时间驱动的全局块调度
 
-> 本页说明当前已实现的块调度架构。下载需求与资源管理的现行规则、接口及验证边界，统一维护在 canonical 文档[下载需求与资源管理设计](download-resource-design.md)。下载窗口已实现固定 M，块下载停止后结束旧任务、按需新建任务，不保留暂停／恢复。`need-by + 30 秒` 下载截止已接入调度器；截止后通过共享会话失败路径结束 GET，由来源集合撤销、重新整合，仍有效的准备来源在旧会话清理后重新取得资格。
+> 本页说明当前已实现的块调度架构。下载需求与资源管理的现行规则、接口及验证边界，统一维护在 canonical 文档[下载需求与资源管理设计](download-resource-design.md)。下载窗口已实现固定 M，块下载停止后结束旧任务、按需新建任务，不保留暂停／恢复。`need-by + 30 秒` 下载截止已接入调度器；截止只使范围与自身时钟已过期的 GET 明确失败，来源集合撤销并按原 N 生成有限交接；协调器保留其他合法在途块，同块旧清理结束后才允许重建。
 
-2026-11-13 的时间语义、GET 截止职责及有限交接调整见[实施中的方案](download-resource-design.md#三拟定方案待实施)。时钟分离及统一交接运行语义已落实，GET 截止隔离和相应 15 秒交接仍待实施；本页描述当前实现。
+2026-11-13 已落实来源时钟与实际等待分离、GET 截止隔离及统一交接，规则以 canonical 文档为准；历史设计来源为 `d4152f81`。
 
 **本次重构的核心设计，是把播放、预读、队列和补齐统一表达为对内容块的独立需求，再用“何时需要这块数据”驱动全局下载。** 视频语义留在需求管理层；调度核心只处理内容块、期望完成时间、需求有效期、真实读取阻塞和执行额度。
 
@@ -57,6 +57,8 @@ flowchart TD
 
 读取等待直接关联其缺失内容块，不保留跨块执行绑定。资源在网络响应前暴露本地 reader，真实 Read 的缺块等待立即参与调度，仍独立于普通需求租约和窗口。具体边界见 [canonical Range 契约](download-resource-design.md#7-不保留块下载暂停与恢复)。
 
+ReadRequests.Wait 接收当前读者上下文；已取消等待在异步清理完成前也不参与 Requested、准入或观测，避免来源退出后误用旧读者启动新执行。登记与撤销仍逐读者独立，不在需求集合中传递 Blocking 或查询读者身份。
+
 `ReadyBy` 保持来源预计使用时刻，读取等待不取代或提前它。调度器独立维护最早活跃 `WaitSince` 和 Blocking；WaitSince 仅供观测，不参与期限排序或下载截止。有限任务始终按来源 ReadyBy + 30 秒截止，只有读取而无有限来源时不制造有限截止。调度事件和只读观察分别暴露预计使用与实际等待，响应头预算仍查询同一 TaskDeadline。
 
 例如块 K 同时被 A 的实际读取、B 的预读和补齐需要：A 退出只撤销 A 的贡献，B 的 ReadyBy 和补齐的提前准入仍有效；B 再退出，补齐可继续使用普通额度。K 始终只有一个共享任务。已经执行的块在仍有有效需求时自然完成，优先级变化不触发抢占。
@@ -71,11 +73,12 @@ flowchart TD
 | --- | --- |
 | GET 取消或关闭 | 交接最多保留 2 秒；原 ReadyBy 不变，关闭普通启动资格 |
 | 队首从队列消失 | 交接最多保留 2 秒；原 ReadyBy 不变，关闭普通启动资格 |
+| GET 因块截止被打回 | 从未交付范围中筛选原 N>E 的块，交接至 E+15 秒；原 N 不变，关闭普通启动资格 |
 | 普通队列项删除 | 直接撤销该来源 |
 | 队首与普通项互换 | 原地更新来源与期限，不生成交接 |
 | 读取推进 / Seek、块完成、引擎关闭 | 不生成交接 |
 
-交接不持有读取等待或 Blocking，也不继承提前准入权限；租约固定为来源退出时刻加宽限；通知处理延迟、重复关闭及无关更新都不能延长它。交接不再生成交接，原始来源仅记录在转换日志，运行时只保留算好的通用属性。
+所有交接统一为原时钟、范围、固定到期的需求，WindowClosed 关闭普通启动资格。它只能延续已有合法 Run，不能单独启动排队块或重建结束的执行；同一 Run 内的有界候选切换和正文重试仍适用。独立 GET、队列、手动及真实读取可正常取得准入，不按退出理由区分运行行为；E+2 或 E+15 只在创建时选定，通知延迟和新来源不续期。
 
 新 GET 直接登记自己的需求并复用相同块，不必判定它是不是旧请求的继任者。新需求可以只接上部分块；其他块按各自租约结束。新队列需求也能共享下载，但不会继承旧 GET 的紧迫性或续长旧交接。本地保护按有限使用需求的独立提前窗口生效，最后一份块需求结束后按配置延续（默认 300 秒，0 表示不延续）；已移除队列专属 30 秒文件保护。
 
@@ -161,7 +164,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |
 | GET / 队列绝对期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |
-| 下载执行、真实 Range、可读采样、超时及混合需求 | [download_execute.go](../internal/cacheproxy/download_execute.go)、[download_range.go](../internal/cacheproxy/download_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
+| 下载执行、真实 Range、可读采样、超时及混合需求 | [scheduled_download.go](../internal/cacheproxy/scheduled_download.go)、[download_range.go](../internal/cacheproxy/download_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
 
 早期实现中的“剩余字节→所需吞吐→目标并发”、两秒追赶、500 ms 采样、无收益回退、竞争暂停和恢复冷却均已被后续实现取代。[开发记录](validation/block-scheduler-validation.md)保留这些过程及失败证据，不作为当前运行规则；参数以固定 M 默认 500 秒为准，动态 T 已移除。
 

@@ -113,7 +113,7 @@ func (s *Server) releaseUseLocked(span useSpan, at time.Time) {
 	}
 }
 
-func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, clock playbackClock, origin demandSource) {
+func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, clock playbackClock, origin demandSource, reason withdrawalReason) {
 	if span.first >= span.last {
 		return
 	}
@@ -123,7 +123,7 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 		heap.Push(&s.useHandoffs, &useHandoff{span, at.Add(grace), clock})
 		if s.cfg.Logger != nil {
 			s.cfg.Logger.Debug("block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
-				"from", origin.String(), "reason", "source_gone", "withdrawn_at", at,
+				"from", origin.String(), "reason", reason.String(), "withdrawn_at", at,
 				"first_ready_by", clock.ready(span.first*s.cfg.BlockSize), "lease_until", at.Add(grace))
 		}
 	} else {

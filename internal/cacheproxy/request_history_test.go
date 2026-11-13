@@ -251,7 +251,7 @@ func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			sp.demand = func(offset int64) func() {
+			sp.demand = func(_ context.Context, offset int64) func() {
 				if scenario == "during-registration" {
 					sp.WriteAt([]byte{1}, offset)
 				}

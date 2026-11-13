@@ -58,7 +58,7 @@ func (w *downloadSession) exposeLocalReads(d *localResource) *spool {
 		return w.f.spool
 	}
 	if !w.f.discard {
-		w.f.spool = d.makeSpool(func(offset int64) func() { return w.reads.Wait(offset / w.s.cfg.BlockSize) })
+		w.f.spool = d.makeSpool(func(ctx context.Context, offset int64) func() { return w.reads.Wait(ctx, offset/w.s.cfg.BlockSize) })
 	}
 	close(w.f.streaming)
 	return w.f.spool
@@ -87,9 +87,6 @@ func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Ne
 	remaining := blockBytes(w.v.size, block, w.s.cfg.BlockSize)
 	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
 	if err != nil {
-		if errors.Is(err, blocksched.ErrExpired) {
-			w.s.expireDownload(w.f, w.v.key, block)
-		}
 		return err
 	}
 	t.Watch(w.wake)
@@ -182,6 +179,10 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 					w.capacity = capacity
 					continue
 				}
+				if errors.Is(err, blocksched.ErrExpired) {
+					w.s.expireDownload(w.f, w.v.key, block)
+					return until, true, nil // Replan after source exits; keep unrelated executions.
+				}
 				return until, false, err
 			}
 		}
@@ -266,9 +267,10 @@ func (w *downloadSession) reapCompleted() error {
 		}
 		select {
 		case <-j.task.Done():
-			if errors.Is(j.task.Err(), blocksched.ErrExpired) {
+			if err := j.task.Err(); errors.Is(err, blocksched.ErrExpired) && !errors.Is(err, errUpstreamDownload) {
 				w.s.expireDownload(w.f, w.v.key, block)
-				return j.task.Err()
+				delete(w.jobs, block)
+				continue
 			}
 			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
 				j.task, j.merged = nil, nil

@@ -84,13 +84,14 @@ func TestResourceHeaderTimeoutLeavesTimeForFallback(t *testing.T) {
 
 func TestScheduledHeaderTimeoutLeavesTimeForFallback(t *testing.T) {
 	for _, tc := range []struct {
-		name                                     string
-		parent, moveAt, headers, body, completed time.Duration
+		name                                                    string
+		parent, moveAt, headers, body, ready, readAt, completed time.Duration
 	}{
 		{name: "task", completed: 15 * time.Second},
 		{name: "earlier-parent", parent: 10 * time.Second, completed: 5 * time.Second},
 		{name: "move-before-fallback", moveAt: 5 * time.Second, headers: 20 * time.Second, completed: 35 * time.Second},
 		{name: "move-during-body", moveAt: 20 * time.Second, body: 20 * time.Second, completed: 35 * time.Second},
+		{name: "read-keeps-source-budget", ready: time.Minute, readAt: 5 * time.Second, completed: 45 * time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -135,9 +136,13 @@ func TestScheduledHeaderTimeoutLeavesTimeForFallback(t *testing.T) {
 				w.f.progress = &downloadProgress{log: w.f.log, start: time.Now()}
 				start := time.Now()
 				j := new(scheduledBlock)
-				need := blocksched.Need{Owner: v.key, ReadyBy: start, LeaseUntil: start.Add(time.Hour)}
+				need := blocksched.Need{Owner: v.key, ReadyBy: start.Add(tc.ready), LeaseUntil: start.Add(time.Hour)}
 				if err := w.submit(0, j, need); err != nil {
 					t.Fatal(err)
+				}
+				if tc.readAt > 0 {
+					time.Sleep(tc.readAt)
+					defer w.reads.Wait(context.Background(), 0)()
 				}
 				if tc.moveAt > 0 {
 					time.Sleep(tc.moveAt)

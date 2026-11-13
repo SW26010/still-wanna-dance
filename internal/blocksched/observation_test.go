@@ -29,18 +29,22 @@ func TestObservationTracksExecutionAndIndependentReads(t *testing.T) {
 		default:
 			t.Fatal("missing registration event")
 		}
-		one, two := reads.Wait(0), reads.Wait(0)
+		firstWait := time.Now()
+		one := reads.Wait(0)
+		time.Sleep(time.Second)
+		secondWait := time.Now()
+		two := reads.Wait(0)
 		synctest.Wait()
 		view := s.Observation()
-		if !view.Tasks["key"].Running || view.Tasks["key"].Readers != 2 || view.Active != 1 {
+		if !view.Tasks["key"].Running || view.Tasks["key"].Readers != 2 || view.Active != 1 || view.Tasks["key"].WaitSince != firstWait || view.Tasks["key"].Deadline != firstWait.Add(time.Hour+DownloadGrace) {
 			t.Fatal(view)
 		}
 		one()
-		if got := s.Observation().Tasks["key"].Readers; got != 1 {
+		if got := s.Observation().Tasks["key"]; got.Readers != 1 || got.WaitSince != secondWait {
 			t.Fatal(got)
 		}
 		two()
-		if got := s.Observation().Tasks["key"]; got.Readers != 0 || !got.Running {
+		if got := s.Observation().Tasks["key"]; got.Readers != 0 || !got.Running || !got.WaitSince.IsZero() {
 			t.Fatal(got)
 		}
 		task.Close()

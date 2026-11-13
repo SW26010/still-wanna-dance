@@ -45,11 +45,12 @@ func TestReadWaitsBeforeRegistrationAndIndependentWithdrawal(t *testing.T) {
 			t.Helper()
 			s.call(func(st *state) {
 				j := st.jobs["shared"]
-				if j == nil || j.need.Blocking != want || j.retiring {
+				if j == nil || j.need.Blocking != want || j.retiring || j.need.ReadyBy != time.Now().Add(time.Hour) {
 					t.Error("read cleanup lost a shared execution", want)
 				}
 			})
 		}
+		assertBlocking(true)
 		one()
 		one()
 		assertBlocking(true)
@@ -151,16 +152,78 @@ func TestReadWaitDuringRetirementUsesFreshTaskAfterCleanup(t *testing.T) {
 	})
 }
 
-func TestPendingReadDeadlineCannotBeRenewedByRegistration(t *testing.T) {
+func TestReadWaitKeepsSourceDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var events []Event
+		s := New(Config{SoftLimit: 1, GrowInterval: time.Hour, Observe: func(e Event) { events = append(events, e) }})
+		defer s.Close()
+		started := make(chan string, 2)
+		run := func(key string) Run {
+			return func(ctx context.Context, _ *Progress) Result {
+				started <- key
+				<-ctx.Done()
+				return Result{Err: ctx.Err()}
+			}
+		}
+		s.Schedule("held", 1, run("held"), need("held", 0, time.Hour))
+		<-started
+		base := time.Now()
+		task, _, err := s.Schedule("block", 1, run("block"), need("video", time.Minute, time.Hour))
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		defer waitForKey(t, s, "block")()
+		if key := <-started; key != "block" || time.Since(base) != 5*time.Second {
+			t.Fatal("actual read did not bypass the occupied ordinary slot", key)
+		}
+		if deadline := s.TaskDeadline("block"); !deadline.Equal(base.Add(90 * time.Second)) {
+			t.Error("actual read changed the source deadline", deadline.Sub(base))
+		}
+		if view := s.Observation().Tasks["block"]; !view.WaitSince.Equal(base.Add(5*time.Second)) || !view.Deadline.Equal(base.Add(90*time.Second)) {
+			t.Error("observation conflated expected use and actual wait", view)
+		}
+		for _, e := range events {
+			if e.Key == "block" && e.Kind == "started" && (!e.WaitSince.Equal(base.Add(5*time.Second)) || !e.ReadyBy.Equal(base.Add(time.Minute)) || !e.Blocking || e.Overdue) {
+				t.Error("event conflated expected use and actual wait", e)
+			}
+		}
+		time.Sleep(30 * time.Second)
+		synctest.Wait()
+		select {
+		case <-task.Done():
+			t.Fatal("actual wait imposed an early 30-second deadline", task.Err())
+		default:
+		}
+		time.Sleep(55 * time.Second)
+		if err := task.Err(); !errors.Is(err, ErrExpired) || time.Since(base) != 90*time.Second {
+			t.Fatal("source need-by + grace did not end the task", err)
+		}
+	})
+}
+
+func TestPendingReadDoesNotCreateNeedByDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
 		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 		defer r.Close()
-		r.Wait(0)
+		end := r.Wait(0)
 		time.Sleep(DownloadGrace)
-		if _, _, err := s.Schedule("block", 1, nil, Need{}); !errors.Is(err, ErrExpired) {
-			t.Fatal("late task registration refreshed the actual wait time", err)
+		task, ordinary, err := s.Schedule("block", 1, func(ctx context.Context, _ *Progress) Result {
+			<-ctx.Done()
+			return Result{Err: ctx.Err()}
+		}, Need{})
+		if err != nil || ordinary != nil {
+			t.Fatal("read-only registration invented an expired source", err)
+		}
+		time.Sleep(DownloadGrace)
+		if deadline := s.TaskDeadline("block"); !deadline.IsZero() {
+			t.Fatal("read-only work acquired a finite need-by", deadline)
+		}
+		end()
+		if err := task.Err(); !errors.Is(err, context.Canceled) {
+			t.Fatal("last actual read did not cancel read-only work", err)
 		}
 	})
 }

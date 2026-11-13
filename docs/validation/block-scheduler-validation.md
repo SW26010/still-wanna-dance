@@ -1,5 +1,13 @@
 # 全局块调度开发记录
 
+## 2026-11-13：分离来源 need-by 与实际读取等待
+
+`d4152f81` 设计的第一步已落实：ReadRequests 只贡献 Blocking 和独立 WaitSince，不再改写来源 ReadyBy。调度截止、TaskDeadline 和响应头预算沿用来源整合后的 ReadyBy + 30 秒；无有限来源的读取不制造有限截止。调度事件增加 `wait_since`，只读调度观测分别保留 WaitSince 与 Deadline，不改变持久化、配置或等待排序。
+
+- 修复前，新增 T+60 need-by／T+5 实际读取的回归复现 T+35 提前截止；无有限 need-by 的等待也在 30 秒后被错误拒绝登记。原始失败保留在 `artifacts/download-handoff/clock-before.log`。
+- 修复后，前者 T+5 立即突破软额度启动、T+35 继续、T+90 截止；后者直到最后读者撤销才取消。多读者等待时间、独立撤销、普通缓增和下次唤醒断言同时更新，旧等待混合时钟断言已替换。
+- 调度器整包通过；缓存包读取与响应头备用预算定向回归、两包 vet 通过。结果在同目录 `clock-package.log`、`clock-after.log`、`clock-vet.log`。后续 GET 截止隔离和统一交接尚未由本步证明；本轮未启动游戏或修改 hosts。
+
 本页按实现先后保留开发与自动检查记录，各节只描述当时的实现、结果和限制。
 
 **现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段；各次检查不外推为后续实现的结果。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。

@@ -23,6 +23,9 @@ type useSpan struct {
 	first, last int64
 }
 
+// A handoff transfers existing usage with a fixed expiry and its original
+// clock. Every handoff is closed to ordinary admission; creation policy stays
+// at the source exit, never in execution or aggregation.
 type useHandoff struct {
 	span  useSpan
 	until time.Time

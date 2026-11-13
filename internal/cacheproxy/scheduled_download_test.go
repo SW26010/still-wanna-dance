@@ -129,9 +129,9 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 			t.Fatal(until, err)
 		}
 		w.jobs[0].task.Watch(w.wake)
-		// Handoff must defer the original queue deadline, not make it more urgent.
+		// Handoff preserves the original queue clock without new admission.
 		// (The plan was obtained at the same now for both queue orders.)
-		if ready := w.jobs[0].published.ReadyBy; !ready.Equal(after.need.ReadyBy.Add(2 * time.Second)) {
+		if ready := w.jobs[0].published.ReadyBy; !w.jobs[0].published.WindowClosed || !ready.Equal(after.need.ReadyBy) {
 			t.Fatal("handoff changed the original queue clock", ready)
 		}
 		if handoff := w.jobs[0].published.LeaseUntil; !handoff.Equal(now.Add(handoffGrace)) {
@@ -158,7 +158,7 @@ func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
 	read := blockSource{"get", "a"}
 	queue := blockSource{"queue", "b"}
 	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
-	sources := map[blockSource]plannedNeed{read: {need: need, source: sourceGET}, queue: {need: need, source: sourceQueue}}
+	sources := map[blockSource]plannedNeed{read: {need: need}, queue: {need: need}}
 	plan := map[int64]blockUse{0: aggregateUse(sources, now)}
 	w.reconcile(plan, now, nil, false)
 	delete(sources, read)

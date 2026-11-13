@@ -85,8 +85,8 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		s.mu.Lock()
 		raw, _ := testSourcePlan(s, w.v.key, time.Now())
 		s.mu.Unlock()
-		for _, p := range raw[0] {
-			if p.source == sourceQueue && p.need.ReadyBy != base.Add(2*typicalDuration) {
+		for source, p := range raw[0] {
+			if source.id == s.prefetchSources["3"] && p.need.ReadyBy != base.Add(2*typicalDuration) {
 				t.Fatal("unchanged third position retained previous epoch", p.need.ReadyBy)
 			}
 		}
@@ -132,7 +132,7 @@ func TestCoalescedQueueChangesPreserveWithdrawalSource(t *testing.T) {
 						t.Fatalf("missing/freshened handoff: retiring=%v expiry=%v", j.retiring, j.nextExpiry)
 					}
 					// Preserve the removed head's actual deadline, even if past.
-					if !j.published.ReadyBy.Equal(source.readyBy(0, rangeBlockSize).Add(2 * time.Second)) {
+					if !j.published.WindowClosed || !j.published.ReadyBy.Equal(source.readyBy(0, rangeBlockSize)) {
 						t.Fatal("handoff used the stale ordinary-queue deadline", j.published.ReadyBy)
 					}
 					reconcileSession(t, w)

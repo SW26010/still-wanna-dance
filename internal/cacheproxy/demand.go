@@ -153,7 +153,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			if source.position == 0 {
 				grace = handoffGrace
 			}
-			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt.Add(handoffGrace), media: source.timing}, source.origin())
+			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt, media: source.timing}, source.origin())
 			source.use = useSpan{}
 			changed = true
 		}
@@ -263,7 +263,6 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		if d.playback && d.clock != nil && d.exit.at.Load().reason == withdrawalSourceGone {
 			grace = handoffGrace
 			clock = *d.clock
-			clock.at = clock.at.Add(handoffGrace)
 		}
 		s.endUseLocked(d.useSpan(), d.exit.when(), grace, clock, sourceGET)
 	}

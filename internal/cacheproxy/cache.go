@@ -99,7 +99,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		}
 		s.mu.Unlock()
 		if !waitLogged {
-			log.Debug("cache_capacity_wait")
+			log.Debug("等待资源任务清理", "event_name", "cache_capacity_wait")
 			waitLogged = true
 		}
 		select {
@@ -137,7 +137,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 	}
 	demand.flight = f
 	s.mu.Unlock()
-	log.Debug("cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
+	log.Debug("操作已关联共享资源任务", "event_name", "cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	completed := func() (*flight, *spoolReader, error) {
 		if errors.Is(f.err, ErrNotRetained) && !background {
 			reader, err := s.localBlockReader(ctx, v)
@@ -230,7 +230,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		if !errors.Is(err, errInvalidCache) {
 			return "", "", err
 		}
-		flight.log.Warn("cache_invalid", "key", v.key, "error", err)
+		flight.log.Warn("本地视频校验失败", "event_name", "cache_invalid", "key", v.key, "error", err)
 		// The worker pin excludes retention deletion during filesystem I/O.
 		err := os.Remove(path)
 		s.retentionMu.Lock()
@@ -256,7 +256,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		v = resolved
 		flight.progress.setHost(v.host)
 	}
-	flight.log.Debug("download_started", "key", v.key, "size", v.size)
+	flight.log.Debug("视频下载已开始", "event_name", "download_started", "key", v.key, "size", v.size)
 	flight.ranges = s.reuseLocalResource(v, flight.ranges)
 	if flight.ranges != nil {
 		retained := flight.ranges.bytes()
@@ -264,7 +264,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.bytes = retained
 		flight.progress.mu.Unlock()
 		flight.progress.setHost(flight.ranges.video.host)
-		flight.log.Debug("local_blocks_reused", "retained_bytes", retained)
+		flight.log.Debug("已复用本地临时视频块", "event_name", "local_blocks_reused", "retained_bytes", retained)
 	}
 	publishErr := s.publishScheduled(ctx, path, v, flight)
 	if err := publishErr; err != nil {
@@ -276,7 +276,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 	if err := s.recordVideo(indexCtx, v); err != nil {
 		return "", "", err
 	}
-	flight.log.Info("download_published", "key", v.key, "size", v.size)
+	flight.log.Info("完整视频已发布并登记", "event_name", "download_published", "key", v.key, "size", v.size)
 	return path, "MISS", nil
 }
 
@@ -327,11 +327,11 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 		}
 		f.progress.finish(f.err)
 		if errors.Is(f.err, errPreempted) {
-			f.log.Debug("cache_task_canceled", "reason", "preempted")
+			f.log.Debug("资源准备任务已取消", "event_name", "cache_task_canceled", "reason", "preempted")
 		} else if errors.Is(f.err, ErrNotRetained) {
-			f.log.Debug("cache_not_retained")
+			f.log.Debug("任务未保留完整视频", "event_name", "cache_not_retained")
 		} else if f.err != nil {
-			f.log.Error("cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
+			f.log.Error("资源准备任务失败", "event_name", "cache_task_failed", "key", v.key, "error", applog.SafeError(f.err))
 		}
 		if f.spool != nil {
 			f.spool.finish(f.err)

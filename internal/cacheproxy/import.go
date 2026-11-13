@@ -151,10 +151,10 @@ func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 	defer func() {
 		// Do not recursively delete unexpected files introduced into the stage.
 		if err := os.Remove(stage); err != nil && !os.IsNotExist(err) {
-			s.cfg.Logger.Warn("import_stage_cleanup_failed", "path", stage, "error", err)
+			s.cfg.Logger.Warn("视频导入暂存清理失败", "event_name", "import_stage_cleanup_failed", "path", stage, "error", err)
 		}
 		if err := os.Remove(dir); err != nil {
-			s.cfg.Logger.Warn("import_stage_cleanup_failed", "path", dir, "error", err)
+			s.cfg.Logger.Warn("视频导入暂存清理失败", "event_name", "import_stage_cleanup_failed", "path", dir, "error", err)
 		}
 	}()
 	if err = os.Link(source, stage); err != nil {

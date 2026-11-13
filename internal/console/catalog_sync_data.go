@@ -46,7 +46,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 			continue
 		}
 		if err != nil {
-			slog.Warn("catalog_sync_invalid", "source", response.Source, "error", err)
+			slog.Warn("曲库清单内容无效", "event_name", "catalog_sync_invalid", "source", response.Source, "error", err)
 			failures = append(failures, catalogSourceError(response.Source, err))
 			continue
 		}
@@ -70,7 +70,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 	store, err := c.businessStore()
 	c.mu.Unlock()
 	if err != nil {
-		slog.Warn("catalog_sync_sync_failed", "error", err)
+		slog.Warn("曲库清单保存失败", "event_name", "catalog_sync_sync_failed", "error", err)
 		return false, err
 	}
 	for _, v := range candidates {
@@ -79,7 +79,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		}
 		err = store.SyncCatalog(ctx, *v.full)
 		if err != nil && !errors.Is(err, cacheproxy.ErrCatalogOlder) {
-			slog.Warn("catalog_sync_sync_failed", "source", v.source, "revision", v.revision, "error", err)
+			slog.Warn("曲库清单保存失败", "event_name", "catalog_sync_sync_failed", "source", v.source, "revision", v.revision, "error", err)
 			if errors.Is(err, cacheproxy.ErrLocalStorage) {
 				return false, err
 			}

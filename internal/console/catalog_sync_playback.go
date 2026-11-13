@@ -25,7 +25,7 @@ func (c *Console) metadataSongCandidates(ctx context.Context) []int64 {
 	}
 	ids, err := store.SongMetadataCandidates(ctx)
 	if err != nil && ctx.Err() == nil {
-		slog.Warn("metadata_sync_metadata_candidates_failed", "error", applog.SafeError(err))
+		slog.Warn("播放地址候选读取失败", "event_name", "metadata_sync_metadata_candidates_failed", "error", applog.SafeError(err))
 	}
 	return ids
 }
@@ -47,6 +47,6 @@ func (c *Console) syncPlaybackURL(ctx context.Context, response upstreamcheck.Pl
 	}
 	if err != nil && ctx.Err() == nil {
 		// A local persistence failure does not change the API's health result.
-		slog.Warn("metadata_sync_url_sync_failed", "song_id", response.SongID, "node", response.Node, "error", applog.SafeError(err))
+		slog.Warn("播放地址保存失败", "event_name", "metadata_sync_url_sync_failed", "song_id", response.SongID, "node", response.Node, "error", applog.SafeError(err))
 	}
 }

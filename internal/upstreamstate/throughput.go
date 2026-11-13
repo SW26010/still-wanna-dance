@@ -48,13 +48,13 @@ func (m *Monitor) loadThroughputTime() {
 		return
 	}
 	if err != nil {
-		slog.Warn("monitor_throughput_state_load_failed", "error", err)
+		slog.Warn("吞吐观测状态读取失败", "event_name", "monitor_throughput_state_load_failed", "error", err)
 		return
 	}
 	var state throughputState
 	err = json.Unmarshal(b, &state)
 	if err != nil {
-		slog.Warn("monitor_throughput_state_load_failed", "error", err)
+		slog.Warn("吞吐观测状态读取失败", "event_name", "monitor_throughput_state_load_failed", "error", err)
 		// These observations are rebuildable. Leave the original until the
 		// next successful atomic save; do not accumulate diagnostic copies.
 		return
@@ -99,7 +99,7 @@ func (m *Monitor) claimThroughput(manual bool) bool {
 	m.lastThroughput = time.Now()
 	if m.throughputStatePath != "" {
 		if err := m.saveThroughputTime(); err != nil {
-			slog.Error("monitor_throughput_state_save_failed", "error", err)
+			slog.Error("吞吐观测状态保存失败", "event_name", "monitor_throughput_state_save_failed", "error", err)
 			// An explicit check still runs if persistence is unavailable;
 			// the in-memory cooldown has already been reset.
 			due = manual
@@ -143,7 +143,7 @@ func (m *Monitor) persistThroughputResult() {
 	err := m.saveThroughputTime()
 	m.throughputSaveFailed = err != nil
 	if err != nil {
-		slog.Error("monitor_throughput_result_save_failed", "error", err)
+		slog.Error("吞吐观测结果保存失败", "event_name", "monitor_throughput_result_save_failed", "error", err)
 	}
 }
 

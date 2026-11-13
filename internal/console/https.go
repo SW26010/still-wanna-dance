@@ -66,7 +66,7 @@ func (p *httpsRelay) serve() error {
 				p.mu.Unlock()
 			}()
 			if err := p.forward(client); err != nil && p.ctx.Err() == nil {
-				slog.Debug("https_forward_failed", "error", err)
+				slog.Debug("HTTPS 转发失败", "event_name", "https_forward_failed", "error", err)
 			}
 		}()
 	}
@@ -148,7 +148,7 @@ func (p *httpsRelay) forward(client net.Conn) error {
 	}
 	client.SetDeadline(time.Now().Add(2 * time.Minute))
 	upstream.SetDeadline(time.Now().Add(2 * time.Minute))
-	slog.Debug("https_forward_connected", "server_name", name, "origin", origin)
+	slog.Debug("HTTPS 转发连接已建立", "event_name", "https_forward_connected", "server_name", name, "origin", origin)
 	// A moving idle deadline permits long video streams without retaining idle
 	// tunnels indefinitely. Preserve TCP half-close so a final response drains.
 	done := make(chan struct{})

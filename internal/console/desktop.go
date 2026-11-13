@@ -36,9 +36,9 @@ func (c *Console) DesktopCommand(id int) (err error) {
 	defer func() {
 		c.reportFault("action:activation", err)
 		if err != nil {
-			slog.Error("tray_action_failed", "command", id, "error", err)
+			slog.Error("托盘操作失败", "event_name", "tray_action_failed", "command", id, "error", err)
 		} else {
-			slog.Info("tray_action_completed", "command", id)
+			slog.Info("托盘操作已完成", "event_name", "tray_action_completed", "command", id)
 		}
 	}()
 	switch id {

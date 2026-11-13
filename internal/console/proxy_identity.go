@@ -28,7 +28,7 @@ func (c *Console) channelIdentityKey() ([]byte, bool, error) {
 			id.key, id.persistent = key, true
 			return
 		}
-		slog.Warn("proxy_channel_identity_unavailable", "error", err)
+		slog.Warn("持久代理通道身份不可用", "event_name", "proxy_channel_identity_unavailable", "error", err)
 		id.key = make([]byte, 32)
 		_, id.err = rand.Read(id.key)
 	})
@@ -38,7 +38,7 @@ func (c *Console) channelIdentityKey() ([]byte, bool, error) {
 func loadProxyIdentityKey(path string) ([]byte, error) {
 	key, err := os.ReadFile(path)
 	if err == nil && len(key) != 32 {
-		slog.Warn("proxy_channel_identity_corrupt", "path", path)
+		slog.Warn("代理通道身份文件无效", "event_name", "proxy_channel_identity_corrupt", "path", path)
 		return nil, errors.New("通道身份密钥损坏；原文件保留，请从备份恢复；本次仅使用临时通道身份")
 	}
 	if errors.Is(err, os.ErrNotExist) {

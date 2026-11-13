@@ -236,7 +236,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	s.trimCache()
 	go s.retentionLoop()
 	s.scheduler = newDownloadScheduler(cfg)
-	cfg.Logger.Info("cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
+	cfg.Logger.Info("资源引擎已就绪", "event_name", "cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
 		"block_size_bytes", cfg.BlockSize,
 		"video_request_soft_limit", cfg.DownloadConcurrencySoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
 		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "video_budget_bytes", cfg.VideoBudgetBytes, "cache_unlimited", cfg.CacheUnlimited,
@@ -254,7 +254,7 @@ func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
 			if cfg.ObserveBlockSchedule != nil {
 				cfg.ObserveBlockSchedule(e)
 			}
-			cfg.Logger.Debug("block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "opportunistic", e.Opportunistic, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "overdue", e.Overdue)
+			cfg.Logger.Debug("块调度状态变化", "event_name", "block_schedule", "event", e.Kind, "block_key", e.Key, "reason", e.Reason, "active", e.Active, "open", e.Open, "blocking", e.Blocking, "opportunistic", e.Opportunistic, "ready_by", e.ReadyBy, "work_bytes", e.WorkBytes, "block_time_ms", e.BlockTime.Milliseconds(), "prepare_ahead_ms", e.PrepareAhead.Milliseconds(), "overdue", e.Overdue)
 		}})
 }
 
@@ -283,7 +283,7 @@ func (s *Server) Close() error {
 		s.Store.detach(s.binding)
 		s.client.CloseIdleConnections()
 		err = s.unlock()
-		s.cfg.Logger.Info("cache_engine_stopped", "error", applog.SafeError(err))
+		s.cfg.Logger.Info("资源引擎已结束", "event_name", "cache_engine_stopped", "error", applog.SafeError(err))
 	})
 	return err
 }
@@ -384,7 +384,26 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	defer func() {
 		crash := recover()
 		outcome := response.outcome(clientContext, crash)
-		log.Info("request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
+		message := "HTTP 请求处理结束"
+		switch outcome {
+		case "completed":
+			message = "HTTP 请求已完成"
+		case "canceled":
+			message = "HTTP 请求已取消"
+		case "failed":
+			message = "HTTP 请求失败"
+		case "aborted":
+			message = "HTTP 请求因异常中止"
+		case "incomplete":
+			message = "HTTP 请求结束，响应未完整发送"
+		case "blocked":
+			message = "HTTP 请求已被屏蔽"
+		case "expired":
+			message = "HTTP 请求因等待超时而结束"
+		case "playback_info_failed":
+			message = "HTTP 请求因播放信息查询失败而结束"
+		}
+		log.Info(message, "event_name", "request_finished", "status", response.status, "bytes", response.bytes, "elapsed", time.Since(start), "elapsed_ms", time.Since(start).Milliseconds(),
 			"response_headers_ms", response.headerLatency.Milliseconds(), "first_body_ms", response.firstBodyMS(),
 			"outcome", outcome, "cache", w.Header().Get("X-SWD-Cache"), "content_range", w.Header().Get("Content-Range"),
 			"content_length", w.Header().Get("Content-Length"), "write_error", applog.SafeError(response.writeErr))
@@ -467,7 +486,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		return
 	}
 	log = log.With("resource_key", v.key)
-	log.Debug("request_started")
+	log.Debug("HTTP 请求处理开始", "event_name", "request_started")
 	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
 	if r.Method == http.MethodHead {
 		r = r.Clone(r.Context())
@@ -573,7 +592,7 @@ loadVideo:
 		_, err = s.verifiedFile(r.Context(), v)
 		f = &flight{source: "HIT"}
 		if err == nil {
-			log.Debug("playback_local_hit", "song_id", v.songID)
+			log.Debug("播放请求命中本地视频", "event_name", "playback_local_hit", "song_id", v.songID)
 		} else if preview != nil && r.Context().Err() == nil {
 			if err = retry(err); err == nil {
 				goto loadVideo
@@ -591,10 +610,10 @@ serveVideo:
 	if err != nil {
 		response.recordFailure(clientContext, err)
 		if r.Context().Err() != nil {
-			log.Debug("client_disconnected", "elapsed", time.Since(start))
+			log.Debug("客户端已断开连接", "event_name", "client_disconnected", "elapsed", time.Since(start))
 			return
 		}
-		log.Error("cache_failed", "error", applog.SafeError(err), "elapsed", time.Since(start))
+		log.Error("请求所需资源准备失败", "event_name", "cache_failed", "error", applog.SafeError(err), "elapsed", time.Since(start))
 		status := cacheErrorStatus(err)
 		http.Error(w, http.StatusText(status), status)
 		return
@@ -624,9 +643,9 @@ serveVideo:
 			}
 			response.recordFailure(clientContext, stream.err)
 			if r.Context().Err() != nil {
-				log.Debug("client_disconnected", "cache", "MISS")
+				log.Debug("客户端已断开连接", "event_name", "client_disconnected", "cache", "MISS")
 			} else {
-				log.Error("stream_failed", "error", applog.SafeError(stream.err))
+				log.Error("视频流传输失败", "event_name", "stream_failed", "error", applog.SafeError(stream.err))
 			}
 			if !pending.committed {
 				status := cacheErrorStatus(stream.err)
@@ -637,13 +656,13 @@ serveVideo:
 			panic(http.ErrAbortHandler)
 		}
 		pending.commit()
-		log.Debug("served", "cache", "MISS", "elapsed", time.Since(start))
+		log.Debug("视频请求传输已结束", "event_name", "served", "cache", "MISS", "elapsed", time.Since(start))
 		return
 	}
 	file, err := s.verifiedFile(r.Context(), v)
 	if err != nil {
 		response.recordFailure(clientContext, err)
-		log.Error("open_failed", "error", applog.SafeError(err))
+		log.Error("本地视频打开失败", "event_name", "open_failed", "error", applog.SafeError(err))
 		if errors.Is(err, errInvalidCache) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "file changed or validation interrupted; retry request", http.StatusServiceUnavailable)
 			return
@@ -657,10 +676,10 @@ serveVideo:
 	response.sources = &responseSourceCounter{reader: file.sources(s.cfg.BlockSize)}
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
 	if r.Context().Err() != nil {
-		log.Debug("client_disconnected", "cache", f.source, "elapsed", time.Since(start))
+		log.Debug("客户端已断开连接", "event_name", "client_disconnected", "cache", f.source, "elapsed", time.Since(start))
 		return
 	}
-	log.Debug("served", "cache", f.source, "elapsed", time.Since(start))
+	log.Debug("视频请求传输已结束", "event_name", "served", "cache", f.source, "elapsed", time.Since(start))
 }
 
 type responseWriter struct {

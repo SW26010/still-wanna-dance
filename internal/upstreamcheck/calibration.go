@@ -350,7 +350,14 @@ func (c *Calibration) run(ctx context.Context, done chan struct{}) {
 		}
 		c.cancel()
 		c.publishLocked()
-		slog.Info("network_calibration_finished", "upstream", c.state.Upstream, "phase", c.state.Phase,
+		message := "网络测速已完成"
+		switch c.state.Phase {
+		case "canceled":
+			message = "网络测速已取消"
+		case "failed":
+			message = "网络测速失败"
+		}
+		slog.Info(message, "event_name", "network_calibration_finished", "upstream", c.state.Upstream, "phase", c.state.Phase,
 			"reason", c.state.Reason, "prepared_videos", c.state.PreparedVideos,
 			"prepared_bytes", c.state.PreparedBytes, "downloaded_bytes", c.state.Bytes)
 		result := c.state

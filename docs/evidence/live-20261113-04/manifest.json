@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261113-04",
+  "hashBasis": "git-blob",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261113-04.md",
+      "bytes": 4786,
+      "sha256": "65934203f1f9a4ab26bc7c37fee7b82c21596ed890ba4c96985d7898f250af25",
+      "source": "Operator report and scoped interpretation",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-04/cleanup.json",
+      "bytes": 488,
+      "sha256": "f95ad51229b8cff2ecae0b599361614cd9151526cd32a8f993cc3be54145cc78",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-04/deadline.json",
+      "bytes": 15620,
+      "sha256": "e024751b11f9d74a55a953c796e1c0248af98673ece9ff80c2fca41b93083f87",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-04/formal-retries.json",
+      "bytes": 6002,
+      "sha256": "54d74132fa30ea385213539046b2c4b29a6f1cecf8b1d0253c9232553fbe9612",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-04/provenance.json",
+      "bytes": 2034,
+      "sha256": "54230d1aaf3598e0100be41881bb551f807b975a0d4ed6f3bd83098472e45238",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    }
+  ]
+}

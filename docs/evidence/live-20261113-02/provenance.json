@@ -1,0 +1,65 @@
+{
+  "batch": "LIVE-20261113-02",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productVersion": "dev-live-20261113-01",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "sameProductAs": "LIVE-20261113-01",
+  "productWorkspaceCleanAtOriginalBuild": true,
+  "worktreeAtThisRun": "Previous batch report/evidence and relay-only modifications remain uncommitted; product EXE copied unchanged, not rebuilt.",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-02/ (ignored, local only)",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "operator-controlled single-person WannaDance room"
+  },
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 798117,
+      "sha256": "d64d95d3ca5efdd2694403c1eba8d7312260a6d3a5c19cc67daf8676605efb27"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 10394,
+      "sha256": "1f33405ee5f4895d9be29facd554b8f7118395b6043b7916d62b906934eae522"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 1099,
+      "sha256": "d7e589681d92129f34c37889ac3c9acbc56079d1342458b98acf3f373d461ec3"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 1137,
+      "sha256": "d46e3f06fba8bf3c721e897cefb4a8a13e722026413ebb4363aaaeb30e6c7445"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 149060,
+      "sha256": "3950853b561e799a9699318a145ec5c313d7e1d7b7b73d1ac13610e9d76f6986"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 506607,
+      "sha256": "dc2c73974414a10c189c6b542cfc48f63e0649c28d9a2dd3886ffbdbe2e0db95"
+    },
+    {
+      "name": "pre-seek-snapshot.private.json",
+      "bytes": 25490,
+      "sha256": "32914f9731da2b7d2daf24b4a4bc3bf9032021cdf43c82bf3670fa057a5d5496"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    },
+    {
+      "name": "enable.action.private.json",
+      "bytes": 790,
+      "sha256": "657747484a56ab1f4aab6c8c5ed40af09dccff0cc4fadd55b64d64d4b4cd9e2c"
+    }
+  ]
+}

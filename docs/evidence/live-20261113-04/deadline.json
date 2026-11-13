@@ -1,0 +1,592 @@
+{
+  "origin": "T=0",
+  "originMeaning": "Observed own block-0 need-by for target GET 2",
+  "song": 2502,
+  "resource": "303ee3623afb3fcf8b062f174b9ff4e6",
+  "mode": "formal, operator confirmed and WD queue/play events correlated",
+  "clockEvidence": [
+    {
+      "tMs": 0,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 378,
+      "block": 0,
+      "needByMs": 0,
+      "windowClosed": false
+    },
+    {
+      "tMs": 404,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 517,
+      "block": 0,
+      "needByMs": 0,
+      "windowClosed": false
+    },
+    {
+      "tMs": 10404,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 599,
+      "block": 0,
+      "needByMs": 0,
+      "windowClosed": false
+    },
+    {
+      "tMs": 20405,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 676,
+      "block": 0,
+      "needByMs": 0,
+      "windowClosed": false
+    }
+  ],
+  "requests": [
+    {
+      "tMs": -19598,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 10,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "1",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": -379,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 297,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "1",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "status": "503",
+      "bytes": "20",
+      "elapsed_ms": "20005",
+      "response_headers_ms": "20005",
+      "first_body_ms": "20005.0304",
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 0,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 375,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "2",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 9551,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 594,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "3",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 29557,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 756,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "3",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "status": "503",
+      "bytes": "20",
+      "elapsed_ms": "20006",
+      "response_headers_ms": "20006",
+      "first_body_ms": "20006.7188",
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 29938,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 757,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "4",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 30000,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 764,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "2",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.3555",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": 30013,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 844,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "5",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 39557,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 927,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "6",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 59558,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1089,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "6",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "status": "503",
+      "bytes": "20",
+      "elapsed_ms": "20001",
+      "response_headers_ms": "20001",
+      "first_body_ms": "20001.3362",
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 59939,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1093,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "4",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.1447",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": 59945,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1173,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "7",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 59954,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1176,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "8",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 60013,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1184,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "5",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.4406",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": 60026,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1262,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "9",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 69552,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1344,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "10",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 76619,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1478,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "10",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "",
+      "status": "200",
+      "bytes": "393216",
+      "elapsed_ms": "7067",
+      "response_headers_ms": "7066",
+      "first_body_ms": "7066.1911",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "80602639",
+      "client": "resolver"
+    },
+    {
+      "tMs": 76785,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1491,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "8",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "2621440",
+      "elapsed_ms": "16831",
+      "response_headers_ms": "16663",
+      "first_body_ms": "16663.3075",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-80602638/80602639",
+      "content_length": "80602639",
+      "client": "WMF"
+    },
+    {
+      "tMs": 76792,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1495,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "9",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "2195456",
+      "elapsed_ms": "16766",
+      "response_headers_ms": "16591",
+      "first_body_ms": "16592.3546",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-80602638/80602639",
+      "content_length": "80602639",
+      "client": "WMF"
+    },
+    {
+      "tMs": 76987,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1502,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "7",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "2326528",
+      "elapsed_ms": "17042",
+      "response_headers_ms": "16672",
+      "first_body_ms": "16673.3092",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-80602638/80602639",
+      "content_length": "80602639",
+      "client": "WMF"
+    },
+    {
+      "tMs": 77053,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1564,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "11",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=1966080-80602638",
+      "client": "WMF"
+    },
+    {
+      "tMs": 111641,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1933,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "11",
+      "resource_key": "303ee3623afb3fcf8b062f174b9ff4e6",
+      "range": "bytes=1966080-80602638",
+      "status": "206",
+      "bytes": "68288512",
+      "elapsed_ms": "34588",
+      "response_headers_ms": "0",
+      "first_body_ms": "0.5043",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 1966080-80602638/80602639",
+      "content_length": "78636559",
+      "client": "WMF"
+    }
+  ],
+  "handoffs": [
+    {
+      "tMs": 30000,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 762,
+      "firstBlock": 12,
+      "lastBlockExclusive": 77,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 30000,
+      "firstReadyByMs": 32158,
+      "leaseUntilMs": 45000
+    },
+    {
+      "tMs": 59938,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1091,
+      "firstBlock": 12,
+      "lastBlockExclusive": 77,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 59938,
+      "firstReadyByMs": 62097,
+      "leaseUntilMs": 74938
+    },
+    {
+      "tMs": 60013,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1180,
+      "firstBlock": 12,
+      "lastBlockExclusive": 77,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 60013,
+      "firstReadyByMs": 62172,
+      "leaseUntilMs": 75013
+    }
+  ],
+  "tasks": [
+    {
+      "tMs": 92122,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1925,
+      "flight_id": "1",
+      "outcome": "not_retained",
+      "bytes": "80927401",
+      "stage_elapsed_ms": "111719"
+    }
+  ],
+  "gameEvents": [
+    {
+      "event": "queue",
+      "song": "2502",
+      "gameLogTMs": -23105,
+      "observedTMs": -22459,
+      "sourceLine": 2147
+    },
+    {
+      "event": "play-event",
+      "song": "2502",
+      "gameLogTMs": -22105,
+      "observedTMs": -21256,
+      "sourceLine": 2174
+    },
+    {
+      "event": "resolver-request",
+      "song": "2502",
+      "gameLogTMs": -22105,
+      "observedTMs": -21256,
+      "sourceLine": 2183
+    },
+    {
+      "event": "queue",
+      "gameLogTMs": -22105,
+      "observedTMs": -21148,
+      "sourceLine": 2211
+    },
+    {
+      "event": "player-retry",
+      "song": "2502",
+      "gameLogTMs": 7895,
+      "observedTMs": 8720,
+      "sourceLine": 2221
+    },
+    {
+      "event": "resolver-request",
+      "song": "2502",
+      "gameLogTMs": 7895,
+      "observedTMs": 8720,
+      "sourceLine": 2223
+    },
+    {
+      "event": "player-retry",
+      "song": "2502",
+      "gameLogTMs": 37895,
+      "observedTMs": 38732,
+      "sourceLine": 2228
+    },
+    {
+      "event": "resolver-request",
+      "song": "2502",
+      "gameLogTMs": 37895,
+      "observedTMs": 38733,
+      "sourceLine": 2230
+    },
+    {
+      "event": "player-retry",
+      "song": "2502",
+      "gameLogTMs": 67895,
+      "observedTMs": 68728,
+      "sourceLine": 2235
+    },
+    {
+      "event": "resolver-request",
+      "song": "2502",
+      "gameLogTMs": 67895,
+      "observedTMs": 68728,
+      "sourceLine": 2237
+    },
+    {
+      "event": "video-loaded",
+      "gameLogTMs": 76895,
+      "observedTMs": 77127,
+      "sourceLine": 2244
+    },
+    {
+      "event": "video-loaded",
+      "gameLogTMs": 76895,
+      "observedTMs": 77450,
+      "sourceLine": 2254
+    },
+    {
+      "event": "video-start",
+      "song": "2502",
+      "gameLogTMs": 76895,
+      "observedTMs": 77450,
+      "sourceLine": 2266
+    }
+  ],
+  "operations": [
+    {
+      "tMs": -51045,
+      "event": "preconditions",
+      "song": 2502,
+      "feedback": "user confirmed formal stopped, empty queue, all previews closed",
+      "mode": "formal",
+      "queuePrefetch": false,
+      "bytesPerSecond": 62500
+    },
+    {
+      "tMs": 66921,
+      "event": "formal_retry_observed",
+      "feedback": "WD Retrying load observed twice at 30-second interval; GET 2 expired 504 then GET 5 bytes=0-",
+      "mode": "formal"
+    },
+    {
+      "tMs": 76177,
+      "feedback": "formal screen still loading/black, no explicit error, no manual retry/skip",
+      "event": "deadline_feedback"
+    },
+    {
+      "tMs": 76419,
+      "bytesPerSecond": 0,
+      "event": "bandwidth_restored"
+    },
+    {
+      "tMs": 92362,
+      "feedback": "formal playback automatically restored, audio/video normal, no manual retry/skip",
+      "event": "recovery_feedback"
+    }
+  ],
+  "relayControl": [
+    {
+      "tMs": -51144,
+      "event": "rate_changed",
+      "bytesPerSecond": 62500
+    },
+    {
+      "tMs": -51136,
+      "event": "ready",
+      "bytesPerSecond": 62500
+    },
+    {
+      "tMs": 76465,
+      "event": "rate_changed",
+      "bytesPerSecond": 0
+    },
+    {
+      "tMs": 137865,
+      "event": "stopped",
+      "active": 0
+    }
+  ],
+  "result": {
+    "ownNeedByPlusGraceMs": 30000,
+    "observedExpiryMs": 30000,
+    "retryDelayMs": 13,
+    "status": 504,
+    "outcome": "expired",
+    "explicitGameErrorPrompt": false,
+    "automaticRetry": true,
+    "automaticAudioVideoRecovery": true
+  },
+  "limitations": [
+    "Only target resource requests were observed in this formal sample.",
+    "Resolver cancellation at around 20 seconds is distinct from the target SWD expiry.",
+    "No response body had been delivered for expired GET 2; does not cover failure after response headers/body.",
+    "Concurrent GETs remain; this is not an isolated 15-second lease expiration or controlled performance experiment.",
+    "Millisecond product time, one-second game log time and nominal 100 ms polling; no exact first-frame measurement."
+  ],
+  "timePrivacy": "All event times are offsets from this batch-local reference; absolute timestamp omitted. Raw clock mapping remains local only."
+}

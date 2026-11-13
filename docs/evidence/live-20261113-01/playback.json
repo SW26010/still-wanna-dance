@@ -1,0 +1,499 @@
+{
+  "origin": "T=0",
+  "timing": "Product timestamps rounded to milliseconds; game timestamps have one-second precision, observed by a 100 ms nominal polling loop. Not exact first-frame measurements.",
+  "song": 6254,
+  "mode": "preview (operator confirmed; classifier preview flag is unreliable)",
+  "requests": [
+    {
+      "tMs": 0,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1414,
+      "event": "request_started",
+      "request_id": "76",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 20013,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1671,
+      "event": "request_finished",
+      "request_id": "76",
+      "range": "",
+      "status": "503",
+      "bytes": "20",
+      "elapsed_ms": "20012",
+      "response_headers_ms": "20012",
+      "first_body_ms": "20012.6827",
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 20399,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1722,
+      "event": "request_started",
+      "request_id": "77",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 29960,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1810,
+      "event": "request_started",
+      "request_id": "78",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 49973,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1918,
+      "event": "request_finished",
+      "request_id": "78",
+      "range": "",
+      "status": "503",
+      "bytes": "20",
+      "elapsed_ms": "20013",
+      "response_headers_ms": "20013",
+      "first_body_ms": "20013.5565",
+      "outcome": "canceled",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 50354,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1969,
+      "event": "request_started",
+      "request_id": "79",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 50399,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1976,
+      "event": "request_finished",
+      "request_id": "77",
+      "range": "bytes=0-",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.1317",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": 50412,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 2029,
+      "event": "request_started",
+      "request_id": "80",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 59969,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 2035,
+      "event": "request_started",
+      "request_id": "81",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 70452,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 37,
+      "event": "request_finished",
+      "request_id": "81",
+      "range": "",
+      "status": "200",
+      "bytes": "393216",
+      "elapsed_ms": "10482",
+      "response_headers_ms": "10481",
+      "first_body_ms": "10481.4963",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "52379700",
+      "client": "resolver"
+    },
+    {
+      "tMs": 70669,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 63,
+      "event": "request_finished",
+      "request_id": "80",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "3375104",
+      "elapsed_ms": "20257",
+      "response_headers_ms": "20038",
+      "first_body_ms": "20038.6716",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700",
+      "client": "WMF"
+    },
+    {
+      "tMs": 70822,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 72,
+      "event": "request_finished",
+      "request_id": "79",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "1310720",
+      "elapsed_ms": "20468",
+      "response_headers_ms": "20096",
+      "first_body_ms": "20096.9519",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700",
+      "client": "WMF"
+    },
+    {
+      "tMs": 70889,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 106,
+      "event": "request_started",
+      "request_id": "82",
+      "range": "bytes=507904-52379699",
+      "client": "WMF"
+    },
+    {
+      "tMs": 71190,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 165,
+      "event": "request_finished",
+      "request_id": "82",
+      "range": "bytes=507904-52379699",
+      "status": "206",
+      "bytes": "1048576",
+      "elapsed_ms": "301",
+      "response_headers_ms": "0",
+      "first_body_ms": "0.5031",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 507904-52379699/52379700",
+      "content_length": "51871796",
+      "client": "WMF"
+    },
+    {
+      "tMs": 71202,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 200,
+      "event": "request_started",
+      "request_id": "83",
+      "range": "bytes=4603904-52379699",
+      "client": "WMF"
+    },
+    {
+      "tMs": 107362,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 358,
+      "event": "request_finished",
+      "request_id": "83",
+      "range": "bytes=4603904-52379699",
+      "status": "206",
+      "bytes": "47775796",
+      "elapsed_ms": "36170",
+      "response_headers_ms": "11",
+      "first_body_ms": "11.3163",
+      "outcome": "completed",
+      "cache": "MISS",
+      "content_range": "bytes 4603904-52379699/52379700",
+      "content_length": "47775796",
+      "client": "WMF"
+    },
+    {
+      "tMs": 130809,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 359,
+      "event": "request_started",
+      "request_id": "84",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 131066,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 369,
+      "event": "request_finished",
+      "request_id": "84",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "4718592",
+      "elapsed_ms": "258",
+      "response_headers_ms": "1",
+      "first_body_ms": "1.0249",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700",
+      "client": "WMF"
+    },
+    {
+      "tMs": 131590,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 371,
+      "event": "request_started",
+      "request_id": "85",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 131591,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 379,
+      "event": "request_finished",
+      "request_id": "85",
+      "range": "",
+      "status": "200",
+      "bytes": "393216",
+      "elapsed_ms": "1",
+      "response_headers_ms": "0",
+      "first_body_ms": "1.1148",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "52379700",
+      "client": "resolver"
+    },
+    {
+      "tMs": 132030,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 383,
+      "event": "request_started",
+      "request_id": "86",
+      "range": "bytes=3948544-52379699",
+      "client": "WMF"
+    },
+    {
+      "tMs": 132331,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 393,
+      "event": "request_finished",
+      "request_id": "86",
+      "range": "bytes=3948544-52379699",
+      "status": "206",
+      "bytes": "1048576",
+      "elapsed_ms": "301",
+      "response_headers_ms": "0",
+      "first_body_ms": "0.5038",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 3948544-52379699/52379700",
+      "content_length": "48431156",
+      "client": "WMF"
+    },
+    {
+      "tMs": 132334,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 394,
+      "event": "request_started",
+      "request_id": "87",
+      "range": "bytes=4603904-52379699",
+      "client": "WMF"
+    },
+    {
+      "tMs": 167808,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 411,
+      "event": "request_finished",
+      "request_id": "87",
+      "range": "bytes=4603904-52379699",
+      "status": "206",
+      "bytes": "46891008",
+      "elapsed_ms": "35476",
+      "response_headers_ms": "3",
+      "first_body_ms": "3.1053",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 4603904-52379699/52379700",
+      "content_length": "47775796",
+      "client": "WMF"
+    }
+  ],
+  "handoffs": [
+    {
+      "tMs": 50399,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 1974,
+      "firstBlock": 8,
+      "lastBlockExclusive": 50,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 50399,
+      "firstReadyByMs": 52589,
+      "leaseUntilMs": 65399
+    }
+  ],
+  "tasks": [
+    {
+      "tMs": 79801,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 355,
+      "event": "cache_task_finished",
+      "flight_id": "31",
+      "outcome": "not_retained",
+      "bytes": "52815752",
+      "stage_elapsed_ms": "79800"
+    },
+    {
+      "tMs": 130813,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 365,
+      "event": "cache_task_finished",
+      "flight_id": "32",
+      "outcome": "not_retained",
+      "bytes": "52379700",
+      "stage_elapsed_ms": "3"
+    },
+    {
+      "tMs": 131602,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 380,
+      "event": "cache_task_finished",
+      "flight_id": "33",
+      "outcome": "not_retained",
+      "bytes": "52379700",
+      "stage_elapsed_ms": "12"
+    },
+    {
+      "tMs": 132032,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 389,
+      "event": "cache_task_finished",
+      "flight_id": "34",
+      "outcome": "not_retained",
+      "bytes": "52379700",
+      "stage_elapsed_ms": "2"
+    },
+    {
+      "tMs": 132336,
+      "source": "product/logs/20261113-2.log",
+      "sourceLine": 400,
+      "event": "cache_task_finished",
+      "flight_id": "35",
+      "outcome": "not_retained",
+      "bytes": "52379700",
+      "stage_elapsed_ms": "2"
+    }
+  ],
+  "gameEvents": [
+    {
+      "event": "resolver-request",
+      "song": "6254",
+      "gameLogTMs": 28913,
+      "observedTMs": 29223,
+      "sourceLine": 1587
+    },
+    {
+      "event": "resolver-request",
+      "song": "6254",
+      "gameLogTMs": 58913,
+      "observedTMs": 59210,
+      "sourceLine": 1596
+    },
+    {
+      "event": "video-start",
+      "song": "6254",
+      "gameLogTMs": 70913,
+      "observedTMs": 71226,
+      "sourceLine": 1608
+    },
+    {
+      "event": "resolver-request",
+      "song": "6254",
+      "gameLogTMs": 129913,
+      "observedTMs": 130775,
+      "sourceLine": 1620
+    },
+    {
+      "event": "video-start",
+      "song": "6254",
+      "gameLogTMs": 131913,
+      "observedTMs": 132418,
+      "sourceLine": 1628
+    }
+  ],
+  "operations": [
+    {
+      "tMs": -162701,
+      "mode": "preview",
+      "bytesPerSecond": 125000,
+      "song": 6254,
+      "event": "ready",
+      "source": "user confirmed stopped, queue empty, previews closed"
+    },
+    {
+      "tMs": -58178,
+      "event": "relay_http_api_fixed",
+      "userFeedback": "preview loading/black before relay fix"
+    },
+    {
+      "tMs": -1866,
+      "note": "API and media use HTTP; relay regression passed",
+      "event": "relay_http_resources_fixed"
+    },
+    {
+      "tMs": 70345,
+      "reason": "observed request 77 expired 504 and request 80 automatic reconnect",
+      "bytesPerSecond": 0,
+      "event": "bandwidth_restored"
+    },
+    {
+      "tMs": 98923,
+      "event": "user_feedback",
+      "feedback": "restored automatically, audio/video normal; no manual refresh yet"
+    },
+    {
+      "tMs": 148139,
+      "feedback": "preview has no refresh button; closed and reopened song 6254; audio/video normal",
+      "event": "user_feedback"
+    }
+  ],
+  "relayControl": [
+    {
+      "tMs": -1839,
+      "event": "rate_changed",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": -1832,
+      "event": "ready",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": 70372,
+      "event": "rate_changed",
+      "bytesPerSecond": 0
+    },
+    {
+      "tMs": 180368,
+      "event": "stopped",
+      "active": 0
+    }
+  ],
+  "limitations": [
+    "Initial HTTP rejection by obsolete relay excluded from valid slow-network sample.",
+    "Manual action was closing and reopening preview after automatic recovery, not a refresh button or a persistent-black-screen recovery.",
+    "No independent cold Seek, multiplayer, precise frame time or bandwidth benefit comparison."
+  ],
+  "originMeaning": "First valid slow-network video request",
+  "timePrivacy": "All event times are offsets from this batch-local reference; absolute timestamp omitted. Raw clock mapping remains local only."
+}

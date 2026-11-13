@@ -1,0 +1,78 @@
+{
+  "batch": "LIVE-20261113-01",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productWorkspaceCleanAtBuild": true,
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "version": "dev-live-20261113-01",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "operator-controlled single-person WannaDance room"
+  },
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-01/ (ignored, local only)",
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113-1.log",
+      "bytes": 1048449,
+      "sha256": "410f10c085efffc8ebd20a7c7333e72af97799a1d79df1604633a2aaa9b0b5b8"
+    },
+    {
+      "name": "product/logs/20261113-2.log",
+      "bytes": 194673,
+      "sha256": "bbaf6edbb840da2edb548dc8ad81c03c676dec1f8d2ff35f92aa5d54c37f8d9c"
+    },
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 1048330,
+      "sha256": "02eae34d5c40deb2d7e6ce6def9e4292f5ca43018fb2d64dbcb6596588020fd4"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 44472,
+      "sha256": "e68618324dc1420a5ced993807c6bd83d36fe0c5a0019b1d414245cc21c2c48c"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 8234,
+      "sha256": "ea8b1d1b7be4512f63538c60eb2c3de6a545b8a34da9fd89233f9ecfa01edc58"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 937,
+      "sha256": "ca8676a2890f1fb726d417b3c2b66a9e69aa9c39aecea12dfee038547e815c95"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 27706,
+      "sha256": "a14f2f4e9a3f4755fc608365510b54f576be71edec8eca63d6db9544ec8877ac"
+    },
+    {
+      "name": "relay-http-api.stdout.log",
+      "bytes": 19540,
+      "sha256": "31acf88bb78775b22e091c33144623c120352b85e15c1348ef636a6e0af3ec5d"
+    },
+    {
+      "name": "relay-http.stdout.log",
+      "bytes": 84091,
+      "sha256": "49017ddb3e65f5f569f228118f956fe295b85d09a6d250779996dd91f7a307c8"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 1822077,
+      "sha256": "efb245e586b76f8e1721e39242ce653d1e116569356c454636a730be428f80a2"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    },
+    {
+      "name": "relay-tests.log",
+      "bytes": 58,
+      "sha256": "179b8e45771c73b5645990ff16a3aa0e093ac5a410462072b2331fcdc74f97b1"
+    }
+  ]
+}

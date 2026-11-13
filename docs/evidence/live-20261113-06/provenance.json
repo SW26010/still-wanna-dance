@@ -1,0 +1,60 @@
+{
+  "batch": "LIVE-20261113-06",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productVersion": "dev-live-20261113-01",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "sameProductAs": "LIVE-20261113-01",
+  "productWorkspaceCleanAtOriginalBuild": true,
+  "worktreeAtThisRun": "Prior reports/evidence and relay-only changes uncommitted; identical product EXE reused.",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-06/ (ignored, local only)",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "non-owner, friend controls shared playback, explicitly confirmed"
+  },
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113-1.log",
+      "bytes": 8207,
+      "sha256": "fe31f888fed4f3272a591cf0b56a4069610e9c7ac3b06be4cc265fd45f650972"
+    },
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 1048122,
+      "sha256": "531ee4f8a378c6a8aa1fb6c927ff33290ac120706913bd84107cf9e4d5f50722"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 45650,
+      "sha256": "6cc660cf5dadfa0dbfdd7f907657245c324ddd30f7edf2c712e88a07055fd1b8"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 3691,
+      "sha256": "6d31db850cb81d8f2bdbf535dbe6b906310b1b65fa74fad12b03a6b0ecbf3fd0"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 1241,
+      "sha256": "62cf8b25a0b438721884a6169650779cdbf9de3c1f8ab82baf4dae465df9e66c"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 149819,
+      "sha256": "6480fa47d93b3091ff1655de2166533a8c6c18d718c78879da8a703124c3e811"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 739169,
+      "sha256": "d92ae8b22a401b6b781cdd969b5e3120b47b3d5c2b417ab20d1e8f21c6d123ed"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    }
+  ]
+}

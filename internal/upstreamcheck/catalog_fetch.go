@@ -102,7 +102,7 @@ func checkCatalogs(ctx context.Context, access ConnectivityAccess, business Conn
 			err = fmt.Errorf("清单接口不可用: %s", result.State)
 		}
 		if err != nil {
-			slog.Warn("catalog_source_failed", "source", source, "error", err)
+			slog.Warn("曲库清单读取失败", "event_name", "catalog_source_failed", "source", source, "error", err)
 		}
 		observations[i] = observation{result, response, song}
 		publish(result)

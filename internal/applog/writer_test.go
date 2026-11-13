@@ -1,9 +1,7 @@
 package applog
 
 import (
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,10 +36,10 @@ func TestRotationAndRestart(t *testing.T) {
 		t.Fatal("expected one new segment", entries, err)
 	}
 	stamp, hasExtension := strings.CutSuffix(entries[0].Name(), ".log")
-	parsed, err := time.Parse("20060102T150405Z", stamp)
-	if !hasExtension || err != nil || parsed.Format("20060102T150405Z") != stamp {
+	parsed, err := time.Parse(segmentLayout, stamp)
+	if !hasExtension || err != nil || parsed.Format(segmentLayout) != stamp {
 		w.Close()
-		t.Fatal("segment name is not an ISO 8601 basic UTC timestamp to the second", entries[0].Name(), err)
+		t.Fatal("segment name is not a local calendar date", entries[0].Name(), err)
 	}
 	for _, line := range []string{"111\n", "222\n", "333\n", "444\n", "555\n", "666\n", "777\n"} {
 		if _, err := w.Write([]byte(line)); err != nil {
@@ -57,7 +55,7 @@ func TestRotationAndRestart(t *testing.T) {
 	}
 	for i, want := range []string{"333\n444\n", "555\n666\n", "777\n"} {
 		if _, _, ok := segmentID(files[i].name); !ok {
-			t.Fatal("segment is not named by creation time", files[i].name)
+			t.Fatal("segment is not named by local date", files[i].name)
 		}
 		b, err := os.ReadFile(filepath.Join(dir, files[i].name))
 		if err != nil || string(b) != want {
@@ -81,13 +79,13 @@ func TestRotationAndRestart(t *testing.T) {
 	}
 }
 
-func TestConcurrentJSONRotation(t *testing.T) {
+func TestConcurrentTextRotation(t *testing.T) {
 	dir := t.TempDir()
 	w, err := Open(dir, 1024, 4096, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := slog.New(slog.NewJSONHandler(w, nil))
+	logger := New(w, Info)
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
@@ -110,7 +108,7 @@ func TestConcurrentJSONRotation(t *testing.T) {
 		}
 		total += len(b)
 		for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
-			if !json.Valid([]byte(line)) {
+			if !strings.Contains(line, " [INFO] entry ") || !strings.Contains(line, "worker=") || !strings.Contains(line, "number=") {
 				t.Fatalf("torn record: %q", line)
 			}
 		}
@@ -202,15 +200,15 @@ func TestSegmentRetentionIncludesLegacyAndPreservesUnknownFiles(t *testing.T) {
 	}
 }
 
-func TestSegmentsDoNotOverwriteExistingTimestamps(t *testing.T) {
+func TestSegmentsDoNotOverwriteExistingDates(t *testing.T) {
 	dir := t.TempDir()
-	// Future filenames also exercise clock rollback across restarts.
-	at := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
+	// An existing full date segment must never be overwritten.
+	at := time.Date(2026, 11, 13, 12, 0, 0, 0, time.Local)
 	name := segmentName(at, 0)
 	if err := os.WriteFile(filepath.Join(dir, name), []byte("full"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	w, err := Open(dir, 4, 8, nil)
+	w, err := openWriter(dir, 4, 8, nil, func() time.Time { return at })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,16 +226,14 @@ func TestSegmentsDoNotOverwriteExistingTimestamps(t *testing.T) {
 	}
 }
 
-func TestSecondPrecisionSegmentsPreserveOrderAndRestart(t *testing.T) {
+func TestDateSegmentsPreserveNumericOrderAndRestart(t *testing.T) {
 	dir := t.TempDir()
-	// A future segment forces subsequent creations to share its second even if
-	// the system clock crosses a second boundary or has moved backwards.
-	at := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
-	stamp := at.Format("20060102T150405Z")
+	at := time.Date(2026, 11, 13, 12, 0, 0, 0, time.Local)
+	stamp := at.Format(segmentLayout)
 	if err := os.WriteFile(filepath.Join(dir, stamp+".log"), []byte("seed"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	w, err := Open(dir, 4, 48, nil)
+	w, err := openWriter(dir, 4, 48, nil, func() time.Time { return at })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +264,7 @@ func TestSecondPrecisionSegmentsPreserveOrderAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	last := fmt.Sprintf("%s-15.log", stamp)
-	w, err = Open(dir, 4, 48, nil)
+	w, err = openWriter(dir, 4, 48, nil, func() time.Time { return at })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,5 +299,98 @@ func TestSegmentRejectsOversizedRecordsWithoutSplitting(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dir, files[0].name))
 	if err != nil || string(data) != "fits" {
 		t.Fatal("oversized record changed the contents", string(data), err)
+	}
+}
+
+func TestLocalMidnightAndClockRollback(t *testing.T) {
+	dir := t.TempDir()
+	zone := time.FixedZone("local", 8*60*60)
+	at := time.Date(2026, 11, 13, 23, 59, 59, 0, zone)
+	w, err := openWriter(dir, 8, 80, nil, func() time.Time { return at })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+	for _, step := range []struct {
+		delta time.Duration
+		text  string
+	}{
+		{0, "one\n"},
+		{time.Second, "two\n"}, // Local midnight is still the previous UTC date.
+		{-time.Hour, "old\n"},  // Reuse that day's unfinished segment after rollback.
+		{0, "next"},            // That segment is now full: allocate its next sequence.
+		{2 * time.Hour, "new\n"},
+	} {
+		at = at.Add(step.delta)
+		if _, err := w.Write([]byte(step.text)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, want := range map[string]string{
+		"20261113.log":   "one\nold\n",
+		"20261113-1.log": "next",
+		"20261114.log":   "two\nnew\n",
+	} {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil || string(data) != want {
+			t.Fatalf("%s: %q %v, want %q", name, data, err, want)
+		}
+	}
+	if len(testSegments(t, dir)) != 3 {
+		t.Fatal("unexpected segment after date changes")
+	}
+}
+
+func TestUpgradeKeepsFormatsSeparateAndCleansHistoryFirst(t *testing.T) {
+	dir := t.TempDir()
+	seeds := map[string]string{
+		"app.log":              "old!",
+		"20261113T200000Z.log": "json",
+		"20261113.log":         "now!",
+		"20261114.log":         "next",
+		"notes.log":            "user file",
+	}
+	for name, content := range seeds {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	at := time.Date(2026, 11, 13, 12, 0, 0, 0, time.Local)
+	open := func() *Writer {
+		w, err := openWriter(dir, 8, 24, nil, func() time.Time { return at })
+		if err != nil {
+			t.Fatal(err)
+		}
+		return w
+	}
+	w := open()
+	if _, err := w.Write([]byte("more")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"app.log", "20261113T200000Z.log", "20261114.log", "notes.log"} {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil || string(data) != seeds[name] {
+			t.Fatalf("restart changed %s: %q %v", name, data, err)
+		}
+	}
+	w = open() // Full current-day file, even though a future date exists.
+	defer w.Close()
+	for _, value := range []string{"eight888", "another8"} {
+		if _, err := w.Write([]byte(value)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"app.log", "20261113T200000Z.log", "20261113.log"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Fatalf("retention should remove %s first: %v", name, err)
+		}
+	}
+	for _, name := range []string{"20261113-1.log", "20261113-2.log", "20261114.log", "notes.log"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatal("retention removed protected/newer content", name, err)
+		}
 	}
 }

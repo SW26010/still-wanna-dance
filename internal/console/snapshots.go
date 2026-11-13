@@ -52,7 +52,7 @@ func (c *Console) writeSnapshot(kind string, paths cacheproxy.LibraryPaths, resu
 func readSnapshot[T any](c *Console, kind string) (result T, resultErr error) {
 	defer func() {
 		if resultErr != nil && !os.IsNotExist(resultErr) {
-			slog.Warn("snapshot_load_failed", "path", c.files().State(kind), "error", resultErr)
+			slog.Warn("辅助状态快照读取失败", "event_name", "snapshot_load_failed", "path", c.files().State(kind), "error", resultErr)
 		}
 	}()
 	var saved savedSnapshot[T]

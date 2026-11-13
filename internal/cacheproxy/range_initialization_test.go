@@ -140,7 +140,7 @@ func TestUnsupportedRangeWarnsWithoutReadingWholeResponse(t *testing.T) {
 			}
 			warned := false
 			for _, record := range logs.records(t) {
-				if record["msg"] == "range_unsupported" && record["level"] == "WARN" {
+				if record["event_name"] == "range_unsupported" && record["level"] == "WARN" {
 					warned = true
 				}
 				if strings.Contains(fmt.Sprint(record), "private-token") {

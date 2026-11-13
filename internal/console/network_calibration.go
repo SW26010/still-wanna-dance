@@ -26,7 +26,7 @@ func (c *Console) calibrationCandidates(ctx context.Context) upstreamcheck.Calib
 	}
 	if err != nil {
 		if ctx.Err() == nil {
-			slog.Warn("network_calibration_local_songs_failed", "error", applog.SafeError(err))
+			slog.Warn("网络测速本地候选读取失败", "event_name", "network_calibration_local_songs_failed", "error", applog.SafeError(err))
 		}
 	}
 	return candidates

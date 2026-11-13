@@ -338,7 +338,7 @@ func (t *tray) dispatch(hwnd uintptr, msg uint32, w, l uintptr) uintptr {
 			state := t.options.State()
 			if t.lightIcon != 0 {
 				if err := t.updateIcon(usesLightTheme(state.Theme)); err != nil {
-					slog.Warn("tray_icon_update_failed", "error", err)
+					slog.Warn("托盘图标更新失败", "event_name", "tray_icon_update_failed", "error", err)
 				} else if t.added {
 					t.reportFault("tray:theme", nil)
 				}

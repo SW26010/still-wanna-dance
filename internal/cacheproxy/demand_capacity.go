@@ -119,7 +119,7 @@ func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, c
 		// remaining range, even when some blocks are already locally readable.
 		heap.Push(&s.useHandoffs, &useHandoff{span, at.Add(grace), clock})
 		if s.cfg.Logger != nil {
-			s.cfg.Logger.Debug("block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
+			s.cfg.Logger.Debug("块需求已交接", "event_name", "block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
 				"from", origin.String(), "reason", "source_gone", "withdrawn_at", at,
 				"first_ready_by", clock.ready(span.first*s.cfg.BlockSize), "lease_until", at.Add(grace))
 		}

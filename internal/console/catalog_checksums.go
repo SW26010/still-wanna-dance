@@ -34,7 +34,7 @@ func (c *Console) refreshLocalCatalog(ctx context.Context, store *cacheproxy.Sto
 	err := upstreamcheck.FetchCatalog(ctx, sources, func(ctx context.Context, source string) (cacheproxy.Catalog, error) {
 		candidate, err := c.fetchCatalogSource(ctx, source)
 		if err != nil && ctx.Err() == nil {
-			slog.Warn("catalog_source_failed", "source", source, "error", err)
+			slog.Warn("曲库清单读取失败", "event_name", "catalog_source_failed", "source", source, "error", err)
 			err = catalogSourceError(source, err)
 		}
 		return candidate, err

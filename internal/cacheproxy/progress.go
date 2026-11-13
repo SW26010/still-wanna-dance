@@ -90,7 +90,7 @@ func startProgress(log *slog.Logger, size int64, interval time.Duration) *downlo
 				stage, bytes, changed, lastByte := p.stage, p.bytes, p.changed, p.lastByte
 				p.mu.Unlock()
 				now := time.Now()
-				p.log.Debug("download_progress", "stage", stage, "bytes", bytes, "expected_bytes", p.size,
+				p.log.Debug("资源准备进度", "event_name", "download_progress", "stage", stage, "bytes", bytes, "expected_bytes", p.size,
 					"bytes_per_second", sample.rate(now, bytes),
 					"idle_ms", now.Sub(lastByte).Milliseconds(), "stage_elapsed_ms", now.Sub(changed).Milliseconds(), "elapsed_ms", now.Sub(p.start).Milliseconds())
 			}
@@ -104,26 +104,31 @@ func (p *downloadProgress) setStage(stage string) {
 	previous, elapsed := p.stage, time.Since(p.changed).Milliseconds()
 	p.stage, p.changed = stage, time.Now()
 	p.mu.Unlock()
-	p.log.Debug("download_stage", "stage", stage, "previous_stage", previous, "previous_elapsed_ms", elapsed)
+	p.log.Debug("资源准备阶段已变化", "event_name", "download_stage", "stage", stage, "previous_stage", previous, "previous_elapsed_ms", elapsed)
 }
 
 func (p *downloadProgress) finish(err error) {
 	close(p.stop)
 	<-p.done
 	outcome := "completed"
+	message := "资源准备任务已完成"
 	if err != nil {
 		outcome = "failed"
+		message = "资源准备任务失败"
 	}
 	if errors.Is(err, ErrNotRetained) {
 		outcome = "not_retained"
+		message = "资源准备任务结束，未保留完整视频"
 	}
 	if errors.Is(err, context.Canceled) {
 		outcome = "canceled"
+		message = "资源准备任务已取消"
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		outcome = "timeout"
+		message = "资源准备任务超时"
 	}
-	p.log.Info("cache_task_finished", "outcome", outcome, "stage", p.stage, "bytes", p.bytes,
+	p.log.Info(message, "event_name", "cache_task_finished", "outcome", outcome, "stage", p.stage, "bytes", p.bytes,
 		"stage_elapsed_ms", time.Since(p.changed).Milliseconds(), "elapsed_ms", time.Since(p.start).Milliseconds(), "error", applog.SafeError(err))
 }
 
@@ -151,7 +156,7 @@ func (r progressReader) Read(b []byte) (int, error) {
 			p.observeBytes(int64(n))
 		}
 		if first {
-			p.log.Debug("download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())
+			p.log.Debug("资源准备已读到首批上游正文", "event_name", "download_first_byte", "elapsed_ms", time.Since(p.start).Milliseconds())
 		}
 	}
 	return n, err

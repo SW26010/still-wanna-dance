@@ -20,6 +20,7 @@ type Writer struct {
 	size, limit int64
 	budget      int64
 	closed      bool
+	now         func() time.Time
 	onError     func(error)
 	reported    sync.Once
 	onFault     func(error)
@@ -35,6 +36,10 @@ func (w *Writer) SetFaultObserver(observe func(error)) {
 }
 
 func Open(dir string, limit, budget int64, onError func(error)) (*Writer, error) {
+	return openWriter(dir, limit, budget, onError, time.Now)
+}
+
+func openWriter(dir string, limit, budget int64, onError func(error), now func() time.Time) (*Writer, error) {
 	if limit <= 0 || limit > MaxBytes || budget < limit {
 		return nil, errors.New("invalid log rotation limits")
 	}
@@ -45,22 +50,30 @@ func Open(dir string, limit, budget int64, onError func(error)) (*Writer, error)
 	if err != nil {
 		return nil, err
 	}
-	w := &Writer{root: root, limit: limit, budget: budget, onError: onError}
-	if err := w.open(true); err != nil {
+	w := &Writer{root: root, limit: limit, budget: budget, onError: onError, now: now}
+	if err := w.open(true, now()); err != nil {
 		w.Close()
 		return nil, err
 	}
 	return w, nil
 }
 
-func (w *Writer) open(reuse bool) error {
+func (w *Writer) open(reuse bool, at time.Time) error {
 	files, err := logSegments(w.root)
 	if err != nil {
 		return err
 	}
-	if reuse && len(files) != 0 {
-		last := files[len(files)-1]
-		if _, _, ok := segmentID(last.name); ok && last.info.Size() < w.limit {
+	var last *segment
+	date := at.Format(segmentLayout)
+	for i := len(files) - 1; i >= 0; i-- {
+		stamp, _, ok := segmentID(files[i].name)
+		if ok && stamp.Format(segmentLayout) == date {
+			last = &files[i]
+			break
+		}
+	}
+	if reuse && last != nil {
+		if last.info.Size() < w.limit {
 			w.file, err = w.root.OpenFile(last.name, os.O_APPEND|os.O_WRONLY, 0600)
 			if err != nil {
 				return err
@@ -69,14 +82,13 @@ func (w *Writer) open(reuse bool) error {
 		}
 	}
 	if w.file == nil {
-		at := time.Now().UTC().Truncate(time.Second)
 		var sequence uint64
-		if len(files) != 0 {
-			if last, previous, ok := segmentID(files[len(files)-1].name); ok && !at.After(last) {
+		if last != nil {
+			if _, previous, ok := segmentID(last.name); ok {
 				if previous == ^uint64(0) {
 					return errors.New("log segment sequence exhausted")
 				}
-				at, sequence = last, previous+1
+				sequence = previous + 1
 			}
 		}
 		for {
@@ -119,13 +131,13 @@ func (w *Writer) open(reuse bool) error {
 	return nil
 }
 
-func (w *Writer) rotate() error {
+func (w *Writer) rotate(reuse bool, at time.Time) error {
 	err := w.file.Close()
 	w.file = nil
 	if err != nil {
 		return err
 	}
-	return w.open(false)
+	return w.open(reuse, at)
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
@@ -145,17 +157,23 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	if w.closed {
 		return 0, os.ErrClosed
 	}
-	// Never split a JSON record or allow an oversized entry to bypass the cap.
+	// Never split a record or allow an oversized entry to bypass the cap.
 	if int64(len(p)) > w.limit {
 		return 0, errors.New("log record exceeds file size limit")
 	}
+	at := w.now()
 	if w.file == nil {
-		if err = w.open(true); err != nil {
+		if err = w.open(true, at); err != nil {
+			return 0, err
+		}
+	}
+	if w.name[:len(segmentLayout)] != at.Format(segmentLayout) {
+		if err = w.rotate(true, at); err != nil {
 			return 0, err
 		}
 	}
 	if w.size+int64(len(p)) > w.limit {
-		if err = w.rotate(); err != nil {
+		if err = w.rotate(false, at); err != nil {
 			return 0, err
 		}
 	}

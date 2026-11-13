@@ -124,12 +124,12 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 	}
 	_, fields, err := readConfigFile(config)
 	if err != nil {
-		log.Warn("previous_block_cache_cleanup_deferred", "error", err)
+		log.Warn("旧临时块目录清理已暂缓", "event_name", "previous_block_cache_cleanup_deferred", "error", err)
 		return
 	}
 	roots, err := decodePendingBlockCacheCleanup(fields)
 	if err != nil {
-		log.Warn("previous_block_cache_cleanup_deferred", "error", err)
+		log.Warn("旧临时块目录清理已暂缓", "event_name", "previous_block_cache_cleanup_deferred", "error", err)
 		return
 	}
 	var completed []string
@@ -145,11 +145,11 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 		}
 		inspection, err := InspectWorkLocation(executable, config, previous)
 		if err != nil {
-			log.Warn("previous_block_cache_cleanup_deferred", "path", path, "error", err)
+			log.Warn("旧临时块目录清理已暂缓", "event_name", "previous_block_cache_cleanup_deferred", "path", path, "error", err)
 			continue
 		}
 		if inspection.Unresolved != nil {
-			log.Warn("previous_block_cache_cleanup_deferred", "path", path, "error", inspection.Unresolved)
+			log.Warn("旧临时块目录清理已暂缓", "event_name", "previous_block_cache_cleanup_deferred", "path", path, "error", inspection.Unresolved)
 			continue
 		}
 		err = cacheproxy.CleanExistingWorkDirectory(path, log)
@@ -161,7 +161,7 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 			err = nil
 		}
 		if err != nil {
-			log.Warn("previous_block_cache_cleanup_deferred", "path", path, "error", err)
+			log.Warn("旧临时块目录清理已暂缓", "event_name", "previous_block_cache_cleanup_deferred", "path", path, "error", err)
 			continue
 		}
 		completed = append(completed, root)
@@ -197,7 +197,7 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 		fields[pendingBlockCacheCleanupKey], err = json.Marshal(remaining)
 		return err
 	}); err != nil {
-		log.Warn("previous_block_cache_cleanup_record_failed", "error", err)
+		log.Warn("旧临时块清理记录保存失败", "event_name", "previous_block_cache_cleanup_record_failed", "error", err)
 	}
 }
 

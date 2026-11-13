@@ -94,7 +94,7 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 				log := s.cfg.Logger.With("trace_id", applog.TraceID(applog.WithTrace(s.ctx)), "resource_key", u.video.key, "background", true)
 				f, err := s.startFlightLocked(u.video, true, log)
 				if err != nil {
-					log.Error("cache_task_failed", "error", applog.SafeError(err))
+					log.Error("资源准备任务失败", "event_name", "cache_task_failed", "error", applog.SafeError(err))
 					return
 				}
 				done, next = f.done, time.Time{}

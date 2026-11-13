@@ -64,7 +64,7 @@ func cleanMediaWorkFiles(dir string, logger *slog.Logger, kind mediaWorkKind) (i
 				return cleaned, readErr
 			}
 			if len(children) > 1 || (len(children) == 1 && children[0].Name() != "video") {
-				logger.Warn("temporary_cleanup_skipped", "path", filepath.Join(dir, name), "reason", "unknown import contents")
+				logger.Warn("已保留无法确认的暂存路径", "event_name", "temporary_cleanup_skipped", "path", filepath.Join(dir, name), "reason", "unknown import contents")
 				continue
 			}
 			if len(children) == 1 {
@@ -74,7 +74,7 @@ func cleanMediaWorkFiles(dir string, logger *slog.Logger, kind mediaWorkKind) (i
 					return cleaned, statErr
 				}
 				if !workfiles.Regular(childInfo) {
-					logger.Warn("temporary_cleanup_skipped", "path", child, "reason", "non-regular import file")
+					logger.Warn("已保留无法确认的暂存路径", "event_name", "temporary_cleanup_skipped", "path", child, "reason", "non-regular import file")
 					continue
 				}
 				err = workfiles.RemoveFile(root, child)
@@ -83,14 +83,14 @@ func cleanMediaWorkFiles(dir string, logger *slog.Logger, kind mediaWorkKind) (i
 				err = root.Remove(name)
 			}
 		} else {
-			logger.Warn("temporary_cleanup_skipped", "path", filepath.Join(dir, name), "reason", "unexpected file type")
+			logger.Warn("已保留无法确认的暂存路径", "event_name", "temporary_cleanup_skipped", "path", filepath.Join(dir, name), "reason", "unexpected file type")
 			continue
 		}
 		if err != nil {
 			return cleaned, fmt.Errorf("remove %s: %w", name, err)
 		}
 		cleaned++
-		logger.Info("temporary_cleanup_removed", "path", filepath.Join(dir, name))
+		logger.Info("暂存文件已清理", "event_name", "temporary_cleanup_removed", "path", filepath.Join(dir, name))
 	}
 	return cleaned, nil
 }

@@ -56,7 +56,7 @@ func (l *applicationLifecycle) request(action ShutdownAction, acknowledge func(S
 			acknowledged = true
 		}
 		l.action = action
-		slog.Info("application_shutdown_requested", "action", action)
+		slog.Info("已请求关闭当前程序会话", "event_name", "application_shutdown_requested", "action", action)
 		close(l.requested)
 	})
 	if acknowledge != nil && !acknowledged {

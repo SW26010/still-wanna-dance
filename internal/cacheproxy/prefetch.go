@@ -145,7 +145,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 		}
 	}
 	if expected, _ := ctx.Value(expectedMD5Key{}).(string); expected != "" && expected != v.key {
-		s.cfg.Logger.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", expected, "url_md5", v.key)
+		s.cfg.Logger.Warn("歌曲资源指纹不一致", "event_name", "song_md5_mismatch", "song_id", id, "mapped_md5", expected, "url_md5", v.key)
 		return "", fmt.Errorf("上游 MD5 与清单不一致：期望 %s，收到 %s", expected, v.key)
 	}
 	finishBudget, err := s.reserveBatchVideo(ctx, v)
@@ -158,7 +158,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 		finishBudget(resultErr == nil || callerCtx.Err() != nil)
 	}(ctx)
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(ctx), "song_id", id, "resource_key", v.key)
-	log.Debug("prefetch_started")
+	log.Debug("预加载任务已开始", "event_name", "prefetch_started")
 	demand, releaseDemand, err := s.addPreparation(ctx, v)
 	if err != nil {
 		return "", err
@@ -170,20 +170,24 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	defer s.releaseVideo(v)
 	defer func() {
 		outcome := "completed"
+		message := "预加载任务已完成"
 		if resultErr != nil {
 			outcome = "failed"
+			message = "预加载任务失败"
 		}
 		if errors.Is(resultErr, ErrNotRetained) {
 			outcome = "not_retained"
+			message = "预加载任务结束，未保留完整视频"
 		}
 		if ctx.Err() != nil && !errors.Is(context.Cause(ctx), blocksched.ErrExpired) {
 			outcome = "canceled"
+			message = "预加载任务已取消"
 		}
 		cache := source
 		if cache == "" {
 			cache = "UNKNOWN"
 		}
-		log.Info("prefetch_finished", "outcome", outcome, "cache", cache, "elapsed_ms", time.Since(start).Milliseconds(), "error", applog.SafeError(resultErr))
+		log.Info(message, "event_name", "prefetch_finished", "outcome", outcome, "cache", cache, "elapsed_ms", time.Since(start).Milliseconds(), "error", applog.SafeError(resultErr))
 	}()
 retryDownload:
 	f, _, err := s.obtainMode(ctx, v, true)

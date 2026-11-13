@@ -145,7 +145,7 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 					s.rearmQueueSourceLocked(q)
 				}
 				if q.startAt != start && s.cfg.Logger != nil {
-					s.cfg.Logger.Debug("queue_playback_timing", "song_id", q.song, "position", i, "starts_at", start, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
+					s.cfg.Logger.Debug("队列播放时间推算", "event_name", "queue_playback_timing", "song_id", q.song, "position", i, "starts_at", start, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
 				}
 				q.startAt = start
 			}

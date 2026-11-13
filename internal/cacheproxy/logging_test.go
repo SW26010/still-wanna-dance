@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
+	"still-wanna-dance/internal/testlog"
 )
 
 func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
@@ -50,7 +51,7 @@ func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
 				s.wg.Wait()
 				resolved, finished := 0, 0
 				for _, record := range logs.records(t) {
-					if record["msg"] == "prefetch_resolved" {
+					if record["event_name"] == "prefetch_resolved" {
 						resolved++
 						if record["trace_id"] != applog.TraceID(ctx) || fmt.Sprint(record["song_id"]) != "42" || record["elapsed_ms"] == nil || record["success"] != !failed {
 							t.Fatal("resolution lost operation details", record)
@@ -59,10 +60,10 @@ func TestPrefetchResolutionLogsKeepOperationIdentity(t *testing.T) {
 							t.Fatal("resolution lost resource", record)
 						}
 					}
-					if record["msg"] == "playback_check_failed" && (record["trace_id"] != applog.TraceID(ctx) || fmt.Sprint(record["song_id"]) != "42") {
+					if record["event_name"] == "playback_check_failed" && (record["trace_id"] != applog.TraceID(ctx) || fmt.Sprint(record["song_id"]) != "42") {
 						t.Fatal("failure lost trace or lookup song", record)
 					}
-					if record["msg"] == "prefetch_finished" {
+					if record["event_name"] == "prefetch_finished" {
 						finished++
 						if record["trace_id"] != applog.TraceID(ctx) {
 							t.Fatal("download and resolution used different operations", record)
@@ -101,28 +102,9 @@ func (c *logCapture) records(t *testing.T) []map[string]any {
 		if len(line) == 0 {
 			continue
 		}
-		decoder := json.NewDecoder(bytes.NewReader(line))
-		if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
-			t.Fatal(err)
-		}
-		r := make(map[string]any)
-		for decoder.More() {
-			token, err := decoder.Token()
-			if err != nil {
-				t.Fatal(err)
-			}
-			key := token.(string)
-			if _, exists := r[key]; exists {
-				t.Fatalf("duplicate log field %q: %s", key, line)
-			}
-			var value any
-			if err := decoder.Decode(&value); err != nil {
-				t.Fatal(err)
-			}
-			r[key] = value
-		}
-		if _, err := decoder.Token(); err != nil {
-			t.Fatal(err)
+		r, err := testlog.Parse(line)
+		if err != nil {
+			t.Fatal(err, string(line))
 		}
 		records = append(records, r)
 	}
@@ -185,7 +167,7 @@ func TestDownloadLogLevels(t *testing.T) {
 				records := logs.records(t)
 				t.Logf("two multi-block downloads: %d records", len(records))
 				for _, record := range records {
-					message, severity := fmt.Sprint(record["msg"]), fmt.Sprint(record["level"])
+					message, severity := fmt.Sprint(record["event_name"]), fmt.Sprint(record["level"])
 					counts[message]++
 					if severity == "WARN" || severity == "ERROR" {
 						t.Errorf("unexpected %s for normal downloads: %s", severity, message)
@@ -203,6 +185,13 @@ func TestDownloadLogLevels(t *testing.T) {
 						}
 						if severity != "INFO" || record["outcome"] != want {
 							t.Error("missing shared task result", record)
+						}
+						wantMessage := "资源准备任务结束，未保留完整视频"
+						if unlimited {
+							wantMessage = "资源准备任务已完成"
+						}
+						if record["msg"] != wantMessage {
+							t.Error("summary misrepresents retention result", record)
 						}
 					}
 				}
@@ -253,7 +242,7 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 	for {
 		attached := 0
 		for _, r := range logs.records(t) {
-			if r["msg"] == "cache_task_attached" {
+			if r["event_name"] == "cache_task_attached" {
 				attached++
 			}
 		}
@@ -276,7 +265,7 @@ func TestLogsLinkSharedDownloadToBothRequests(t *testing.T) {
 		if r["service_id"] == nil {
 			t.Fatal("missing service identity", r)
 		}
-		switch r["msg"] {
+		switch r["event_name"] {
 		case "upstream_response":
 			upstream++
 			if r["host"] == nil || r["upstream_host"] == nil {
@@ -318,7 +307,7 @@ func TestLogsSeparateGETDeliveryFromIntegrityFailure(t *testing.T) {
 	s.Close()
 	failed, terminal := false, false
 	for _, r := range logs.records(t) {
-		switch r["msg"] {
+		switch r["event_name"] {
 		case "download_published":
 			t.Fatal("published corrupt data")
 		case "download_integrity_failed":
@@ -352,7 +341,7 @@ func TestLogsPreserveResourceHostAcrossRedirect(t *testing.T) {
 	s.Close()
 	found := 0
 	for _, record := range logs.records(t) {
-		if record["msg"] == "upstream_response" {
+		if record["event_name"] == "upstream_response" {
 			found++
 			if record["host"] != "play.udon.dance" || record["upstream_host"] != "nya.xin.moe" {
 				t.Fatal("redirect lost original or actual upstream host", record)
@@ -379,7 +368,7 @@ func TestLogsMalformedLocationIsRedacted(t *testing.T) {
 		if strings.Contains(string(encoded), "secret") || strings.Contains(string(encoded), "token") {
 			t.Fatalf("Location leaked: %s", encoded)
 		}
-		if r["msg"] == "cache_task_failed" {
+		if r["event_name"] == "cache_task_failed" {
 			failureLogged = true
 		}
 	}
@@ -402,7 +391,7 @@ func TestLogsClientWriteFailureAfter200(t *testing.T) {
 	s.ServeHTTP(brokenWriter{make(http.Header)}, httptest.NewRequest("GET", videoURL(payload), nil))
 	s.Close()
 	for _, r := range logs.records(t) {
-		if r["msg"] == "request_finished" {
+		if r["event_name"] == "request_finished" {
 			if r["status"] != float64(200) || r["outcome"] != "failed" || r["write_error"] == nil {
 				t.Fatal(r)
 			}
@@ -471,7 +460,7 @@ func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
 				synctest.Wait()
 				found := false
 				for _, r := range logs.records(t) {
-					if r["msg"] == "download_progress" && r["stage"] == "download" {
+					if r["event_name"] == "download_progress" && r["stage"] == "download" {
 						found = true
 						if r["bytes"] != float64(0) || r["bytes_per_second"] != float64(0) {
 							t.Fatal(r)
@@ -485,7 +474,7 @@ func TestProgressReportsStallAndStopsBeforeTerminal(t *testing.T) {
 				finished = true
 				records := logs.records(t)
 				last := records[len(records)-1]
-				if last["msg"] != "cache_task_finished" || last["outcome"] != "timeout" {
+				if last["event_name"] != "cache_task_finished" || last["outcome"] != "timeout" {
 					t.Fatal(last)
 				}
 				time.Sleep(10 * time.Millisecond)

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/testlog"
 )
 
 type flightEventHandler struct {
@@ -84,9 +86,9 @@ func testNewGETDuringCleanup(t *testing.T, stopBlock bool) {
 			s.cfg.Logger = slog.New(flightEventHandler{
 				Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}),
 				handle: func(r slog.Record) {
-					switch r.Message {
+					switch testlog.EventName(r) {
 					case "cache_capacity_wait", "cache_task_attached":
-						events <- r.Message
+						events <- testlog.EventName(r)
 					case "block_demand":
 						if !stopBlock {
 							return

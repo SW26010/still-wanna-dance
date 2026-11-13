@@ -9,21 +9,23 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
+func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	now := time.Now()
 	get, queue := blockSource{"get", 1}, blockSource{"queue", 2}
 	need := func(ready, lease time.Duration) blocksched.Need {
 		return blocksched.Need{Owner: "shared", ReadyBy: now.Add(ready), LeaseUntil: now.Add(lease)}
 	}
+	handoff := need(2*time.Second, 20*time.Second)
+	handoff.WindowClosed = true
 	sources := map[blockSource]plannedNeed{
-		get:                       {need: need(5*time.Second, 10*time.Second), source: sourceGET},
-		queue:                     {need: need(7*time.Second, 30*time.Second), source: sourceQueue},
-		blockSource{"handoff", 3}: {need: need(2*time.Second, 20*time.Second), source: sourceHandoff},
+		get:                       {need: need(5*time.Second, 10*time.Second)},
+		queue:                     {need: need(7*time.Second, 30*time.Second)},
+		blockSource{"handoff", 3}: {need: handoff},
 	}
 	summary := aggregateUse(sources, now)
 	n := summary.need
 	if !n.ReadyBy.Equal(now.Add(5 * time.Second)) {
-		t.Fatal("old handoff urgency survived a nonblocking GET", n)
+		t.Fatal("closed contribution changed an open source clock", n)
 	}
 	if !n.LeaseUntil.Equal(now.Add(30*time.Second)) || !summary.nextExpiry.Equal(now.Add(10*time.Second)) {
 		t.Fatal("winner overwrote another lease", n)
@@ -34,7 +36,7 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 	if sources[blockSource{"handoff", 3}].need.LeaseUntil != now.Add(20*time.Second) {
 		t.Fatal("suppression changed handoff expiry")
 	}
-	// The queue can still compete on its deadline: GET only covers handoffs.
+	// Any independent open source competes without regard to GET identity.
 	p := sources[queue]
 	p.need.ReadyBy = now.Add(time.Second)
 	sources[queue] = p
@@ -44,22 +46,31 @@ func TestSourceFilteringKeepsIndependentLeases(t *testing.T) {
 	p.need.ReadyBy = now.Add(7 * time.Second)
 	sources[queue] = p
 	// Expiry works even before the source record has been physically removed.
-	if n := aggregateUse(sources, now.Add(11*time.Second)).need; !n.ReadyBy.Equal(now.Add(2 * time.Second)) {
-		t.Fatal("expired GET kept covering handoff", n)
+	if n := aggregateUse(sources, now.Add(11*time.Second)).need; !n.ReadyBy.Equal(now.Add(7 * time.Second)) {
+		t.Fatal("closed handoff changed the remaining queue's clock", n)
 	}
 	if n := aggregateUse(sources, now.Add(21*time.Second)).need; !n.ReadyBy.Equal(now.Add(7 * time.Second)) {
 		t.Fatal("handoff renewed itself or removed queue", n)
+	}
+	delete(sources, get)
+	delete(sources, queue)
+	if n := aggregateUse(sources, now.Add(11*time.Second)).need; !n.WindowClosed || n.Opportunistic || n.ReadyBy != handoff.ReadyBy || n.LeaseUntil != handoff.LeaseUntil {
+		t.Fatal("closed contribution lost its independent clock or gained admission", n)
+	}
+	sources[blockSource{"batch", 4}] = plannedNeed{need: blocksched.Need{Owner: "shared", LeaseUntil: now.Add(time.Minute)}}
+	if n := aggregateUse(sources, now).need; n.WindowClosed || !n.Opportunistic || !n.ReadyBy.IsZero() {
+		t.Fatal("closed contribution poisoned independent untimed work", n)
 	}
 }
 
 func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
 	now := time.Now()
-	for _, source := range []demandSource{sourceGET, sourceBatch, sourceHandoff} {
-		closed := plannedNeed{source: sourceQueue, protectionClosed: true,
+	for _, source := range []string{"get", "batch", "queue"} {
+		closed := plannedNeed{protectionClosed: true,
 			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(125 * time.Second), LeaseUntil: now.Add(sourceLease), WindowClosed: true}}
-		independent := plannedNeed{source: source,
+		independent := plannedNeed{
 			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(145 * time.Second), LeaseUntil: now.Add(20 * time.Second)}}
-		if source == sourceBatch {
+		if source == "batch" {
 			independent.need.ReadyBy = time.Time{}
 		}
 		for range 20 { // Map iteration must not change which source qualifies.
@@ -67,7 +78,7 @@ func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
 			if use.need.WindowClosed || use.need.ReadyBy != independent.need.ReadyBy || use.protectReady != independent.need.ReadyBy {
 				t.Fatal("closed queue changed independent source timing", source, use)
 			}
-			if use.need.Opportunistic != (source == sourceBatch) {
+			if use.need.Opportunistic != (source == "batch") {
 				t.Fatal("closed queue changed independent opportunistic qualification", source, use)
 			}
 		}
@@ -83,8 +94,8 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	w.jobs[0] = &scheduledBlock{task: task, merged: registered}
 	now := time.Now()
 	key := blockSource{"queue", "song"}
-	for i, origin := range []demandSource{sourceQueue, sourceQueueHead, sourceQueue} {
-		p := plannedNeed{source: origin, need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
+	for i := range 3 {
+		p := plannedNeed{need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
 		if _, _, err := w.reconcile(map[int64]blockUse{0: aggregateUse(map[blockSource]plannedNeed{key: p}, now)}, now, nil, false); err != nil {
 			t.Fatal(err)
 		}

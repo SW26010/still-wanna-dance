@@ -15,8 +15,6 @@ const (
 	sourceGET demandSource = iota + 1
 	sourceQueueHead
 	sourceQueue
-	sourceBatch
-	sourceHandoff
 )
 
 type withdrawalReason uint8
@@ -27,8 +25,8 @@ const (
 )
 
 // blockUse is the source-free contract between demand collection and resource
-// use. Protection includes all finite usage; download urgency alone filters an
-// old handoff while a live GET exists. Actual reads are outside this contract.
+// use. Closed contributions retain their own clock without changing open
+// sources' admission or deadline. Actual reads are outside this contract.
 type blockUse struct {
 	need         blocksched.Need
 	nextExpiry   time.Time
@@ -50,7 +48,6 @@ type blockSource struct {
 }
 type plannedNeed struct {
 	need             blocksched.Need
-	source           demandSource
 	protectionClosed bool
 }
 
@@ -91,12 +88,6 @@ func mergeUse(a, b blockUse) blockUse {
 // this boundary, and no download task holds or expires source contributions.
 func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 	var result blockUse
-	get := false
-	for _, p := range plan {
-		if p.source == sourceGET && p.need.LeaseUntil.After(now) {
-			get = true
-		}
-	}
 	for _, p := range plan {
 		// The registry still owns a handoff until its fixed expiry is processed.
 		// Preserve its protection clock even when delivery of that event is late.
@@ -106,16 +97,11 @@ func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 		if !p.need.LeaseUntil.After(now) {
 			continue
 		}
-		if p.source == sourceHandoff && blocksched.Expired(p.need.ReadyBy, now) {
-			continue // Usage/protection lasts to its fixed exit, but cannot fund another expired download.
+		if p.need.WindowClosed && blocksched.Expired(p.need.ReadyBy, now) {
+			continue // Closed usage still protects data, but cannot fund an expired execution.
 		}
 		n := p.need
-		if p.source == sourceHandoff && get {
-			n.ReadyBy = time.Time{}
-			n.Opportunistic = false
-		} else {
-			n.Opportunistic = n.Opportunistic || n.ReadyBy.IsZero()
-		}
+		n.Opportunistic = !n.WindowClosed && (n.Opportunistic || n.ReadyBy.IsZero())
 		result = mergeUse(result, blockUse{need: n, nextExpiry: n.LeaseUntil})
 	}
 	return result
@@ -139,8 +125,6 @@ func (s demandSource) String() string {
 		return "queue_head"
 	case sourceQueue:
 		return "queue"
-	case sourceBatch:
-		return "batch"
 	default:
 		return "unknown"
 	}

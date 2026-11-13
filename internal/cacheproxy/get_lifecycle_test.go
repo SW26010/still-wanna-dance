@@ -43,7 +43,7 @@ func TestGETWithdrawalTimeSurvivesDelayedReconciliation(t *testing.T) {
 						t.Fatalf("GET handoff slid with processing: retiring=%v expiry=%v want=%v", j.retiring, j.nextExpiry, until)
 					}
 					h := j.published
-					if !h.ReadyBy.Equal(ready.Add(2 * time.Second)) {
+					if !h.WindowClosed || !h.ReadyBy.Equal(ready) {
 						t.Fatal("handoff used processing time instead of the original clock", h)
 					}
 					reconcileSession(t, w)

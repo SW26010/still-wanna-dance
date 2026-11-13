@@ -2,11 +2,104 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
+
+func TestUnifiedHandoffKeepsRunningWorkWithoutStartingRemainder(t *testing.T) {
+	for _, kind := range []string{"client", "head"} {
+		t.Run(kind, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				w.v.size = 2 * rangeBlockSize
+				clock := &playbackClock{at: time.Now().Add(-5 * time.Second), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+				ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
+				if kind == "head" {
+					s.UpdatePrefetchQueue([]int64{1}, false)
+					w.v.songID = "1"
+					ctx = s.queueDemandContext(ctx, "1")
+				}
+				_, release := addTestDemand(t, s, ctx, w.v, kind == "client")
+				defer release()
+				plan, _, _ := w.plan(time.Now())
+				started := make(chan int64, 2)
+				complete := make(chan struct{})
+				for block := int64(0); block < 2; block++ {
+					n := plan[block].need
+					task, demand, err := s.scheduler.Schedule(w.reads.Key(block), rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+						started <- block
+						if block == 0 {
+							select {
+							case <-complete:
+								return blocksched.Result{}
+							case <-ctx.Done():
+							}
+						} else {
+							<-ctx.Done()
+						}
+						return blocksched.Result{Err: ctx.Err()}
+					}, n)
+					if err != nil {
+						t.Fatal(err)
+					}
+					w.jobs[block] = &scheduledBlock{task: task, merged: demand, published: n}
+				}
+				if block := <-started; block != 0 {
+					t.Fatal("unexpected first execution", block)
+				}
+				time.Sleep(time.Second)
+				exit := time.Now()
+				release()
+				if kind == "head" {
+					// An idle queue's rolling clock can legitimately move while
+					// the source still exists. Freeze its last source clock.
+					plan, _, _ = w.plan(time.Now())
+					s.UpdatePrefetchQueue(nil, false)
+				}
+				reconcileSession(t, w)
+				for block, job := range w.jobs {
+					if !job.published.WindowClosed || job.published.ReadyBy != plan[block].need.ReadyBy || job.published.LeaseUntil != exit.Add(handoffGrace) {
+						t.Fatal("handoff changed original clock or supplied ordinary start permission", block, job.published)
+					}
+				}
+				task := w.jobs[0].task
+				close(complete)
+				if err := task.Err(); err != nil {
+					t.Fatal("source exit canceled running work", err)
+				}
+				w.f.ranges.done[0] = true
+				if err := w.reapCompleted(); err != nil {
+					t.Fatal(err)
+				}
+				reconcileSession(t, w)
+				synctest.Wait()
+				if len(started) != 0 {
+					t.Fatal("handoff started queued work after the slot was released")
+				}
+				// An independent GET can use the same task immediately; ending it
+				// leaves the original handoff in charge of the running lifecycle.
+				independent := context.WithValue(context.Background(), playbackClockKey{}, clock)
+				_, end := addTestDemand(t, s, context.WithValue(independent, httpGETKey{}, true), w.v, true)
+				reconcileSession(t, w)
+				if block := <-started; block != 1 {
+					t.Fatal("independent source failed to open the remaining task", block)
+				}
+				end()
+				reconcileSession(t, w)
+				time.Sleep(time.Until(exit.Add(handoffGrace)))
+				reconcileSession(t, w)
+				if err := w.jobs[1].task.Err(); !errors.Is(err, context.Canceled) {
+					t.Fatal("handoff expiry did not end unsupported work", err)
+				}
+			})
+		})
+	}
+}
 
 func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing.T) {
 	for _, ahead := range []time.Duration{-time.Minute, time.Minute} {
@@ -30,8 +123,8 @@ func TestUsageHandoffIncludesReadableRemainderWithoutDownloadPlanning(t *testing
 				t.Fatal("handoff failed to preserve only unconsumed usage", len(usage))
 			}
 			for block, sources := range usage {
-				for _, p := range sources {
-					if p.source != sourceHandoff || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize).Add(2*time.Second) || p.need.LeaseUntil != now.Add(handoffGrace) {
+				for source, p := range sources {
+					if source.kind != "handoff" || !p.need.WindowClosed || p.need.Opportunistic || p.need.ReadyBy != clock.ready(block*rangeBlockSize) || p.need.LeaseUntil != now.Add(handoffGrace) {
 						t.Fatal("handoff lost original clock, fixed expiry or source semantics", p)
 					}
 				}

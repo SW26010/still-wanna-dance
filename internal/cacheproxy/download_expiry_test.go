@@ -116,13 +116,13 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 
 func TestExpiredHandoffKeepsUsageWithoutDownloadQualification(t *testing.T) {
 	now := time.Now()
-	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace)}
-	plan := map[blockSource]plannedNeed{{"handoff", 1}: {need: old, source: sourceHandoff}}
+	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace), WindowClosed: true}
+	plan := map[blockSource]plannedNeed{{"handoff", 1}: {need: old}}
 	use := aggregateUse(plan, now)
 	if use.need.Owner != "" || use.protectReady != old.ReadyBy {
 		t.Fatal("expired handoff retained execution or lost usage protection", use)
 	}
-	plan[blockSource{"batch", 1}] = plannedNeed{need: blocksched.Need{Owner: "video", LeaseUntil: now.Add(sourceLease)}, source: sourceBatch}
+	plan[blockSource{"batch", 1}] = plannedNeed{need: blocksched.Need{Owner: "video", LeaseUntil: now.Add(sourceLease)}}
 	use = aggregateUse(plan, now)
 	if !use.need.ReadyBy.IsZero() || !use.need.Opportunistic || use.protectReady != old.ReadyBy {
 		t.Fatal("expired handoff poisoned independent untimed qualification", use)

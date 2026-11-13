@@ -19,8 +19,8 @@ func TestAggregatePreservesIndependentUntimedDemand(t *testing.T) {
 	get, batch := blockSource{"get", 1}, blockSource{"batch", 2}
 	ready := now.Add(time.Hour)
 	sources := map[blockSource]plannedNeed{
-		get:   {source: sourceGET, need: blocksched.Need{Owner: "v", ReadyBy: ready, LeaseUntil: now.Add(time.Hour)}},
-		batch: {source: sourceBatch, need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(time.Second)}},
+		get:   {need: blocksched.Need{Owner: "v", ReadyBy: ready, LeaseUntil: now.Add(time.Hour)}},
+		batch: {need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(time.Second)}},
 	}
 	summary := aggregateUse(sources, now)
 	n := summary.need

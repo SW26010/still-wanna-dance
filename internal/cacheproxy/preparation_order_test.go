@@ -97,9 +97,9 @@ func TestPreparationOrderAssignedOnlyOnAdmissionAndNeverWraps(t *testing.T) {
 
 func TestAggregatePreparationOrderUsesOnlyLiveEarlySources(t *testing.T) {
 	now := time.Now()
-	timed := plannedNeed{source: sourceGET, need: blocksched.Need{Owner: "v", ReadyBy: now.Add(time.Hour), LeaseUntil: now.Add(time.Hour)}}
+	timed := plannedNeed{need: blocksched.Need{Owner: "v", ReadyBy: now.Add(time.Hour), LeaseUntil: now.Add(time.Hour)}}
 	manual := func(order uint64) plannedNeed {
-		return plannedNeed{source: sourceBatch, need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(time.Hour), OpportunisticOrder: order}}
+		return plannedNeed{need: blocksched.Need{Owner: "v", LeaseUntil: now.Add(time.Hour), OpportunisticOrder: order}}
 	}
 	first, second := manual(1), manual(2)
 	first.need.LeaseUntil = now.Add(time.Second)

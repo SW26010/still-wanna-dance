@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -87,5 +88,53 @@ func TestSongCoverBrowser(t *testing.T) {
 	}
 	if c.service != nil || c.httpServer != nil || c.queue.snapshot().Running {
 		t.Fatal("artwork started video/game work")
+	}
+}
+
+func TestSongCoverPaginationBrowser(t *testing.T) {
+	evidence := os.Getenv("SWD_COVERS_BROWSER_EVIDENCE")
+	if evidence == "" {
+		t.Skip("set SWD_COVERS_BROWSER_EVIDENCE for isolated real Console and Edge validation")
+	}
+	c := testConsole(t)
+	dir := filepath.Join(c.files().Root, "data", "covers")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	body, key := coverJPEG(t), strings.Repeat("a", 32)
+	var songs []cacheproxy.CatalogSong
+	// Previously downloaded files have already completed this program's update
+	// check. Keep setup local so pagination cannot depend on an upstream response.
+	c.covers.checked = make(map[string]struct{})
+	for i := range 51 {
+		id := strconv.Itoa(i + 1)
+		name := "封面翻页歌曲 " + id
+		songs = append(songs, cacheproxy.CatalogSong{ID: int64(i + 1), Name: &name, MD5: key})
+		if err := os.WriteFile(filepath.Join(dir, id+".jpg"), body, 0600); err != nil {
+			t.Fatal(err)
+		}
+		c.covers.checked[id] = struct{}{}
+	}
+	if err := c.store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261113000000", Songs: songs}); err != nil {
+		t.Fatal(err)
+	}
+	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
+		t.Errorf("pagination unexpectedly requested upstream %s", r.URL)
+		return &http.Response{StatusCode: 404, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("missing"))}, nil
+	})
+	ui := httptest.NewUnstartedServer(http.HandlerFunc(c.ServeHTTP))
+	c.address = ui.Listener.Addr().String()
+	ui.Start()
+	defer ui.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "library-cover-pagination-live.mjs"), ui.URL, filepath.Join(evidence, "pagination"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("browser: %v\n%s", err, output)
+	} else {
+		t.Log(string(output))
+	}
+	if c.service != nil || c.httpServer != nil || c.queue.snapshot().Running {
+		t.Fatal("pagination started video/game work")
 	}
 }

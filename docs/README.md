@@ -6,7 +6,7 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[功能范围](scope.md)、[日志](logging.md) |
+| 使用、兼容范围与排障 | [WebUI 与桌面程序](console.md)、[功能范围](scope.md)、[日志](logging.md)；取舍及验证见[日志调整记录](logging-design.md) |
 | 下载架构与运行参数 | [下载需求与资源管理设计](download-resource-design.md)是规则、接口及验证边界的统一依据；[块调度设计](block-scheduler-design.md)解释实现，[运行规则](download-concurrency.md)汇总参数 |
 | 视频导入、暂停与恢复 | [固定清单、恢复与源文件清理](video-import.md) |
 | 队列与视频保留 | [队列预加载](queue-prefetch.md)、[视频存储预算](cache-retention.md) |

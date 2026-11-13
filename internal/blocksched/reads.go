@@ -113,7 +113,7 @@ func (s *state) withReads(key string, n Need) priority {
 			p.Owner = w.requests.owner
 		}
 		p.Blocking = true
-		p.ReadyBy = earlier(p.ReadyBy, w.at)
+		p.WaitSince = earlier(p.WaitSince, w.at)
 	}
 	return p
 }

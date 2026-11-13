@@ -355,7 +355,9 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 5 || st.control.open != 4 || st.nextControlEvent(time.Now()) != time.Now().Add(DownloadGrace) {
+			// The oldest ordinary source, not the later read wait, owns the
+			// next finite deadline (T+450+30).
+			if st.active != 5 || st.control.open != 4 || st.nextControlEvent(time.Now()) != now.Add(450*time.Second+DownloadGrace) {
 				t.Error("large window altered active accounting or left a past-time wakeup")
 			}
 		})

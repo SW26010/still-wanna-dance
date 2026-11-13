@@ -15,6 +15,7 @@ type TaskObservation struct {
 	Running, Retiring bool
 	Readers           int
 	Deadline          time.Time
+	WaitSince         time.Time
 }
 
 // WatchChanges installs a nonblocking, coalescing notification sink. The caller
@@ -51,9 +52,10 @@ func (s *Scheduler) Observation() Observation {
 			result.Tasks[key] = TaskObservation{Running: j.cancel != nil, Retiring: j.retiring, Readers: len(st.reads[key]), Deadline: Deadline(j.need.ReadyBy)}
 		}
 		for key, readers := range st.reads {
-			if _, ok := result.Tasks[key]; !ok {
-				result.Tasks[key] = TaskObservation{Readers: len(readers)}
-			}
+			task := result.Tasks[key]
+			task.Readers = len(readers)
+			task.WaitSince = st.withReads(key, Need{}).WaitSince
+			result.Tasks[key] = task
 		}
 	})
 	return result

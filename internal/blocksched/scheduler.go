@@ -18,8 +18,9 @@ var (
 	ErrExpired  = fmt.Errorf("download need-by window expired: %w", context.DeadlineExceeded)
 )
 
-// Need separates urgency from source validity. Finite work must end at
-// ReadyBy + DownloadGrace even while its source lease remains valid.
+// Need separates expected use time from source validity. ReadyBy comes from
+// sources, never actual read waits. Finite work must end at ReadyBy +
+// DownloadGrace even while its source lease remains valid.
 // Owner is opaque and must be shared by duplicate/overlapping requests.
 type Need struct {
 	Owner               string
@@ -42,7 +43,8 @@ type Need struct {
 // actual local read waits supply Blocking independently of those leases.
 type priority struct {
 	Need
-	Blocking bool
+	Blocking  bool
+	WaitSince time.Time // earliest active read; observation only, not a deadline
 }
 
 type Result struct {
@@ -85,7 +87,7 @@ type Event struct {
 	Kind, Key, Reason       string
 	Active, Open            int
 	Blocking, Opportunistic bool
-	ReadyBy                 time.Time
+	ReadyBy, WaitSince      time.Time
 	WorkBytes               int64
 	BlockTime, PrepareAhead time.Duration
 	Overdue                 bool
@@ -455,6 +457,7 @@ func (s *state) emit(kind, reason string, j *job) {
 	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, PrepareAhead: s.cfg.PrepareAhead}
 	if j != nil {
 		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
+		e.WaitSince = j.need.WaitSince
 		e.Opportunistic = j.need.Opportunistic
 		if kind == "started" && !j.need.ReadyBy.IsZero() {
 			now := time.Now()

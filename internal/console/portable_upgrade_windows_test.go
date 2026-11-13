@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/buildinfo"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/testlog"
 )
 
 // Opt-in integration against actual delivered executables. All data and DPAPI
@@ -156,7 +156,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 						t.Fatalf("upgrade changed %s", filepath.Base(file))
 					}
 				}
-				logs, err := applog.Read(t.Context(), files.LogDir, applog.Query{})
+				logs, err := testlog.Read(files.LogDir)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -164,14 +164,8 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 				loggedBuild := false
 				for _, entry := range logs.Entries {
 					currentLog[entry.Raw] = true
-					if entry.Message == "application_build" && !previousLog[entry.Raw] {
-						var build struct {
-							Version string `json:"version"`
-						}
-						if err := json.Unmarshal([]byte(entry.Raw), &build); err != nil {
-							t.Fatal(err)
-						}
-						loggedBuild = loggedBuild || build.Version == identities[i].Version
+					if entry.Fields["event_name"] == "application_build" && !previousLog[entry.Raw] {
+						loggedBuild = loggedBuild || entry.Fields["version"] == identities[i].Version
 					}
 				}
 				if !loggedBuild {

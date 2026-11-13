@@ -21,7 +21,6 @@ func TestRequestRejectionsDoNotRaiseOrRecoverFaults(t *testing.T) {
 		{"GET", "/api/library?offset=invalid", ""},
 		{"GET", "/api/songs?offset=-1", ""},
 		{"GET", "/api/history?sort=invalid", ""},
-		{"GET", "/api/logs?from=invalid", ""},
 		{"POST", "/api/cache/delete", "{"},
 		{"POST", "/api/songs", `{"id":"invalid","policy":"invalid"}`},
 		{"POST", "/api/settings", "{"},

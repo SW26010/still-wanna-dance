@@ -3,11 +3,9 @@ import {mockAPI} from './api';
 
 for(const width of [320,1280])for(const section of ['settings','about'] as const)test(`route tabs retain keyboard focus in ${section} at ${width}px`,async({page})=>{
   await mockAPI(page);
-  if(section==='about')await page.route('**/api/logs?*',route=>
-    route.request().method()==='GET'?route.fulfill({json:{entries:[],files:[],matches:0,skipped:0,limit:500}}):route.fallback());
   await page.setViewportSize({width,height:800});await page.goto('/#/'+section);
   const list=page.getByRole('tablist',{name:section==='settings'?'设置分类':'关于内容'});
-  const names=section==='settings'?['常规','存储','下载与缓存','网络']:['介绍','使用帮助','用户协议','许可证与声明','日志'];
+  const names=section==='settings'?['常规','存储','下载与缓存','网络']:['介绍','使用帮助','用户协议','许可证与声明'];
   await list.getByRole('tab',{name:names[0],exact:true}).focus();
   for(let i=1;i<=names.length;i++){
     await page.keyboard.press('ArrowRight');
@@ -143,4 +141,6 @@ test('about groups help, agreement and offline license links',async({page})=>{
   for(const [name,path] of [['软件许可证原文','software-license.txt'],['程序第三方声明原文','third-party-notices.txt'],['WebUI 第三方声明原文','webui-notices.txt']])await expect(page.getByRole('link',{name,exact:true})).toHaveAttribute('href','/assets/webui/'+path);
   await page.getByRole('tab',{name:'用户协议'}).click();await expect(page.getByRole('article',{name:'完整使用条款'})).toBeVisible();
   await page.getByRole('tab',{name:'使用帮助'}).click();await expect(page.getByRole('heading',{name:'开始使用',exact:true})).toBeVisible();
+  await expect(page.locator('#help-paths dt').filter({hasText:'程序日志'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'打开日志文件夹',exact:true})).toHaveCount(0);
 });

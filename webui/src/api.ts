@@ -45,18 +45,3 @@ export async function requestBlob(path:string,signal:AbortSignal):Promise<Blob> 
   if(!response.ok)await decode<never>(response);
   return response.blob();
 }
-
-export async function downloadFile(path:string,filename:string,signal:AbortSignal):Promise<Headers> {
-  const response=await fetchAPI(path,undefined,signal);
-  if(!response.ok)await decode<never>(response);
-  const content=await response.blob();
-  signal.throwIfAborted();
-  const url=URL.createObjectURL(content),link=document.createElement('a');
-  try {
-    link.href=url;link.download=filename;link.hidden=true;
-    document.body.append(link);link.click();
-  } finally {
-    link.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
-  }
-  return response.headers;
-}

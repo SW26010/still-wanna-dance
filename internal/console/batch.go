@@ -97,7 +97,7 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 	if target != nil {
 		c.batch.Phase = "正在读取选中歌曲或资源"
 	}
-	slog.Info("batch_started", "scan_only", scanOnly)
+	slog.Info("批量任务已开始", "event_name", "batch_started", "scan_only", scanOnly)
 	go c.runBatch(ctx, engine, c.batchDone)
 	return nil
 }
@@ -151,7 +151,18 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 				c.reportFault("task:batch", persistenceErr)
 			}
 		}
-		slog.Info("batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
+		message := "批量任务已完成"
+		switch {
+		case ctx.Err() != nil:
+			message = "批量任务已取消"
+		case persistenceErr != nil || result.Failed > 0:
+			message = "批量任务结束，存在失败"
+		case result.BudgetReached:
+			message = "批量任务因空间预算达到上限而结束"
+		case !completed:
+			message = "批量任务结束，未全部完成"
+		}
+		slog.Info(message, "event_name", "batch_finished", "scan_only", scanOnly, "reused", result.Reused, "completed", completed, "elapsed_ms", time.Since(started).Milliseconds(), "missing", result.Missing, "cancelled", ctx.Err() != nil, "total", result.Total, "checked", result.Checked, "hits", result.Hits, "downloaded", result.Downloaded, "failed", result.Failed, "phase", result.Phase)
 	}()
 
 	fail := func(message string) { c.mu.Lock(); c.batch.Phase = message; c.mu.Unlock() }

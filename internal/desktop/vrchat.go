@@ -34,7 +34,7 @@ func waitForVRChatExit(ctx context.Context, find func() (processWaiter, error)) 
 		process, err := find()
 		if err == nil && process != nil {
 			if !seen {
-				slog.Info("vrchat_detected")
+				slog.Info("已检测到 VRChat", "event_name", "vrchat_detected")
 			}
 			seen, absent = true, false
 			err = errors.Join(process.Wait(ctx), process.Close())
@@ -51,7 +51,7 @@ func waitForVRChatExit(ctx context.Context, find func() (processWaiter, error)) 
 		delay := vrchatDiscoveryInterval
 		if err != nil {
 			if !failed {
-				slog.Warn("vrchat_process_check_failed", "error", err)
+				slog.Warn("VRChat 进程状态检查失败", "event_name", "vrchat_process_check_failed", "error", err)
 			}
 			failed, absent = true, false
 		} else {

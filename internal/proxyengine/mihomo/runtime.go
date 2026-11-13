@@ -128,7 +128,7 @@ func NewRuntime(data []byte, options RuntimeOptions) (*Runtime, error) {
 		r.selectionCache = cache
 	} else {
 		// Native selection still works in memory when the optional cache is nil.
-		slog.Warn("mihomo_selection_cache_unavailable", "path", filepath.Join(options.Home, "cache.db"))
+		slog.Warn("Mihomo 节点选择缓存不可用", "event_name", "mihomo_selection_cache_unavailable", "path", filepath.Join(options.Home, "cache.db"))
 	}
 	p := tunnel.Proxies()[entry]
 	if p == nil {

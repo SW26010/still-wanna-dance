@@ -19,8 +19,6 @@ func TestManagementAdmissionThroughRouter(t *testing.T) {
 		{"POST", "/api/network/socks5/check"},
 		{"POST", "/api/import/dismiss-suggestion"},
 		{"GET", "/api/import/space"},
-		{"GET", "/api/logs"},
-		{"GET", "/api/logs/export"},
 		{"POST", "/api/import/pause"}, {"POST", "/api/import/resume"}, {"POST", "/api/import/discard"}, {"POST", "/api/import/cleanup"},
 		{"POST", "/api/hosts/prepare"},
 		{"POST", "/api/exit"}, {"POST", "/api/restart"},
@@ -64,6 +62,8 @@ func TestManagementRoutingPreservesMethodsAndPublicReads(t *testing.T) {
 	}{
 		{"GET", "/api/library", true, 200},
 		{"GET", "/api/downloads", true, 200},
+		{"GET", "/api/logs", true, 404},
+		{"GET", "/api/logs/export", true, 404},
 		{"GET", "/api/requests", true, 200},
 		{"POST", "/api/library/preview", true, 409},
 		{"POST", "/api/batch/cancel", true, 200},

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net"
 	"os"
 	"os/exec"
@@ -12,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/testlog"
 )
 
 func startupWorkForTest(t *testing.T, config string) string {
@@ -196,7 +195,7 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				}
 				return
 			}
-			logs, err := applog.Read(t.Context(), logDir, applog.Query{})
+			logs, err := testlog.Read(logDir)
 			if err != nil {
 				t.Fatal(err, string(output))
 			}
@@ -214,16 +213,14 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 			started, failed := false, false
 			betaRecords := 0
 			for _, entry := range logs.Entries {
-				var record map[string]any
-				if err := json.Unmarshal([]byte(entry.Raw), &record); err != nil {
-					t.Fatal(err, entry.Raw)
-				}
-				if record["session_id"] == nil || record["pid"] == nil || !strings.HasSuffix(record["time"].(string), "Z") {
+				record := entry.Fields
+				_, timeErr := time.Parse(time.RFC3339Nano, record["time"].(string))
+				if record["session_id"] == nil || record["pid"] == nil || timeErr != nil {
 					t.Fatal(record)
 				}
-				started = started || record["msg"] == "application_starting"
-				failed = failed || record["msg"] == "application_failed"
-				if record["msg"] == "beta4_fixture" {
+				started = started || record["event_name"] == "application_starting"
+				failed = failed || record["event_name"] == "application_failed"
+				if record["event_name"] == "beta4_fixture" {
 					betaRecords++
 				}
 			}

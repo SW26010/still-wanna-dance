@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image/jpeg"
@@ -13,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -295,46 +293,25 @@ func (c *Console) songCoverAPI(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-// A local-only batch inspection lets the cover view order its explicit page
-// demands. It never creates the cache directory or contacts an upstream.
-func (c *Console) songCoverStateAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", 405)
-		return
-	}
-	q := r.URL.Query()
-	ids := strings.Split(q.Get("ids"), ",")
-	if len(q) != 1 || len(q["ids"]) != 1 || len(ids) > 100 {
-		http.Error(w, "无效歌曲 ID", 400)
-		return
-	}
-	cached := make([]string, 0, len(ids))
-	refresh := make([]string, 0, len(ids))
-	dir := filepath.Join(c.files().Root, "data", "covers")
+type songCoverChoice struct {
+	Source  string `json:"source"`
+	Refresh bool   `json:"refresh,omitempty"`
+}
+
+// Choose locally for every song; this neither creates directories nor fetches.
+func (s *songCoverCache) choices(dir string, ids []string) map[string]songCoverChoice {
+	choices := make(map[string]songCoverChoice, len(ids))
 	for _, id := range ids {
-		n, err := strconv.ParseInt(id, 10, 64)
-		if err != nil || n <= 0 || strconv.FormatInt(n, 10) != id {
-			http.Error(w, "无效歌曲 ID", 400)
-			return
-		}
-	}
-	for _, id := range ids {
-		data, err := c.covers.readSongCover(dir, id)
-		// A bad cache entry must not prevent displaying other valid images.
-		// Its individual image request will report the actual local error.
+		choice := songCoverChoice{Source: "category"}
+		data, err := s.readSongCover(dir, id)
 		if err == nil && len(data) > 0 {
-			cached = append(cached, id)
-			c.covers.mu.Lock()
-			_, checked := c.covers.checked[id]
-			c.covers.mu.Unlock()
-			if !checked {
-				refresh = append(refresh, id)
-			}
+			choice.Source = "local"
+			s.mu.Lock()
+			_, checked := s.checked[id]
+			s.mu.Unlock()
+			choice.Refresh = !checked
 		}
+		choices[id] = choice
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(struct {
-		Cached  []string `json:"cached"`
-		Refresh []string `json:"refresh"`
-	}{cached, refresh})
+	return choices
 }

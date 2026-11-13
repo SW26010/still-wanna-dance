@@ -35,7 +35,7 @@ func (c *Console) watchVRChat(wait func(context.Context) error) {
 	<-stopped
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
-			slog.Warn("vrchat_process_check_failed", "error", err)
+			slog.Warn("VRChat 进程状态检查失败", "event_name", "vrchat_process_check_failed", "error", err)
 		}
 		return
 	}
@@ -47,6 +47,6 @@ func (c *Console) watchVRChat(wait func(context.Context) error) {
 		return
 	default:
 	}
-	slog.Info("vrchat_exited")
+	slog.Info("已检测到当前 VRChat 会话结束", "event_name", "vrchat_exited")
 	c.RequestExit()
 }

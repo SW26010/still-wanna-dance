@@ -79,10 +79,10 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, pro
 				blockVideo.host, blockVideo.path, blockVideo.query = selected.host, selected.path, selected.query
 			}
 			received = true
-			flight.log.Debug("upstream_response", "upstream_host", blockVideo.host, "status", resp.StatusCode, "content_length", resp.ContentLength)
+			flight.log.Debug("已取得上游响应", "event_name", "upstream_response", "upstream_host", blockVideo.host, "status", resp.StatusCode, "content_length", resp.ContentLength)
 			if err := validateRangeResponse(resp, start, end, v.size); err != nil {
 				if errors.Is(err, errRangeUnsupported) {
-					flight.log.Warn("range_unsupported", "upstream_host", blockVideo.host, "status", resp.StatusCode, "block", block)
+					flight.log.Warn("上游不支持所需 Range", "event_name", "range_unsupported", "upstream_host", blockVideo.host, "status", resp.StatusCode, "block", block)
 				}
 				return err
 			}

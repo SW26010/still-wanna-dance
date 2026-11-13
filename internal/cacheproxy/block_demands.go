@@ -123,7 +123,7 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	if w.f.log == nil || !w.f.log.Enabled(w.ctx, slog.LevelDebug) {
 		return
 	}
-	w.f.log.Debug("block_demand", "block", block,
+	w.f.log.Debug("块需求已更新", "event_name", "block_demand", "block", block,
 		"opportunistic", j.published.Opportunistic, "opportunistic_order", j.published.OpportunisticOrder,
 		"window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyBy,
 		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)

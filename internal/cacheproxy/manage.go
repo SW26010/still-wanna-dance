@@ -214,7 +214,7 @@ func (s *Server) removeCacheEntry(ctx context.Context, db *sql.DB, item CacheSel
 		return "failed"
 	}
 	removed = true
-	s.cfg.Logger.Info("cache_manually_removed", "key", item.Key, "bytes", e.Bytes)
+	s.cfg.Logger.Info("本地视频已手动删除", "event_name", "cache_manually_removed", "key", item.Key, "bytes", e.Bytes)
 	return "deleted"
 }
 

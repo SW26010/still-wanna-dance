@@ -103,7 +103,7 @@ func (s *Server) trimCache() {
 
 func (s *Server) runRetention(reconcile bool) {
 	if err := s.trimCachePass(reconcile); err != nil {
-		s.cfg.Logger.Warn("cache_eviction_failed", "error", err)
+		s.cfg.Logger.Warn("视频容量清理失败", "event_name", "cache_eviction_failed", "error", err)
 	}
 }
 
@@ -327,7 +327,7 @@ func (s *Server) trimCacheDecision() error {
 	total = s.retainedBytes
 	s.retentionMu.Unlock()
 	if total > limit {
-		s.cfg.Logger.Info("cache_limit_deferred", "retained_bytes", total, "limit_bytes", limit)
+		s.cfg.Logger.Info("视频容量整理已暂缓", "event_name", "cache_limit_deferred", "retained_bytes", total, "limit_bytes", limit)
 	}
 	return nil
 }
@@ -343,16 +343,16 @@ func (s *Server) evictRetainedVideo(item retainedVideo) {
 		return
 	}
 	if err != nil {
-		s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
+		s.cfg.Logger.Warn("视频容量清理失败", "event_name", "cache_eviction_failed", "path", item.path, "error", err)
 		return
 	}
 	if info.Size() != item.size || info.ModTime().UnixNano() != item.modified {
 		return
 	}
 	if err := os.Remove(item.path); err != nil && !os.IsNotExist(err) {
-		s.cfg.Logger.Warn("cache_eviction_failed", "path", item.path, "error", err)
+		s.cfg.Logger.Warn("视频容量清理失败", "event_name", "cache_eviction_failed", "path", item.path, "error", err)
 		return
 	}
 	removed = true
-	s.cfg.Logger.Info("cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
+	s.cfg.Logger.Info("完整视频已按容量策略清理", "event_name", "cache_evicted", "key", item.key, "path", item.path, "bytes", item.size, "priority", item.score)
 }

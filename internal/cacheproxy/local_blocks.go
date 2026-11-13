@@ -212,7 +212,7 @@ func (f *blockFiles) removeFiles(files []*localBlockFile) {
 	for _, b := range files {
 		if err := os.Remove(b.path); err != nil && !os.IsNotExist(err) {
 			if f.log != nil {
-				f.log.Warn("temporary_cleanup_failed", "error", applog.SafeError(err))
+				f.log.Warn("临时视频块清理失败", "event_name", "temporary_cleanup_failed", "error", applog.SafeError(err))
 			}
 			continue
 		}

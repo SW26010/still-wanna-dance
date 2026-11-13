@@ -48,9 +48,9 @@ func (l *configLease) CleanWorkFiles() error {
 	// Write will also reject an unsafe slot, leaving it untouched.
 	portPath := p.State("webui-port")
 	if removed, err := workfiles.Clean(portPath); err != nil {
-		slog.Warn("console_port_cleanup_skipped", "path", portPath, "error", err)
+		slog.Warn("已跳过 WebUI 端口文件清理", "event_name", "console_port_cleanup_skipped", "path", portPath, "error", err)
 	} else if removed {
-		slog.Info("config_work_cleanup_removed", "path", portPath)
+		slog.Info("配置工作文件已清理", "event_name", "config_work_cleanup_removed", "path", portPath)
 	}
 	return nil
 }
@@ -58,11 +58,11 @@ func (l *configLease) CleanWorkFiles() error {
 func cleanConfigWorkFile(path string) error {
 	removed, err := workfiles.Clean(path)
 	if err != nil {
-		slog.Error("config_work_cleanup_failed", "path", path, "error", err)
+		slog.Error("配置工作文件清理失败", "event_name", "config_work_cleanup_failed", "path", path, "error", err)
 		return fmt.Errorf("清理配置工作文件 %s：%w", path, err)
 	}
 	if removed {
-		slog.Info("config_work_cleanup_removed", "path", path)
+		slog.Info("配置工作文件已清理", "event_name", "config_work_cleanup_removed", "path", path)
 	}
 	return nil
 }

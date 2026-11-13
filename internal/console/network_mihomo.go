@@ -26,7 +26,7 @@ func (t *mihomoTransport) Retire() {
 		t.Transport.CloseIdleConnections()
 		if t.core != nil {
 			if err := t.core.Close(); err != nil {
-				slog.Warn("mihomo_runtime_drain_incomplete")
+				slog.Warn("Mihomo 运行任务未完全结束", "event_name", "mihomo_runtime_drain_incomplete")
 			}
 		}
 	})

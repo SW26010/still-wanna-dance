@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
+	"still-wanna-dance/internal/testlog"
 )
 
 func TestApplicationBlockCacheStartup(t *testing.T) {
@@ -192,7 +192,7 @@ func TestApplicationBlockCacheStartup(t *testing.T) {
 				}
 			}
 			if mode == "offline" || offlineData {
-				logs, err := applog.Read(t.Context(), apppaths.ForConfig(config).LogDir, applog.Query{})
+				logs, err := testlog.Read(apppaths.ForConfig(config).LogDir)
 				if err != nil {
 					t.Fatal(err)
 				}

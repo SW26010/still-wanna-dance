@@ -44,16 +44,38 @@ function Read-Build($executable) {
     return $value
 }
 
-function Read-ApplicationLogs($directory, [switch]$RequireTimestamp) {
+function Read-ApplicationLogs($directory, [switch]$RequireCurrent) {
+    $datePattern = '^[0-9]{8}(?:-[1-9][0-9]*)?\.log$'
     $timestampPattern = '^[0-9]{8}T[0-9]{6}Z(?:-[1-9][0-9]*)?\.log$'
     $files = @(Get-ChildItem -LiteralPath $directory -File | Where-Object {
-        $_.Name -cmatch $timestampPattern -or $_.Name -cmatch '^app\.log(?:\.[1-3])?$'
+        $_.Name -cmatch $datePattern -or $_.Name -cmatch $timestampPattern -or $_.Name -cmatch '^app\.log(?:\.[1-3])?$'
     } | Sort-Object Name)
     if ($files.Count -eq 0) { throw 'Application logs are missing.' }
-    if ($RequireTimestamp -and @($files | Where-Object { $_.Name -cmatch $timestampPattern }).Count -eq 0) {
-        throw 'Expected timestamp-named application logs from the current build.'
+    if ($RequireCurrent -and @($files | Where-Object { $_.Name -cmatch $datePattern }).Count -eq 0) {
+        throw 'Expected date-named application logs from the current build.'
     }
-    $files | ForEach-Object { Get-Content -LiteralPath $_.FullName -Encoding utf8 } | ForEach-Object { $_ | ConvertFrom-Json }
+    $files | ForEach-Object { Get-Content -LiteralPath $_.FullName -Encoding utf8 } | ForEach-Object {
+        if ($_.StartsWith('{')) {
+            $record = $_ | ConvertFrom-Json
+            if (!$record.PSObject.Properties['event_name']) { $record | Add-Member event_name $record.msg }
+            $record
+        } else {
+            # Decode only the stable fields used by this acceptance script.
+            # Quoted messages/values stay one token, even with key=value inside.
+            $tokens = [regex]::Matches($_, '(?:[^\s"]|"(?:\\.|[^"\\])*")+')
+            if ($tokens.Count -lt 3) { throw 'Invalid application log record.' }
+            $record = @{}
+            foreach ($token in @($tokens | Select-Object -Skip 3)) {
+                $pair = $token.Value.Split('=', 2)
+                if ($pair.Count -ne 2 -or $pair[0] -cnotin @('event_name','pid','version')) { continue }
+                $value = $pair[1]
+                if ($value.StartsWith('"')) { $value = $value | ConvertFrom-Json }
+                if ($pair[0] -ceq 'pid') { $value = [int]$value }
+                $record[$pair[0]] = $value
+            }
+            [pscustomobject]$record
+        }
+    }
 }
 
 function Free-Port {
@@ -188,10 +210,10 @@ try {
     if (((Get-ChildItem -LiteralPath $folder | ForEach-Object Name | Sort-Object) -join '|') -cne 'config.json|config.lock|data|licenses|logs|SWD.exe|videos|work') { throw 'Unexpected default installation layout.' }
     $page = Invoke-WebRequest $url -UseBasicParsing
     if ($page.Content -notmatch 'Still Wanna Dance') { throw 'Embedded UI missing.' }
-    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp:(!$PreviousZip))
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireCurrent:(!$PreviousZip))
     $startupEvents = @('application_starting', 'application_build', 'console_ready')
     foreach ($event in $startupEvents) {
-        if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 1) { throw "Expected one startup log record: $event" }
+        if (@($records | Where-Object { $_.event_name -eq $event }).Count -ne 1) { throw "Expected one startup log record: $event" }
     }
     if ($records.Count -ne $startupEvents.Count) { throw 'Read-only status/UI requests should not generate log records.' }
     if ($process.HasExited) { throw 'Portable process did not remain alive.' }
@@ -223,9 +245,9 @@ try {
     if (!$restarted) { throw 'Restart did not restore the consent-gated console.' }
     Assert-Identity $process $port $exe[0].FullName $configPath
     if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Restart rewrote persisted defaults.' }
-    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp:(!$PreviousZip))
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireCurrent:(!$PreviousZip))
     foreach ($event in $startupEvents) {
-        if (@($records | Where-Object { $_.msg -eq $event }).Count -ne 2) { throw "Expected two startup log records after restart: $event" }
+        if (@($records | Where-Object { $_.event_name -eq $event }).Count -ne 2) { throw "Expected two startup log records after restart: $event" }
     }
     # Overlay only delivered paths. Unknown user files and configuration must survive byte-for-byte.
     $process.Kill()
@@ -249,8 +271,8 @@ try {
     if ([IO.File]::ReadAllText($configPath) -cne $configBefore) { throw 'Replacement startup rewrote configuration.' }
     $about = Invoke-WebRequest "$url/about"
     if (!$about.Content.Contains('"version":"' + $updatedBuild.version + '"')) { throw 'Replacement did not serve its own build identity.' }
-    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireTimestamp)
-    if (@($records | Where-Object { $_.msg -ceq 'application_build' -and $_.version -ceq $updatedBuild.version -and $_.pid -eq $process.Id }).Count -ne 1) {
+    $records = @(Read-ApplicationLogs (Join-Path $folder 'logs') -RequireCurrent)
+    if (@($records | Where-Object { $_.event_name -ceq 'application_build' -and $_.version -ceq $updatedBuild.version -and $_.pid -eq $process.Id }).Count -ne 1) {
         throw 'Replacement did not write its own build identity to the application logs.'
     }
     $process.Kill()
@@ -285,7 +307,7 @@ try {
         Assert-Identity $child $customPort $exePath $config
         $saved = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
         if ($saved.schemaVersion -ne 8 -or $saved.databasePath -cne (Join-Path "$name.d" 'data/database/storage.sqlite') -or $saved.videoDir -cne (Join-Path "$name.d" 'videos')) { throw 'Custom startup did not prepare its independent default library.' }
-        $records = @(Read-ApplicationLogs (Join-Path "$config.d" 'logs') -RequireTimestamp)
+        $records = @(Read-ApplicationLogs (Join-Path "$config.d" 'logs') -RequireCurrent)
         if (@($records | Where-Object { $_.pid -ne $child.Id }).Count -ne 0) { throw 'Custom instances shared a log.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'config.lock'))) { throw 'Custom lock missing.' }
         if (!(Test-Path -LiteralPath (Join-Path "$config.d" 'data/database/storage.sqlite'))) { throw 'Custom startup did not create its default database.' }

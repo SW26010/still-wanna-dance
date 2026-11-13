@@ -70,12 +70,16 @@ func (s *Server) resolvePlaybackLogged(ctx, caller context.Context, id string, l
 	log := s.cfg.Logger.With("trace_id", applog.TraceID(applog.WithTrace(caller)), "song_id", id)
 	started := time.Now()
 	v, err := s.resolvePlaybackVideo(ctx, id)
-	log.Debug("prefetch_resolved", "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil,
+	message := "预加载地址查询成功"
+	if err != nil {
+		message = "预加载地址查询失败"
+	}
+	log.Debug(message, "event_name", "prefetch_resolved", "elapsed_ms", time.Since(started).Milliseconds(), "success", err == nil,
 		"resource_key", v.key, "host", v.host, "error", applog.SafeError(err))
 	if err != nil {
-		log.Warn("playback_check_failed", "error", applog.SafeError(err))
+		log.Warn("播放资源检查失败", "event_name", "playback_check_failed", "error", applog.SafeError(err))
 	} else if local.key != "" && v.key != local.key {
-		log.Warn("song_md5_mismatch", "mapped_md5", local.key, "url_md5", v.key)
+		log.Warn("歌曲资源指纹不一致", "event_name", "song_md5_mismatch", "mapped_md5", local.key, "url_md5", v.key)
 	}
 	return v, err
 }

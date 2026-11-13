@@ -22,7 +22,7 @@ func (s *Store) recordSongMapping(ctx context.Context, id, key string, log *slog
 		}
 		promote = current == "" || current == key
 		if !promote {
-			log.Warn("song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", key)
+			log.Warn("歌曲资源指纹不一致", "event_name", "song_md5_mismatch", "song_id", id, "mapped_md5", current, "url_md5", key)
 		}
 		return current != key, nil
 	}, func(tx *sql.Tx) error {

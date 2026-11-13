@@ -185,6 +185,26 @@ test('fixed blocks remain fully visible in demand rows when the timeline expands
   }
 });
 
+test('demand rows grow and shrink with the available width without reloading', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 1000 });
+  const f = await setup(page), rows = f.panel.locator('.demand-row');
+  const widths = () => rows.evaluateAll(rows => rows.map(row => Math.round(row.getBoundingClientRect().width)));
+  const initial = await widths();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect.poll(async () => (await widths()).every((width, i) => width > initial[i])).toBe(true);
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await expect.poll(widths).toEqual(initial);
+  for (const width of [390, 1280, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect.poll(() => f.panel.evaluate(panel => {
+      const right = panel.getBoundingClientRect().right;
+      return [...panel.querySelectorAll('.demand-row')].every(row => row.getBoundingClientRect().right <= right);
+    })).toBe(true);
+    await expect.poll(() => f.panel.locator('.demand-block-canvas').evaluateAll(canvases => canvases.every(canvas => canvas.clientWidth === canvas.parentElement!.clientWidth))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+});
+
 for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]) test(`default demand view remains readable at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light', forcedColors: width === 320 ? 'active' : 'none' });
   const f = await setup(page); await f.emit('download-speed', { bytesPerSecond: 1250000 });

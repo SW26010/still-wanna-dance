@@ -234,12 +234,9 @@ func TestSongCoverChangedCacheIsValidatedAndCanRecover(t *testing.T) {
 	if err := os.Chtimes(filename, info.ModTime(), info.ModTime()); err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest("GET", "http://"+c.address+"/api/library/covers?ids=18", nil)
-	r.Header.Set("X-SWD-Token", c.token)
-	w := httptest.NewRecorder()
-	c.ServeHTTP(w, r)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"cached":[]`) || calls != 1 {
-		t.Fatal("inspection trusted damaged pixels or fetched upstream", w.Code, w.Body.String(), calls)
+	choices := c.covers.choices(filepath.Dir(filename), []string{"18"})
+	if choices["18"].Source != "category" || calls != 1 {
+		t.Fatal("inspection trusted damaged pixels or fetched upstream", choices, calls)
 	}
 	if w := coverRequest(c, "GET", "id=18&mode=cached", c.token); w.Code != 404 || calls != 1 {
 		t.Fatal("cached read trusted damaged pixels or fetched upstream", w.Code, calls)
@@ -562,12 +559,9 @@ func TestSongCoverCachedReadsAndRefresh(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "19.jpg"), body, 0600); err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest("GET", "http://"+c.address+"/api/library/covers?ids=18,19", nil)
-	r.Header.Set("X-SWD-Token", c.token)
-	w := httptest.NewRecorder()
-	c.ServeHTTP(w, r)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"cached":["18","19"]`) || !strings.Contains(w.Body.String(), `"refresh":["19"]`) || calls != 1 {
-		t.Fatal("inspection fetched", w.Code, w.Body.String(), calls)
+	choices := c.covers.choices(dir, []string{"18", "19", "20"})
+	if choices["18"] != (songCoverChoice{Source: "local"}) || choices["19"] != (songCoverChoice{Source: "local", Refresh: true}) || choices["20"].Source != "category" || calls != 1 {
+		t.Fatal("inspection fetched or chose the wrong source", choices, calls)
 	}
 	var changed bytes.Buffer
 	jpeg.Encode(&changed, image.NewRGBA(image.Rect(0, 0, 240, 180)), nil)

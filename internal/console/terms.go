@@ -71,7 +71,7 @@ func (c *Console) loadTerms() error {
 	c.terms = c.findAcceptedTerms(receipts)
 	c.termsNeedsConfirmation = present && !c.terms.valid()
 	if len(receipts) > 0 && c.termsNeedsConfirmation {
-		slog.Warn("terms_receipt_invalid", "reason", "no verifiable current terms receipt")
+		slog.Warn("使用条款确认记录无效", "event_name", "terms_receipt_invalid", "reason", "no verifiable current terms receipt")
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func readTermsReceipts(path string) ([]json.RawMessage, bool, error) {
 	var envelope termsEnvelope
 	if len(b) > maxTermsBytes || json.Unmarshal(b, &envelope) != nil || envelope.Format != 2 ||
 		envelope.Protection != "dpapi-current-user" || len(envelope.Receipts) == 0 || len(envelope.Receipts) > maxTermsReceipts {
-		slog.Warn("terms_receipt_invalid", "reason", "unsupported or corrupt format")
+		slog.Warn("使用条款确认记录无效", "event_name", "terms_receipt_invalid", "reason", "unsupported or corrupt format")
 		return nil, true, nil
 	}
 	return envelope.Receipts, true, nil
@@ -215,7 +215,7 @@ func (c *Console) termsPagePresence(pageID string, leaving bool) {
 		}
 		c.termsExitTimer = nil
 		c.closing = true // serialize timeout with terms acceptance
-		slog.Info("terms_page_timeout")
+		slog.Info("使用条款页面等待超时", "event_name", "terms_page_timeout")
 		c.RequestExit()
 	})
 }
@@ -294,12 +294,12 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 		}
 		if err := c.acceptTerms(); err != nil {
 			if errors.Is(err, errTermsStartup) {
-				slog.Error("terms_startup_failed", "error", err)
+				slog.Error("条款确认后的服务启动失败", "event_name", "terms_startup_failed", "error", err)
 				writeJSON(w, map[string]any{"ok": true, "warning": "条款已保存，但代理或网络监测启动失败；请检查设置和日志，修复后重启程序。"})
 				return true
 			}
 			c.reportFault("terms:accept", err)
-			slog.Error("terms_accept_failed", "error", err)
+			slog.Error("使用条款确认失败", "event_name", "terms_accept_failed", "error", err)
 			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
 			return true
 		}

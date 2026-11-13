@@ -16,3 +16,18 @@ export async function coverOnFirstFrame(page,id,action) {
   await action();
   return page.evaluate(()=>window.coverFirstFrame);
 }
+
+// Include the interval before destination data arrives: the old page must not
+// be scrolled into the destination's position while its request is pending.
+export async function libraryOnClickFrame(page,action) {
+  await page.evaluate(()=>{
+    const frame=new Promise(resolve=>document.addEventListener('click',()=>requestAnimationFrame(()=>{
+      const section=document.getElementById('library-browser');
+      const first=document.querySelector('.library-cover-grid [role="group"]');
+      resolve({scrollY,sectionTop:section?.getBoundingClientRect().top,firstSong:first?.getAttribute('aria-label')});
+    }),{capture:true,once:true}));
+    Object.assign(window,{libraryClickFrame:frame});
+  });
+  await action();
+  return page.evaluate(()=>window.libraryClickFrame);
+}

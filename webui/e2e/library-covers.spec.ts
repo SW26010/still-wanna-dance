@@ -2,7 +2,7 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {Buffer} from 'node:buffer';
 import {mockAPI} from './api';
-import {coverOnFirstFrame} from '../test-support/cover-frame.mjs';
+import {coverOnFirstFrame,libraryOnClickFrame} from '../test-support/cover-frame.mjs';
 import type {LibraryCoverChoice,LibraryPage,LibrarySong} from '../src/types';
 
 async function trackCoverURLs(page:Page) {
@@ -201,6 +201,32 @@ test('paging shows cached JPEGs on the first frame without rereading their files
   await expect(first).toHaveAttribute('src',original!);
   await expect(first).toBeVisible();
   expect(rereads).toBe(0);expect(calls.some(call=>call.path==='library/covers')).toBe(false);
+});
+
+test('paging keeps old covers at their current position until the destination page is committed',async({page})=>{
+  const jpeg=await jpegFixture(page),{choices,modes}=await coversFixture(page,100,jpeg);
+  for(const id of Object.keys(choices))choices[id]={source:id==='2'?'category':'local',refresh:id==='3'};
+  await page.goto('/#/library');
+  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(1);
+  for(const [buttonName,offset,from,to] of [['下一页曲库','50','1','51'],['上一页曲库','0','51','1']]){
+    const button=page.getByRole('button',{name:buttonName,exact:true});
+    await button.scrollIntoViewIfNeeded();
+    const position=await page.evaluate(()=>scrollY);expect(position).toBeGreaterThan(500);
+    let release!:()=>void;
+    const pending=new Promise<void>(resolve=>release=resolve);
+    await page.route('**/api/library?**',async route=>{
+      if(new URL(route.request().url()).searchParams.get('offset')===offset)await pending;
+      await route.fallback();
+    });
+    try {
+      const frame=await libraryOnClickFrame(page,()=>button.click());
+      expect(frame.firstSong).toBe('歌曲 '+from);
+      expect(frame.scrollY).toBe(position);
+    }finally{release();}
+    await expect(page.getByRole('group',{name:'歌曲 '+to,exact:true}).locator('img.is-ready')).toHaveJSProperty('naturalWidth',480);
+    await expect.poll(()=>page.locator('#library-browser').evaluate(section=>section.getBoundingClientRect().top)).toBe(0);
+    await expect(page.locator('#library-browser')).toBeFocused();
+  }
 });
 
 test('undecodable refreshes retain loaded images and release rejected URLs',async({page})=>{

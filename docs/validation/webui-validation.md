@@ -2250,3 +2250,15 @@ TaskDialog 后续 DPI 适配及 200% 实测见 [2026-11-08 原生 DPI 验证](wi
 证据保存在忽略目录 `artifacts/cover-first-frame-fix/`：`before.log`、`synchronous-cache.log`、`ready-ref.log`、`regression.log` 保留失败与中间结果，`final-regression.log`、`final-live.log` 及 `final-live/pagination/result.json` 为最终结果。早期 `live.log` 的切回视图探针在分页来源尚未返回时采样到空图，未作为分页验证；最终改用上述真实分页场景。此前首帧调查的受限 Edge 启动失败保存在 `artifacts/cover-first-frame-question/`，未计为产品断言结果。
 
 本轮未修改日常数据、启动游戏、修改 hosts 或重建日常桌面 EXE，无需新增 VRC 验收项。源码、内嵌产物、回归及文档一并提交，不推送。
+
+## 2026-11-13：新页提交后再滚动定位
+
+用户继续报告翻页时先滚到开头、仍显示上一页封面，随后才换为下一页。前节首帧检查从新卡片挂载开始，未覆盖点击到分页响应返回之前的旧页。新增受控检查暂停下一页响应，在点击后的第一个渲染机会采样：歌曲仍为旧页的 1，滚动位置却从 **2021 降到 212**，明确复现了这段提前定位。
+
+分页按钮现在只记录目标查询并导航；匹配查询和版本的新结果提交后，由 layout effect 在绘制前聚焦并定位曲库。等待期间保留原页位置，失败、停止、离页或目标查询改变时清除定位意图，不改变同查询后台刷新。真实 100 首检查另捕获挂载后图片已完成、原生 load 事件尚未处理时仍隐藏的情况；补齐每个未就绪节点的一次绘制前检查，并在移除或候选变化时取消，保留普通 React 图片与现有缓存预算。
+
+- 曲库列表、封面和后台刷新 **85 项 Edge 回归通过**。随后补齐图片绘制前检查，受影响的封面／后台刷新 **34 项复验通过**；其余 51 项复用前轮结果，不将重跑相加计数。新增场景用两页各 50 首，分别暂停前进、返回响应，确认旧页位置保持，新结果提交后曲库开头在视口顶部且获得焦点。
+- 真实 Console、SQLite、100 张本地 JPEG 与 Edge 的 `TestSongCoverPaginationBrowser` 通过：前进、返回等待时均保持 **scrollY=2035**，新页首个卡片在第一帧已有完整、可见的 480 × 360 图片，全部封面 HTTP 读取仍为 **100 次**，无上游请求或页面异常。`TestSongCoverBrowser` 同轮通过，冷读占位、离线复用、来源转换节点保留及偏好持久化继续成立。已查看等待期间仍在旧页底部、完成后位于新页开头的截图；这是受控真实服务验证，不外推公网或 VRC 播放。
+- TypeScript、生产构建、内嵌资源逐字节一致性、当前 bundle 精确登记和差异检查通过。失败与最终结果保存在忽略目录 `artifacts/cover-pagination-scroll/`：`before.log` 为提前滚动复现，`live.log` 为补齐绘制前检查之前的真实图片失败，`regression.log`、`final-regression.log`、`final-live.log` 和 `final-live/pagination/result.json` 为相应回归证据。
+
+重建 `bin/SWD.exe` 为 `dev-cover-pagination`，源码基于 `4b5f31ecbd6aced7ef25dfb6f27804027895bb6d` 加本轮工作区差异，身份为 development／dirty；UTC 构建时间 `2026-11-13T06:40:06.355Z`，Go 1.27.3、Windows amd64。产物 **60,312,064 字节**，SHA-256 为 `d427e498e7ef4922b9156fb2cbf3ceea00c790540109c04298cae76682033091`，构建及身份记录在同目录 `desktop-*`。只执行立即退出的 `-build-info`，未正常启动应用、改日常配置、启动游戏或修改 hosts；无需新增 VRC 验收项。源码、内嵌产物、回归及文档一并提交，不推送。

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -15,6 +16,60 @@ func waitForKey(t *testing.T, s *Scheduler, key string) func() {
 	end := r.Wait(context.Background(), 0)
 	t.Cleanup(r.Close)
 	return end
+}
+
+func TestCanceledReadBeforeAdmissionDoesNotStartClosedTask(t *testing.T) {
+	for _, taskFirst := range []bool{false, true} {
+		name := "read-before-task"
+		if taskFirst {
+			name = "task-before-read"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				var runs atomic.Int32
+				s := New(Config{SoftLimit: 1, Observe: func(e Event) {
+					if e.Key == "block" && e.Kind == "queued" && e.Blocking {
+						// Cancel before dispatch, while endRead is still pending.
+						cancel()
+					}
+				}})
+				defer s.Close()
+				reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+				defer reads.Close()
+				if !taskFirst {
+					defer reads.Wait(ctx, 0)()
+				}
+				n := Need{Owner: "video", ReadyBy: time.Now().Add(time.Minute), LeaseUntil: time.Now().Add(15 * time.Second), WindowClosed: true}
+				task, handoff, err := s.Schedule("block", 1, func(context.Context, *Progress) Result {
+					runs.Add(1)
+					return Result{}
+				}, n)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer handoff.Close()
+				if taskFirst {
+					defer reads.Wait(ctx, 0)()
+				}
+				synctest.Wait()
+				if ctx.Err() == nil || runs.Load() != 0 {
+					t.Fatal("read canceled before admission still started closed work", ctx.Err(), runs.Load())
+				}
+				// The handoff remains valid, and an independent source can still
+				// start this task before the canceled read's cleanup arrives.
+				ordinary := task.Add(need("new-get", 0, time.Minute))
+				defer ordinary.Close()
+				if !ordinary.Accepted() {
+					t.Fatal("canceled read retired a task with a valid handoff")
+				}
+				if err := task.Err(); err != nil || runs.Load() != 1 {
+					t.Fatal("independent demand could not start the retained task", err, runs.Load())
+				}
+			})
+		})
+	}
 }
 
 func TestReadWaitsBeforeRegistrationAndIndependentWithdrawal(t *testing.T) {

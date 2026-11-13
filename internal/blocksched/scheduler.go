@@ -475,6 +475,12 @@ func (s *state) dispatch(now time.Time) {
 		if j == nil {
 			return
 		}
+		// Read cancellation can precede its asynchronous cleanup command.
+		// Refresh and select again before granting admission from stale Blocking.
+		if j.need.Blocking && !s.withReads(j.task.key, j.need.Need).Blocking {
+			s.refresh(j)
+			continue
+		}
 		// Blocking bypasses admission but remains part of active until cleanup.
 		if !j.need.Blocking && s.active >= s.control.open {
 			return

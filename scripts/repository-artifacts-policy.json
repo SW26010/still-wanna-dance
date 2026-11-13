@@ -1900,6 +1900,13 @@
       "bytes": 1300429,
       "sha256": "30aba33bb5c798762e67fca51389218c7db16d0b4249ec3ee9d7402947823f36",
       "reason": "Production WebUI scrolls and focuses pagination only after the matching destination result is committed, with a one-shot pre-paint image readiness check. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1300138,
+      "sha256": "2c58d90029baa2046d125ffd9129dbfb89f0e06dd5130ff6c7fd9081042f0b8d",
+      "reason": "Production WebUI removes the block task tooltip and block accounting wording from history hover details. Generated offline bundle matches webui/build-manifest.json."
     }
   ]
 }

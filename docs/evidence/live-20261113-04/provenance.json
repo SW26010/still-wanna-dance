@@ -1,0 +1,55 @@
+{
+  "batch": "LIVE-20261113-04",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productVersion": "dev-live-20261113-01",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "sameProductAs": "LIVE-20261113-01",
+  "productWorkspaceCleanAtOriginalBuild": true,
+  "worktreeAtThisRun": "Prior acceptance reports/evidence and relay-only changes uncommitted; product EXE copied unchanged, not rebuilt.",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-04/ (ignored, local only)",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "operator-controlled single-person WannaDance room"
+  },
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 956193,
+      "sha256": "f0c14f9f6b4500f24e5607b42b948ffba03ead4011d37c7f8f522e5cad4c0bee"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 27418,
+      "sha256": "09016d97e973e4f5f79b3dd89c032824b92ec9de90022a545302ed4c80fd1f57"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 2868,
+      "sha256": "f3f23cb0110d9e20b3e2c612b1548d12c2292937bf12ab761be304d7e25f7c0d"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 844,
+      "sha256": "787e9ae8ec2976f6c3c9a83382ac214c45e7828728a011eb2df5ff56cea20c4c"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 100530,
+      "sha256": "b90ea082c341bd090f46f3c1cf27de463cf725b87283c6d00c76b27b9bfb54cb"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 1201017,
+      "sha256": "b8a54b6a3f40e830d71db2483cf513bde84500c8545b8080cc1e709d7db90925"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    }
+  ]
+}

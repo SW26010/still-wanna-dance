@@ -1,0 +1,55 @@
+{
+  "batch": "LIVE-20261113-07",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productVersion": "dev-live-20261113-01",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "sameProductAs": "LIVE-20261113-01",
+  "productWorkspaceCleanAtOriginalBuild": true,
+  "worktreeAtThisRun": "Prior reports/evidence and relay-only changes uncommitted; identical product EXE reused.",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-07/ (ignored, local only)",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "non-owner, friend controls shared playback, explicitly confirmed"
+  },
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 964710,
+      "sha256": "db3fcd5bb4239b7ebbbc8dd4d33f4af4b93d2e111c0fcb7355f905b06587fd7e"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 46000,
+      "sha256": "2e93cc831c4b09b6b3af8da2d0286532fa470fd7059297db140fedf79f1db7af"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 3662,
+      "sha256": "623fe10a19422de96e65cb5fd6c0bac81be5d2659ff15a3a96e6e01450d212ec"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 1388,
+      "sha256": "a666a54d63c63c368246b9944f2d3792c3ccf9976655f272411577ef4973cd6d"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 139778,
+      "sha256": "f36ed41ae4413d1905b1546671c5c4e0cd279bce16f911779df80302d4731281"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 659991,
+      "sha256": "3692099ce47c7233cec11d47679181aab097eb73e4f5594d7bfb50a0e38b569a"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    }
+  ]
+}

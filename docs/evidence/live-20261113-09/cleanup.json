@@ -1,0 +1,12 @@
+{
+  "userDecision": "preserve pre-existing mapping, as previously authorized",
+  "hostsAfterSHA256": "64c3b498a56baff562ccd067efa7f447a79a5e5b8a3b18c0e11590273df88cc1",
+  "hostsBeforeSHA256": "64c3b498a56baff562ccd067efa7f447a79a5e5b8a3b18c0e11590273df88cc1",
+  "sharedPlaybackModified": false,
+  "remainingProcesses": [],
+  "remainingListeners": [],
+  "directPlaybackVerified": false,
+  "tMs": 1196313,
+  "gameStoppedByAgent": false,
+  "temporaryData": "Isolated data and evidence retained, daily storage unchanged."
+}

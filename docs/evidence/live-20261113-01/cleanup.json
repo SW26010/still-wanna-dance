@@ -1,0 +1,13 @@
+{
+  "hostsAfterSHA256": "64c3b498a56baff562ccd067efa7f447a79a5e5b8a3b18c0e11590273df88cc1",
+  "remainingProcesses": [],
+  "remainingListeners": [],
+  "activeApiMappingsAfter": 1,
+  "hostsBeforeSHA256": "64c3b498a56baff562ccd067efa7f447a79a5e5b8a3b18c0e11590273df88cc1",
+  "hostsChangedLines": 0,
+  "tMs": 181317,
+  "userDecision": "Preserve pre-existing loopback API mapping; explicitly confirmed after teardown.",
+  "directPlaybackVerified": false,
+  "gameStoppedByAgent": false,
+  "temporaryData": "Isolated data and raw evidence retained in ignored batch directory; no daily storage modified."
+}

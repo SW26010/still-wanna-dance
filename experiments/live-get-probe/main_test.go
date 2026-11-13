@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -9,6 +10,49 @@ import (
 	"testing"
 	"time"
 )
+
+func TestDestinationAllowsHTTPAndHTTPS(t *testing.T) {
+	for _, tc := range []struct {
+		host    string
+		port    uint16
+		allowed bool
+	}{
+		{"api.udon.dance", 80, true},
+		{"api.udon.dance", 443, true},
+		{"video.example", 443, true},
+		{"video.example", 80, true},
+		{"api.udon.dance", 22, false},
+	} {
+		t.Run(net.JoinHostPort(tc.host, fmt.Sprint(tc.port)), func(t *testing.T) {
+			client, server := net.Pipe()
+			defer client.Close()
+			defer server.Close()
+			client.SetDeadline(time.Now().Add(3 * time.Second))
+			server.SetDeadline(time.Now().Add(3 * time.Second))
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				host, address, err := destination(server)
+				if (err == nil) != tc.allowed {
+					t.Errorf("allowed=%v, error=%v", tc.allowed, err)
+				}
+				if tc.allowed && (host != tc.host || address != net.JoinHostPort(tc.host, fmt.Sprint(tc.port))) {
+					t.Errorf("unexpected destination %q %q", host, address)
+				}
+			}()
+			client.Write([]byte{5, 1, 0})
+			if _, err := io.ReadFull(client, make([]byte, 2)); err != nil {
+				t.Fatal(err)
+			}
+			request := append([]byte{5, 1, 0, 3, byte(len(tc.host))}, []byte(tc.host)...)
+			request = append(request, byte(tc.port>>8), byte(tc.port))
+			if _, err := client.Write(request); err != nil {
+				t.Fatal(err)
+			}
+			<-done
+		})
+	}
+}
 
 func TestAggregatePacingAndCancellation(t *testing.T) {
 	p := &pacer{rate: 512 * 1024}

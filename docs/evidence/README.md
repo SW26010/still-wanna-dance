@@ -10,6 +10,24 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 ## 文件索引
 
+2026-11-13 [刷新状态对照与加载窗口复现](../acceptance/live-acceptance-20261113-09.md)：[清单](live-20261113-09/manifest.json)、[三段请求与点击证据](live-20261113-09/midbody.json)。刚卡顿与黑屏但已再次起播时点击触发重载，旧请求可重叠；11577 自动重试加载窗口内再次出现点击无回调，不能再仅记偶发。保留前歌重叠、未命中样本和内部条件未归因的边界。
+
+2026-11-13 [正常播放手动刷新对照](../acceptance/live-acceptance-20261113-08.md)：[清单](live-20261113-08/manifest.json)、[按钮、重载与 Range](live-20261113-08/midbody.json)。非 owner 正常播放单击有即时重载回调，Range 回零后前跳，音画与当前进度正常；与加载中点击不同，内部条件未归因。
+
+2026-11-13 [黑屏加载中手动刷新](../acceptance/live-acceptance-20261113-07.md)：[清单](live-20261113-07/manifest.json)、[逐请求与点击时间线](live-20261113-07/midbody.json)。504 后点击只有按钮日志，没有即时重载回调；下一次重试与原自动周期重叠。恢复后追上进度，不归因于按钮单独作用。
+
+2026-11-13 [非 owner 正式播放截止恢复](../acceptance/live-acceptance-20261113-06.md)：[清单](live-20261113-06/manifest.json)、[中途截止与追赶](live-20261113-06/midbody.json)。9760 自动恢复，Range 从 16 MiB 前跳到约 37.5 MB，WD 同步约 126 秒，用户确认追上；不抹去 owner 失败。
+
+2026-11-13 [正式开播后正文截止与进度重置](../acceptance/live-acceptance-20261113-05.md)：[清单](live-20261113-05/manifest.json)、[206 中途截止、Range 与 WD 时钟](live-20261113-05/midbody.json)。8771 缺块截止后非零续读，WD 同步目标继续推进；报错重试后 owner 重设时间轴为零。**恢复原进度未通过**，与 HTTP 恢复分开，根因与实现责任未确定。
+
+2026-11-13 [正式播放与 WD 重试](../acceptance/live-acceptance-20261113-04.md)：[清单](live-20261113-04/manifest.json)、[WD 事件与逐请求 Range](live-20261113-04/formal-retries.json)。2502 正式冷加载中 WD 每约 30 秒重试，WMF 在 SWD 截止后仍从零 Range 重请求；恢复带宽并收到正文后出现非零 Range，正式开播音画正常。尚非已开播中途截止或多人同步样本。
+
+2026-11-13 [GET 主动截止专项](../acceptance/live-acceptance-20261113-03.md)：[清单](live-20261113-03/manifest.json)、[need-by 与 504 时间线](live-20261113-03/deadline.json)。1343 在自身 need-by+30 秒后返回 `504 / expired`，播放器自动再请求；界面没有明确错误提示，解除限速后音画自行恢复。与客户端约 20 秒取消、旧歌曲残留请求分别记录。
+
+2026-11-13 [追加末段拖动验收](../acceptance/live-acceptance-20261113-02.md)：[清单与哈希](live-20261113-02/manifest.json)、[缺块等待与恢复](live-20261113-02/seek.json)。1344 拖动后等待未完成块约 24.250 秒，在仍限速时自行继续且保留后段进度；实际是部分缓存目标，没有 Seek 504，不外推为全冷目标截止后恢复。
+
+2026-11-13 [慢网截止恢复验收](../acceptance/live-acceptance-20261113-01.md)：[清单与哈希](live-20261113-01/manifest.json)、[请求与游戏时间线](live-20261113-01/playback.json)。新构建 6254 CF 预览在 GET 截止后自动重请求，解除限速后音画正常，关闭重开正常；准备工具失败、既有 hosts 映射保留及性能边界见报告。
+
 #14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../validation/issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
 
 同轮[重试/失败反馈清单](issue14-directed-20261013/retry/manifest.json)：19 项受控入口检查、3 包定向回归、初轮反例与沙箱失败；明确本地容量/退役分类仍有接入缺口，不提前决定 B2/C。

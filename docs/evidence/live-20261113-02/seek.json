@@ -1,0 +1,598 @@
+{
+  "origin": "T=0",
+  "song": 1344,
+  "mode": "preview, operator confirmed",
+  "resource": "8f26d29704140a431dea0c1374f2eeba",
+  "size": 40548476,
+  "seekRangeStart": 30031872,
+  "initialBlock": 28,
+  "firstMissingBlock": 30,
+  "priorSnapshot": {
+    "tMs": -17025,
+    "blocks": [
+      {
+        "block": 28,
+        "byteOffset": 29360128,
+        "state": "available",
+        "readers": 0
+      },
+      {
+        "block": 29,
+        "byteOffset": 30408704,
+        "state": "available",
+        "readers": 0
+      },
+      {
+        "block": 30,
+        "byteOffset": 31457280,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 31,
+        "byteOffset": 32505856,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 32,
+        "byteOffset": 33554432,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 33,
+        "byteOffset": 34603008,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 34,
+        "byteOffset": 35651584,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 35,
+        "byteOffset": 36700160,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 36,
+        "byteOffset": 37748736,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 37,
+        "byteOffset": 38797312,
+        "state": "downloading",
+        "readers": 0
+      },
+      {
+        "block": 38,
+        "byteOffset": 39845888,
+        "state": "downloading",
+        "readers": 0
+      }
+    ]
+  },
+  "requests": [
+    {
+      "tMs": -123944,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 27,
+      "event": "request_started",
+      "request_id": "2",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": -123756,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 112,
+      "event": "request_started",
+      "request_id": "1",
+      "resource_key": "53d94ec04f90f47b81113b85785a0e77",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": -108734,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 382,
+      "event": "request_finished",
+      "request_id": "2",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "",
+      "status": "200",
+      "bytes": "393216",
+      "elapsed_ms": "15964",
+      "response_headers_ms": "15964",
+      "first_body_ms": "15964.4338",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "40548476",
+      "client": "resolver"
+    },
+    {
+      "tMs": -108368,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 411,
+      "event": "request_finished",
+      "request_id": "1",
+      "resource_key": "53d94ec04f90f47b81113b85785a0e77",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "2097152",
+      "elapsed_ms": "17196",
+      "response_headers_ms": "17030",
+      "first_body_ms": "17030.651",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-52379699/52379700",
+      "content_length": "52379700",
+      "client": "WMF"
+    },
+    {
+      "tMs": -108340,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 460,
+      "event": "request_started",
+      "request_id": "3",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": -107965,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 536,
+      "event": "request_finished",
+      "request_id": "3",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "1048576",
+      "elapsed_ms": "376",
+      "response_headers_ms": "1",
+      "first_body_ms": "1.0296",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-40548475/40548476",
+      "content_length": "40548476",
+      "client": "WMF"
+    },
+    {
+      "tMs": -107953,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 575,
+      "event": "request_started",
+      "request_id": "4",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=4292608-40548475",
+      "client": "WMF"
+    },
+    {
+      "tMs": -84884,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 849,
+      "event": "request_finished",
+      "request_id": "4",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=4292608-40548475",
+      "status": "206",
+      "bytes": "950272",
+      "elapsed_ms": "23079",
+      "response_headers_ms": "23069",
+      "first_body_ms": "23070.1683",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 4292608-40548475/40548476",
+      "content_length": "36255868",
+      "client": "WMF"
+    },
+    {
+      "tMs": -84872,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 884,
+      "event": "request_started",
+      "request_id": "5",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=6193152-40548475",
+      "client": "WMF"
+    },
+    {
+      "tMs": -72587,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1015,
+      "event": "request_finished",
+      "request_id": "5",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=6193152-40548475",
+      "status": "206",
+      "bytes": "98304",
+      "elapsed_ms": "12295",
+      "response_headers_ms": "12285",
+      "first_body_ms": "12286.3405",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 6193152-40548475/40548476",
+      "content_length": "34355324",
+      "client": "WMF"
+    },
+    {
+      "tMs": -72575,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1049,
+      "event": "request_started",
+      "request_id": "6",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=8110080-40548475",
+      "client": "WMF"
+    },
+    {
+      "tMs": -42585,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1210,
+      "event": "request_finished",
+      "request_id": "6",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=8110080-40548475",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.2938",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": -36705,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1266,
+      "event": "request_started",
+      "request_id": "7",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": -36703,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1325,
+      "event": "request_finished",
+      "request_id": "7",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "",
+      "status": "200",
+      "bytes": "262144",
+      "elapsed_ms": "2",
+      "response_headers_ms": "1",
+      "first_body_ms": "1.0186",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "40548476",
+      "client": "resolver"
+    },
+    {
+      "tMs": -36254,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1360,
+      "event": "request_started",
+      "request_id": "8",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": -4,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1541,
+      "event": "request_finished",
+      "request_id": "8",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "13631488",
+      "elapsed_ms": "36250",
+      "response_headers_ms": "0",
+      "first_body_ms": "1.0149",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-40548475/40548476",
+      "content_length": "40548476",
+      "client": "WMF"
+    },
+    {
+      "tMs": 0,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1552,
+      "event": "request_started",
+      "request_id": "9",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=30031872-40548475",
+      "client": "WMF"
+    },
+    {
+      "tMs": 24282,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1595,
+      "event": "request_finished",
+      "request_id": "9",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=30031872-40548475",
+      "status": "206",
+      "bytes": "3522560",
+      "elapsed_ms": "24284",
+      "response_headers_ms": "3",
+      "first_body_ms": "3.1391",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 30031872-40548475/40548476",
+      "content_length": "10516604",
+      "client": "WMF"
+    },
+    {
+      "tMs": 24286,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1601,
+      "event": "request_started",
+      "request_id": "10",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=34373632-40548475",
+      "client": "WMF"
+    },
+    {
+      "tMs": 32535,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1629,
+      "event": "request_finished",
+      "request_id": "10",
+      "resource_key": "8f26d29704140a431dea0c1374f2eeba",
+      "range": "bytes=34373632-40548475",
+      "status": "206",
+      "bytes": "6174844",
+      "elapsed_ms": "8251",
+      "response_headers_ms": "917",
+      "first_body_ms": "917.0977",
+      "outcome": "completed",
+      "cache": "MISS",
+      "content_range": "bytes 34373632-40548475/40548476",
+      "content_length": "6174844",
+      "client": "WMF"
+    }
+  ],
+  "readableEvents": [
+    {
+      "tMs": 22999,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1586,
+      "block": 31,
+      "blocking": false,
+      "waitSinceMs": -63930156966266,
+      "readyByMs": 12261
+    },
+    {
+      "tMs": 24158,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1588,
+      "block": 33,
+      "blocking": false,
+      "waitSinceMs": -63930156966266,
+      "readyByMs": 22657
+    },
+    {
+      "tMs": 24255,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1590,
+      "block": 30,
+      "blocking": true,
+      "waitSinceMs": 5,
+      "readyByMs": 7063
+    },
+    {
+      "tMs": 25197,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1611,
+      "block": 32,
+      "blocking": true,
+      "waitSinceMs": 24286,
+      "readyByMs": 24284
+    },
+    {
+      "tMs": 25701,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1613,
+      "block": 34,
+      "blocking": true,
+      "waitSinceMs": 25208,
+      "readyByMs": 30619
+    },
+    {
+      "tMs": 26608,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1620,
+      "block": 35,
+      "blocking": true,
+      "waitSinceMs": 25788,
+      "readyByMs": 35816
+    },
+    {
+      "tMs": 32028,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1623,
+      "block": 36,
+      "blocking": true,
+      "waitSinceMs": 28114,
+      "readyByMs": 41014
+    },
+    {
+      "tMs": 32525,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1625,
+      "block": 37,
+      "blocking": true,
+      "waitSinceMs": 32036,
+      "readyByMs": 46212
+    }
+  ],
+  "tasks": [
+    {
+      "tMs": -106367,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 753,
+      "resource": "53d94ec04f90f47b81113b85785a0e77",
+      "flight_id": "2",
+      "outcome": "canceled",
+      "bytes": "7794431",
+      "stage_elapsed_ms": "17388"
+    },
+    {
+      "tMs": 32535,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1630,
+      "resource": "8f26d29704140a431dea0c1374f2eeba",
+      "flight_id": "1",
+      "outcome": "canceled",
+      "bytes": "48200144",
+      "stage_elapsed_ms": "156478"
+    }
+  ],
+  "gameEvents": [
+    {
+      "event": "resolver-request",
+      "song": "1344",
+      "gameLogTMs": -126266,
+      "observedTMs": -125493,
+      "sourceLine": 1938
+    },
+    {
+      "event": "video-start",
+      "song": "1344",
+      "gameLogTMs": -108266,
+      "observedTMs": -107913,
+      "sourceLine": 1946
+    },
+    {
+      "event": "video-error",
+      "song": "1344",
+      "gameLogTMs": -43266,
+      "observedTMs": -42557,
+      "sourceLine": 1956
+    },
+    {
+      "event": "resolver-request",
+      "song": "1344",
+      "gameLogTMs": -38266,
+      "observedTMs": -37534,
+      "sourceLine": 1961
+    },
+    {
+      "event": "video-start",
+      "song": "1344",
+      "gameLogTMs": -36266,
+      "observedTMs": -35790,
+      "sourceLine": 1969
+    }
+  ],
+  "operations": [
+    {
+      "tMs": -201416,
+      "feedback": "user confirmed stopped, empty queue, previews closed",
+      "song": 1344,
+      "mode": "preview",
+      "event": "preconditions"
+    },
+    {
+      "tMs": -107805,
+      "event": "bootstrap_lowered",
+      "reason": "game_video_start",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": -47016,
+      "bytesPerSecond": 1000000,
+      "feedback": "user still black despite video-start callback; no seek yet",
+      "event": "bootstrap_boost"
+    },
+    {
+      "tMs": -18555,
+      "event": "visible_picture_lowered",
+      "feedback": "user reports picture now visible; no seek yet",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": 34607,
+      "feedback": "dragged near 85 percent; played normally for one or two seconds then stopped; earlier from-start comment preceded seek",
+      "event": "seek_feedback"
+    },
+    {
+      "tMs": 62240,
+      "feedback": "user reports playback continued automatically; rate remained 125000 B/s",
+      "event": "seek_resumed_feedback"
+    },
+    {
+      "tMs": 88745,
+      "event": "final_feedback",
+      "feedback": "audio/video normal after automatic resume; position remains in sought tail"
+    }
+  ],
+  "rateChanges": [
+    {
+      "tMs": -201486,
+      "event": "rate_changed",
+      "bytesPerSecond": 1000000
+    },
+    {
+      "tMs": -201479,
+      "event": "ready",
+      "bytesPerSecond": 1000000
+    },
+    {
+      "tMs": -107676,
+      "event": "rate_changed",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": -46877,
+      "event": "rate_changed",
+      "bytesPerSecond": 1000000
+    },
+    {
+      "tMs": -18477,
+      "event": "rate_changed",
+      "bytesPerSecond": 125000
+    },
+    {
+      "tMs": 100922,
+      "event": "stopped",
+      "active": 0
+    }
+  ],
+  "result": {
+    "verdict": "passed within observed partial-cache Seek scope",
+    "automaticResume": true,
+    "positionStayedInTail": true,
+    "audioVideoNormal": true,
+    "rateRemainedBytesPerSecond": 125000,
+    "seekDeadlineObserved": false,
+    "entireTargetInitiallyUncached": false,
+    "firstMissingBlockWaitMs": 24250
+  },
+  "limitations": [
+    "Range began in cached block 28; block 30 and later were still downloading. Not an entirely untouched target.",
+    "Bootstrap had an earlier 504 and restart from beginning before the manual Seek.",
+    "Game callback preceded visible picture; actual picture and recovery rely on operator feedback.",
+    "Source game timestamps have one-second precision; polling nominally 100 ms; not first-frame measurements."
+  ],
+  "originMeaning": "Seek Range request 9",
+  "timePrivacy": "All event times are offsets from this batch-local reference; absolute timestamp omitted. Raw clock mapping remains local only."
+}

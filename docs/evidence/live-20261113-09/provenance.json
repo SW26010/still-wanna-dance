@@ -1,0 +1,80 @@
+{
+  "batch": "LIVE-20261113-09",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "productVersion": "dev-live-20261113-01",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "sameProductAs": "LIVE-20261113-01",
+  "productWorkspaceCleanAtOriginalBuild": true,
+  "worktreeAtThisRun": "Prior reports/evidence and relay-only changes uncommitted; identical product EXE reused.",
+  "relaySHA256": "b5e9b1133d6ca96d92a933d971b6dca6cf654ad0c57441f58005a6cc8ed843ed",
+  "relayPatchSHA256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963",
+  "rawLocation": "artifacts/acceptance-evidence/LIVE-20261113-09/ (ignored, local only)",
+  "environment": {
+    "windows": "Windows 11 10.0.26300",
+    "vrchat": "2026.4.1p1-1937-299983b13b-Release",
+    "worldVersion": "not captured",
+    "role": "non-owner, friend controls shared playback, explicitly confirmed"
+  },
+  "rawFiles": [
+    {
+      "name": "product/logs/20261113-1.log",
+      "bytes": 1048528,
+      "sha256": "151bb5e56b3cc1afdf3341b6f6f2814120412eb7bcf4aba6e79cf49868107240"
+    },
+    {
+      "name": "product/logs/20261113-2.log",
+      "bytes": 1048260,
+      "sha256": "795102fa9c235578269347d325b73aa4603fa3385c52be1189da991b62d4f284"
+    },
+    {
+      "name": "product/logs/20261113-3.log",
+      "bytes": 1048553,
+      "sha256": "8bc8ab719571c8c8e082dbbc63e8030558318dc07bd5466544d4ac6337f9979e"
+    },
+    {
+      "name": "product/logs/20261113-4.log",
+      "bytes": 1048570,
+      "sha256": "71d7eff62d8bcaa3768a6e8090b940d194246661ed4d7c2972ea985b68ee4c4e"
+    },
+    {
+      "name": "product/logs/20261113-5.log",
+      "bytes": 164560,
+      "sha256": "dfabed999898a953e3743a9dd9bacc1ef29e3e1512394dfc1d076d0988a4d05d"
+    },
+    {
+      "name": "product/logs/20261113.log",
+      "bytes": 1048257,
+      "sha256": "ffb4675e581ce31e07cf846a1a4e04cd0a72ab01332043d3b9b7d78ad4637ebd"
+    },
+    {
+      "name": "game.append.raw.log",
+      "bytes": 229440,
+      "sha256": "85fd012ffce206850a4ca00e8c0ed7480fa70841dfe63fde26b4c2b31ad584cc"
+    },
+    {
+      "name": "signals.private.jsonl",
+      "bytes": 14503,
+      "sha256": "50e5777c63afb7633fd321f18be863a654fa0b270d09343c92bbcf05de70b8e8"
+    },
+    {
+      "name": "operations.jsonl",
+      "bytes": 5691,
+      "sha256": "ac278f6c03458b5368b7d4163635a5ddd8ac8895a5f7659cbacd01c4a4900435"
+    },
+    {
+      "name": "relay.stdout.log",
+      "bytes": 635290,
+      "sha256": "bb676734b4e320089aabc291524112c8299f0b849d00b8a9be216aa84a65ae85"
+    },
+    {
+      "name": "blocks.private.jsonl",
+      "bytes": 4803064,
+      "sha256": "66fd8423b21945e2c16c8934cf99efb788d3853f192eb45ade8412a26ffd81f1"
+    },
+    {
+      "name": "relay-source.patch",
+      "bytes": 5012,
+      "sha256": "4f64a06196df9fbfb519448c481094dca25a00776030dc4b6d04e79609e73963"
+    }
+  ]
+}

@@ -177,10 +177,10 @@ func destination(c net.Conn) (string, string, error) {
 		return "", "", err
 	}
 	p := binary.BigEndian.Uint16(port[:])
-	if host == "" || p != 443 {
-		return "", "", fmt.Errorf("lab relay only permits HTTPS destinations")
+	if host == "" || (p != 443 && p != 80) {
+		return "", "", fmt.Errorf("lab relay only permits HTTP and HTTPS destinations")
 	}
-	return host, net.JoinHostPort(host, "443"), nil
+	return host, net.JoinHostPort(host, fmt.Sprint(p)), nil
 }
 
 func (r *relay) serve(ctx context.Context, client net.Conn) {

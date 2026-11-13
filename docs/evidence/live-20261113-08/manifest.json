@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261113-08",
+  "hashBasis": "git-blob",
+  "sourceSHA": "a7e8c175fd4a6300e4fbf384d8180721897b0bec",
+  "exeSHA256": "8494befe3312ef85faae0b25f10db3aca4d54162727f1b8f0e4b918249c98da5",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261113-08.md",
+      "bytes": 3508,
+      "sha256": "545fae3541c81f87809cacc8fbab2f1b213e65c5d86e61ab554cc7cdf90ffaeb",
+      "source": "Operator report and scoped interpretation",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-08/cleanup.json",
+      "bytes": 519,
+      "sha256": "86b06570d23e404c7c930264dfc572fefb4049c43ca665bdabee5880bd97bf80",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-08/midbody.json",
+      "bytes": 12488,
+      "sha256": "2731180e82aa45c7bb53e6620444bffb08530879857051abce3843281ee77b12",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    },
+    {
+      "path": "docs/evidence/live-20261113-08/provenance.json",
+      "bytes": 2023,
+      "sha256": "c492e1e2034a48766ef1feb1ae1453aa6a0d8673ebca825737a28351d224c61e",
+      "source": "Allowlisted product/game events, operator feedback or raw source fingerprints",
+      "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
+    }
+  ]
+}

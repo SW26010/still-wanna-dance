@@ -1,0 +1,758 @@
+{
+  "origin": "T=0",
+  "originMeaning": "Initial formal OnVideoStart (game timestamp precision one second)",
+  "song": 8771,
+  "resource": "c44a699a88309c506122572764b695d6",
+  "mode": "formal, single-person owner",
+  "requestTable": [
+    {
+      "request": 1,
+      "startMs": -14822,
+      "client": "resolver",
+      "range": "",
+      "status": 200,
+      "outcome": "canceled",
+      "bytes": 393216,
+      "contentLength": 82818594,
+      "endMs": -1404
+    },
+    {
+      "request": 2,
+      "startMs": -1024,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "status": 206,
+      "outcome": "canceled",
+      "bytes": 16777216,
+      "contentLength": 82818594,
+      "endMs": 41634
+    },
+    {
+      "request": 3,
+      "startMs": 42144,
+      "client": "WMF",
+      "range": "bytes=16769024-82818593",
+      "status": 206,
+      "outcome": "expired",
+      "bytes": 8192,
+      "contentLength": 66049570,
+      "endMs": 72166
+    },
+    {
+      "request": 4,
+      "startMs": 72171,
+      "client": "WMF",
+      "range": "bytes=16777216-82818593",
+      "status": 504,
+      "outcome": "expired",
+      "bytes": 16,
+      "endMs": 102170
+    },
+    {
+      "request": 5,
+      "startMs": 108024,
+      "client": "resolver",
+      "range": "",
+      "status": 200,
+      "outcome": "canceled",
+      "bytes": 262144,
+      "contentLength": 82818594,
+      "endMs": 108026
+    },
+    {
+      "request": 6,
+      "startMs": 108463,
+      "client": "WMF",
+      "range": "bytes=16777216-82818593",
+      "status": 206,
+      "outcome": "completed",
+      "bytes": 66041378,
+      "contentLength": 66041378,
+      "endMs": 166269
+    }
+  ],
+  "requests": [
+    {
+      "tMs": -14822,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 10,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "1",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": -1404,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 310,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "1",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "",
+      "status": "200",
+      "bytes": "393216",
+      "elapsed_ms": "15937",
+      "response_headers_ms": "15937",
+      "first_body_ms": "15937.4736",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "82818594",
+      "client": "resolver"
+    },
+    {
+      "tMs": -1024,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 384,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "2",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=0-",
+      "client": "WMF"
+    },
+    {
+      "tMs": 41634,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 848,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "2",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=0-",
+      "status": "206",
+      "bytes": "16777216",
+      "elapsed_ms": "42658",
+      "response_headers_ms": "0",
+      "first_body_ms": "0.9155",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "bytes 0-82818593/82818594",
+      "content_length": "82818594",
+      "client": "WMF"
+    },
+    {
+      "tMs": 42144,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 912,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "3",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16769024-82818593",
+      "client": "WMF"
+    },
+    {
+      "tMs": 72166,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1221,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "3",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16769024-82818593",
+      "status": "206",
+      "bytes": "8192",
+      "elapsed_ms": "30022",
+      "response_headers_ms": "0",
+      "first_body_ms": "1.0312",
+      "outcome": "expired",
+      "cache": "MISS",
+      "content_range": "bytes 16769024-82818593/82818594",
+      "content_length": "66049570",
+      "client": "WMF"
+    },
+    {
+      "tMs": 72171,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1289,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "4",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16777216-82818593",
+      "client": "WMF"
+    },
+    {
+      "tMs": 102170,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1609,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "4",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16777216-82818593",
+      "status": "504",
+      "bytes": "16",
+      "elapsed_ms": "30000",
+      "response_headers_ms": "30000",
+      "first_body_ms": "30000.4027",
+      "outcome": "expired",
+      "cache": "",
+      "content_range": "",
+      "content_length": "",
+      "client": "WMF"
+    },
+    {
+      "tMs": 108024,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1686,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "5",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "",
+      "client": "resolver"
+    },
+    {
+      "tMs": 108026,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1821,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "5",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "",
+      "status": "200",
+      "bytes": "262144",
+      "elapsed_ms": "2",
+      "response_headers_ms": "0",
+      "first_body_ms": "0",
+      "outcome": "canceled",
+      "cache": "MISS",
+      "content_range": "",
+      "content_length": "82818594",
+      "client": "resolver"
+    },
+    {
+      "tMs": 108463,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1886,
+      "event": "request_started",
+      "targetSong": true,
+      "request_id": "6",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16777216-82818593",
+      "client": "WMF"
+    },
+    {
+      "tMs": 166269,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 323,
+      "event": "request_finished",
+      "targetSong": true,
+      "request_id": "6",
+      "resource_key": "c44a699a88309c506122572764b695d6",
+      "range": "bytes=16777216-82818593",
+      "status": "206",
+      "bytes": "66041378",
+      "elapsed_ms": "57806",
+      "response_headers_ms": "22333",
+      "first_body_ms": "22334.1281",
+      "outcome": "completed",
+      "cache": "MISS",
+      "content_range": "bytes 16777216-82818593/82818594",
+      "content_length": "66041378",
+      "client": "WMF"
+    }
+  ],
+  "clockEvidence": [
+    {
+      "tMs": 42144,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 915,
+      "block": 16,
+      "needByMs": 42166,
+      "windowClosed": false
+    },
+    {
+      "tMs": 45181,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1027,
+      "block": 16,
+      "needByMs": 42166,
+      "windowClosed": false
+    },
+    {
+      "tMs": 55183,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1090,
+      "block": 16,
+      "needByMs": 42166,
+      "windowClosed": false
+    },
+    {
+      "tMs": 65183,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1154,
+      "block": 16,
+      "needByMs": 42166,
+      "windowClosed": false
+    }
+  ],
+  "handoffs": [
+    {
+      "tMs": 72166,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1219,
+      "firstBlock": 27,
+      "lastBlockExclusive": 79,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 72166,
+      "firstReadyByMs": 73362,
+      "leaseUntilMs": 87166
+    },
+    {
+      "tMs": 102170,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1606,
+      "firstBlock": 27,
+      "lastBlockExclusive": 79,
+      "reason": "download_deadline",
+      "withdrawnAtMs": 102170,
+      "firstReadyByMs": 103367,
+      "leaseUntilMs": 117170
+    }
+  ],
+  "tasks": [
+    {
+      "tMs": 102172,
+      "source": "product/logs/20261113.log",
+      "sourceLine": 1684,
+      "flight_id": "1",
+      "outcome": "timeout",
+      "bytes": "22155532",
+      "stage_elapsed_ms": "116993"
+    },
+    {
+      "tMs": 145303,
+      "source": "product/logs/20261113-1.log",
+      "sourceLine": 320,
+      "flight_id": "2",
+      "outcome": "not_retained",
+      "bytes": "82818594",
+      "stage_elapsed_ms": "37278"
+    }
+  ],
+  "wdEvents": [
+    {
+      "tMs": 0,
+      "sourceLine": 2429,
+      "event": "loaded",
+      "loadSeconds": 18.62549,
+      "reloading": false
+    },
+    {
+      "tMs": 0,
+      "sourceLine": 2437,
+      "event": "owner_start_clock",
+      "branch": "owner",
+      "networkStart": 0,
+      "targetStartSeconds": 0
+    },
+    {
+      "tMs": 0,
+      "sourceLine": 2438,
+      "event": "owner_start_clock",
+      "branch": "owner not relaoding",
+      "networkStart": -49314785,
+      "targetStartSeconds": 0
+    },
+    {
+      "tMs": 0,
+      "sourceLine": 2440,
+      "event": "sync",
+      "targetSeconds": 0
+    },
+    {
+      "tMs": 0,
+      "sourceLine": 2441,
+      "event": "video_start",
+      "owner": true
+    },
+    {
+      "tMs": 39000,
+      "sourceLine": 2450,
+      "event": "sync",
+      "targetSeconds": 39.01,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 0.94
+    },
+    {
+      "tMs": 42000,
+      "sourceLine": 2451,
+      "event": "sync",
+      "targetSeconds": 42.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 3.95
+    },
+    {
+      "tMs": 45000,
+      "sourceLine": 2452,
+      "event": "sync",
+      "targetSeconds": 45.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 6.95
+    },
+    {
+      "tMs": 48000,
+      "sourceLine": 2453,
+      "event": "sync",
+      "targetSeconds": 48.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 9.95
+    },
+    {
+      "tMs": 51000,
+      "sourceLine": 2454,
+      "event": "sync",
+      "targetSeconds": 51.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 12.95
+    },
+    {
+      "tMs": 54000,
+      "sourceLine": 2455,
+      "event": "sync",
+      "targetSeconds": 54.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 15.95
+    },
+    {
+      "tMs": 57000,
+      "sourceLine": 2456,
+      "event": "sync",
+      "targetSeconds": 57.02,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 18.95
+    },
+    {
+      "tMs": 60000,
+      "sourceLine": 2457,
+      "event": "sync",
+      "targetSeconds": 60.03,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 21.96
+    },
+    {
+      "tMs": 63000,
+      "sourceLine": 2458,
+      "event": "sync",
+      "targetSeconds": 63.03,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 24.96
+    },
+    {
+      "tMs": 66000,
+      "sourceLine": 2459,
+      "event": "sync",
+      "targetSeconds": 66.03,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 27.97
+    },
+    {
+      "tMs": 69000,
+      "sourceLine": 2460,
+      "event": "sync",
+      "targetSeconds": 69.04,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 30.97
+    },
+    {
+      "tMs": 72000,
+      "sourceLine": 2461,
+      "event": "sync",
+      "targetSeconds": 72.05,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 33.98
+    },
+    {
+      "tMs": 75000,
+      "sourceLine": 2462,
+      "event": "sync",
+      "targetSeconds": 75.05,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 36.99
+    },
+    {
+      "tMs": 78000,
+      "sourceLine": 2463,
+      "event": "sync",
+      "targetSeconds": 78.05,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 39.99
+    },
+    {
+      "tMs": 81000,
+      "sourceLine": 2464,
+      "event": "sync",
+      "targetSeconds": 81.06,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 42.99
+    },
+    {
+      "tMs": 84000,
+      "sourceLine": 2465,
+      "event": "sync",
+      "targetSeconds": 84.06,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 46
+    },
+    {
+      "tMs": 87000,
+      "sourceLine": 2466,
+      "event": "sync",
+      "targetSeconds": 87.06,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 49
+    },
+    {
+      "tMs": 90000,
+      "sourceLine": 2467,
+      "event": "sync",
+      "targetSeconds": 90.06,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 52
+    },
+    {
+      "tMs": 93000,
+      "sourceLine": 2468,
+      "event": "sync",
+      "targetSeconds": 93.07,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 55
+    },
+    {
+      "tMs": 96000,
+      "sourceLine": 2469,
+      "event": "sync",
+      "targetSeconds": 96.07,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 58
+    },
+    {
+      "tMs": 99000,
+      "sourceLine": 2470,
+      "event": "sync",
+      "targetSeconds": 99.07,
+      "currentSeconds": 38.07,
+      "offsetSeconds": 61.01
+    },
+    {
+      "tMs": 102000,
+      "sourceLine": 2471,
+      "event": "video_error"
+    },
+    {
+      "tMs": 107000,
+      "sourceLine": 2482,
+      "event": "wd_retry"
+    },
+    {
+      "tMs": 131000,
+      "sourceLine": 2493,
+      "event": "loaded",
+      "loadSeconds": 149.3931,
+      "reloading": false
+    },
+    {
+      "tMs": 131000,
+      "sourceLine": 2501,
+      "event": "owner_start_clock",
+      "branch": "owner",
+      "networkStart": -49314785,
+      "targetStartSeconds": 0
+    },
+    {
+      "tMs": 131000,
+      "sourceLine": 2502,
+      "event": "owner_start_clock",
+      "branch": "owner not relaoding",
+      "networkStart": -49184016,
+      "targetStartSeconds": 0
+    },
+    {
+      "tMs": 131000,
+      "sourceLine": 2504,
+      "event": "sync",
+      "targetSeconds": 0
+    },
+    {
+      "tMs": 131000,
+      "sourceLine": 2505,
+      "event": "video_start",
+      "owner": true
+    }
+  ],
+  "gameSignals": [
+    {
+      "event": "queue",
+      "song": "8771",
+      "tMs": -20000,
+      "observedMs": -19602,
+      "sourceLine": 2353,
+      "queueSongs": [
+        8771
+      ]
+    },
+    {
+      "event": "play-event",
+      "song": "8771",
+      "tMs": -19000,
+      "observedMs": -18184,
+      "sourceLine": 2381
+    },
+    {
+      "event": "resolver-request",
+      "song": "8771",
+      "tMs": -19000,
+      "observedMs": -18183,
+      "sourceLine": 2390
+    },
+    {
+      "event": "queue",
+      "tMs": -19000,
+      "observedMs": -18182,
+      "sourceLine": 2418,
+      "queueSongs": []
+    },
+    {
+      "event": "video-loaded",
+      "tMs": 0,
+      "observedMs": 472,
+      "sourceLine": 2429
+    },
+    {
+      "event": "video-start",
+      "song": "8771",
+      "tMs": 0,
+      "observedMs": 472,
+      "sourceLine": 2441
+    },
+    {
+      "event": "video-error",
+      "song": "8771",
+      "tMs": 102000,
+      "observedMs": 102249,
+      "sourceLine": 2471
+    },
+    {
+      "event": "player-retry",
+      "song": "8771",
+      "tMs": 107000,
+      "observedMs": 107286,
+      "sourceLine": 2482
+    },
+    {
+      "event": "resolver-request",
+      "song": "8771",
+      "tMs": 107000,
+      "observedMs": 107286,
+      "sourceLine": 2484
+    },
+    {
+      "event": "video-loaded",
+      "tMs": 131000,
+      "observedMs": 131229,
+      "sourceLine": 2493
+    },
+    {
+      "event": "video-start",
+      "song": "8771",
+      "tMs": 131000,
+      "observedMs": 131229,
+      "sourceLine": 2505
+    }
+  ],
+  "operations": [
+    {
+      "tMs": -52449,
+      "bytesPerSecond": 1000000,
+      "event": "preconditions",
+      "feedback": "user confirmed stopped, empty queue, previews closed; single-person owner",
+      "mode": "formal_mid_body",
+      "song": 8771
+    },
+    {
+      "tMs": 8145,
+      "event": "playing_then_throttled",
+      "bytesPerSecond": 6250,
+      "feedback": "formal playback visibly started with normal audio; user will not pause or retry"
+    },
+    {
+      "tMs": 52719,
+      "event": "stall_feedback",
+      "feedback": "formal playback stalled; no manual operation"
+    },
+    {
+      "tMs": 116724,
+      "feedback": "formal screen became black after stall; no manual operation",
+      "event": "black_screen_feedback"
+    },
+    {
+      "tMs": 130408,
+      "feedback": "GET 3 status206 bytes8192 expired; GET4 status504 expired; WD video error then retry after5s; sync target advanced while video remained38.07s",
+      "event": "midbody_and_wd_retry_observed"
+    },
+    {
+      "tMs": 130667,
+      "event": "bandwidth_restored",
+      "bytesPerSecond": 0
+    },
+    {
+      "tMs": 157352,
+      "event": "recovery_feedback",
+      "feedback": "user reports replayed from beginning after bandwidth restoration; not caught up to ongoing room time"
+    }
+  ],
+  "relayControl": [
+    {
+      "tMs": -52538,
+      "event": "rate_changed",
+      "bytesPerSecond": 1000000
+    },
+    {
+      "tMs": -52530,
+      "event": "ready",
+      "bytesPerSecond": 1000000
+    },
+    {
+      "tMs": 8273,
+      "event": "rate_changed",
+      "bytesPerSecond": 6250
+    },
+    {
+      "tMs": 130671,
+      "event": "rate_changed",
+      "bytesPerSecond": 0
+    },
+    {
+      "tMs": 199671,
+      "event": "stopped",
+      "active": 0
+    }
+  ],
+  "result": {
+    "midBodyExpiryObserved": true,
+    "statusAtExpiry": 206,
+    "partialBytes": 8192,
+    "advertisedContentLength": 66049570,
+    "continuationGapMs": 5,
+    "continuationStartsAtPreviousDeliveredEnd": true,
+    "wdRetryAfterError": true,
+    "roomClockContinuedDuringStall": true,
+    "recoveredToOriginalRoomProgress": false,
+    "actualRecovery": "restarted from zero; owner not reloading branch changed networkStart and emitted sync target zero",
+    "verdict": "original-progress recovery failed; deadline and retry mechanisms observed; product root cause not assigned"
+  },
+  "limitations": [
+    "Only single-person owner; no other participant or non-owner evidence.",
+    "Direct log facts identify the time-reset boundary, not a proven SWD-versus-WD root cause.",
+    "No automatic runnable WD reproduction or controlled comparison with alternative failure/owner modes was performed.",
+    "Timing uses millisecond product logs and one-second game timestamps; no exact first-frame or performance claim."
+  ],
+  "timePrivacy": "All event times are offsets from this batch-local reference; absolute timestamp omitted. Raw clock mapping remains local only."
+}

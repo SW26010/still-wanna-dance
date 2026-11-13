@@ -1,0 +1,252 @@
+{
+  "origin": "T=0",
+  "mode": "formal",
+  "song": 2502,
+  "confirmation": "User selected formal queue with all previews closed; raw WD queue, play and owner-start events correlate.",
+  "events": [
+    {
+      "event": "queue",
+      "tMs": -23105,
+      "observedTMs": -22459,
+      "sourceLine": 2147,
+      "song": "2502",
+      "queueSongs": [
+        2502
+      ]
+    },
+    {
+      "event": "play-event",
+      "tMs": -22105,
+      "observedTMs": -21256,
+      "sourceLine": 2174,
+      "song": "2502"
+    },
+    {
+      "event": "resolver-request",
+      "tMs": -22105,
+      "observedTMs": -21256,
+      "sourceLine": 2183,
+      "song": "2502"
+    },
+    {
+      "event": "queue",
+      "tMs": -22105,
+      "observedTMs": -21148,
+      "sourceLine": 2211,
+      "queueSongs": []
+    },
+    {
+      "event": "player-retry",
+      "tMs": 7895,
+      "observedTMs": 8720,
+      "sourceLine": 2221,
+      "song": "2502",
+      "signature": "USharpVideo (WannaDance): Retrying load"
+    },
+    {
+      "event": "resolver-request",
+      "tMs": 7895,
+      "observedTMs": 8720,
+      "sourceLine": 2223,
+      "song": "2502"
+    },
+    {
+      "event": "player-retry",
+      "tMs": 37895,
+      "observedTMs": 38732,
+      "sourceLine": 2228,
+      "song": "2502",
+      "signature": "USharpVideo (WannaDance): Retrying load"
+    },
+    {
+      "event": "resolver-request",
+      "tMs": 37895,
+      "observedTMs": 38733,
+      "sourceLine": 2230,
+      "song": "2502"
+    },
+    {
+      "event": "player-retry",
+      "tMs": 67895,
+      "observedTMs": 68728,
+      "sourceLine": 2235,
+      "song": "2502",
+      "signature": "USharpVideo (WannaDance): Retrying load"
+    },
+    {
+      "event": "resolver-request",
+      "tMs": 67895,
+      "observedTMs": 68728,
+      "sourceLine": 2237,
+      "song": "2502"
+    },
+    {
+      "event": "video-loaded",
+      "tMs": 76895,
+      "observedTMs": 77127,
+      "sourceLine": 2244,
+      "loadSeconds": 98.33252
+    },
+    {
+      "event": "video-loaded",
+      "tMs": 76895,
+      "observedTMs": 77450,
+      "sourceLine": 2254,
+      "loadSeconds": 98.62378
+    },
+    {
+      "event": "video-start",
+      "tMs": 76895,
+      "observedTMs": 77450,
+      "sourceLine": 2266,
+      "song": "2502",
+      "owner": true
+    }
+  ],
+  "wdRetryIntervalsMs": [
+    30000,
+    30000
+  ],
+  "requestTable": [
+    {
+      "request": 1,
+      "startMs": -19598,
+      "gapSincePreviousStartMs": null,
+      "client": "resolver",
+      "range": "",
+      "rangePresent": false,
+      "status": 503,
+      "outcome": "canceled",
+      "bytes": 20,
+      "endMs": -379
+    },
+    {
+      "request": 2,
+      "startMs": 0,
+      "gapSincePreviousStartMs": 19598,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 504,
+      "outcome": "expired",
+      "bytes": 16,
+      "endMs": 30000
+    },
+    {
+      "request": 3,
+      "startMs": 9551,
+      "gapSincePreviousStartMs": 9551,
+      "client": "resolver",
+      "range": "",
+      "rangePresent": false,
+      "status": 503,
+      "outcome": "canceled",
+      "bytes": 20,
+      "endMs": 29557
+    },
+    {
+      "request": 4,
+      "startMs": 29938,
+      "gapSincePreviousStartMs": 20387,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 504,
+      "outcome": "expired",
+      "bytes": 16,
+      "endMs": 59939
+    },
+    {
+      "request": 5,
+      "startMs": 30013,
+      "gapSincePreviousStartMs": 75,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 504,
+      "outcome": "expired",
+      "bytes": 16,
+      "endMs": 60013
+    },
+    {
+      "request": 6,
+      "startMs": 39557,
+      "gapSincePreviousStartMs": 9544,
+      "client": "resolver",
+      "range": "",
+      "rangePresent": false,
+      "status": 503,
+      "outcome": "canceled",
+      "bytes": 20,
+      "endMs": 59558
+    },
+    {
+      "request": 7,
+      "startMs": 59945,
+      "gapSincePreviousStartMs": 20388,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 206,
+      "outcome": "canceled",
+      "bytes": 2326528,
+      "endMs": 76987
+    },
+    {
+      "request": 8,
+      "startMs": 59954,
+      "gapSincePreviousStartMs": 9,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 206,
+      "outcome": "canceled",
+      "bytes": 2621440,
+      "endMs": 76785
+    },
+    {
+      "request": 9,
+      "startMs": 60026,
+      "gapSincePreviousStartMs": 72,
+      "client": "WMF",
+      "range": "bytes=0-",
+      "rangePresent": true,
+      "status": 206,
+      "outcome": "canceled",
+      "bytes": 2195456,
+      "endMs": 76792
+    },
+    {
+      "request": 10,
+      "startMs": 69552,
+      "gapSincePreviousStartMs": 9526,
+      "client": "resolver",
+      "range": "",
+      "rangePresent": false,
+      "status": 200,
+      "outcome": "canceled",
+      "bytes": 393216,
+      "endMs": 76619
+    },
+    {
+      "request": 11,
+      "startMs": 77053,
+      "gapSincePreviousStartMs": 7501,
+      "client": "WMF",
+      "range": "bytes=1966080-80602638",
+      "rangePresent": true,
+      "status": 206,
+      "outcome": "canceled",
+      "bytes": 68288512,
+      "endMs": 111641
+    }
+  ],
+  "rangeInterpretation": {
+    "duringRefusal": "All WMF requests used bytes=0-; resolver GETs had no Range header.",
+    "afterBodyArrived": "WMF requested bytes=1966080-80602638 after earlier responses delivered video bytes.",
+    "boundary": "Nonzero request is a byte-range observation, not proof of exact playback position or complete non-overlapping resume. Multiple preceding WMF responses overlap."
+  },
+  "cleanupBoundary": "Final request termination at service exit is not classified as another playback failure.",
+  "originMeaning": "Batch reference event",
+  "timePrivacy": "All event times are offsets from this batch-local reference; absolute timestamp omitted. Raw clock mapping remains local only."
+}

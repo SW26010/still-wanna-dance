@@ -28,11 +28,11 @@ type handoffLogCapture struct {
 func (c *handoffLogCapture) Write(p []byte) (int, error) {
 	n, err := c.logCapture.Write(p)
 	var record struct {
-		Message      string `json:"msg"`
+		EventName    string `json:"event_name"`
 		Block        int64  `json:"block"`
 		WindowClosed bool   `json:"window_closed"`
 	}
-	if json.Unmarshal(p, &record) == nil && record.Message == "block_demand" && record.Block == 1 && record.WindowClosed {
+	if json.Unmarshal(p, &record) == nil && record.EventName == "block_demand" && record.Block == 1 && record.WindowClosed {
 		c.once.Do(func() { close(c.closed) })
 	}
 	return n, err

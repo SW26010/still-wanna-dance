@@ -120,7 +120,7 @@ func (u *usageStore) enqueueLocked(e usageEvent) {
 	select {
 	case u.events <- e:
 	default:
-		u.log.Warn("usage_dropped", "resource_key", e.key, "song_id", e.songID)
+		u.log.Warn("请求历史记录未能接收", "event_name", "usage_dropped", "resource_key", e.key, "song_id", e.songID)
 	}
 }
 
@@ -157,7 +157,7 @@ func (u *usageStore) run() {
 				if u.failure == nil {
 					u.failure = err
 				}
-				u.log.Warn("usage_cleanup_failed", "error", err)
+				u.log.Warn("请求历史清理失败", "event_name", "usage_cleanup_failed", "error", err)
 				if u.onError != nil {
 					u.onError(err)
 				}
@@ -190,7 +190,7 @@ func (u *usageStore) run() {
 			if u.failure == nil {
 				u.failure = err
 			}
-			u.log.Error("usage_write_failed", "count", len(batch), "error", err)
+			u.log.Error("请求历史保存失败", "event_name", "usage_write_failed", "count", len(batch), "error", err)
 			if u.onError != nil {
 				u.onError(err)
 			}

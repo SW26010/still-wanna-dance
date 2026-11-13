@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
+	"still-wanna-dance/internal/testlog"
 )
 
 func futureGET(t *testing.T, s *Server, key string, blocks int64) (*downloadSession, *downloadDemand) {
@@ -74,7 +75,7 @@ func demandPublicationLog(count *atomic.Int32) *slog.Logger {
 	return slog.New(flightEventHandler{
 		Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		handle: func(r slog.Record) {
-			if r.Message == "block_demand" {
+			if testlog.EventName(r) == "block_demand" {
 				count.Add(1)
 			}
 		},

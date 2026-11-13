@@ -250,7 +250,7 @@ func (c *Console) autoStart() {
 		err := c.enableAcceleration(c.editor.hosts.status, c.changeHostsLocked)
 		c.reportFault("action:activation", err)
 		if err != nil {
-			slog.Error("auto_acceleration_failed", "error", err)
+			slog.Error("自动开启加速失败", "event_name", "auto_acceleration_failed", "error", err)
 		}
 	}
 }
@@ -265,7 +265,7 @@ func (c *Console) startLocked() (err error) {
 			c.mu.Lock()
 			c.cdnError = err.Error()
 			c.mu.Unlock()
-			slog.Error("cdn_start_failed", "error", err)
+			slog.Error("本地视频服务启动失败", "event_name", "cdn_start_failed", "error", err)
 		}
 	}()
 	c.mu.Lock()
@@ -312,7 +312,7 @@ func (c *Console) startLocked() (err error) {
 	c.cdnError = ""
 	c.reportFault("service", nil)
 	c.mu.Unlock()
-	slog.Info("cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
+	slog.Info("本地视频服务已启动", "event_name", "cdn_started", "address", l.Addr().String(), "https_address", secure.Addr().String())
 	go func() {
 		if err := relay.serve(); err != nil && !errors.Is(err, net.ErrClosed) {
 			c.failCDN(h, err)
@@ -337,7 +337,7 @@ func (c *Console) failCDN(h *http.Server, err error) {
 		c.mu.Unlock()
 		return
 	}
-	slog.Error("cdn_failed", "error", err)
+	slog.Error("本地视频服务发生故障", "event_name", "cdn_failed", "error", err)
 	c.cdnError = err.Error()
 	c.mu.Unlock()
 	c.reportFault("service", err)
@@ -381,7 +381,7 @@ func (c *Console) stopLocked() {
 		return
 	}
 	_ = server.Close()
-	slog.Info("cdn_stopped")
+	slog.Info("本地视频服务已停止", "event_name", "cdn_stopped")
 }
 
 // BeginShutdown rejects new work and cancels background tasks without waiting
@@ -437,7 +437,7 @@ func (c *Console) Close() error {
 	c.lifecycleMu.Unlock()
 	if hostsErr != nil {
 		hostsErr = fmt.Errorf("退出时未能确认游戏连接已清理，下次启动后请恢复游戏直连：%w", hostsErr)
-		slog.Error("hosts_cleanup_failed", "error", hostsErr)
+		slog.Error("游戏接入映射清理失败", "event_name", "hosts_cleanup_failed", "error", hostsErr)
 	}
 	c.mu.Lock()
 	metadata := c.metadata
@@ -774,7 +774,7 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 			}{true, action})
 			_ = controller.Flush()
 			_ = controller.SetWriteDeadline(time.Time{})
-			slog.Info("console_action_completed", "action", r.URL.Path, "shutdown_action", action)
+			slog.Info("WebUI 操作已完成", "event_name", "console_action_completed", "action", r.URL.Path, "shutdown_action", action)
 		})
 		return
 	case "/api/import/start":
@@ -863,7 +863,7 @@ func writeActionResult(w http.ResponseWriter, r *http.Request, err error) {
 		result.reported = true
 	}
 	if err != nil {
-		slog.Error("console_action_failed", "action", r.URL.Path, "error", err)
+		slog.Error("WebUI 操作失败", "event_name", "console_action_failed", "action", r.URL.Path, "error", err)
 		if writeSettingsValidation(w, err) {
 			return
 		}
@@ -876,7 +876,7 @@ func writeActionResult(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, failure)
 		return
 	}
-	slog.Info("console_action_completed", "action", r.URL.Path)
+	slog.Info("WebUI 操作已完成", "event_name", "console_action_completed", "action", r.URL.Path)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 

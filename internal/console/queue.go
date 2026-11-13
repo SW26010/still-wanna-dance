@@ -133,7 +133,7 @@ func (q *queueTask) setSongs(songs []vrclog.Song, reset bool) {
 	for id, waiter := range q.waiters {
 		if !q.wants(id, waiter.generation) {
 			if waiter.ctx.Err() == nil {
-				slog.Info("queue_song_canceled", "trace_id", applog.TraceID(waiter.ctx), "song_id", id, "generation", waiter.generation, "reason", "queue_changed")
+				slog.Info("队列歌曲等待已取消", "event_name", "queue_song_canceled", "trace_id", applog.TraceID(waiter.ctx), "song_id", id, "generation", waiter.generation, "reason", "queue_changed")
 			}
 			waiter.cancel()
 		}
@@ -284,7 +284,7 @@ func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
 	q.updateSources = nil
 	done := q.done
 	q.mu.Unlock()
-	slog.Info("queue_started", "file", logName(tail.Path))
+	slog.Info("房间队列监控已开始", "event_name", "queue_started", "file", logName(tail.Path))
 	go q.runQueue(ctx, tail, engine, done)
 }
 
@@ -304,7 +304,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 		q.Current = 0
 		q.Active = nil
 		q.cancel = nil
-		slog.Info("queue_stopped", "completed", q.Completed)
+		slog.Info("房间队列监控已停止", "event_name", "queue_stopped", "completed", q.Completed)
 		q.mu.Unlock()
 	}()
 	ticker := time.NewTicker(vrclog.PollInterval)
@@ -325,14 +325,14 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 			}
 			if readError != lastReadError {
 				if err != nil {
-					slog.Warn("vrchat_log_read_failed", "error", err)
+					slog.Warn("VRChat 日志读取失败", "event_name", "vrchat_log_read_failed", "error", err)
 				} else {
-					slog.Info("vrchat_log_read_recovered")
+					slog.Info("VRChat 日志读取已恢复", "event_name", "vrchat_log_read_recovered")
 				}
 				lastReadError = readError
 			}
 			if tail.Path != previousPath {
-				slog.Info("vrchat_log_changed", "file", logName(tail.Path))
+				slog.Info("已切换 VRChat 日志文件", "event_name", "vrchat_log_changed", "file", logName(tail.Path))
 			}
 			if tail.Path != previousPath || tail.Offset != previousOffset {
 				lastActivity = now
@@ -365,7 +365,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 			}
 			for i, e := range updates {
 				if i == eventEnd {
-					slog.Warn("vrchat_log_stale")
+					slog.Warn("VRChat 日志暂无新内容", "event_name", "vrchat_log_stale")
 					stale = true
 				}
 				q.setSongs(e.Songs, e.Reset)
@@ -375,7 +375,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 				q.mu.Lock()
 				if i >= firstEvent && i < eventEnd {
 					q.Updated = now
-					slog.Info("queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", q.generation)
+					slog.Info("房间播放队列已更新", "event_name", "queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", q.generation)
 				}
 			}
 			q.mu.Unlock()
@@ -392,7 +392,7 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 	q.mu.Lock()
 	q.updateSources = func(ids []int64, reset bool) {
 		if err := engine.UpdatePrefetchQueue(ids, reset); err != nil {
-			slog.Warn("queue_timing_failed", "error", err)
+			slog.Warn("队列播放时间推算失败", "event_name", "queue_timing_failed", "error", err)
 		}
 		select {
 		case wake <- struct{}{}:
@@ -402,7 +402,7 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 	ids := queueSongIDs(q.Songs)
 	q.mu.Unlock()
 	if err := engine.UpdatePrefetchQueue(ids, false); err != nil {
-		slog.Warn("queue_timing_failed", "error", err)
+		slog.Warn("队列播放时间推算失败", "event_name", "queue_timing_failed", "error", err)
 	}
 	q.updateMu.Unlock()
 	type result struct {
@@ -443,7 +443,7 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 		changed := engine.QueuePreparationChanged()
 		policies, policyErr := engine.Store.SongPolicies(ctx)
 		if policyErr != nil && ctx.Err() == nil {
-			slog.Warn("queue_song_preferences_failed", "error", policyErr)
+			slog.Warn("队列歌曲偏好读取失败", "event_name", "queue_song_preferences_failed", "error", policyErr)
 		}
 		// The visible snapshot can precede the engine's metadata/source update.
 		// Dispatch only after that same serialized update has finished.
@@ -509,7 +509,7 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 			songCtx, cancel := context.WithCancel(applog.WithTrace(ctx))
 			songCtx, admission = cacheproxy.WithPreparationAdmission(songCtx)
 			admitting = id
-			slog.Info("queue_song_started", "trace_id", applog.TraceID(songCtx), "song_id", id, "generation", gen)
+			slog.Info("队列歌曲准备已开始", "event_name", "queue_song_started", "trace_id", applog.TraceID(songCtx), "song_id", id, "generation", gen)
 			if q.waiters == nil {
 				q.waiters = make(map[int64]*queueWaiter)
 			}
@@ -586,18 +586,18 @@ func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, 
 					r.err = nil
 				} else if r.err != nil {
 					retry[r.id] = time.Now().Add(time.Minute)
-					slog.Warn("queue_song_failed", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id, "error", r.err, "retry_seconds", 60)
+					slog.Warn("队列歌曲准备失败", "event_name", "queue_song_failed", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id, "error", r.err, "retry_seconds", 60)
 				} else {
 					if q.prepared == nil {
 						q.prepared = make(map[int64]bool)
 					}
 					q.prepared[r.id] = true
 					q.Completed++
-					slog.Info("queue_song_ready", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id)
+					slog.Info("队列歌曲已准备就绪", "event_name", "queue_song_ready", "trace_id", applog.TraceID(waiter.ctx), "generation", r.generation, "song_id", r.id)
 				}
 				q.songResult(r.id, r.err)
 			} else {
-				slog.Info("queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
+				slog.Info("队列歌曲过期结果已丢弃", "event_name", "queue_song_discarded", "trace_id", applog.TraceID(waiter.ctx), "song_id", r.id, "generation", r.generation, "reason", "canceled_or_obsolete")
 			}
 			q.mu.Unlock()
 		}

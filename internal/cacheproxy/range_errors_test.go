@@ -125,7 +125,7 @@ func TestRangeTransportErrorsRedactSignedURLs(t *testing.T) {
 			if !bytes.Contains(data, []byte(cause.Error())) {
 				t.Fatal("root diagnostic missing")
 			}
-			if !bytes.Contains(data, []byte(`"msg":"stream_failed"`)) {
+			if !bytes.Contains(data, []byte(`"event_name":"stream_failed"`)) {
 				t.Fatal("stream error exit was not exercised")
 			}
 		})

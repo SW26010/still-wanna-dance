@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-const segmentLayout = "20060102T150405Z"
+const segmentLayout = "20060102"
+const oldSegmentLayout = "20060102T150405Z"
 
 type segment struct {
 	name string
@@ -29,7 +30,7 @@ func validateSegment(file segment) error {
 }
 
 func segmentName(at time.Time, sequence uint64) string {
-	name := at.UTC().Format(segmentLayout)
+	name := at.Format(segmentLayout)
 	if sequence != 0 {
 		name += "-" + strconv.FormatUint(sequence, 10)
 	}
@@ -37,12 +38,16 @@ func segmentName(at time.Time, sequence uint64) string {
 }
 
 func segmentID(name string) (time.Time, uint64, bool) {
+	return parseSegmentID(name, segmentLayout)
+}
+
+func parseSegmentID(name, layout string) (time.Time, uint64, bool) {
 	if !strings.HasSuffix(name, ".log") {
 		return time.Time{}, 0, false
 	}
 	stamp, suffix, hasSuffix := strings.Cut(strings.TrimSuffix(name, ".log"), "-")
-	at, err := time.Parse(segmentLayout, stamp)
-	if err != nil || at.Format(segmentLayout) != stamp {
+	at, err := time.Parse(layout, stamp)
+	if err != nil || at.Format(layout) != stamp {
 		return time.Time{}, 0, false
 	}
 	if !hasSuffix {
@@ -70,8 +75,7 @@ func legacyOrder(name string) int {
 	return 0
 }
 
-// logSegments is the single ownership and ordering rule for writers and readers.
-// Unknown names are never read or removed. Old numbered logs precede new segments.
+// Unknown names are never managed. Historical logs precede the new date segments.
 func logSegments(root *os.Root) ([]segment, error) {
 	dir, err := root.Open(".")
 	if err != nil {
@@ -86,8 +90,9 @@ func logSegments(root *os.Root) ([]segment, error) {
 	for _, entry := range entries {
 		name := entry.Name()
 		_, _, current := segmentID(name)
+		_, _, old := parseSegmentID(name, oldSegmentLayout)
 		legacy := legacyOrder(name) != 0
-		if !current && !legacy {
+		if !current && !old && !legacy {
 			continue
 		}
 		info, err := entry.Info()
@@ -111,8 +116,18 @@ func logSegments(root *os.Root) ([]segment, error) {
 			}
 			return x - y
 		}
-		aTime, aSequence, _ := segmentID(a.name)
-		bTime, bSequence, _ := segmentID(b.name)
+		aTime, aSequence, aCurrent := segmentID(a.name)
+		bTime, bSequence, bCurrent := segmentID(b.name)
+		if aCurrent != bCurrent {
+			if aCurrent {
+				return 1
+			}
+			return -1
+		}
+		if !aCurrent {
+			aTime, aSequence, _ = parseSegmentID(a.name, oldSegmentLayout)
+			bTime, bSequence, _ = parseSegmentID(b.name, oldSegmentLayout)
+		}
 		if order := aTime.Compare(bTime); order != 0 {
 			return order
 		}

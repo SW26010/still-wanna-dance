@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/testlog"
 )
 
 // Block a real lifecycle operation at a synchronous log write, without sleeps
@@ -23,7 +25,7 @@ func (g *lifecycleLogGate) Enabled(context.Context, slog.Level) bool { return tr
 func (g *lifecycleLogGate) WithAttrs([]slog.Attr) slog.Handler       { return g }
 func (g *lifecycleLogGate) WithGroup(string) slog.Handler            { return g }
 func (g *lifecycleLogGate) Handle(_ context.Context, r slog.Record) error {
-	if r.Message == g.message {
+	if testlog.EventName(r) == g.message {
 		g.once.Do(func() { close(g.entered); <-g.release })
 	}
 	return nil

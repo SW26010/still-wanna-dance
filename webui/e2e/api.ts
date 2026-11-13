@@ -23,6 +23,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastResult:undefined},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:undefined,referenceBitrateBPS:2000000}};
   const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
   const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id}],songCount:1,known:true,protected:id===2,state:'文件存在 · 按 MD5 复用'}));
+  const coverFiles=new Set<string>();
   await page.route('**/api/**',async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname.slice(5), method=req.method();
     let body:Record<string,unknown>={},invalidJSON=false;
@@ -69,7 +70,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     if(match('GET response-sources'))data={downloadBytes:0,cacheBytes:0,localBytes:0};
     if(match('GET latency'))data={from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
     if (match('GET requests')) data={storageID:'fixture',requests:[],hasMore:false};
-    if(match('GET library'))data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,hasDemand:true,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824};
+    if(match('GET library'))data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,hasDemand:true,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824,covers:url.searchParams.get('covers')==='1'?Object.fromEntries(files.map(f=>[f.songs[0].id,{source:coverFiles.has(f.songs[0].id)?'local':'category'}])):undefined};
     if (match('POST cache/delete')) {
       const selected = body.entries as {key:string;stamp:string}[];
       data=selected.map(item=>({key:item.key,result:'deleted'}));
@@ -97,5 +98,5 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
   const historyChanged=()=>page.request.post('/__fixture/events',{data:{id:fixtureID,kind:'history',state:{closed:false}}});
-  return {state,calls,files,terms,diagnostics,emit,fixtureID,historyChanged};
+  return {state,calls,files,coverFiles,terms,diagnostics,emit,fixtureID,historyChanged};
 }

@@ -59,13 +59,19 @@ func New(output io.Writer, level Level) *slog.Logger {
 	if level == Off {
 		return slog.New(slog.DiscardHandler)
 	}
-	return slog.New(slog.NewJSONHandler(output, &slog.HandlerOptions{
+	return slog.New(slog.NewTextHandler(textWriter{output}, &slog.HandlerOptions{
 		Level: level,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Value.Kind() == slog.KindTime {
-				a.Value = slog.TimeValue(a.Value.Time().UTC())
+				at := a.Value.Time()
+				if !at.IsZero() {
+					at = at.Local()
+				}
+				a.Value = slog.StringValue(at.Format(timeLayout))
 			}
 			return a
 		},
 	})).With("pid", os.Getpid(), "session_id", rand.Text())
 }
+
+const timeLayout = "2006-01-02T15:04:05.0000Z07:00"

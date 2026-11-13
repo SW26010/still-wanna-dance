@@ -20,7 +20,7 @@ func (c *Console) connectivityCachedSong(ctx context.Context, previous int64) in
 		id, err = store.CatalogSampleSong(ctx, previous)
 	}
 	if err != nil && ctx.Err() == nil {
-		slog.Warn("connectivity_catalog_sample_failed", "error", applog.SafeError(err))
+		slog.Warn("连通性检测的清单样本读取失败", "event_name", "connectivity_catalog_sample_failed", "error", applog.SafeError(err))
 	}
 	return id
 }
@@ -36,7 +36,7 @@ func (c *Console) connectivityCachedResource(ctx context.Context) string {
 		}
 	}
 	if err != nil && ctx.Err() == nil {
-		slog.Warn("connectivity_resource_sample_failed", "error", applog.SafeError(err))
+		slog.Warn("连通性检测的资源样本读取失败", "event_name", "connectivity_resource_sample_failed", "error", applog.SafeError(err))
 	}
 	return ""
 }

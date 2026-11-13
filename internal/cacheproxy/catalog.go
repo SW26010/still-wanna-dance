@@ -173,6 +173,6 @@ func (s *Store) observeCatalogVersion(c Catalog) {
 		if k == UdonCatalogURL || (key != UdonCatalogURL && k != key) || backup.revision <= udon.revision {
 			continue
 		}
-		s.log.Warn("catalog_backup_newer_than_udon", "source", backup.source, "revision", backup.revision, "observed_at", backup.at, "udon_revision", udon.revision, "udon_observed_at", udon.at)
+		s.log.Warn("备用清单版本新于 Udon", "event_name", "catalog_backup_newer_than_udon", "source", backup.source, "revision", backup.revision, "observed_at", backup.at, "udon_revision", udon.revision, "udon_observed_at", udon.at)
 	}
 }

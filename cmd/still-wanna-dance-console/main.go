@@ -201,7 +201,7 @@ func run() (runErr error) {
 	slog.SetDefault(applog.New(writer, level))
 	defer func() {
 		if crash := recover(); crash != nil {
-			slog.Error("application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
+			slog.Error("程序主流程发生 panic", "event_name", "application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
 			if level == applog.Off {
 				runErr = fmt.Errorf("程序发生异常（程序日志已关闭）：%v", crash)
 			} else {
@@ -210,9 +210,9 @@ func run() (runErr error) {
 		}
 		var restart *restartRequest
 		if runErr != nil && !errors.As(runErr, &restart) {
-			slog.Error("application_failed", "error", runErr)
+			slog.Error("程序运行失败", "event_name", "application_failed", "error", runErr)
 		} else {
-			slog.Info("application_stopped")
+			slog.Info("程序已正常退出", "event_name", "application_stopped")
 		}
 		slog.SetDefault(previousLogger)
 		if writer != nil {
@@ -221,7 +221,7 @@ func run() (runErr error) {
 			}
 		}
 	}()
-	slog.Info("application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
+	slog.Info("程序正在启动", "event_name", "application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
 	if configErr != nil {
 		return configErr
 	}
@@ -229,13 +229,13 @@ func run() (runErr error) {
 		return err
 	}
 	if workErr != nil {
-		slog.Warn("block_cache_unavailable", "error", workErr)
+		slog.Warn("临时块工作目录不可用", "event_name", "block_cache_unavailable", "error", workErr)
 	} else if inspection.Unresolved != nil {
-		slog.Warn("block_cache_cleanup_deferred", "error", inspection.Unresolved)
+		slog.Warn("临时块清理已暂缓", "event_name", "block_cache_cleanup_deferred", "error", inspection.Unresolved)
 	}
 	console.CleanupPendingBlockCaches(exe, p, startupSettings, work, slog.Default())
 	build := buildinfo.Current()
-	slog.Info("application_build", "kind", build.Kind, "version", build.Version, "vcs.revision", build.Revision,
+	slog.Info("程序构建信息", "event_name", "application_build", "kind", build.Kind, "version", build.Version, "vcs.revision", build.Revision,
 		"vcs.modified", build.Dirty, "builtAtUtc", build.BuiltAtUTC, "toolchain", build.Toolchain, "target", build.Target)
 	l, err := listenConsole(*address, p, !listenExplicit, *restartPort)
 	if err != nil {
@@ -255,7 +255,7 @@ func run() (runErr error) {
 	defer endSession()
 	shutdown := func() {
 		closeOnce.Do(func() {
-			slog.Info("application_stopping")
+			slog.Info("程序正在关闭", "event_name", "application_stopping")
 			stop()
 			c.BeginShutdown()
 			background.Wait()
@@ -268,7 +268,7 @@ func run() (runErr error) {
 			}
 			if err := c.Close(); err != nil {
 				shutdownErr = err
-				slog.Error("shutdown_failed", "error", err)
+				slog.Error("程序关闭清理失败", "event_name", "shutdown_failed", "error", err)
 			}
 		})
 	}
@@ -292,7 +292,7 @@ func run() (runErr error) {
 	c.StartUpdateCheck()
 	go func() { done <- h.Serve(l); stop() }()
 	if err := saveConsolePort(p, l.Addr()); err != nil {
-		slog.Warn("console_port_save_failed", "error", err)
+		slog.Warn("WebUI 端口信息保存失败", "event_name", "console_port_save_failed", "error", err)
 	}
 	// Keep the console and tray usable while automatic acceleration waits for UAC.
 	url := "http://" + l.Addr().String()
@@ -310,7 +310,7 @@ func run() (runErr error) {
 	go func() { defer background.Done(); c.AutoStart() }()
 	go func() { defer background.Done(); c.WatchVRChat() }()
 	go func() { defer background.Done(); c.WatchFaults(ctx) }()
-	slog.Info("console_ready", "url", url)
+	slog.Info("WebUI 服务已就绪", "event_name", "console_ready", "url", url)
 	fmt.Printf("Still Wanna Dance WebUI：%s\n同意条款后关闭浏览器不会退出程序；未同意时关闭条款页会尝试在 60 秒后退出。退出按当前设置处理游戏连接，不再请求管理员权限。\n", url)
 	if !*noTray {
 		err = desktop.Run(ctx, desktop.Options{URL: url, State: c.DesktopState, Command: c.DesktopCommand, CommandReportsErrors: true, ReportFault: incidentCenter.Set, RequestExit: c.RequestExit, Shutdown: shutdown, EndSession: endSession})

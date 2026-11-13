@@ -133,13 +133,6 @@ func TestFaultOpeningNavigationBrowser(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, workfiles.TempName(config)), []byte("occupied"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	logDir := apppaths.ForConfig(config).LogDir
-	if err := os.MkdirAll(filepath.Dir(logDir), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(logDir, []byte("not a log directory"), 0600); err != nil {
-		t.Fatal(err)
-	}
 	center := faults.New()
 	c.SetFaultCenter(center)
 	var checks, openings atomic.Int32

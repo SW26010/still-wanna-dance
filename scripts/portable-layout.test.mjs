@@ -12,6 +12,7 @@ test('Portable log reads support legacy upgrades and discover new segments on ev
   const log = name => JSON.stringify({msg:name})+'\n';
   fs.writeFileSync(path.join(temp,'app.log'),log('legacy'));
   fs.writeFileSync(path.join(temp,'app.log.1'),log('older'));
+  fs.writeFileSync(path.join(temp,'20261103T000000Z.log'),log('timestamp'));
   for (const name of ['app.log.4','notes.log','2026-11-03T00-00-00.000000000Z.log','20261103T000000Z-0.log']) fs.writeFileSync(path.join(temp,name),'unknown files must not be parsed');
   const result = run('pwsh',['-NoProfile','-NonInteractive','-Command',`
     $ErrorActionPreference = 'Stop'
@@ -24,21 +25,25 @@ test('Portable log reads support legacy upgrades and discover new segments on ev
     $directory = ${quote(temp)}
     $legacy = @(Read-ApplicationLogs $directory)
     try {
-      Read-ApplicationLogs $directory -RequireTimestamp | Out-Null
+      Read-ApplicationLogs $directory -RequireCurrent | Out-Null
       throw 'Current build accepted only legacy logs.'
     } catch {
-      if ($_.Exception.Message -notlike 'Expected timestamp-named*') { throw }
+      if ($_.Exception.Message -notlike 'Expected date-named*') { throw }
     }
-    [IO.File]::WriteAllText((Join-Path $directory '20261103T000000Z.log'), ${quote(log('current'))})
-    $first = @(Read-ApplicationLogs $directory -RequireTimestamp)
-    [IO.File]::WriteAllText((Join-Path $directory '20261103T000000Z-1.log'), ${quote(log('newer'))})
-    $second = @(Read-ApplicationLogs $directory -RequireTimestamp)
-    @{legacy=@($legacy.msg | Sort-Object);first=$first.Count;second=@($second.msg | Sort-Object)} | ConvertTo-Json -Compress
+    [IO.File]::WriteAllText((Join-Path $directory '20261103.log'), ${quote('2026-11-03T12:00:00.1234+08:00 [INFO] "程序构建信息" event_name=current pid=42 version=1.0 path="with event_name=fake pid=99 version=fake"\n')})
+    $first = @(Read-ApplicationLogs $directory -RequireCurrent)
+    [IO.File]::WriteAllText((Join-Path $directory '20261103-1.log'), ${quote('2026-11-03T12:00:00.1234+08:00 [INFO] "不同的摘要 event_name=fake" event_name=newer pid=43 version="v1.1"\n')})
+    $second = @(Read-ApplicationLogs $directory -RequireCurrent)
+    @{legacy=@($legacy.event_name | Sort-Object);first=$first.Count;second=@($second.event_name | Sort-Object);current=@($first | Where-Object event_name -ceq 'current')[0];newer=@($second | Where-Object event_name -ceq 'newer')[0]} | ConvertTo-Json -Compress
   `]);
   const summary = JSON.parse(result);
-  assert.deepEqual(summary.legacy,['legacy','older']);
-  assert.equal(summary.first,3);
-  assert.deepEqual(summary.second,['current','legacy','newer','older']);
+  assert.deepEqual(summary.legacy,['legacy','older','timestamp']);
+  assert.equal(summary.first,4);
+  assert.deepEqual(summary.second,['current','legacy','newer','older','timestamp']);
+  assert.equal(summary.current.pid,42);
+  assert.equal(summary.current.version,'1.0');
+  assert.equal(summary.newer.pid,43);
+  assert.equal(summary.newer.version,'v1.1');
 }));
 
 for (const scenario of ['unknown-file', 'unknown-directory', 'bad-checksum']) {

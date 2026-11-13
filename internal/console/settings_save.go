@@ -128,6 +128,6 @@ func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, c
 	} else {
 		commit()
 	}
-	slog.Info("settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.effectiveVRChatLogDir())
+	slog.Info("设置已保存", "event_name", "settings_saved", "database_path", s.DatabasePath, "video_dir", s.VideoDir, "vrchat_log_dir", s.effectiveVRChatLogDir())
 	return nil
 }

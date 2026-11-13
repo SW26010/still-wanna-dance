@@ -48,7 +48,7 @@ func listenConsole(address, config string, automatic bool, restartPort int) (net
 			if err == nil {
 				return listener, nil
 			}
-			slog.Warn("console_preferred_port_unavailable", "address", preferred, "error", err)
+			slog.Warn("首选 WebUI 端口不可用", "event_name", "console_preferred_port_unavailable", "address", preferred, "error", err)
 		}
 	}
 	return net.Listen("tcp4", address)

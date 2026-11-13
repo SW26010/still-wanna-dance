@@ -45,7 +45,7 @@ func (s *Server) attachPlaybackSongLocked(f *flight, v video) {
 		defer cancel()
 		record.err = s.recordSongVideo(ctx, v.songID, v)
 		if record.err != nil {
-			s.cfg.Logger.Error("playback_song_failed", "song_id", v.songID, "resource_key", v.key, "error", record.err)
+			s.cfg.Logger.Error("歌曲播放资源准备失败", "event_name", "playback_song_failed", "song_id", v.songID, "resource_key", v.key, "error", record.err)
 		}
 	}()
 }

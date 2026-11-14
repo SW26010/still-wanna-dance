@@ -1970,6 +1970,27 @@
       "bytes": 1318510,
       "sha256": "137e908a3ed38ffa7cedf432543479499c9c4bff9d6f0139295dc1f3a4a9e723",
       "reason": "Production WebUI adds an upstream selection help card for direct, external SOCKS5 and embedded Mihomo, with configuration, restart and diagnostics links. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "docs/images/webui-history.png",
+      "kind": "readme-screenshot",
+      "bytes": 158623,
+      "sha256": "14bb82fe78631e0d9464478d4b264a1bef08ceb7d0ea5df58b866458cae0ff06",
+      "reason": "Current history page with 50 sample playback requests for real default-priority songs, time filters, response source shares and time-to-first-body statistics computed from those same sample records. Captured from the production WebUI by webui/test-support/readme-screenshots.mts for both READMEs (2026-11-15). No private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-library.png",
+      "kind": "readme-screenshot",
+      "bytes": 227434,
+      "sha256": "971ebc12d5cd24aa7d059771c21d5ce9f8b4dbe81b399aa7a82b5afb8b4e7411",
+      "reason": "Default cover view filled with 50 real top default-priority songs and available covers; missing covers use bundled category artwork. Captured by webui/test-support/readme-screenshots.mts and encoded as a 256-colour PNG for both README previews (2026-11-15); activity and local availability are examples, with no private data or performance evidence."
+    },
+    {
+      "path": "docs/images/webui-acceleration.png",
+      "kind": "readme-screenshot",
+      "bytes": 104741,
+      "sha256": "3d1787d591f5813eaf70594fcb51e3ece029bbf1347c8a009932ac841492c746",
+      "reason": "Selected README acceleration view: expanded single-layer timeline with four timed playback/queue demands, 208 blocks and five active downloads; no untimed work. Captured at 1440x880 from the production WebUI using public song metadata and sample activity by webui/test-support/readme-screenshots.mts (2026-11-15). No private data or performance evidence."
     }
   ]
 }

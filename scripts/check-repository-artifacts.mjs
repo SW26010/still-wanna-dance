@@ -17,7 +17,7 @@ export function classify(file, bytes, policy) {
   let digest;
   const exception = policy.exceptions.find(e => e.path === file && e.sha256 === (digest ??= sha256(bytes)));
   const productIcon = exception?.kind === 'product-icon' && /^internal\/branding\/logo(?:(?:-light)?\.ico|_windows_amd64\.syso)$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.maxBytes;
-  const readmeScreenshot = exception?.kind === 'readme-screenshot' && /^docs\/images\/webui-(?:acceleration|library|settings-dark)\.png$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes;
+  const readmeScreenshot = exception?.kind === 'readme-screenshot' && /^docs\/images\/webui-(?:acceleration|library|history|settings-dark)\.png$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes;
   const categoryCover = exception?.kind === 'category-cover' && /^internal\/console\/assets\/webui\/category-covers\/[a-z0-9-]+\.webp$/.test(file) && exception.bytes === bytes.length && bytes.length <= policy.warnBytes && typeof exception.reason === 'string' && exception.reason.trim().length > 0;
   const dashboard = exception?.kind === 'embedded-dashboard' && file === 'internal/dashboard/assets/zashboard.zip' && exception.bytes === bytes.length;
   const largeText = exception?.kind === 'large-text' && exception.bytes === bytes.length && typeof exception.reason === 'string' && exception.reason.trim().length > 0;

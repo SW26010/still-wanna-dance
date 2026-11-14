@@ -1,0 +1,406 @@
+{
+  "catalogRevision": "20261028232411",
+  "catalogSHA256": "f7253636e98bc181ae7e6e357c810bebd1ece0b251f152b379ad568e92399454",
+  "songs": [
+    {
+      "id": "3119",
+      "title": "Dynamite",
+      "artist": "BTS",
+      "dancer": "Just Dance 2023",
+      "group": "Just Dance Solo",
+      "duration": 217
+    },
+    {
+      "id": "2167",
+      "title": "I Love U",
+      "artist": "Winner",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 183
+    },
+    {
+      "id": "3114",
+      "title": "Boy With Luv (Extreme)",
+      "artist": "BTS & Halsey",
+      "dancer": "Just Dance 2023",
+      "group": "Just Dance Solo",
+      "duration": 247
+    },
+    {
+      "id": "10540",
+      "title": "Horizon Dreamer",
+      "artist": "三浦大知",
+      "dancer": "三浦大知",
+      "group": "Other ACGN Dance",
+      "duration": 225
+    },
+    {
+      "id": "4297",
+      "title": "Among Us (EDM Remix)",
+      "artist": "Moondai",
+      "dancer": "Redoo",
+      "group": "Just Dance Fan Made",
+      "duration": 160
+    },
+    {
+      "id": "9528",
+      "title": "Really Like You",
+      "artist": "Babymonster",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 199
+    },
+    {
+      "id": "8603",
+      "title": "Pineapple Slice",
+      "artist": "BAEKHYUN",
+      "dancer": "BAEKHYUN",
+      "group": "K-POP Dance Practice",
+      "duration": 199
+    },
+    {
+      "id": "2166",
+      "title": "Talk That Talk",
+      "artist": "Twice",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 180
+    },
+    {
+      "id": "3045",
+      "title": "Blood Sweat & Tears",
+      "artist": "BTS",
+      "dancer": "HoYeon Ryu",
+      "group": "UPVOTE Entertainment",
+      "duration": 215
+    },
+    {
+      "id": "2838",
+      "title": "CH4NGE",
+      "artist": "Giga & 可不",
+      "dancer": "あきら",
+      "group": "Other ACGN Dance",
+      "duration": 134
+    },
+    {
+      "id": "4197",
+      "title": "Specialist",
+      "artist": "目黒将司",
+      "dancer": "Persona 4",
+      "group": "Just Dance Fan Made",
+      "duration": 207
+    },
+    {
+      "id": "8775",
+      "title": "Standing Next to You",
+      "artist": "Jungkook",
+      "dancer": "Jungkook",
+      "group": "K-POP Dance Practice",
+      "duration": 205
+    },
+    {
+      "id": "3244",
+      "title": "California Gurls",
+      "artist": "Katy Perry & Snoop Dogg",
+      "dancer": "Just Dance 3",
+      "group": "Just Dance Solo",
+      "duration": 257
+    },
+    {
+      "id": "10447",
+      "title": "大东北我的家乡",
+      "artist": "何玉",
+      "dancer": "俊俊子啦啦啦",
+      "group": "Other Fitness",
+      "duration": 224
+    },
+    {
+      "id": "6086",
+      "title": "Superstar",
+      "artist": "Ayumu Imazu",
+      "dancer": "Ayumu Imazu",
+      "group": "Other",
+      "duration": 201
+    },
+    {
+      "id": "25",
+      "title": "只因你太美 Just Because You're So Beautiful",
+      "artist": "SWIN-S",
+      "dancer": "Song's Family",
+      "group": "Song^_^",
+      "duration": 229
+    },
+    {
+      "id": "5249",
+      "title": "Hey! Hey!",
+      "artist": "TWS",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 195
+    },
+    {
+      "id": "11191",
+      "title": "Catch Catch",
+      "artist": "YENA",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 187
+    },
+    {
+      "id": "4094",
+      "title": "Dynamite (Extreme)",
+      "artist": "BTS",
+      "dancer": "Just Dance 2023",
+      "group": "Just Dance Crew",
+      "duration": 217
+    },
+    {
+      "id": "3151",
+      "title": "24K Magic (Extreme)",
+      "artist": "Bruno Mars",
+      "dancer": "Just Dance 2018",
+      "group": "Just Dance Solo",
+      "duration": 257
+    },
+    {
+      "id": "4614",
+      "title": "Night Dancer",
+      "artist": "Imase",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 213
+    },
+    {
+      "id": "4055",
+      "title": "Koi",
+      "artist": "星野源",
+      "dancer": "Just Dance 2022",
+      "group": "Just Dance Trio",
+      "duration": 280
+    },
+    {
+      "id": "10456",
+      "title": "ザムザ",
+      "artist": "初音ミク",
+      "dancer": "Hikaru",
+      "group": "Other ACGN Dance",
+      "duration": 214
+    },
+    {
+      "id": "3041",
+      "title": "IDOL",
+      "artist": "BTS",
+      "dancer": "Lisa Rhee",
+      "group": "Lisa Rhee",
+      "duration": 223
+    },
+    {
+      "id": "3101",
+      "title": "Conqueror",
+      "artist": "IA",
+      "dancer": "MMD",
+      "group": "Other ACGN Dance",
+      "duration": 225
+    },
+    {
+      "id": "2192",
+      "title": "Celebrate",
+      "artist": "Twice",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 190
+    },
+    {
+      "id": "10554",
+      "title": "プレイ",
+      "artist": "ギガ",
+      "dancer": "ぽるし",
+      "group": "ぽるし",
+      "duration": 162
+    },
+    {
+      "id": "1981",
+      "title": "Permission To Dance",
+      "artist": "BTS",
+      "dancer": "TML",
+      "group": "TML Crew",
+      "duration": 232
+    },
+    {
+      "id": "7178",
+      "title": "卡拉永远OK, Karaoke Forever",
+      "artist": "Alan Tam",
+      "dancer": "Just Dance 2019",
+      "group": "Just Dance Solo",
+      "duration": 279
+    },
+    {
+      "id": "2588",
+      "title": "The Feels (Remix)",
+      "artist": "Twice",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 294
+    },
+    {
+      "id": "3077",
+      "title": "Ready Or Not",
+      "artist": "Momoland",
+      "dancer": "Zuwaii",
+      "group": "VRChat Dance",
+      "duration": 219
+    },
+    {
+      "id": "1343",
+      "title": "Modern Loneliness",
+      "artist": "Lauv",
+      "dancer": "Marshall",
+      "group": "Fitness Marshall",
+      "duration": 250
+    },
+    {
+      "id": "3209",
+      "title": "Billie Jean",
+      "artist": "Michael Jackson",
+      "dancer": "Michael Jackson: The Experience",
+      "group": "Michael Jackson",
+      "duration": 313
+    },
+    {
+      "id": "4026",
+      "title": "Dragostea din tei",
+      "artist": "O-Zone",
+      "dancer": "Just Dance 2017",
+      "group": "Just Dance Trio",
+      "duration": 254
+    },
+    {
+      "id": "6521",
+      "title": "MIC Drop",
+      "artist": "BTS",
+      "dancer": "Fol2esTz",
+      "group": "Fol2esTz",
+      "duration": 236
+    },
+    {
+      "id": "5867",
+      "title": "IDOL",
+      "artist": "BTS",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 223
+    },
+    {
+      "id": "11012",
+      "title": "Boom Boom Bass",
+      "artist": "Riize",
+      "dancer": "injeolknee",
+      "group": "K-POP Dance Practice",
+      "duration": 153
+    },
+    {
+      "id": "3484",
+      "title": "Levitating (Extreme)",
+      "artist": "Dua Lipa",
+      "dancer": "Just Dance 2022",
+      "group": "Just Dance Solo",
+      "duration": 239
+    },
+    {
+      "id": "8527",
+      "title": "Whiplash",
+      "artist": "aespa",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 183
+    },
+    {
+      "id": "2114",
+      "title": "Keep Me Up",
+      "artist": "B.I",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 209
+    },
+    {
+      "id": "2902",
+      "title": "Internet Overdose",
+      "artist": "KOTOKO",
+      "dancer": "ぷも",
+      "group": "VRChat Dance",
+      "duration": 222
+    },
+    {
+      "id": "3710",
+      "title": "Uptown Funk",
+      "artist": "Mark Ronson & Bruno Mars",
+      "dancer": "Just Dance 2016",
+      "group": "Just Dance Solo",
+      "duration": 283
+    },
+    {
+      "id": "9903",
+      "title": "Blood Sweat & Tears",
+      "artist": "BTS",
+      "dancer": "BTS",
+      "group": "K-POP Dance Practice",
+      "duration": 216
+    },
+    {
+      "id": "3218",
+      "title": "Blood on the Dance Floor",
+      "artist": "Michael Jackson",
+      "dancer": "Michael Jackson: The Experience",
+      "group": "Michael Jackson",
+      "duration": 298
+    },
+    {
+      "id": "8975",
+      "title": "Paca Paca",
+      "artist": "DJ Raphi",
+      "dancer": "DJ Raphi",
+      "group": "DJ Raphi",
+      "duration": 171
+    },
+    {
+      "id": "11266",
+      "title": "REDRED",
+      "artist": "CORTIS",
+      "dancer": "CORTIS",
+      "group": "Other K-POP",
+      "duration": 170
+    },
+    {
+      "id": "2285",
+      "title": "Mr. Taxi",
+      "artist": "Girls' Generation",
+      "dancer": "Golfy",
+      "group": "Golfy Dance Fitness",
+      "duration": 218
+    },
+    {
+      "id": "10901",
+      "title": "Abracadabra (Extreme)",
+      "artist": "Lady Gaga",
+      "dancer": "Just Dance 2026",
+      "group": "Just Dance Solo",
+      "duration": 258
+    },
+    {
+      "id": "7548",
+      "title": "青春修炼手册, Youth Training Manual",
+      "artist": "TFBOYS",
+      "dancer": "Just Dance China",
+      "group": "Just Dance Solo",
+      "duration": 272
+    },
+    {
+      "id": "4541",
+      "title": "シニカルナイトプラン",
+      "artist": "くろくも",
+      "dancer": "わに",
+      "group": "Other ACGN Dance",
+      "duration": 207
+    }
+  ]
+}

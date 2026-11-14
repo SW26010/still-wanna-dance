@@ -39,22 +39,22 @@ A **[global block scheduler driven by playback timing](docs/block-scheduler-desi
 
 **Acceleration: connection status, download progress, and upcoming video demands.**
 
-![Dark WebUI acceleration page showing upstream and game connections, a layered block timeline, playback and queue demands, and a manual download without a deadline](docs/images/webui-acceleration.png)
+![Dark WebUI acceleration page showing upstream and game connections, a single-layer block timeline, current playback, and queue preloading progress](docs/images/webui-acceleration.png)
 
 <details>
-<summary>More screenshots: library and storage settings</summary>
+<summary>More screenshots: library and history</summary>
 
-**Library: song search, favorites, preview controls, and local video management.**
+**Library: browse song covers, search, manage favorites, preview videos, and manage local files.**
 
-![Dark WebUI library page showing song search, favorites, local availability, and per-song actions](docs/images/webui-library.png)
+![Dark WebUI library page showing the default cover view, song search, favorites, and per-song action menus](docs/images/webui-library.png)
 
-**Storage settings: manage video locations, estimate request coverage for your budget, and prioritize keeping favorites.**
+**History: look up playback requests, delivery results, response sources, and time to first video data.**
 
-![Dark WebUI storage settings showing database and video locations, a storage budget with estimated request coverage, and priority retention for favorites](docs/images/webui-settings-dark.png)
+![Dark WebUI history page showing response source shares, response time statistics, time filters, and sample playback requests for real songs](docs/images/webui-history.png)
 
 </details>
 
-These screenshots show the current WebUI with sample songs, speeds, and progress, not benchmark results. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
+These screenshots show the current WebUI with public song metadata and available covers for top-ranked songs in the bundled default scores. Missing covers use the app's bundled category artwork. Speeds, progress, requests and statistics, favorites, and local availability are sample data, not benchmark results. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
 
 ## Quick start
 

@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -9,6 +10,91 @@ import (
 	"testing"
 	"time"
 )
+
+// Includes setup outside the timed loop; use -benchtime=1x for a paired large
+// retained-history check without writing through the request collector.
+func BenchmarkRequestHistoryRetained(b *testing.B) {
+	for _, size := range []int{10000, 1000000, 3000000} {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			root := b.TempDir()
+			u, err := fixtureUsage(b, storagePath(root), slog.New(slog.NewTextHandler(io.Discard, nil)), 0, true)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.Cleanup(func() { u.close() })
+			if _, err := u.db.Exec(`WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM n WHERE i<?)
+INSERT INTO request_events(event_id,requested_at,method,range_header,outcome,transferred_bytes,elapsed_ms,status,resource_md5)
+SELECT i,i*1000,'GET','',CASE WHEN i%2=1 THEN 'canceled' ELSE 'completed' END,1,1,206,? FROM n`, size, strings.Repeat("a", 32)); err != nil {
+				b.Fatal(err)
+			}
+			query, args := (RequestQuery{Limit: 50, HideAdjacentCanceled: true}).count()
+			rows, err := u.db.Query("EXPLAIN QUERY PLAN "+query, args...)
+			if err != nil {
+				b.Fatal(err)
+			}
+			for rows.Next() {
+				var id, parent, unused int
+				var detail string
+				if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+					b.Fatal(err)
+				}
+				b.Log(detail)
+			}
+			if err := rows.Err(); err != nil {
+				b.Fatal(err)
+			}
+			if err := rows.Close(); err != nil {
+				b.Fatal(err)
+			}
+			b.Run("page", func(b *testing.B) {
+				for b.Loop() {
+					page, err := ReadRequestHistory(b.Context(), storagePath(root), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
+					if err != nil || len(page.Requests) != 50 || !page.HasMore {
+						b.Fatalf("bounded filtered page: %d rows, %v", len(page.Requests), err)
+					}
+				}
+			})
+			b.Run("next-page", func(b *testing.B) {
+				q := RequestQuery{Limit: 50, HideAdjacentCanceled: true}
+				first, err := ReadRequestHistory(b.Context(), storagePath(root), q)
+				if err != nil || first.NextCursor == "" {
+					b.Fatalf("first page: %+v %v", first, err)
+				}
+				q.Cursor = first.NextCursor
+				for b.Loop() {
+					page, err := ReadRequestHistory(b.Context(), storagePath(root), q)
+					if err != nil || len(page.Requests) != 50 || page.Requests[0].ID >= first.Requests[len(first.Requests)-1].ID {
+						b.Fatalf("next filtered page: %+v %v", page, err)
+					}
+				}
+			})
+			b.Run("count", func(b *testing.B) {
+				for b.Loop() {
+					count, err := CountRequestHistory(b.Context(), storagePath(root), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
+					if err != nil || count.Total != int64(size/2) {
+						b.Fatalf("filtered count: %+v %v", count, err)
+					}
+				}
+			})
+			b.Run("count-forced-index", func(b *testing.B) {
+				query, args := (RequestQuery{Limit: 50, HideAdjacentCanceled: true}).count()
+				query = strings.Replace(query, "FROM request_events WHERE", "FROM request_events INDEXED BY request_events_time WHERE", 1)
+				for b.Loop() {
+					reader, err := readDatabaseFile(storagePath(root))
+					if err != nil {
+						b.Fatal(err)
+					}
+					var total int64
+					err = reader.QueryRowContext(b.Context(), query, args...).Scan(&total)
+					closeErr := reader.Close()
+					if err != nil || closeErr != nil || total != int64(size/2) {
+						b.Fatalf("original count plan: %d %v", total, err)
+					}
+				}
+			})
+		})
+	}
+}
 
 func BenchmarkRequestHistoryQueries(b *testing.B) {
 	root := b.TempDir()

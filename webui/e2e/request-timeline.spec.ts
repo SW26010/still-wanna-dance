@@ -4,6 +4,60 @@ import {navigate} from './navigation';
 
 const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
 
+test('slow history counts do not block pages and are reused across live refresh, sort and paging',async({page})=>{
+  const api=await mockAPI(page);let counts=0,reads=0,release!:()=>void,fail=false;
+  const pending=new Promise<void>(resolve=>{release=resolve;});
+  await page.route('**/api/history/count?*',async route=>{
+    const read=++counts;
+    if(read===1)await pending;
+    await route.fulfill(fail?{status:500,body:'failed'}:{json:{storageID:'fixture',total:read===1?51:52,countedAt:Date.now()}});
+  });
+  await page.route('**/api/history?*',route=>{reads++;const next=!!new URL(route.request().url()).searchParams.get('cursor');return route.fulfill({json:{storageID:'fixture',requests:[record(next?3:1)],hasMore:!next,nextCursor:next?'':'next'}});});
+  await page.goto('/#/timeline');
+  const total=page.getByRole('region',{name:'历史总数',exact:true}),pager=page.getByRole('navigation',{name:'历史分页',exact:true});
+  await expect(total).toContainText('正在统计总数…');
+  await expect(page.getByRole('button',{name:'请求 1 的明细',exact:true})).toBeVisible();
+  const before=reads;await api.historyChanged();await expect.poll(()=>reads).toBeGreaterThan(before);
+  await page.getByRole('button',{name:'下一页历史',exact:true}).click();
+  await expect(pager.getByRole('status')).toHaveText('第2页');
+  await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'按请求歌曲排序',exact:true}).press('Enter');
+  await expect(pager.getByRole('status')).toHaveText('第1页');
+  expect(counts).toBe(1);
+  release();await expect(total).toContainText('统计时共 51 条');
+  await total.getByText('统计时共 51 条',{exact:true}).focus();
+  await expect(page.getByRole('tooltip')).toContainText('列表自动更新不重算总数');
+  await page.keyboard.press('Escape');
+  const refresh=page.getByRole('button',{name:'刷新历史总数',exact:true});
+  fail=true;await refresh.click();await expect(total).toContainText('总数更新失败，当前显示上次统计。');
+  await expect(total).toContainText('统计时共 51 条');
+  await page.getByRole('button',{name:'下一页历史',exact:true}).click();await expect(pager).toContainText('第2页');
+  fail=false;await refresh.click();await expect(total).toContainText('统计时共 52 条');
+  expect(counts).toBe(3);
+});
+
+test('history count failures preserve paging and changed filters ignore late statistics',async({page})=>{
+  await mockAPI(page);let counts=0,release!:()=>void,finished!:()=>void;
+  const pending=new Promise<void>(resolve=>{release=resolve;}),done=new Promise<void>(resolve=>{finished=resolve;});
+  await page.route('**/api/history/count?*',async route=>{
+    const read=++counts;
+    if(read===1){await pending;await route.fulfill({json:{storageID:'fixture',total:999,countedAt:Date.now()}}).catch(()=>{});finished();}
+    else if(read===2)await route.fulfill({status:500,body:'failed'});
+    else await route.fulfill({json:{storageID:'fixture',total:1,countedAt:Date.now()}});
+  });
+  await page.route('**/api/history?*',route=>route.fulfill({json:{storageID:'fixture',requests:[record(1)],hasMore:true,nextCursor:'next'}}));
+  await page.goto('/#/timeline');await expect.poll(()=>counts).toBe(1);
+  await page.getByRole('checkbox',{name:'隐藏相邻中断请求',exact:true}).uncheck();
+  const total=page.getByRole('region',{name:'历史总数',exact:true});
+  await expect(total).toContainText('总数读取失败');
+  await page.getByRole('button',{name:'下一页历史',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'历史分页',exact:true})).toContainText('第2页');
+  release();await done;await expect(total).not.toContainText('999');
+  await page.getByRole('button',{name:'查询历史',exact:true}).click();
+  await expect(total).toContainText('统计时共 1 条');expect(counts).toBe(3);
+  await expect(page.getByRole('navigation',{name:'历史分页',exact:true})).toContainText('第1页');
+});
+
 test('request results explain terminal causes and preserve unknown legacy reasons',async({page},info)=>{
   await mockAPI(page);
   const cases=[
@@ -65,10 +119,10 @@ test('adjacent cancellation filter defaults on, resets pagination, and stays onl
   await expect(option).toHaveAccessibleDescription(explanation);
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
   await page.getByRole('button',{name:'下一页历史',exact:true}).click();
-  await expect(page.getByText('第2/2页 · 共 51 条',{exact:true})).toBeVisible();
+  await expect(page.getByText('第2页',{exact:true})).toBeVisible();
   await option.focus();await page.keyboard.press('Space');
   await expect(option).not.toBeChecked();await expect(option).toBeFocused();
-  await expect(canceled).toBeVisible();await expect(page.getByText('第1/2页 · 共 52 条 · 自动刷新',{exact:true})).toBeVisible();
+  await expect(canceled).toBeVisible();await expect(page.getByText('第1页 · 自动刷新',{exact:true})).toBeVisible();
   expect(queries.at(-1)?.get('cursor')).toBe('');expect(queries.at(-1)?.get('hideAdjacentCanceled')).toBe('false');
   await navigate(page,'设置');await navigate(page,'历史');
   await expect(option).not.toBeChecked();await expect(canceled).toBeVisible();
@@ -135,7 +189,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   const result=populated?page.getByRole('link',{name:'ID 42',exact:true}):page.getByText('当前筛选条件下暂无请求记录。',{exact:true});
   await expect(result).toBeVisible();
   const pager=page.getByRole('navigation',{name:'历史分页',exact:true});
-  await expect(pager.getByRole('status')).toHaveText(populated?'第1/1页 · 共 1 条 · 自动刷新':'共 0 条 · 自动刷新');
+  await expect(pager.getByRole('status')).toHaveText('第1页 · 自动刷新');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),position=await table.boundingBox();
   await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeEnabled();
   await page.clock.fastForward(30100);await expect.poll(()=>latencyReads).toBe(2);expect(reads).toBe(1);
@@ -147,7 +201,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeDisabled({timeout:1000});
   expect(await table.boundingBox()).toEqual(position);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
-  await expect(pager).toContainText(`第1/1页 · 共 ${requests.length+1} 条`);
+  await expect(pager).toContainText('第1页 · 自动刷新');
 });
 
 test('paging during a background refresh ignores its late response',async({page})=>{
@@ -166,7 +220,7 @@ test('paging during a background refresh ignores its late response',async({page}
   await page.getByRole('button',{name:'下一页历史',exact:true}).click();
   await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
   release();await finished;
-  await expect(page.getByText('第2/2页 · 共 51 条',{exact:true})).toBeVisible();
+  await expect(page.getByText('第2页',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'请求 2 的明细',exact:true})).toHaveCount(0);
 });
 
@@ -250,14 +304,14 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.keyboard.press('Escape');
   for(let n=2;n<=12;n++){
     await page.getByRole('button',{name:'下一页历史',exact:true}).click();
-    await expect(page.getByText(`第${n}/13页 · 共 650 条`,{exact:true})).toBeVisible();
+    await expect(page.getByText(`第${n}页`,{exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:/^请求 \d+ 的明细$/})).toHaveCount(50);
   }
   await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
   const reads=queries.length;await page.clock.fastForward(5100);expect(queries).toHaveLength(reads);
-  await page.getByRole('button',{name:'上一页历史',exact:true}).click();await expect(page.getByText('第11/13页 · 共 650 条',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'上一页历史',exact:true}).click();await expect(page.getByText('第11页',{exact:true})).toBeVisible();
   await page.getByLabel('开始',{exact:true}).fill('2026-10-21T01:00');await page.getByLabel('结束',{exact:true}).fill('2026-10-22T01:00');
-  await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('第1/1页 · 共 50 条',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('第1页',{exact:true})).toBeVisible();
   expect(queries.at(-1)?.get('cursor')).toBe('');expect(Number(queries.at(-1)?.get('to'))-Number(queries.at(-1)?.get('from'))).toBe(86400000);expect(latencyReads).toBe(1);
   await page.getByRole('button',{name:'全部保留期',exact:true}).click();await expect.poll(()=>queries.at(-1)?.has('from')).toBe(false);
 });

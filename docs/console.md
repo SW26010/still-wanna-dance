@@ -397,6 +397,8 @@ Remove-Item Env:SWD_LIVE_UPSTREAM
 
 请求查询结果的 `songTitle` 是按已记录 `songID` 读取的当前曲库名称，无对应名称时为空；它不是请求时名称快照，不参与歌曲排序或游标。身份与展示规则见[历史身份与名称](webui-design.md#已有能力与共享资源展示)。
 
+`GET /api/history` 不返回全量总数；`GET /api/history/count?from=&to=&hideAdjacentCanceled=` 独立只读统计相同筛选下的精确 GET 数量，返回 `storageID`、`total` 和统计开始时间 `countedAt`（Unix 毫秒）。它不受排序、页大小或游标影响，沿用历史查询的鉴权、范围校验及相邻中断规则。列表按实际 `hasMore`／`nextCursor` 翻页；界面总数标明统计快照，同一筛选下的翻页、排序和实时列表更新复用该结果，详见[历史查询范围](webui-design.md#历史查询范围)。
+
 历史列表使用 `GET /api/history/events` 的 SSE 变更通知，刷新条件和交互统一见[历史查询范围](webui-design.md#历史查询范围)。原生 EventSource 不携带自定义 token 头；此入口沿用现有 SSE 的 Host、条款门禁、提供时的同源 Origin 与 Sec-Fetch-Site 检查，通知只含变化版本和关闭状态，明细仍通过已鉴权的查询接口读取。
 
 交付比例的分子只计成功写出的视频正文，分母来自实际 200／206 响应所采用的完整长度或 Content-Range。If-Range 未匹配而返回整视频时使用整视频长度，不按原始 Range 猜测；416 等错误正文、HEAD、304 无适用比例。范围未知时返回 NULL。完成、客户端取消、失败、传输不完整和原因未确定的中止独立保存；交付完成不证明客户端已收到或播放。

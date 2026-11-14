@@ -57,7 +57,7 @@ func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/api/history", "/api/latency", "/api/response-sources"} {
+	for _, path := range []string{"/api/history", "/api/history/count", "/api/latency", "/api/response-sources"} {
 		for _, tc := range []struct {
 			query, token, origin string
 			status               int

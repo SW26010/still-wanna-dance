@@ -67,7 +67,7 @@ test('history sorting resets the cursor, keeps keyboard focus and suspends live 
   const table=page.getByRole('table',{name:'请求历史列表'}),pager=page.getByRole('navigation',{name:'历史分页'});
   await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
   await page.getByRole('button',{name:'下一页历史',exact:true}).click();
-  await expect(pager).toContainText('第2/2页 · 共 54 条');
+  await expect(pager).toContainText('第2页');
   const song=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
   await song.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>queries.at(-1)?.get('cursor')).toBe('');

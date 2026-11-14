@@ -74,13 +74,13 @@ Closing the browser leaves acceleration and queue preloading running. Reopen the
 
 **Can I play completely offline?** If a song mapping and usable local file already exist, SWD can serve the video locally. This is not a complete offline mode; missing videos and other game functions may still need the network.
 
-**Why does it say connected when the game is not playing?** Backend connection status means the WebUI can reach SWD; game connection status means routing is configured. Neither proves successful in-game playback. If no request arrives after setup, try rejoining the world or restarting VRChat to refresh DNS, and check the network page.
+**How can I confirm the game is using SWD?** Start acceleration, request a song in the game, and look for its playback requests in Video Demands or History. Backend connection status means the WebUI can reach SWD; game connection status means routing is configured. If no request arrives, try rejoining the world or restarting VRChat to refresh DNS. If requests arrive but downloading is slow, check the upstream connection on the Network page.
 
 **Is the video budget a hard disk limit?** No. It governs retention of complete videos. Temporary blocks, the database, videos in use, and favorites with retention enabled can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
 
 **How much space should I allocate?** Choose a budget that fits your disk. Once retention is enabled, frequently requested songs will build up over time. The [historical storage study](docs/research/cache-priority.md) explores capacity and coverage; its coverage figures are not measured playback speedups.
 
-Game validation records cover cold and local playback, queue handoffs, multiplayer synchronization, and routing restoration on exit. See the [validation records](docs/live-acceptance-backlog.md) for tested builds, results, and limitations. Performance still depends on the upstream service, your network, and the player.
+[Game validation records](docs/live-acceptance-backlog.md) cover cold and local playback, queue handoffs, multiplayer synchronization, and routing restoration on exit. SWD reduces waiting through preloading and local reuse. Downloading new videos depends on available network bandwidth and upstream delivery; decoding and in-game playback controls belong to the player.
 
 ## Help and contribute
 

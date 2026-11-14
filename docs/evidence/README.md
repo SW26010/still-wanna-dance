@@ -16,9 +16,9 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 2026-11-13 [黑屏加载中手动刷新](../acceptance/live-acceptance-20261113-07.md)：[清单](live-20261113-07/manifest.json)、[逐请求与点击时间线](live-20261113-07/midbody.json)。504 后点击只有按钮日志，没有即时重载回调；下一次重试与原自动周期重叠。恢复后追上进度，不归因于按钮单独作用。
 
-2026-11-13 [非 owner 正式播放截止恢复](../acceptance/live-acceptance-20261113-06.md)：[清单](live-20261113-06/manifest.json)、[中途截止与追赶](live-20261113-06/midbody.json)。9760 自动恢复，Range 从 16 MiB 前跳到约 37.5 MB，WD 同步约 126 秒，用户确认追上；不抹去 owner 失败。
+2026-11-13 [非 owner 正式播放截止恢复](../acceptance/live-acceptance-20261113-06.md)：[清单](live-20261113-06/manifest.json)、[中途截止与追赶](live-20261113-06/midbody.json)。9760 自动恢复，Range 从 16 MiB 前跳到约 37.5 MB，WD 同步约 126 秒，用户确认追上；与下条 WD owner 重载后重置进度的观察分别记录。
 
-2026-11-13 [正式开播后正文截止与进度重置](../acceptance/live-acceptance-20261113-05.md)：[清单](live-20261113-05/manifest.json)、[206 中途截止、Range 与 WD 时钟](live-20261113-05/midbody.json)。8771 缺块截止后非零续读，WD 同步目标继续推进；报错重试后 owner 重设时间轴为零。**恢复原进度未通过**，与 HTTP 恢复分开，根因与实现责任未确定。
+2026-11-13 [正式开播后供数恢复与 WD 进度重置](../acceptance/live-acceptance-20261113-05.md)：[清单](live-20261113-05/manifest.json)、[206 中途截止、Range 与 WD 时钟](live-20261113-05/midbody.json)。8771 缺块截止后非零续读，恢复带宽后完成供数；WD 报错重试后 owner 分支重设时间轴为零。2026-11-15 [复核](../validation/release-functional-diagnosis-20261115.md)未发现 SWD 请求处理缺陷，进度重置按世界播放器行为记录，不作为 SWD 发布阻塞。
 
 2026-11-13 [正式播放与 WD 重试](../acceptance/live-acceptance-20261113-04.md)：[清单](live-20261113-04/manifest.json)、[WD 事件与逐请求 Range](live-20261113-04/formal-retries.json)。2502 正式冷加载中 WD 每约 30 秒重试，WMF 在 SWD 截止后仍从零 Range 重请求；恢复带宽并收到正文后出现非零 Range，正式开播音画正常。尚非已开播中途截止或多人同步样本。
 

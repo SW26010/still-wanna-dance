@@ -1,6 +1,7 @@
 import { Link, Subtitle2, Title2, Tooltip } from '@fluentui/react-components';
 import type { PropsWithChildren } from 'react';
 import { Panel, pageHref, sectionHref } from './ui';
+import { DiagnosticExport } from './diagnostic-export';
 
 function Term({children,description}:PropsWithChildren<{description:string}>) {
   return <Tooltip content={description} relationship="description"><span className="help-term" tabIndex={0}>{children}</span></Tooltip>;
@@ -52,7 +53,8 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
       </ul>
     </Panel>
     <Panel id="help-paths" title="反馈问题">
-      <p>问题仍未解决时，提供<Link href={pageHref('about')}>版本信息</Link>、出错时间和日志。日志级别可在<Link href={sectionHref('preferences')}>常规设置</Link>调整。分享前隐藏个人路径、代理信息和带签名的视频地址，请勿分享配置文件中的密码。</p>
+      <p>遇到问题时，可下载诊断包用于反馈，包含版本信息、所选时间段的请求历史及 SWD、VRChat 日志。日志级别可在<Link href={sectionHref('preferences')}>常规设置</Link>调整。</p>
+      <DiagnosticExport/>
     </Panel>
   </article>;
 }

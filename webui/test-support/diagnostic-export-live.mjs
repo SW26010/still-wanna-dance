@@ -1,0 +1,56 @@
+import {chromium,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+import {join} from 'node:path';
+const [baseURL,output]=process.argv.slice(2);
+await mkdir(output,{recursive:true});
+const browser=await chromium.launch({channel:process.platform==='win32'?'msedge':'chromium'});
+try {
+ const page=await browser.newPage({viewport:{width:1280,height:900}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(baseURL+'/#/help');
+ const dialog=page.getByRole('region',{name:'收集诊断信息'});
+ await expect(dialog).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
+ const hours=dialog.getByRole('spinbutton',{name:'最近小时数'});
+ await expect(hours).toHaveValue('24');
+ const from=dialog.getByLabel('开始时间'),to=dialog.getByLabel('结束时间');
+ const left=await from.boundingBox(),middle=await to.boundingBox(),right=await hours.boundingBox();
+ expect(Math.abs(left.y-middle.y)).toBeLessThan(2);expect(left.x).toBeLessThan(middle.x);expect(middle.x+middle.width).toBeLessThan(right.x);
+ await dialog.screenshot({path:join(output,'form-desktop.png')});
+ expect(new Date(await to.inputValue())-new Date(await from.inputValue())).toBe(86400000);
+ await hours.fill('2');await hours.blur();
+ expect(new Date(await to.inputValue())-new Date(await from.inputValue())).toBe(7200000);
+ await dialog.getByRole('button',{name:'增加最近小时数',exact:true}).click();await expect(hours).toHaveValue('3');
+ await hours.fill('24');await hours.blur();
+ for(const name of ['blank','note']) {
+  if(name==='note')await dialog.getByLabel('问题说明（可选）').fill('播放中断，随后恢复');
+  const downloaded=page.waitForEvent('download');await dialog.getByRole('button',{name:'下载诊断包',exact:true}).click();
+  const download=await downloaded;expect(await download.failure()).toBeNull();await download.saveAs(join(output,name+'.zip'));
+  await expect(dialog.getByText('诊断包已生成，已交给浏览器下载。',{exact:true})).toBeVisible();
+ }
+ await to.fill(await from.inputValue());await dialog.getByRole('button',{name:'下载诊断包',exact:true}).click();
+ await expect(dialog.getByText(/请选择有效的起止时间/)).toBeVisible();
+ await page.screenshot({path:join(output,'desktop.png')});
+ await page.setViewportSize({width:320,height:640});
+ await dialog.getByRole('button',{name:'下载诊断包',exact:true}).scrollIntoViewIfNeeded();
+ await expect(dialog.getByRole('button',{name:'下载诊断包',exact:true})).toBeInViewport();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:join(output,'narrow.png')});
+ await expect(hours).toHaveValue('');
+ await hours.fill('0');await dialog.getByRole('button',{name:'下载诊断包',exact:true}).click();
+ await expect(dialog.getByText('请输入有效的最近小时数，必须大于 0。',{exact:true})).toBeVisible();
+ await hours.fill('24');await hours.blur();
+ const gates=[Promise.withResolvers(),Promise.withResolvers()],arrivals=[Promise.withResolvers(),Promise.withResolvers()];
+ let requestIndex=0;
+ await page.route('**/api/diagnostics/export',async route=>{const index=requestIndex++;arrivals[index].resolve();await gates[index].promise;await route.fulfill({status:503,body:'fixture failure'}).catch(()=>{});});
+ const requested=arrivals[0].promise;
+ await dialog.getByRole('button',{name:'下载诊断包',exact:true}).click();await requested;
+ const cancel=dialog.getByRole('button',{name:'取消',exact:true});await cancel.focus();await page.keyboard.press('Enter');
+ await expect(dialog.getByRole('button',{name:'下载诊断包',exact:true})).toBeFocused();
+ gates[0].resolve();
+ const next=arrivals[1].promise;
+ await dialog.getByRole('button',{name:'下载诊断包',exact:true}).click();await next;
+ await cancel.focus();const settings=page.getByRole('link',{name:'常规设置',exact:true});await settings.focus();gates[1].resolve();
+ await expect(dialog.getByText('fixture failure',{exact:true})).toBeVisible();await expect(settings).toBeFocused();
+ await page.unrouteAll({behavior:'wait'});
+ expect(errors).toEqual([]);console.log('PASS: real Console ZIP downloads, 24h default, optional note, validation, 320px layout, inline recent-hours shortcut');
+} finally {await browser.close();}

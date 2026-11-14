@@ -20,6 +20,8 @@ export function Home({visible}: {visible:boolean}) {
   const needsExitPreparation=s.activeSettings.restoreHostsOnStopOrExit && s.hosts.managed && !s.hosts.exitRestorePrepared;
   const connectionError=a.connectionError||(s.hosts.conflict?s.hosts.message:'');
   const connectionReason=connectionError||(needsExitPreparation?'尚未取得恢复权限，停止或退出时无法恢复直连。':'');
+  const reasonIncludesHosts=!!s.hosts.message&&connectionReason.includes(s.hosts.message);
+  const connectionDescription=[s.hosts.message&&`hosts：${reasonIncludesHosts?connectionReason:s.hosts.message}`,!reasonIncludesHosts?connectionReason:'',!s.hosts.ready&&!connectionReason?activationPermissionHint:''].filter(Boolean).join(' ');
   const connectionPhase=uncertain?'待确认':s.hosts.conflict?'接入冲突':connectionError?(s.hosts.ready?'需检查':'接入失败'):needsExitPreparation?'需检查':s.hosts.ready?'已接入':a.phase==='hosts'?'接入中':'未接入';
   const portError=s.running?'':[!s.portOK&&`HTTP 80 端口${portState(s.portOK,s.portOwner)}`,!s.httpsPortOK&&`HTTPS 443 端口${portState(s.httpsPortOK,s.httpsPortOwner)}`].filter(Boolean).join('；');
   const serviceError=s.cdnError||portError;
@@ -36,7 +38,7 @@ export function Home({visible}: {visible:boolean}) {
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={accelerationAction} relationship="label"><Button className="acceleration-action" appearance="secondary" size="large" icon={s.running?<Stop20Filled aria-hidden="true"/>:<Play20Filled aria-hidden="true"/>} aria-label={accelerationAction} disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}/></Tooltip></div>
       <div className="toolbar condition-strip">
-        <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||(s.hosts.ready?'':activationPermissionHint)} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
+        <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionDescription} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
         <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceReason} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>
         <StatusBadge label="房间队列" description={uncertain?unknownReason:queueReason} color={uncertain?'informative':queueFailed?'danger':queueError?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge>
       </div>

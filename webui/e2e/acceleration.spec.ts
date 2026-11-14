@@ -74,6 +74,7 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   const connection=page.getByRole('status',{name:'游戏连接',exact:true});
   await expect(connection).toHaveText('游戏连接：需检查');await connection.hover();
   const popup=page.getByRole('group',{name:'游戏连接说明',exact:true});
+  await expect(popup).toContainText('hosts：已配置');
   await expect(popup).toContainText('尚未取得恢复权限，停止或退出时无法恢复直连。');
   await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('restore-permission.png'),animations:'disabled'});

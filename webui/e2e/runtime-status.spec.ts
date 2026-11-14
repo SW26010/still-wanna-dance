@@ -42,6 +42,7 @@ for(const [width,theme,cause] of [[1280,'light','polling'],[390,'dark','storage'
 
 for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,'light',true]] as const)test(`runtime states share Fluent status styling at ${width}px ${theme}`,async({page},info)=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};
+  api.state.hosts.message='播放 API 已接入本地；资源域名由 API 返回。';
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme,forcedColors:forced?'active':'none'});await page.goto('/#/home');await healthy(page);
   await expect(page.locator('.condition-strip [role="status"]')).toHaveText(['游戏连接：已接入','视频服务：运行中','房间队列：监控中']);
   const styles=[];
@@ -58,6 +59,14 @@ for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,
   await page.screenshot({path:info.outputPath('service-ports.png'),animations:'disabled'});
   await page.keyboard.press('Escape');await expect(tip).toBeHidden();
   await page.mouse.move(0,0);await service.focus();await expect(tip).toContainText('HTTPS 443');
+  await page.keyboard.press('Escape');await expect(tip).toBeHidden();
+  const connection=badge(page,'游戏连接');
+  await connection.hover();await expect(tip).toHaveText(`hosts：${api.state.hosts.message}`);
+  await expect(connection).toHaveAccessibleDescription(`hosts：${api.state.hosts.message}`);
+  const box=(await tip.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+  await page.screenshot({path:info.outputPath('connection-hosts.png'),animations:'disabled'});
+  await page.keyboard.press('Escape');await expect(tip).toBeHidden();
+  await page.mouse.move(0,0);await connection.focus();await expect(tip).toHaveText(`hosts：${api.state.hosts.message}`);
   await page.keyboard.press('Escape');await expect(tip).toBeHidden();
 });
 
@@ -81,8 +90,21 @@ test('failed polling invalidates running badges and recovery restores them',asyn
 
 test('conflicts, inactive services and startup have distinct semantic colors',async({page},info)=>{
   const api=await mockAPI(page);api.state.hosts.conflict=true;api.state.queue={desired:true,running:false};
+  api.state.hosts.message='发现已有冲突映射，请先检查 hosts；不会覆盖其他程序的配置。';
+  const connectionError=`接入检查失败：${api.state.hosts.message}`;
+  await page.route('**/api/activation/enable',route=>{
+    api.state.activation={phase:'failed',error:connectionError,connectionError};
+    return route.fulfill({status:400,json:{error:connectionError}});
+  });
   await page.clock.install();await page.goto('/#/home');
   await expect(badge(page,'后台程序')).toHaveText('后台程序：已连接');await expect(badge(page,'游戏连接')).toHaveText('游戏连接：接入冲突');
+  const connection=badge(page,'游戏连接'),tip=page.getByRole('tooltip');
+  await connection.hover();await expect(tip).toHaveText(`hosts：${api.state.hosts.message}`);
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  await page.getByRole('button',{name:'开始加速',exact:true}).click();
+  await connection.hover();await expect(tip).toHaveText(`hosts：${connectionError}`);
+  await expect(connection).toHaveAccessibleDescription(`hosts：${connectionError}`);
+  await page.keyboard.press('Escape');await page.mouse.move(0,0);
   await expect(badge(page,'视频服务')).toHaveText('视频服务：未运行');
   await badge(page,'视频服务').focus();
   await expect(page.getByRole('tooltip')).toContainText('HTTP 80 端口可用；HTTPS 443 端口可用');
@@ -171,8 +193,12 @@ test('connection retry clears its reason and unknown status does not expose stal
   await expect(connection).toHaveText('游戏连接：待确认');await connection.focus();
   await expect(page.getByRole('tooltip')).toContainText('当前无法确认程序状态');
   await expect(page.getByRole('tooltip')).not.toContainText('授权已取消');
+  await expect(page.getByRole('tooltip')).not.toContainText('hosts：');
   await page.unroute('**/api/status');await page.clock.fastForward(5100);
+  api.state.hosts.message='播放 API 已接入本地；资源域名由 API 返回。';
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(connection).toHaveText('游戏连接：已接入');expect(await background(connection)).not.toBe(failedColor);
-  await expect(connection).toHaveAccessibleDescription('');
+  await connection.focus();
+  await expect(connection).toHaveAccessibleDescription(`hosts：${api.state.hosts.message}`);
+  await expect(page.getByRole('tooltip')).not.toContainText('授权已取消');
 });

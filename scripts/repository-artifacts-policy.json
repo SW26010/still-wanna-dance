@@ -1942,6 +1942,13 @@
       "bytes": 1298731,
       "sha256": "6c84f3c041eb18871af9b981a5b48a786f98a10763ba7b6f242c438546be6dd1",
       "reason": "Production WebUI presents help in five standard single-column Panel cards while retaining content and links. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1316142,
+      "sha256": "dada1fa08a0b3b1e0bfe54246bc7b490577648f0e0242f433c3839ab8b5e4685",
+      "reason": "Production WebUI shows a secondary-text note below each download and cache field group and anchors numeric explanations to content-sized fields instead of full grid columns. Generated offline bundle matches webui/build-manifest.json."
     }
   ]
 }

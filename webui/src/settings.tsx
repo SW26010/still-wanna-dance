@@ -126,7 +126,7 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     fieldError:name=>{const input=formRef.current?.elements.namedItem(name);return isInput(input)?inputError(input):'';},
     hasField:name=>!!formRef.current?.elements.namedItem(name),focus:focusInvalid,
   }),[editor.registerForm,editor.selectTab,section]);
-  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, unit?: string, hint?: string) => <ValidationField name={key} label={label} hint={hint}><NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} /></ValidationField>;
+  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, description: string, unit?: string) => <Tooltip content={description} relationship="description">{({ref,...trigger})=><div {...trigger} className="settings-number-field" ref={ref as Ref<HTMLDivElement>}><ValidationField name={key} label={label}><NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} /></ValidationField></div>}</Tooltip>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
   const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
   const restartHint=restartNeedsSaving
@@ -160,16 +160,16 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
       <DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={editor.pathPending}/></fieldset>
       <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
-      {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64)}
-      {numberField('downloadGrowIntervalMS','并发增长间隔',0,2000,'毫秒')}
-      </div></fieldset>
+      {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64,'普通下载的并发上限；播放正在等待的数据可突破此限制。')}
+      {numberField('downloadGrowIntervalMS','并发增长间隔',0,2000,'有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。','毫秒')}
+      </div><Text size={200} className="secondary">通常无需调整，修改前请了解其影响。</Text></fieldset>
       <Divider /><fieldset disabled={disabled} aria-label="缓存"><legend className="inline">缓存<Text size={200} weight="regular" className="secondary" aria-live="polite">{cacheEstimate}</Text></legend>
       <StorageLocationFields section="cache" editor={editor} />
       <div className="settings-columns">
-      {numberField('prepareAheadSeconds','提前准备时间',100,16000,'秒')}
-      {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'秒','需求结束后继续保留缓存。')}
+      {numberField('prepareAheadSeconds','提前准备时间',100,16000,'提前为预计即将使用的视频数据安排下载。','秒')}
+      {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'需求结束后继续保护缓存的时间；设为 0 时不延续保护。','秒')}
       </div>
-      </fieldset></>}
+      <Text size={200} className="secondary">通常无需调整，修改前请了解其影响。</Text></fieldset></>}
     </form></Panel></FieldErrors.Provider></FieldIssues.Provider>;
   return children(form,actions);
 }

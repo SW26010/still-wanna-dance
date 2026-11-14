@@ -327,6 +327,7 @@ form.actions { align-items: flex-end; }
 
 .settings-columns { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,22rem),1fr)); align-items: start; gap: var(--spacingHorizontalXXL); }
 .settings-columns > * { min-width: 0; }
+.settings-number-field { justify-self: start; max-width: 100%; }
 .settings-columns .panel { margin: 0; }
 .settings-form .fui-Field { max-width: 100%; }
 .settings-form fieldset { gap: var(--spacingVerticalM); }

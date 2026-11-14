@@ -3,13 +3,40 @@ import {test,expect} from '@playwright/test';
 import {mockAPI} from './api';
 
 test('download settings validate bounds, preserve zero without recommendation hints',async({page},testInfo)=>{
+  await page.setViewportSize({width:1440,height:1000});
   const api=await mockAPI(page);await page.goto('/#prepareAheadSeconds');
   const limit=page.getByRole('spinbutton',{name:'同时下载数量'});
   const interval=page.getByRole('spinbutton',{name:'并发增长间隔（毫秒）'});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
   await expect(limit).toHaveValue('16');await expect(interval).toHaveValue('250');
-  await expect(limit).toHaveAccessibleDescription('');
-  await expect(interval).toHaveAccessibleDescription('');
+  const notice='通常无需调整，修改前请了解其影响。';
+  await expect(page.getByText(notice,{exact:true})).toHaveCount(2);
+  for(const name of ['下载','缓存'])await expect(page.getByRole('group',{name,exact:true}).getByText(notice,{exact:true})).toBeVisible();
+  await expect(page.getByRole('group',{name:'队列预加载',exact:true}).getByText(notice,{exact:true})).toHaveCount(0);
+  for(const width of [1440,320]){
+  await page.setViewportSize({width,height:1000});
+  for(const [label,name,description] of [
+    ['同时下载数量','同时下载数量','普通下载的并发上限；播放正在等待的数据可突破此限制。'],
+    ['并发增长间隔','并发增长间隔（毫秒）','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
+    ['提前准备时间','提前准备时间（秒）','提前为预计即将使用的视频数据安排下载。'],
+    ['延续保护时间','延续保护时间（秒）','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
+  ]){
+    const input=page.getByRole('spinbutton',{name,exact:true});
+    await expect(input).toHaveAccessibleDescription(description);
+    await expect(page.getByText(description,{exact:true})).not.toBeVisible();
+    await page.getByText(label,{exact:true}).hover();
+    await expect(page.getByRole('tooltip')).toHaveText(description);
+    const controlBox=(await input.boundingBox())!,tooltipBox=(await page.getByRole('tooltip').boundingBox())!;
+    expect(tooltipBox.x,'tooltip stays beside the hovered field').toBeLessThan(controlBox.x+controlBox.width);
+    expect(tooltipBox.x+tooltipBox.width).toBeGreaterThan(controlBox.x);
+    if(label==='同时下载数量')await page.screenshot({path:testInfo.outputPath(`download-tooltip-${width}.png`)});
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+    await page.mouse.move(0,0);await input.focus();
+    await expect(page.getByRole('tooltip')).toHaveText(description);
+    await page.keyboard.press('Escape');await input.blur();
+  }
+  }
+  await page.setViewportSize({width:1440,height:1000});
   for(const [input,values,reset] of [[limit,['0','65','1.5'],'16'],[interval,['-1','2001','0.5'],'250']] as const){
     for(const value of values){
       await input.fill(value);await save.click();
@@ -41,7 +68,7 @@ test('local protection grace preserves zero, validates bounds and waits for rest
   const estimate=page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary');
   await expect(estimate).toHaveText('预计 190.73 MiB');
   await expect(grace).toHaveValue('300');
-  await expect(grace).toHaveAccessibleDescription('需求结束后继续保留缓存。');
+  await expect(grace).toHaveAccessibleDescription('需求结束后继续保护缓存的时间；设为 0 时不延续保护。');
   for(const value of ['-1','10001','0.5']){
     await grace.fill(value);await expect(estimate).toBeEmpty();await save.click();
     expect(api.calls.filter(c=>c.path==='settings')).toHaveLength(0);
@@ -84,7 +111,7 @@ test('cleared download numbers show defaults and save defaults while preserving 
   }
   await navigateSettings(page,'常规');await navigateSettings(page,'下载与缓存');
   for(const [name] of fields)await expect(page.getByRole('spinbutton',{name,exact:true})).toHaveValue('');
-  await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveAccessibleDescription('');
+  await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveAccessibleDescription('提前为预计即将使用的视频数据安排下载。');
   await expect(page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary')).toHaveText('预计 190.73 MiB');
   await page.setViewportSize({width:390,height:1000});
   await page.locator('#download-settings').screenshot({path:info.outputPath('empty-defaults.png'),animations:'disabled'});

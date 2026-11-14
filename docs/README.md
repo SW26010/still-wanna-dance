@@ -30,6 +30,7 @@
 | 请求历史读取成本 | [计数与分页验证](validation/request-history-read-cost-20261115.md)记录长期保留导致分页超时的复现、独立统计快照、长计数的在线副本隔离与并发写入持久化回归，以及查询计划和真实 SQLite／Console／浏览器检查；现行规则见[历史查询范围](webui-design.md#历史查询范围) |
 | 库存维护与决策互斥 | [扫描临界区验证](validation/retention-scan-20261112.md)记录扫描阻塞偏好写入的复现、锁范围缩减及库存增量一致性检查 |
 | 临时块读取句柄 | [复用验证](validation/block-read-reuse-20261113.md)记录流读取／合并快照的重复开关复现、当前块句柄与文件引用生命周期、热缓存对照及基线已有的 Range 用例失败 |
+| HEAD 元数据与下载解耦 | [HEAD 验证](validation/head-metadata-20261115.md)记录冷 HEAD 多余回源、容量 503 的复现及元数据路径修复，包含普通／预览响应头和条件请求回归 |
 | Range 实体条件与测试同步 | [时序验证](validation/range-entity-timing-20261113.md)记录偶发 If-Match 断言的受控复现、冷启动与已建立实体的测试修正，以及整包和 race 通过结果 |
 | 视频导入进度保存 | [按项持久化验证](validation/video-import-progress-20261112.md)记录独立状态 SQLite、旧 JSON 迁移、回执和暂停恢复及线性写入检查；现行规则见[视频导入](video-import.md) |
 | 曲库封面与图片缓存 | [封面视图验证](validation/song-covers-20261111.md)记录分页加载顺序、四路上限、DNS／代理、缓存落盘及浏览器协作；现行规则见[曲库封面视图](webui-design.md#曲库封面视图)和[存储契约](storage.md) |

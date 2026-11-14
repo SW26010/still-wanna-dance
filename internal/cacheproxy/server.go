@@ -487,11 +487,12 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	}
 	log = log.With("resource_key", v.key)
 	log.Debug("HTTP 请求处理开始", "event_name", "request_started")
-	// Range only applies to GET. ServeContent also handles HEAD, so strip it here.
 	if r.Method == http.MethodHead {
-		r = r.Clone(r.Context())
-		r.Header.Del("Range")
-		r.Header.Del("If-Range")
+		if err := s.serveVideoHEAD(w, r, v); err != nil {
+			response.recordFailure(clientContext, err)
+			http.Error(w, "video metadata unavailable", cacheErrorStatus(err))
+		}
+		return
 	}
 	// Avoid unbounded multipart response amplification. Single ranges use net/http semantics.
 	if strings.Contains(r.Header.Get("Range"), ",") {
@@ -670,8 +671,7 @@ serveVideo:
 		http.Error(w, "cache unavailable", 500)
 		return
 	}
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("ETag", `"`+v.key+`"`)
+	setVideoHeaders(w, v.key)
 	w.Header().Set("X-SWD-Cache", f.source)
 	response.sources = &responseSourceCounter{reader: file.sources(s.cfg.BlockSize)}
 	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
@@ -807,8 +807,7 @@ func (w *streamResponseWriter) Write(p []byte) (int, error) {
 func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolReader) *streamResponseWriter {
 	defer stream.Close()
 	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone()}
-	pending.Header().Set("Content-Type", "video/mp4")
-	pending.Header().Set("ETag", `"`+v.key+`"`)
+	setVideoHeaders(pending, v.key)
 	pending.Header().Set("X-SWD-Cache", "MISS")
 	http.ServeContent(pending, r, v.path, time.Time{}, stream)
 	return pending

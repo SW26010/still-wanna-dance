@@ -165,12 +165,10 @@ func (p *previewRequest) nextAddress(ctx context.Context, s *Server, failed vide
 	return v, err
 }
 
-// HEAD is intentionally outside ServeHTTP: that legacy game path registers a
-// whole-resource demand even for HEAD. No engine is needed for preview metadata.
+// PreviewHeaders shares video headers without requiring a running engine.
+// Its caller has already checked the preview capability and local metadata.
 func PreviewHeaders(w http.ResponseWriter, target PreviewTarget) {
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("ETag", `"`+target.Resource+`"`)
-	w.Header().Set("Accept-Ranges", "bytes")
+	setVideoHeaders(w, target.Resource)
 	if target.Size > 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(target.Size, 10))
 	}

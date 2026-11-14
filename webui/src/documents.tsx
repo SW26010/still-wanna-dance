@@ -10,15 +10,15 @@ export function Documents() {
   return <DocumentLayout>{isDocumentPage(bootstrap.page)&&<DocumentContent page={bootstrap.page}/>}</DocumentLayout>;
 }
 export function DocumentContent({page,paths=bootstrap.paths || {}}:{page:DocumentPage;paths?:Record<string,string>}) {
-  return page==='about'?<About/>:page==='help'?<HelpContent paths={paths}/>:<Terms/>;
+  return page==='about'?<About paths={paths}/>:page==='help'?<HelpContent/>:<Terms/>;
 }
 function aboutTab(anchor:string) {return anchor.includes('help')?'help':anchor.includes('terms')?'terms':anchor.includes('licenses')?'licenses':'intro';}
 export function AboutPage({anchor,paths,onTabSelect,update,refreshUpdate,updateUnavailable}:{anchor:string;paths:Record<string,string>;onTabSelect:(anchor:string)=>void;update?:UpdateStatus;refreshUpdate:()=>void;updateUnavailable:boolean}) {
   const tab=aboutTab(anchor);
   return <><TabList style={{flexWrap:'wrap'}} selectedValue={tab} onTabSelect={(_,v)=>onTabSelect(({intro:'/about',help:'/help',terms:'/terms',licenses:'/licenses'} as Record<string,string>)[String(v.value)])} aria-label="关于内容"><Tab id="about-intro" aria-controls="about-panel" value="intro">介绍</Tab><Tab id="about-help" aria-controls="about-panel" value="help">使用帮助</Tab><Tab id="about-terms" aria-controls="about-panel" value="terms">用户协议</Tab><Tab id="about-licenses" aria-controls="about-panel" value="licenses">许可证与声明</Tab></TabList>
-    <div id="about-panel" role="tabpanel" aria-labelledby={'about-'+tab} tabIndex={0}>{tab==='intro'?<About heading="h2" update={update} refreshUpdate={refreshUpdate} updateUnavailable={updateUnavailable}/>:tab==='help'?<HelpContent paths={paths} heading={null}/>:tab==='terms'?<Terms heading="h2"/>:tab==='licenses'?<Panel title="许可证与第三方声明"><p>软件发行采用 GNU GPLv3，自有新贡献为 GPL-3.0-only；历史 MIT 授权仍有效。第三方组件按各自声明保留授权，软件许可不授予视频、音乐等内容的权利。</p><ul><li><Link href="/assets/webui/software-license.txt" target="_blank" rel="noopener">软件许可证原文</Link></li><li><Link href="/assets/webui/third-party-notices.txt" target="_blank" rel="noopener">程序第三方声明原文</Link></li><li><Link href="/assets/webui/webui-notices.txt" target="_blank" rel="noopener">WebUI 第三方声明原文</Link></li><li><Link href="/assets/webui/zashboard-notices.txt" target="_blank" rel="noopener">zashboard 与附带资源声明</Link></li></ul><p>发行包的 licenses/ 还包含实际构建工具链声明及 SOURCE.txt 对应源码说明。重新分发时保留整个目录；离线分发同时附上匹配的完整对应源码。</p></Panel>:null}</div></>;
+    <div id="about-panel" role="tabpanel" aria-labelledby={'about-'+tab} tabIndex={0}>{tab==='intro'?<About paths={paths} heading="h2" update={update} refreshUpdate={refreshUpdate} updateUnavailable={updateUnavailable}/>:tab==='help'?<HelpContent heading={null}/>:tab==='terms'?<Terms heading="h2"/>:tab==='licenses'?<Panel title="许可证与第三方声明"><p>软件发行采用 GNU GPLv3，自有新贡献为 GPL-3.0-only；历史 MIT 授权仍有效。第三方组件按各自声明保留授权，软件许可不授予视频、音乐等内容的权利。</p><ul><li><Link href="/assets/webui/software-license.txt" target="_blank" rel="noopener">软件许可证原文</Link></li><li><Link href="/assets/webui/third-party-notices.txt" target="_blank" rel="noopener">程序第三方声明原文</Link></li><li><Link href="/assets/webui/webui-notices.txt" target="_blank" rel="noopener">WebUI 第三方声明原文</Link></li><li><Link href="/assets/webui/zashboard-notices.txt" target="_blank" rel="noopener">zashboard 与附带资源声明</Link></li></ul><p>发行包的 licenses/ 还包含实际构建工具链声明及 SOURCE.txt 对应源码说明。重新分发时保留整个目录；离线分发同时附上匹配的完整对应源码。</p></Panel>:null}</div></>;
 }
-function About({heading='h1',update,refreshUpdate,updateUnavailable=false}:{heading?:'h1'|'h2';update?:UpdateStatus;refreshUpdate?:()=>void;updateUnavailable?:boolean}={}) {
+function About({paths,heading='h1',update,refreshUpdate,updateUnavailable=false}:{paths:Record<string,string>;heading?:'h1'|'h2';update?:UpdateStatus;refreshUpdate?:()=>void;updateUnavailable?:boolean}) {
   const build = bootstrap.build;
   const [checking,setChecking]=useState(false),[manualResult,setManualResult]=useState<UpdateStatus>();
   useEffect(()=>setManualResult(undefined),[update?.checkedAt]);
@@ -50,6 +50,7 @@ function About({heading='h1',update,refreshUpdate,updateUnavailable=false}:{head
       <dt>构建时间（UTC）</dt><dd>{build.builtAtUtc || '未记录'}</dd>
       <dt>目标平台</dt><dd>{build.target}</dd><dt>Go 工具链</dt><dd>{build.toolchain}</dd>
     </dl></Panel>}
+    <Panel title="文件位置"><dl className="detail-grid"><dt>配置文件</dt><dd>{paths.Config}</dd><dt>数据库</dt><dd>{paths.Database||'尚未指定'}</dd><dt>本地视频</dt><dd>{paths.Videos||'尚未指定'}</dd><dt>程序日志</dt><dd>{paths.Log}</dd></dl></Panel>
     <Panel title="特别感谢"><ul><li>华年忆梦</li><li>逻辑XR</li><li>小新喵</li></ul></Panel>
     <small>© 2026 Still Wanna Dance contributors. GNU GPLv3.</small></>;
 }

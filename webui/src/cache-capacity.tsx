@@ -23,7 +23,6 @@ export function StorageBudgetNotice({settings,usedBytes,checkedAt}: {settings:Pi
   const budget=settings.videoStorageMode==='none'?'不保留普通视频':settings.videoStorageMode==='unlimited'?'不限制':`预算 ${gib(settings.videoBudgetBytes)}`;
   return <div className="content-stack">
     <div className="inline secondary"><Tooltip relationship="description" content={<>
-      <p>仅统计已保存的完整视频。</p>
       <p>{usedBytes===undefined?'占用尚未取得，可在曲库概览检查本地视频。':`最后检查时间：${date(checkedAt)}`}</p>
     </>}><span tabIndex={0}>本地视频：已用 {usedBytes===undefined?'未知':gib(usedBytes)} / {budget}</span></Tooltip><Link href="#videoBudgetGiB">前往设置</Link></div>
   </div>;

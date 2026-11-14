@@ -465,7 +465,7 @@ test('query URL restores sorting, filters and pagination without moving tab focu
   await page.goBack();await expect(page).toHaveURL(url);
   await expect(page.getByRole('navigation',{name:'曲库分页'})).toContainText('第2/');
   await expect(filter).toHaveValue('missing');
-  await search.focus();await expect(page.getByRole('tooltip')).toContainText('id:2367');
+  await search.focus();await expect(search).toHaveAccessibleDescription('');
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
 });
 
@@ -613,7 +613,7 @@ test('compact rows, tooltip and operation feedback keep the table in place',asyn
   await expect(rows).toHaveCount(13);
   const before=await table.boundingBox();
   expect((await rows.nth(1).boundingBox())!.height).toBeLessThanOrEqual(72);
-  for(const [target,description] of [[table.getByRole('button',{name:'按需求分排序',exact:true}),'反映歌曲需求程度，真实分数随时间衰减；灰色为尚无需求记录的初始分数。'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'屏蔽会拒绝新的播放和下载请求']] as const){
+  for(const [target,description] of [[table.getByRole('button',{name:'按需求分排序',exact:true}),'反映歌曲需求程度。'],[table.getByRole('columnheader',{name:'偏好',exact:true}).getByText('偏好',{exact:true}),'屏蔽会拒绝新的播放和下载请求']] as const){
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
     await page.mouse.move(0,0);await target.focus();

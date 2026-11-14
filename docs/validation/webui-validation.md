@@ -2262,3 +2262,10 @@ TaskDialog 后续 DPI 适配及 200% 实测见 [2026-11-08 原生 DPI 验证](wi
 - TypeScript、生产构建、内嵌资源逐字节一致性、当前 bundle 精确登记和差异检查通过。失败与最终结果保存在忽略目录 `artifacts/cover-pagination-scroll/`：`before.log` 为提前滚动复现，`live.log` 为补齐绘制前检查之前的真实图片失败，`regression.log`、`final-regression.log`、`final-live.log` 和 `final-live/pagination/result.json` 为相应回归证据。
 
 重建 `bin/SWD.exe` 为 `dev-cover-pagination`，源码基于 `4b5f31ecbd6aced7ef25dfb6f27804027895bb6d` 加本轮工作区差异，身份为 development／dirty；UTC 构建时间 `2026-11-13T06:40:06.355Z`，Go 1.27.3、Windows amd64。产物 **60,312,064 字节**，SHA-256 为 `d427e498e7ef4922b9156fb2cbf3ceea00c790540109c04298cae76682033091`，构建及身份记录在同目录 `desktop-*`。只执行立即退出的 `-build-info`，未正常启动应用、改日常配置、启动游戏或修改 hosts；无需新增 VRC 验收项。源码、内嵌产物、回归及文档一并提交，不推送。
+
+
+## 2026-11-14 界面辅助文案精简
+
+按确认清单删除重复状态说明、历史来源口径、搜索悬停、导入空间原理和存储用途复述；保留视频服务端口说明、曲库覆盖率完整提示及操作后果和错误反馈。业务行为未变，内嵌资源已重建。
+
+前端 build/check 与差异检查通过。八个相关浏览器套件首轮 157/163 通过，六项失败均为仍期待已删除文案的旧断言；更新后定向复跑全部通过。另补查连接恢复及必要后果提示两项通过，合计 165 个不同用例通过。中间三项历史布局用例仍有重复 HTTP 文案断言，修正后再次通过；各轮证据分别保留于忽略目录 `artifacts/ui-copy-cleanup/`、`artifacts/ui-copy-cleanup-recheck/`、`artifacts/ui-copy-cleanup-final/`。使用隔离内存夹具与 Edge，不涉及 VRC 实机行为。

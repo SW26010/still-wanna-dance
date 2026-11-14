@@ -20,7 +20,7 @@ for(const theme of ['light','dark'] as const)test(`SOCKS5 service observations u
   await expect(panel.getByText('[::1]:1080',{exact:true})).toBeVisible();
   await expect(panel.getByText('saved.invalid:9999',{exact:true})).toHaveCount(0);
   await expect(panel.getByText('每 30 秒检查协商与认证，不连接外网目标。',{exact:true})).toHaveCount(0);
-  await expect(panel.getByText('协商与认证通过',{exact:true})).toBeVisible();
+  await expect(panel.getByText('协商与认证通过',{exact:true})).toHaveCount(0);
   await expect(panel).toContainText('12 ms');
   await expect(panel.locator('time').first()).toHaveAttribute('datetime',at);
   await expect(panel.locator('time').last()).toHaveAttribute('datetime',next);
@@ -33,7 +33,7 @@ for(const theme of ['light','dark'] as const)test(`SOCKS5 service observations u
   await expectWithClock(page,()=>panel.textContent()).toContain('服务：检查失败');
   await expect(panel.getByText('SOCKS5 用户名或密码未获接受',{exact:true})).toBeVisible();
   Object.assign(api.state.socks5Service,{state:'available',error:'',authenticated:false,latencyMS:8});
-  await expectWithClock(page,()=>panel.textContent()).toContain('协商通过，服务无需认证');
+  await expectWithClock(page,()=>panel.textContent()).toContain('服务：可用');
   await navigate(page,'曲库');await navigate(page,'网络');
   await expect(panel).toContainText('服务：可用');
   expect(api.calls.filter(c=>c.path.startsWith('network/')&&c.path.endsWith('/start'))).toHaveLength(0);

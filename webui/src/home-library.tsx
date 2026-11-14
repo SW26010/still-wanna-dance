@@ -26,7 +26,7 @@ export function Home({visible}: {visible:boolean}) {
   const serviceReason=[s.cdnError,`HTTP 80 端口${s.running?'：正在监听':portState(s.portOK,s.portOwner)}`,`HTTPS 443 端口${s.running?'：正在转发':portState(s.httpsPortOK,s.httpsPortOwner)}`].filter(Boolean).join('；');
   const queueFailed=!!q.desired&&!q.running&&!!s.actionErrors?.queue;
   const queueError=q.running?[q.logError,q.error].filter(Boolean).join('；'):queueFailed?s.actionErrors?.queue:'';
-  const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'房间队列监控未运行。');
+  const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'');
   const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';
   const accelerationAction=s.running?'停止加速':'开始加速';
@@ -36,7 +36,7 @@ export function Home({visible}: {visible:boolean}) {
         {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={accelerationAction} relationship="label"><Button className="acceleration-action" appearance="secondary" size="large" icon={s.running?<Stop20Filled aria-hidden="true"/>:<Play20Filled aria-hidden="true"/>} aria-label={accelerationAction} disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}/></Tooltip></div>
       <div className="toolbar condition-strip">
-        <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||activationPermissionHint} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
+        <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionReason||(s.hosts.ready?'':activationPermissionHint)} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
         <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceReason} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>
         <StatusBadge label="房间队列" description={uncertain?unknownReason:queueReason} color={uncertain?'informative':queueFailed?'danger':queueError?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge>
       </div>

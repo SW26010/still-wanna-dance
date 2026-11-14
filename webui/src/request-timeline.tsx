@@ -19,7 +19,6 @@ const milliseconds=(value:string)=>value?new Date(value).getTime():undefined;
 const deliveredBytes=(value:number)=>value<1e6?`${value.toLocaleString()} B`:mb(value);
 const ms=(value:number|null)=>value==null?'—':`${value.toLocaleString(undefined,{maximumFractionDigits:1})} ms`;
 
-const sourceExplanation='当前请求等过缺块的整块算下载，直接复用运行期块算缓存，读取已发布完整文件算本地视频。';
 function SourceShares({sources,details=false}:{sources:ResponseSources|null|undefined;details?:boolean}) {
   if(!sources)return <span>未知</span>;
   const total=sources.downloadBytes+sources.cacheBytes+sources.localBytes;
@@ -35,7 +34,7 @@ function ResponseSourceSummary({visible}:{visible:boolean}) {
   const sources=useResource<ResponseSources>('response-sources',visible&&!app.stopped,app.revision,30000,true);
   return (<section aria-label="响应来源统计">
       <div className={'inline history-summary '+styles.summary}>
-        <div className="inline history-summary-heading"><Tooltip content="统计全部已保留请求的响应来源。" relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应来源</Subtitle2></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
+        <div className="inline history-summary-heading"><Subtitle2 as="h2">响应来源</Subtitle2><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
         {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
       {sources.error&&<MessageBar intent="error"><MessageBarBody>来源统计读取失败，请重试。{sources.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
@@ -59,7 +58,7 @@ export function RequestTimeline({visible}:{visible:boolean}) {
     <section aria-label="响应时间">
       <div className={'inline history-summary '+styles.summary}>
         <div className="inline history-summary-heading"><Tooltip content="从收到请求到首次返回视频正文的时间" relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip><Tooltip content="刷新响应时间统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
-        {([['等待下载',latency.data?.blocking,'首字节前等待过缺失的视频块。'],['缓存／本地',latency.data?.ready,'首字节前直接读取可用的视频块或完整视频。']] as const).map(([name,g,hint])=><Tooltip key={name} content={`${hint} 有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
+        {([['等待下载',latency.data?.blocking],['缓存／本地',latency.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
       </div>
       <Notification message={visible&&latency.error?'响应时间统计读取失败，请重试。':undefined} error/>
     </section><section id="recent" className="content-stack" tabIndex={-1}>
@@ -100,7 +99,7 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
     {columnId:'resource',label:'视频资源',sortable:true,renderCell:r=>r.resource?<Tooltip content={<span className="resource-id">{r.resource}</span>} relationship="description"><Link className="resource-id" href={resourceHref(r.resource)}>{r.resource.length>12?r.resource.slice(0,12)+'…':r.resource}</Link></Tooltip>:'未知'},
     {columnId:'result',label:'结果',renderCell:r=><TableCellLayout description={`HTTP ${r.status||'未返回'}`}><Tooltip content={requestOutcomeDescription(r)} relationship="description"><span tabIndex={0}>{requestOutcome(r)}</span></Tooltip></TableCellLayout>},
     {columnId:'delivery',label:'交付',description:'已写出字节占本次响应范围的比例。',renderCell:r=><Tooltip content={`已写出 ${deliveredBytes(r.bytes)}${r.responseBytes!=null?` / 应交付 ${deliveredBytes(r.responseBytes)}`:' / 应交付未知'}`} relationship="description"><span tabIndex={0}>{r.responseBytes!=null&&r.responseBytes>0?`${(r.bytes/r.responseBytes*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:'—'}</span></Tooltip>},
-    {columnId:'sources',label:'来源',description:sourceExplanation,renderCell:r=><SourceShares sources={r.sources}/>},
+    {columnId:'sources',label:'来源',renderCell:r=><SourceShares sources={r.sources}/>},
     {columnId:'details',label:'',headerProps:{'aria-label':'详情'},className:'table-details-column',renderCell:r=><RecordDetails openOnHover title={`请求 ${r.id} 的明细`}><dl className="detail-grid"><dt>结果</dt><dd>{requestOutcome(r)} · {requestOutcomeDescription(r)}</dd>{r.songID&&<><dt>歌曲名称（当前曲库）</dt><dd>{r.songTitle||'未知名称'}</dd></>}<dt>请求范围</dt><dd>{r.range||'完整请求'}</dd><dt>处理耗时</dt><dd>{(r.elapsedMS/1000).toFixed(3)} 秒</dd><dt>首正文</dt><dd>{r.firstBodyNS==null?'未知':ms(r.firstBodyNS/1e6)} · {r.firstBodyBlocking==null?'分组未知':r.firstBodyBlocking?'Blocking':'缓存／本地'}</dd><dt>资源</dt><dd>{r.resource?<span className="resource-id">{r.resource}</span>:'未知'}</dd><dt>来源字节</dt><dd>{r.sources?`下载 ${deliveredBytes(r.sources.downloadBytes)} · 缓存 ${deliveredBytes(r.sources.cacheBytes)} · 本地视频 ${deliveredBytes(r.sources.localBytes)}`:'未知'}</dd></dl></RecordDetails>},
   ];
   return <div {...focus} tabIndex={-1} aria-label="历史查询结果" className="content-stack">

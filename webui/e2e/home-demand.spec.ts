@@ -56,7 +56,7 @@ test('home uses live demands and unique block counts without download polling or
   const before = await paints(); expect(before.axis).toBe(0); expect(before.rows).toBeGreaterThan(0);
   await expect(f.cache).toHaveText('缓存 —');
   await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
-  await expect(f.cache).toHaveAccessibleDescription('临时视频块文件总大小。');
+  await expect(f.cache).toHaveAccessibleDescription('');
   await f.emit('download-speed', { bytesPerSecond: 2000000 }); await expect(f.speed).toHaveText('1.91 MiB/s');
   await expect(f.speed).toHaveAccessibleName('总下载速度：1.91 MiB/s');
   await expect(f.speed).toHaveAccessibleDescription('切换为 Mbps');
@@ -225,7 +225,7 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
     expect.soft(new Set(row.borders).size, 'Demand row borders have equal thickness').toBe(1);
   };
   await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
-  await f.cache.focus(); await expect(page.getByRole('tooltip')).toContainText('临时视频块文件总大小');
+  await f.cache.hover(); await expect(f.cache).toHaveAccessibleDescription('');
   await page.keyboard.press('Escape'); await expect(page.getByRole('tooltip')).toBeHidden();
   const eventStatus = f.panel.locator('.block-demand-heading').getByRole('status');
   await expect(eventStatus).toHaveText('状态展示：更新中');

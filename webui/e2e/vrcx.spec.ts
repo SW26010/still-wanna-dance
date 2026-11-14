@@ -290,7 +290,7 @@ test('VRCX reads only on explicit preview and empty usage imports without overwr
 test('VRCX nonempty usage requires second confirmation and cancel leaves it untouched',async({page})=>{
   const {calls}=await fixture(page,3);await page.goto('/#/library');await page.locator('#vrcx-import').scrollIntoViewIfNeeded();await inspect(page);
   const action=page.getByRole('button',{name:'导入并覆盖…',exact:true});
-  await action.click();await expect(page.getByRole('dialog')).toContainText('不会与原统计累加');
+  await action.click();await expect(page.getByRole('dialog')).toContainText('导入将替换已有 3 首歌曲的需求统计。');
   await page.getByRole('button',{name:'取消',exact:true}).click();
   expect(calls.some(c=>c.path==='apply')).toBe(false);
   await expect(action).toBeFocused();

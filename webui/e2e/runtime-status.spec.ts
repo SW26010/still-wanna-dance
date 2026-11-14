@@ -174,6 +174,5 @@ test('connection retry clears its reason and unknown status does not expose stal
   await page.unroute('**/api/status');await page.clock.fastForward(5100);
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(connection).toHaveText('游戏连接：已接入');expect(await background(connection)).not.toBe(failedColor);
-  await connection.focus();await expect(page.getByRole('tooltip')).toContainText('可能请求 Windows 管理员授权');
-  await expect(page.getByRole('tooltip')).not.toContainText('授权已取消');
+  await expect(connection).toHaveAccessibleDescription('');
 });

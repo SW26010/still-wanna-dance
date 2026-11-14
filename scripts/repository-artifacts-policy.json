@@ -1956,6 +1956,13 @@
       "bytes": 1316283,
       "sha256": "a16bb25039d6cc072be307fdb738e4e5a21d8659e73ff1436e32e560d20c38a3",
       "reason": "Production WebUI includes the backend hosts status in the home game connection badge tooltip, deduplicates wrapped hosts reasons while preserving error context, and retains restore permission repair. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1318510,
+      "sha256": "137e908a3ed38ffa7cedf432543479499c9c4bff9d6f0139295dc1f3a4a9e723",
+      "reason": "Production WebUI adds an upstream selection help card for direct, external SOCKS5 and embedded Mihomo, with configuration, restart and diagnostics links. Generated offline bundle matches webui/build-manifest.json."
     }
   ]
 }

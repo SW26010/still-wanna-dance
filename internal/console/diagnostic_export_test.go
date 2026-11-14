@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -13,7 +14,92 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/upstreamcheck"
 )
+
+func TestDiagnosticOptionalCalibration(t *testing.T) {
+	if diagnosticCalibration(nil) != nil {
+		t.Fatal("missing diagnostics produced an attachment")
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	n := newNetworkDiagnostics(networkDiagnosticsOptions{Client: &http.Client{}, Calibration: upstreamcheck.CalibrationOptions{
+		Candidates: func(context.Context) upstreamcheck.CalibrationCandidates {
+			close(entered)
+			<-release
+			return upstreamcheck.CalibrationCandidates{}
+		},
+	}})
+	defer n.close()
+	defer close(release)
+	if diagnosticCalibration(n) != nil {
+		t.Fatal("idle diagnostics produced an attachment")
+	}
+	if err := n.controlCalibration(false); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("measurement did not enter preparation")
+	}
+	ready := make(chan []byte, 1)
+	go func() { ready <- diagnosticCalibration(n) }()
+	var data []byte
+	select {
+	case data = <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("snapshot waited for measurement")
+	}
+	var snapshot struct {
+		CollectedAt time.Time                       `json:"collectedAt"`
+		Scope       string                          `json:"scope"`
+		Status      upstreamcheck.CalibrationStatus `json:"status"`
+	}
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Status.Running || snapshot.Status.Run != 1 || snapshot.CollectedAt.IsZero() || snapshot.Scope == "" {
+		t.Fatal(snapshot)
+	}
+	dir := t.TempDir()
+	for _, attachment := range [][]byte{nil, data} {
+		var buffer bytes.Buffer
+		sources, err := writeDiagnosticArchive(t.Context(), &buffer, diagnosticRange{From: 1, To: 2}, filepath.Join(dir, "missing.sqlite"), dir, dir, attachment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := len(attachment) > 0
+		if want && len(sources) != 4 {
+			t.Fatal(sources)
+		}
+		if !want && len(sources) != 3 {
+			t.Fatal("missing measurement added a source", sources)
+		}
+		z, err := zip.NewReader(bytes.NewReader(buffer.Bytes()), int64(buffer.Len()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, f := range z.File {
+			if f.Name == "network-calibration.json" {
+				found = true
+				r, err := f.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				actual, err := io.ReadAll(r)
+				r.Close()
+				if err != nil || !bytes.Equal(actual, data) {
+					t.Fatal("snapshot changed", err)
+				}
+			}
+		}
+		if found != want {
+			t.Fatal("optional attachment", found, want)
+		}
+	}
+}
 
 func TestDiagnosticExportBrowser(t *testing.T) {
 	evidence := os.Getenv("SWD_DIAGNOSTIC_BROWSER_EVIDENCE")
@@ -92,7 +178,7 @@ func TestDiagnosticArchiveBoundariesAndPartialSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	var b bytes.Buffer
-	sources, err := writeDiagnosticArchive(t.Context(), &b, diagnosticRange{From: start.UnixMilli(), To: start.Add(time.Minute).UnixMilli(), Note: "用户观察"}, filepath.Join(dir, "missing.sqlite"), dir, dir)
+	sources, err := writeDiagnosticArchive(t.Context(), &b, diagnosticRange{From: start.UnixMilli(), To: start.Add(time.Minute).UnixMilli(), Note: "用户观察"}, filepath.Join(dir, "missing.sqlite"), dir, dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +207,7 @@ func TestDiagnosticArchiveBoundariesAndPartialSources(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, err := writeDiagnosticArchive(ctx, io.Discard, diagnosticRange{From: 1, To: 2}, "missing", dir, dir); err == nil {
+	if _, err := writeDiagnosticArchive(ctx, io.Discard, diagnosticRange{From: 1, To: 2}, "missing", dir, dir, nil); err == nil {
 		t.Fatal("cancellation ignored")
 	}
 }
@@ -141,6 +227,7 @@ func TestDiagnosticTimestampFormats(t *testing.T) {
 
 func TestDiagnosticExportAdmission(t *testing.T) {
 	c := testConsole(t)
+	diagnostics := c.networkDiagnostics
 	for _, tc := range []struct {
 		method, token string
 		from, to      int64
@@ -162,5 +249,8 @@ func TestDiagnosticExportAdmission(t *testing.T) {
 	}
 	if c.service != nil || c.httpServer != nil {
 		t.Fatal("export started services")
+	}
+	if c.networkDiagnostics != diagnostics {
+		t.Fatal("export initialized diagnostics")
 	}
 }

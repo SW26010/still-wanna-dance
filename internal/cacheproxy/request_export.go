@@ -12,7 +12,7 @@ func ExportRequestHistory(ctx context.Context, path string, from, to int64, w io
 	if err := (RequestQuery{From: from, To: to, Limit: 1}).Validate(); err != nil {
 		return 0, err
 	}
-	snapshot, cleanup, err := requestExportSnapshot(ctx, path)
+	snapshot, cleanup, err := temporaryStorageSnapshot(ctx, path)
 	if err != nil {
 		return 0, err
 	}

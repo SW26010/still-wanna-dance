@@ -23,7 +23,7 @@ func TestStorageSnapshotIncludesWALAndCleansUp(t *testing.T) {
 	if info, err := os.Stat(s.path + "-wal"); err != nil || info.Size() == 0 {
 		t.Fatal("no committed WAL", err)
 	}
-	path, cleanup, err := requestExportSnapshot(t.Context(), s.path)
+	path, cleanup, err := temporaryStorageSnapshot(t.Context(), s.path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestStorageSnapshotIncludesWALAndCleansUp(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, _, err := requestExportSnapshot(ctx, s.path); !errors.Is(err, context.Canceled) {
+	if _, _, err := temporaryStorageSnapshot(ctx, s.path); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 }

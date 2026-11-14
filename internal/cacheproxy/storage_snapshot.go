@@ -10,7 +10,7 @@ import (
 )
 
 // Copy through SQLite, including committed WAL contents. Each backup step holds
-// the source read lock for at most 128 pages; JSON/ZIP output only reads the copy.
+// the source read lock for at most 128 pages; long scans/output only read the copy.
 // The caller owns cleanup, including partially copied databases on failure.
 func snapshotStorageDatabase(ctx context.Context, path, destination string) error {
 	if err := ctx.Err(); err != nil {
@@ -53,8 +53,8 @@ func snapshotStorageDatabase(ctx context.Context, path, destination string) erro
 	})
 }
 
-func requestExportSnapshot(ctx context.Context, path string) (string, func(), error) {
-	dir, err := os.MkdirTemp("", "swd-diagnostic-db-*")
+func temporaryStorageSnapshot(ctx context.Context, path string) (string, func(), error) {
+	dir, err := os.MkdirTemp("", "swd-storage-snapshot-*")
 	if err != nil {
 		return "", nil, err
 	}

@@ -176,24 +176,30 @@ type RequestHistoryCount struct {
 	CountedAt int64  `json:"countedAt"`
 }
 
-// CountRequestHistory returns an exact filtered count from its own read
-// snapshot. It is independent of cursor, sort and page size, and must not run
-// on the live page refresh path. Large retained histories can take longer than
-// a page; failure or cancellation never prevents reading that page.
+// CountRequestHistory returns an exact filtered count from a private online
+// snapshot, releasing the business DB before the scan. It is independent of
+// cursor, sort and page size, and must not run on the live page refresh path.
+// Large retained histories can take longer than a page; failure or cancellation
+// never prevents reading that page.
 func CountRequestHistory(ctx context.Context, databasePath string, query RequestQuery) (RequestHistoryCount, error) {
 	result := RequestHistoryCount{StorageID: DatabaseID(databasePath)}
 	if err := query.Validate(); err != nil {
 		return result, err
 	}
-	db, err := readDatabaseFile(databasePath)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	result.CountedAt = time.Now().UnixMilli()
+	snapshot, cleanup, err := temporaryStorageSnapshot(ctx, databasePath)
+	if err != nil {
+		return result, err
+	}
+	defer cleanup()
+	db, err := readDatabaseFile(snapshot)
 	if err != nil {
 		return result, err
 	}
 	defer db.Close()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
 	count, args := query.count()
-	result.CountedAt = time.Now().UnixMilli()
 	err = db.QueryRowContext(ctx, count, args...).Scan(&result.Total)
 	return result, err
 }

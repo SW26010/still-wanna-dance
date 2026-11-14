@@ -52,3 +52,27 @@ pnpm --dir webui check
 最初沙箱内的三个 Console 定向测试报原子重命名 `The handle is invalid`，pnpm 报创建项目符号链接 `EPERM`；按[开发约定](../development.md#开发命令)在沙箱外普通用户权限下复验通过，仍使用临时目录入口，没有修改系统配置、hosts 或启动游戏。首次尝试的 Python 启动别名不可用，文本调整改用已安装 Node.js 完成。
 
 精确计数仍与筛选范围大小有关；本轮复用是页面内同筛选的统计快照，不承诺跨标签页或不同筛选共享计数。性能基准覆盖默认时间降序及相邻中断过滤；没有将这些结果外推至歌曲／资源全范围排序、极密集 HEAD 或其他硬件。本次没有新增必须依赖 VRC 的剩余验收项。
+
+## 计数与业务写入隔离补充修复
+
+上表中的独立计数仍在业务库的只读连接上执行；页面内复用结果没有隔离 SQLite 长读锁。300 万条约 2.26 秒的扫描仍可能超过默认 1 秒写锁等待，令收藏或请求批次提交失败。已有事务清理只保证失败连接不污染后续写入，不能挽回 `usage.run` 已丢弃的批次。
+
+新增 `TestHistoryCountAllowsPersistentBusinessWrites` 直接调用真实计数入口，在该次只读连接上用 TEMP view／SQLite 标量函数暂停扫描，保留原业务库结构与真实 SQLite 锁。写连接设 `busy_timeout=0`，将超时竞争缩成确定性断言；请求记录和热度均经过实际 `startGET`／`record`／`flush` 工作线程。修复前运行该测试，收藏报 `SQLITE_BUSY`，worker 的 3 项批次失败；同会话与关闭重开后，收藏、请求明细及歌曲需求均缺失，1.23 秒稳定复现。
+
+计数现与诊断导出共用 `temporaryStorageSnapshot`：在线备份完成并关闭源连接后，才在临时副本上扫描。复制与扫描共用原 30 秒预算，`storageID` 仍属于源库，`countedAt` 在复制开始前记录；不改筛选、计数 SQL、生产锁等待或业务库日志模式。临时空间和清理以[存储契约](../storage.md)为准。
+
+本次验证：
+
+- 最终并发回归连续三次通过（合计 1.353 秒），分别覆盖正常计数和受控 SQL 扫描失败。扫描保持暂停时，收藏、请求明细和 `demand_count=1`／`demand_score=1` 均提交成功，并在扫描结束前关闭重开确认持久化；正常计数仍只返回原快照的 1 条 GET，两个分支均清理整个临时副本目录。
+- 历史筛选、分页、排序、原身份、只读／取消、WAL 快照、导出与事务清理的 cacheproxy 定向回归通过（37.034 秒）；最终并发回归及相同存储／导出路径的 Windows race 通过（36.024 秒）。Console 历史 API 与事件回归首次被沙箱的 `The handle is invalid` 原子重命名错误阻断，沙箱外沿用隔离目录入口复验通过（1.145 秒）。两包 vet 通过；本次没有界面修改，未重复浏览器验收。
+- 独立复跑 `BenchmarkRequestHistoryRetained/3000000/count`，一次完整计数（含在线复制和扫描）约 **3.561 秒**，数量为 1,500,000。此单次合成样本只确认大库路径可完成，不与上表三次均值作严格性能对照，也不证明任意磁盘条件下无锁等待；并发写入由上述受控真实 SQLite 回归判断。
+- 探索时单行 UDF 内立即取消再释放的探针曾因驱动中断与返回竞争收到成功结果，改用确定的 SQL 错误分支检查失败清理；前置取消继续由已有检查覆盖。该探针输出与原始失败均保留，没有扩大产品取消语义。
+
+复跑入口：
+
+```powershell
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^TestHistoryCountAllowsPersistentBusinessWrites$' -count=3 -v
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^$' -bench '^BenchmarkRequestHistoryRetained$/^3000000$/^count$' -benchtime=1x -count=1 -v
+```
+
+原始输出位于忽略目录 `artifacts/history-count-writes/`（`before.log`、`after-final.log`、`regression.log`、`console-outside-sandbox.log`、`race.log`、`retained-3m.log` 和探索日志）。本次不新增 VRC 待验项，未推送。

@@ -72,7 +72,7 @@ test('help sections and direct anchors work without requiring a status connectio
   await mockAPI(page);
   await page.route('**/api/status',r=>r.fulfill({status:503,body:'offline'}));
   await page.goto('/help');
-  for(const name of ['开始使用','播放失败','空间不足与视频保留','停止与卸载','日志与当前路径']){
+  for(const name of ['启动与退出','视频加载不出来，先做什么？','留多少空间，哪些视频会保存？','备份与升级','反馈问题']){
     await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
   }
   await page.goto('/#help-paths');
@@ -117,4 +117,25 @@ test('failed exit permission preparation keeps the draft and original exit polic
   await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toContainText('退出后保留游戏接入');
+});
+
+for(const width of [320,1280])test(`help terms and task links work at ${width}px`,async({page},info)=>{
+  await mockAPI(page);await page.setViewportSize({width,height:900});
+  await page.emulateMedia({colorScheme:width===320?'dark':'light'});
+  await page.goto('/#/help');
+  const guide=page.locator('.help-guide');
+  for(const term of ['上游连接','SOCKS5','Mihomo','房间队列预加载','预计请求命中率','VRCX']){
+    const trigger=guide.locator('.help-term').getByText(term,{exact:true});
+    await trigger.hover();await expect(page.getByRole('tooltip')).toBeVisible();
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+    await page.mouse.move(0,0);await trigger.focus();await expect(page.getByRole('tooltip')).toBeVisible();
+    await expect(trigger).toHaveAccessibleDescription(/.+/);
+    await page.keyboard.press('Escape');
+  }
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('help.png'),fullPage:true});
+  for(const [name,id] of [['设置 → 网络','network-proxy'],['设置 → 存储','storage-settings'],['导入历史','vrcx-import'],['导入视频','video-import'],['批量下载缺失视频','batch']]){
+    await page.goto('/#/help');await guide.getByRole('link',{name,exact:true}).click();
+    await expect(page.locator('#'+id)).toBeFocused();await expect(page.locator('#'+id)).toBeInViewport();
+  }
 });

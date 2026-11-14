@@ -1914,6 +1914,27 @@
       "bytes": 1296924,
       "sha256": "f55f9463208026bad9e3139394c854ca3809ed7cef6a8f3166a19ed9f31b559a",
       "reason": "Production WebUI removes redundant hover and helper copy from acceleration, history, library, storage, imports and SOCKS5 status; preserves port and coverage details. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1299075,
+      "sha256": "65d265aeb2a1f7367b1109d6fe8c561297b1dc763b0db20ba0d7a5a8a0002883",
+      "reason": "Production WebUI reorganizes help around playback troubleshooting and local video retention, with contextual terms and existing task links. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1299017,
+      "sha256": "88c341dbd1a36d6f8e83828d733d7cf8836cf9a63dd7cfc48671f2870c61d602",
+      "reason": "Production WebUI groups startup with exit, separates backup and upgrade, and moves current file paths to About. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1298731,
+      "sha256": "6c84f3c041eb18871af9b981a5b48a786f98a10763ba7b6f242c438546be6dd1",
+      "reason": "Production WebUI presents help in five standard single-column Panel cards while retaining content and links. Generated offline bundle matches webui/build-manifest.json."
     }
   ]
 }

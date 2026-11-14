@@ -16,17 +16,14 @@ for (const colorScheme of ['light', 'dark'] as const) for (const width of [390, 
       await page.keyboard.press('Tab'); await expect(page.getByRole('link', { name: '跳到主要内容' })).toBeFocused();
       await page.keyboard.press('Enter'); await expect(page.locator('#main')).toBeFocused();
       if (route === '/help') {
-        await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
-        await expect(page.getByText('C:\\UI-Test\\data\\state', {exact:true})).toBeVisible();
-        await expect(page.getByText('C:\\UI-Test\\work\\console-test', {exact:true})).toBeVisible();
-        await expect(page.getByText(/精简备份可排除 data\/state/)).toBeVisible();
+        await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toHaveCount(0);
 
-        await expect(page.getByRole('link', { name: '容量收益参考图' })).toHaveAttribute('href', '/assets/storage-benefit.svg');
 
-        await expect(page.getByText(/将新版 SWD.exe 和整个 licenses\/ 覆盖到原目录/)).toBeVisible();
+        await expect(page.getByText(/将新版 SWD.exe 和整个 licenses 文件夹覆盖到原目录/)).toBeVisible();
         await expect(page.getByText(/build-info\.json|README\.txt|licenses\/TERMS\.txt/)).toHaveCount(0);
       }
       if (route === '/about') {
+        await expect(page.getByText('<script>alert("path")</script>', { exact: true })).toBeVisible();
         await expect(page.getByText('dev-browser', {exact:true})).toBeVisible();
         await expect(page.getByText('a'.repeat(40), {exact:true})).toBeVisible();
       }

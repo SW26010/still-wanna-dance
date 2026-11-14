@@ -91,13 +91,13 @@ test('direct document URLs load content before status, normalize once, and survi
   await page.route('**/api/status',route=>route.fulfill({status:503,body:'status unavailable'}));
   const documents:string[]=[];
   page.on('request',request=>{if(request.resourceType()==='document')documents.push(request.url());});
-  for(const [path,title] of [['help','开始使用'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
+  for(const [path,title] of [['help','启动与退出'],['about','Load failed? But I still wanna dance!'],['terms','使用条款与内容权利声明']]){
     const count=documents.length;
     await page.goto('/'+path);
     await expect(page.getByRole('heading',{level:1,name:'关于',exact:true})).toBeVisible();
     await expect(page).toHaveURL(new RegExp('/#/('+path+')$'));
     await expect(page.getByText('正在读取程序状态…',{exact:true})).not.toBeVisible();
-    if(path==='help')await expect(page.getByText('<script>alert("path")</script>',{exact:true})).toBeVisible();
+    if(path==='about')await expect(page.getByText('<script>alert("path")</script>',{exact:true})).toBeVisible();
     if(path==='about')await expect(page.getByText('dev-browser',{exact:true})).toBeVisible();
     if(path==='terms')await expect(page.getByRole('article',{name:'完整使用条款'})).toContainText('浏览器测试条款');
     expect(documents).toHaveLength(count+1);
@@ -108,12 +108,12 @@ test('direct document URLs load content before status, normalize once, and survi
   expect(api.calls.some(call=>call.path==='setup')).toBe(false);
 });
 
-test('help shows active storage instead of a saved or unsaved storage change',async({page})=>{
+test('about shows active storage instead of a saved or unsaved storage change',async({page})=>{
   const api=await mockAPI(page);
   api.state.settings.databasePath='D:\\PendingStorage';
   await page.goto('/#prepareAheadSeconds');
   await expect(page.getByRole('spinbutton',{name:/提前准备时间/})).toBeVisible();
-  await navigate(page,'帮助');
+  await navigate(page,'关于');
   await expect(page.getByText(api.state.activeSettings.databasePath,{exact:true})).toBeVisible();
   await expect(page.getByText('D:\\PendingStorage',{exact:true})).not.toBeVisible();
 });
@@ -126,7 +126,7 @@ test('public help/about stay readable before consent and terms still open the ga
     await expect(page.getByRole('navigation').getByRole('link',{name:'设置',exact:true})).toHaveAttribute('href','/#/settings');
   }
   expect(api.calls).toHaveLength(0);
-  for(const [name,target] of [['存储设置','storage-settings']]){
+  for(const [name,target] of [['设置 → 存储','storage-settings']]){
     await page.goto('/help?gate=1');
     const link=page.locator('#help-storage').getByRole('link',{name,exact:true});
     await expect(link).toHaveAttribute('href','/#'+target);
@@ -153,7 +153,7 @@ for(const width of [390,1280])test(`ordinary navigation resets scrolling; explic
     await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));
   }
   await navigate(page,'帮助');
-  await page.locator('#help-storage').getByRole('link',{name:'存储设置',exact:true}).click();
+  await page.locator('#help-storage').getByRole('link',{name:'设置 → 存储',exact:true}).click();
   const target=page.locator('#storage-settings');
   await expect(target).toBeFocused();
   await expect(target).toBeInViewport();

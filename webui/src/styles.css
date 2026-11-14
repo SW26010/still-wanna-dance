@@ -348,3 +348,15 @@ form.actions { align-items: flex-end; }
 .mihomo-import-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; }
 .mihomo-import-row > .fui-Input { min-width: 0; }
 .mihomo-import-row > button { min-width: 72px; }
+
+.help-guide { padding-top: var(--spacingVerticalL); max-width: 64rem; display: grid; gap: var(--spacingVerticalXL); }
+.help-guide > .panel { margin-block: 0; }
+.help-guide p, .help-guide li { line-height: 1.7; }
+.help-guide li p { margin-block: var(--spacingVerticalS); }
+.help-guide ul, .help-guide ol { padding-inline-start: 1.5rem; margin-block: var(--spacingVerticalS); }
+.help-guide li + li { margin-top: var(--spacingVerticalS); }
+.help-guide .help-steps > li + li { margin-top: var(--spacingVerticalXL); }
+.help-guide h2 { margin: 0; }
+.help-guide li h3 { margin-block: 0 var(--spacingVerticalS); }
+.help-guide .help-term { text-decoration: underline dotted; text-underline-offset: .2em; cursor: help; }
+.detail-grid dd { overflow-wrap: anywhere; }

@@ -38,6 +38,9 @@ legend { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300
 .settings-actions > p { margin: 0; }
 .settings-form :is(input, select, textarea, [tabindex="-1"]) { scroll-margin-top: 12rem; }
 .form-grid .fui-Field { max-width: 680px; }
+.diagnostic-range, .diagnostic-dates { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--spacingHorizontalL); min-width: 0; }
+.diagnostic-hours { margin-inline-start: auto; grid-template-columns: max-content max-content; align-items: center; column-gap: var(--spacingHorizontalS); }
+.diagnostic-export > .fui-Field { max-width: none; }
 .path-field { display: flex; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; }
 .validation-control { display: grid; grid-template-columns: minmax(0, 1fr) 24px; align-items: start; gap: var(--spacingHorizontalXS); min-width: 0; }
 .validation-input { min-width: 0; }

@@ -701,6 +701,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if r.URL.Path == "/api/diagnostics/export" {
+		c.serveDiagnosticExport(w, r)
+		return
+	}
 	if r.URL.Path == "/api/update/check" {
 		c.serveUpdateCheck(w, r)
 		return

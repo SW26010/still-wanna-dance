@@ -1060,3 +1060,30 @@ GET 客户端关闭及队首退出均继承原 N、固定 E+2 秒，所有交接
 - 调度器整包 Windows race 通过，1.243 秒（`admission-race.log`）；调度器与缓存两包 vet 通过，无诊断输出（`admission-vet.log`）。以上 Go 检查均经隔离临时目录及依赖补丁入口执行。
 
 此前失败和修复结果按各自覆盖的取消时点保留；本次只补准入前取消的缺口，不外推为真实播放器重连或黑屏恢复已验证。没有新增 VRC 待验项，未启动游戏、修改 hosts 或替换运行实例。
+
+## 2026-11-15：需求直接汇总与消费范围内的保护更新
+
+基线为 `8f993095`。通过实际 `getConsumption.accept` 路径复现：每消费一个块，都在 `Server.mu` 下重建同资源剩余块的来源 map、blockUse 和保护时刻 map。新增 `BenchmarkGETConsumptionByResourceSize`，一次操作逐块消费完整资源，块大小为默认 1 MiB；登记和退出不计时，不进行文件或网络 I/O。先仅删除中间投影，再测量消费范围内重算，保留两个阶段的结果：
+
+| 资源大小 | 基线累计分配 | 仅直接汇总 | 最终消费范围更新 |
+| ---: | ---: | ---: | ---: |
+| 50 MiB | 2,023,064 B／4,425 次 | 115,752 B／235 次 | 0 B／0 次 |
+| 500 MiB | 211,980,384 B／388,653 次 | 14,992,136 B／5,698 次 | 0 B／0 次 |
+| 2 GiB | 3,615,424,312 B／6,378,454 次 | 271,770,880 B／37,029 次 | 0 B／0 次 |
+
+表中三阶段均使用 `-benchmem -benchtime=1x -count=1`，原始输出在忽略目录 `artifacts/consumption-locality/benchmark-{before,direct-aggregation,after-single}.log`。直接汇总显著减少分配，但仍展开剩余后缀；同一资源从 32 块增长到 128 块的分配增长回归在基线失败（2,035／27,498 次），直接汇总后仍失败（154／1,011 次），因此进一步收窄计算范围。失败分别保留在 `allocations-before.log` 和 `direct-aggregation-tests.log`。
+
+最终实现由 `visitUseLocked` 统一解释 GET、队列、交接及空闲队列窗口，下载计划直接汇总为所需的 blockUse，保护直接汇总最早有限使用时刻；只有按需观测创建每块来源 map。HTTP 消费只报告新的块位置，需求层集中释放已交付范围的引用、重算该范围内独立来源的保护，再沿统一流程处理到期交接和资源通知。保护清理遍历变化范围或已有记录中较小的一侧，单块推进不扫描整资源保护表。不缓存逐块投影，不增加来源状态或改变调度 interface、来源生命周期、原时钟及最后引用尾期规则；现行依据见 [需求整合](../download-resource-design.md#1-实时块需求的整合与动态维护)。
+
+Go 1.27.3、Windows amd64、Ryzen 7 9850X3D；Go 检查均使用临时目录与依赖补丁入口。复跑示例：
+
+```powershell
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^$' -bench '^BenchmarkGETConsumption(ByResourceSize|WithUnrelatedUsage)$' -benchmem -benchtime=100ms -count=3
+```
+
+- 最终三轮基准中，50／500／2048 MiB 完整消费分别为约 11.3～11.5／114～170／488～679 微秒，均报告 0 allocs/op，少量运行时分配噪声为 0～3 B/op（`benchmark-after.log`）。无关资源从 0 增至 4,000 块仍为 8 B／1 次分配，约 0.30～0.34 微秒；该旧基准包含少量夹具恢复。
+- 分配增长回归通过：包含登记和退出的完整生命周期，32／128 块分别为 45／57 次分配。新增行为回归确认，一次交付多个块后只剩远期或无时限来源时，没有额外尾期，独立时钟和未交付后缀的保护保留；既有实际接受字节、来源共享及资源／容量通知回归同时通过（`consumption-final.log`）。
+- 缓存与调度整包普通回归通过（195.190／0.329 秒，`packages.log`），覆盖真实 HTTP、不同块尺寸、队列计时、容量、来源退出与观测；修改文件 gofmt 和 `git diff --check` 通过。
+- 缓存与调度两包 vet 通过；GCC 16.2.0 下，消费、共享、保护、交接、截止及观测的定向 Windows race 通过（53.763 秒，`race.log`）。文件相关整包与 race 使用普通用户环境，沿用仓库已确认的沙箱限制处理方式。
+
+累计分配不是峰值内存。基准只测消费状态推进，未包含被唤醒的下载协调器、完整 HTTP 传输或后台回收工作，不证明普通歌曲播放卡顿或实际游戏性能收益。没有新增游戏专属验收项；本轮未启动 VRC、修改 hosts 或运行配置，未执行 commit／push。

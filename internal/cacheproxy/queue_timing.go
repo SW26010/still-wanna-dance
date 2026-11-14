@@ -120,7 +120,7 @@ func (s *Server) queuePlaybackEndLocked() time.Time {
 // Call under Server.mu. A queued head has not started merely because time has
 // passed. Without a live GET, retain a future playback estimate but roll a past
 // one forward. Request completion alone still does not mean playback completion.
-// This refresh maintains finite deadlines; projectUseLocked separately gates
+// This refresh maintains finite deadlines; visitUseLocked separately gates
 // windows by distance from the head, including between these refreshes.
 func (s *Server) retimeQueueLocked(now time.Time) []string {
 	earliest := s.queuePlaybackEndLocked()

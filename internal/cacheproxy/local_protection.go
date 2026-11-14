@@ -36,28 +36,45 @@ func (s *Server) protectionAhead() time.Duration {
 // crosses into local protection; local state does not retain source identities.
 // Cancellation/expiry is transferred or removed before its notification, so
 // pending callbacks must not independently remove protection here.
-func (s *Server) refreshUseProtectionLocked(key string) {
-	ready := make(map[useBlockID]time.Time)
-	projected, _ := s.aggregateUseProjectionLocked(key, time.Now())
-	for id, use := range projected {
+func (s *Server) refreshUseProtectionLocked(scope useSpan) {
+	ready := make(map[int64]time.Time)
+	s.visitUseLocked(scope, time.Now(), func(id useBlockID, _ blockSource, p plannedNeed) {
 		if s.useBlocks[id] > 0 {
-			if at := use.protectReady; !at.IsZero() {
-				ready[id] = at
+			if at := p.protectionReady(); !at.IsZero() {
+				ready[id.block] = earlier(ready[id.block], at)
 			}
 		}
-	}
+	})
 
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()
 	if s.protection == nil {
 		s.protection = make(map[string]map[int64]blockProtection)
 	}
+	key := scope.key
 	if blocks := s.protection[key]; blocks != nil {
-		for b, p := range blocks {
+		clearStart := func(b int64) {
+			p, ok := blocks[b]
+			if !ok {
+				return
+			}
 			p.start = time.Time{}
 			blocks[b] = p
-			if _, ok := ready[useBlockID{key, b}]; !ok && p.until.IsZero() {
+			if _, ok := ready[b]; !ok && p.until.IsZero() {
 				delete(blocks, b)
+			}
+		}
+		// Consumption usually changes one block; a source/clock mutation may
+		// change the whole resource. Walk the smaller set to clear old starts.
+		if scope.last-scope.first < int64(len(blocks)) {
+			for b := scope.first; b < scope.last; b++ {
+				clearStart(b)
+			}
+		} else {
+			for b := range blocks {
+				if scope.contains(key, b) {
+					clearStart(b)
+				}
 			}
 		}
 		if len(blocks) == 0 {
@@ -65,13 +82,13 @@ func (s *Server) refreshUseProtectionLocked(key string) {
 		}
 	}
 	ahead := s.protectionAhead()
-	for id, at := range ready {
-		if s.protection[id.key] == nil {
-			s.protection[id.key] = make(map[int64]blockProtection)
+	for b, at := range ready {
+		if s.protection[key] == nil {
+			s.protection[key] = make(map[int64]blockProtection)
 		}
-		p := s.protection[id.key][id.block]
+		p := s.protection[key][b]
 		p.start = at.Add(-ahead)
-		s.protection[id.key][id.block] = p
+		s.protection[key][b] = p
 	}
 	s.requestRetentionLocked()
 }

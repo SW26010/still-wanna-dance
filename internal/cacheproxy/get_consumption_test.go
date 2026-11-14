@@ -89,6 +89,59 @@ func BenchmarkGETConsumptionWithUnrelatedUsage(b *testing.B) {
 	}
 }
 
+func consumptionFixture(t testing.TB, blocks int64) (*getConsumption, func()) {
+	t.Helper()
+	s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}}
+	v := video{key: "consumed", size: blocks * DefaultBlockSize}
+	ctx := context.WithValue(context.Background(), httpGETKey{}, true)
+	d, release, err := s.addDemand(ctx, v, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := &getConsumption{s: s, demand: d, size: v.size}
+	g.start(http.StatusOK, nil)
+	return g, release
+}
+
+// One operation delivers the entire resource, one default-size block at a time.
+// Registration and teardown are excluded; no file or network I/O is performed.
+func BenchmarkGETConsumptionByResourceSize(b *testing.B) {
+	for _, blocks := range []int64{50, 500, 2048} {
+		b.Run(fmt.Sprintf("%dMiB", blocks), func(b *testing.B) {
+			b.ReportAllocs()
+			b.StopTimer()
+			for i := 0; i < b.N; i++ {
+				g, release := consumptionFixture(b, blocks)
+				b.StartTimer()
+				for range blocks {
+					g.accept(DefaultBlockSize)
+				}
+				b.StopTimer()
+				release()
+			}
+		})
+	}
+}
+
+func TestGETConsumptionAllocationsGrowLinearly(t *testing.T) {
+	measure := func(blocks int64) float64 {
+		return testing.AllocsPerRun(3, func() {
+			g, release := consumptionFixture(t, blocks)
+			for range blocks {
+				g.accept(DefaultBlockSize)
+			}
+			release()
+		})
+	}
+	small, large := measure(32), measure(128)
+	t.Logf("full lifecycle allocations: 32 blocks=%.0f, 128 blocks=%.0f", small, large)
+	// Include linear registration overhead and allow runtime/map variation,
+	// while rejecting a fresh projection of the remaining suffix per block.
+	if large > 6*small {
+		t.Fatalf("consumption allocations grow faster than resource size: 32 blocks=%.0f, 128 blocks=%.0f", small, large)
+	}
+}
+
 func (w *acceptedWriter) Write(p []byte) (int, error) {
 	n := min(len(p), w.acceptBytes)
 	w.ResponseRecorder.Write(p[:n])

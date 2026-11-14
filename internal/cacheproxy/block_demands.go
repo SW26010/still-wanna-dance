@@ -101,22 +101,29 @@ func mergeUse(a, b blockUse) blockUse {
 func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 	var result blockUse
 	for _, p := range plan {
-		// The registry still owns a handoff until its fixed expiry is processed.
-		// Preserve its protection clock even when delivery of that event is late.
-		if !p.protectionClosed {
-			result.protectReady = earlier(result.protectReady, p.need.ReadyBy)
-		}
-		if !p.need.LeaseUntil.After(now) {
-			continue
-		}
-		if p.need.WindowClosed && blocksched.Expired(p.need.ReadyBy, now) {
-			continue // Closed usage still protects data, but cannot fund an expired execution.
-		}
-		n := p.need
-		n.Opportunistic = !n.WindowClosed && (n.Opportunistic || n.ReadyBy.IsZero())
-		result = mergeUse(result, blockUse{need: n, nextExpiry: n.LeaseUntil})
+		result = mergeUse(result, p.use(now))
 	}
 	return result
+}
+
+func (p plannedNeed) use(now time.Time) blockUse {
+	result := blockUse{protectReady: p.protectionReady()}
+	if !p.need.LeaseUntil.After(now) || p.need.WindowClosed && blocksched.Expired(p.need.ReadyBy, now) {
+		return result // Closed usage still protects data after its download deadline.
+	}
+	result.need = p.need
+	result.need.Opportunistic = !p.need.WindowClosed && (p.need.Opportunistic || p.need.ReadyBy.IsZero())
+	result.nextExpiry = p.need.LeaseUntil
+	return result
+}
+
+func (p plannedNeed) protectionReady() time.Time {
+	// The registry still owns a handoff until its fixed expiry is processed.
+	// Preserve its protection clock even when delivery of that event is late.
+	if !p.protectionClosed {
+		return p.need.ReadyBy
+	}
+	return time.Time{}
 }
 
 func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {

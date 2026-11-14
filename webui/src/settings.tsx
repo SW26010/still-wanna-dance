@@ -126,7 +126,11 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     fieldError:name=>{const input=formRef.current?.elements.namedItem(name);return isInput(input)?inputError(input):'';},
     hasField:name=>!!formRef.current?.elements.namedItem(name),focus:focusInvalid,
   }),[editor.registerForm,editor.selectTab,section]);
-  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, description: string, unit?: string) => <Tooltip content={description} relationship="description">{({ref,...trigger})=><div {...trigger} className="settings-number-field" ref={ref as Ref<HTMLDivElement>}><ValidationField name={key} label={label}><NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} /></ValidationField></div>}</Tooltip>;
+  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, description: string, unit?: string) => <ValidationField className="settings-number-field" name={key} label={label} labelHint={description}>
+    <Tooltip content={description} relationship="description">{({ref,...trigger})=><div {...trigger} ref={ref as Ref<HTMLDivElement>}>
+      <NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} />
+    </div>}</Tooltip>
+  </ValidationField>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
   const restartNeedsSaving=s.restartRequired&&(dirty||app.dirtySettings.size>0);
   const restartHint=restartNeedsSaving

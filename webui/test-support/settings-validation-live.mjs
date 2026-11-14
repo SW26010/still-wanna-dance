@@ -13,6 +13,37 @@ try {
   const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
   const state=async()=>{const r=await page.request.get(base+'/api/status',{headers:{'X-SWD-Token':token}});expect(r.ok()).toBe(true);return r.json();};
   const initial=await state();
+  await page.setViewportSize({width:320,height:900});
+  await page.goto(base+'/#download-settings');
+  for(const [label,description] of [
+    ['同时下载数量','普通下载的并发上限；播放正在等待的数据可突破此限制。'],
+    ['并发增长间隔','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
+    ['提前准备时间','提前为预计即将使用的视频数据安排下载。'],
+    ['延续保护时间','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
+  ]) {
+    await page.getByText(label,{exact:true}).hover();await expect(page.getByRole('tooltip')).toHaveText(description);
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await page.mouse.move(0,0);
+  }
+  const limit=page.getByRole('spinbutton',{name:'同时下载数量',exact:true});
+  await limit.focus();await expect(page.getByRole('tooltip')).toHaveText('普通下载的并发上限；播放正在等待的数据可突破此限制。');
+  await limit.fill('65');await page.getByRole('button',{name:'保存设置',exact:true}).focus();
+  await expect(limit).toHaveAttribute('aria-invalid','true');
+  await expect(limit).toHaveAccessibleDescription(/请输入 1～64 范围内的数值/);
+  const numericError=page.getByRole('button',{name:'同时下载数量：错误',exact:true});
+  await page.getByText('同时下载数量',{exact:true}).hover();await expect(page.getByRole('tooltip')).toHaveText('普通下载的并发上限；播放正在等待的数据可突破此限制。');
+  await numericError.hover();await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
+  await numericError.click();await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.mouse.move(0,0);await limit.focus();await page.keyboard.press('Tab');
+  await expect(numericError).toBeFocused();await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
+  await page.screenshot({path:join(output,'numeric-error.png'),fullPage:true});
+  await page.getByRole('button',{name:'保存设置',exact:true}).click();
+  expect(posts).toHaveLength(0);
+  expect((await state()).settings).toEqual(initial.settings);
+  await page.getByRole('button',{name:'放弃更改',exact:true}).click();
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(base+'/#network-proxy');
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   const save=page.getByRole('button',{name:'保存设置',exact:true});
@@ -39,6 +70,6 @@ try {
   expect(final.activeSettings).toEqual(initial.activeSettings);
   expect(final.actionErrors?.settings).toBeUndefined();
   expect(errors).toEqual([]);
-  await writeFile(join(output,'result.json'),JSON.stringify({passed:true,rejectedWithoutPersistence:true,activeUnchanged:true,posts:posts.length,pageErrors:errors},null,2));
-  console.log('Real Console: missing nodes rejected without persistence; format validation, hover reason and valid save passed.');
+  await writeFile(join(output,'result.json'),JSON.stringify({passed:true,numericTooltipMouseAndKeyboard:true,rejectedWithoutPersistence:true,activeUnchanged:true,posts:posts.length,pageErrors:errors},null,2));
+  console.log('Real Console: numeric hint/error mouse and keyboard triggers, missing nodes rejected without persistence, format validation and valid save passed.');
 }finally{await browser.close();}

@@ -2333,3 +2333,16 @@ build/check、差异检查及产物登记校验通过。`settings-help.spec.ts`�
 - 真实检查 EXE SHA-256：`9747dac247af6187ff4b6c72c481c52b6064dfa3374566ff5a23eb022c22e08f`，Go 1.27.3、Windows amd64、development、源码 clean。它是本轮临时构建，不覆盖日常 EXE。
 - 实际浏览器 200%/400% 缩放、Windows 125%/150%/200% DPI、Narrator/NVDA、真实 UAC／托盘／原生文件选择器及真实代理服务未在本轮重新验收；CSS 视口和夹具不能代替这些结论。VRC 播放体验不在本轮范围，无新增 VRC 台账项。
 - 已通过真实页面退出本轮程序，日志确认正常退出，进程和 18473/18475 监听均已结束；恢复浏览器临时视口设置并关闭检查页。保留忽略目录中的隔离数据与失败证据，不删除用户资料。产品、测试未修改；检查记录按后续授权单独提交，不推送。
+
+## 2026-11-15：下载数值字段的错误提示冲突修复
+
+修复上节全面检查发现的 P2：普通说明原先包住整个 `ValidationField`，错误图标的鼠标与焦点事件同时触发外层说明。将普通说明收进输入区，保留独立错误图标、错误描述关联、红框和固定槽位；四个下载数值字段共用同一修复，不增加状态或事件拦截。普通说明通过输入区悬停／聚焦查看，对应下载设置用例同步使用该触发范围。
+
+- 原六项 `numeric error` 检查在普通权限 Edge 中全部复现错误提示被普通说明覆盖。扩展检查另捕获并发增长间隔的键盘冲突；失败保留于忽略目录 `artifacts/field-tooltip-fix/before-normal/`、`before-normal.log`、`regression-before/` 和 `regression-before.log`。
+- 最终 `settings-validation.spec.ts`、`number-input.spec.ts`、`download-settings.spec.ts` 共 **16 项通过**，包括 320/1280px × 浅色／深色／forced-colors 六种组合、四个数值字段普通说明与错误提示独立、鼠标悬停／点击、Tab 聚焦、Escape 关闭、输入框错误关联、恢复有效值、越界禁止保存、布局及步进。结果与截图在 `artifacts/field-tooltip-fix/final/`、`final.log`。
+- 复用并扩展 `TestSettingsValidationBrowser` 连接隔离真实 Console 与 Edge，通过 320px 下同时下载数量 65 的普通说明、鼠标与键盘错误提示、无效保存零 POST 且配置不变；原 Mihomo 服务端拒绝、SOCKS5 格式校验、合法保存及 activeSettings 不变检查同轮通过。结果在 `artifacts/field-tooltip-fix/live/`、`live.log`；已查看真实服务浅色窄屏错误提示截图及夹具深色桌面截图。
+- 首轮沙箱 Edge 在页面断言前退出，材料保留于 `artifacts/field-tooltip-fix/before/`，停止该运行后改用普通权限。首次普通权限重试被尚未结束的夹具占用端口阻止，后续才获得上述六项产品失败。修复后首次增强检查已经通过原错误断言，末尾普通说明复验因输入框仍聚焦、Escape 抑制未重置而失败；补齐离焦再聚焦后通过，未更改产品的 Escape 行为。中间结果保留在 `after/`、`after.log`。
+
+前端 build/check、内嵌资源一致性、当前 bundle 精确登记及差异检查通过。未修改日常数据、重建日常 EXE、启动游戏或修改 hosts；本轮不涉及新增 VRC 验收项，上节原 12 项测试维护失败不在本次修复范围，原全面检查结论保留。
+
+后续让「同时下载数量」「并发增长间隔」「提前准备时间」「延续保护时间」的标题文字也能悬停显示普通说明，替代前述仅输入区触发的范围。`ValidationField` 的可选标题提示复用同一说明文案，保留原生标签和独立错误图标。先在 `label-before.log` 复现标题无提示；扩展上述三个套件后 **16 个不同用例通过**，包括四标题的桌面／窄屏说明、标题→错误图标切换及原有六种主题／视口组合。首轮 15/16 通过，另一项因两处隐藏说明使旧文本定位重复而失败，改为检查可见 Tooltip 后定向复验通过，分别保留 `artifacts/field-tooltip-fix/label-final/`、`label-final.log`、`label-recheck/` 和 `label-recheck.log`。隔离真实 Console 同轮通过四标题的 320px 悬停／Escape、错误图标切换及原保存检查，证据在 `label-live/`、`label-live.log`。build/check、内嵌产物与精确登记校验、差异检查再次通过；未重建日常 EXE。

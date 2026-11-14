@@ -11,10 +11,10 @@ export function FieldIssueIcon({label,message,warning=false}:{label:string;messa
 
 // Keep one small icon column in the control row. The Field owns the accessible
 // error description, but its message is visually hidden, never a new text row.
-export function ValidationField({name,error,label,children,...props}: Omit<FieldProps,'label'> & {name?:string;error?:string;label:string}) {
+export function ValidationField({name,error,label,labelHint,children,...props}: Omit<FieldProps,'label'> & {name?:string;error?:string;label:string;labelHint?:string}) {
   const errors=useContext(FieldErrors),issues=useContext(FieldIssues), invalid=error || (name ? errors[name] : undefined), issue=name?issues[name]:undefined;
   const message=invalid||issue?.message, severity=invalid?'error':issue?.severity||'error', warning=severity==='warning';
-  return <Field {...props} label={label} validationState={message?severity:'none'}
+  return <Field {...props} label={labelHint?{children:<Tooltip content={labelHint} relationship="description"><span>{label}</span></Tooltip>}:label} validationState={message?severity:'none'}
     validationMessage={message?{children:message,className:'field-error-description'}:undefined} validationMessageIcon={null}>
     {controlProps=><div className="validation-control"><div className="validation-input">{typeof children==='function'?children(controlProps):children}</div><span className="validation-icon">
       <FieldIssueIcon label={label} message={message} warning={warning}/>

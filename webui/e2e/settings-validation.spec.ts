@@ -54,17 +54,59 @@ for(const width of [320,1280])for(const theme of ['light','dark','forced'] as co
   await input.scrollIntoViewIfNeeded();
   const before=await interval.boundingBox();
   const normalBorder=await input.locator('..').evaluate(e=>getComputedStyle(e,'::before').borderColor);
+  const description='普通下载的并发上限；播放正在等待的数据可突破此限制。';
+  await input.focus();
+  await expect(page.getByRole('tooltip')).toHaveText(description);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
   await input.fill('65');await interval.focus();
   await expect(input).toHaveAttribute('aria-invalid','true');
+  await expect(input).toHaveAccessibleDescription(/请输入 1～64 范围内的数值/);
   if(theme!=='forced')expect(await input.locator('..').evaluate(e=>getComputedStyle(e,'::before').borderColor)).not.toBe(normalBorder);
   const icon=page.getByRole('button',{name:'同时下载数量：错误',exact:true});
-  await icon.hover();await expect(page.getByRole('tooltip')).toContainText('1～64');
+  await page.getByText('同时下载数量',{exact:true}).hover();
+  await expect(page.getByRole('tooltip')).toHaveText(description);
+  await icon.hover();await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
   expect(await interval.boundingBox()).toEqual(before);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('numeric-error.png'),fullPage:true});
+  await icon.click();
+  await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.mouse.move(0,0);
+  await input.focus();await page.keyboard.press('Tab');
+  await expect(icon).toBeFocused();
+  await expect(page.getByRole('tooltip')).toHaveText('请输入 1～64 范围内的数值');
+  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await expect(icon).toBeFocused();
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   expect(api.calls.some(c=>c.path==='settings')).toBe(false);
   await input.fill('16');await expect(icon).toHaveCount(0);
+  await interval.focus();await input.focus();await expect(page.getByRole('tooltip')).toHaveText(description);
+});
+
+test('download numeric hints and errors have independent triggers for every field',async({page})=>{
+  await mockAPI(page);
+  await page.goto('/#download-settings');
+  for(const [name,label,invalid,valid,range,description] of [
+    ['并发增长间隔（毫秒）','并发增长间隔','2001','250','0～2000','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
+    ['提前准备时间（秒）','提前准备时间','99','500','100～16000','提前为预计即将使用的视频数据安排下载。'],
+    ['延续保护时间（秒）','延续保护时间','10001','60','0～10000','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
+  ]) {
+    const input=page.getByRole('spinbutton',{name,exact:true});
+    await input.hover();await expect(page.getByRole('tooltip')).toHaveText(description);
+    await input.fill(invalid);await page.getByRole('button',{name:'保存设置',exact:true}).focus();
+    const icon=page.getByRole('button',{name:label+'：错误',exact:true});
+    const message=`请输入 ${range} 范围内的数值`;
+    await expect(input).toHaveAttribute('aria-invalid','true');
+    await expect(input).toHaveAccessibleDescription(new RegExp(message));
+    await page.getByText(label,{exact:true}).hover();await expect(page.getByRole('tooltip')).toHaveText(description);
+    await icon.hover();await expect(page.getByRole('tooltip')).toHaveText(message);
+    await page.mouse.move(0,0);await icon.focus();await expect(page.getByRole('tooltip')).toHaveText(message);
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await input.fill(valid);await expect(icon).toHaveCount(0);
+    await expect(input).not.toHaveAttribute('aria-invalid','true');
+  }
 });
 
 test('server validation keeps the Mihomo draft and marks its field after a failed save',async({page})=>{

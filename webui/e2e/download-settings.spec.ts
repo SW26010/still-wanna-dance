@@ -23,8 +23,12 @@ test('download settings validate bounds, preserve zero without recommendation hi
   ]){
     const input=page.getByRole('spinbutton',{name,exact:true});
     await expect(input).toHaveAccessibleDescription(description);
-    await expect(page.getByText(description,{exact:true})).not.toBeVisible();
+    await expect(page.getByRole('tooltip').filter({hasText:description})).toHaveCount(0);
     await page.getByText(label,{exact:true}).hover();
+    await expect(page.getByRole('tooltip')).toHaveText(description);
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+    await page.mouse.move(0,0);
+    await input.hover();
     await expect(page.getByRole('tooltip')).toHaveText(description);
     const controlBox=(await input.boundingBox())!,tooltipBox=(await page.getByRole('tooltip').boundingBox())!;
     expect(tooltipBox.x,'tooltip stays beside the hovered field').toBeLessThan(controlBox.x+controlBox.width);

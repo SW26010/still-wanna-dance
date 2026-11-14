@@ -1907,6 +1907,13 @@
       "bytes": 1300138,
       "sha256": "2c58d90029baa2046d125ffd9129dbfb89f0e06dd5130ff6c7fd9081042f0b8d",
       "reason": "Production WebUI removes the block task tooltip and block accounting wording from history hover details. Generated offline bundle matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1296924,
+      "sha256": "f55f9463208026bad9e3139394c854ca3809ed7cef6a8f3166a19ed9f31b559a",
+      "reason": "Production WebUI removes redundant hover and helper copy from acceleration, history, library, storage, imports and SOCKS5 status; preserves port and coverage details. Generated offline bundle matches webui/build-manifest.json."
     }
   ]
 }

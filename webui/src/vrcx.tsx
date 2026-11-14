@@ -82,7 +82,7 @@ function useVRCXImport(target: string) {
   async function confirmOverwrite() {
     const p = current.current;
     return !p?.id || p.events <= 0 || !p.existingSongs || app.confirm('覆盖全部歌曲需求统计？',
-      <><p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计，不会与原统计累加。</p><p>导入到：{displayStoragePath(p.databasePath,app.status.data!)}</p></>,
+      <><p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计。</p><p>导入到：{displayStoragePath(p.databasePath,app.status.data!)}</p></>,
       '强制导入并覆盖');
   }
   async function apply() {
@@ -149,7 +149,7 @@ export function VRCXImport({model:m}: {model:VRCXModel}) {
       </dl>
       {p.imported ? <p role="status">已导入 {p.events} 次历史需求、{p.songs} 首歌曲，跳过 {p.skipped} 条记录。</p>
         : !p.events ? <Feedback>没有有效历史需求，原统计保持不变。</Feedback>
-        : <>{!!p.existingSongs&&<p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计，不会与原统计累加。</p>}
+        : <>{!!p.existingSongs&&<p>导入将替换已有 {p.existingSongs} 首歌曲的需求统计。</p>}
           <Button {...restoreFocusTarget} type="button" appearance="primary" disabled={m.locked} onClick={() => void m.apply()}>{p.existingSongs ? '导入并覆盖…' : '导入需求记录'}</Button></>}
     </div>}
     <p role="status">{m.pending ? '正在处理 VRCX 历史…' : ''}</p>

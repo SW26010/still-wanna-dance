@@ -9,12 +9,12 @@ function requestResult(r: RequestRecord): [string,string] {
   if (r.outcome === 'failed') return ['处理异常','本次请求未能正常完成，未记录更具体的原因。'];
   // Older records cannot distinguish a download deadline from other timeouts.
   if (r.outcome === 'timeout') return ['处理异常','记录表明处理发生超时，未记录具体类别。'];
-  if (r.outcome === 'completed') return ['完成',[200,206].includes(r.status) ? r.method === 'HEAD' ? '响应头已处理完成。' : '本次请求的视频响应已处理完成，不代表播放完成。' : '本次 HTTP 响应已结束。'];
+  if (r.outcome === 'completed') return ['完成',[200,206].includes(r.status) ? r.method === 'HEAD' ? '响应头已处理完成。' : '本次请求的视频响应已处理完成。' : '本次 HTTP 响应已结束。'];
   return ['结果未知','记录中没有可识别的结果。'];
 }
 
 export const requestOutcome = (r: RequestRecord) => requestResult(r)[0];
-export const requestOutcomeDescription = (r: RequestRecord) => `${requestResult(r)[1]} HTTP ${r.status||'未返回'}。`;
+export const requestOutcomeDescription = (r: RequestRecord) => requestResult(r)[1];
 
 export function requestTitle(r: Pick<Download,'resource'|'songs'|'moreSongs'>) {
   const songs=r.songs || [];

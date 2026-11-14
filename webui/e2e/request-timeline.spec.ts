@@ -18,7 +18,7 @@ test('request results explain terminal causes and preserve unknown legacy reason
     ['failed',403,'处理异常','本次请求未能正常完成'],
     ['failed',504,'处理异常','本次请求未能正常完成'],
     ['failed',200,'处理异常','本次请求未能正常完成'],
-    ['completed',206,'完成','不代表播放完成'],
+    ['completed',206,'完成','本次请求的视频响应已处理完成。'],
     ['completed',304,'完成','本次 HTTP 响应已结束'],
     ['unrecognized',0,'结果未知','没有可识别的结果'],
     ['',504,'结果未知','没有可识别的结果'],
@@ -32,7 +32,7 @@ test('request results explain terminal causes and preserve unknown legacy reason
     await expect(result).toBeVisible();
     await result.hover();
     await expect(page.getByRole('tooltip')).toContainText(description);
-    await expect(page.getByRole('tooltip')).toContainText(`HTTP ${status||'未返回'}`);
+    await expect(page.getByRole('tooltip')).not.toContainText(`HTTP ${status||'未返回'}`);
     await page.keyboard.press('Escape');await page.mouse.move(0,0);
     await result.focus();
     await expect(page.getByRole('tooltip')).toContainText(description);
@@ -85,14 +85,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   const summary=page.getByRole('region',{name:'响应来源统计'});
   const heading=summary.getByRole('heading',{name:'响应来源',exact:true});
   await expect(heading).toBeVisible();
-  if(width===1280){
-    await heading.hover();
-    await expect(page.getByRole('tooltip')).toHaveText('统计全部已保留请求的响应来源。');
-    await page.keyboard.press('Escape');await page.mouse.move(0,0);
-    await heading.focus();
-    await expect(heading).toHaveAccessibleDescription('统计全部已保留请求的响应来源。');
-    await page.keyboard.press('Escape');
-  }
+  await expect(heading).toHaveAccessibleDescription('');
   await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
   await expect(summary.getByText('缓存 50%',{exact:true})).toBeVisible();
   await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();
@@ -280,7 +273,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   const outcome=page.getByRole('table',{name:'请求历史列表',exact:true}).locator('tbody tr').nth(2).getByText('处理异常',{exact:true});
   await expect(outcome).toBeVisible();
   await outcome.hover();
-  await expect(page.getByRole('tooltip')).toContainText('响应传输被中止，未记录更具体的原因。 HTTP 206。');
+  await expect(page.getByRole('tooltip')).toContainText('响应传输被中止，未记录更具体的原因。');
   await page.keyboard.press('Escape');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true});
   await expect(table.getByRole('columnheader')).toHaveCount(7);
@@ -301,7 +294,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(songHeader).toHaveAccessibleDescription('按歌曲 ID 排序。');
   await expect(page.getByRole('tooltip')).toContainText('按歌曲 ID 排序');
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
-  for(const [label,description] of [['交付','已写出字节'],['来源','当前请求等过缺块']] as const){
+  for(const [label,description] of [['交付','已写出字节']] as const){
     const target=table.getByRole('columnheader',{name:label,exact:true}).getByText(label,{exact:true});
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);

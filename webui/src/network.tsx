@@ -22,13 +22,12 @@ function SOCKS5Service() {
   }
   const unknown=app.stopped||!!app.status.error||!!service?.closed;
   const state=unknown?'待确认':busy?'检测中':service?.state==='available'?'可用':service?.state==='failed'?'检查失败':'尚未检测';
-  const description=unknown?'无法确认当前服务状态':busy?'正在协商与认证':service?.error|| (service?.state==='available'?(service.authenticated?'协商与认证通过':'协商通过，服务无需认证'):'等待自动检查');
+  const description=unknown?'无法确认当前服务状态':busy?'正在协商与认证':service?.error|| (service?.state==='available'?'':'等待自动检查');
   return <Panel title="SOCKS5 服务" action={<Tooltip content="重新检测 SOCKS5 服务" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={busy} disabled={app.unavailable||unknown||busy} disabledFocusable={busy} onClick={()=>void check()}/></Tooltip>}>
     <Text className="wrap">{app.status.data?.activeSettings.socks5Address}</Text>
     <div className="toolbar"><StatusBadge label="服务" color={unknown?'informative':busy?'brand':service?.state==='available'?'success':service?.state==='failed'?'danger':'informative'} description={description}>{state}</StatusBadge>
       {!unknown&&!busy&&service?.latencyMS!=null&&<Text>{Math.round(service.latencyMS)} ms</Text>}
     </div>
-    {!unknown&&!busy&&service?.state==='available'&&<Text>{service.authenticated?'协商与认证通过':'协商通过，服务无需认证'}</Text>}
     <Feedback error>{!unknown&&!busy?service?.error:undefined}</Feedback>
     <div className="toolbar secondary"><Caption1>最后检查：{dated(service?.observedAt)?<time dateTime={service?.observedAt}>{date(service?.observedAt)}</time>:'—'}</Caption1>
       {!unknown&&dated(service?.nextCheck)&&<Caption1>下次检查：<time dateTime={service?.nextCheck}>{date(service?.nextCheck)}</time></Caption1>}

@@ -16,7 +16,9 @@ for(const operation of ['file','song','public'] as const) {
           await route.fulfill(failed?{status:400,body:text}:{json:{ok:true}});
         });
         await page.goto('/#/library');
-        const trigger=operation==='file'?page.getByRole('button',{name:'定位文件',exact:true}).first():operation==='song'?page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true}):page.getByRole('button',{name:'检查缺失视频',exact:true});
+        const trigger=operation==='file'?page.getByRole('menuitem',{name:'定位文件',exact:true}):operation==='song'?page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true}):page.getByRole('button',{name:'检查缺失视频',exact:true});
+        const openFileMenu=async()=>{if(operation==='file')await page.getByRole('button',{name:'歌曲 1 的操作',exact:true}).click();};
+        await openFileMenu();
         const requested=page.waitForRequest('**/api/'+path),responded=page.waitForResponse('**/api/'+path);
         await trigger.click();
         await requested;
@@ -28,10 +30,13 @@ for(const operation of ['file','song','public'] as const) {
         await navigate(page,'设置');
         if(timing==='returned') {
           await navigate(page,'曲库');
+          await openFileMenu();
           await expect(trigger).toBeDisabled(); // Navigation does not release an in-flight operation.
+          if(operation==='file')await page.keyboard.press('Escape');
         }
         release();await responded;
         if(timing!=='returned')await navigate(page,'曲库');
+        await openFileMenu();
         await expect(trigger).toBeEnabled();
         await expect(message).not.toBeVisible();
         if(operation==='file')await expect(page.getByRole('region',{name:'文件操作结果',exact:true})).not.toBeVisible();

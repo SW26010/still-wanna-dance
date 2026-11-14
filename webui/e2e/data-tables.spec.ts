@@ -133,8 +133,9 @@ test('history headers keep descriptions keyboard-accessible without an empty Tab
   await page.goto('/#/timeline');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),header=table.getByRole('columnheader',{name:'详情',exact:true});
   await expect(header).toBeVisible();await expect(header).toHaveAccessibleName('详情');
-  const sources=table.getByRole('columnheader',{name:'来源',exact:true}).locator('.fui-TableHeaderCell__button');
-  await sources.focus();await expect(page.getByRole('tooltip')).toBeVisible();
+  for(const name of ['来源','详情'])await expect(table.getByRole('columnheader',{name,exact:true}).locator('button, [tabindex="0"]')).toHaveCount(0);
+  const delivery=table.getByRole('columnheader',{name:'交付',exact:true}).locator('.fui-TableHeaderCell__button');
+  await delivery.focus();await expect(page.getByRole('tooltip')).toHaveText('已写出字节占本次响应范围的比例。');
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
   await page.keyboard.press('Tab');await expect(table.getByRole('link',{name:'ID 42',exact:true})).toBeFocused();
 });

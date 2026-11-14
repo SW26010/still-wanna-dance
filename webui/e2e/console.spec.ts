@@ -6,7 +6,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
   const api=await mockAPI(page); await page.goto('/#prepareAheadSeconds');
   const m=page.getByRole('spinbutton',{name:/提前准备时间/});
   const estimate=page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary');
-  await expect(m).toHaveAccessibleDescription('');
+  await expect(m).toHaveAccessibleDescription('提前为预计即将使用的视频数据安排下载。');
   await expect(estimate).toHaveText('预计 190.73 MiB');
   await m.fill(''); await expect(estimate).toHaveText('预计 190.73 MiB');
   await m.fill('100'); await expect(estimate).toHaveText('预计 95.37 MiB');
@@ -44,6 +44,7 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：无记录');await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await navigateSettings(page,'下载与缓存'); await navigate(page,'曲库');
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();
   await expect(rows.first().getByRole('button',{name:'删除本地视频',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
 });

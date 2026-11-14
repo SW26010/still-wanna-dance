@@ -49,7 +49,9 @@ test('six primary pages and section links reach their current owners',async({pag
   await expect(page.getByRole('spinbutton',{name:'自动测速间隔（分钟）',exact:true})).toHaveCount(0);
   await page.evaluate(()=>{location.hash='#help-paths';});
   await expect(page.getByRole('tab',{name:'使用帮助',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(page.getByRole('heading',{name:'日志与当前路径',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'反馈问题',exact:true})).toBeVisible();
+  await expect(page.locator('#help-paths')).toBeFocused();
+  await expect(page.locator('#help-paths')).toBeInViewport();
 });
 
 test('tab drafts survive and saves merge only the submitted section',async({page})=>{
@@ -140,7 +142,9 @@ test('about groups help, agreement and offline license links',async({page})=>{
   await page.getByRole('tab',{name:'许可证与声明'}).click();
   for(const [name,path] of [['软件许可证原文','software-license.txt'],['程序第三方声明原文','third-party-notices.txt'],['WebUI 第三方声明原文','webui-notices.txt']])await expect(page.getByRole('link',{name,exact:true})).toHaveAttribute('href','/assets/webui/'+path);
   await page.getByRole('tab',{name:'用户协议'}).click();await expect(page.getByRole('article',{name:'完整使用条款'})).toBeVisible();
-  await page.getByRole('tab',{name:'使用帮助'}).click();await expect(page.getByRole('heading',{name:'开始使用',exact:true})).toBeVisible();
-  await expect(page.locator('#help-paths dt').filter({hasText:'程序日志'})).toBeVisible();
+  await page.getByRole('tab',{name:'使用帮助'}).click();await expect(page.getByRole('heading',{name:'启动与退出',exact:true})).toBeVisible();
+  await page.getByRole('tab',{name:'介绍',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'文件位置',exact:true})).toBeVisible();
+  await expect(page.getByRole('tabpanel').getByText('程序日志',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'打开日志文件夹',exact:true})).toHaveCount(0);
 });

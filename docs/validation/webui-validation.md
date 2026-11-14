@@ -2346,3 +2346,16 @@ build/check、差异检查及产物登记校验通过。`settings-help.spec.ts`�
 前端 build/check、内嵌资源一致性、当前 bundle 精确登记及差异检查通过。未修改日常数据、重建日常 EXE、启动游戏或修改 hosts；本轮不涉及新增 VRC 验收项，上节原 12 项测试维护失败不在本次修复范围，原全面检查结论保留。
 
 后续让「同时下载数量」「并发增长间隔」「提前准备时间」「延续保护时间」的标题文字也能悬停显示普通说明，替代前述仅输入区触发的范围。`ValidationField` 的可选标题提示复用同一说明文案，保留原生标签和独立错误图标。先在 `label-before.log` 复现标题无提示；扩展上述三个套件后 **16 个不同用例通过**，包括四标题的桌面／窄屏说明、标题→错误图标切换及原有六种主题／视口组合。首轮 15/16 通过，另一项因两处隐藏说明使旧文本定位重复而失败，改为检查可见 Tooltip 后定向复验通过，分别保留 `artifacts/field-tooltip-fix/label-final/`、`label-final.log`、`label-recheck/` 和 `label-recheck.log`。隔离真实 Console 同轮通过四标题的 320px 悬停／Escape、错误图标切换及原保存检查，证据在 `label-live/`、`label-live.log`。build/check、内嵌产物与精确登记校验、差异检查再次通过；未重建日常 EXE。
+
+## 2026-11-15：全面检查中的 12 项过期测试修订
+
+仅修订前述测试维护问题，不修改产品实现或构建产物。普通权限 Edge 中先用五个文件加 `--grep 'storage summaries|drafts survive polling|cache renders Unix|history headers|file feedback|six primary pages|about groups'` 复现全部 **12 项失败**，阻断点与全面检查记录一致。
+
+- 存储摘要改查现行最后检查时间提示；提前准备时间改查现行可访问说明，保留预算、草稿、保存与重启边界断言。
+- 从设置返回曲库后显式切换「按资源」，继续检查请求时间与删除操作；文件反馈六种成功／失败及完成／离开／返回时序通过歌曲封面操作菜单触发，并重新打开菜单检查未完成时禁用、完成后恢复及旧反馈清除。
+- 历史表头的键盘说明检查使用仍有说明的「交付」列，保留 Escape 和后续 Tab 焦点检查，另查「来源」「详情」静态表头没有多余 Tab 入口。
+- 帮助锚点改查「反馈问题」及定位／焦点；帮助启动说明改查「启动与退出」，当前路径改在「介绍 → 文件位置」中检查。
+
+通过 `./scripts/with-test-temp.ps1 pnpm --dir webui test cache-capacity.spec.ts console.spec.ts data-tables.spec.ts page-feedback.spec.ts settings-structure.spec.ts --workers=4` 执行五个完整文件，首轮 **48/49 通过**；剩余一项因本次误将「按资源」写为「资源」而超时，修正定位名称后以 `console.spec.ts --grep 'cache renders Unix' --workers=1` 定向复验通过。合计 **49 个不同用例通过，其中包含原 12 项失败**，不把重复执行计为新增覆盖。类型／内嵌产物一致性检查 `pnpm --dir webui check` 与差异检查通过。
+
+原始失败、修订后结果和定向复验分别保留在忽略目录 `artifacts/stale-tests-20261115/` 的 `before-normal.log`、`after.log`、`resource-recheck.log` 及同名输出目录。最初沙箱内 Edge 在页面断言前退出，已停止该运行，相关输出目录 `before/` 保留，不计为产品或测试断言失败。以上均为内存夹具验证，未重跑全部 UI 套件，不外推真实系统文件操作、后端持久化或 VRC 体验；未启动游戏或修改 hosts，测试修订与本节记录按后续授权一并提交，不推送。历史全面检查的失败记录保留，由本节提供修订后的结果。

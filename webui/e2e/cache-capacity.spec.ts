@@ -195,8 +195,7 @@ test('storage summaries use the active budget, allow over-budget actions and exp
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),summary=panel.getByText('本地视频：已用 2.000 GiB / 预算 1.000 GiB',{exact:true});
     await expect(summary).toBeVisible();await expect(panel.locator('.fui-MessageBar')).toHaveCount(0);
-    await summary.focus();await expect(page.getByRole('tooltip')).toContainText('仅统计已保存的完整视频');
-    await expect(page.getByRole('tooltip')).toContainText('最后检查时间：');
+    await summary.focus();await expect(page.getByRole('tooltip')).toHaveText(/^最后检查时间：.+/);
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
     for(const width of [1280,390]){
       await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:width===390?'dark':'light'});

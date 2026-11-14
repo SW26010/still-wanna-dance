@@ -91,7 +91,7 @@ Still Wanna Dance（SWD）是面向 VRChat WannaDance 的视频加速与管理�
 ## 帮助与参与
 
 - [使用指南](docs/console.md) · [队列预加载](docs/queue-prefetch.md) · [升级与备份](docs/packaging.md#覆盖升级与备份)
-- [提交问题或建议](https://github.com/SW26010/still-wanna-dance/issues)：请附程序版本、Windows 版本、操作步骤和预期／实际结果；分享日志前移除私人路径、凭据等信息。
+- [提交问题或建议](https://github.com/SW26010/still-wanna-dance/issues)：请附程序版本、Windows 版本、操作步骤和预期／实际结果。可在「关于 → 使用帮助 → 反馈问题」点击「下载诊断包」，收集所选时间段的请求历史及 SWD／VRChat 日志；诊断包不会自动脱敏，分享前请检查私人路径、玩家与房间信息、链接及凭据等内容。
 - [完整文档](docs/README.md)
 
 <a id="从源码构建"></a>

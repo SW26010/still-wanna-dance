@@ -76,7 +76,7 @@ Closing the browser leaves acceleration and queue preloading running. Reopen the
 
 **How can I confirm the game is using SWD?** Start acceleration, request a song in the game, and look for its playback requests in Video Demands or History. Backend connection status means the WebUI can reach SWD; game connection status means routing is configured. If no request arrives, try rejoining the world or restarting VRChat to refresh DNS. If requests arrive but downloading is slow, check the upstream connection on the Network page.
 
-**Is the video budget a hard disk limit?** No. It governs retention of complete videos. Temporary blocks, the database, videos in use, and favorites with retention enabled can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
+**Is the video budget a hard disk limit?** No. It governs retention of complete videos, including favorites. When priority retention is enabled, favorites are kept first within the same budget but can still be removed when space is insufficient. Temporary blocks, the database, and videos in use can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
 
 **How much space should I allocate?** Choose a budget that fits your disk. Once retention is enabled, frequently requested songs will build up over time. The [historical storage study](docs/research/cache-priority.md) explores capacity and coverage; its coverage figures are not measured playback speedups.
 
@@ -85,7 +85,7 @@ Closing the browser leaves acceleration and queue preloading running. Reopen the
 ## Help and contribute
 
 - [User guide](docs/console.md) · [Queue preloading](docs/queue-prefetch.md) · [Upgrades and backups](docs/packaging.md#覆盖升级与备份)
-- [Report an issue or suggest a feature](https://github.com/SW26010/still-wanna-dance/issues): include the app version, Windows version, steps, and expected versus actual behavior. Remove private paths and credentials before sharing logs.
+- [Report an issue or suggest a feature](https://github.com/SW26010/still-wanna-dance/issues): include the app version, Windows version, steps, and expected versus actual behavior. Download a diagnostic ZIP under About → Help → Report an issue (`关于 → 使用帮助 → 反馈问题 → 下载诊断包`); it includes request history and SWD/VRChat logs for the selected period. Check the contents for private paths, player and room information, links, and credentials before sharing; the ZIP is not automatically redacted.
 - [All documentation](docs/README.md)
 
 <a id="build-from-source"></a>

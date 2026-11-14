@@ -70,7 +70,8 @@
     "webui/src/category-covers.ts": "a532cccd116f8ed18ae8ef5cb2979cc996b143250ffbc615cdcf06fecfe581d0",
     "webui/src/data-table.tsx": "1e56a451856f4a4478f611c53f230d6e8ff09b1576c76eb7f332e009f3411c59",
     "webui/src/diagnostic-export.tsx": "41b752acd3157f1a6dea2bfb3ddf343aa7bcbe48059080e50ebf3405c009af91",
-    "webui/src/diagnostics.tsx": "64bb023ab14195c5e745a5b46de03fe085c2c1edd14fdbf0829c82ec55d5ddd1",
+    "webui/src/diagnostic-stream.ts": "58c1f6ddc86ef76521cd9f999db405548678ed195aef8f5bedd95da2786aae26",
+    "webui/src/diagnostics.tsx": "ec1e8ae3a8fff6ec375651357ec2b8d512816e4767b17ee8f359117efdf0da35",
     "webui/src/documents.tsx": "a587ed917a744f4ef9ab8a21accf7c471f02c1c2cf007bcbdc96307d9bcd3c5a",
     "webui/src/field-validation.tsx": "cc853dd651a02c022a3f32e51c5351b3f1a3c09ce82eeee5dd593a2fdc5c0877",
     "webui/src/help-content.tsx": "878d95013de5c17ba42618aa538d6505085f219d9d7fddfc6341b7088aac3e61",
@@ -112,7 +113,7 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "02ccdc2a52c8ebd3aca00458cb1de197e062763536344016c7434c26cb9c0149",
     "internal/console/assets/webui/app.css": "c39151940fc1eae3ddf5eae14f36c8d2982a9465d4367dd26e33d310d9bc49de",
-    "internal/console/assets/webui/app.js": "659e23d30381bd7fe4cfb27ad3aea50332ccfdb6dd3e2eeb7f9f80be1af7f1e8",
+    "internal/console/assets/webui/app.js": "621ebaee22a02c5a78cf8cf5df4396387c11c25b0a17fcc9caf3bd5ae5dcdb76",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "ba1050147aef83abae480818ffb965919a9d2ec56a7c3a6be15f1a83dcb56bf8",
     "internal/console/assets/webui/webui-notices.txt": "02ccdc2a52c8ebd3aca00458cb1de197e062763536344016c7434c26cb9c0149",

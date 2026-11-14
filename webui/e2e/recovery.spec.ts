@@ -76,7 +76,7 @@ test('history clears failed reads and recovers focus after a row disappears',asy
   await expect(page.getByRole('listitem',{name:'历史读取失败，请重新查询。',exact:true})).toBeVisible();await expect(group).toHaveCount(0);await expect(page.getByLabel('历史查询结果',{exact:true})).toBeFocused();
 });
 
-test('rejected cancellation stays running and stale SSE events cannot replace newer state',async({page})=>{
+test('rejected cancellation stays running and stale events cannot replace newer state',async({page})=>{
   const api=await mockAPI(page);await page.goto('/#/network');
   await page.getByRole('button',{name:'开始连通性检测'}).click();
   await expect(page.getByRole('button',{name:'停止并放弃连通性检测'})).toBeEnabled();

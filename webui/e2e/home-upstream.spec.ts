@@ -86,7 +86,7 @@ test('a disconnected stream does not add a message to the home layout',async({pa
   const card=page.locator('.upstream-card'),badge=card.getByRole('button',{name:/检测歌曲列表/});
   await expect(badge).not.toHaveAttribute('aria-disabled','true');
   const before=await homeLayout(page);
-  await page.request.post('/__fixture/disconnect',{data:{id:api.fixtureID,kind:'connectivity'}});
+  await api.disconnectDiagnostics();
   await expect(badge).toHaveText('歌曲列表：待确认');
   await expect(card.locator('.fui-MessageBar')).toHaveCount(0);
   expect((await homeLayout(page)).upstream.y).toEqual(before.upstream.y);
@@ -100,7 +100,7 @@ test('an action failure remains visible if the state stream disconnects before i
   const received=new Promise<void>(resolve=>{started=resolve;}),hold=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/network/connectivity/start',async route=>{started();await hold;await route.fulfill({status:503,json:{error:'测试请求失败'}});});
   await refresh.click();await received;
-  await page.request.post('/__fixture/disconnect',{data:{id:api.fixtureID,kind:'connectivity'}});
+  await api.disconnectDiagnostics();
   await expect(page.locator('.upstream-card').getByRole('button',{name:/检测歌曲列表/})).toContainText('待确认');
   release();
   const notice=page.getByRole('listitem',{name:/操作未确认.*测试请求失败/});
@@ -314,7 +314,7 @@ test('unknown, disconnected and canceled states do not claim a fresh result',asy
   await button.focus();await expect(page.getByRole('tooltip')).toHaveText('尚未检测');
   Object.assign(api.diagnostics.connectivity,{revision:2,phase:'canceled',results:[],lastResult:{finished:later,results:initial}});
   await api.emit('connectivity');await expect(button).toHaveText('歌曲列表：42 ms');
-  await page.request.post('/__fixture/disconnect',{data:{id:api.fixtureID,kind:'connectivity'}});
+  await api.disconnectDiagnostics();
   await expect(button).toContainText('待确认');await expect(button).toHaveAttribute('aria-disabled','true');
 });
 

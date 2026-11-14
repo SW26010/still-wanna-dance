@@ -38,14 +38,13 @@ test('unexpected notification disconnect keeps polling and reconnects on its nex
   expect(api.calls.some(call=>call.path==='exit'||call.path==='restart')).toBe(false);
 });
 
-test('accepted exit closes the existing diagnostic event streams',async({page})=>{
+test('accepted exit closes the shared diagnostic socket',async({page})=>{
   const api=await mockAPI(page),sockets=await lifecycle(page);
   await page.goto('/#/network');await expect(badge(page)).toHaveText('后台程序：已连接');
-  const streams=async()=>await (await page.request.get('/__fixture/streams?id='+api.fixtureID)).json();
-  await expect.poll(streams).toMatchObject({connectivity:1,calibration:1});
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
   await expect.poll(()=>sockets.length).toBe(1);sockets[0].send(JSON.stringify({action:'exit'}));
   await expect(badge(page)).toHaveText('后台程序：未连接');
-  await expect.poll(streams).toMatchObject({connectivity:0,calibration:0});
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(0);
 });
 
 test('late status and action responses cannot overwrite an accepted external exit',async({page})=>{

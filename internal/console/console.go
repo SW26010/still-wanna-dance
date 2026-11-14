@@ -688,6 +688,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.serveNetworkCalibrationEvents(w, r)
 		return
 	}
+	if r.Method == "GET" && r.URL.Path == "/api/network/events" {
+		c.serveNetworkEvents(w, r)
+		return
+	}
 	if r.Method == "GET" && r.URL.Path == "/api/network/connectivity/events" {
 		c.serveNetworkConnectivityEvents(w, r)
 		return

@@ -6,46 +6,35 @@ import { APIError, request } from './api';
 import { RecordDetails, Feedback, Notification, Panel, StatusBadge, pageHref } from './ui';
 import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
+import {subscribeDiagnostics,type DiagnosticKind,type DiagnosticState} from './diagnostic-stream';
 
-interface EventState { revision: number; run: number; upstream: string; running: boolean; closed?: boolean; phase: string; finished?:string }
 interface ConnectionResult {operation:string;entry?:string;state?:string;reason?:string;scheme?:string;latencyMS?:number | null;observedAt?:string;retained?:boolean;selected?:boolean}
 type ConnectivityOperation = 'catalog' | 'playback_url' | 'resource';
-interface Connectivity extends EventState { operation?:ConnectivityOperation;initializing?:boolean;nextCheck?:string;results?: ConnectionResult[]; lastResult?: {finished:string;results:ConnectionResult[]} }
+interface Connectivity extends DiagnosticState { operation?:ConnectivityOperation;initializing?:boolean;nextCheck?:string;results?: ConnectionResult[]; lastResult?: {finished:string;results:ConnectionResult[]} }
 interface Measurement {finished?:string;singleSpeedBPS?:number | null;fullSpeedBPS?:number | null;fullConcurrency?:number;fullCPUPercent?:number | null;cpuP95Percent?:number | null;referenceBitrateBPS?:number}
-interface Calibration extends EventState, Measurement {
+interface Calibration extends DiagnosticState, Measurement {
   lastValid?:Measurement; measurementStage?:string; reason?:string; preparationProgress?:number;
   liveSingleSpeedBPS?:number | null; liveFullSpeedBPS?:number | null; liveSpeedBPS?:number | null; open?:number;
 }
-type Kind = 'connectivity' | 'calibration';
-function useDiagnostic<T extends EventState>(kind:Kind, enabled:boolean) {
+type Kind = DiagnosticKind;
+function useDiagnostic<T extends DiagnosticState>(kind:Kind, enabled:boolean) {
   const [state,setState] = useState<T>(), [online,setOnline] = useState(false), [message,setMessage] = useState(''), [actionError,setActionError] = useState(''), [pending,setPending] = useState(false), [intent,setIntent] = useState<'start'|'cancel'>();
   const latest = useRef(state), currentIntent = useRef<{action:'start'|'cancel';run:number} | undefined>(undefined);
   useEffect(() => {
     if (!enabled) return;
-    let stream: EventSource | undefined;
-    const disconnect = () => { stream?.close(); stream=undefined; setOnline(false); };
-    const connect = () => {
-      if (document.hidden) { disconnect(); return; }
-      if (stream) return;
-      let revision = -1;
-      const source = stream = new EventSource(`/api/network/${kind}/events`);
-      setMessage('正在连接检测状态…');
-      source.addEventListener(kind,event => {
-        if (stream !== source) return;
-        try {
-          const next = JSON.parse((event as MessageEvent).data) as T;
-          if (typeof next.revision !== 'number') throw new Error('invalid revision');
-          if (next.revision < revision) return;
-          revision = next.revision; latest.current = next; setState(next); setOnline(true); setMessage('');
-          const wanted = currentIntent.current;
-          if (wanted && (wanted.run !== next.run || wanted.action==='start' && next.running || wanted.action==='cancel' && (!next.running || next.phase==='canceling'))) {currentIntent.current=undefined;setIntent(undefined);}
-          if (next.closed) disconnect();
-        } catch {setOnline(false);setMessage('检测状态无法读取，请重新进入网络页。');}
-      });
-      source.onerror = () => { if (stream===source) {setOnline(false);setMessage('检测状态连接已断开，正在重新连接…');} };
-    };
-    connect();document.addEventListener('visibilitychange',connect);addEventListener('pagehide',disconnect);addEventListener('pageshow',connect);
-    return () => {disconnect();document.removeEventListener('visibilitychange',connect);removeEventListener('pagehide',disconnect);removeEventListener('pageshow',connect);};
+    const unsubscribe=subscribeDiagnostics(kind,{
+      receive:value=>{
+        const next=value as T;
+        latest.current=next;setState(next);setOnline(!next.closed);setMessage('');
+        const wanted=currentIntent.current;
+        if(wanted&&(wanted.run!==next.run||wanted.action==='start'&&next.running||wanted.action==='cancel'&&(!next.running||next.phase==='canceling'))){currentIntent.current=undefined;setIntent(undefined);}
+      },
+      connection:value=>{
+        setOnline(false);
+        setMessage(value==='connecting'?'正在连接检测状态…':value==='disconnected'?'检测状态连接已断开，正在重新连接…':value==='invalid'?'检测状态无法读取，请重新进入网络页。':'');
+      },
+    });
+    return ()=>{unsubscribe();setOnline(false);};
   }, [enabled,kind]);
   async function toggle(operation?:ConnectivityOperation) {
     if (!online || pending || currentIntent.current || state?.closed) return;

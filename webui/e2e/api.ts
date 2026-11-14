@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, WebSocketRoute } from '@playwright/test';
 import type { CacheEntry, Settings, Status } from '../src/types';
 export async function choosePath(page: Page, label: string, path: string) {
   await page.route('**/api/path/select', route => route.fulfill({json:{path,canceled:false}}), {times:1});
@@ -21,7 +21,16 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
   const state = statusFixture(), calls: {path:string;body:Record<string,unknown>;token?:string}[] = [];
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastResult:undefined},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:undefined,referenceBitrateBPS:2000000}};
-  const emit=async(kind:keyof typeof diagnostics)=>{await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});};
+  const diagnosticSockets=new Set<WebSocketRoute>();
+  await page.routeWebSocket('**/api/network/events',socket=>{
+    diagnosticSockets.add(socket);socket.onClose(()=>diagnosticSockets.delete(socket));
+    for(const kind of ['connectivity','calibration'] as const)socket.send(JSON.stringify({event:kind,data:diagnostics[kind]}));
+  });
+  const disconnectDiagnostics=async()=>{for(const socket of diagnosticSockets)await socket.close();diagnosticSockets.clear();};
+  const emit=async(kind:keyof typeof diagnostics)=>{
+    for(const socket of diagnosticSockets)socket.send(JSON.stringify({event:kind,data:diagnostics[kind]}));
+    await page.request.post('/__fixture/events',{data:{id:fixtureID,kind,state:diagnostics[kind]}});
+  };
   const files: CacheEntry[] = [1,2].map(id => ({key:'key'+id,stamp:'stamp'+id,bytes:1073741824,lastRequest:id===1?Date.UTC(2026,9,16,8,30):0,songs:[{id:String(id),title:'测试歌曲 '+id}],songCount:1,known:true,protected:id===2,state:'文件存在 · 按 MD5 复用'}));
   const coverFiles=new Set<string>();
   await page.route('**/api/**',async route => {
@@ -99,5 +108,5 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     await route.fulfill({json:data,headers:{'Set-Cookie':`fixture-gate=${terms.accepted?'0':'1'}; Path=/`}});
   });
   const historyChanged=()=>page.request.post('/__fixture/events',{data:{id:fixtureID,kind:'history',state:{closed:false}}});
-  return {state,calls,files,coverFiles,terms,diagnostics,emit,fixtureID,historyChanged};
+  return {state,calls,files,coverFiles,terms,diagnostics,emit,fixtureID,historyChanged,diagnosticSockets,disconnectDiagnostics};
 }

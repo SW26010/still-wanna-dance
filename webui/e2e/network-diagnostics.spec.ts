@@ -36,7 +36,7 @@ for(const event of ['closed','disconnect'])test(`network connectivity ${event} d
     await expect(button).toBeDisabled();
     await expect(page.getByText('应用正在关闭。',{exact:true})).toHaveCount(0);
   } else {
-    await page.request.post('/__fixture/disconnect',{data:{id:api.fixtureID,kind:'connectivity'}});
+    await api.disconnectDiagnostics();
     await expect(page.getByRole('listitem',{name:'检测状态连接已断开，正在重新连接…',exact:true})).toBeVisible();
     await expect(button).toBeDisabled();
   }
@@ -114,7 +114,7 @@ test('automatic connectivity pushes results without a click and catalog retries 
   await expect(page.locator('.diagnostic-rows time').nth(1)).toHaveAttribute('datetime',first);
 });
 
-test('manual SSE diagnostics restore saved results when cancellation is confirmed but response is lost',async({page})=>{
+test('pushed diagnostics restore saved results when cancellation is confirmed but response is lost',async({page})=>{
   const api=await mockAPI(page);
   Object.assign(api.diagnostics.calibration,{finished:'2026-10-30T12:00:00Z',lastValid:{finished:'2026-10-30T12:00:00Z',singleSpeedBPS:500000,fullSpeedBPS:2000000,fullConcurrency:8,fullCPUPercent:3,cpuP95Percent:5,cpuP99Percent:16.58,referenceBitrateBPS:2000000}});
   await api.emit('calibration');

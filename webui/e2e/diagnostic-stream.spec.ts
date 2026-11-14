@@ -1,0 +1,52 @@
+import {test,expect} from '@playwright/test';
+import {mockAPI} from './api';
+import {navigate} from './navigation';
+
+test('diagnostics share one socket and release it on hidden, pagehide, navigation and exit',async({page})=>{
+  const api=await mockAPI(page);
+  await page.clock.install();await page.goto('/#/network');
+  const start=page.getByRole('button',{name:'开始连通性检测',exact:true});
+  await expect(start).toBeEnabled();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+  expect(api.calls.some(call=>/^network\/.*\/events$/.test(call.path))).toBe(false);
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(0);
+  await expect(start).toBeDisabled();
+  await page.clock.fastForward(2100);
+  expect(api.diagnosticSockets.size).toBe(0);
+  Object.assign(api.diagnostics.connectivity,{revision:2,run:1,running:true,phase:'running'});
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
+  const cancel=page.getByRole('button',{name:'停止并放弃连通性检测',exact:true});
+  await expect(cancel).toBeEnabled();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+  await page.evaluate(()=>dispatchEvent(new Event('pagehide')));
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(0);
+  await page.clock.fastForward(2100);expect(api.diagnosticSockets.size).toBe(0);
+  await page.evaluate(()=>dispatchEvent(new Event('pageshow')));
+  await expect(cancel).toBeEnabled();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+  await navigate(page,'设置');
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(0);
+  await page.clock.fastForward(2100);expect(api.diagnosticSockets.size).toBe(0);
+  await navigate(page,'加速');
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+  await navigate(page,'网络');
+  await expect(cancel).toBeEnabled();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+  await page.getByRole('button',{name:'退出程序',exact:true}).click();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(0);
+});
+
+test('reconnecting diagnostics restore both fresh snapshots and reset their revision baseline',async({page})=>{
+  const api=await mockAPI(page);
+  Object.assign(api.diagnostics.connectivity,{revision:100,run:5,running:true,phase:'running'});
+  Object.assign(api.diagnostics.calibration,{revision:50,run:2,running:true,phase:'running'});
+  await page.clock.install();await page.goto('/#/network');
+  for(const kind of ['连通性检测','下载速度测试'])await expect(page.getByRole('button',{name:'停止并放弃'+kind,exact:true})).toBeEnabled();
+  await api.disconnectDiagnostics();
+  for(const kind of ['连通性检测','下载速度测试'])await expect(page.getByRole('button',{name:'停止并放弃'+kind,exact:true})).toBeDisabled();
+  for(const state of Object.values(api.diagnostics))Object.assign(state,{revision:1,run:0,running:false,phase:'idle'});
+  await page.clock.fastForward(1100);
+  for(const kind of ['连通性检测','下载速度测试'])await expect(page.getByRole('button',{name:'开始'+kind,exact:true})).toBeEnabled();
+  await expect.poll(()=>api.diagnosticSockets.size).toBe(1);
+});

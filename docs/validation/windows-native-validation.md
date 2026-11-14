@@ -144,3 +144,29 @@ Windows PowerShell 的 `Start-Process` 将 Shell 启动的原生异常转成不�
 这些数据表明空闲条件下已移除主要额外开销，同时保留负载期间的高耗时样本。此前 PowerShell 诊断与本轮不是严格同批配对，不计算百分比收益，不设置 CI 计时阈值或承诺固定打开时间。未测用户正在使用的页面完整点击链路、实际目录、系统冷缓存或混合 DPI 跨屏；页面离开与正常退出的前后端取消链路未修改，复用其既有机制及本轮定向取消回归，不把受控请求取消称作真实浏览器关闭验收。
 
 路径选择、配置恢复、重启、共用 DPI／图标机制的定向 Go 回归、相关包 vet、WebUI 嵌入一致性和标准桌面构建通过。可选真实浏览器／托盘用例未设置专用环境变量时明确 skip，不计作本轮通过；本轮未启动游戏或修改 hosts，不新增 VRC 台账项。完整本地证据在忽略目录 `artifacts/path-picker-native/`：`regression.log`、`helper-native.log`、`production-native.log`、`production-native-idle.log`、`production-folder-latency.log`、`init-trace.log`，以及图标失败对照图与旧窗口样式探针。所有本轮选择器子进程均已等待退出。
+
+## 2026-11-12：设置路径选择器打开延迟诊断
+
+源码基线 `4d6aef73`。设置中的数据库、视频、临时缓存和日志目录经 `usePathPicker` → `/api/path/select` → `desktop.SelectPath` 打开系统选择器。点击处理直接发出请求，没有固定半秒等待；存储位置校验在选择结果返回之后执行。`SelectPath` 每次创建新的 Windows PowerShell STA 进程，将请求和内嵌 ICO 作为 JSON 写入 stdin，再加载 WinForms、通过 `Add-Type` 编译内嵌 C#，最后调用 `IFileDialog.Show`。设置中的 Mihomo「选择配置文件」使用浏览器 `input[type=file]`，属于另一条路径，本轮结论不覆盖它。
+
+探针读取生产 `folder_dialog.ps1`，只添加分段计时及同 STA 线程上的 WinForms 定时器：枚举本线程标题为 `SWD latency probe` 且可见的窗口后记录时间，并发送关闭消息。使用忽略目录作为初始文件夹，每次确认返回空路径且辅助进程退出。记录的「可见」为可见 HWND 被观察到的时点，包含约 10 毫秒定时器采样及消息泵调度误差，不等于第一帧绘制完毕。
+
+最初只运行实际脚本的初始化部分，5 次在显示窗口之前耗时 776–1208 毫秒，全部超过诊断阈值 300 毫秒；命令 `./scripts/with-test-temp.ps1 pwsh -NoProfile -File artifacts/path-picker-latency-20261112/measure.ps1 -Runs 5 -AssertResponsive` 因此明确失败。该阈值只用于本机定位，不是新增产品 SLA 或 CI 计时断言。
+
+在真实 Windows 桌面运行完整文件夹选择窗口，首批 5 次从创建进程到窗口可见为 932–1191 毫秒。补充分段后的 7 次结果如下（单位毫秒；各段中位数独立计算，不要求相加等于总计中位数）：
+
+| 阶段 | 中位数 | 范围 |
+| --- | ---: | ---: |
+| 创建 PowerShell 到脚本首个计时点（含启动、脚本解析及首次计时输出） | 437.5 | 421.7–469.2 |
+| UTF-8 设置、读取输入和首次 JSON 解析 | 147.1 | 140.6–150.5 |
+| 加载 WinForms 程序集 | 11.6 | 11.2–12.1 |
+| `Add-Type` 编译 C# 定义 | 100.8 | 91.6–111.9 |
+| 所属窗口、COM 与初始目录准备 | 50.9 | 50.1–52.7 |
+| `Show` 到观察到可见窗口 | 233.6 | 218.0–308.5 |
+| 创建进程到可见窗口总计 | 998.9 | 949.7–1060.5 |
+
+对照将同一份 C# 选择器及自动取消探针预编译为临时 .NET EXE，以相同 stdin 请求、STA、初始目录和隐藏进程方式直接运行，5 次总耗时中位数 309.6 毫秒、范围 303.2–362.0 毫秒。这个对照同时去除了 PowerShell 运行时、其输入转换与现场编译，不能用来单独量化三者各自的收益；它足以表明每次 PowerShell 初始化是主要额外开销。保留相同 C# 选择器后，窗口自身仍有约 0.2 秒准备时间，不能承诺优化后瞬时打开。
+
+本轮仅诊断，当时未替换产品实现或正在运行的程序。当时建议移除每次启动 PowerShell 和现场编译的路径，并保留 STA、PMv2、所属窗口、图标及取消清理契约；该方向已由[上文的 EXE 原生助手实现与验证](#2026-11-12路径选择器改为-exe-原生助手)落实，不再作为后续待办。当前实现及验证以上文为准；本节保留原 PowerShell 路径的诊断证据。
+
+探针、初始失败测量、完整窗口分段数据、对照源码和汇总保存在忽略目录 `artifacts/path-picker-latency-20261112/`，分别为 `measure.ps1`、`preparation-results.json`、`native-results.json`、`direct-helper.cs`、`direct-results.json`、`summary.json`。所有测试窗口自动取消且子进程已返回；未修改配置、用户数据、hosts，未启动游戏。没有测量用户当前浏览器的完整点击链路、实际初始目录或 Windows 冷缓存；本机初始化开销已经独立复现，但数值不作为用户现场的精确耗时。未新增 VRC 台账项。

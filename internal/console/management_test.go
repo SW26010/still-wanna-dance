@@ -12,7 +12,7 @@ func TestManagementAdmissionThroughRouter(t *testing.T) {
 		{"GET", "/api/library"}, {"GET", "/api/songs"}, {"POST", "/api/songs"},
 		{"POST", "/api/cache/delete"}, {"POST", "/api/cache/open"},
 		{"GET", "/api/downloads"}, {"GET", "/api/requests"},
-		{"GET", "/api/history"}, {"GET", "/api/latency"}, {"GET", "/api/response-sources"},
+		{"GET", "/api/history"}, {"GET", "/api/history/count"}, {"GET", "/api/latency"}, {"GET", "/api/response-sources"},
 		{"POST", "/api/library/preview"}, {"POST", "/api/batch/cancel"},
 		{"POST", "/api/storage/create"}, {"POST", "/api/vrcx/preview"},
 		{"POST", "/api/proxy/import"}, {"POST", "/api/settings"},

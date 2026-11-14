@@ -352,7 +352,7 @@ form.actions { align-items: flex-end; }
 .mihomo-import-row > .fui-Input { min-width: 0; }
 .mihomo-import-row > button { min-width: 72px; }
 
-.help-guide { padding-top: var(--spacingVerticalL); max-width: 64rem; display: grid; gap: var(--spacingVerticalXL); }
+.help-guide { padding-top: var(--spacingVerticalL); display: grid; gap: var(--spacingVerticalXL); }
 .help-guide > .panel { margin-block: 0; }
 .help-guide p, .help-guide li { line-height: 1.7; }
 .help-guide li p { margin-block: var(--spacingVerticalS); }

@@ -15,6 +15,7 @@ import (
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/buildinfo"
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/upstreamcheck"
 )
 
 type diagnosticRange struct {
@@ -40,7 +41,9 @@ func (c *Console) serveDiagnosticExport(w http.ResponseWriter, r *http.Request) 
 	c.mu.Lock()
 	database, vrcDir := c.settings.DatabasePath, c.settings.effectiveVRChatLogDir()
 	logDir := c.files().LogDir
+	diagnostics := c.networkDiagnostics
 	c.mu.Unlock()
+	calibration := diagnosticCalibration(diagnostics)
 	file, err := os.CreateTemp("", "swd-diagnostics-*.zip")
 	if err != nil {
 		preserveResponseFault(w, err)
@@ -49,7 +52,7 @@ func (c *Console) serveDiagnosticExport(w http.ResponseWriter, r *http.Request) 
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	sources, err := writeDiagnosticArchive(ctx, file, input, database, logDir, vrcDir)
+	sources, err := writeDiagnosticArchive(ctx, file, input, database, logDir, vrcDir, calibration)
 	if err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "诊断包生成失败，请重试或缩短时间范围", 500)
@@ -70,7 +73,28 @@ func (c *Console) serveDiagnosticExport(w http.ResponseWriter, r *http.Request) 
 	http.ServeContent(w, r, "swd-diagnostics.zip", info.ModTime(), file)
 }
 
-func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRange, database, logDir, vrcDir string) ([]diagnosticSource, error) {
+// Only borrow an existing snapshot. Never initialize diagnostics, start a run,
+// subscribe to its changes, or wait for an in-progress measurement.
+func diagnosticCalibration(n *networkDiagnostics) []byte {
+	if n == nil {
+		return nil
+	}
+	status, _ := n.calibrationSnapshot()
+	if status.Run == 0 {
+		return nil
+	}
+	data, err := json.MarshalIndent(struct {
+		CollectedAt time.Time                       `json:"collectedAt"`
+		Scope       string                          `json:"scope"`
+		Status      upstreamcheck.CalibrationStatus `json:"status"`
+	}{time.Now(), "Existing in-process snapshot; not filtered by the selected time range or a complete measurement history.", status}, "", "  ")
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRange, database, logDir, vrcDir string, calibration []byte) ([]diagnosticSource, error) {
 	z := zip.NewWriter(w)
 	write := func(name string, data []byte) error {
 		entry, err := z.Create(name)
@@ -105,6 +129,12 @@ func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRa
 		if err := write("用户说明.txt", []byte(input.Note)); err != nil {
 			return nil, err
 		}
+	}
+	if len(calibration) > 0 {
+		if err := write("network-calibration.json", calibration); err != nil {
+			return nil, err
+		}
+		sources = append(sources, diagnosticSource{Name: "network-calibration", Records: 1, Files: 1})
 	}
 	manifest := struct {
 		Build       buildinfo.Info     `json:"build"`

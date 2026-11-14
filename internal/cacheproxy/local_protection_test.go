@@ -121,6 +121,42 @@ func TestLocalProtectionFarFutureAndUntimedDoNotExtendTail(t *testing.T) {
 	}
 }
 
+func TestLocalProtectionConsumptionLeavesOnlyIndependentNeeds(t *testing.T) {
+	for _, kind := range []string{"future", "manual"} {
+		t.Run(kind, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				ctx := context.WithValue(context.Background(), httpGETKey{}, true)
+				d, release := addTestDemand(t, s, ctx, w.v, true)
+				defer release()
+				clock := &playbackClock{at: time.Now().Add(time.Hour), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+				_, independent := addTestDemand(t, s, context.WithValue(ctx, playbackClockKey{}, clock), w.v, kind == "future")
+				defer independent()
+				remaining := protectionFor(s, w.v.key, 2)
+				g := &getConsumption{s: s, demand: d, size: w.v.size}
+				g.start(http.StatusOK, nil)
+				g.accept(2 * rangeBlockSize)
+				for b := int64(0); b < 2; b++ {
+					p := protectionFor(s, w.v.key, b)
+					if p.active(time.Now()) || !p.until.IsZero() {
+						t.Fatal("consumption retained the departing contributor's protection or added grace", b, p)
+					}
+					var want time.Time
+					if kind == "future" {
+						want = clock.ready(b * rangeBlockSize).Add(-s.protectionAhead())
+					}
+					if p.start != want {
+						t.Fatal("consumption lost the independent protection clock", b, p.start, want)
+					}
+				}
+				if got := protectionFor(s, w.v.key, 2); got != remaining {
+					t.Fatal("consumption changed protection of the undelivered suffix", got, remaining)
+				}
+			})
+		})
+	}
+}
+
 func TestLocalProtectionNoExtraGraceWhenOnlyFutureSourceRemains(t *testing.T) {
 	w, s := testSession(t)
 	ctx := context.WithValue(context.Background(), httpGETKey{}, true)

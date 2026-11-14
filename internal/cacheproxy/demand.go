@@ -280,29 +280,45 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 	delete(s.demands, d)
 	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)
 }
-func (s *Server) notifyUseChangedLocked(keys ...string) {
-	changed := make(map[string]bool, len(keys))
-	for _, key := range keys {
-		if key != "" && !changed[key] {
-			s.refreshUseProtectionLocked(key)
-			changed[key] = true
-		}
+
+// Consumption changes only the delivered prefix. Keep reference release,
+// protection and publication together, so HTTP need only report its progress.
+func (s *Server) consumeDemand(d *downloadDemand, next int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Withdrawal may have already transferred/released the remaining span
+	// while the response writer was returning.
+	if !s.demands[d] {
+		return
 	}
+	span := useSpan{d.key, d.firstBlock, next}
+	s.releaseUseLocked(span, time.Now())
+	d.firstBlock = next
+	s.refreshUseProtectionLocked(span)
+	s.publishUseChangedLocked(d.key)
+}
+
+func (s *Server) notifyUseChangedLocked(keys ...string) {
+	keys = uniqueResourceKeys(keys)
+	for _, key := range keys {
+		s.refreshUseProtectionLocked(allUseBlocks(key))
+	}
+	s.publishUseChangedLocked(keys...)
+}
+
+func (s *Server) publishUseChangedLocked(keys ...string) {
 	// Even a delayed source exit first establishes its frozen handoff clock,
 	// then ends it at the original deadline. No callback delay extends grace.
-	expired := s.expireUseLocked(time.Now())
-	for _, key := range expired {
-		changed[key] = true
-	}
+	expired := uniqueResourceKeys(s.expireUseLocked(time.Now()))
 	// Expiry may affect the same resource as the mutation. Rebuild it after
 	// establishing the handoff's frozen clock and ending its final references.
-	for _, key := range uniqueResourceKeys(expired) {
-		s.refreshUseProtectionLocked(key)
+	for _, key := range expired {
+		s.refreshUseProtectionLocked(allUseBlocks(key))
 	}
 	// Source mutations publish their final clock/expiry and arm the shared timer
 	// together. Timer callbacks use this same path when they change sources.
 	s.armUseTimerLocked()
-	for key := range changed {
+	for _, key := range uniqueResourceKeys(append(keys, expired...)) {
 		s.notifyResourceChangedLocked(key)
 	}
 	s.notifyBlockObservation()

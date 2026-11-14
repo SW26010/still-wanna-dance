@@ -206,7 +206,7 @@ func (u *usageStore) run() {
 func (u *usageStore) write(batch []usageEvent) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	tx, err := u.db.BeginTx(ctx, nil)
+	tx, err := beginStorageWrite(ctx, u.db)
 	if err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	tx, err := u.db.BeginTx(ctx, nil)
+	tx, err := beginStorageWrite(ctx, u.db)
 	if err != nil {
 		return 0, err
 	}

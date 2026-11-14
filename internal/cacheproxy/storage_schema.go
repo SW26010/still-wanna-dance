@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"context"
 	"database/sql"
 	_ "embed"
 	"fmt"
@@ -20,7 +21,7 @@ func initializeStorage(db *sql.DB) error {
 }
 
 func initializeStorageFromSeed(db *sql.DB, seed string) error {
-	tx, err := db.Begin()
+	tx, err := beginStorageWrite(context.Background(), db)
 	if err != nil {
 		return err
 	}
@@ -28,7 +29,7 @@ func initializeStorageFromSeed(db *sql.DB, seed string) error {
 	if _, err = tx.Exec(storageSchemaSQL); err != nil {
 		return err
 	}
-	if err := initializeMediaSeed(tx, seed); err != nil {
+	if err := initializeMediaSeed(tx.Tx, seed); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(fmt.Sprintf("PRAGMA application_id=%d; PRAGMA user_version=%d;", storageApplicationID, storageSchemaVersion)); err != nil {

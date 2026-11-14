@@ -25,6 +25,7 @@
 | --- | --- |
 | [验证机制](live-acceptance-process.md)、[VRC 台账](live-acceptance-backlog.md)、[非 VRC 跟进](validation-followups.md) | 当前验证分工和真正剩余的场景；不在其他文档重复维护待验清单 |
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
+| 诊断导出与事务清理 | [事务与导出验证](validation/diagnostic-storage-transactions-20261115.md)记录长读触发提交失败、物理连接遗留事务的复现和修复，以及在线快照隔离与 30 万条真实 ZIP 并发验证 |
 | 设置编辑与存储边界 | [模块重构验证](validation/architecture-modules-20261108.md)记录独立设置编辑器、前端控制器及 Store／Server 边界的实现、回归与验证限制 |
 | 库存维护与决策互斥 | [扫描临界区验证](validation/retention-scan-20261112.md)记录扫描阻塞偏好写入的复现、锁范围缩减及库存增量一致性检查 |
 | 临时块读取句柄 | [复用验证](validation/block-read-reuse-20261113.md)记录流读取／合并快照的重复开关复现、当前块句柄与文件引用生命周期、热缓存对照及基线已有的 Range 用例失败 |

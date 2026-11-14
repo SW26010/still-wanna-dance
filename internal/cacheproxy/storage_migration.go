@@ -60,7 +60,7 @@ func migrateStorageV8(db *sql.DB) (resultErr error) {
 		_, err := conn.ExecContext(context.Background(), "PRAGMA foreign_keys=ON")
 		resultErr = errors.Join(resultErr, err)
 	}()
-	tx, err := conn.BeginTx(context.Background(), nil)
+	tx, err := beginStorageWriteOn(context.Background(), conn)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func migrateStorageV8(db *sql.DB) (resultErr error) {
 	if brokenOld != 0 {
 		return errors.New("旧存储关联不完整；原文件未修改")
 	}
-	urls, err := readV8MediaURLs(tx)
+	urls, err := readV8MediaURLs(tx.Tx)
 	if err != nil {
 		return err
 	}

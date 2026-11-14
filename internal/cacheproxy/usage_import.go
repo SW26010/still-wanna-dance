@@ -108,7 +108,7 @@ func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwri
 }
 
 func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := beginStorageWrite(ctx, db)
 	if err != nil {
 		return err
 	}

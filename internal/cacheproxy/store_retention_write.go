@@ -69,12 +69,12 @@ func (s *Store) writePreference(ctx context.Context, write func(*sql.Tx) error) 
 
 // The caller holds retentionRunMu until the committed change is invalidated.
 func (s *Store) commitRetentionWrite(ctx context.Context, write func(*sql.Tx) error) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := beginStorageWrite(ctx, s.db)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err := write(tx); err != nil {
+	if err := write(tx.Tx); err != nil {
 		return err
 	}
 	return tx.Commit()

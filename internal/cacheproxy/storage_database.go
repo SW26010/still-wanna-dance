@@ -52,13 +52,7 @@ func connectStorageDatabase(path, mode string, fresh bool) (*sql.DB, error) {
 }
 
 func connectStorageDatabaseForSelection(path, mode string, fresh, selectable bool) (*sql.DB, error) {
-	uriPath := filepath.ToSlash(path)
-	if !strings.HasPrefix(uriPath, "/") {
-		uriPath = "/" + uriPath
-	}
-	q := url.Values{"mode": {mode}, "_pragma": {"busy_timeout(1000)", "foreign_keys(1)"}}
-	uri := url.URL{Scheme: "file", Path: uriPath, RawQuery: q.Encode()}
-	db, err := sql.Open("sqlite", uri.String())
+	db, err := sql.Open("sqlite", storageDatabaseURI(path, mode))
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +67,16 @@ func connectStorageDatabaseForSelection(path, mode string, fresh, selectable boo
 		return nil, err
 	}
 	return db, nil
+}
+
+func storageDatabaseURI(path, mode string) string {
+	uriPath := filepath.ToSlash(path)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	q := url.Values{"mode": {mode}, "_pragma": {"busy_timeout(1000)", "foreign_keys(1)"}}
+	uri := url.URL{Scheme: "file", Path: uriPath, RawQuery: q.Encode()}
+	return uri.String()
 }
 
 func validateStorageDatabase(db *sql.DB) error {

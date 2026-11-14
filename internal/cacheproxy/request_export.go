@@ -6,13 +6,18 @@ import (
 	"io"
 )
 
-// ExportRequestHistory streams one SQLite read snapshot, including HEAD and
-// unfinished requests. It preserves stored fields, without current catalog joins.
+// ExportRequestHistory streams a private SQLite snapshot, including HEAD and
+// unfinished requests, without holding the business DB open during output.
 func ExportRequestHistory(ctx context.Context, path string, from, to int64, w io.Writer) (int64, error) {
 	if err := (RequestQuery{From: from, To: to, Limit: 1}).Validate(); err != nil {
 		return 0, err
 	}
-	db, err := readDatabaseFile(path)
+	snapshot, cleanup, err := requestExportSnapshot(ctx, path)
+	if err != nil {
+		return 0, err
+	}
+	defer cleanup()
+	db, err := readDatabaseFile(snapshot)
 	if err != nil {
 		return 0, err
 	}

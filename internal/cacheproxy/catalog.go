@@ -45,6 +45,29 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 	if err != nil {
 		return err
 	}
+	// Bind the resource candidates once, outside the mapping/retention locks.
+	// Keep this payload separate from song metadata and its acceptance decision.
+	type resource struct {
+		ID  int64  `json:"id"`
+		MD5 string `json:"md5"`
+	}
+	var resources []resource
+	for _, song := range c.Songs {
+		if song.MD5 != "" {
+			if resources == nil {
+				resources = make([]resource, 0, len(c.Songs))
+			}
+			resources = append(resources, resource{song.ID, song.MD5})
+		}
+	}
+	var resourceJSON string
+	if len(resources) != 0 {
+		encoded, err := json.Marshal(resources)
+		if err != nil {
+			return err
+		}
+		resourceJSON = string(encoded)
+	}
 	if !s.beginRequest() {
 		return context.Canceled
 	}
@@ -66,19 +89,8 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 		}
 		// Even an older valid backup can fill holes, without making its
 		// placeholders current members or changing already known mappings.
-		for _, song := range c.Songs {
-			if song.MD5 == "" {
-				continue
-			}
-			if _, err = tx.ExecContext(ctx, "INSERT INTO songs(id) VALUES (?) ON CONFLICT DO NOTHING", song.ID); err != nil {
-				return err
-			}
-			if _, err = tx.ExecContext(ctx, "INSERT INTO media(md5) VALUES (?) ON CONFLICT DO NOTHING", song.MD5); err != nil {
-				return err
-			}
-			if _, err = tx.ExecContext(ctx, "INSERT INTO song_media(song_id,md5) VALUES (?,?) ON CONFLICT DO NOTHING", song.ID, song.MD5); err != nil {
-				return err
-			}
+		if err := fillCatalogResources(ctx, tx, resourceJSON); err != nil {
+			return err
 		}
 		if errors.Is(decisionErr, ErrCatalogOlder) || duplicate {
 			return nil
@@ -107,6 +119,30 @@ func (s *Store) SyncCatalog(ctx context.Context, c Catalog) (resultErr error) {
 		return err
 	}
 	return decisionErr
+}
+
+func fillCatalogResources(ctx context.Context, tx *sql.Tx, resources string) error {
+	if resources == "" {
+		return nil
+	}
+	// Filter before INSERT, rather than relying on no-op conflicts for every
+	// song. DISTINCT also avoids repeated inserts for shared missing media.
+	for _, query := range []string{
+		`INSERT INTO songs(id)
+ SELECT json_extract(c.value,'$.id') FROM json_each(?) c
+ WHERE NOT EXISTS (SELECT 1 FROM songs WHERE id=json_extract(c.value,'$.id'))`,
+		`INSERT INTO media(md5)
+ SELECT DISTINCT json_extract(c.value,'$.md5') FROM json_each(?) c
+ WHERE NOT EXISTS (SELECT 1 FROM media WHERE md5=json_extract(c.value,'$.md5'))`,
+		`INSERT INTO song_media(song_id,md5)
+ SELECT json_extract(c.value,'$.id'),json_extract(c.value,'$.md5') FROM json_each(?) c
+ WHERE NOT EXISTS (SELECT 1 FROM song_media WHERE song_id=json_extract(c.value,'$.id'))`,
+	} {
+		if _, err := tx.ExecContext(ctx, query, resources); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func checkSongCatalogState(ctx context.Context, tx *sql.Tx, c Catalog) (bool, error) {

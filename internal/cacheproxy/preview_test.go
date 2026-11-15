@@ -367,6 +367,12 @@ func TestPreviewReusesBlocksAndRefillsAfterReclamation(t *testing.T) {
 		t.Fatal(err)
 	}
 	target.Size = 0
+	// Keep the cached suffix needed across the first short GET. Zero-budget
+	// cleanup may otherwise reclaim it before the deliberate retirement below,
+	// causing an earlier refill followed by a second one at the write hook.
+	clock := &playbackClock{at: time.Now(), limit: 2 * rangeBlockSize, media: estimateMediaTiming(v.size, 0)}
+	_, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), v, true)
+	defer release()
 	assertResponse(t, previewResponse(s, target, map[string]string{"Range": "bytes=0-15"}), 206, body[:16])
 	if downloads.Load() != 0 {
 		t.Fatal("readable Range contacted upstream")

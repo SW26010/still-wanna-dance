@@ -60,6 +60,7 @@ func (s *Server) refreshUseProtectionLocked(scope useSpan) {
 			}
 			p.start = time.Time{}
 			blocks[b] = p
+			s.protectionExpiry = earlier(s.protectionExpiry, p.until)
 			if _, ok := ready[b]; !ok && p.until.IsZero() {
 				delete(blocks, b)
 			}
@@ -90,7 +91,7 @@ func (s *Server) refreshUseProtectionLocked(scope useSpan) {
 		p.start = at.Add(-ahead)
 		s.protection[key][b] = p
 	}
-	s.requestRetentionLocked()
+	s.requestResourceRetentionLocked(key)
 }
 
 // The final usage reference supplies its actual end time, including a fixed
@@ -109,6 +110,7 @@ func (s *Server) endLocalUseLocked(id useBlockID, at time.Time) {
 	}
 	p.start = time.Time{}
 	blocks[id.block] = p
+	s.protectionExpiry = earlier(s.protectionExpiry, p.until)
 }
 
 func (s *Server) blockProtectedLocked(key string, block int64, now time.Time) bool {
@@ -134,6 +136,7 @@ func (s *Server) nextProtectionExpiryLocked(now time.Time) time.Time {
 			if !p.until.IsZero() && !p.until.After(now) {
 				p.until = time.Time{}
 				blocks[b] = p
+				s.retentionPending.add(key)
 			}
 			if p.start.IsZero() && p.until.IsZero() {
 				delete(blocks, b)
@@ -147,5 +150,6 @@ func (s *Server) nextProtectionExpiryLocked(now time.Time) time.Time {
 			delete(s.protection, key)
 		}
 	}
+	s.protectionExpiry = next
 	return next
 }

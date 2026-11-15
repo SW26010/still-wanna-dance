@@ -314,6 +314,11 @@ func TestDownloadDatabaseReadConflictRecovers(t *testing.T) {
 			if _, err := locker.Exec("BEGIN EXCLUSIVE"); err != nil {
 				t.Fatal(err)
 			}
+			// Exercise a required policy read. An unchanged cached snapshot
+			// deliberately avoids SQL and cannot reproduce a read conflict.
+			s.policyCache.mu.Lock()
+			s.policyCache.policies = nil
+			s.policyCache.mu.Unlock()
 			ctx := t.Context()
 			switch operation {
 			case "download":

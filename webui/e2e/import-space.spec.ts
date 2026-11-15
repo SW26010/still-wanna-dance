@@ -9,7 +9,7 @@ for(const width of [320,1280])test(`import space preview keeps layout and ignore
   await page.route('**/api/import/space?*',async route=>{
     const source=new URL(route.request().url()).searchParams.get('source');
     if(source==='D:\\Slow')await held;
-    await route.fulfill({json:{mode:source==='E:\\Source'?'cross-volume':source==='D:\\Missing'?'unknown':'same-volume',videoDir:api.state.activeSettings.videoDir}});
+    await route.fulfill({json:{mode:source==='E:\\Source'?'cross-volume':source==='D:\\No links'?'copy-required':source==='D:\\Missing'?'unknown':'same-volume',videoDir:api.state.activeSettings.videoDir}});
     if(source==='D:\\Slow')finished();
   });
   await page.setViewportSize({width,height:1000});
@@ -42,6 +42,9 @@ for(const width of [320,1280])test(`import space preview keeps layout and ignore
   const copied=panel.getByText('预计需要额外空间',{exact:true});
   await expect(copied).toBeVisible();
   release();await done;
+  await expect(copied).toBeVisible();
+  expect(await position()).toBe(initial);
+  await choosePath(page,'外部目录','D:\\No links');
   await expect(copied).toBeVisible();
   expect(await position()).toBe(initial);
   await choosePath(page,'外部目录','D:\\Missing');

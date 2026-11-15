@@ -74,20 +74,22 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// Read the active root once; database I/O must not join service lifecycle I/O.
-	c.mu.Lock()
-	root := libraryPaths(c.settings).DatabasePath
-	c.mu.Unlock()
+	store, err := c.businessStore()
+	if err != nil {
+		preserveResponseFault(w, err)
+		http.Error(w, "请求历史读取失败，请稍后重试", http.StatusInternalServerError)
+		return
+	}
+	history := store.History()
 	var result any
-	var err error
 	if r.URL.Path == "/api/latency" {
-		result, err = cacheproxy.ReadFirstBodyLatency(r.Context(), root, time.Now())
+		result, err = history.Latency(r.Context(), time.Now())
 	} else if r.URL.Path == "/api/response-sources" {
-		result, err = cacheproxy.ReadResponseSources(r.Context(), root)
+		result, err = history.Sources(r.Context())
 	} else if r.URL.Path == "/api/history/count" {
-		result, err = cacheproxy.CountRequestHistory(r.Context(), root, q)
+		result, err = history.Count(r.Context(), q)
 	} else {
-		result, err = cacheproxy.ReadRequestHistory(r.Context(), root, q)
+		result, err = history.Page(r.Context(), q)
 	}
 	if err != nil {
 		preserveResponseFault(w, err)

@@ -5,7 +5,15 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
+
+func isStorageBusy(err error) bool {
+	var sqliteErr *sqlite.Error
+	return errors.As(err, &sqliteErr) && (sqliteErr.Code()&0xff == sqlite3.SQLITE_BUSY || sqliteErr.Code()&0xff == sqlite3.SQLITE_LOCKED)
+}
 
 // Keep the physical connection out of the pool until the transaction is cleaned
 // up. database/sql marks a Tx done even when SQLite COMMIT returns SQLITE_BUSY;

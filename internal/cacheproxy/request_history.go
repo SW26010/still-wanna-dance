@@ -2,10 +2,10 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -145,7 +145,7 @@ func (q RequestQuery) conditions(getOnly bool) ([]string, []any) {
  SELECT next.outcome='completed' AND next.status IN (200,206)
    AND next.resource_md5=request_events.resource_md5
    AND (next.song_id IS NULL OR request_events.song_id IS NULL OR next.song_id=request_events.song_id)
- FROM request_events AS next INDEXED BY request_events_time
+ FROM request_events AS next
  WHERE next.method='GET'
    AND (next.requested_at,next.event_id)>(request_events.requested_at,request_events.event_id)
    AND next.requested_at<=request_events.requested_at+1000
@@ -182,29 +182,15 @@ type RequestHistoryCount struct {
 // Large retained histories can take longer than a page; failure or cancellation
 // never prevents reading that page.
 func CountRequestHistory(ctx context.Context, databasePath string, query RequestQuery) (RequestHistoryCount, error) {
-	result := RequestHistoryCount{StorageID: DatabaseID(databasePath)}
-	if err := query.Validate(); err != nil {
-		return result, err
-	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	result.CountedAt = time.Now().UnixMilli()
-	snapshot, cleanup, err := temporaryStorageSnapshot(ctx, databasePath)
-	if err != nil {
-		return result, err
-	}
-	defer cleanup()
-	db, err := readDatabaseFile(snapshot)
-	if err != nil {
-		return result, err
-	}
-	defer db.Close()
-	count, args := query.count()
-	err = db.QueryRowContext(ctx, count, args...).Scan(&result.Total)
-	return result, err
+	history := NewRequestHistory(databasePath)
+	defer history.Close()
+	return history.Count(ctx, query)
 }
 
 func (q RequestQuery) window(getOnly bool) (string, []any) {
+	if sort, _ := q.sorting(); sort != "time" {
+		return q.identityWindow(getOnly, sort)
+	}
 	conditions, args := q.conditions(getOnly)
 	if q.Cursor != "" {
 		c, _ := q.cursor() // Validate is called before building the query.
@@ -213,29 +199,59 @@ func (q RequestQuery) window(getOnly bool) (string, []any) {
 		if direction == "ascending" {
 			op = ">"
 		}
-		value, unknown := q.sortExpressions()
-		if unknown == "" {
-			conditions = append(conditions, "(requested_at,event_id)"+op+"(?,?)")
-			args = append(args, c.At, c.ID)
-		} else {
-			var boundary any = c.Value
-			if c.Sort == "song" {
-				id, _ := strconv.ParseInt(c.Value, 10, 64)
-				boundary = id
-			}
-			missing := 0
-			if c.Value == "" {
-				missing = 1
-			}
-			conditions = append(conditions, fmt.Sprintf("(%s>? OR (%s=? AND (%s,requested_at,event_id)%s(?,?,?)))", unknown, unknown, value, op))
-			args = append(args, missing, missing, boundary, c.At, c.ID)
-		}
+		conditions = append(conditions, "(requested_at,event_id)"+op+"(?,?)")
+		args = append(args, c.At, c.ID)
 	}
 	where := ""
 	if len(conditions) > 0 {
 		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
-	return "SELECT * FROM request_events INDEXED BY request_events_time" + where + " ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
+	return "SELECT * FROM request_events" + where + " ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
+}
+
+// Known identities and unknown identities each use an index range. Their union
+// contains at most 2*(limit+1) rows, so unknown-last ordering never sorts the
+// entire retained history. A cursor in the unknown group skips known rows.
+func (q RequestQuery) identityWindow(getOnly bool, sort string) (string, []any) {
+	field := "resource_md5"
+	if sort == "song" {
+		field = "song_id"
+	}
+	_, direction := q.sorting()
+	dir, op := " DESC", "<"
+	if direction == "ascending" {
+		dir, op = " ASC", ">"
+	}
+	var branches []string
+	var args []any
+	c, _ := q.cursor()
+	for _, unknown := range []bool{false, true} {
+		conditions, values := q.conditions(getOnly)
+		null := " IS NOT NULL"
+		if unknown {
+			null = " IS NULL"
+		}
+		conditions = append(conditions, field+null)
+		if q.Cursor != "" {
+			if c.Value == "" {
+				if !unknown {
+					continue
+				}
+				conditions = append(conditions, "(requested_at,event_id)"+op+"(?,?)")
+				values = append(values, c.At, c.ID)
+			} else if !unknown {
+				var value any = c.Value
+				if sort == "song" {
+					value, _ = strconv.ParseInt(c.Value, 10, 64)
+				}
+				conditions = append(conditions, "("+field+",requested_at,event_id)"+op+"(?,?,?)")
+				values = append(values, value, c.At, c.ID)
+			}
+		}
+		branches = append(branches, "SELECT * FROM (SELECT * FROM request_events WHERE "+strings.Join(conditions, " AND ")+" ORDER BY "+field+dir+",requested_at"+dir+",event_id"+dir+" LIMIT ?)")
+		args = append(args, append(values, q.Limit+1)...)
+	}
+	return "SELECT * FROM (" + strings.Join(branches, " UNION ALL ") + ") ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
 }
 
 type LatencyGroup struct {
@@ -253,19 +269,20 @@ type FirstBodyLatency struct {
 // Exact nearest-rank percentiles are calculated in SQLite; only two aggregate
 // rows reach the UI. Only retained samples contribute; no coverage watermark is inferred.
 func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Time) (FirstBodyLatency, error) {
+	history := NewRequestHistory(databasePath)
+	defer history.Close()
+	return history.Latency(ctx, now)
+}
+
+func readFirstBodyLatency(ctx context.Context, db *sql.DB, now time.Time) (FirstBodyLatency, error) {
 	r := FirstBodyLatency{From: now.Add(-72 * time.Hour).UnixMilli(), To: now.UnixMilli()}
-	db, err := readDatabaseFile(databasePath)
-	if err != nil {
-		return r, err
-	}
-	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, `WITH samples AS (
  SELECT first_body_blocking AS blocking,first_body_ns AS ns,
  row_number() OVER (PARTITION BY first_body_blocking ORDER BY first_body_ns) AS rank,
  count(*) OVER (PARTITION BY first_body_blocking) AS n
- FROM request_events INDEXED BY request_events_time
+ FROM request_events
  WHERE method='GET' AND requested_at>=? AND requested_at<?
  AND status IN (200,206) AND transferred_bytes>0 AND first_body_ns IS NOT NULL AND first_body_blocking IS NOT NULL
  ) SELECT blocking,max(n),max(CASE WHEN rank=(n+1)/2 THEN ns END),

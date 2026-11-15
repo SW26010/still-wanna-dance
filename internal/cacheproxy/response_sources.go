@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -62,14 +63,15 @@ func (c *responseSourceCounter) accept(start, end int64) {
 // ReadResponseSources sums frozen contributions from all retained requests,
 // independently of history pagination and time filters.
 func ReadResponseSources(ctx context.Context, databasePath string) (ResponseSources, error) {
+	history := NewRequestHistory(databasePath)
+	defer history.Close()
+	return history.Sources(ctx)
+}
+
+func readResponseSources(ctx context.Context, db *sql.DB) (ResponseSources, error) {
 	var result ResponseSources
-	db, err := readDatabaseFile(databasePath)
-	if err != nil {
-		return result, err
-	}
-	defer db.Close()
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	err = db.QueryRowContext(ctx, "SELECT COALESCE(SUM(download_bytes),0),COALESCE(SUM(cache_bytes),0),COALESCE(SUM(local_bytes),0) FROM request_events").Scan(&result.DownloadBytes, &result.CacheBytes, &result.LocalBytes)
+	err := db.QueryRowContext(ctx, "SELECT COALESCE(SUM(download_bytes),0),COALESCE(SUM(cache_bytes),0),COALESCE(SUM(local_bytes),0) FROM request_events").Scan(&result.DownloadBytes, &result.CacheBytes, &result.LocalBytes)
 	return result, err
 }

@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"time"
 )
@@ -43,10 +44,11 @@ func ReadRecentRequests(ctx context.Context, databasePath string, limit int) (Re
 	return readRequestPage(ctx, databasePath, RequestQuery{Limit: limit}, false)
 }
 func ReadRequestHistory(ctx context.Context, databasePath string, query RequestQuery) (RecentRequests, error) {
-	return readRequestPage(ctx, databasePath, query, true)
+	history := NewRequestHistory(databasePath)
+	defer history.Close()
+	return history.Page(ctx, query)
 }
 func readRequestPage(ctx context.Context, databasePath string, query RequestQuery, getOnly bool) (RecentRequests, error) {
-	limit := query.Limit
 	result := RecentRequests{Requests: []RecentRequest{}}
 	if err := query.Validate(); err != nil {
 		return result, err
@@ -57,6 +59,12 @@ func readRequestPage(ctx context.Context, databasePath string, query RequestQuer
 		return result, err
 	}
 	defer db.Close()
+	return readRequestPageDB(ctx, db, databasePath, query, getOnly)
+}
+
+func readRequestPageDB(ctx context.Context, db *sql.DB, databasePath string, query RequestQuery, getOnly bool) (RecentRequests, error) {
+	limit := query.Limit
+	result := RecentRequests{StorageID: DatabaseID(databasePath), Requests: []RecentRequest{}}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	tx, err := db.BeginTx(ctx, nil)

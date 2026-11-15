@@ -56,7 +56,7 @@ WebUI 不提供日志阅读器；原 `/api/logs`、`/api/logs/export` 与 `#/log
 
 各来源分别读取；日志只读打开时的文件大小，避免等待持续追加，不保证跨来源原子快照。文本片段统一以 LF 换行。单个来源或文件失败仍导出其余材料，并明确部分收集；超长日志行（超过 4 MiB）停止该文件并记录错误。总收集期限为两分钟，取消会终止读取；ZIP 在系统临时目录生成后下载，请求结束删除临时文件，不持久保存导出任务。进程被强杀时可能残留系统临时文件。
 
-数据库临时快照位于系统临时目录的独立 `swd-storage-snapshot-*` 子目录，与请求历史精确计数共用[存储快照机制](storage.md)。副本可能包含完整业务库，但 ZIP 仅导出所选请求明细，业务库读锁不延续到 JSON／ZIP 输出；临时空间、短期锁竞争与清理边界以存储规则为准。事务清理及并发验证见[事务与导出验证](validation/diagnostic-storage-transactions-20261115.md)。
+数据库临时快照位于系统临时目录的独立 `swd-storage-snapshot-*` 子目录，与历史查询、汇总共用[历史读取模块及存储快照机制](storage.md)。副本可能包含完整业务库和私有查询索引，但 ZIP 仅导出所选请求明细，业务库读锁不延续到 JSON／ZIP 输出；缓存副本的复用、临时空间、短期锁竞争和最后读取租约的清理边界以存储规则为准。事务清理及并发验证见[事务与导出验证](validation/diagnostic-storage-transactions-20261115.md)及[历史长读隔离](validation/request-history-write-isolation-20261115.md)。
 
 自动验证与真实 Console 浏览器下载证据见[诊断包验证](validation/diagnostic-export-20261114.md)。
 
@@ -96,6 +96,7 @@ WebUI 不提供日志阅读器；原 `/api/logs`、`/api/logs/export` 与 `#/log
 | `proxy_channel_identity_corrupt` / `proxy_channel_identity_unavailable` | 密钥原文件保留，代理使用临时身份；持久样本关联需恢复原密钥 |
 | `cache_capacity_wait` / `cache_task_attached`（Debug） | 等待正在退出的共享下载会话清理及附着结果；`wait_ms` 包含此前等待，不是调度器块席位等待时长 |
 | `request_finished` | 请求方法、Range、版本，以及最终 HTTP 状态、实际写入字节、Content-Range/Length、耗时、结果和写入错误；`request_started`、`served`、`client_disconnected` 和 `playback_local_hit` 为 Debug |
+| `usage_write_retry` / `usage_write_failed` / `usage_dropped` | 后台记录批次的锁冲突有界重试、最终保存失败或队列已满未接收；重试成功不记为漏写，最终失败仍由数据库关闭错误报告 |
 | `upstream_response` / `range_unavailable` / `download_first_byte`（Debug） | 初始化或顺序下载响应的实际上游域名、状态、声明长度及回退；从视频准备任务开始到读到第一批正文的毫秒数（包含本地视频检查）。上游响应不是每次块请求的响应清单 |
 | `download_stage`（Debug） | 阶段变更及上一阶段耗时：本地视频校验、块或顺序下载、`hash` 合并校验、发布文件、数据库登记；块下载阶段可能包含调度等待 |
 | `download_progress`（Debug） | 每个仍活动的 flight 每 15 秒一条；阶段、已读取正文大小、预期大小、最近一个周期平均字节/秒、距最后数据的 `idle_ms` 和阶段耗时。短任务无此事件；时钟未推进时速度记为零，字节留待下一次有效采样 |

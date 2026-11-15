@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 // Counts describe GET demand or explicitly imported historical observations,
@@ -186,7 +184,7 @@ func (u *usageStore) run() {
 			}
 		}
 	write:
-		if err := u.write(batch); err != nil {
+		if err := u.writeBatch(batch); err != nil {
 			if u.failure == nil {
 				u.failure = err
 			}
@@ -200,6 +198,20 @@ func (u *usageStore) run() {
 				close(e.barrier)
 			}
 		}
+	}
+}
+
+// Keep the accepted batch in order until it commits or exhausts three attempts.
+// Each attempt owns a fresh transaction with the existing two-second budget;
+// only SQLite lock conflicts are safe to replay after rollback/discard.
+func (u *usageStore) writeBatch(batch []usageEvent) error {
+	for attempt := 1; ; attempt++ {
+		err := u.write(batch)
+		if !isStorageBusy(err) || attempt == 3 {
+			return err
+		}
+		u.log.Warn("请求历史写入遇到锁冲突，正在重试", "event_name", "usage_write_retry", "attempt", attempt, "count", len(batch), "error", err)
+		time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
 	}
 }
 

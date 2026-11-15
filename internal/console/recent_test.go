@@ -63,7 +63,7 @@ func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/api/history", "/api/latency", "/api/response-sources"} {
+	for _, path := range []string{"/api/history", "/api/history/stats"} {
 		for _, tc := range []struct {
 			query, token, origin string
 			status               int
@@ -114,7 +114,7 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 			}
 		}
 		t.Run(phase, func(t *testing.T) {
-			for _, path := range []string{"/api/history", "/api/response-sources", "/api/latency"} {
+			for _, path := range []string{"/api/history", "/api/history/stats"} {
 				t.Run(path, func(t *testing.T) {
 					r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
 					r.Header.Set("X-SWD-Token", c.token)
@@ -124,23 +124,22 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 						t.Fatalf("readable history unavailable: %d %s", w.Code, w.Body.String())
 					}
 					var result struct {
-						Requests []cacheproxy.RecentRequest `json:"requests"`
-						cacheproxy.ResponseSources
-						cacheproxy.FirstBodyLatency
+						Requests json.RawMessage `json:"requests"`
+						cacheproxy.RequestStatistics
 					}
 					if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 						t.Fatal(err)
 					}
 					switch path {
-					case "/api/history", "/api/history?sort=song":
-						if len(result.Requests) != 1 || result.Requests[0].Bytes != 60 {
+					case "/api/history":
+						var requests []cacheproxy.RecentRequest
+						if err := json.Unmarshal(result.Requests, &requests); err != nil {
+							t.Fatal(err)
+						}
+						if len(requests) != 1 || requests[0].Bytes != 60 {
 							t.Fatal("lost committed request", w.Body.String())
 						}
-					case "/api/response-sources":
-						if result.ResponseSources != (cacheproxy.ResponseSources{DownloadBytes: 10, CacheBytes: 20, LocalBytes: 30}) {
-							t.Fatal("lost committed sources", w.Body.String())
-						}
-					case "/api/latency":
+					case "/api/history/stats":
 						if result.Blocking.Samples != 1 || result.Blocking.P50MS == nil || *result.Blocking.P50MS != 5 {
 							t.Fatal("lost committed latency", w.Body.String())
 						}

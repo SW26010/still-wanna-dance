@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
@@ -58,7 +59,7 @@ func TestStorageContractRejectsIncompatibleFilesEverywhere(t *testing.T) {
 					t.Errorf("%s accepted incompatible database", name)
 				}
 			}
-			if _, err := ReadResponseSources(context.Background(), cfg.Store.path); err == nil {
+			if _, err := ReadRequestStatistics(context.Background(), cfg.Store.path, time.Now()); err == nil {
 				t.Error("traffic accepted incompatible database")
 			}
 			after, err := os.ReadFile(path)

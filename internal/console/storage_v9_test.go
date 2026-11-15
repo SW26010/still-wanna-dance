@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamstate"
@@ -53,7 +54,7 @@ func TestV8ConfiguredDefaultLibraryUpgradesDuringStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if _, err := cacheproxy.ReadResponseSources(t.Context(), path); err != nil || c.service != nil {
+	if _, err := cacheproxy.ReadRequestStatistics(t.Context(), path, time.Now()); err != nil || c.service != nil {
 		t.Fatal("startup did not produce v9 without an engine", err)
 	}
 	if data, err := os.ReadFile(configPath); err != nil || !bytes.Equal(data, config) {
@@ -108,7 +109,7 @@ func TestV8SelectedLibraryUpgradesOnlyAfterRestart(t *testing.T) {
 				t.Fatal("selection or save upgraded/activated v8 before restart", err)
 			}
 			c = restartTestConsole(t, c)
-			if _, err := cacheproxy.ReadResponseSources(t.Context(), paths.DatabasePath); err != nil || c.service != nil || c.settings.DatabasePath != paths.DatabasePath {
+			if _, err := cacheproxy.ReadRequestStatistics(t.Context(), paths.DatabasePath, time.Now()); err != nil || c.service != nil || c.settings.DatabasePath != paths.DatabasePath {
 				t.Fatal("restart did not activate v9 without an engine", err)
 			}
 			keys, err := c.store.KnownMedia(t.Context())

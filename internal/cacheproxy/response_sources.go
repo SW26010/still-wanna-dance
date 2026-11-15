@@ -1,11 +1,5 @@
 package cacheproxy
 
-import (
-	"context"
-	"database/sql"
-	"time"
-)
-
 // ResponseSources holds frozen, block-weighted bytes, not HTTP transfer bytes.
 // A block is counted once per GET when any of its requested bytes is accepted
 // by the response writer. The final block contributes only its actual size.
@@ -58,20 +52,4 @@ func (c *responseSourceCounter) accept(start, end int64) {
 		c.totals.CacheBytes += bytes - downloaded
 	}
 	c.nextBlock = last
-}
-
-// ReadResponseSources sums frozen contributions from all retained requests,
-// independently of history pagination and time filters.
-func ReadResponseSources(ctx context.Context, databasePath string) (ResponseSources, error) {
-	history := NewRequestHistory(databasePath)
-	defer history.Close()
-	return history.Sources(ctx)
-}
-
-func readResponseSources(ctx context.Context, db *sql.DB) (ResponseSources, error) {
-	var result ResponseSources
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	err := db.QueryRowContext(ctx, "SELECT COALESCE(SUM(download_bytes),0),COALESCE(SUM(cache_bytes),0),COALESCE(SUM(local_bytes),0) FROM request_events").Scan(&result.DownloadBytes, &result.CacheBytes, &result.LocalBytes)
-	return result, err
 }

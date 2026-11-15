@@ -111,18 +111,10 @@ func BenchmarkRequestHistoryQueries(b *testing.B) {
 			}
 		}
 	})
-	b.Run("quantiles-10000", func(b *testing.B) {
+	b.Run("recent-statistics-10000", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := ReadFirstBodyLatency(context.Background(), storagePath(root), now); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-	b.Run("source-totals-10000", func(b *testing.B) {
-		b.ReportAllocs()
-		for b.Loop() {
-			if _, err := ReadResponseSources(context.Background(), storagePath(root)); err != nil {
+			if _, err := ReadRequestStatistics(context.Background(), storagePath(root), now); err != nil {
 				b.Fatal(err)
 			}
 		}

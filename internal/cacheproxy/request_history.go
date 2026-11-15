@@ -1,13 +1,11 @@
 package cacheproxy
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // From is inclusive and To exclusive, both in Unix milliseconds.
@@ -146,24 +144,4 @@ func (q RequestQuery) window(getOnly bool) (string, []any) {
 		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 	return "SELECT * FROM request_events" + where + " ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
-}
-
-type LatencyGroup struct {
-	Samples int64    `json:"samples"`
-	P50MS   *float64 `json:"p50MS"`
-	P95MS   *float64 `json:"p95MS"`
-}
-type FirstBodyLatency struct {
-	From     int64        `json:"from"`
-	To       int64        `json:"to"`
-	Blocking LatencyGroup `json:"blocking"`
-	Ready    LatencyGroup `json:"ready"`
-}
-
-// Exact nearest-rank percentiles are calculated in SQLite; only two aggregate
-// rows reach the UI. Only retained samples contribute; no coverage watermark is inferred.
-func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Time) (FirstBodyLatency, error) {
-	history := NewRequestHistory(databasePath)
-	defer history.Close()
-	return history.Latency(ctx, now)
 }

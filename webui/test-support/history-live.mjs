@@ -11,12 +11,12 @@ try {
   let countReads=0;page.on('request',r=>{if(new URL(r.url()).pathname==='/api/history/count')countReads++;});
   await page.goto(baseURL+'/#/timeline');
   const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
-  const latency=await (await page.request.get(baseURL+'/api/latency',{headers:{'X-SWD-Token':token}})).json();
+  const latency=await (await page.request.get(baseURL+'/api/history/stats',{headers:{'X-SWD-Token':token}})).json();
   expect(latency).not.toHaveProperty('availableFrom');
   expect(latency).not.toHaveProperty('partial');
   expect(latency.blocking.samples).toBeGreaterThan(0);
   expect(latency.blocking.samples+latency.ready.samples).toBe(601);
-  const sources=await (await page.request.get(baseURL+'/api/response-sources',{headers:{'X-SWD-Token':token}})).json();
+  const sources=latency.sources;
   const blockBytes=Buffer.byteLength('history browser video');
   expect(sources.downloadBytes+sources.cacheBytes+sources.localBytes).toBe(601*blockBytes);
   expect(sources.localBytes).toBeGreaterThan(0);
@@ -25,7 +25,7 @@ try {
   expect(firstPage.requests.every(r=>!('cache' in r))).toBe(true);
   const status=await(await page.request.get(baseURL+'/api/status',{headers:{'X-SWD-Token':token}})).json();
   expect(status).not.toHaveProperty('traffic');
-  const sourceHeading=page.getByRole('heading',{name:'响应来源',exact:true});
+  const sourceHeading=page.getByRole('heading',{name:'近期响应来源',exact:true});
   await expect(sourceHeading).toBeVisible();
   expect(firstPage.requests.every(r=>r.bytes===4&&r.sources.localBytes===blockBytes)).toBe(true);
   expect(firstPage.requests.every(r=>r.songID==='42'&&r.songTitle==='new current mapping'&&r.resource===key)).toBe(true);
@@ -106,6 +106,11 @@ try {
     await page.screenshot({path:join(output,'history-'+outcome+'.png'),fullPage:false});
     await page.keyboard.press('Escape');
   }
+  const cached=await(await page.request.get(baseURL+'/api/history/stats',{headers:{'X-SWD-Token':token}})).json();
+  expect(cached.to).toBe(latency.to);expect(cached.requests).toBe(601);
+  const fresh=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/history/stats'&&new URL(r.url()).searchParams.get('refresh')==='true');
+  await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
+  const refreshed=await(await fresh).json();expect(refreshed.requests).toBe(606);expect(refreshed.to).toBeGreaterThan(cached.to);
   expect(errors).toEqual([]);
   await writeFile(join(output,'results.json'),JSON.stringify({records:606,lastPageBeforePair:13,resource:key,latency,sources,eventInsertedSong:'84',adjacentPair:pair,terminalOutcomes:['playback_info_failed','blocked'],errors},null,2));
 } finally {await browser.close();}

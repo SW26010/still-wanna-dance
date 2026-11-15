@@ -84,10 +84,18 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	history := store.History()
 	var result any
-	if r.URL.Path == "/api/latency" {
-		result, err = history.Latency(r.Context(), time.Now())
-	} else if r.URL.Path == "/api/response-sources" {
-		result, err = history.Sources(r.Context())
+	if r.URL.Path == "/api/history/stats" {
+		var refresh bool
+		if raw := r.URL.Query().Get("refresh"); raw != "" {
+			var parseErr error
+			refresh, parseErr = strconv.ParseBool(raw)
+			if parseErr != nil {
+				preserveResponseFault(w, rejectRequest(parseErr))
+				http.Error(w, "invalid statistics refresh", http.StatusBadRequest)
+				return
+			}
+		}
+		result, err = history.Statistics(r.Context(), time.Now(), refresh)
 	} else {
 		result, err = history.Page(r.Context(), q)
 	}

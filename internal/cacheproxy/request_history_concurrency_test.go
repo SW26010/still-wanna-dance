@@ -18,20 +18,20 @@ import (
 	"modernc.org/sqlite"
 )
 
-var historyCountSequence atomic.Uint64
+var historyProbeSequence atomic.Uint64
 
 func TestHistoryReadsAllowPersistentBusinessWrites(t *testing.T) {
-	for _, operation := range []string{"sources", "latency", "export"} {
+	for _, operation := range []string{"export"} {
 		for _, outcome := range []string{"complete", "scan-error"} {
 			t.Run(operation+"/"+outcome, func(t *testing.T) {
-				testHistoryCountBusinessWrites(t, operation, outcome == "scan-error")
+				testHistoryExportBusinessWrites(t, operation, outcome == "scan-error")
 			})
 		}
 	}
 
 }
 
-func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan bool) {
+func testHistoryExportBusinessWrites(t *testing.T, operation string, failScan bool) {
 	t.Helper()
 	root := t.TempDir()
 	// Keep both the business database and any private snapshot in this test's
@@ -57,11 +57,11 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 	var pause, resume sync.Once
 	unblock := func() { resume.Do(func() { close(release) }) }
 	defer unblock()
-	name := "swd_test_history_count_" + strconv.FormatUint(historyCountSequence.Add(1), 10)
+	name := "swd_test_history_export_" + strconv.FormatUint(historyProbeSequence.Add(1), 10)
 	if err := sqlite.RegisterScalarFunction(name, 0, func(*sqlite.FunctionContext, []driver.Value) (driver.Value, error) {
 		pause.Do(func() { close(entered); <-release })
 		if failScan {
-			return nil, errors.New("controlled count scan failure")
+			return nil, errors.New("controlled export scan failure")
 		}
 		return int64(1), nil
 	}); err != nil {
@@ -73,20 +73,20 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 			return nil
 		}
 		// A TEMP view leaves the validated on-disk schema intact. Evaluating
-		// the actual count pauses only after SQLite has acquired its read lock,
+		// the export pauses only after SQLite has acquired its read lock,
 		// on either the business file (regression) or the private snapshot.
 		_, err = conn.ExecContext(context.Background(), "CREATE TEMP VIEW request_events AS SELECT * FROM main.request_events WHERE "+name+"()", nil)
 		return err
 	})
 
-	type countResult struct {
+	type exportResult struct {
 		value any
 		err   error
 	}
-	done := make(chan countResult, 1)
+	done := make(chan exportResult, 1)
 	go func() {
 		value, err := readHistoryOperation(t.Context(), s.History(), operation)
-		done <- countResult{value, err}
+		done <- exportResult{value, err}
 	}()
 	finished := false
 	defer func() {
@@ -99,13 +99,13 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 	case <-entered:
 	case result := <-done:
 		finished = true
-		t.Fatalf("count did not enter SQLite scan: %+v", result)
+		t.Fatalf("export did not enter SQLite scan: %+v", result)
 	case <-time.After(5 * time.Second):
-		t.Fatal("count did not enter SQLite scan")
+		t.Fatal("export did not enter SQLite scan")
 	}
 
 	if err := s.SetSongPolicy(t.Context(), 42, SongFavorite); err != nil {
-		t.Errorf("favorite during count: %v", err)
+		t.Errorf("favorite during export: %v", err)
 	}
 	// Exercise the actual non-retrying collector, including both detail rows
 	// and demand updates, rather than calling its write method directly.
@@ -146,22 +146,14 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 	result := <-done
 	finished = true
 	if failScan {
-		if result.err == nil || !strings.Contains(result.err.Error(), "controlled count scan failure") {
-			t.Errorf("count scan failure: %v", result.err)
+		if result.err == nil || !strings.Contains(result.err.Error(), "controlled export scan failure") {
+			t.Errorf("export scan failure: %v", result.err)
 		}
 	} else {
 		if result.err != nil {
 			t.Errorf("isolated read: %v", result.err)
 		}
 		switch value := result.value.(type) {
-		case ResponseSources:
-			if value.DownloadBytes != 1 {
-				t.Errorf("snapshot sources: %+v", value)
-			}
-		case FirstBodyLatency:
-			if value.Ready.Samples != 1 {
-				t.Errorf("snapshot latency: %+v", value)
-			}
 		case RecentRequests:
 			if len(value.Requests) != 1 || value.Requests[0].At != 1000 {
 				t.Errorf("snapshot page: %+v", value)
@@ -178,7 +170,7 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
-			t.Errorf("count left temporary snapshot directory: %s", entry.Name())
+			t.Errorf("export left temporary snapshot directory: %s", entry.Name())
 		}
 	}
 }
@@ -186,10 +178,6 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 // These are the same typed operations used by Console; all share one reader.
 func readHistoryOperation(ctx context.Context, history *RequestHistory, operation string) (any, error) {
 	switch operation {
-	case "sources":
-		return history.Sources(ctx)
-	case "latency":
-		return history.Latency(ctx, time.UnixMilli(2000))
 	case "export":
 		return history.Export(ctx, 1, 2000, io.Discard)
 	default:

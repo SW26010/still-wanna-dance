@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {mockAPI} from './api';
+import {mockAPI,statisticsFixture} from './api';
 import {navigate} from './navigation';
 
 const record=(id:number)=>({id,at:Date.now()-id*1000,completedAt:Date.now()-id*1000+800,resource:'a'.repeat(32),songID:id===1?'42':'',songTitle:id===1?'星河 · 测试歌曲':'',method:'GET',range:'bytes=0-99',elapsedMS:800,bytes:id===2?0:50,responseBytes:id===2?null:100,status:id===2?502:206,outcome:id===2?'failed':'canceled',firstBodyNS:id===2?null:10000000,firstBodyBlocking:id===2?null:true,songs:[{id:'999',title:'当前关联不是真实请求身份'}]});
@@ -79,13 +79,13 @@ test('adjacent cancellation filter defaults on, resets pagination, and stays onl
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`response sources use frozen bytes and fit ${width}px ${scheme}`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
   const sources={downloadBytes:1048576,cacheBytes:2097152,localBytes:1048576};
-  await page.route('**/api/response-sources',r=>r.fulfill({json:sources}));
+  await page.route('**/api/history/stats*',r=>r.fulfill({json:statisticsFixture({sources})}));
   await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3),...(['downloadBytes','cacheBytes','localBytes'] as const).map((key,i)=>({...record(i+4),sources:{downloadBytes:0,cacheBytes:0,localBytes:0,[key]:100}}))],total:6,hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   const summary=page.getByRole('region',{name:'响应来源统计'});
-  const heading=summary.getByRole('heading',{name:'响应来源',exact:true});
+  const heading=summary.getByRole('heading',{name:'近期响应来源',exact:true});
   await expect(heading).toBeVisible();
-  await expect(heading).toHaveAccessibleDescription('');
+  await heading.focus();await expect(page.getByRole('tooltip')).toContainText('最多最近 10,000 条原始请求');await page.keyboard.press('Escape');
   await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
   await expect(summary.getByText('缓存 50%',{exact:true})).toBeVisible();
   await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();
@@ -118,7 +118,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
 
 test('source refresh retains data and reports failures without showing zero',async({page})=>{
   await mockAPI(page);let fail=false;
-  await page.route('**/api/response-sources',r=>fail?r.fulfill({status:500,body:'failed'}):r.fulfill({json:{downloadBytes:8,cacheBytes:0,localBytes:0}}));
+  await page.route('**/api/history/stats*',r=>fail?r.fulfill({status:500,body:'failed'}):r.fulfill({json:statisticsFixture({sources:{downloadBytes:8,cacheBytes:0,localBytes:0}})}));
   await page.goto('/#/timeline');const summary=page.getByRole('region',{name:'响应来源统计'});
   await expect(summary).toContainText('下载 100%');fail=true;
   await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
@@ -130,7 +130,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   const pending=new Promise<void>(resolve=>{release=resolve;});
   const requests=populated?[record(1)]:[];
   await page.route('**/api/history?*',async route=>{reads++;const refresh=reads>1;if(refresh)await pending;await route.fulfill({json:{storageID:'fixture',requests:refresh?[...requests,record(3)]:requests,total:requests.length+(refresh?1:0),hasMore:false,nextCursor:''}});});
-  await page.route('**/api/latency',async route=>{latencyReads++;if(latencyReads>1)await pending;await route.fallback();});
+  await page.route('**/api/history/stats*',async route=>{latencyReads++;if(latencyReads>1)await pending;await route.fallback();});
   await page.goto('/#/timeline');
   const result=populated?page.getByRole('link',{name:'ID 42',exact:true}):page.getByText('当前筛选条件下暂无请求记录。',{exact:true});
   await expect(result).toBeVisible();
@@ -138,7 +138,7 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   await expect(pager.getByRole('status')).toHaveText('第1页 · 自动刷新');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),position=await table.boundingBox();
   await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeEnabled();
-  await page.clock.fastForward(30100);await expect.poll(()=>latencyReads).toBe(2);expect(reads).toBe(1);
+  await page.clock.fastForward(60100);await expect.poll(()=>latencyReads).toBe(2);expect(reads).toBe(1);
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
   await expect(result).toBeVisible({timeout:1000});
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
@@ -181,7 +181,7 @@ test('history events coalesce during reads without refreshing summaries or losin
   await page.goto('/#/timeline');
   const details=page.getByRole('button',{name:'请求 1 的明细',exact:true});
   await details.click();await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
-  const summaryReads=api.calls.filter(c=>['latency','response-sources'].includes(c.path)).length;
+  const summaryReads=api.calls.filter(c=>['history/stats'].includes(c.path)).length;
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
   for(let i=0;i<8;i++)await api.historyChanged();
   expect(reads).toBe(2);
@@ -189,7 +189,7 @@ test('history events coalesce during reads without refreshing summaries or losin
   expect(reads).toBe(3);
   await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   await expect(details).toBeFocused();
-  expect(api.calls.filter(c=>['latency','response-sources'].includes(c.path))).toHaveLength(summaryReads);
+  expect(api.calls.filter(c=>['history/stats'].includes(c.path))).toHaveLength(summaryReads);
 });
 
 test('history reconnects and resumes with fresh data, releases hidden subscriptions, and can retry a failed query',async({page})=>{
@@ -234,12 +234,12 @@ test('history can requery while its event connection is disconnected',async({pag
 test('history pages beyond 500 without growing the DOM; filtering leaves latency window alone',async({page})=>{
   await mockAPI(page);const queries:URLSearchParams[]=[];let latencyReads=0;
   await page.route('**/api/history?*',r=>{const q=new URL(r.request().url()).searchParams;queries.push(q);const index=Number(q.get('cursor')||0),total=q.has('to')?50:650;return r.fulfill({json:{storageID:'fixture',requests:Array.from({length:50},(_,i)=>record(index*50+i+1)),total,hasMore:(index+1)*50<total,nextCursor:String(index+1)}});});
-  await page.route('**/api/latency',r=>{latencyReads++;return r.fulfill({json:{from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:20,p50MS:10,p95MS:80},ready:{samples:0,p50MS:null,p95MS:null}}});});
+  await page.route('**/api/history/stats*',r=>{latencyReads++;return r.fulfill({json:statisticsFixture({blocking:{samples:20,p50MS:10,p95MS:80}})});});
   await page.clock.install();await page.goto('/#recent');
   await expect(page.getByRole('heading',{level:1,name:'历史'})).toBeVisible();
   await expect(page.getByText('P50 10 ms · P95 80 ms',{exact:true})).toBeVisible();
   await page.getByRole('heading',{name:'响应时间',exact:true}).hover();
-  await expect(page.getByRole('tooltip')).toHaveText('从收到请求到首次返回视频正文的时间');
+  await expect(page.getByRole('tooltip')).toContainText('从收到请求到首次返回视频正文的时间');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('link',{name:'ID 42',exact:true})).toBeVisible();
   await expect(page.getByText('当前关联不是真实请求身份',{exact:false})).toHaveCount(0);
@@ -341,4 +341,30 @@ for(const width of [320,1280])test(`date errors stay with their field without ov
   await page.screenshot({path:info.outputPath('date-validation.png'),animations:'disabled'});
   await to.fill('2026-10-24T01:00');await expect(to).not.toHaveAttribute('aria-invalid','true');
   await expect(message).toHaveCount(0);
+});
+
+test('recent statistics share refresh, show coverage and suspend hidden pages',async({page})=>{
+  await mockAPI(page);await page.clock.install();
+  const queries:URLSearchParams[]=[];
+  await page.route('**/api/history/stats*',route=>{
+    queries.push(new URL(route.request().url()).searchParams);
+    return route.fulfill({json:statisticsFixture({requests:10000,sourceSamples:9995,oldestAt:Date.now()-3600000,sources:{downloadBytes:queries.length,cacheBytes:0,localBytes:0},ready:{samples:9995,p50MS:queries.length,p95MS:9}})});
+  });
+  await page.goto('/#/timeline');
+  const source=page.getByRole('button',{name:'刷新来源统计',exact:true});
+  await expect(page.getByText('P50 1 ms · P95 9 ms',{exact:true})).toBeVisible();expect(queries).toHaveLength(1);
+  await page.getByRole('heading',{name:'近期响应来源',exact:true}).focus();
+  await expect(page.getByRole('tooltip')).toContainText('统计时间：');
+  await expect(page.getByRole('tooltip')).toContainText('已选 10,000 条');
+  await expect(page.getByRole('tooltip')).toContainText('来源有效样本 9,995 个');
+  await expect(page.getByRole('tooltip')).toContainText('最早请求');
+  await page.keyboard.press('Escape');
+  await source.click();await expect(page.getByText('P50 2 ms · P95 9 ms',{exact:true})).toBeVisible();expect(queries.at(-1)?.get('refresh')).toBe('true');
+  await page.clock.fastForward(60100);await expect.poll(()=>queries.length).toBe(3);expect(queries.at(-1)?.has('refresh')).toBe(false);
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
+  await page.clock.fastForward(121000);expect(queries).toHaveLength(3);
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
+  await expect.poll(()=>queries.length).toBe(4);
+  await navigate(page,'设置');await page.clock.fastForward(121000);expect(queries).toHaveLength(4);
+  expect(await page.getByRole('region',{name:'历史总数',exact:true}).count()).toBe(0);
 });

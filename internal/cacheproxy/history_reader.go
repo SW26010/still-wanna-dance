@@ -12,8 +12,8 @@ const historyCopyInterval = 5 * time.Second
 
 // RequestHistory owns read isolation and query plans for one database. Store
 // owns its lifetime; offline callers can create and close a standalone reader.
-// Time pages stay live and bounded. All potentially unbounded work uses a
-// shared private copy, never a long read transaction on the business database.
+// Pages and recent statistics read bounded windows directly. Only exports use
+// a shared private copy, releasing the business database before streaming.
 type RequestHistory struct {
 	path        string
 	owned       bool  // Store's exclusive writer owns detail invalidation.
@@ -26,20 +26,15 @@ type RequestHistory struct {
 	nextCopy    time.Time
 	ctx         context.Context
 	cancel      context.CancelFunc
+	statistics  historyCache[RequestStatistics]
 	closed      bool
 }
 
 type historySnapshot struct {
-	db           *sql.DB
-	path         string
-	cleanup      func()
-	version      int64
-	at           int64
-	readers      int
-	indexGate    chan struct{}
-	latencyIndex historyCache[bool]
-	sources      historyCache[ResponseSources]
-	latency      historyCache[historyLatency]
+	db      *sql.DB
+	cleanup func()
+	version int64
+	readers int
 }
 
 type historyBuild struct {
@@ -220,45 +215,23 @@ func (h *RequestHistory) snapshot(ctx context.Context) (*historySnapshot, func()
 }
 
 func buildHistorySnapshot(ctx context.Context, path string, version int64) (*historySnapshot, error) {
-	at := time.Now().UnixMilli()
 	path, cleanup, err := temporaryStorageSnapshot(ctx, path)
 	if err != nil {
 		return nil, err
 	}
-	writer, err := connectStorageDatabase(path, "rw", false)
-	if err != nil {
-		cleanup()
-		return nil, err
-	}
-	// Private WAL lets on-demand index preparation coexist with leased reads.
-	// Never change the business database's journal mode or schema.
-	_, err = writer.ExecContext(ctx, "PRAGMA journal_mode=WAL")
-	err = errors.Join(err, writer.Close())
-	if err != nil {
-		cleanup()
-		return nil, err
-	}
-	// The source and copied schema were validated above. Derived indexes are
-	// prepared only by operations that need them, using this owned path.
+
 	db, err := sql.Open("sqlite", storageDatabaseURI(path, "ro"))
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	db.SetMaxOpenConns(4)
-	return &historySnapshot{db: db, path: path, cleanup: cleanup, version: version, at: at, indexGate: make(chan struct{}, 1)}, nil
-}
-
-func withHistorySnapshot[T any](ctx context.Context, h *RequestHistory, read func(context.Context, *historySnapshot) (T, error)) (T, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	snapshot, release, err := h.snapshot(ctx)
-	if err != nil {
-		var zero T
-		return zero, err
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		cleanup()
+		return nil, err
 	}
-	defer release()
-	return read(ctx, snapshot)
+	db.SetMaxOpenConns(4)
+	return &historySnapshot{db: db, cleanup: cleanup, version: version}, nil
 }
 
 func (h *RequestHistory) Page(ctx context.Context, query RequestQuery) (RecentRequests, error) {
@@ -269,22 +242,4 @@ func (h *RequestHistory) Page(ctx context.Context, query RequestQuery) (RecentRe
 		return RecentRequests{Requests: []RecentRequest{}}, err
 	}
 	return readRequestPage(ctx, h.path, query, true)
-}
-
-func (h *RequestHistory) Sources(ctx context.Context) (ResponseSources, error) {
-	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (ResponseSources, error) {
-		return s.sources.get(ctx, func(ResponseSources) bool { return true }, func() (ResponseSources, error) { return readResponseSources(ctx, s.db) })
-	})
-}
-
-func (h *RequestHistory) Latency(ctx context.Context, now time.Time) (FirstBodyLatency, error) {
-	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (FirstBodyLatency, error) {
-		cached, err := s.latency.get(ctx, func(v historyLatency) bool { return v.contains(now) }, func() (historyLatency, error) {
-			if err := s.prepareIndex(ctx, &s.latencyIndex, historyLatencyIndex); err != nil {
-				return historyLatency{}, err
-			}
-			return readHistoryLatency(ctx, s.db, now)
-		})
-		return cached.result(now), err
-	})
 }

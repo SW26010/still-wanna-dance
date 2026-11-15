@@ -4,15 +4,13 @@ import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
 import {RecordDataTable,TablePagination,type RecordColumn,type TableSort} from './data-table';
-import {date,mb,type RequestRecord,type ResponseSources} from './types';
+import {date,mb,type RequestRecord,type ResponseSources,type RequestStatistics} from './types';
 import {requestOutcome,requestOutcomeDescription} from './requests';
 import {songHref,resourceHref} from './library';
 import {subscribeRealtime} from './realtime-stream';
 
 const useSummaryStyles=makeStyles({summary:typographyStyles.subtitle2});
 
-type Group={samples:number;p50MS:number|null;p95MS:number|null};
-type Latency={from:number;to:number;blocking:Group;ready:Group};
 type History={storageID:string;requests:RequestRecord[];hasMore:boolean;nextCursor:string};
 type Range={from:string;to:string};
 const localDate=(value:number)=>{const d=new Date(value);return new Date(value-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
@@ -30,13 +28,18 @@ function SourceShares({sources,details=false}:{sources:ResponseSources|null|unde
   })}</div>;
 }
 
-function ResponseSourceSummary({visible}:{visible:boolean}) {
+function statisticsDescription(v:RequestStatistics|undefined) {
+  const scope='最近 72 小时内，最多最近 10,000 条原始请求；先选取请求，再筛选有效样本。';
+  return !v?scope:
+    `统计时间：${date(v.to)}。${scope}时间范围：${date(v.from)} 至 ${date(v.to)}（不含结束时刻）。已选 ${v.requests.toLocaleString()} 条${v.oldestAt!=null?`，最早请求 ${date(v.oldestAt)}`:''}；来源有效样本 ${v.sourceSamples.toLocaleString()} 个，响应时间有效样本 ${(v.ready.samples+v.blocking.samples).toLocaleString()} 个。约每分钟更新；不受列表筛选影响。`;
+}
+
+function ResponseSourceSummary({statistics:sources}:{statistics:ReturnType<typeof useResource<RequestStatistics>>}) {
   const app=useApp(),styles=useSummaryStyles();
-  const sources=useResource<ResponseSources>('response-sources',visible&&!app.stopped,app.revision,30000,true);
   return (<section aria-label="响应来源统计">
       <div className={'inline history-summary '+styles.summary}>
-        <div className="inline history-summary-heading"><Subtitle2 as="h2">响应来源</Subtitle2><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
-        {sources.data?<SourceShares sources={sources.data} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
+        <div className="inline history-summary-heading"><Tooltip content={statisticsDescription(sources.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>近期响应来源</Subtitle2></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
+        {sources.data?<SourceShares sources={sources.data.sources} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
       {sources.error&&<MessageBar intent="error"><MessageBarBody>来源统计读取失败，请重试。{sources.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
     </section>);
@@ -51,17 +54,17 @@ export function RequestTimeline({visible}:{visible:boolean}) {
   const sortFocus=useRef(false);
   const previousStorage=useRef(storage);
   useEffect(()=>{if(previousStorage.current!==storage){previousStorage.current=storage;setCursors(['']);}},[storage]);
-  const latency=useResource<Latency>('latency',visible&&!app.stopped,app.revision,30000);
+  const latency=useResource<RequestStatistics>('history/stats',visible&&!app.stopped,app.revision,60000,true,undefined,'refresh=true');
   const filter=new URLSearchParams({hideAdjacentCanceled:String(hideAdjacentCanceled)});
   for(const key of ['from','to'] as const){const value=milliseconds(applied[key]);if(value!==undefined)filter.set(key,String(value));}
   const query=new URLSearchParams({...sort,limit:'50',cursor:cursors.at(-1)!});
   filter.forEach((value,key)=>query.set(key,value));
   return <div className="page-stack">
-    <ResponseSourceSummary key={storage} visible={visible}/>
+    <ResponseSourceSummary statistics={latency}/>
     <section aria-label="响应时间">
       <div className={'inline history-summary '+styles.summary}>
-        <div className="inline history-summary-heading"><Tooltip content="从收到请求到首次返回视频正文的时间" relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip><Tooltip content="刷新响应时间统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
-        {([['等待下载',latency.data?.blocking],['缓存／本地',latency.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`有效样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
+        <div className="inline history-summary-heading"><Tooltip content={'从收到请求到首次返回视频正文的时间。'+statisticsDescription(latency.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip><Tooltip content="刷新响应时间统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={latency.loading} disabled={latency.loading||app.unavailable} disabledFocusable={latency.loading} onClick={latency.refresh}/></Tooltip></div>
+        {([['等待下载',latency.data?.blocking],['缓存／本地',latency.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`有效样本 ${g?.samples??'—'} 个。${statisticsDescription(latency.data)}`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?latency.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
       </div>
       <Notification message={visible&&latency.error?'响应时间统计读取失败，请重试。':undefined} error/>
     </section><section id="recent" className="content-stack" tabIndex={-1}>

@@ -2,29 +2,31 @@ package cacheproxy
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"sync"
 )
 
-// Each snapshot keeps one successful value per operation (one last filter for
-// counts/windows), not an unbounded cache per request. Concurrent callers share
-// work; cancellation or failure never becomes a cached result.
+// Keep one recent result. Concurrent callers share work; canceled or failed
+// computations are never cached. A manual refresh joins any computation in flight.
 type historyCache[T any] struct {
-	mu       sync.Mutex
-	value    T
-	valid    bool
-	building *historyBuild
+	mu         sync.Mutex
+	value      T
+	valid      bool
+	generation uint64
+	building   *historyBuild
 }
 
-func (c *historyCache[T]) get(ctx context.Context, accepts func(T) bool, read func() (T, error)) (T, error) {
+func (c *historyCache[T]) get(ctx context.Context, refresh bool, accepts func(T) bool, read func() (T, error)) (T, error) {
 	var zero T
+	c.mu.Lock()
+	generation := c.generation
+	c.mu.Unlock()
 	for {
 		if err := ctx.Err(); err != nil {
 			return zero, err
 		}
 		c.mu.Lock()
-		if c.valid && accepts(c.value) {
+		if c.valid && accepts(c.value) && (!refresh || c.generation != generation) {
 			value := c.value
 			c.mu.Unlock()
 			return value, nil
@@ -51,29 +53,11 @@ func (c *historyCache[T]) get(ctx context.Context, accepts func(T) bool, read fu
 		c.mu.Lock()
 		if err == nil {
 			c.value, c.valid = value, true
+			c.generation++
 		}
 		b.err, c.building = err, nil
 		close(b.done)
 		c.mu.Unlock()
 		return value, err
 	}
-}
-
-func (s *historySnapshot) prepareIndex(ctx context.Context, cache *historyCache[bool], ddl string) error {
-	_, err := cache.get(ctx, func(bool) bool { return true }, func() (bool, error) {
-		select {
-		case s.indexGate <- struct{}{}:
-			defer func() { <-s.indexGate }()
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
-		writer, err := sql.Open("sqlite", storageDatabaseURI(s.path, "rw"))
-		if err != nil {
-			return false, err
-		}
-		defer writer.Close()
-		_, err = writer.ExecContext(ctx, ddl)
-		return err == nil, err
-	})
-	return err
 }

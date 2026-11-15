@@ -174,7 +174,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	r, err := ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
+	r, err := ReadRequestStatistics(context.Background(), cfg.Store.path, now)
 	if err != nil || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
 		t.Fatalf("quantiles: %+v %v", r, err)
 	}
@@ -196,7 +196,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 	if _, err := s.Store.usage.prune(now); err != nil {
 		t.Fatal(err)
 	}
-	r, err = ReadFirstBodyLatency(context.Background(), cfg.Store.path, now)
+	r, err = ReadRequestStatistics(context.Background(), cfg.Store.path, now)
 	if err != nil || r.Ready.Samples != 0 || r.Ready.P50MS != nil {
 		t.Fatalf("short retention: %+v %v", r, err)
 	}

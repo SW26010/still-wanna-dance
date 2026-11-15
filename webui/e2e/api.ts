@@ -1,5 +1,5 @@
 import type { Page, WebSocketRoute } from '@playwright/test';
-import type { CacheEntry, Settings, Status } from '../src/types';
+import type { CacheEntry, Settings, Status, RequestStatistics } from '../src/types';
 export async function choosePath(page: Page, label: string, path: string) {
   await page.route('**/api/path/select', route => route.fulfill({json:{path,canceled:false}}), {times:1});
   const response = page.waitForResponse('**/api/path/select');
@@ -81,8 +81,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     if (match('GET downloads')) data={revision:0,tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (match('GET songs')) data={storageID:'fixture',entries:[],total:0};
     if(match('GET history'))data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
-    if(match('GET response-sources'))data={downloadBytes:0,cacheBytes:0,localBytes:0};
-    if(match('GET latency'))data={from:Date.now()-72*3600000,to:Date.now(),blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null}};
+    if(match('GET history/stats'))data=statisticsFixture();
     if (match('GET requests')) data={storageID:'fixture',requests:[],hasMore:false};
     if(match('GET library'))data={storageID:'fixture',databaseID:'fixture-db',songs:files.map(f=>({id:f.songs[0].id,title:f.songs[0].title,artist:'',dancer:'',group:'',score:1,hasDemand:true,policy:'normal',resource:f.key})),resources:Object.fromEntries(files.map(f=>[f.key,{key:f.key,size:f.bytes,duration:null,songs:f.songs,songCount:f.songCount,local:f}])),keys:files.map(f=>f.key),total:files.length,fileCount:files.length,totalBytes:files.length*1073741824,covers:url.searchParams.get('covers')==='1'?Object.fromEntries(files.map(f=>[f.songs[0].id,{source:coverFiles.has(f.songs[0].id)?'local':'category'}])):undefined};
     if (match('POST cache/delete')) {
@@ -114,3 +113,5 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
   const historyChanged=()=>page.request.post('/__fixture/events',{data:{id:fixtureID,kind:'history',state:{closed:false}}});
   return {state,calls,files,coverFiles,terms,diagnostics,emit,fixtureID,historyChanged,diagnosticSockets,disconnectDiagnostics};
 }
+
+export function statisticsFixture(overrides:Partial<RequestStatistics>={}):RequestStatistics {return {from:Date.now()-72*3600000,to:Date.now(),oldestAt:null,limit:10000,requests:0,sourceSamples:0,sources:{downloadBytes:0,cacheBytes:0,localBytes:0},blocking:{samples:0,p50MS:null,p95MS:null},ready:{samples:0,p50MS:null,p95MS:null},...overrides};}

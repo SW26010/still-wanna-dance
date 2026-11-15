@@ -11,36 +11,6 @@ import (
 	"time"
 )
 
-func TestResponseSourcesRetainedRowsAndQueryBudget(t *testing.T) {
-	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "sources.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	// Include canceled/failed contributions, and old rows outside the history
-	// screen's default time filter. Null contributions must remain unknown.
-	_, err = store.db.Exec(`WITH RECURSIVE rows(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM rows WHERE n<100000)
- INSERT INTO request_events(requested_at,method,range_header,outcome,transferred_bytes,elapsed_ms,status,download_bytes,cache_bytes,local_bytes)
- SELECT 1,'GET','',CASE n%3 WHEN 0 THEN 'failed' WHEN 1 THEN 'canceled' ELSE 'completed' END,1,1,206,2,3,5 FROM rows;
- INSERT INTO request_events(requested_at,method,range_header,outcome,transferred_bytes,elapsed_ms,status) VALUES(2,'HEAD','','completed',0,1,200)`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	started := time.Now()
-	got, err := ReadResponseSources(t.Context(), store.path)
-	if err != nil || got != (ResponseSources{DownloadBytes: 200000, CacheBytes: 300000, LocalBytes: 500000}) {
-		t.Fatal(got, err)
-	}
-	t.Logf("100001 retained rows aggregate: %s", time.Since(started))
-	if _, err := store.db.Exec("DELETE FROM request_events WHERE event_id<=50000"); err != nil {
-		t.Fatal(err)
-	}
-	got, err = ReadResponseSources(t.Context(), store.path)
-	if err != nil || got != (ResponseSources{DownloadBytes: 100000, CacheBytes: 150000, LocalBytes: 250000}) {
-		t.Fatal("pruned contributions remain", got, err)
-	}
-}
-
 func TestResponseSourcesReaderWaitAndReuse(t *testing.T) {
 	for _, chunk := range []int{1, 32} {
 		t.Run(fmt.Sprint(chunk), func(t *testing.T) {
@@ -146,7 +116,7 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 	if cold == nil || cold.DownloadBytes+cold.CacheBytes+cold.LocalBytes != int64(len(payload)) {
 		t.Fatal(cold)
 	}
-	want, err := ReadResponseSources(t.Context(), cfg.Store.path)
+	want, err := readTestResponseSources(t.Context(), cfg.Store.path)
 	if err != nil || want.DownloadBytes != cold.DownloadBytes || want.CacheBytes != cold.CacheBytes || want.LocalBytes != cold.LocalBytes+20 {
 		t.Fatal(want, err)
 	}
@@ -186,7 +156,7 @@ func TestResponseSourcesHTTPAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	got, err := ReadResponseSources(t.Context(), store.path)
+	got, err := readTestResponseSources(t.Context(), store.path)
 	if err != nil || got != (ResponseSources{}) {
 		t.Fatal(got, err)
 	}
@@ -229,25 +199,25 @@ func TestResponseSourcesBatchAtomicAndUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	e := usageEvent{method: "GET", at: 1, sources: &ResponseSources{DownloadBytes: 8, CacheBytes: 4, LocalBytes: 2}}
+	e := usageEvent{method: "GET", at: time.Now().Add(-time.Minute).UnixMilli(), sources: &ResponseSources{DownloadBytes: 8, CacheBytes: 4, LocalBytes: 2}}
 	if err := store.usage.start(0, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.usage.write([]usageEvent{e, {method: "GET", songID: "bad"}}); err == nil {
 		t.Fatal("bad batch accepted")
 	}
-	got, err := ReadResponseSources(t.Context(), store.path)
+	got, err := readTestResponseSources(t.Context(), store.path)
 	if err != nil || got != (ResponseSources{}) {
 		t.Fatal("partial batch persisted", got, err)
 	}
-	if err := store.usage.write([]usageEvent{e, {method: "GET", at: 2}}); err != nil {
+	if err := store.usage.write([]usageEvent{e, {method: "GET", at: e.at+1}}); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), store.path, RequestQuery{Limit: 10})
 	if err != nil || len(page.Requests) != 2 || page.Requests[0].Sources != nil || page.Requests[1].Sources == nil || *page.Requests[1].Sources != *e.sources {
 		t.Fatal(page, err)
 	}
-	got, err = ReadResponseSources(t.Context(), store.path)
+	got, err = readTestResponseSources(t.Context(), store.path)
 	if err != nil || got != *e.sources {
 		t.Fatal(got, err)
 	}
@@ -289,4 +259,9 @@ func BenchmarkResponseSourcesRead(b *testing.B) {
 			}
 		})
 	}
+}
+
+func readTestResponseSources(ctx context.Context, path string) (ResponseSources, error) {
+	v, err := ReadRequestStatistics(ctx, path, time.Now())
+	return v.Sources, err
 }

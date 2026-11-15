@@ -98,9 +98,7 @@ try {
   expect(latencyGroup(false)).toMatchObject({ p50MS: 1.2, p95MS: 4.1 });
   await page.route('**/api/requests?*', route => route.fulfill({ json: { storageID: 'fixture', requests: history.slice(0, 1), hasMore: false } }));
   await page.route('**/api/history?*', route => route.fulfill({ json: { storageID: 'fixture', requests: history, hasMore: false, nextCursor: '' } }));
-  await page.route('**/api/history/count?*', route => route.fulfill({ json: { storageID: 'fixture', total: history.length, countedAt: at } }));
-  await page.route('**/api/response-sources', route => route.fulfill({ json: responseSources }));
-  await page.route('**/api/latency', route => route.fulfill({ json: { from: at - 72 * 3600000, to: at, blocking: latencyGroup(true), ready: latencyGroup(false) } }));
+  await page.route('**/api/history/stats*', route => route.fulfill({ json: { from: at - 72 * 3600000, to: at, oldestAt: history.at(-1)?.at ?? null, limit: 10000, requests: history.length, sourceSamples: history.length, sources: responseSources, blocking: latencyGroup(true), ready: latencyGroup(false) } }));
   const blocks = [], demands = [];
   const prepareAheadMS = 500000, open = 16;
   const consumedBlocks = 12;

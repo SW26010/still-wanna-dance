@@ -91,3 +91,5 @@ export function exitConnectionMessage(s?: Status): string {
   if (s.hosts.managed && !s.hosts.exitRestorePrepared) return '尚未取得恢复权限，可在游戏连接状态中点击「修复」；直接退出会保留接入。';
   return '退出时自动恢复本程序的游戏接入。';
 }
+
+export interface RequestStatistics {from:number;to:number;oldestAt:number|null;limit:number;requests:number;sourceSamples:number;sources:ResponseSources;blocking:{samples:number;p50MS:number|null;p95MS:number|null};ready:{samples:number;p50MS:number|null;p95MS:number|null}}

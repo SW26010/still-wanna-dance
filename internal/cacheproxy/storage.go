@@ -18,13 +18,12 @@ const upsertMediaSQL = `INSERT INTO media(md5, byte_size)
 
 // recordVideo records a resource without inferring a song from its URL.
 func (s *Server) recordVideo(ctx context.Context, v video) error {
-	err := s.Store.recordMediaSize(ctx, v.key, v.size)
-	return s.storageError(err)
+	return s.Store.recordMediaSize(ctx, v.key, v.size)
 }
 
 // Each explicit caller records its own mapping after the shared flight completes.
 func (s *Server) recordSongVideo(ctx context.Context, id string, v video) error {
 	s.pinVideo(v)
 	defer s.releaseVideo(v)
-	return s.storageError(s.Store.recordSongMapping(ctx, id, v.key, s.cfg.Logger))
+	return s.Store.recordSongMapping(ctx, id, v.key, s.cfg.Logger)
 }

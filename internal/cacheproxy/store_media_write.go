@@ -9,10 +9,11 @@ import (
 
 func (s *Store) recordMediaSize(ctx context.Context, key string, size int64) error {
 	_, err := s.db.ExecContext(ctx, upsertMediaSQL, key, size)
-	return err
+	return s.metadataWriteError(ctx, err)
 }
 
-func (s *Store) recordSongMapping(ctx context.Context, id, key string, log *slog.Logger) error {
+func (s *Store) recordSongMapping(ctx context.Context, id, key string, log *slog.Logger) (resultErr error) {
+	defer func() { resultErr = s.metadataWriteError(ctx, resultErr) }()
 	var promote bool
 	return s.writeMapping(ctx, func() (bool, error) {
 		var current string

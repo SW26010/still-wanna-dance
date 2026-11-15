@@ -10,9 +10,10 @@ import (
 func (s *Store) songResource(ctx context.Context, id string) (string, error) {
 	var key string
 	err := s.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key)
-	return key, err
+	return key, s.storageError(err)
 }
-func (s *Store) resourceSongs(ctx context.Context, key, preferred string, limit int) ([]string, error) {
+func (s *Store) resourceSongs(ctx context.Context, key, preferred string, limit int) (resultValue []string, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	rows, err := s.db.QueryContext(ctx, `SELECT sm.song_id FROM song_media sm
  LEFT JOIN catalog_members c ON c.song_id=sm.song_id
  WHERE sm.md5=?

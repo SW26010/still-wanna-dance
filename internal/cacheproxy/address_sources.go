@@ -294,7 +294,7 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		}
 		songs, err := s.Store.resourceSongs(ctx, p.key, p.preferredSong, limit)
 		if err != nil {
-			return video{}, s.storageError(err)
+			return video{}, err
 		}
 		for _, id := range songs {
 			if p.selectedSongs != nil {

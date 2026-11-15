@@ -13,7 +13,8 @@ type queueMetadata struct {
 	title  string
 }
 
-func (s *Store) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
+func (s *Store) queueTimings(ctx context.Context, ids []int64) (resultValue map[string]queueMetadata, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	result := make(map[string]queueMetadata)
 	if s == nil || s.usage == nil || len(ids) == 0 {
 		return result, nil
@@ -45,8 +46,7 @@ func (s *Store) queueTimings(ctx context.Context, ids []int64) (map[string]queue
 }
 
 func (s *Server) queueTimings(ctx context.Context, ids []int64) (map[string]queueMetadata, error) {
-	result, err := s.Store.queueTimings(ctx, ids)
-	return result, s.storageError(err)
+	return s.Store.queueTimings(ctx, ids)
 }
 
 // Names for presentation come from the same local catalog snapshot as timing.

@@ -66,7 +66,7 @@ func (s *Store) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
   WHERE sm.md5=media.md5 AND (?='' OR s.id=?) AND s.end>0)
  FROM media WHERE md5=?`, v.songID, v.songID, v.key).Scan(&size, &seconds)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return mediaTiming{}, err
+			return mediaTiming{}, s.storageError(err)
 		}
 	}
 	if !size.Valid || size.Int64 <= 0 {
@@ -78,6 +78,5 @@ func (s *Store) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
 }
 
 func (s *Server) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
-	result, err := s.Store.mediaTiming(ctx, v)
-	return result, s.storageError(err)
+	return s.Store.mediaTiming(ctx, v)
 }

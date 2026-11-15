@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -13,8 +12,9 @@ import (
 var ErrLocalStorage = errors.New("local storage unavailable")
 
 func isLocalStorageError(err error) bool {
+	var databaseErr *databaseError
 	return err != nil && (errors.Is(err, ErrLocalStorage) ||
-		!errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
+		!errors.As(err, &databaseErr) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
 			!errors.Is(err, errUpstreamDownload) && !errors.Is(err, errBusy) && !errors.Is(err, ErrNotRetained) &&
 			!errors.Is(err, blocksched.ErrClosed))
 }
@@ -67,21 +67,4 @@ func (s *Server) StorageError() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return errors.Join(s.storageFailure, s.Store.Error())
-}
-
-func (s *Store) metadataWriteError(ctx context.Context, err error) error {
-	// Cancellation may roll back the transaction before Commit checks its state.
-	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
-		err = ctx.Err()
-	}
-	// Share the Store's database classification: a lock or constraint conflict
-	// fails this transaction without disabling future downloads.
-	if !isDatabaseStorageError(err) {
-		return err
-	}
-	if !errors.Is(err, ErrLocalStorage) {
-		err = fmt.Errorf("%w: %w", ErrLocalStorage, err)
-	}
-	s.retainFailure(err)
-	return err
 }

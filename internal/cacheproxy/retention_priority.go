@@ -6,7 +6,8 @@ import (
 )
 
 // Both admission and eviction rank the current catalog with the same policy.
-func (s *Store) retentionPriorities(ctx context.Context) (map[string]ResourcePriority, error) {
+func (s *Store) retentionPriorities(ctx context.Context) (resultValue map[string]ResourcePriority, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	s.usage.flush()
 	refs := make(map[string]string)
 	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id,md5 FROM song_media")

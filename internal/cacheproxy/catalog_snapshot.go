@@ -125,7 +125,8 @@ func (s *Store) InspectLocalCatalog(ctx context.Context, videoDir string) (Local
 }
 
 // Caller holds mappingMu so membership, mappings and watermark agree.
-func (s *Store) readCatalogLocked(ctx context.Context, target *DownloadTarget) (LocalCatalog, error) {
+func (s *Store) readCatalogLocked(ctx context.Context, target *DownloadTarget) (resultValue LocalCatalog, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	result := LocalCatalog{Current: map[string]bool{}}
 	status, err := s.catalogStatus(ctx)
 	result.Status = status

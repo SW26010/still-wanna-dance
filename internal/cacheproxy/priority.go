@@ -16,7 +16,8 @@ func effectiveSongPriority(id, count int64, score float64, last, now int64) floa
 	return retentionScore(score, last, now)
 }
 
-func (s *Store) songPriorities(ctx context.Context, ids []int64, now int64) (map[int64]float64, error) {
+func (s *Store) songPriorities(ctx context.Context, ids []int64, now int64) (resultValue map[int64]float64, resultErr error) {
+	defer func() { resultErr = s.storageError(resultErr) }()
 	result := make(map[int64]float64, len(ids))
 	for _, id := range ids {
 		result[id] = effectiveSongPriority(id, 0, 0, 0, now)

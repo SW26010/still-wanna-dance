@@ -267,9 +267,7 @@ func (s *Store) Error() error {
 }
 
 func (s *Store) rememberFailure(err error) {
-	if isDatabaseStorageError(err) {
-		s.retainFailure(fmt.Errorf("数据库读写失败：%w: %w", ErrLocalStorage, err))
-	}
+	s.storageError(err)
 }
 
 func isDatabaseStorageError(err error) bool {
@@ -311,7 +309,34 @@ func (s *Store) failureDone() <-chan struct{} {
 // FailureDone closes when the store retains its first terminal I/O failure.
 func (s *Store) FailureDone() <-chan struct{} { return s.failureDone() }
 
+// databaseError preserves Store's classification across mixed database/file
+// operations. Engine callers must not promote a rejected operation to an I/O fault.
+type databaseError struct{ err error }
+
+func (e *databaseError) Error() string { return e.err.Error() }
+func (e *databaseError) Unwrap() error { return e.err }
+
 func (s *Store) storageError(err error) error {
-	s.rememberFailure(err)
-	return err
+	if err == nil {
+		return nil
+	}
+	if isDatabaseStorageError(err) {
+		if !errors.Is(err, ErrLocalStorage) {
+			err = fmt.Errorf("数据库读写失败：%w: %w", ErrLocalStorage, err)
+		}
+		s.retainFailure(err)
+	}
+	var classified *databaseError
+	if errors.As(err, &classified) {
+		return err
+	}
+	return &databaseError{err: err}
+}
+
+func (s *Store) metadataWriteError(ctx context.Context, err error) error {
+	// Cancellation may roll back the transaction before Commit checks its state.
+	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	return s.storageError(err)
 }

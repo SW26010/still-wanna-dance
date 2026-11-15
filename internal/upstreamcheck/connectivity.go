@@ -19,7 +19,8 @@ type ConnectivityAccess struct {
 // Selection and persistence are business decisions, not network health signals.
 type ConnectivityBusiness struct {
 	// OnCatalog reports acceptance separately from a local execution failure.
-	// It receives the selected valid catalog, or invalid bodies for error feedback.
+	// It receives the selected validated response, or cached validation failures
+	// for error feedback. Parse reuses the validation result in either case.
 	// Storage/cancellation errors stop the run.
 	OnCatalog      func(context.Context, []CatalogResponse) (bool, error)
 	RememberSample func(context.Context, int64)

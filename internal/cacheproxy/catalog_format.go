@@ -59,42 +59,16 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 	if err != nil {
 		return c, err
 	}
-	// Validate every identity before optional metadata so metadata errors cannot
-	// mask invalid or duplicate ID/MD5 mappings in the catalog.
+	// Parse validates every identity before optional metadata so metadata errors
+	// cannot mask invalid or duplicate ID/MD5 mappings in the catalog.
+	c.Songs = make([]CatalogSong, 0, len(base.Entries))
 	for _, entry := range base.Entries {
-		var fields map[string]json.RawMessage
+		var fields catalogSongFields
 		if err := json.Unmarshal(entry.Raw, &fields); err != nil {
-			return c, err
+			return c, fmt.Errorf("清单资料格式无效: %w", err)
 		}
-		if !base.Udon {
-			for from, to := range map[string]string{"doubleWidth": "double_width", "skipRandom": "skip_random", "disablePublic": "disable_public", "shaderMotion": "shader_motion"} {
-				fields[to] = fields[from]
-				if fields[to] == nil {
-					delete(fields, to)
-				}
-			}
-		} else {
-			for _, key := range []string{"skip_random", "disable_public"} {
-				switch string(fields[key]) {
-				case "0":
-					fields[key] = json.RawMessage("false")
-				case "1":
-					fields[key] = json.RawMessage("true")
-				}
-			}
-			if string(fields["shader_motion"]) == `""` {
-				fields["shader_motion"] = json.RawMessage("[]")
-			}
-		}
-		if string(bytes.TrimSpace(fields["tag"])) == "null" {
-			fields["tag"] = json.RawMessage("[]")
-		}
-		raw, err := json.Marshal(fields)
+		song, err := fields.song(base.Udon)
 		if err != nil {
-			return c, err
-		}
-		var song CatalogSong
-		if err := json.Unmarshal(raw, &song); err != nil {
 			return c, fmt.Errorf("清单资料格式无效: %w", err)
 		}
 		song.MD5, song.GroupName, song.Major = entry.Checksum, entry.GroupName, entry.Major
@@ -102,6 +76,55 @@ func ParseCatalog(body []byte, source string) (Catalog, error) {
 	}
 	c, err = normalizeCatalog(c)
 	return c, err
+}
+
+// Only the fields whose names or types differ between envelopes need deferred
+// decoding. Common metadata is decoded directly, without a map/JSON round trip.
+type catalogSongFields struct {
+	CatalogSong
+	DoubleWidth         json.RawMessage `json:"double_width"`
+	SkipRandom          json.RawMessage `json:"skip_random"`
+	DisablePublic       json.RawMessage `json:"disable_public"`
+	ShaderMotion        json.RawMessage `json:"shader_motion"`
+	BackupDoubleWidth   json.RawMessage `json:"doubleWidth"`
+	BackupSkipRandom    json.RawMessage `json:"skipRandom"`
+	BackupDisablePublic json.RawMessage `json:"disablePublic"`
+	BackupShaderMotion  json.RawMessage `json:"shaderMotion"`
+}
+
+func (f catalogSongFields) song(udon bool) (CatalogSong, error) {
+	song := f.CatalogSong
+	doubleWidth, skipRandom, disablePublic := f.DoubleWidth, f.SkipRandom, f.DisablePublic
+	song.ShaderMotion = f.ShaderMotion
+	if !udon {
+		doubleWidth, skipRandom, disablePublic = f.BackupDoubleWidth, f.BackupSkipRandom, f.BackupDisablePublic
+		song.ShaderMotion = f.BackupShaderMotion
+	} else if string(song.ShaderMotion) == `""` {
+		song.ShaderMotion = json.RawMessage("[]")
+	}
+	for _, field := range []struct {
+		raw     json.RawMessage
+		target  **bool
+		numeric bool
+	}{
+		{doubleWidth, &song.DoubleWidth, false},
+		{skipRandom, &song.SkipRandom, udon},
+		{disablePublic, &song.DisablePublic, udon},
+	} {
+		if len(field.raw) == 0 {
+			continue
+		}
+		if field.numeric && (string(field.raw) == "0" || string(field.raw) == "1") {
+			value := string(field.raw) == "1"
+			*field.target = &value
+		} else if err := json.Unmarshal(field.raw, field.target); err != nil {
+			return song, err
+		}
+	}
+	if string(bytes.TrimSpace(song.Tags)) == "null" {
+		song.Tags = json.RawMessage("[]")
+	}
+	return song, nil
 }
 
 func normalizeCatalog(c Catalog) (Catalog, error) {

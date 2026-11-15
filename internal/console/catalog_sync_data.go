@@ -11,7 +11,8 @@ import (
 	"still-wanna-dance/internal/upstreamcheck"
 )
 
-// Reuse probe bodies; parsing happens outside storage lifecycle locks.
+// Reuse validated probe results; parsing raw responses from other callers also
+// happens outside storage lifecycle locks.
 func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.CatalogResponse) (usable bool, resultErr error) {
 	defer func() {
 		if ctx.Err() == nil && (usable || resultErr != nil) {
@@ -40,7 +41,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		switch response.Route {
 		case "api", "api-http", "kiva", "wanna":
 			var full cacheproxy.Catalog
-			full, err = cacheproxy.ParseCatalog(response.Body, response.Source)
+			full, err = response.Parse()
 			v.full, v.revision = &full, full.Revision
 		default:
 			continue

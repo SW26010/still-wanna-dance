@@ -33,7 +33,21 @@ func DefaultPolicy() Policy { return Policy{30 * time.Second, 16 << 20, 3 * time
 type CatalogResponse struct {
 	Route, Source string
 	Body          []byte
+	parsed        *cacheproxy.Catalog
+	parseErr      error
 }
+
+// Parse validates and converts the complete response once, including failures.
+// The response is owned by one check until delivery; after parsing, its body,
+// source and returned songs must be treated as immutable by all consumers.
+func (r *CatalogResponse) Parse() (cacheproxy.Catalog, error) {
+	if r.parsed == nil {
+		catalog, err := cacheproxy.ParseCatalog(r.Body, r.Source)
+		r.parsed, r.parseErr = &catalog, err
+	}
+	return *r.parsed, r.parseErr
+}
+
 type PlaybackURLResponse struct {
 	SongID                     int64
 	URL, API, Node             string

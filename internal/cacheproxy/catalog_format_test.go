@@ -1,10 +1,53 @@
 package cacheproxy
 
 import (
+	"errors"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestCatalogFieldAdaptation(t *testing.T) {
+	for _, tc := range []struct {
+		name, fields string
+		udon         bool
+		want         CatalogSong
+	}{
+		{"missing", ``, true, CatalogSong{}},
+		{"null", `,"name":null,"playerCount":null,"flip":null,"double_width":null,"skip_random":null,"disable_public":null,"shader_motion":null`, true, CatalogSong{}},
+		{"backup null", `,"doubleWidth":null,"skipRandom":null,"disablePublic":null,"shaderMotion":null`, false, CatalogSong{}},
+		{"udon values", `,"name":"","playerCount":0,"volume":0,"flip":false,"double_width":true,"skip_random":0,"disable_public":1,"tag":null,"shader_motion":""`, true, CatalogSong{Name: new(string), PlayerCount: new(int64), Volume: new(float64), Flip: new(bool), DoubleWidth: catalogTestBool(true), SkipRandom: catalogTestBool(false), DisablePublic: catalogTestBool(true), Tags: []byte("[]"), ShaderMotion: []byte("[]")}},
+		{"backup values", `,"doubleWidth":true,"skipRandom":false,"disablePublic":true,"tag":null,"shaderMotion":[]`, false, CatalogSong{DoubleWidth: catalogTestBool(true), SkipRandom: catalogTestBool(false), DisablePublic: catalogTestBool(true), Tags: []byte("[]"), ShaderMotion: []byte("[]")}},
+		{"udon ignores backup fields", `,"doubleWidth":1,"skipRandom":"bad","disablePublic":[],"shaderMotion":{}`, true, CatalogSong{}},
+		{"backup ignores udon fields", `,"double_width":1,"skip_random":"bad","disable_public":[],"shader_motion":{}`, false, CatalogSong{}},
+		{"array numbers", `,"tag":[9007199254740993,{"x":1}],"shader_motion":[[1,2]]`, true, CatalogSong{Tags: []byte(`[9007199254740993,{"x":1}]`), ShaderMotion: []byte(`[[1,2]]`)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			song := `{"id":1,"checksum":"0123456789ABCDEF0123456789ABCDEF","groupName":"child","major":"child"` + tc.fields + `}`
+			body := `{"time":"20261115000000","groups":{"contents":[{"groupName":"parent","major":"parent","songInfos":[` + song + `]}]}}`
+			if !tc.udon {
+				body = `{"code":200,"data":{"time":"20261115000000","groups":[{"title":"parent","major":"parent","entries":[` + song + `]}]}}`
+				tc.want.MD5 = "0123456789abcdef0123456789abcdef"
+			}
+			parent := "parent"
+			tc.want.ID, tc.want.GroupName, tc.want.Major = 1, &parent, &parent
+			got, err := ParseCatalog([]byte(body), "test")
+			if err != nil || len(got.Songs) != 1 || !reflect.DeepEqual(got.Songs[0], tc.want) {
+				t.Fatalf("songs=%+v want=%+v err=%v", got.Songs, tc.want, err)
+			}
+		})
+	}
+}
+
+func catalogTestBool(value bool) *bool { return &value }
+
+func TestCatalogIdentityErrorsPrecedeMetadataErrors(t *testing.T) {
+	body := `{"time":"20261115000000","groups":{"contents":[{"songInfos":[{"id":1,"volume":"bad"},{"id":1}]}]}}`
+	if _, err := ParseCatalog([]byte(body), "test"); !errors.Is(err, ErrInvalidCatalogMapping) {
+		t.Fatal("metadata failure masked a duplicate identity", err)
+	}
+}
 
 const catalogSample = `{"code":200,"data":{"time":"20261003235746","groups":[{"title":"Hide","major":"","entries":[{"id":90000,"name":"测试","artist":"测试","dancer":"测试","playerCount":1,"volume":1.0,"start":0,"end":8,"flip":true,"doubleWidth":false,"skipRandom":true,"disablePublic":true,"rpe":100,"genre":"","group":"Hide","composedTitle":"测试 - 测试 | 测试","composedTitleSpell":"c s - c s | c s","ayaId":null,"tag":[],"originalUrl":["https://www.bilibili.com/video/BV1Ds4y1Z7jp/?p=1"],"shaderMotion":[],"checksum":"0e49fdc94f704ed9520fa23a45b20f94"}]}]}}`
 
@@ -16,6 +59,10 @@ func TestCatalogRejectsInvalidCandidates(t *testing.T) {
 		strings.Replace(catalogSample, `"id":90000`, `"id":0`, 1),
 		strings.Replace(catalogSample, `"tag":[]`, `"tag":{}`, 1),
 		strings.Replace(catalogSample, `"flip":true`, `"flip":2`, 1),
+		strings.Replace(catalogSample, `"doubleWidth":false`, `"doubleWidth":0`, 1),
+		strings.Replace(catalogSample, `"skipRandom":true`, `"skipRandom":1`, 1),
+		strings.Replace(catalogSample, `"disablePublic":true`, `"disablePublic":[]`, 1),
+		strings.Replace(catalogSample, `"shaderMotion":[]`, `"shaderMotion":""`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":"1"`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":1e40`, 1),
 		strings.Replace(catalogSample, `"volume":1.0`, `"volume":-1e40`, 1),

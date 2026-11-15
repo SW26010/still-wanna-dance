@@ -7,7 +7,7 @@ import (
 )
 
 // CatalogResponse is transient probe data, never included in status snapshots.
-// Consumers must validate the complete payload before storing it.
+// Consumers use Parse to validate the complete payload before storing it.
 type CatalogResponse = upstreamcheck.CatalogResponse
 
 func (m *Monitor) deliverCatalogs(ctx context.Context, revision uint64, responses []CatalogResponse) {

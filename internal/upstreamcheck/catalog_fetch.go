@@ -94,7 +94,7 @@ func checkCatalogs(ctx context.Context, access ConnectivityAccess, business Conn
 		err := result.Err
 		if len(response.Body) > 0 {
 			response.Source, response.Route = source, routes[i]
-			catalog, err = cacheproxy.ParseCatalog(response.Body, source)
+			catalog, err = response.Parse()
 			if err != nil {
 				result.State, result.Err = "invalid", err
 			}

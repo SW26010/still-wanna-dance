@@ -38,6 +38,7 @@
 | 视频导入进度保存 | [按项持久化验证](validation/video-import-progress-20261112.md)记录独立状态 SQLite、旧 JSON 迁移、回执和暂停恢复及线性写入检查；现行规则见[视频导入](video-import.md) |
 | 曲库封面与图片缓存 | [封面视图验证](validation/song-covers-20261111.md)记录分页加载顺序、四路上限、DNS／代理、缓存落盘及浏览器协作；现行规则见[曲库封面视图](webui-design.md#曲库封面视图)和[存储契约](storage.md) |
 | 曲库重复刷新与检测调度 | [开发验证](validation/library-refresh-20261112.md)记录短 DNS 租约导致密集检测、重复观测通知的修复及事务／浏览器回归；现行规则见[上游刷新与交接](upstream-channels.md#刷新与交接)和[曲库读取与刷新](webui-design.md#曲库读取与刷新) |
+| 曲库检测的清单解析 | [解析复用验证](validation/catalog-parsing-20261115.md)记录整份清单重复解析与逐首 JSON 转换的基准、结果复用和字段语义回归；现行规则见[清单同步](song-catalog-design.md#清单同步与增改不删) |
 | 曲库空闲后的下载状态 | [下载观察验证](validation/library-idle-download-20261115.md)记录空闲停止观察的复现、统一生命周期版本、短任务与失败恢复、隐藏暂停，以及真实外部 GET 完成后自动更新；现行规则见[曲库读取与刷新](webui-design.md#曲库读取与刷新) |
 | RC1 冻结与交付 | [v1.0.0-rc.1 验证](validation/rc1-release-20261105.md)记录本机预检、保留的失败和正式交付状态 |
 | RC2 冻结与交付 | [v1.0.0-rc.2 验证](validation/rc2-release-20261108.md)记录业务冻结、测试引用修正及本机和公开交付验证 |

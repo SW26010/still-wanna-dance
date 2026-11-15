@@ -61,6 +61,9 @@ func TestConnectivityCatalogParallelSelection(t *testing.T) {
 					if len(responses) != 1 {
 						t.Fatal("only the winner may be committed", responses)
 					}
+					if responses[0].parsed == nil || responses[0].parseErr != nil {
+						t.Fatal("selection did not pass its validated catalog to business")
+					}
 					acceptedAt, acceptedSource = time.Since(start), responses[0].Source
 					if scenario == "local-error" {
 						return false, cacheproxy.ErrLocalStorage

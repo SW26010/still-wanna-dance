@@ -210,7 +210,7 @@ func TestResponseSourcesBatchAtomicAndUnknown(t *testing.T) {
 	if err != nil || got != (ResponseSources{}) {
 		t.Fatal("partial batch persisted", got, err)
 	}
-	if err := store.usage.write([]usageEvent{e, {method: "GET", at: e.at+1}}); err != nil {
+	if err := store.usage.write([]usageEvent{e, {method: "GET", at: e.at + 1}}); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), store.path, RequestQuery{Limit: 10})

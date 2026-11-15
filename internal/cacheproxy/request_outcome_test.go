@@ -73,7 +73,7 @@ func TestRequestTerminalFailureHistory(t *testing.T) {
 				if w.Code != wantStatus {
 					t.Fatalf("status=%d, want %d", w.Code, wantStatus)
 				}
-				if err := s.Close(); err != nil {
+				if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 					t.Fatal(err)
 				}
 				page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -117,7 +117,7 @@ func TestPlaybackResolutionFailureHistory(t *testing.T) {
 			if w.Code != tc.status {
 				t.Fatal(w.Code)
 			}
-			if err := s.Close(); err != nil {
+			if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 				t.Fatal(err)
 			}
 			page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -137,7 +137,7 @@ func TestPlaybackResolutionStorageFailureHistory(t *testing.T) {
 	if w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil); w.Code != 503 {
 		t.Fatal(w.Code)
 	}
-	if err := s.Close(); err != nil {
+	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -173,7 +173,7 @@ func TestBlockedHistoryKeepsRequestTimePolicy(t *testing.T) {
 	if err := s.Store.usage.write([]usageEvent{{at: time.Now().UnixMilli(), method: "GET", outcome: "failed", status: 403, songID: "42"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Close(); err != nil {
+	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -200,7 +200,7 @@ func TestRequestRetrySuccessDoesNotKeepTimeout(t *testing.T) {
 		}
 	}
 	assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, payload)
-	if err := s.Close(); err != nil {
+	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -217,7 +217,7 @@ func TestLocalPlaybackHistoryIgnoresBackgroundLookupFailure(t *testing.T) {
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", context.DeadlineExceeded }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
 	s.wg.Wait()
-	if err := s.Close(); err != nil {
+	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -235,7 +235,7 @@ func TestRequestHistoryReopenPreservesLegacyResults(t *testing.T) {
 	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Close(); err != nil {
+	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	before, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})
@@ -247,7 +247,7 @@ func TestRequestHistoryReopenPreservesLegacyResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := next.Close(); err != nil {
+	if err := errors.Join(next.Close(), cfg.Store.Close()); err != nil {
 		t.Fatal(err)
 	}
 	after, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 50})

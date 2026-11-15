@@ -192,6 +192,7 @@ test('storage summaries use the active budget, allow over-budget actions and exp
   api.state.activeSettings.videoStorageMode='limited';api.state.activeSettings.videoBudgetBytes=1073741824;
   api.state.settings.videoStorageMode='limited';api.state.settings.videoBudgetBytes=40*1073741824;
   await page.goto('/#/library');
+  await expect.poll(()=>api.calls.filter(c=>c.path==='library').length).toBe(2);
   for(const id of ['video-import','batch']){
     const panel=page.locator('#'+id),summary=panel.getByText('本地视频：已用 2.000 GiB / 预算 1.000 GiB',{exact:true});
     await expect(summary).toBeVisible();await expect(panel.locator('.fui-MessageBar')).toHaveCount(0);
@@ -206,7 +207,7 @@ test('storage summaries use the active budget, allow over-budget actions and exp
   await expect(page.getByRole('button',{name:'下载缺失视频',exact:true})).toBeEnabled();
   await choosePath(page,'外部目录','C:\\Fixture-Videos');
   await expect(page.getByRole('button',{name:'扫描并导入',exact:true})).toBeEnabled();
-  expect(api.calls.filter(c=>c.path==='library')).toHaveLength(1);
+  expect(api.calls.filter(c=>c.path==='library')).toHaveLength(2);
   expect(api.calls.some(c=>['settings','import/start','batch/start'].includes(c.path))).toBe(false);
 });
 

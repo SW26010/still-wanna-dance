@@ -15,7 +15,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 | 字段与操作 | Field/Input/Select/Textarea/Checkbox/RadioGroup、Button/ToggleButton、Dialog、MessageBar、ProgressBar |
 | 记录列表 | 曲库与请求历史使用 RecordDataTable，组合 Fluent Table/TableCell/TableCellLayout 并共用 TablePagination（Button/Text）；记录表由同一份有类型的列定义生成表头与单元格，使用 TableHeaderCell 的原生排序，保留 Fluent 默认尺寸、排序箭头、aria-sort 与键盘交互，Table 显式采用原生 table-layout: auto 分配列宽，每例一行；曲库歌曲的名称、歌手、舞者使用 TableCellLayout 默认自然换行并按内容共同分配空间，短字段收紧，具体宽度与截断边界以内容约定为准。线路检测同样使用 Table，首页需求使用随内容增高的 Canvas 需求列表和 Fluent Text／Caption1 展示标题与百分比。业务负责受保护项、请求行身份及移除行后的焦点回退 |
 | 测速 | `@fluentui/react-charts` v9 GaugeChart；实际倍率与 1×/2× 阈值，线性范围至少 0–3，随更高样本扩展；没有自绘指针或分段刻度 |
-| 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Switch、Popover、Badge 承担外围控件和共用详情，按需 SSE 提供数据 |
+| 块需求时间轴与需求视图 | Canvas 绘制连续时间与方块、可见需求行的块；D3 scale/zoom/selection 负责刻度及缩放拖动；Fluent Button、Switch、Popover、Badge 承担外围控件和共用详情，按需[实时订阅](webui-design.md#实时订阅)提供数据 |
 | 文件与目录选择 | 本地路径共用只读 Field/Input，点击或按 Enter／空格打开 Windows IFileDialog，旁边只保留 Fluent“恢复默认”按钮；默认路径用主题次级色，自选路径用正文色，原生窗口复用 SWD ICO。数据库在同一窗口选择已有文件或新文件名；节点文件内容导入沿用浏览器原生 file input |
 | 必要业务逻辑 | 条款门禁、设置草稿、保存后状态同步、全局排序、曲库偏移量与历史游标分页、检测事件与取消恢复；不重复实现标准组件的键盘或弹窗行为 |
 

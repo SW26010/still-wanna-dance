@@ -96,7 +96,7 @@ func TestHistoryFilteredPaginationAndRange(t *testing.T) {
 	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	for _, sort := range []string{"time", "song", "resource"} {
+	for _, sort := range []string{"time"} {
 		for _, direction := range []string{"ascending", "descending"} {
 			q := RequestQuery{Limit: 50, Sort: sort, Direction: direction}
 			all, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)

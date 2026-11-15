@@ -22,8 +22,6 @@ try {
   expect(sources.localBytes).toBeGreaterThan(0);
   const firstPage=await (await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
   expect(firstPage).not.toHaveProperty('total');
-  const count=await(await page.request.get(baseURL+'/api/history/count',{headers:{'X-SWD-Token':token}})).json();
-  expect(count.total).toBe(601);expect(count.countedAt).toBeGreaterThan(0);
   expect(firstPage.requests.every(r=>!('cache' in r))).toBe(true);
   const status=await(await page.request.get(baseURL+'/api/status',{headers:{'X-SWD-Token':token}})).json();
   expect(status).not.toHaveProperty('traffic');
@@ -35,9 +33,6 @@ try {
   const history=page.getByRole('table',{name:'请求历史列表'});
   const pager=page.getByRole('navigation',{name:'历史分页',exact:true});
   await expect(pager).toContainText('第1页');
-  const total=page.getByRole('region',{name:'历史总数',exact:true});
-  await expect(total).toContainText('统计时共 601 条');
-  const initialCounts=countReads;
   await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   await expect(history.getByText('new current mapping',{exact:true})).toHaveCount(50);
   const resourceLinks=history.getByRole('link',{name:key.slice(0,12)+'…',exact:true});
@@ -45,10 +40,6 @@ try {
   await expect(resourceLinks.first()).toHaveAttribute('href',`#/library?view=resources&q=md5%3A${key}`);
   await expect(history.getByText('100%',{exact:true})).toHaveCount(50);
   await page.screenshot({path:join(output,'history-desktop.png'),fullPage:false});
-  await total.getByText('统计时共 601 条',{exact:true}).focus();
-  await expect(page.getByRole('tooltip')).toContainText('列表自动更新不重算总数。');
-  await page.screenshot({path:join(output,'history-count-tooltip.png'),fullPage:false});
-  await page.keyboard.press('Escape');await page.mouse.move(0,0);
   const timeHeader=history.getByRole('button',{name:'按收到时间排序',exact:true});
   const ascendingResponse=page.waitForResponse(r=>r.url().includes('/api/history?')&&new URL(r.url()).searchParams.get('direction')==='ascending');
   await timeHeader.focus();await page.keyboard.press('Enter');
@@ -66,22 +57,18 @@ try {
     await expect(pager.getByRole('status')).toHaveText(`第${n}页`);
   }
   await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeDisabled();
-  expect(countReads).toBe(initialCounts);
+  expect(countReads).toBe(0);
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});
   await page.evaluate(()=>scrollTo(0,0));
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:join(output,'history-mobile.png'),fullPage:true});
   await page.reload();await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
-  await expect(total).toContainText('统计时共 601 条');const countsBeforeLive=countReads;
   const updated=page.waitForResponse(async r=>r.url().includes('/api/history?')&&r.ok()&&(await r.json()).requests.some(record=>record.songID==='84'));
   const trigger=await page.request.post(baseURL+'/__fixture/request');expect(trigger.ok()).toBe(true);
   const committed=await(await updated).json();
   await expect(history.getByRole('link',{name:'ID 84',exact:true})).toHaveCount(1);
   expect(committed.requests[0].songID).toBe('84');
   expect(committed).not.toHaveProperty('total');
-  await expect(total).toContainText('统计时共 601 条');expect(countReads).toBe(countsBeforeLive);
-  await page.getByRole('button',{name:'刷新历史总数',exact:true}).click();
-  await expect(total).toContainText('统计时共 602 条');
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   const option=page.getByRole('checkbox',{name:'隐藏相邻中断请求',exact:true});
@@ -96,7 +83,6 @@ try {
   await expect(history.getByRole('link',{name:'ID 85',exact:true})).toHaveCount(2);
   const raw=await(await page.request.get(baseURL+'/api/history?limit=50',{headers:{'X-SWD-Token':token}})).json();
   expect(raw).not.toHaveProperty('total');
-  await expect(total).toContainText('统计时共 604 条');
   const pair=raw.requests.filter(r=>r.songID==='85');
   expect(pair.map(r=>r.outcome)).toEqual(['completed','canceled']);
   expect(pair[0].at-pair[1].at).toBeLessThanOrEqual(1000);

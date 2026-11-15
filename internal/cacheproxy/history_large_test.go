@@ -63,7 +63,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 		written <- n
 	}()
 	started = time.Now()
-	page, readErr := s.History().Page(t.Context(), RequestQuery{Limit: 50, Sort: "song", Direction: "ascending", HideAdjacentCanceled: true})
+	page, readErr := s.History().Page(t.Context(), RequestQuery{Limit: 50, Sort: "time", Direction: "ascending", HideAdjacentCanceled: true})
 	t.Logf("cold song page with concurrent collector: elapsed=%s rows=%d err=%v", time.Since(started), len(page.Requests), readErr)
 	close(stop)
 	n := <-written
@@ -73,7 +73,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 	if err := s.usage.close(); err != nil {
 		t.Errorf("collector failure: %v", err)
 	}
-	for _, sort := range []string{"song", "resource"} {
+	for _, sort := range []string{"time"} {
 		for _, direction := range []string{"ascending", "descending"} {
 			q := RequestQuery{Limit: 50, Sort: sort, Direction: direction, HideAdjacentCanceled: true}
 			started = time.Now()
@@ -131,7 +131,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, sort := range []string{"song", "resource"} {
+	for _, sort := range []string{"time"} {
 		query, args := (RequestQuery{Limit: 50, Sort: sort, HideAdjacentCanceled: true}).window(true)
 		rows, err := snapshot.db.Query("EXPLAIN QUERY PLAN "+query, args...)
 		if err != nil {

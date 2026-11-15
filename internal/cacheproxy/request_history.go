@@ -23,7 +23,6 @@ type RequestQuery struct {
 type requestCursor struct {
 	Sort      string `json:"sort"`
 	Direction string `json:"direction"`
-	Value     string `json:"value,omitempty"`
 	At        int64  `json:"at"`
 	ID        int64  `json:"id"`
 }
@@ -67,15 +66,6 @@ func (q RequestQuery) cursor() (requestCursor, error) {
 	if c.Sort != sort || c.Direction != direction || c.At < 0 || c.ID <= 0 {
 		return c, invalid
 	}
-	if sort == "time" && c.Value != "" {
-		return c, invalid
-	}
-	if sort == "song" && c.Value != "" {
-		id, err := strconv.ParseInt(c.Value, 10, 64)
-		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != c.Value {
-			return c, invalid
-		}
-	}
 	return c, nil
 }
 
@@ -84,24 +74,11 @@ func (q RequestQuery) Validate() error {
 	if q.Limit < 1 || q.Limit > MaxRecentRequests || q.From < 0 || q.To < 0 || (q.To != 0 && q.To <= q.From) {
 		return errors.New("invalid request range or limit")
 	}
-	if (sort != "time" && sort != "song" && sort != "resource") || (direction != "ascending" && direction != "descending") {
+	if sort != "time" || (direction != "ascending" && direction != "descending") {
 		return errors.New("invalid request sort")
 	}
 	_, err := q.cursor()
 	return err
-}
-
-// Only allowlisted SQL expressions are composed; all boundary values are bound.
-func (q RequestQuery) sortExpressions() (value, unknown string) {
-	sort, _ := q.sorting()
-	switch sort {
-	case "song":
-		return "COALESCE(song_id,0)", "(song_id IS NULL)"
-	case "resource":
-		return "COALESCE(resource_md5,'')", "(COALESCE(resource_md5,'')='')"
-	default:
-		return "requested_at", ""
-	}
 }
 
 func (q RequestQuery) order() string {
@@ -110,22 +87,12 @@ func (q RequestQuery) order() string {
 	if direction == "ascending" {
 		dir = " ASC"
 	}
-	value, unknown := q.sortExpressions()
-	if unknown == "" {
-		return "requested_at" + dir + ",event_id" + dir
-	}
-	return unknown + " ASC," + value + dir + ",requested_at" + dir + ",event_id" + dir
+	return "requested_at" + dir + ",event_id" + dir
 }
 
 func (q RequestQuery) nextCursor(last RecentRequest) string {
 	sort, direction := q.sorting()
 	c := requestCursor{Sort: sort, Direction: direction, At: last.At, ID: last.ID}
-	if sort == "song" {
-		c.Value = last.SongID
-	}
-	if sort == "resource" {
-		c.Value = last.Resource
-	}
 	raw, _ := json.Marshal(c)
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
@@ -163,9 +130,6 @@ func (q RequestQuery) conditions(getOnly bool) ([]string, []any) {
 }
 
 func (q RequestQuery) window(getOnly bool) (string, []any) {
-	if sort, _ := q.sorting(); sort != "time" {
-		return q.identityWindow(getOnly, sort)
-	}
 	conditions, args := q.conditions(getOnly)
 	if q.Cursor != "" {
 		c, _ := q.cursor() // Validate is called before building the query.
@@ -182,51 +146,6 @@ func (q RequestQuery) window(getOnly bool) (string, []any) {
 		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 	return "SELECT * FROM request_events" + where + " ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
-}
-
-// Known identities and unknown identities each use an index range. Their union
-// contains at most 2*(limit+1) rows, so unknown-last ordering never sorts the
-// entire retained history. A cursor in the unknown group skips known rows.
-func (q RequestQuery) identityWindow(getOnly bool, sort string) (string, []any) {
-	field := "resource_md5"
-	if sort == "song" {
-		field = "song_id"
-	}
-	_, direction := q.sorting()
-	dir, op := " DESC", "<"
-	if direction == "ascending" {
-		dir, op = " ASC", ">"
-	}
-	var branches []string
-	var args []any
-	c, _ := q.cursor()
-	for _, unknown := range []bool{false, true} {
-		conditions, values := q.conditions(getOnly)
-		null := " IS NOT NULL"
-		if unknown {
-			null = " IS NULL"
-		}
-		conditions = append(conditions, field+null)
-		if q.Cursor != "" {
-			if c.Value == "" {
-				if !unknown {
-					continue
-				}
-				conditions = append(conditions, "(requested_at,event_id)"+op+"(?,?)")
-				values = append(values, c.At, c.ID)
-			} else if !unknown {
-				var value any = c.Value
-				if sort == "song" {
-					value, _ = strconv.ParseInt(c.Value, 10, 64)
-				}
-				conditions = append(conditions, "("+field+",requested_at,event_id)"+op+"(?,?,?)")
-				values = append(values, value, c.At, c.ID)
-			}
-		}
-		branches = append(branches, "SELECT * FROM (SELECT * FROM request_events WHERE "+strings.Join(conditions, " AND ")+" ORDER BY "+field+dir+",requested_at"+dir+",event_id"+dir+" LIMIT ?)")
-		args = append(args, append(values, q.Limit+1)...)
-	}
-	return "SELECT * FROM (" + strings.Join(branches, " UNION ALL ") + ") ORDER BY " + q.order() + " LIMIT ?", append(args, q.Limit+1)
 }
 
 type LatencyGroup struct {

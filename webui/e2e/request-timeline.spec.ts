@@ -289,11 +289,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   await expect(table.locator('tbody tr').nth(1).getByRole('cell').nth(1)).toHaveText('未知');
   await expect(table.locator('tbody tr').nth(3).getByRole('cell').nth(1)).toContainText('未知名称');
   await expect(table.getByRole('link',{name:'ID 404',exact:true})).toBeVisible();
-  const songHeader=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
-  await songHeader.focus();
-  await expect(songHeader).toHaveAccessibleDescription('按歌曲 ID 排序。');
-  await expect(page.getByRole('tooltip')).toContainText('按歌曲 ID 排序');
-  await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await expect(table.getByRole('button',{name:/按请求歌曲排序|按视频资源排序/})).toHaveCount(0);
   for(const [label,description] of [['交付','已写出字节']] as const){
     const target=table.getByRole('columnheader',{name:label,exact:true}).getByText(label,{exact:true});
     await target.hover();await expect(page.getByRole('tooltip')).toContainText(description);

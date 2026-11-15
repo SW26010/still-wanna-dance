@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 	"sync"
-	"time"
 )
 
 // Each snapshot keeps one successful value per operation (one last filter for
@@ -78,45 +76,4 @@ func (s *historySnapshot) prepareIndex(ctx context.Context, cache *historyCache[
 		return err == nil, err
 	})
 	return err
-}
-
-// Names are current catalog data, not immutable request facts. Resolving only
-// this bounded page on the live DB avoids rebuilding history for catalog edits.
-func refreshHistorySongNames(ctx context.Context, path string, page *RecentRequests) error {
-	var args []any
-	for _, r := range page.Requests {
-		if r.SongID != "" {
-			args = append(args, r.SongID)
-		}
-	}
-	if len(args) == 0 {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	db, err := readDatabaseFile(path)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	rows, err := db.QueryContext(ctx, "SELECT CAST(id AS TEXT),COALESCE(name,'') FROM songs WHERE id IN ("+strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")+")", args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	names := make(map[string]string, len(args))
-	for rows.Next() {
-		var id, name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return err
-		}
-		names[id] = name
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for i := range page.Requests {
-		page.Requests[i].SongTitle = names[page.Requests[i].SongID]
-	}
-	return nil
 }

@@ -309,7 +309,7 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	for _, operation := range []string{"sources", "latency", "song", "resource", "export"} {
+	for _, operation := range []string{"sources", "latency", "time", "export"} {
 		if _, err := readHistoryOperation(t.Context(), history, operation); err != nil {
 			t.Fatal(operation, err)
 		}

@@ -69,7 +69,7 @@ func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 			status               int
 		}{
 			{"", "", "", 403}, {"", c.token, "http://evil.example", 403},
-			{"?limit=501", c.token, "", 400}, {"?sort=invalid", c.token, "", 400}, {"?direction=invalid", c.token, "", 400}, {"?sort=song&direction=ascending", c.token, "", 200}, {"?from=oops", c.token, "", 400}, {"?from=10&to=9", c.token, "", 400}, {"?cursor=10:0", c.token, "", 400},
+			{"?limit=501", c.token, "", 400}, {"?sort=invalid", c.token, "", 400}, {"?direction=invalid", c.token, "", 400}, {"?sort=song&direction=ascending", c.token, "", 400}, {"?from=oops", c.token, "", 400}, {"?from=10&to=9", c.token, "", 400}, {"?cursor=10:0", c.token, "", 400},
 			{"", c.token, "", 200}, {"?from=1&to=999&limit=10&cursor=20:3", c.token, "", 200},
 			{"?hideAdjacentCanceled=true", c.token, "", 200}, {"?hideAdjacentCanceled=false", c.token, "", 200}, {"?hideAdjacentCanceled=invalid", c.token, "", 400},
 		} {
@@ -114,7 +114,7 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 			}
 		}
 		t.Run(phase, func(t *testing.T) {
-			for _, path := range []string{"/api/history", "/api/history?sort=song", "/api/response-sources", "/api/latency"} {
+			for _, path := range []string{"/api/history", "/api/response-sources", "/api/latency"} {
 				t.Run(path, func(t *testing.T) {
 					r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
 					r.Header.Set("X-SWD-Token", c.token)

@@ -37,7 +37,6 @@ type historySnapshot struct {
 	at           int64
 	readers      int
 	indexGate    chan struct{}
-	songIndex    historyCache[bool]
 	latencyIndex historyCache[bool]
 	sources      historyCache[ResponseSources]
 	latency      historyCache[historyLatency]
@@ -269,23 +268,7 @@ func (h *RequestHistory) Page(ctx context.Context, query RequestQuery) (RecentRe
 	if err := query.Validate(); err != nil {
 		return RecentRequests{Requests: []RecentRequest{}}, err
 	}
-	if sort, _ := query.sorting(); sort == "time" {
-		return readRequestPage(ctx, h.path, query, true)
-	}
-	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (RecentRequests, error) {
-		if sort, _ := query.sorting(); sort == "song" {
-			if err := s.prepareIndex(ctx, &s.songIndex, "CREATE INDEX IF NOT EXISTS request_events_history_song_time ON request_events(song_id,requested_at,event_id)"); err != nil {
-				return RecentRequests{}, err
-			}
-		}
-		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
-		page, err := readRequestPageDB(ctx, s.db, h.path, query, true)
-		if err == nil {
-			err = refreshHistorySongNames(ctx, h.path, &page)
-		}
-		return page, err
-	})
+	return readRequestPage(ctx, h.path, query, true)
 }
 
 func (h *RequestHistory) Sources(ctx context.Context) (ResponseSources, error) {

@@ -324,7 +324,7 @@ func TestFirstBodyClassOnlyObservesActualPreBodyBlockWait(t *testing.T) {
 	}
 }
 
-func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
+func TestHistoryTimeDirectionsWithStableCursor(t *testing.T) {
 	s, cfg := setup(t, nil)
 	// Name ordering deliberately disagrees with numeric song ID ordering.
 	if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,name) VALUES(10,'A'),(2,'Z')"); err != nil {
@@ -340,29 +340,18 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 	if err := s.Store.usage.write(events); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"time", "song", "resource"} {
+	for _, field := range []string{"time"} {
 		for _, direction := range []string{"ascending", "descending"} {
 			t.Run(field+"/"+direction, func(t *testing.T) {
 				// IDs 7..162 are in the selected window. Adjacent arrivals tie in pairs
 				// within each identity group, and the unknown group spans several pages.
 				var want []int64
-				groups := []int{-1}
-				if field != "time" {
-					groups = []int{1, 0, 2}
+				for n := 0; n < 156; n++ {
+					i := 6 + n
 					if direction == "descending" {
-						groups = []int{0, 1, 2}
+						i = 161 - n
 					}
-				}
-				for _, group := range groups {
-					for n := 0; n < 156; n++ {
-						i := 6 + n
-						if direction == "descending" {
-							i = 161 - n
-						}
-						if group < 0 || i%3 == group {
-							want = append(want, int64(i+1))
-						}
-					}
+					want = append(want, int64(i+1))
 				}
 				q := RequestQuery{From: 1001, To: 1027, Limit: 17, Sort: field, Direction: direction}
 				var got []int64
@@ -399,7 +388,7 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 			})
 		}
 	}
-	for _, q := range []RequestQuery{{Limit: 50, Sort: "invalid"}, {Limit: 50, Direction: "sideways"}, {Limit: 50, Cursor: "not-a-cursor"}, {Limit: 50, Sort: "song", Cursor: "1000:1"}} {
+	for _, q := range []RequestQuery{{Limit: 50, Sort: "invalid"}, {Limit: 50, Sort: "song"}, {Limit: 50, Sort: "resource"}, {Limit: 50, Direction: "sideways"}, {Limit: 50, Cursor: "not-a-cursor"}, {Limit: 50, Sort: "song", Cursor: "1000:1"}} {
 		if q.Validate() == nil {
 			t.Fatalf("accepted invalid query: %+v", q)
 		}

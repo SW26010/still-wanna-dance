@@ -42,7 +42,7 @@ func TestHistoryPreparesIndexesDuringLeasedExport(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	results := make(chan error, 2)
-	go func() { _, err := h.Page(ctx, RequestQuery{Limit: 1, Sort: "song"}); results <- err }()
+	go func() { _, err := h.Page(ctx, RequestQuery{Limit: 1, Sort: "time"}); results <- err }()
 	go func() { _, err := h.Latency(ctx, time.UnixMilli(2000)); results <- err }()
 	for i := 0; i < 2; i++ {
 		if err := <-results; err != nil {
@@ -77,10 +77,13 @@ func TestHistoryOwnedInvalidationAndCurrentNames(t *testing.T) {
 	if _, err := s.db.Exec("INSERT INTO songs(id,name) VALUES(42,'old')"); err != nil {
 		t.Fatal(err)
 	}
-	q := RequestQuery{Limit: 1, Sort: "song"}
+	q := RequestQuery{Limit: 1, Sort: "time"}
 	page, err := h.Page(t.Context(), q)
 	if err != nil || page.Requests[0].SongTitle != "old" {
 		t.Fatalf("first page: %+v %v", page, err)
+	}
+	if _, err := h.Sources(t.Context()); err != nil {
+		t.Fatal(err)
 	}
 	before := h.current
 	if _, err := s.db.Exec("UPDATE songs SET name='new' WHERE id=42"); err != nil {

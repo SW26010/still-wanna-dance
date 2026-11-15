@@ -58,8 +58,8 @@ test('history sorting resets the cursor, keeps keyboard focus and suspends live 
   const records=Array.from({length:54},(_,i)=>({id:i+1,at:Date.now()-i*1000,completedAt:Date.now()-i*1000+800,resource:String(i+1).padStart(32,'0'),songID:String(54-i),method:'GET',range:'',elapsedMS:800,bytes:50,responseBytes:100,status:206,outcome:'completed'}));
   await page.route('**/api/history?**',route=>{
     const q=new URL(route.request().url()).searchParams;queries.push(q);
-    const field=q.get('sort'),sign=q.get('direction')==='ascending'?1:-1;
-    const ordered=[...records].sort((a,b)=>sign*(field==='song'?Number(a.songID)-Number(b.songID):field==='resource'?a.resource.localeCompare(b.resource):a.at-b.at));
+    const sign=q.get('direction')==='ascending'?1:-1;
+    const ordered=[...records].sort((a,b)=>sign*(a.at-b.at));
     const offset=Number(q.get('cursor'));
     return route.fulfill({json:{storageID:'fixture',requests:ordered.slice(offset,offset+50),total:ordered.length,hasMore:offset===0,nextCursor:offset===0?'50':''}});
   });
@@ -68,21 +68,21 @@ test('history sorting resets the cursor, keeps keyboard focus and suspends live 
   await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
   await page.getByRole('button',{name:'下一页历史',exact:true}).click();
   await expect(pager).toContainText('第2页');
-  const song=table.getByRole('button',{name:'按请求歌曲排序',exact:true});
-  await song.focus();await page.keyboard.press('Enter');
+  const time=table.getByRole('button',{name:'按收到时间排序',exact:true});
+  await time.focus();await page.keyboard.press('Enter');
   await expect.poll(()=>queries.at(-1)?.get('cursor')).toBe('');
-  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('song');
+  await expect.poll(()=>queries.at(-1)?.get('sort')).toBe('time');
   await expect(table.getByRole('row').nth(1).getByRole('link',{name:'ID 1',exact:true})).toBeVisible();
-  await expect(song).toBeFocused();
+  await expect(time).toBeFocused();
   await expect(pager).not.toContainText('自动刷新');
   const reads=queries.length;await page.clock.fastForward(5100);expect(queries).toHaveLength(reads);
   await api.historyChanged();
   await expect.poll(async()=>((await(await page.request.get('/__fixture/streams?id='+api.fixtureID)).json()).history||0)).toBe(0);
   expect(queries).toHaveLength(reads);
   await page.keyboard.press('Space');
-  await expect(song.locator('..')).toHaveAttribute('aria-sort','descending');
+  await expect(time.locator('..')).toHaveAttribute('aria-sort','descending');
   await expect(table.getByRole('row').nth(1)).toContainText('ID 54');
-  await expect(song).toBeEnabled();
+  await expect(time).toBeEnabled();
   await expect(page.getByRole('button',{name:'下一页历史',exact:true})).toBeEnabled();
 });
 

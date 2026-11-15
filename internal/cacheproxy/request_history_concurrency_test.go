@@ -21,7 +21,7 @@ import (
 var historyCountSequence atomic.Uint64
 
 func TestHistoryReadsAllowPersistentBusinessWrites(t *testing.T) {
-	for _, operation := range []string{"sources", "latency", "song", "resource", "export"} {
+	for _, operation := range []string{"sources", "latency", "export"} {
 		for _, outcome := range []string{"complete", "scan-error"} {
 			t.Run(operation+"/"+outcome, func(t *testing.T) {
 				testHistoryCountBusinessWrites(t, operation, outcome == "scan-error")

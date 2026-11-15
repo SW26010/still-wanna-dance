@@ -125,48 +125,6 @@ func TestHistoryOwnedInvalidationAndCurrentNames(t *testing.T) {
 	}
 }
 
-func TestHistoryAggregateCachesAreBoundedAndRetryFailures(t *testing.T) {
-	s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	h := s.History()
-	q := RequestQuery{Limit: 1}
-	first, err := h.Count(t.Context(), q)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.current.db.SetMaxOpenConns(1)
-	if _, err := h.current.db.Exec("CREATE TEMP VIEW request_events AS SELECT * FROM missing_history_table"); err != nil {
-		t.Fatal(err)
-	}
-	q.Sort, q.Direction, q.Limit = "song", "ascending", 10
-	if got, err := h.Count(t.Context(), q); err != nil || got != first {
-		t.Fatalf("count did not reuse equivalent filter: %+v %v", got, err)
-	}
-	q.From = 1
-	if _, err := h.Count(t.Context(), q); err == nil {
-		t.Fatal("different count range reused old filter")
-	}
-	if _, err := h.Sources(t.Context()); err == nil {
-		t.Fatal("source failure hidden")
-	}
-	if _, err := h.current.db.Exec("DROP VIEW temp.request_events"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.Sources(t.Context()); err != nil {
-		t.Fatal("source failure cached", err)
-	}
-	if _, err := h.Count(t.Context(), q); err != nil {
-		t.Fatal("count failure cached", err)
-	}
-	var n int
-	if err := h.current.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name LIKE 'request_events_history_%'").Scan(&n); err != nil || n != 0 {
-		t.Fatalf("aggregates prepared unnecessary indexes: %d %v", n, err)
-	}
-}
-
 func TestHistoryLatencyCacheTracksExactWindow(t *testing.T) {
 	s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
 	if err != nil {

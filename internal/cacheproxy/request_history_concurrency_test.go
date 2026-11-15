@@ -21,7 +21,7 @@ import (
 var historyCountSequence atomic.Uint64
 
 func TestHistoryReadsAllowPersistentBusinessWrites(t *testing.T) {
-	for _, operation := range []string{"count", "sources", "latency", "song", "resource", "export"} {
+	for _, operation := range []string{"sources", "latency", "song", "resource", "export"} {
 		for _, outcome := range []string{"complete", "scan-error"} {
 			t.Run(operation+"/"+outcome, func(t *testing.T) {
 				testHistoryCountBusinessWrites(t, operation, outcome == "scan-error")
@@ -154,10 +154,6 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 			t.Errorf("isolated read: %v", result.err)
 		}
 		switch value := result.value.(type) {
-		case RequestHistoryCount:
-			if value.Total != 1 || value.StorageID != DatabaseID(s.path) {
-				t.Errorf("snapshot count: %+v", value)
-			}
 		case ResponseSources:
 			if value.DownloadBytes != 1 {
 				t.Errorf("snapshot sources: %+v", value)
@@ -190,8 +186,6 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 // These are the same typed operations used by Console; all share one reader.
 func readHistoryOperation(ctx context.Context, history *RequestHistory, operation string) (any, error) {
 	switch operation {
-	case "count":
-		return history.Count(ctx, RequestQuery{Limit: 1})
 	case "sources":
 		return history.Sources(ctx)
 	case "latency":

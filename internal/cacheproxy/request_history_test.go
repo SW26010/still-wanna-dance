@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -31,39 +30,6 @@ func TestHistoryPageDoesNotCountAllRequests(t *testing.T) {
 		if err != nil || strings.Contains(string(raw), `"total"`) {
 			t.Fatalf("page still couples full count to bounded reads: %s %v", raw, err)
 		}
-	}
-}
-
-func TestHistoryCountReadOnlyErrorsAndSnapshot(t *testing.T) {
-	path := storagePath(t.TempDir())
-	q := RequestQuery{Limit: 1, HideAdjacentCanceled: true}
-	if _, err := CountRequestHistory(t.Context(), path, q); !os.IsNotExist(err) {
-		t.Fatalf("missing database: %v", err)
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("count created database: %v", err)
-	}
-	s, cfg := setup(t, nil)
-	before := time.Now().UnixMilli()
-	count, err := CountRequestHistory(t.Context(), cfg.Store.path, q)
-	if err != nil || count.Total != 0 || count.StorageID != DatabaseID(cfg.Store.path) || count.CountedAt < before || count.CountedAt > time.Now().UnixMilli() {
-		t.Fatalf("empty snapshot: %+v %v", count, err)
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	if _, err := CountRequestHistory(ctx, cfg.Store.path, q); !errors.Is(err, context.Canceled) {
-		t.Fatalf("canceled count: %v", err)
-	}
-	if err := s.Store.usage.write([]usageEvent{{at: 1000, method: "GET", outcome: "completed"}}); err != nil {
-		t.Fatal(err)
-	}
-	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
-	if err != nil || len(page.Requests) != 1 {
-		t.Fatalf("count cancellation blocked fresh page: %+v %v", page, err)
-	}
-	fresh, err := CountRequestHistory(t.Context(), cfg.Store.path, q)
-	if err != nil || fresh.Total != 1 || count.Total != 0 {
-		t.Fatalf("count snapshot: old %+v fresh %+v %v", count, fresh, err)
 	}
 }
 
@@ -94,9 +60,8 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		total, err := CountRequestHistory(t.Context(), cfg.Store.path, q)
-		if err != nil || len(page.Requests) > 50 || total.Total != 1201 {
-			t.Fatalf("unbounded page or cursor changed total: %+v", page)
+		if err != nil || len(page.Requests) > 50 {
+			t.Fatalf("unbounded page: %+v", page)
 		}
 		for _, r := range page.Requests {
 			if seen[r.ID] || r.SongID != "42" || r.SongTitle != "new mapping" || r.Resource != key || r.CompletedAt == nil || *r.CompletedAt != 2000 {
@@ -116,8 +81,7 @@ func TestHistoryPagesAllRequestsAndPreservesIdentity(t *testing.T) {
 		t.Fatal("history truncated", len(seen))
 	}
 	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{From: 1100, To: 1101, Limit: 50})
-	total, countErr := CountRequestHistory(t.Context(), cfg.Store.path, RequestQuery{From: 1100, To: 1101, Limit: 1})
-	if err != nil || countErr != nil || len(page.Requests) != 3 || total.Total != 3 {
+	if err != nil || len(page.Requests) != 3 {
 		t.Fatal("time boundaries", page, err)
 	}
 }
@@ -406,10 +370,6 @@ func TestHistorySortsWholeRangeWithStableCursorAndUnknownLast(t *testing.T) {
 					page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
 					if err != nil {
 						t.Fatal(err)
-					}
-					total, err := CountRequestHistory(t.Context(), cfg.Store.path, q)
-					if err != nil || total.Total != int64(len(want)) {
-						t.Fatalf("sort or cursor changed total: %+v %v", total, err)
 					}
 					for _, r := range page.Requests {
 						got = append(got, r.ID)

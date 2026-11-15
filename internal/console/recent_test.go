@@ -63,7 +63,7 @@ func TestHistoryAndLatencyAPIAuthRangeAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/api/history", "/api/history/count", "/api/latency", "/api/response-sources"} {
+	for _, path := range []string{"/api/history", "/api/latency", "/api/response-sources"} {
 		for _, tc := range []struct {
 			query, token, origin string
 			status               int
@@ -114,7 +114,7 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 			}
 		}
 		t.Run(phase, func(t *testing.T) {
-			for _, path := range []string{"/api/history", "/api/history?sort=song", "/api/history/count", "/api/response-sources", "/api/latency"} {
+			for _, path := range []string{"/api/history", "/api/history?sort=song", "/api/response-sources", "/api/latency"} {
 				t.Run(path, func(t *testing.T) {
 					r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
 					r.Header.Set("X-SWD-Token", c.token)
@@ -125,7 +125,6 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 					}
 					var result struct {
 						Requests []cacheproxy.RecentRequest `json:"requests"`
-						Total    int64                      `json:"total"`
 						cacheproxy.ResponseSources
 						cacheproxy.FirstBodyLatency
 					}
@@ -136,10 +135,6 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 					case "/api/history", "/api/history?sort=song":
 						if len(result.Requests) != 1 || result.Requests[0].Bytes != 60 {
 							t.Fatal("lost committed request", w.Body.String())
-						}
-					case "/api/history/count":
-						if result.Total != 1 {
-							t.Fatal("lost committed count", w.Body.String())
 						}
 					case "/api/response-sources":
 						if result.ResponseSources != (cacheproxy.ResponseSources{DownloadBytes: 10, CacheBytes: 20, LocalBytes: 30}) {

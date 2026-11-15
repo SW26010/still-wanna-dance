@@ -41,7 +41,6 @@ type historySnapshot struct {
 	latencyIndex historyCache[bool]
 	sources      historyCache[ResponseSources]
 	latency      historyCache[historyLatency]
-	count        historyCache[historyCount]
 }
 
 type historyBuild struct {
@@ -286,22 +285,6 @@ func (h *RequestHistory) Page(ctx context.Context, query RequestQuery) (RecentRe
 			err = refreshHistorySongNames(ctx, h.path, &page)
 		}
 		return page, err
-	})
-}
-
-func (h *RequestHistory) Count(ctx context.Context, query RequestQuery) (RequestHistoryCount, error) {
-	if err := query.Validate(); err != nil {
-		return RequestHistoryCount{StorageID: DatabaseID(h.path)}, err
-	}
-	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (RequestHistoryCount, error) {
-		key := historyCountKey{query.From, query.To, query.HideAdjacentCanceled}
-		cached, err := s.count.get(ctx, func(v historyCount) bool { return v.key == key }, func() (historyCount, error) {
-			result := historyCount{key: key, value: RequestHistoryCount{StorageID: DatabaseID(h.path), CountedAt: s.at}}
-			sql, args := query.count()
-			err := s.db.QueryRowContext(ctx, sql, args...).Scan(&result.value.Total)
-			return result, err
-		})
-		return cached.value, err
 	})
 }
 

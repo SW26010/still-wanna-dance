@@ -58,7 +58,7 @@ func TestApplicationReportsDatabaseOpenFailureWithoutCreatingLibrary(t *testing.
 	if c.store != nil || c.service != nil {
 		t.Fatal("missing database started a business store or engine")
 	}
-	for _, path := range []string{"/api/history", "/api/history/count", "/api/latency", "/api/response-sources"} {
+	for _, path := range []string{"/api/history", "/api/latency", "/api/response-sources"} {
 		r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
 		r.Header.Set("X-SWD-Token", c.token)
 		w := httptest.NewRecorder()

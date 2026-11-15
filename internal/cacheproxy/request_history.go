@@ -162,30 +162,6 @@ func (q RequestQuery) conditions(getOnly bool) ([]string, []any) {
 	return conditions, args
 }
 
-func (q RequestQuery) count() (string, []any) {
-	conditions, args := q.conditions(true)
-	// Let SQLite scan the table once for an unbounded count. Forcing the time
-	// index makes it visit the table again for every method/outcome check.
-	return "SELECT count(*) FROM request_events WHERE " + strings.Join(conditions, " AND "), args
-}
-
-type RequestHistoryCount struct {
-	StorageID string `json:"storageID"`
-	Total     int64  `json:"total"`
-	CountedAt int64  `json:"countedAt"`
-}
-
-// CountRequestHistory returns an exact filtered count from a private online
-// snapshot, releasing the business DB before the scan. It is independent of
-// cursor, sort and page size, and must not run on the live page refresh path.
-// Large retained histories can take longer than a page; failure or cancellation
-// never prevents reading that page.
-func CountRequestHistory(ctx context.Context, databasePath string, query RequestQuery) (RequestHistoryCount, error) {
-	history := NewRequestHistory(databasePath)
-	defer history.Close()
-	return history.Count(ctx, query)
-}
-
 func (q RequestQuery) window(getOnly bool) (string, []any) {
 	if sort, _ := q.sorting(); sort != "time" {
 		return q.identityWindow(getOnly, sort)

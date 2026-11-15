@@ -61,15 +61,6 @@ func (c *historyCache[T]) get(ctx context.Context, accepts func(T) bool, read fu
 	}
 }
 
-type historyCountKey struct {
-	from, to             int64
-	hideAdjacentCanceled bool
-}
-type historyCount struct {
-	key   historyCountKey
-	value RequestHistoryCount
-}
-
 func (s *historySnapshot) prepareIndex(ctx context.Context, cache *historyCache[bool], ddl string) error {
 	_, err := cache.get(ctx, func(bool) bool { return true }, func() (bool, error) {
 		select {

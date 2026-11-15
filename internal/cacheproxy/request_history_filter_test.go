@@ -67,18 +67,14 @@ func TestHistoryHidesOnlyAdjacentCanceledRequests(t *testing.T) {
 			if visible == tc.hide {
 				t.Fatalf("first request visible=%v, want hidden=%v: %+v", visible, tc.hide, after)
 			}
-			total, err := CountRequestHistory(t.Context(), cfg.Store.path, q)
-			if err != nil || total.Total != int64(len(after.Requests)) {
-				t.Fatalf("total includes hidden requests: %+v", after)
-			}
 			q.HideAdjacentCanceled = false
 			all, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
-			total, countErr := CountRequestHistory(t.Context(), cfg.Store.path, q)
+
 			want := 2
 			if tc.middle != nil && tc.middle.method == "GET" {
 				want++
 			}
-			if err != nil || countErr != nil || len(all.Requests) != want || total.Total != int64(want) {
+			if err != nil || len(all.Requests) != want {
 				t.Fatalf("original records changed: %+v %v", all, err)
 			}
 		})
@@ -118,8 +114,7 @@ func TestHistoryFilteredPaginationAndRange(t *testing.T) {
 				var got []int64
 				for {
 					page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
-					total, countErr := CountRequestHistory(t.Context(), cfg.Store.path, q)
-					if err != nil || countErr != nil || page.HasMore && len(page.Requests) != limit || total.Total != int64(len(want)) {
+					if err != nil || page.HasMore && len(page.Requests) != limit {
 						t.Fatalf("filtered page: %+v %v", page, err)
 					}
 					for _, r := range page.Requests {
@@ -143,8 +138,7 @@ func TestHistoryFilteredPaginationAndRange(t *testing.T) {
 	// still evaluated against the retained chronological history.
 	q := RequestQuery{From: 10000, To: 11000, Limit: 50, HideAdjacentCanceled: true}
 	page, err := ReadRequestHistory(t.Context(), cfg.Store.path, q)
-	total, countErr := CountRequestHistory(t.Context(), cfg.Store.path, q)
-	if err != nil || countErr != nil || len(page.Requests) != 0 || page.HasMore || total.Total != 0 {
+	if err != nil || len(page.Requests) != 0 || page.HasMore {
 		t.Fatalf("range changed adjacency: %+v %v", page, err)
 	}
 }

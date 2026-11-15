@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"io"
 	"net/url"
 	"path/filepath"
 	"reflect"
@@ -203,7 +204,7 @@ func TestHistoryWaitersRecoverCanceledBuild(t *testing.T) {
 				sourceCtx, cancelSource := context.WithCancel(t.Context())
 				defer cancelSource()
 				leader, sources, latency := make(chan error, 1), make(chan error, 1), make(chan error, 1)
-				go func() { _, err := s.History().Count(leaderCtx, RequestQuery{Limit: 1}); leader <- err }()
+				go func() { _, err := s.History().Export(leaderCtx, 1, 3000, io.Discard); leader <- err }()
 				<-entered
 				go func() { _, err := s.History().Sources(sourceCtx); sources <- err }()
 				go func() { _, err := s.History().Latency(t.Context(), time.Now()); latency <- err }()
@@ -302,7 +303,7 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := history.Count(t.Context(), RequestQuery{Limit: 1}); err != nil {
+			if _, err := history.Export(t.Context(), 1, 3000, io.Discard); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -324,14 +325,14 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 	// minimum copy interval stops waiting without creating another copy.
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := history.Count(ctx, RequestQuery{Limit: 1}); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := history.Export(ctx, 1, 3000, io.Discard); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("refresh wait: %v", err)
 	}
 	if copies.Load() != 1 {
 		t.Fatalf("refresh bypassed copy interval: %d", copies.Load())
 	}
-	count, err := history.Count(t.Context(), RequestQuery{Limit: 1})
-	if err != nil || count.Total != 1 || copies.Load() != 2 {
+	count, err := history.Export(t.Context(), 1, 3000, io.Discard)
+	if err != nil || count != 1 || copies.Load() != 2 {
 		t.Fatalf("fresh snapshot: %+v copies=%d %v", count, copies.Load(), err)
 	}
 	// data_version belongs to a physical connection. Losing that connection
@@ -342,11 +343,11 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 	if err := history.versionConn.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := history.Count(t.Context(), RequestQuery{Limit: 1}); !errors.Is(err, sql.ErrConnDone) {
+	if _, err := history.Export(t.Context(), 1, 3000, io.Discard); !errors.Is(err, sql.ErrConnDone) {
 		t.Fatalf("monitor failure: %v", err)
 	}
-	count, err = history.Count(t.Context(), RequestQuery{Limit: 1})
-	if err != nil || count.Total != 2 || copies.Load() != 3 {
+	count, err = history.Export(t.Context(), 1, 3000, io.Discard)
+	if err != nil || count != 2 || copies.Load() != 3 {
 		t.Fatalf("reconnected monitor served stale copy: %+v copies=%d %v", count, copies.Load(), err)
 	}
 	history.Close()

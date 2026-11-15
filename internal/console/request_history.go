@@ -88,8 +88,6 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 		result, err = history.Latency(r.Context(), time.Now())
 	} else if r.URL.Path == "/api/response-sources" {
 		result, err = history.Sources(r.Context())
-	} else if r.URL.Path == "/api/history/count" {
-		result, err = history.Count(r.Context(), q)
 	} else {
 		result, err = history.Page(r.Context(), q)
 	}

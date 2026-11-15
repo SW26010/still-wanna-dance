@@ -27,7 +27,7 @@ INSERT INTO request_events(event_id,requested_at,method,range_header,outcome,tra
 SELECT i,i*1000,'GET','',CASE WHEN i%2=1 THEN 'canceled' ELSE 'completed' END,1,1,206,? FROM n`, size, strings.Repeat("a", 32)); err != nil {
 				b.Fatal(err)
 			}
-			query, args := (RequestQuery{Limit: 50, HideAdjacentCanceled: true}).count()
+			query, args := (RequestQuery{Limit: 50, HideAdjacentCanceled: true}).window(true)
 			rows, err := u.db.Query("EXPLAIN QUERY PLAN "+query, args...)
 			if err != nil {
 				b.Fatal(err)
@@ -65,30 +65,6 @@ SELECT i,i*1000,'GET','',CASE WHEN i%2=1 THEN 'canceled' ELSE 'completed' END,1,
 					page, err := ReadRequestHistory(b.Context(), storagePath(root), q)
 					if err != nil || len(page.Requests) != 50 || page.Requests[0].ID >= first.Requests[len(first.Requests)-1].ID {
 						b.Fatalf("next filtered page: %+v %v", page, err)
-					}
-				}
-			})
-			b.Run("count", func(b *testing.B) {
-				for b.Loop() {
-					count, err := CountRequestHistory(b.Context(), storagePath(root), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
-					if err != nil || count.Total != int64(size/2) {
-						b.Fatalf("filtered count: %+v %v", count, err)
-					}
-				}
-			})
-			b.Run("count-forced-index", func(b *testing.B) {
-				query, args := (RequestQuery{Limit: 50, HideAdjacentCanceled: true}).count()
-				query = strings.Replace(query, "FROM request_events WHERE", "FROM request_events INDEXED BY request_events_time WHERE", 1)
-				for b.Loop() {
-					reader, err := readDatabaseFile(storagePath(root))
-					if err != nil {
-						b.Fatal(err)
-					}
-					var total int64
-					err = reader.QueryRowContext(b.Context(), query, args...).Scan(&total)
-					closeErr := reader.Close()
-					if err != nil || closeErr != nil || total != int64(size/2) {
-						b.Fatalf("original count plan: %d %v", total, err)
 					}
 				}
 			})

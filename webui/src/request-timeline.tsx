@@ -14,7 +14,6 @@ const useSummaryStyles=makeStyles({summary:typographyStyles.subtitle2});
 type Group={samples:number;p50MS:number|null;p95MS:number|null};
 type Latency={from:number;to:number;blocking:Group;ready:Group};
 type History={storageID:string;requests:RequestRecord[];hasMore:boolean;nextCursor:string};
-type HistoryCount={storageID:string;total:number;countedAt:number};
 type Range={from:string;to:string};
 const localDate=(value:number)=>{const d=new Date(value);return new Date(value-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
 const milliseconds=(value:string)=>value?new Date(value).getTime():undefined;
@@ -49,7 +48,6 @@ export function RequestTimeline({visible}:{visible:boolean}) {
   const [applied,setApplied]=useState(range),[cursors,setCursors]=useState(['']),[error,setError]=useState(''),[queryRevision,setQueryRevision]=useState(0);
   const [sort,setSort]=useState<TableSort>({sort:'time',direction:'descending'});
   const [hideAdjacentCanceled,setHideAdjacentCanceled]=useState(true);
-  const [countRevision,setCountRevision]=useState(0);
   const sortFocus=useRef(false);
   const previousStorage=useRef(storage);
   useEffect(()=>{if(previousStorage.current!==storage){previousStorage.current=storage;setCursors(['']);}},[storage]);
@@ -67,28 +65,15 @@ export function RequestTimeline({visible}:{visible:boolean}) {
       </div>
       <Notification message={visible&&latency.error?'响应时间统计读取失败，请重试。':undefined} error/>
     </section><section id="recent" className="content-stack" tabIndex={-1}>
-    <form className="form-grid history-filter" onSubmit={e=>{e.preventDefault();const from=milliseconds(range.from),to=milliseconds(range.to);if((from!==undefined&&!Number.isFinite(from))||(to!==undefined&&!Number.isFinite(to))||(from!==undefined&&to!==undefined&&to<=from)){setError('结束时间必须晚于开始时间。');return;}sortFocus.current=false;setError('');setApplied({...range});setCursors(['']);setQueryRevision(v=>v+1);setCountRevision(v=>v+1);}}>
+    <form className="form-grid history-filter" onSubmit={e=>{e.preventDefault();const from=milliseconds(range.from),to=milliseconds(range.to);if((from!==undefined&&!Number.isFinite(from))||(to!==undefined&&!Number.isFinite(to))||(from!==undefined&&to!==undefined&&to<=from)){setError('结束时间必须晚于开始时间。');return;}sortFocus.current=false;setError('');setApplied({...range});setCursors(['']);setQueryRevision(v=>v+1);}}>
       <div className="history-range">
       <Field label="开始" orientation="horizontal"><Input type="datetime-local" value={range.from} onChange={(_,v)=>{setRange({...range,from:v.value});setError('');}}/></Field>
       <Field label="结束" orientation="horizontal" validationState={error?'error':'none'} validationMessage={error||undefined}><Input type="datetime-local" value={range.to} onChange={(_,v)=>{setRange({...range,to:v.value});setError('');}}/></Field>
-      </div><div className="inline history-actions"><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setCountRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
+      </div><div className="inline history-actions"><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
       <Tooltip positioning="above" content="同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} className="history-option" ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="隐藏相邻中断请求" checked={hideAdjacentCanceled} onChange={(_,v)=>{sortFocus.current=false;setHideAdjacentCanceled(!!v.checked);setCursors(['']);setQueryRevision(0);}}/>}</Tooltip></div>
     </form>
-    <HistoryTotal key={storage+':'+filter} query={filter.toString()} revision={countRevision} visible={visible}/>
     <HistoryPage focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.sort==='time'&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
   </section></div>;
-}
-
-// This filter-scoped resource survives page/sort changes and live invalidations.
-// Its count is a snapshot, never a bound on the current page or its next cursor.
-function HistoryTotal({query,revision,visible}:{query:string;revision:number;visible:boolean}) {
-  const app=useApp();
-  const count=useResource<HistoryCount>('history/count?'+query,visible&&!app.stopped,revision,0,true);
-  return <div className="inline" role="region" aria-label="历史总数">
-    <span role="status">{count.data?<Tooltip content={`统计时间：${date(count.data.countedAt)}。列表自动更新不重算总数。`} relationship="description"><span tabIndex={0}>统计时共 {count.data.total.toLocaleString()} 条</span></Tooltip>:count.error?'总数读取失败':'正在统计总数…'}</span>
-    <Tooltip content="刷新历史总数" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={count.loading} disabled={count.loading||app.unavailable} disabledFocusable={count.loading} onClick={count.refresh}/></Tooltip>
-    {count.error&&<span>{count.data?'总数更新失败，当前显示上次统计。':'请重试。'}</span>}
-  </div>;
 }
 
 function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,onSortChange,previous,next}:{focusOnMount:boolean;focusSort:boolean;sort:TableSort;onSortChange:(sort:TableSort)=>void;query:string;visible:boolean;pageNumber:number;live:boolean;previous:()=>void;next:(cursor:string)=>void}) {

@@ -91,7 +91,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 			}
 		}
 	}
-	for _, operation := range []string{"sources", "latency", "count"} {
+	for _, operation := range []string{"sources", "latency"} {
 		started = time.Now()
 		var err error
 		switch operation {
@@ -99,8 +99,6 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 			_, err = s.History().Sources(t.Context())
 		case "latency":
 			_, err = s.History().Latency(t.Context(), time.Now())
-		case "count":
-			_, err = s.History().Count(t.Context(), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
 		}
 		t.Logf("aggregate=%s elapsed=%s err=%v", operation, time.Since(started), err)
 		if err != nil {
@@ -122,9 +120,8 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 		started = time.Now()
 		sources, sourceErr := s.History().Sources(t.Context())
 		latency, latencyErr := s.History().Latency(t.Context(), now.Add(time.Duration(i)*30*time.Second))
-		count, countErr := s.History().Count(t.Context(), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
-		t.Logf("refresh=%d after unrelated commit: elapsed=%s same_copy=%v sources=%d samples=%d count=%d errors=%v/%v/%v", i, time.Since(started), s.History().current == current, sources.DownloadBytes, latency.Ready.Samples, count.Total, sourceErr, latencyErr, countErr)
-		if sourceErr != nil || latencyErr != nil || countErr != nil || s.History().current != current || sources.DownloadBytes != size || latency.Ready.Samples != size {
+		t.Logf("refresh=%d after unrelated commit: elapsed=%s same_copy=%v sources=%d samples=%d errors=%v/%v", i, time.Since(started), s.History().current == current, sources.DownloadBytes, latency.Ready.Samples, sourceErr, latencyErr)
+		if sourceErr != nil || latencyErr != nil || s.History().current != current || sources.DownloadBytes != size || latency.Ready.Samples != size {
 			t.Fatal("refresh rebuilt/rescanned or changed aggregates")
 		}
 	}

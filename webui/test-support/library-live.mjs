@@ -37,6 +37,10 @@ try {
     expect(reconciled?.ok()).toBe(true);expect(await reconciled.finished()).toBeNull();
     await expect(songs).toHaveAttribute('aria-busy','false');
   }
+  const localCheck=page.waitForResponse(response=>response.url().endsWith('/api/library/scan')&&response.request().method()==='POST');
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
+  expect((await localCheck).status()).toBe(200);
+  await expect(page.getByRole('button',{name:'检查本地视频',exact:true})).toBeEnabled();
   // Hold observation so the whole external flight precedes its first snapshot
   // or falls between polls. No batch action or manual refresh can wake it.
   const clockTime=new Date('2026-11-15T08:00:00Z');

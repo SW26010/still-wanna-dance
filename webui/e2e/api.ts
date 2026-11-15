@@ -57,6 +57,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     };
     let data: unknown = {ok:true};
     if (match('GET status')) data = state;
+    if (match('POST library/scan')) data = {ok:true};
     if (match('POST update/check')) data=state.update||{checking:false,result:'unknown',reason:'failed'};
     if (match('POST update/notice')) {
       data={version:state.update?.startupNotice?state.update.latestVersion:undefined};

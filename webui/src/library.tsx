@@ -59,6 +59,14 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const pagePath='library?'+new URLSearchParams({...query,offset:String(offset),...(view==='songs'&&covers?{covers:'1'}:{})});
   useEffect(()=>setCoverDetails(undefined),[covers,view,visible,app.stopped,pagePath]);
   const page=useResource<LibraryPage>(pagePath,visible&&!app.stopped&&!waitingForDatabase,app.revision,0,true);
+  const [checkingLocal,setCheckingLocal]=useState(false);
+  const checkLocal=async()=>{
+    setCheckingLocal(true);
+    feedback.setValue(undefined);
+    try{await request('library/scan',{},AbortSignal.timeout(35000));}
+    catch(e){feedback.setValue({failed:true,text:String(e)});}
+    finally{setCheckingLocal(false);page.refresh();}
+  };
   const resultQuery=readLibraryQuery(page.loadedPath||pagePath);
   const searchError=page.errorCode==='invalid_library_search'?page.error.replace(/^Error: /,''):'';
   const resultUnit=resultQuery.view==='songs'?'首歌曲':'个资源';
@@ -173,7 +181,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
     <Notification message={visible&&downloads.error?'下载状态暂时无法读取。':undefined} error/>
     <StorageConfirmationNotice message={s.storageConfirmation}/>{s.storageConfirmation&&<Link href="#storage-settings">确认存储设置</Link>}
     {page.data?.videoError&&s.activeSettings.videoDir&&<Feedback error>视频目录不可用，本地视频状态未知。<p className="wrap">{page.data.videoError}</p></Feedback>}
-    <InventoryPanel visible={visible} waitingForDatabase={waitingForDatabase} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} loading={page.loading} loadedAt={page.loadedAt} readError={searchError?'':page.error}
+    <InventoryPanel visible={visible} waitingForDatabase={waitingForDatabase} videoError={page.data?.videoError} files={page.data?.videoError?undefined:page.data} refresh={page.refresh} checkLocal={()=>void checkLocal()} loading={page.loading||checkingLocal} loadedAt={page.loadedAt} readError={searchError?'':page.error}
       actions={<><Button onClick={()=>focusSection('video-import')}>导入视频</Button><Button onClick={()=>focusSection('batch')}>下载视频</Button></>}/>
     <section id="library-browser" className="library-browser" {...focus} tabIndex={-1}>
       {history.suggested&&<div className="content-stack" aria-label="VRCX 历史导入建议"><Feedback>

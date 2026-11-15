@@ -2,6 +2,46 @@ import {test,expect,type Locator,type Page} from '@playwright/test';
 import {mockAPI, choosePath} from './api';
 import type {LibraryPage,LibraryResource,SongPolicy} from '../src/types';
 
+test('only an explicit local video check requests an inventory scan',async({page})=>{
+  await libraryFixture(page);
+  let scans=0;
+  await page.route('**/api/library/scan',async route=>{scans++;await route.fulfill({json:{ok:true}});});
+  await page.goto('/#/library');
+  await expect(page.getByRole('table',{name:'曲库歌曲'})).toBeVisible();
+  expect(scans).toBe(0);
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
+  await expect.poll(()=>scans).toBe(1);
+  await expect(page.getByRole('button',{name:'检查本地视频',exact:true})).toBeEnabled();
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();
+  await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
+  expect(scans).toBe(1);
+});
+
+test('a failed local video check reloads unavailable storage and clears saved state',async({page})=>{
+  const {songs,resources}=await libraryFixture(page);
+  let unavailable=false;
+  await page.route('**/api/library/scan',async route=>{
+    unavailable=true;
+    await route.fulfill({status:400,json:{error:'视频目录已掉线'}});
+  });
+  await page.route('**/api/library?**',async route=>{
+    if(!unavailable)return route.fallback();
+    await route.fulfill({json:{storageID:'fixture',databaseID:'fixture-db',videoError:'视频目录已掉线',songs,
+      resources:Object.fromEntries(Object.entries(resources).map(([key,value])=>[key,{...value,local:null}])),
+      keys:Object.keys(resources),total:songs.length,fileCount:0,totalBytes:0} satisfies LibraryPage});
+  });
+  await page.goto('/#/library');
+  const table=page.getByRole('table',{name:'曲库歌曲'}),local=page.getByRole('group',{name:'本地视频',exact:true});
+  await expect(table.getByText('已保存',{exact:true})).toHaveCount(2);
+  await expect(local).toContainText('1 个');
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
+  await expect(page.getByText('视频目录不可用，本地视频状态未知。',{exact:false})).toBeVisible();
+  await expect(local.getByText('—',{exact:true})).toBeVisible();
+  await expect(table.getByText('已保存',{exact:true})).toHaveCount(0);
+  await expect(table.getByText('未知',{exact:true})).toHaveCount(3);
+  await expect(table.getByRole('button',{name:'预览',exact:true}).first()).toBeDisabled();
+});
+
 test('preview retries an expired GET instead of reporting an unsupported video',async({page})=>{
   await libraryFixture(page);
   let requests=0;

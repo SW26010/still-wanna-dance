@@ -2033,6 +2033,20 @@
       "bytes": 1322355,
       "sha256": "430d3c0fd3a355b9d812f25cfbb5a8759fbd647d15bb0c75764cda3aee47e2fa",
       "reason": "Reviewed generated Fluent WebUI bundle: every new download observation baseline reconciles the library once, covering complete flights before the first snapshot and after page, tab or action resets (2026-11-15). Rebuilt with unchanged locked dependencies; 101 Edge regressions and isolated real Console external GET scenarios passed. Matches webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322731,
+      "sha256": "b332ea271598ddd893bc6449a031138784dbf08decc92a143a8aec6e7ac62484",
+      "reason": "Reviewed generated Fluent WebUI bundle: ordinary library queries reuse the engine's maintained inventory; the existing local-video check reconciles external file changes and rereads the page after either success or failure, clearing stale local status when storage is unavailable (2026-11-15). Rebuilt with unchanged locked dependencies and checked with library and cover Edge regressions."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322631,
+      "sha256": "1a0f0a9c839fe944d5eb5503911cef6bd815cf88eec7349b0ac30c5a61ae39f6",
+      "reason": "Reviewed generated Fluent WebUI bundle after merging library SQL pagination and maintained inventory queries with download observation baseline reconciliation (2026-11-15). Preserves explicit local-video scans and refresh after scan failure. Rebuilt from unchanged locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

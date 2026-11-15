@@ -212,6 +212,10 @@ func (s *Server) retainVideoLocked(key string, item *retainedVideo) {
 }
 
 func (s *Server) reconcileRetention() error {
+	return s.reconcileRetentionContext(context.Background())
+}
+
+func (s *Server) reconcileRetentionContext(ctx context.Context) error {
 	// Directory I/O excludes only other scans. Publications and removals keep
 	// updating the inventory, and their changes override this snapshot below.
 	s.retentionScanMu.Lock()
@@ -254,6 +258,9 @@ func (s *Server) reconcileRetention() error {
 		return err
 	}
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if match := cacheVideoName.FindStringSubmatch(entry.Name()); match != nil {
 			if err := add(filepath.Join(s.cfg.videosDir(), entry.Name()), match[1]); err != nil {
 				return err
@@ -263,6 +270,9 @@ func (s *Server) reconcileRetention() error {
 	// Settling a scan may grow inventory. Serialize this final merge with
 	// admission/publication so inventory cannot grow midway through a decision.
 	return s.Store.retentionDecision(func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		s.retentionMu.Lock()
 		defer s.retentionMu.Unlock()
 		for key := range s.retentionChanges {

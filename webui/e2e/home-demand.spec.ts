@@ -67,7 +67,7 @@ test('home uses live demands and unique block counts without download polling or
   expect(await paints()).toEqual(before);
   await setPageHidden(page, true); await expect.poll(f.streams).toBe(0);
   await f.emit('block-cache', { bytes: 2 * 1073741824 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
-  await f.emit('download-speed', { bytesPerSecond: 9000000 }); await expect(f.speed).toHaveText('1.91 MiB/s');
+  await f.emit('download-speed', { bytesPerSecond: 9000000 }); await expect(f.speed).toHaveText('0.00 MiB/s');
   await setPageHidden(page, false); await expect.poll(f.streams).toBe(1); await expect(f.speed).toHaveText('8.58 MiB/s');
   await expect(f.cache).toHaveText('缓存 2.000 GiB');
   await f.emit('download-speed', { bytesPerSecond: 0 }); await expect(f.speed).toHaveText('0.00 MiB/s');

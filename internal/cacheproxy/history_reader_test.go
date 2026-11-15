@@ -3,9 +3,12 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"net/url"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +18,144 @@ import (
 
 	"modernc.org/sqlite"
 )
+
+func TestHistoryConcurrentRefreshSharesStatistics(t *testing.T) {
+	for _, cancelLeader := range []bool{false, true} {
+		t.Run(strconv.FormatBool(cancelLeader), func(t *testing.T) {
+			s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			s.usage.unlimited = true
+			if err := s.usage.write([]usageEvent{{method: "GET", at: 1, sources: &ResponseSources{DownloadBytes: 7}}}); err != nil {
+				t.Fatal(err)
+			}
+			h := s.History()
+			snapshot, releaseSnapshot, err := h.snapshot(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer releaseSnapshot()
+			snapshot.db.SetMaxOpenConns(1)
+			synctest.Test(t, func(t *testing.T) {
+				entered, release := make(chan struct{}), make(chan struct{})
+				var calls atomic.Int64
+				name := "swd_history_refresh_" + strconv.FormatUint(historyCountSequence.Add(1), 10)
+				if err := sqlite.RegisterScalarFunction(name, 0, func(*sqlite.FunctionContext, []driver.Value) (driver.Value, error) {
+					if calls.Add(1) == 1 {
+						close(entered)
+						<-release
+					}
+					return int64(1), nil
+				}); err != nil {
+					t.Fatal(err)
+				}
+				// Cancellation may discard the physical connection. Install the
+				// scan probe on every replacement, not just the first connection.
+				sqlite.RegisterConnectionHook(func(conn sqlite.ExecQuerierContext, dsn string) error {
+					if dsn != storageDatabaseURI(snapshot.path, "ro") {
+						return nil
+					}
+					_, err := conn.ExecContext(context.Background(), "CREATE TEMP VIEW request_events AS SELECT * FROM main.request_events WHERE "+name+"()", nil)
+					return err
+				})
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				leader := make(chan error, 1)
+				go func() { _, err := h.Sources(ctx); leader <- err }()
+				<-entered
+				waiters := make(chan error, 8)
+				for i := 0; i < 8; i++ {
+					go func() {
+						got, err := h.Sources(t.Context())
+						if err == nil && got.DownloadBytes != 7 {
+							err = errors.New("wrong cached sources")
+						}
+						waiters <- err
+					}()
+				}
+				synctest.Wait()
+				if cancelLeader {
+					cancel()
+				}
+				close(release)
+				if err := <-leader; cancelLeader && !errors.Is(err, context.Canceled) || !cancelLeader && err != nil {
+					t.Errorf("leader: %v", err)
+				}
+				for i := 0; i < 8; i++ {
+					if err := <-waiters; err != nil {
+						t.Error("waiter:", err)
+					}
+				}
+				want := int64(1)
+				if cancelLeader {
+					want++
+				}
+				if calls.Load() != want {
+					t.Errorf("statistics scans=%d want=%d", calls.Load(), want)
+				}
+			})
+		})
+	}
+}
+
+func TestHistoryRefreshReusesUnchangedDetails(t *testing.T) {
+	s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.usage.unlimited = true
+	ready := false
+	if err := s.usage.write([]usageEvent{{at: 1000, method: "GET", songID: "42", status: 200, bytes: 1, firstBodyNS: 123, firstBodyBlocking: &ready, sources: &ResponseSources{DownloadBytes: 7}}}); err != nil {
+		t.Fatal(err)
+	}
+	h := s.History()
+	before, err := h.Sources(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := h.current
+	var indexes int
+	if err := old.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name='request_events_history_song_time'").Scan(&indexes); err != nil {
+		t.Fatal(err)
+	}
+	if indexes != 0 {
+		t.Error("source refresh prepared unused song index")
+	}
+	latency, err := h.Latency(t.Context(), time.UnixMilli(2000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSongPolicy(t.Context(), 42, SongFavorite); err != nil {
+		t.Fatal(err)
+	}
+	// Remove the rate-limit wait from this deterministic rebuild assertion.
+	h.nextCopy = time.Time{}
+	after, err := h.Sources(t.Context())
+	if err != nil || before != after {
+		t.Fatalf("sources: %+v %v", after, err)
+	}
+	if h.current != old {
+		t.Error("unrelated preference commit rebuilt entire history")
+	}
+	// The real private connection rejects scans after the first success. Cache
+	// reuse must survive, including a moving window with no boundary crossings.
+	h.current.db.SetMaxOpenConns(1)
+	if _, err := h.current.db.Exec("CREATE TEMP VIEW request_events AS SELECT * FROM missing_history_table"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := h.Sources(t.Context()); err != nil || got != before {
+		t.Errorf("sources rescanned unchanged history: %+v %v", got, err)
+	}
+	got, err := h.Latency(t.Context(), time.UnixMilli(32000))
+	latency.From = time.UnixMilli(32000).Add(-72 * time.Hour).UnixMilli()
+	latency.To = 32000
+	if err != nil || !reflect.DeepEqual(got, latency) {
+		t.Errorf("latency rescanned unchanged window: %+v %v", got, err)
+	}
+}
 
 func TestHistoryWaitersRecoverCanceledBuild(t *testing.T) {
 	for _, outcome := range []string{"cancel", "deadline", "waiter-cancel", "error", "close"} {
@@ -34,10 +175,14 @@ func TestHistoryWaitersRecoverCanceledBuild(t *testing.T) {
 				unblock := func() { releaseOnce.Do(func() { close(release) }) }
 				defer unblock()
 				var copies atomic.Int64
+				var paths sync.Map
 				copyError := errors.New("controlled history copy failure")
 				sqlite.RegisterConnectionHook(func(_ sqlite.ExecQuerierContext, dsn string) error {
 					uri, _ := url.Parse(dsn)
 					if uri == nil || uri.Query().Get("mode") != "rw" || !strings.Contains(uri.Path, filepath.ToSlash(root)+"/swd-storage-snapshot-") {
+						return nil
+					}
+					if _, seen := paths.LoadOrStore(uri.Path, true); seen {
 						return nil
 					}
 					if copies.Add(1) == 1 {
@@ -139,11 +284,16 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	history := NewRequestHistory(s.path)
+	defer history.Close()
 	var copies atomic.Int64
+	var paths sync.Map
 	sqlite.RegisterConnectionHook(func(_ sqlite.ExecQuerierContext, dsn string) error {
 		uri, _ := url.Parse(dsn)
 		if uri != nil && uri.Query().Get("mode") == "rw" && strings.Contains(uri.Path, filepath.ToSlash(root)+"/swd-storage-snapshot-") {
-			copies.Add(1)
+			if _, seen := paths.LoadOrStore(uri.Path, true); !seen {
+				copies.Add(1)
+			}
 		}
 		return nil
 	})
@@ -152,14 +302,14 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := s.History().Count(t.Context(), RequestQuery{Limit: 1}); err != nil {
+			if _, err := history.Count(t.Context(), RequestQuery{Limit: 1}); err != nil {
 				t.Error(err)
 			}
 		}()
 	}
 	wg.Wait()
 	for _, operation := range []string{"sources", "latency", "song", "resource", "export"} {
-		if _, err := readHistoryOperation(t.Context(), s.History(), operation); err != nil {
+		if _, err := readHistoryOperation(t.Context(), history, operation); err != nil {
 			t.Fatal(operation, err)
 		}
 	}
@@ -174,13 +324,13 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 	// minimum copy interval stops waiting without creating another copy.
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := s.History().Count(ctx, RequestQuery{Limit: 1}); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := history.Count(ctx, RequestQuery{Limit: 1}); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("refresh wait: %v", err)
 	}
 	if copies.Load() != 1 {
 		t.Fatalf("refresh bypassed copy interval: %d", copies.Load())
 	}
-	count, err := s.History().Count(t.Context(), RequestQuery{Limit: 1})
+	count, err := history.Count(t.Context(), RequestQuery{Limit: 1})
 	if err != nil || count.Total != 1 || copies.Load() != 2 {
 		t.Fatalf("fresh snapshot: %+v copies=%d %v", count, copies.Load(), err)
 	}
@@ -189,18 +339,18 @@ func TestHistorySharesCopiesAndBoundsRefresh(t *testing.T) {
 	if err := s.usage.write([]usageEvent{{at: 2000, method: "GET"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.History().versionConn.Close(); err != nil {
+	if err := history.versionConn.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.History().Count(t.Context(), RequestQuery{Limit: 1}); !errors.Is(err, sql.ErrConnDone) {
+	if _, err := history.Count(t.Context(), RequestQuery{Limit: 1}); !errors.Is(err, sql.ErrConnDone) {
 		t.Fatalf("monitor failure: %v", err)
 	}
-	count, err = s.History().Count(t.Context(), RequestQuery{Limit: 1})
+	count, err = history.Count(t.Context(), RequestQuery{Limit: 1})
 	if err != nil || count.Total != 2 || copies.Load() != 3 {
 		t.Fatalf("reconnected monitor served stale copy: %+v copies=%d %v", count, copies.Load(), err)
 	}
-	s.History().Close()
-	if _, err := s.History().Page(t.Context(), RequestQuery{Limit: 1}); err == nil {
+	history.Close()
+	if _, err := history.Page(t.Context(), RequestQuery{Limit: 1}); err == nil {
 		t.Fatal("closed history accepted a query")
 	}
 }

@@ -45,7 +45,7 @@ type usageStore struct {
 	done      chan struct{}
 	now       func() time.Time
 
-	onHistoryChange func()
+	onHistoryChange func(getChanged bool)
 }
 
 func newUsage(db *sql.DB, log *slog.Logger) *usageStore {
@@ -224,6 +224,7 @@ func (u *usageStore) write(batch []usageEvent) error {
 	}
 	defer tx.Rollback()
 	historyChanged := false
+	getChanged := false
 	for _, e := range batch {
 		if e.barrier != nil {
 			continue
@@ -253,7 +254,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			if err != nil {
 				return err
 			}
-			historyChanged = historyChanged || e.method == "GET"
+			historyChanged = true // HEAD also changes exports and retained sources.
+			getChanged = getChanged || e.method == "GET"
 			continue
 		}
 		// Access history supports the cache list, independently of song scoring
@@ -291,7 +293,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		return err
 	}
 	if historyChanged && u.onHistoryChange != nil {
-		u.onHistoryChange()
+		u.onHistoryChange(getChanged)
 	}
 	return nil
 }
@@ -333,7 +335,7 @@ func (u *usageStore) prune(now time.Time) (int64, error) {
 		return 0, err
 	}
 	if count > 0 && u.onHistoryChange != nil {
-		u.onHistoryChange()
+		u.onHistoryChange(true)
 	}
 	return count, nil
 }

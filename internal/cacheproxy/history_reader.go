@@ -16,6 +16,8 @@ const historyCopyInterval = 5 * time.Second
 // shared private copy, never a long read transaction on the business database.
 type RequestHistory struct {
 	path        string
+	owned       bool  // Store's exclusive writer owns detail invalidation.
+	revision    int64 // Committed details, guarded by mu; independent of GET-only SSE.
 	mu          sync.Mutex
 	source      *sql.DB   // Only PRAGMA data_version; never used for history scans.
 	versionConn *sql.Conn // data_version is comparable only on this physical connection.
@@ -28,11 +30,18 @@ type RequestHistory struct {
 }
 
 type historySnapshot struct {
-	db      *sql.DB
-	cleanup func()
-	version int64
-	at      int64
-	readers int
+	db           *sql.DB
+	path         string
+	cleanup      func()
+	version      int64
+	at           int64
+	readers      int
+	indexGate    chan struct{}
+	songIndex    historyCache[bool]
+	latencyIndex historyCache[bool]
+	sources      historyCache[ResponseSources]
+	latency      historyCache[historyLatency]
+	count        historyCache[historyCount]
 }
 
 type historyBuild struct {
@@ -45,6 +54,12 @@ type historyBuild struct {
 func NewRequestHistory(path string) *RequestHistory {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &RequestHistory{path: path, ctx: ctx, cancel: cancel}
+}
+
+func (h *RequestHistory) invalidate() {
+	h.mu.Lock()
+	h.revision++
+	h.mu.Unlock()
 }
 
 // Close cancels pending copies and releases the cached generation. Existing
@@ -123,35 +138,39 @@ func (h *RequestHistory) snapshot(ctx context.Context) (*historySnapshot, func()
 			h.mu.Unlock()
 			return nil, nil, err
 		}
-		if h.source == nil {
-			var err error
-			h.source, err = readDatabaseFile(h.path)
-			if err != nil {
-				h.mu.Unlock()
-				return nil, nil, err
-			}
-			h.versionConn, err = h.source.Conn(ctx)
-			if err != nil {
-				_ = h.source.Close()
-				h.source = nil
-				h.mu.Unlock()
-				return nil, nil, err
-			}
-		}
 		var version int64
-		if err := h.versionConn.QueryRowContext(ctx, "PRAGMA data_version").Scan(&version); err != nil {
-			// A replacement connection restarts its data_version counter. Drop
-			// the cached generation before reconnecting, even after cancellation.
-			source, conn, old := h.source, h.versionConn, h.current
-			h.source, h.versionConn, h.current = nil, nil, nil
-			dispose := old != nil && old.readers == 0
-			h.mu.Unlock()
-			_ = conn.Close()
-			_ = source.Close()
-			if dispose {
-				old.close()
+		if h.owned {
+			version = h.revision
+		} else {
+			if h.source == nil {
+				var err error
+				h.source, err = readDatabaseFile(h.path)
+				if err != nil {
+					h.mu.Unlock()
+					return nil, nil, err
+				}
+				h.versionConn, err = h.source.Conn(ctx)
+				if err != nil {
+					_ = h.source.Close()
+					h.source = nil
+					h.mu.Unlock()
+					return nil, nil, err
+				}
 			}
-			return nil, nil, err
+			if err := h.versionConn.QueryRowContext(ctx, "PRAGMA data_version").Scan(&version); err != nil {
+				// A replacement connection restarts its data_version counter. Drop
+				// the cached generation before reconnecting, even after cancellation.
+				source, conn, old := h.source, h.versionConn, h.current
+				h.source, h.versionConn, h.current = nil, nil, nil
+				dispose := old != nil && old.readers == 0
+				h.mu.Unlock()
+				_ = conn.Close()
+				_ = source.Close()
+				if dispose {
+					old.close()
+				}
+				return nil, nil, err
+			}
 		}
 		if h.current != nil && h.current.version == version {
 			snapshot, release := h.leaseLocked(h.current)
@@ -213,23 +232,23 @@ func buildHistorySnapshot(ctx context.Context, path string, version int64) (*his
 		cleanup()
 		return nil, err
 	}
-	// Only the private copy gains this derived index. The resource/time index
-	// is already in the frozen business schema. No migration or source DDL.
-	_, err = writer.ExecContext(ctx, "CREATE INDEX request_events_history_song_time ON request_events(song_id,requested_at,event_id)")
+	// Private WAL lets on-demand index preparation coexist with leased reads.
+	// Never change the business database's journal mode or schema.
+	_, err = writer.ExecContext(ctx, "PRAGMA journal_mode=WAL")
 	err = errors.Join(err, writer.Close())
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
-	// The source and copied schema were validated before adding the private
-	// index. These owned files intentionally have one extra derived object.
+	// The source and copied schema were validated above. Derived indexes are
+	// prepared only by operations that need them, using this owned path.
 	db, err := sql.Open("sqlite", storageDatabaseURI(path, "ro"))
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
 	db.SetMaxOpenConns(4)
-	return &historySnapshot{db: db, cleanup: cleanup, version: version, at: at}, nil
+	return &historySnapshot{db: db, path: path, cleanup: cleanup, version: version, at: at, indexGate: make(chan struct{}, 1)}, nil
 }
 
 func withHistorySnapshot[T any](ctx context.Context, h *RequestHistory, read func(context.Context, *historySnapshot) (T, error)) (T, error) {
@@ -255,7 +274,18 @@ func (h *RequestHistory) Page(ctx context.Context, query RequestQuery) (RecentRe
 		return readRequestPage(ctx, h.path, query, true)
 	}
 	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (RecentRequests, error) {
-		return readRequestPageDB(ctx, s.db, h.path, query, true)
+		if sort, _ := query.sorting(); sort == "song" {
+			if err := s.prepareIndex(ctx, &s.songIndex, "CREATE INDEX IF NOT EXISTS request_events_history_song_time ON request_events(song_id,requested_at,event_id)"); err != nil {
+				return RecentRequests{}, err
+			}
+		}
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		page, err := readRequestPageDB(ctx, s.db, h.path, query, true)
+		if err == nil {
+			err = refreshHistorySongNames(ctx, h.path, &page)
+		}
+		return page, err
 	})
 }
 
@@ -264,21 +294,31 @@ func (h *RequestHistory) Count(ctx context.Context, query RequestQuery) (Request
 		return RequestHistoryCount{StorageID: DatabaseID(h.path)}, err
 	}
 	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (RequestHistoryCount, error) {
-		result := RequestHistoryCount{StorageID: DatabaseID(h.path), CountedAt: s.at}
-		query, args := query.count()
-		err := s.db.QueryRowContext(ctx, query, args...).Scan(&result.Total)
-		return result, err
+		key := historyCountKey{query.From, query.To, query.HideAdjacentCanceled}
+		cached, err := s.count.get(ctx, func(v historyCount) bool { return v.key == key }, func() (historyCount, error) {
+			result := historyCount{key: key, value: RequestHistoryCount{StorageID: DatabaseID(h.path), CountedAt: s.at}}
+			sql, args := query.count()
+			err := s.db.QueryRowContext(ctx, sql, args...).Scan(&result.value.Total)
+			return result, err
+		})
+		return cached.value, err
 	})
 }
 
 func (h *RequestHistory) Sources(ctx context.Context) (ResponseSources, error) {
 	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (ResponseSources, error) {
-		return readResponseSources(ctx, s.db)
+		return s.sources.get(ctx, func(ResponseSources) bool { return true }, func() (ResponseSources, error) { return readResponseSources(ctx, s.db) })
 	})
 }
 
 func (h *RequestHistory) Latency(ctx context.Context, now time.Time) (FirstBodyLatency, error) {
 	return withHistorySnapshot(ctx, h, func(ctx context.Context, s *historySnapshot) (FirstBodyLatency, error) {
-		return readFirstBodyLatency(ctx, s.db, now)
+		cached, err := s.latency.get(ctx, func(v historyLatency) bool { return v.contains(now) }, func() (historyLatency, error) {
+			if err := s.prepareIndex(ctx, &s.latencyIndex, historyLatencyIndex); err != nil {
+				return historyLatency{}, err
+			}
+			return readHistoryLatency(ctx, s.db, now)
+		})
+		return cached.result(now), err
 	})
 }

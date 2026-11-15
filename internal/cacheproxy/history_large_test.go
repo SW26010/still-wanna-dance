@@ -1,8 +1,6 @@
 package cacheproxy
 
 import (
-	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -32,6 +30,15 @@ CASE WHEN i%11=0 THEN NULL ELSE printf('%032x',i%997+1) END,
 CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at); err != nil {
 		t.Fatal(err)
 	}
+	started := time.Now()
+	if _, err := s.History().Sources(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("cold sources including copy, without song index: elapsed=%s", time.Since(started))
+	var derived int
+	if err := s.History().current.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name LIKE 'request_events_history_%'").Scan(&derived); err != nil || derived != 0 {
+		t.Fatalf("cold statistics prepared unrelated indexes: %d %v", derived, err)
+	}
 	s.usage.log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	if err := s.usage.start(0, true); err != nil {
 		t.Fatal(err)
@@ -55,7 +62,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 		}
 		written <- n
 	}()
-	started := time.Now()
+	started = time.Now()
 	page, readErr := s.History().Page(t.Context(), RequestQuery{Limit: 50, Sort: "song", Direction: "ascending", HideAdjacentCanceled: true})
 	t.Logf("cold song page with concurrent collector: elapsed=%s rows=%d err=%v", time.Since(started), len(page.Requests), readErr)
 	close(stop)
@@ -96,8 +103,29 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 			_, err = s.History().Count(t.Context(), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
 		}
 		t.Logf("aggregate=%s elapsed=%s err=%v", operation, time.Since(started), err)
-		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		if err != nil {
 			t.Errorf("aggregate: %v", err)
+		}
+	}
+	current := s.History().current
+	now := time.Now()
+	started = time.Now()
+	latency, err := readHistoryLatency(t.Context(), current.db, now)
+	t.Logf("latency SQL with prepared index: elapsed=%s samples=%d err=%v", time.Since(started), latency.value.Ready.Samples, err)
+	if err != nil || latency.value.Ready.Samples != size || latency.value.Ready.P50MS == nil || *latency.value.Ready.P50MS != 0.499999 || *latency.value.Ready.P95MS != 0.949999 {
+		t.Fatalf("dense-window quantiles: %+v %v", latency.value, err)
+	}
+	for i := 1; i <= 3; i++ {
+		if err := s.SetSongPolicy(t.Context(), int64(i), SongFavorite); err != nil {
+			t.Fatal(err)
+		}
+		started = time.Now()
+		sources, sourceErr := s.History().Sources(t.Context())
+		latency, latencyErr := s.History().Latency(t.Context(), now.Add(time.Duration(i)*30*time.Second))
+		count, countErr := s.History().Count(t.Context(), RequestQuery{Limit: 50, HideAdjacentCanceled: true})
+		t.Logf("refresh=%d after unrelated commit: elapsed=%s same_copy=%v sources=%d samples=%d count=%d errors=%v/%v/%v", i, time.Since(started), s.History().current == current, sources.DownloadBytes, latency.Ready.Samples, count.Total, sourceErr, latencyErr, countErr)
+		if sourceErr != nil || latencyErr != nil || countErr != nil || s.History().current != current || sources.DownloadBytes != size || latency.Ready.Samples != size {
+			t.Fatal("refresh rebuilt/rescanned or changed aggregates")
 		}
 	}
 	// Explain the exact windows used by Page. The outer sort is bounded by

@@ -2,7 +2,6 @@ package cacheproxy
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -272,40 +271,4 @@ func ReadFirstBodyLatency(ctx context.Context, databasePath string, now time.Tim
 	history := NewRequestHistory(databasePath)
 	defer history.Close()
 	return history.Latency(ctx, now)
-}
-
-func readFirstBodyLatency(ctx context.Context, db *sql.DB, now time.Time) (FirstBodyLatency, error) {
-	r := FirstBodyLatency{From: now.Add(-72 * time.Hour).UnixMilli(), To: now.UnixMilli()}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	rows, err := db.QueryContext(ctx, `WITH samples AS (
- SELECT first_body_blocking AS blocking,first_body_ns AS ns,
- row_number() OVER (PARTITION BY first_body_blocking ORDER BY first_body_ns) AS rank,
- count(*) OVER (PARTITION BY first_body_blocking) AS n
- FROM request_events
- WHERE method='GET' AND requested_at>=? AND requested_at<?
- AND status IN (200,206) AND transferred_bytes>0 AND first_body_ns IS NOT NULL AND first_body_blocking IS NOT NULL
- ) SELECT blocking,max(n),max(CASE WHEN rank=(n+1)/2 THEN ns END),
- max(CASE WHEN rank=(95*n+99)/100 THEN ns END) FROM samples GROUP BY blocking`, r.From, r.To)
-	if err != nil {
-		return r, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var blocked bool
-		var group LatencyGroup
-		var p50, p95 int64
-		if err := rows.Scan(&blocked, &group.Samples, &p50, &p95); err != nil {
-			return r, err
-		}
-		a, b := float64(p50)/float64(time.Millisecond), float64(p95)/float64(time.Millisecond)
-		group.P50MS = &a
-		group.P95MS = &b
-		if blocked {
-			r.Blocking = group
-		} else {
-			r.Ready = group
-		}
-	}
-	return r, rows.Err()
 }

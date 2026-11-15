@@ -147,7 +147,13 @@ func newStore(path string, db *sql.DB, unlock func() error) *Store {
 	s.usage = newUsage(db, s.log)
 	s.historyChanged = make(chan struct{})
 	s.history = NewRequestHistory(path)
-	s.usage.onHistoryChange = s.notifyHistoryChanged
+	s.history.owned = true
+	s.usage.onHistoryChange = func(getChanged bool) {
+		s.history.invalidate()
+		if getChanged {
+			s.notifyHistoryChanged()
+		}
+	}
 	// Lost observations are logged and reported by usage.close. Only terminal
 	// storage faults disable downloads; background conflicts and timeouts use
 	// the same classification as synchronous Store operations.

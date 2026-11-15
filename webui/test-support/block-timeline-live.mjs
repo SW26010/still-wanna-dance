@@ -12,8 +12,31 @@ const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(url + '/#/home');
-  await page.getByRole('button', { name: '展开时间轴视图' }).click();
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas');
+  const detail = page.getByRole('group', { name: '块需求详情' });
+  await expect(canvas).toBeHidden();
+  await expect(panel.locator('.demand-row')).toHaveCount(1);
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(1);
+  // The collapsed view still consumes block summaries; only hover/pin opens
+  // detail. Both pages observe the same running download and source identity.
+  const strip = panel.locator('.demand-block-canvas');
+  await strip.hover({ position: { x: 20, y: 20 } });
+  await expect(detail).toContainText('块 1/4');
+  await expect(detail).toContainText('播放请求 #');
+  await page.mouse.move(1, 1);
+  await expect(detail).toHaveCount(0);
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(1);
+  const second = await context.newPage();
+  second.on('pageerror', error => errors.push(error.message));
+  await second.goto(url + '/#/home');
+  const secondStrip = second.locator('#block-demands .demand-block-canvas');
+  const secondDetail = second.getByRole('group', { name: '块需求详情' });
+  await expect(secondStrip).toHaveAccessibleName(/视频共 4 块/);
+  await secondStrip.click({ position: { x: 20, y: 20 } });
+  await expect(secondDetail).toContainText('播放请求 #');
+  await second.mouse.move(1, 1);
+  await expect(secondDetail).toContainText('块 1/4');
+  await page.getByRole('button', { name: '展开时间轴视图' }).click();
   await expect(panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   const cache = panel.locator('.block-demand-cache');
   await expect(cache).toHaveText('缓存 0.0 MiB');
@@ -23,11 +46,14 @@ try {
   await expect(panel.locator('.demand-block-canvas')).toHaveAccessibleName(/视频共 4 块/);
   await expect.poll(() => panel.locator('.timeline-legend').innerText()).toMatch(/正在下载\s+[1-4]/);
   await canvas.focus(); await canvas.press('Home');
-  const detail = page.getByRole('group', { name: '块需求详情' });
   await expect(detail).toContainText('播放请求 #');
   await expect(detail).toContainText('读取急需');
   await expect(detail).toContainText('need-by');
   await expect(detail).toContainText('块 1/4');
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(4);
+  await second.close();
+  await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(2);
+  await expect(detail).toContainText('播放请求 #');
   await page.screenshot({ path: path.join(evidence, 'real-download.png'), fullPage: true });
   // Keep the pin across an actual offscreen interval. Neither the overview nor
   // detail stream may remain subscribed; resume observation before completion.
@@ -66,8 +92,8 @@ try {
   await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   expect(errors).toEqual([]);
-  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), cacheBytes: 3 * 1048576 + 37, flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'cache display agrees with actual block files', 'speed event followed by zero', 'collapse keeps demand subscription', 'physical reclamation without subscribers', 'cache total refreshed to zero on return', 'zero SSE requests after navigation'], errors }, null, 2));
-  console.log('Real console + scheduler + Range download + browser SSE lifecycle passed.');
+  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), cacheBytes: 3 * 1048576 + 37, flow: ['real HTTP Range download', 'collapsed demand subscription', 'hover detail closes on leave', 'two pages pin the same block with four subscriptions', 'closing one page retains the other overview and detail', 'WebSocket downloading and source details', 'zero block subscriptions while offscreen', 'pinned details restored with four local protected blocks', 'cache display agrees with actual block files', 'speed event followed by zero', 'collapse keeps demand subscription', 'physical reclamation without subscribers', 'cache total refreshed to zero on return', 'zero block subscriptions after navigation'], errors }, null, 2));
+  console.log('Real console + scheduler + Range download + browser WebSocket lifecycle passed.');
 } catch (error) {
   await page.screenshot({ path: path.join(evidence, 'failure.png'), fullPage: true });
   await writeFile(path.join(evidence, 'failure.txt'), String(error) + '\n' + await page.locator('body').innerText());

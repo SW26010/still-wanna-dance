@@ -22,6 +22,10 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
   const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastResult:undefined},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:undefined,referenceBitrateBPS:2000000}};
   const diagnosticSockets=new Set<WebSocketRoute>();
+  await page.routeWebSocket(/\/api\/(history|block-demands)\/events(?:\?|$)/,socket=>{
+    calls.push({path:new URL(socket.url()).pathname.slice(5),body:{}});
+    socket.connectToServer();
+  });
   await page.routeWebSocket('**/api/network/events',socket=>{
     diagnosticSockets.add(socket);socket.onClose(()=>diagnosticSockets.delete(socket));
     for(const kind of ['connectivity','calibration'] as const)socket.send(JSON.stringify({event:kind,data:diagnostics[kind]}));

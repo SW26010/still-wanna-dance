@@ -68,19 +68,6 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 	return active
 }
 
-// Source identities are materialized only for observation and collection tests.
-// Runtime download/protection consumers aggregate during the shared traversal.
-func (s *Server) projectUseLocked(key string, now time.Time) (map[useBlockID]map[blockSource]plannedNeed, bool) {
-	plan := make(map[useBlockID]map[blockSource]plannedNeed)
-	active := s.visitUseLocked(allUseBlocks(key), now, func(id useBlockID, source blockSource, p plannedNeed) {
-		if plan[id] == nil {
-			plan[id] = make(map[blockSource]plannedNeed)
-		}
-		plan[id][source] = p
-	})
-	return plan, active
-}
-
 // Read snapshots first bring delayed exits up to date. Mutations recompute
 // protection from the same projection without recursively delivering exits.
 func (s *Server) refreshUseSourcesLocked(now time.Time) {

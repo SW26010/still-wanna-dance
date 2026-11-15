@@ -7,6 +7,7 @@ import {RecordDataTable,TablePagination,type RecordColumn,type TableSort} from '
 import {date,mb,type RequestRecord,type ResponseSources} from './types';
 import {requestOutcome,requestOutcomeDescription} from './requests';
 import {songHref,resourceHref} from './library';
+import {subscribeRealtime} from './realtime-stream';
 
 const useSummaryStyles=makeStyles({summary:typographyStyles.subtitle2});
 
@@ -94,18 +95,15 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
   const app=useApp(),focus=useFocusRecovery();
   const [connectionError,setConnectionError]=useState('');
   const subscribe=useCallback<ResourceSubscription>(invalidate=>{
-    const source=new EventSource('/api/history/events');
-    let disposed=false;
     setConnectionError('');
-    source.addEventListener('history',event=>{
-      if(disposed)return;
-      try {
-        if(JSON.parse((event as MessageEvent<string>).data).closed){source.close();setConnectionError('历史更新已停止。');return;}
+    return subscribeRealtime('/api/history/events',{
+      receive:(event,data)=>{
+        if(event!=='history'||typeof data?.closed!=='boolean')throw new Error('invalid history event');
+        if(data.closed){setConnectionError('历史更新已停止。');return false;}
         setConnectionError('');invalidate();
-      }catch{source.close();setConnectionError('历史更新无法读取，请重新查询。');}
+      },
+      connection:state=>setConnectionError(state==='invalid'?'历史更新无法读取，请重新查询。':state==='disconnected'?'历史更新连接已断开，正在重新连接…':''),
     });
-    source.onerror=()=>{if(!disposed)setConnectionError(source.readyState===EventSource.CLOSED?'历史更新连接不可用，请重新查询。':'历史更新连接已断开，正在重新连接…');};
-    return()=>{disposed=true;source.close();};
   },[]);
   const history=useResource<History>('history?'+query,visible&&!app.stopped,app.revision,0,false,live?subscribe:undefined);
   useLayoutEffect(()=>{if(focusOnMount&&visible){const target=focusSort?focus.ref.current?.querySelector<HTMLElement>('th[aria-sort="ascending"] [role="button"],th[aria-sort="descending"] [role="button"]'):focus.ref.current;target?.focus({preventScroll:true});if(!focusSort)target?.scrollIntoView({block:'start'});}},[]);

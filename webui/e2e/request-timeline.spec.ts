@@ -274,15 +274,15 @@ test('history reconnects and resumes with fresh data, releases hidden subscripti
   await expect.poll(streams).toBe(1);
 });
 
-test('history can retry a rejected event connection without promising automatic recovery',async({page})=>{
+test('history can requery while its event connection is disconnected',async({page})=>{
   await mockAPI(page);let fail=true;
-  await page.route('**/api/history/events',route=>fail?route.fulfill({status:503,body:'unavailable'}):route.fallback());
+  await page.routeWebSocket('**/api/history/events',socket=>{if(fail)void socket.close();else socket.connectToServer();});
   await page.goto('/#/timeline');
-  await expect(page.getByRole('listitem').getByText('历史更新连接不可用，请重新查询。',{exact:true})).toBeVisible();
+  await expect(page.getByRole('listitem').getByText('历史更新连接已断开，正在重新连接…',{exact:true})).toBeVisible();
   await expect(page.getByRole('progressbar',{name:'正在读取历史'})).toHaveCount(0);
   fail=false;await page.getByRole('button',{name:'查询历史',exact:true}).click();
   await expect(page.getByText('当前筛选条件下暂无请求记录。',{exact:true})).toBeVisible();
-  await expect(page.getByRole('listitem').getByText('历史更新连接不可用，请重新查询。',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('listitem').getByText('历史更新连接已断开，正在重新连接…',{exact:true})).toHaveCount(0);
 });
 
 test('history pages beyond 500 without growing the DOM; filtering leaves latency window alone',async({page})=>{

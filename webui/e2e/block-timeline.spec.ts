@@ -686,7 +686,7 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
   await expect.poll(f.totalStreams).toBe(1);
 });
 
-test('native EventSource reconnect resets old state without a polling endpoint', async ({ page }) => {
+test('WebSocket reconnect resets old state without a polling endpoint', async ({ page }) => {
   const f = await setup(page); await f.open();
   await page.request.post('/__fixture/disconnect', { data: { id: f.fixtureID, kind: 'blocks' } });
   await expect(f.panel).toContainText('状态展示：重连中');

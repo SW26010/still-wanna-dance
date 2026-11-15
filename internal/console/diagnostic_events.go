@@ -14,7 +14,7 @@ type diagnosticEventSnapshot struct {
 	changed  <-chan struct{}
 }
 
-// Native EventSource cannot supply the management token header. These local
+// Native EventSource/WebSocket cannot supply the management token header. These local
 // streams instead reject cross-origin and cross-site browser requests.
 func (c *Console) allowEventStream(w http.ResponseWriter, r *http.Request) bool {
 	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+c.address {

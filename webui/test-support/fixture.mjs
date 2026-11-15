@@ -1,11 +1,15 @@
 // Memory-only browser test server. Never starts the app, touches hosts or media.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+// Reuse the ws implementation shipped with our pinned Playwright test runtime.
+const requirePlaywright = createRequire(createRequire(import.meta.resolve('@playwright/test')).resolve('playwright'));
+const { wsServer: WebSocketServer } = requirePlaywright('playwright-core/lib/utilsBundle');
 const root = new URL('../../internal/console/', import.meta.url);
 const html = await readFile(new URL('webui.html', root), 'utf8');
 const token = 'browser-fixture-token';
 const streams = new Map(), states = new Map();
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:18473');
   const p = url.pathname;
   res.setHeader('Cache-Control', 'no-store');
@@ -24,7 +28,7 @@ createServer(async (req, res) => {
         states.set(key,{...state,reset:true,blocks:[...blocks.values()],removed:[],demands:[...demands.values()],removedDemands:[]});
       }else states.set(key,state);
       const eventName=kind.startsWith('block-detail:')?'block-detail':kind;
-      for(const stream of streams.get(['download-speed','block-cache','closed'].includes(kind)?id+':blocks':key)||[])stream.write(`event: ${eventName}\ndata: ${JSON.stringify(state)}\n\n`);
+      for(const stream of streams.get(['download-speed','block-cache','closed'].includes(kind)?id+':blocks':key)||[])stream.send(JSON.stringify({event:eventName,data:state}));
       res.setHeader('Content-Type','application/json');return res.end('{"ok":true}');
     }
     if(p==='/__fixture/streams'){
@@ -33,27 +37,8 @@ createServer(async (req, res) => {
     }
     if(p==='/__fixture/disconnect'&&req.method==='POST'){
       let raw='';for await(const chunk of req)raw+=chunk;
-      const {id,kind}=JSON.parse(raw);for(const stream of streams.get(id+':'+kind)||[])stream.end();
+      const {id,kind}=JSON.parse(raw);for(const stream of streams.get(id+':'+kind)||[])stream.close();
       return res.end('{}');
-    }
-    if(p==='/api/block-demands/events'&&req.method==='GET'){
-      const id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default';
-      const block=url.searchParams.get('block'),kind=block?'block-detail:'+block:'blocks',key=id+':'+kind;
-      const fallback=block?null:{at:Date.now(),running:false,reset:true,capacity:4096,used:0,active:0,open:0,prepareAheadMS:500000,downloadGraceMS:30000,blocks:[],removed:[],demands:[],removedDemands:[]};
-      res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
-      res.write(`event: ${block?'block-detail':'blocks'}\ndata: ${JSON.stringify(states.get(key)??fallback)}\n\n`);
-      if(!block&&states.get(id+':download-speed')?.bytesPerSecond)res.write(`event: download-speed\ndata: ${JSON.stringify(states.get(id+':download-speed'))}\n\n`);
-      if(!block&&states.has(id+':block-cache'))res.write(`event: block-cache\ndata: ${JSON.stringify(states.get(id+':block-cache'))}\n\n`);
-      if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
-      res.on('close',()=>streams.get(key)?.delete(res));return;
-    }
-    const event=p.match(/^\/api\/network\/(connectivity|calibration)\/events$/)||(p==='/api/history/events'?['','history']:null);
-    if(event&&req.method==='GET'){
-      const kind=event[1],id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default',key=id+':'+kind;
-      res.writeHead(200,{'Content-Type':'text/event-stream','Connection':'keep-alive'});
-      res.write(`event: ${kind}\ndata: ${JSON.stringify(states.get(key)||(kind==='history'?{closed:false}:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastValid:null,referenceBitrateBPS:2000000}))}\n\n`);
-      if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(res);
-      res.on('close',()=>streams.get(key)?.delete(res));return;
     }
     if (p.startsWith('/assets/')) {
       const file = p === '/assets/logo.svg' ? new URL('../branding/logo.svg', root) : new URL(p.slice(1), root);
@@ -79,4 +64,24 @@ createServer(async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(html.replaceAll('{{.Title}}', 'UI 测试').replaceAll('{{.Token}}', token).replace('{{.Data}}', json));
   } catch { res.writeHead(500); res.end('fixture error'); }
-}).listen(18473, '127.0.0.1');
+});
+const sockets = new WebSocketServer({noServer:true});
+server.on('upgrade',(req,socket,head)=>{
+  const url=new URL(req.url,'http://127.0.0.1:18473');
+  if(!['/api/history/events','/api/block-demands/events'].includes(url.pathname)){socket.destroy();return;}
+  sockets.handleUpgrade(req,socket,head,stream=>{
+    const id=req.headers.cookie?.match(/(?:^|;\s*)fixture-id=([^;]+)/)?.[1]||'default';
+    const block=url.searchParams.get('block'),history=url.pathname==='/api/history/events';
+    const kind=history?'history':block?'block-detail:'+block:'blocks',key=id+':'+kind;
+    const fallback=history?{closed:false}:block?null:{at:Date.now(),running:false,reset:true,capacity:4096,used:0,active:0,open:0,prepareAheadMS:500000,downloadGraceMS:30000,blocks:[],removed:[],demands:[],removedDemands:[]};
+    const send=(event,data)=>stream.send(JSON.stringify({event,data}));
+    send(block?'block-detail':kind,states.has(key)?states.get(key):fallback);
+    if(!history&&!block){
+      if(states.get(id+':download-speed')?.bytesPerSecond)send('download-speed',states.get(id+':download-speed'));
+      if(states.has(id+':block-cache'))send('block-cache',states.get(id+':block-cache'));
+    }
+    if(!streams.has(key))streams.set(key,new Set());streams.get(key).add(stream);
+    stream.on('close',()=>streams.get(key)?.delete(stream));
+  });
+});
+server.listen(18473,'127.0.0.1');

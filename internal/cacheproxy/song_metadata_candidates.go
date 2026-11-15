@@ -17,7 +17,9 @@ func (s *Store) SongMetadataCandidates(ctx context.Context) (resultValue []int64
 	}
 	defer s.wg.Done()
 	defer func() { resultErr = s.storageError(resultErr) }()
-	s.usage.flush()
+	if err := s.usage.flush(ctx); err != nil {
+		return nil, err
+	}
 	s.mappingMu.Lock()
 	defer s.mappingMu.Unlock()
 	filter, args := mediaURLNodeFilter(playbacksource.Nodes())

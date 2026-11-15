@@ -22,7 +22,7 @@ func TestMetadataBusyDoesNotDisableColdDownloads(t *testing.T) {
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				serveFixtureContent(w, r, payload)
 			})
-			s.Store.usage.flush()
+			s.Store.usage.flush(t.Context())
 			write := func() error {
 				if operation == "playback_address" {
 					return s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload)})
@@ -155,7 +155,7 @@ PRAGMA max_page_count=1`, sqlite3.SQLITE_FULL},
 		} {
 			t.Run(operation+"/"+fault.name, func(t *testing.T) {
 				s, _ := setup(t, func(http.ResponseWriter, *http.Request) {})
-				s.Store.usage.flush()
+				s.Store.usage.flush(t.Context())
 				if _, err := s.Store.db.Exec(fault.query); err != nil {
 					t.Fatal(err)
 				}
@@ -195,7 +195,7 @@ func TestDownloadRegistrationConflictRecovers(t *testing.T) {
 				}
 				serveFixtureContent(w, r, body)
 			})
-			s.Store.usage.flush()
+			s.Store.usage.flush(t.Context())
 			wantCode := sqlite3.SQLITE_CONSTRAINT
 			var release func()
 			if conflict == "busy" {
@@ -301,7 +301,7 @@ func TestDownloadDatabaseReadConflictRecovers(t *testing.T) {
 	for _, operation := range []string{"download", "queue", "publication", "fill"} {
 		t.Run(operation, func(t *testing.T) {
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
-			s.Store.usage.flush()
+			s.Store.usage.flush(t.Context())
 			if _, err := s.Store.db.Exec("PRAGMA busy_timeout=0"); err != nil {
 				t.Fatal(err)
 			}
@@ -348,7 +348,7 @@ func TestDownloadRegistrationStorageFailureIsRetained(t *testing.T) {
 		calls.Add(1)
 		serveFixtureContent(w, r, payload)
 	})
-	s.Store.usage.flush()
+	s.Store.usage.flush(t.Context())
 	if _, err := s.Store.db.Exec("PRAGMA query_only=1"); err != nil {
 		t.Fatal(err)
 	}

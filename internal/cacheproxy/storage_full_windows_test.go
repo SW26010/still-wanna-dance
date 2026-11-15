@@ -126,7 +126,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 		if err := store.usage.start(0, true); err != nil {
 			t.Fatal(err)
 		}
-		store.usage.flush()
+		store.usage.flush(t.Context())
 		before := snapshotBusinessTables(t, store.db)
 		releaseSpace := exhaustBoundedVolume(t, root, dir)
 		err = store.SetSongPolicy(t.Context(), 42, SongBlocked)
@@ -134,7 +134,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 			t.Fatal("synchronous database failure was not visible without an engine", err, store.Error())
 		}
 		store.usage.startGET("42", strings.Repeat("a", 32))
-		store.usage.flush()
+		store.usage.flush(t.Context())
 		if err := store.Close(); !isVolumeFull(err) {
 			t.Fatal("close did not report failed accepted background work", err)
 		}

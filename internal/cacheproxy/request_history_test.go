@@ -251,7 +251,7 @@ func TestHistoryCapturesEffectiveResponseAndVideoBytes(t *testing.T) {
 		if w.Code != tc.status {
 			t.Fatal(w.Code)
 		}
-		s.Store.usage.flush()
+		s.Store.usage.flush(t.Context())
 		page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 1})
 		if err != nil {
 			t.Fatal(err)
@@ -287,7 +287,7 @@ func TestResolutionFailureRetainsArrivalIdentityWithoutBodySample(t *testing.T) 
 	afterResolution := time.Now().UnixMilli()
 	close(resume)
 	<-done
-	s.Store.usage.flush()
+	s.Store.usage.flush(t.Context())
 	page, err := ReadRequestHistory(context.Background(), cfg.Store.path, RequestQuery{Limit: 50})
 	if err != nil || len(page.Requests) != 1 {
 		t.Fatal(page, err)

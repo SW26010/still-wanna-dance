@@ -27,7 +27,7 @@
 | [validation/](validation/) | 开发、浏览器、受控服务与性能验证记录；保留每轮失败、修复和环境限制，阅读现状时回到对应设计 |
 | 诊断导出与事务清理 | [事务与导出验证](validation/diagnostic-storage-transactions-20261115.md)记录长读触发提交失败、物理连接遗留事务的复现和修复，以及在线快照隔离与 30 万条真实 ZIP 并发验证 |
 | 设置编辑与存储边界 | [模块重构验证](validation/architecture-modules-20261108.md)记录独立设置编辑器、前端控制器及 Store／Server 边界的实现、回归与验证限制 |
-| 请求历史读取成本与写入隔离 | [计数与分页验证](validation/request-history-read-cost-20261115.md)保留前序修复；[长读隔离与批次恢复](validation/request-history-write-isolation-20261115.md)记录统一历史 interface、私有索引、复制复用及 600 万条并发／重开验证；现行规则见[历史查询范围](webui-design.md#历史查询范围)及[存储契约](storage.md) |
+| 请求历史读取成本与写入隔离 | [计数与分页验证](validation/request-history-read-cost-20261115.md)保留前序修复；[长读隔离与批次恢复](validation/request-history-write-isolation-20261115.md)记录统一历史 interface、私有索引、复制复用及 600 万条并发／重开验证，附[状态提示与观测同步](validation/request-history-write-isolation-20261115.md#状态提示与观测同步补充)的满队列、取消与导入顺序回归；现行规则见[历史查询范围](webui-design.md#历史查询范围)及[存储契约](storage.md) |
 | WebUI 多窗口实时订阅 | [网络订阅修复](validation/network-realtime-20261115.md)保留网络双 SSE 的首次对照；[历史与块订阅修复](validation/webui-realtime-20261115.md)记录六窗口历史／块 SSE 阻塞复现、共用实时 module 和真实 Console／Edge 回归；现行规则见[实时订阅](webui-design.md#实时订阅) |
 | 首页块观察成本 | [快照优化验证](validation/block-observation-20261115.md)记录 256／1024／4096 块、共享来源的分配与持锁对照，以及按需详情、快照不可变性、race 和真实双窗口首页验证；现行规则见[按需块观测](block-scheduler-design.md#按需块观测2026-10-20) |
 | 批量失败观测成本 | [批量结果验证](validation/batch-results-20261115.md)记录增量进度、摘要状态、完整失败快照和按需分页的复制量及真实 Console／Edge 检查；现行规则见[下载结果边界](download-resource-design.md#5-容量接入准备回补与保留取舍)及[曲库读取](webui-design.md#曲库读取与刷新) |

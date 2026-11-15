@@ -160,7 +160,7 @@ func TestHistoricalUsageConcurrentGETAndImports(t *testing.T) {
 	}
 	wg.Wait()
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=1", nil), 200, payload)
-	s.Store.usage.flush()
+	s.Store.usage.flush(t.Context())
 	var count int
 	var score float64
 	var last int64

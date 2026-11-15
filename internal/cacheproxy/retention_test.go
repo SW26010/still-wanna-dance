@@ -230,7 +230,7 @@ func TestRetentionWithinLimitSkipsUsageStatistics(t *testing.T) {
 	p := retainedPath(t, s, cfg, "1")
 	putRetained(t, p, 10)
 	// Policies are still needed below budget, but scoring is not.
-	s.Store.usage.flush()
+	s.Store.usage.flush(t.Context())
 	if _, err := s.Store.usage.db.Exec("DROP TABLE song_usage"); err != nil {
 		t.Fatal(err)
 	}

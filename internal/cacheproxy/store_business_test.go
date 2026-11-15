@@ -140,7 +140,7 @@ PRAGMA max_page_count=1`,
 				t.Fatal(err)
 			}
 			store.usage.startGET("3", strings.Repeat("a", 32))
-			store.usage.flush()
+			store.usage.flush(t.Context())
 			if !errors.Is(store.Error(), ErrLocalStorage) {
 				t.Fatal("background write failure only went to log")
 			}
@@ -193,7 +193,7 @@ func TestBackgroundWriteConflictDoesNotDisableColdDownloads(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer engine.Close()
-			store.usage.flush()
+			store.usage.flush(t.Context())
 			wantCode := sqlite3.SQLITE_CONSTRAINT
 			var release func()
 			if conflict == "busy" {
@@ -227,7 +227,7 @@ func TestBackgroundWriteConflictDoesNotDisableColdDownloads(t *testing.T) {
 				}
 			}
 			store.usage.startGET("3", strings.Repeat("a", 32))
-			store.usage.flush()
+			store.usage.flush(t.Context())
 			var databaseErr *sqlite.Error
 			if !errors.As(writeErr, &databaseErr) || databaseErr.Code()&0xff != wantCode {
 				t.Fatalf("background error=%v, want SQLite code %d", writeErr, wantCode)
@@ -248,7 +248,7 @@ func TestBackgroundWriteConflictDoesNotDisableColdDownloads(t *testing.T) {
 			default:
 			}
 			store.usage.startGET("4", strings.Repeat("b", 32))
-			store.usage.flush()
+			store.usage.flush(t.Context())
 			var count int
 			if err := store.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=4").Scan(&count); err != nil || count != 1 {
 				t.Fatal("background writes did not resume", count, err)

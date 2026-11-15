@@ -29,7 +29,7 @@ func TestExponentialDemandSurvivesRestartAndCleanup(t *testing.T) {
 	recordDemand(u, "1", base.Add(60*24*time.Hour))
 	// A backward clock must not increase heat or move the accumulator timestamp.
 	recordDemand(u, "1", base.Add(59*24*time.Hour))
-	u.flush()
+	u.flush(t.Context())
 	cleaner := &usageStore{db: u.db, retention: 30 * 24 * time.Hour}
 	if n, err := cleaner.prune(time.Now()); err != nil || n != 4 {
 		t.Fatalf("prune %d: %v", n, err)

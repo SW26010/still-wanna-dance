@@ -128,3 +128,30 @@ Windows 定向 race 首批 292.222 秒未报告数据竞争，但新增取消测
 本阶段原始日志位于忽略目录 `artifacts/history-refresh/`，包括 `targeted.log`、`index-export.log`、`large-first.log`、`large-final.log`、`packages.log`、`cacheproxy-native-recheck.log`、`race.log`、`race-refresh-retry.log`、`race-index-export.log`、`vet-final.log`、浏览器日志及截图。实现整理时曾有未使用导入／变量的编译失败，修正后完成回归；大库首轮日志目录不存在的命令未进入测试，随后建立隔离证据目录复跑。没有启动游戏、修改 hosts 或新增 VRC 验收项。
 
 复跑新增回归与原有隔离检查使用上文相同 test 入口；大库仍设置 `SWD_HISTORY_LARGE_EVIDENCE=1`。浏览器分别设置 `SWD_HISTORY_BROWSER_EVIDENCE`、`SWD_DIAGNOSTIC_BROWSER_EVIDENCE` 为隔离输出目录并运行 `TestRequestHistoryBrowser|TestDiagnosticExportBrowser`。
+
+## 状态提示与观测同步补充
+
+跟进 P1：状态页为判断 VRCX 导入提示调用 `SongUsageCount`，原实现强制 `flush`。数据库连接占用且 1024 项观测队列满时，屏障发送持有 GET 也需要的互斥锁；已经取消的状态请求仍等待队列，新的 GET 观测随之阻塞。原探针在释放数据库后两者均返回，证明特定积压条件下的阻塞，不证明日常必现或永久卡死。
+
+`TestCanceledSongUsageCountDoesNotBlockGET` 固定占用真实应用数据库连接，等待实际 worker 的连接排队后填满观测队列，不替换 worker 或其锁。修复前连续两次失败：取消的状态查询和新 GET 观测都无法在数据库释放前返回，第二轮约 0.70 秒；原探针及回归失败分别保留在 `status-flush-probe.log`、`status-flush-regression-before.log`。
+
+现行行为回到[存储契约](../storage.md#打开失败与未来升级)：状态／预览数量读已提交状态，导入、淘汰及元数据补齐评分继续同步。观测 module 的 `synchronize(ctx, apply)` interface 收拢屏障发送、取消、等待和有序替换；生命周期共享读锁保护通道关闭，单独的时间戳／入队锁只包围普通观测的非阻塞发送。导入屏障终止当前批次，在替换事务结束后再处理后续观测，GET 期间仍能入队或沿用满队列丢弃。没有改变队列上限、存储格式、BUSY 重试或评分算法。
+
+新增四组回归连续三轮通过（4.810 秒）：
+
+- 已取消的状态查询及新 GET 在数据库释放前返回。
+- 普通同步和实际 `ImportSongUsage` 分别覆盖屏障已入队、队列已满两种等待；GET 到达与完成观测均不等待同步锁，取消无需释放数据库。
+- 同一队列中的先到 GET、覆盖导入、后到 GET 按序落库：先到统计被替换，后到需求在导入后的计数为 2。
+- 暂停 worker 后，状态读取仍返回已提交的空统计；放行并同步后读到新的需求，不强制等待未落库的提示数据。
+
+两包整包回归在普通用户权限下通过：`internal/cacheproxy` 246.874 秒、`internal/console` 204.548 秒；两包 vet、gofmt 与差异检查通过。Windows 定向 race 使用现有 w64devkit GCC，覆盖新增回归、历史导入、需求去重与乱序完成、淘汰及元数据补齐评分，556.142 秒通过。未重跑需要另设环境变量的大库、磁盘耗尽或浏览器批次，也没有界面内容变更。
+
+沙箱整包首轮的硬链接、目录联接与原子重命名被拒绝，race 首轮报 `ThreadSanitizer: failed to restore address`；两者均不计通过。沿用同一隔离临时目录入口在普通用户权限下复验，没有修改测试输入、断言或产品文件操作。首轮日志 `packages-after.log`、`race-after.log` 保留；最终通过结果为 `packages-native-after.log`、`race-native-after.log`，定向三轮为 `backpressure-regressions-after.log`。
+
+复跑命令：
+
+```powershell
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^(TestCanceledSongUsageCountDoesNotBlockGET|TestUsageSynchronizationCancellationDoesNotBlockGET|TestUsageImportAppliesBetweenEarlierAndLaterGET|TestSongUsageCountReadsCommittedStateWithoutFlushing)$' -count=3 -v
+```
+
+本阶段证据位于忽略目录 `artifacts/architecture-review-storage-20261115/`，未覆盖原始失败。检查只使用隔离 SQLite 和受控请求；数据库查询自身仍可能等待连接，满队列也仍可能丢失观测，不将本项解释为所有数据库负载下的 GET 延迟保证。没有新增 VRC 专属验收项。

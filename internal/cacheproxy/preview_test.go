@@ -49,7 +49,7 @@ func previewResponse(s *Server, target PreviewTarget, headers map[string]string)
 
 func assertPreviewUncounted(t *testing.T, s *Server, target PreviewTarget) {
 	t.Helper()
-	s.Store.usage.flush()
+	s.Store.usage.flush(t.Context())
 	for _, table := range []string{"request_events", "song_usage"} {
 		var count int
 		if err := s.Store.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
@@ -488,7 +488,7 @@ func TestPreviewAndGameShareFlightWithIndependentIdentityAndCancellation(t *test
 			case <-time.After(5 * time.Second):
 				t.Fatal("game was canceled with preview")
 			}
-			s.Store.usage.flush()
+			s.Store.usage.flush(t.Context())
 			for _, table := range []string{"request_events", "song_usage"} {
 				var count int
 				if err := s.Store.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 1 {

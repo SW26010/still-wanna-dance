@@ -114,7 +114,7 @@ func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan boo
 	}
 	at := s.usage.startGET("42", "")
 	s.usage.record(usageEvent{songID: "42", at: at, method: "GET", outcome: "completed"})
-	s.usage.flush()
+	s.usage.flush(t.Context())
 
 	checkWrites := func(store *Store) {
 		t.Helper()

@@ -56,7 +56,7 @@ CASE WHEN i%9=0 THEN NULL ELSE i%1001+1 END,i%1000000,0,1,2,3 FROM n`, size, at)
 			id := strconv.Itoa(50000 + n)
 			at := s.usage.startGET(id, "")
 			s.usage.record(usageEvent{at: at, songID: id, method: "GET", outcome: "completed"})
-			s.usage.flush()
+			s.usage.flush(t.Context())
 			n++
 			time.Sleep(10 * time.Millisecond)
 		}

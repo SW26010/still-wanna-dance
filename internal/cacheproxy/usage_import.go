@@ -59,13 +59,14 @@ func (h *SongUsageImport) Observe(id, at int64) {
 	h.LastAt = max(h.LastAt, at)
 }
 
+// SongUsageCount reads committed statistics without synchronizing observations.
+// Status hints may lag the collector; imports recheck eligibility in order.
 func (s *Store) SongUsageCount(ctx context.Context) (resultValue int, resultErr error) {
 	if !s.beginRequest() {
 		return 0, context.Canceled
 	}
 	defer s.wg.Done()
 	defer func() { resultErr = s.storageError(resultErr) }()
-	s.usage.flush()
 	var count int
 	err := s.usage.db.QueryRowContext(ctx, "SELECT count(*) FROM song_usage").Scan(&count)
 	return count, err
@@ -73,7 +74,7 @@ func (s *Store) SongUsageCount(ctx context.Context) (resultValue int, resultErr 
 
 // ImportSongUsage serializes against the existing observation queue. All
 // accepted GETs are drained before the in-transaction empty check; later GETs
-// enqueue after commit. Replacement and any placeholder songs commit together.
+// are applied after commit. Replacement and any placeholder songs commit together.
 func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwrite bool) error {
 	if h == nil || h.Events == 0 || len(h.rows) == 0 {
 		return errors.New("没有有效历史需求，原统计保持不变")
@@ -84,27 +85,9 @@ func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwri
 	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	u := s.usage
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if u.closed {
-		return errors.New("存储已关闭，请重新打开应用")
-	}
-	if !u.started {
-		return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
-	}
-	done := make(chan struct{})
-	select {
-	case u.events <- usageEvent{barrier: done}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
+	return s.storageError(s.usage.synchronize(ctx, func() error {
+		return replaceSongUsage(ctx, s.db, h, overwrite)
+	}))
 }
 
 func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) error {

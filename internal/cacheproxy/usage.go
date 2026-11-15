@@ -24,6 +24,7 @@ type usageEvent struct {
 	firstBodyBlocking                 *bool
 	completedAt                       int64
 	barrier                           chan struct{}
+	resume                            <-chan struct{}
 	at                                int64
 	key, method, rangeHeader, outcome string
 	bytes, elapsedMS                  int64
@@ -36,7 +37,8 @@ type usageStore struct {
 	unlimited bool
 	db        *sql.DB
 	log       *slog.Logger
-	mu        sync.Mutex
+	mu        sync.RWMutex // Worker lifecycle; concurrent senders may share it.
+	orderMu   sync.Mutex   // Timestamp and enqueue ordinary observations together.
 	closed    bool
 	started   bool
 	onError   func(error)
@@ -76,8 +78,10 @@ func (u *usageStore) startGET(id, key string) int64 {
 	if u == nil {
 		return time.Now().UnixMilli()
 	}
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	u.orderMu.Lock()
+	defer u.orderMu.Unlock()
 	at := u.now().UnixMilli()
 	u.enqueueLocked(usageEvent{songID: id, key: key, at: at, summaryOnly: true})
 	return at
@@ -87,8 +91,10 @@ func (u *usageStore) record(e usageEvent) {
 	if u == nil {
 		return
 	}
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	u.orderMu.Lock()
+	defer u.orderMu.Unlock()
 	// Completion observations and their enqueue order share one boundary.
 	// Request start timestamps remain unchanged for demand/usage history.
 	e.completedAt = u.now().UnixMilli()
@@ -96,19 +102,56 @@ func (u *usageStore) record(e usageEvent) {
 }
 
 // Drain observations already accepted before ranking eviction candidates.
-func (u *usageStore) flush() {
-	if u == nil {
-		return
+func (u *usageStore) flush(ctx context.Context) error {
+	return u.synchronize(ctx, nil)
+}
+
+// synchronize waits for accepted observations and optionally pauses the worker
+// while apply runs. Later observations can enqueue (or drop when full), but are
+// not applied until apply returns. No blocking send holds orderMu.
+func (u *usageStore) synchronize(ctx context.Context, apply func() error) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	u.mu.Lock()
-	if u.closed || !u.started {
-		u.mu.Unlock()
-		return
+	if u == nil {
+		return nil
+	}
+	u.mu.RLock()
+	if u.closed {
+		u.mu.RUnlock()
+		return fmt.Errorf("存储已关闭，请重新打开应用")
+	}
+	if !u.started {
+		defer u.mu.RUnlock()
+		if apply != nil {
+			return apply()
+		}
+		return nil
 	}
 	done := make(chan struct{})
-	u.events <- usageEvent{barrier: done}
-	u.mu.Unlock()
-	<-done
+	var resume chan struct{}
+	if apply != nil {
+		resume = make(chan struct{})
+		defer close(resume)
+	}
+	// The shared lifecycle lock protects sends from close, while allowing GET
+	// observations through their independent timestamp/enqueue lock.
+	select {
+	case u.events <- usageEvent{barrier: done, resume: resume}:
+		u.mu.RUnlock()
+	case <-ctx.Done():
+		u.mu.RUnlock()
+		return ctx.Err()
+	}
+	select {
+	case <-done:
+		if apply != nil {
+			return apply()
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (u *usageStore) enqueueLocked(e usageEvent) {
@@ -172,7 +215,9 @@ func (u *usageStore) run() {
 		}
 		batch := []usageEvent{event}
 		// Drain an immediately available batch without delaying the request path.
-		for len(batch) < 128 {
+		// A synchronization point ends the batch so later observations cannot
+		// overtake an ordered operation, including a whole-table usage import.
+		for len(batch) < 128 && batch[len(batch)-1].barrier == nil {
 			select {
 			case e, ok := <-u.events:
 				if !ok {
@@ -196,6 +241,9 @@ func (u *usageStore) run() {
 		for _, e := range batch {
 			if e.barrier != nil {
 				close(e.barrier)
+				if e.resume != nil {
+					<-e.resume
+				}
 			}
 		}
 	}

@@ -54,7 +54,7 @@ func TestUsageRecoversLockedBatchAndPersistsAfterReopen(t *testing.T) {
 	if err := tx.Rollback(); err != nil {
 		t.Fatal(err)
 	}
-	s.usage.flush()
+	s.usage.flush(t.Context())
 	if err := s.Close(); err != nil {
 		t.Errorf("recovered collector retained a failure: %v", err)
 	}

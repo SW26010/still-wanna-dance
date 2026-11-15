@@ -2,6 +2,7 @@ package cacheproxy
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -68,8 +69,9 @@ type BlockDemandView struct {
 	Blocks      []string `json:"blocks"`
 }
 
-// Immutable once published. Detail is kept server-side and sent only for a
-// hovered/selected block. All observation state dies with the last subscriber.
+// Immutable once published. Compact source associations stay server-side;
+// Detail expands only a hovered/selected block. All observation state dies
+// with the last subscriber.
 type BlockSnapshot struct {
 	At              int64                      `json:"at"`
 	Capacity        int                        `json:"capacity"`
@@ -79,8 +81,54 @@ type BlockSnapshot struct {
 	PrepareAheadMS  int64                      `json:"prepareAheadMS"`
 	DownloadGraceMS int64                      `json:"downloadGraceMS"`
 	Blocks          map[string]BlockView       `json:"-"`
-	Details         map[string]BlockDetail     `json:"-"`
 	Demands         map[string]BlockDemandView `json:"-"`
+	sources         []BlockSourceView
+	needs           []blockDetailNeed
+	sourceRanges    map[string]blockSourceRange
+}
+
+type blockDetailNeed struct {
+	source       int
+	needBy       int64
+	windowClosed bool
+}
+
+type blockSourceRange struct{ first, last int }
+
+// Detail expands only the requested block from this immutable snapshot. It
+// never consults live sources, and each caller owns its returned source slice.
+func (s *BlockSnapshot) Detail(id string) (BlockDetail, bool) {
+	b, exists := s.Blocks[id]
+	if !exists {
+		return BlockDetail{}, false
+	}
+	r := s.sourceRanges[id]
+	d := BlockDetail{Block: b, Sources: make([]BlockSourceView, 0, r.last-r.first)}
+	for _, need := range s.needs[r.first:r.last] {
+		v := blockSourceLabel(s.sources[need.source], b)
+		v.NeedBy, v.WindowClosed = need.needBy, need.windowClosed
+		d.Sources = append(d.Sources, v)
+	}
+	slices.SortFunc(d.Sources, func(a, b BlockSourceView) int {
+		if a.ID < b.ID {
+			return -1
+		}
+		if a.ID > b.ID {
+			return 1
+		}
+		return 0
+	})
+	return d, true
+}
+
+func blockSourceLabel(source BlockSourceView, b BlockView) BlockSourceView {
+	if source.SongID == "" {
+		source.SongID = b.SongID
+	}
+	if source.Title == "" && source.SongID == b.SongID {
+		source.Title = b.Title
+	}
+	return source
 }
 
 type blockObserver struct {
@@ -324,26 +372,48 @@ func timeMS(t time.Time) int64 {
 }
 func blockViewID(id useBlockID) string { return id.key + "/" + strconv.FormatInt(id.block, 10) }
 
-func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.Time) {
+// The locked capture keeps one metadata record per source and flat associations.
+// It copies values only; identities remain worker-local and never enter a snapshot.
+type observedSource struct {
+	identity blockSource
+	view     BlockSourceView
+	need     blocksched.Need
+}
+type observedNeed struct {
+	block, source                  int
+	ready                          time.Time
+	windowClosed, protectionClosed bool
+}
+type observedBlock struct {
+	id               useBlockID
+	name             string
+	inUse, available bool
+	protection       blockProtection
+	size             int64
+	song             string
+	retainedSong     int64
+}
+type blockObservationInput struct {
+	used    int
+	blocks  []observedBlock
+	sources []observedSource
+	needs   []observedNeed
+}
+
+func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 	s := o.s
-	now := time.Now()
-	ahead := s.cfg.PrepareAhead
-	if ahead <= 0 {
-		ahead = blocksched.DefaultPrepareAhead
-	}
-	result := &BlockSnapshot{At: now.UnixMilli(), Capacity: maxUseBlocks, PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: blocksched.DownloadGrace.Milliseconds()}
-	var next time.Time
-	advance := func(at time.Time) {
-		if at.After(now) {
-			next = earlier(next, at)
-		}
-	}
-	// Projection uses the canonical aggregation. It never renews a source or
-	// retains files. No disk/database/network I/O happens under either lock.
 	s.mu.Lock()
-	projected, _ := s.projectUseLocked("", now)
-	result.Used = len(s.useBlocks)
-	result.Blocks = make(map[string]BlockView, len(projected))
+	associations := 0
+	for _, refs := range s.useBlocks {
+		associations += refs
+	}
+	input := blockObservationInput{
+		used:   len(s.useBlocks),
+		blocks: make([]observedBlock, 0, len(s.useBlocks)),
+		needs:  make([]observedNeed, 0, associations),
+	}
+	indexes := make(map[useBlockID]int, len(s.useBlocks))
+	sourceIndexes := make(map[blockSource]int)
 	sizes := make(map[string]int64)
 	for key, f := range s.flights {
 		sizes[key] = f.size
@@ -351,16 +421,20 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 	for key, u := range s.resourceUses {
 		sizes[key] = u.video.size
 	}
-	// Copy mutable source metadata once per source. The projected needs are
-	// already detached values; source pointers are used only as identities below.
-	sourceViews := make(map[blockSource]BlockSourceView)
-	for id, needs := range projected {
-		b := BlockView{ID: blockViewID(id), Resource: id.key, Block: id.block, InUse: s.useBlocks[id] > 0, State: "waiting"}
-		result.Blocks[b.ID] = b
-		for source := range needs {
-			if _, copied := sourceViews[source]; copied {
-				continue
-			}
+	addBlock := func(id useBlockID) int {
+		if index, exists := indexes[id]; exists {
+			return index
+		}
+		index := len(input.blocks)
+		indexes[id] = index
+		input.blocks = append(input.blocks, observedBlock{id: id, inUse: s.useBlocks[id] > 0})
+		return index
+	}
+	s.visitUseLocked(allUseBlocks(""), now, func(id useBlockID, source blockSource, p plannedNeed) {
+		index, exists := sourceIndexes[source]
+		if !exists {
+			index = len(input.sources)
+			sourceIndexes[source] = index
 			v := BlockSourceView{Kind: source.kind}
 			switch origin := source.id.(type) {
 			case *downloadDemand:
@@ -377,121 +451,167 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			case *useHandoff:
 				v.ExpiresAt = timeMS(origin.until)
 				sizes[id.key] = origin.clock.media.size
-				advance(origin.until)
 			}
-			sourceViews[source] = v
+			input.sources = append(input.sources, observedSource{source, v, p.need})
 		}
-	}
+		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.WindowClosed, p.protectionClosed})
+	})
 	s.retentionMu.Lock()
-	// Include locally available grace tails even though they no longer consume
-	// any of the 4096 usage slots. Pre-subscription history is not invented.
 	for key, blocks := range s.protection {
 		for block, p := range blocks {
-			id := useBlockID{key, block}
-			name := blockViewID(id)
-			b, exists := result.Blocks[name]
-			if !exists && p.until.After(now) {
-				b = BlockView{ID: name, Resource: key, Block: block, State: "protected", TimeBasis: "ended", At: timeMS(p.until.Add(-s.cfg.LocalProtectionGrace))}
-				if previous != nil {
-					if old, ok := previous.Blocks[name]; ok {
-						b.Title, b.SongID = old.Title, old.SongID
-						if old.At != 0 && old.TimeBasis != "ended" {
-							b.At, b.TimeBasis = old.At, "last-need-by"
-						}
-					}
-				}
-				result.Blocks[name] = b
+			if p.until.After(now) {
+				addBlock(useBlockID{key, block})
 			}
 		}
 	}
-	for name, b := range result.Blocks {
-		p := s.protection[b.Resource][b.Block]
-		b.ProtectionStart, b.ProtectionUntil, b.Protected = timeMS(p.start), timeMS(p.until), p.active(now)
-		advance(p.start)
-		advance(p.until)
-		available := false
-		if u := s.resourceUses[b.Resource]; b.SongID == "" && u != nil {
-			b.SongID = u.video.songID
+	for i := range input.blocks {
+		b := &input.blocks[i]
+		b.protection = s.protection[b.id.key][b.id.block]
+		if u := s.resourceUses[b.id.key]; u != nil {
+			b.song = u.video.songID
 		}
-		if retained, ok := s.retained[b.Resource]; ok {
-			available = true
-			sizes[b.Resource] = retained.size
-			if b.SongID == "" && retained.songID > 0 {
-				b.SongID = strconv.FormatInt(retained.songID, 10)
+		if retained, ok := s.retained[b.id.key]; ok {
+			b.available = true
+			sizes[b.id.key] = retained.size
+			if b.song == "" && retained.songID > 0 {
+				b.retainedSong = retained.songID
 			}
 		}
-		if local := s.localResources[b.Resource]; local != nil {
-			available = available || local.has(b.Block)
-			sizes[b.Resource] = local.video.size
-			if b.SongID == "" {
-				b.SongID = local.video.songID
+		if local := s.localResources[b.id.key]; local != nil {
+			b.available = b.available || local.has(b.id.block)
+			sizes[b.id.key] = local.video.size
+			if b.song == "" && b.retainedSong == 0 {
+				b.song = local.video.songID
 			}
 		}
-		if !b.InUse && (!available || !b.Protected) {
-			delete(result.Blocks, name)
-			continue
-		}
-		if available && b.InUse {
-			b.State = "available"
-		}
-		b.ByteOffset = b.Block * s.cfg.BlockSize
-		b.Bytes = blockBytes(sizes[b.Resource], b.Block, s.cfg.BlockSize)
-		b.TotalBlocks = blockCount(sizes[b.Resource], s.cfg.BlockSize)
-		result.Blocks[name] = b
 	}
 	s.retentionMu.Unlock()
+	for i := range input.blocks {
+		input.blocks[i].size = sizes[input.blocks[i].id.key]
+	}
 	s.mu.Unlock()
-	// Aggregate and format only detached values outside the business locks.
-	// Preserve source identity/title precedence over the resource fallback.
-	result.Details = make(map[string]BlockDetail, len(result.Blocks))
-	for id, needs := range projected {
-		name := blockViewID(id)
-		b, exists := result.Blocks[name]
-		if !exists {
-			continue
+	return input
+}
+
+func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.Time) {
+	s := o.s
+	now := time.Now()
+	ahead := s.cfg.PrepareAhead
+	if ahead <= 0 {
+		ahead = blocksched.DefaultPrepareAhead
+	}
+	input := o.captureInput(now)
+	result := &BlockSnapshot{
+		At: now.UnixMilli(), Capacity: maxUseBlocks, Used: input.used,
+		PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: blocksched.DownloadGrace.Milliseconds(),
+		Blocks: make(map[string]BlockView, len(input.blocks)), Demands: make(map[string]BlockDemandView),
+		sources: make([]BlockSourceView, len(input.sources)), needs: make([]blockDetailNeed, len(input.needs)),
+		sourceRanges: make(map[string]blockSourceRange, len(input.blocks)),
+	}
+	var next time.Time
+	advance := func(at time.Time) {
+		if at.After(now) {
+			next = earlier(next, at)
 		}
-		use := aggregateUse(needs, now)
-		b.NeedBy, b.Deadline = timeMS(use.need.ReadyBy), timeMS(blocksched.Deadline(use.need.ReadyBy))
-		b.WindowClosed, b.Opportunistic = use.need.WindowClosed, use.need.Opportunistic
-		b.At, b.TimeBasis = b.NeedBy, "need-by"
-		if b.At == 0 {
-			b.TimeBasis = "untimed"
+	}
+	seen := make(map[blockSource]bool, len(input.sources))
+	for i, source := range input.sources {
+		seen[source.identity] = true
+		if o.sourceIDs[source.identity] == 0 {
+			o.sequence++
+			o.sourceIDs[source.identity] = o.sequence
 		}
-		b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !use.need.ReadyBy.IsZero() && !use.need.ReadyBy.Add(-ahead).After(now) && !blocksched.Expired(use.need.ReadyBy, now))
-		if !use.need.WindowClosed {
-			advance(use.need.ReadyBy.Add(-ahead))
+		source.view.ID = o.sourceIDs[source.identity]
+		result.sources[i] = source.view
+		if source.view.Kind == "handoff" {
+			advance(source.need.LeaseUntil)
 		}
-		advance(blocksched.Deadline(use.need.ReadyBy))
-		sources := make([]BlockSourceView, 0, len(needs))
-		for source, p := range needs {
-			if o.sourceIDs[source] == 0 {
-				o.sequence++
-				o.sourceIDs[source] = o.sequence
-			}
-			v := sourceViews[source]
-			v.ID, v.NeedBy, v.WindowClosed = o.sourceIDs[source], timeMS(p.need.ReadyBy), p.need.WindowClosed
-			sources = append(sources, v)
-		}
-		sort.Slice(sources, func(i, j int) bool { return sources[i].ID < sources[j].ID })
-		b.Sources = len(sources)
-		var video blockVideo
-		for _, v := range sources {
-			video = chooseBlockVideo(video, blockVideo{SongID: v.SongID, Title: v.Title}, o.videos[b.Resource].SongID)
-		}
-		if video.SongID == "" {
-			video = blockVideo{SongID: b.SongID, Title: b.Title}
-		}
-		b.SongID, b.Title = video.SongID, video.Title
-		result.Blocks[name] = b
-		result.Details[name] = BlockDetail{Block: b, Sources: sources}
 	}
 	for source := range o.sourceIDs {
-		if _, seen := sourceViews[source]; !seen {
+		if !seen[source] {
 			delete(o.sourceIDs, source)
 		}
 	}
-	// Scheduler commands must never run under Server.mu/retentionMu. Actual
-	// reads belong to the scheduler and cannot be inferred from GET presence.
+	// All formatting, aggregation and sorting happens after the business locks.
+	for i := range input.blocks {
+		raw := &input.blocks[i]
+		p := raw.protection
+		if !raw.inUse && (!raw.available || !p.active(now)) {
+			continue
+		}
+		name := blockViewID(raw.id)
+		raw.name = name
+		if raw.song == "" && raw.retainedSong > 0 {
+			raw.song = strconv.FormatInt(raw.retainedSong, 10)
+		}
+		b := BlockView{
+			ID: name, Resource: raw.id.key, Block: raw.id.block, InUse: raw.inUse, SongID: raw.song, State: "waiting",
+			ProtectionStart: timeMS(p.start), ProtectionUntil: timeMS(p.until), Protected: p.active(now),
+			ByteOffset: raw.id.block * s.cfg.BlockSize, Bytes: blockBytes(raw.size, raw.id.block, s.cfg.BlockSize),
+			TotalBlocks: blockCount(raw.size, s.cfg.BlockSize),
+		}
+		if !raw.inUse {
+			b.State, b.TimeBasis, b.At = "protected", "ended", timeMS(p.until.Add(-s.cfg.LocalProtectionGrace))
+			if previous != nil {
+				if old, ok := previous.Blocks[name]; ok {
+					b.Title, b.SongID = old.Title, old.SongID
+					if b.SongID == "" {
+						b.SongID = raw.song
+					}
+					if old.At != 0 && old.TimeBasis != "ended" {
+						b.At, b.TimeBasis = old.At, "last-need-by"
+					}
+				}
+			}
+		} else if raw.available {
+			b.State = "available"
+		}
+		advance(p.start)
+		advance(p.until)
+		result.Blocks[name] = b
+	}
+	slices.SortFunc(input.needs, func(a, b observedNeed) int { return a.block - b.block })
+	for first := 0; first < len(input.needs); {
+		index := input.needs[first].block
+		last := first + 1
+		for last < len(input.needs) && input.needs[last].block == index {
+			last++
+		}
+		raw := input.blocks[index]
+		if raw.name != "" {
+			b := result.Blocks[raw.name]
+			var use blockUse
+			var video blockVideo
+			for i := first; i < last; i++ {
+				need := input.needs[i]
+				source := input.sources[need.source]
+				p := plannedNeed{need: source.need, protectionClosed: need.protectionClosed}
+				p.need.Owner, p.need.ReadyBy, p.need.WindowClosed = raw.id.key, need.ready, need.windowClosed
+				use = mergeUse(use, p.use(now))
+				video = chooseBlockVideo(video, blockVideo{SongID: source.view.SongID, Title: source.view.Title}, o.videos[b.Resource].SongID)
+				result.needs[i] = blockDetailNeed{need.source, timeMS(need.ready), need.windowClosed}
+			}
+			b.NeedBy, b.Deadline = timeMS(use.need.ReadyBy), timeMS(blocksched.Deadline(use.need.ReadyBy))
+			b.WindowClosed, b.Opportunistic = use.need.WindowClosed, use.need.Opportunistic
+			b.At, b.TimeBasis = b.NeedBy, "need-by"
+			if b.At == 0 {
+				b.TimeBasis = "untimed"
+			}
+			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !use.need.ReadyBy.IsZero() && !use.need.ReadyBy.Add(-ahead).After(now) && !blocksched.Expired(use.need.ReadyBy, now))
+			if !use.need.WindowClosed {
+				advance(use.need.ReadyBy.Add(-ahead))
+			}
+			advance(blocksched.Deadline(use.need.ReadyBy))
+			b.Sources = last - first
+			if video.SongID != "" {
+				b.SongID, b.Title = video.SongID, video.Title
+			}
+			result.Blocks[raw.name] = b
+			result.sourceRanges[raw.name] = blockSourceRange{first, last}
+		}
+		first = last
+	}
+	// Scheduler commands must never run under Server.mu/retentionMu.
 	scheduling := s.scheduler.Observation()
 	result.Active, result.Open = scheduling.Active, scheduling.Open
 	for key, task := range scheduling.Tasks {
@@ -520,44 +640,34 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		result.Blocks[name] = b
 	}
 	o.labelVideos(result)
-	result.Demands = make(map[string]BlockDemandView)
-	for name, b := range result.Blocks {
-		d := result.Details[name]
-		d.Block = b
-		if d.Sources == nil {
-			d.Sources = []BlockSourceView{}
-		}
-		for i := range d.Sources {
-			source := &d.Sources[i]
-			if source.SongID == "" {
-				source.SongID = b.SongID
-			}
-			if source.Title == "" && source.SongID == b.SongID {
-				source.Title = b.Title
-			}
-		}
-		result.Details[name] = d
-		for _, source := range d.Sources {
-			id := strconv.FormatUint(source.ID, 10) + "/" + b.Resource
-			demand, exists := result.Demands[id]
-			if !exists {
-				demand = BlockDemandView{ID: id, SourceID: source.ID, Kind: source.Kind, SongID: source.SongID, Title: source.Title, Position: source.Position, Resource: b.Resource}
-				demand.TotalBlocks = b.TotalBlocks
-				if demand.SongID == "" {
-					demand.SongID = b.SongID
-				}
-				if demand.Title == "" && demand.SongID == b.SongID {
-					demand.Title = b.Title
-				}
-			}
-			demand.Blocks = append(demand.Blocks, name)
-			result.Demands[id] = demand
-		}
+	// Build demand membership directly from compact associations, without
+	// materializing or reverse-projecting every block's detail/source array.
+	type demandKey struct {
+		source   int
+		resource string
 	}
-	for _, demand := range result.Demands {
+	demands := make(map[demandKey]*BlockDemandView)
+	for _, need := range input.needs {
+		raw := input.blocks[need.block]
+		if raw.name == "" {
+			continue
+		}
+		b := result.Blocks[raw.name]
+		key := demandKey{need.source, b.Resource}
+		demand := demands[key]
+		if demand == nil {
+			source := blockSourceLabel(result.sources[need.source], b)
+			id := strconv.FormatUint(source.ID, 10) + "/" + b.Resource
+			demand = &BlockDemandView{ID: id, SourceID: source.ID, Kind: source.Kind, SongID: source.SongID, Title: source.Title, Position: source.Position, Resource: b.Resource, TotalBlocks: b.TotalBlocks}
+			demands[key] = demand
+		}
+		demand.Blocks = append(demand.Blocks, raw.name)
+	}
+	for _, demand := range demands {
 		sort.Slice(demand.Blocks, func(i, j int) bool {
 			return result.Blocks[demand.Blocks[i]].Block < result.Blocks[demand.Blocks[j]].Block
 		})
+		result.Demands[demand.ID] = *demand
 	}
 	return result, next
 }

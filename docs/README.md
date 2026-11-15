@@ -29,6 +29,7 @@
 | 设置编辑与存储边界 | [模块重构验证](validation/architecture-modules-20261108.md)记录独立设置编辑器、前端控制器及 Store／Server 边界的实现、回归与验证限制 |
 | 请求历史读取成本与写入隔离 | [计数与分页验证](validation/request-history-read-cost-20261115.md)保留前序修复；[长读隔离与批次恢复](validation/request-history-write-isolation-20261115.md)记录统一历史 interface、私有索引、复制复用及 600 万条并发／重开验证；现行规则见[历史查询范围](webui-design.md#历史查询范围)及[存储契约](storage.md) |
 | WebUI 多窗口实时订阅 | [网络订阅修复](validation/network-realtime-20261115.md)保留网络双 SSE 的首次对照；[历史与块订阅修复](validation/webui-realtime-20261115.md)记录六窗口历史／块 SSE 阻塞复现、共用实时 module 和真实 Console／Edge 回归；现行规则见[实时订阅](webui-design.md#实时订阅) |
+| 首页块观察成本 | [快照优化验证](validation/block-observation-20261115.md)记录 256／1024／4096 块、共享来源的分配与持锁对照，以及按需详情、快照不可变性、race 和真实双窗口首页验证；现行规则见[按需块观测](block-scheduler-design.md#按需块观测2026-10-20) |
 | 库存维护与决策互斥 | [扫描临界区验证](validation/retention-scan-20261112.md)记录扫描阻塞偏好写入的复现、锁范围缩减及库存增量一致性检查 |
 | 临时块读取句柄 | [复用验证](validation/block-read-reuse-20261113.md)记录流读取／合并快照的重复开关复现、当前块句柄与文件引用生命周期、热缓存对照及基线已有的 Range 用例失败 |
 | HEAD 元数据与下载解耦 | [HEAD 验证](validation/head-metadata-20261115.md)记录冷 HEAD 多余回源、容量 503 的复现及元数据路径修复，包含普通／预览响应头和条件请求回归 |

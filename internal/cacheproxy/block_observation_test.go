@@ -24,6 +24,59 @@ func observedSnapshot(t *testing.T, sub *BlockSubscription) *BlockSnapshot {
 	return view
 }
 
+func observedDetail(t *testing.T, snapshot *BlockSnapshot, id string) BlockDetail {
+	t.Helper()
+	detail, exists := snapshot.Detail(id)
+	if !exists {
+		t.Fatal("missing block detail", id)
+	}
+	return detail
+}
+
+func TestBlockObservationLazyDetailSnapshotAndIndependentReaders(t *testing.T) {
+	_, s := testSession(t)
+	s.ctx = context.Background()
+	start := time.Now().Add(time.Minute)
+	first := &queueSource{song: "42", title: "星河", position: 2, startAt: start, use: useSpan{"resource", 0, 2}, timing: mediaTiming{2 * rangeBlockSize, 2 * time.Minute}}
+	second := &queueSource{song: "84", title: "远山", position: 3, startAt: start.Add(time.Second), use: first.use, timing: first.timing}
+	s.prefetchSources = map[string]*queueSource{"42": first, "84": second}
+	s.useBlocks = map[useBlockID]int{{"resource", 0}: 2, {"resource", 1}: 2}
+	o := &blockObserver{s: s, sourceIDs: map[blockSource]uint64{{"queue", first}: 2, {"queue", second}: 1}, sequence: 2}
+	before, _ := o.capture(nil)
+	// First detail access happens after both live sources and the observer moved.
+	first.title, first.position, first.startAt = "新标题", 0, start.Add(time.Hour)
+	delete(s.prefetchSources, "84")
+	after, _ := o.capture(before)
+	old := observedDetail(t, before, "resource/1")
+	if old.Block != before.Blocks["resource/1"] || len(old.Sources) != 2 || old.Sources[0].ID != 1 || old.Sources[1].ID != 2 || old.Sources[1].Title != "星河" || old.Sources[1].Position != 3 || old.Sources[1].NeedBy != start.Add(time.Minute).UnixMilli() {
+		t.Fatal("lazy detail read current state or changed ordering", old)
+	}
+	if current := observedDetail(t, after, "resource/1"); len(current.Sources) != 1 || current.Sources[0].Title != "新标题" {
+		t.Fatal(current)
+	}
+	old.Sources[0].Title = "caller edit"
+	var readers sync.WaitGroup
+	for range 8 {
+		readers.Go(func() {
+			for range 50 {
+				value, exists := before.Detail("resource/1")
+				if !exists {
+					t.Error("old snapshot lost its detail")
+					return
+				}
+				if value.Sources[0].Title != "远山" {
+					t.Error("detail source slice shared between readers")
+				}
+				value.Sources[0].Title = "independent caller"
+			}
+		})
+	}
+	readers.Wait()
+	if _, exists := before.Detail("missing/0"); exists {
+		t.Fatal("invented missing detail")
+	}
+}
+
 func TestBlockObservationLifecycleSourcesAndGrace(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)
@@ -55,7 +108,7 @@ func TestBlockObservationLifecycleSourcesAndGrace(t *testing.T) {
 		if view.Used != 2 || first.State != "available" || first.Sources != 2 || first.Readers != 0 || first.NeedBy != clock.at.UnixMilli() {
 			t.Fatal(view, first)
 		}
-		if len(view.Details[first.ID].Sources) != 2 {
+		if len(observedDetail(t, view, first.ID).Sources) != 2 {
 			t.Fatal("lost shared sources")
 		}
 		if len(view.Demands) != 2 || first.SongID != "42" {
@@ -229,7 +282,7 @@ func TestBlockObservationSourceMetadataKeepsPerBlockTimingAndPrecedence(t *testi
 		if b.SongID != "42" || b.Title != q.title || b.NeedBy != wantTime || b.TotalBlocks != 3 {
 			t.Fatal("source metadata lost precedence or per-block timing", b)
 		}
-		source := first.Details[b.ID].Sources[0]
+		source := observedDetail(t, first, b.ID).Sources[0]
 		if source.NeedBy != wantTime || source.Position != 3 || source.SongID != "42" {
 			t.Fatal("incorrect block source", source)
 		}
@@ -245,11 +298,11 @@ func TestBlockObservationSourceMetadataKeepsPerBlockTimingAndPrecedence(t *testi
 	q.title, q.position = "远山", 0
 	second, _ := o.capture(first)
 	for id, b := range second.Blocks {
-		if b.Title != "远山" || second.Details[id].Sources[0].ID != sourceID || second.Details[id].Sources[0].Position != 1 {
+		if b.Title != "远山" || observedDetail(t, second, id).Sources[0].ID != sourceID || observedDetail(t, second, id).Sources[0].Position != 1 {
 			t.Fatal("source update lost identity", b)
 		}
-		if first.Blocks[id].Title != "星河" || first.Details[id].Sources[0].Position != 3 {
-			t.Fatal("published snapshot mutated", first.Details[id])
+		if first.Blocks[id].Title != "星河" || observedDetail(t, first, id).Sources[0].Position != 3 {
+			t.Fatal("published snapshot mutated", observedDetail(t, first, id))
 		}
 	}
 }
@@ -285,8 +338,8 @@ func TestBlockObservationHandoffKeepsVideoName(t *testing.T) {
 		}
 	}
 	b := handoff.Blocks["resource/12"]
-	if b.Block != 12 || b.TotalBlocks != 45 || b.Title != "星河" || handoff.Details[b.ID].Sources[0].Title != "星河" {
-		t.Fatal("block/detail lost video metadata", b, handoff.Details[b.ID])
+	if b.Block != 12 || b.TotalBlocks != 45 || b.Title != "星河" || observedDetail(t, handoff, b.ID).Sources[0].Title != "星河" {
+		t.Fatal("block/detail lost video metadata", b, observedDetail(t, handoff, b.ID))
 	}
 	s.useHandoffs = nil
 	s.useBlocks = nil
@@ -414,7 +467,7 @@ func TestBlockObservationSharedBlockKeepsSourceTitlesWithIdentity(t *testing.T) 
 					t.Fatal("demand borrowed another song's title", demand)
 				}
 			}
-			for _, source := range view.Details[b.ID].Sources {
+			for _, source := range observedDetail(t, view, b.ID).Sources {
 				wantTitle := s.prefetchSources[source.SongID].title
 				if source.SongID == tc.want.SongID && wantTitle == "" {
 					wantTitle = tc.want.Title
@@ -474,7 +527,7 @@ func TestBlockObservationSharedVideoCatalogCacheAndSourceIdentity(t *testing.T) 
 			if demand.SongID != wantSong || demand.Title != wantTitle {
 				t.Fatal("source borrowed another song's title", demand)
 			}
-			source := view.Details[demand.Blocks[0]].Sources[0]
+			source := observedDetail(t, view, demand.Blocks[0]).Sources[0]
 			if source.SongID != wantSong || source.Title != wantTitle {
 				t.Fatal("source detail changed its identity/title", source)
 			}
@@ -594,18 +647,55 @@ func BenchmarkBlockObservationDisabled(b *testing.B) {
 }
 
 func BenchmarkBlockObservation4096(b *testing.B) {
-	s := &Server{Store: &Store{}, cfg: DefaultConfig(), ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
-	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16})
-	defer s.scheduler.Close()
-	size := int64(maxUseBlocks) * rangeBlockSize
-	d := &downloadDemand{ctx: context.Background(), key: "benchmark", playback: true, lastBlock: maxUseBlocks, clock: &playbackClock{at: time.Now().Add(time.Hour), limit: size, media: mediaTiming{size, time.Hour}}}
-	s.demands[d] = true
-	for block := int64(0); block < maxUseBlocks; block++ {
-		s.useBlocks[useBlockID{d.key, block}] = 1
+	benchmarkBlockObservation(b, maxUseBlocks, 1)
+}
+
+func BenchmarkBlockObservationMatrix(b *testing.B) {
+	for _, blocks := range []int{256, 1024, 4096} {
+		for _, sources := range []int{1, 4} {
+			b.Run(fmt.Sprintf("blocks=%d/sources=%d", blocks, sources), func(b *testing.B) {
+				benchmarkBlockObservation(b, blocks, sources)
+			})
+		}
 	}
-	o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+}
+
+func benchmarkBlockObservation(b *testing.B, blocks, sources int) {
+	o := benchmarkBlockObserver(b, blocks, sources)
 	b.ReportAllocs()
 	for b.Loop() {
 		o.capture(nil)
 	}
+}
+
+func BenchmarkBlockDetail(b *testing.B) {
+	for _, blocks := range []int{256, 1024, 4096} {
+		for _, sources := range []int{1, 4} {
+			b.Run(fmt.Sprintf("blocks=%d/sources=%d", blocks, sources), func(b *testing.B) {
+				o := benchmarkBlockObserver(b, blocks, sources)
+				snapshot, _ := o.capture(nil)
+				b.ReportAllocs()
+				for b.Loop() {
+					if detail, exists := snapshot.Detail("benchmark/0"); !exists || len(detail.Sources) != sources {
+						b.Fatal("missing detail sources")
+					}
+				}
+			})
+		}
+	}
+}
+
+func benchmarkBlockObserver(b *testing.B, blocks, sources int) *blockObserver {
+	s := &Server{Store: &Store{}, cfg: DefaultConfig(), ctx: context.Background(), useBlocks: make(map[useBlockID]int), demands: make(map[*downloadDemand]bool)}
+	s.scheduler = blocksched.New(blocksched.Config{SoftLimit: 16})
+	b.Cleanup(s.scheduler.Close)
+	size := int64(blocks) * rangeBlockSize
+	for source := 0; source < sources; source++ {
+		d := &downloadDemand{ctx: context.Background(), key: "benchmark", playback: true, lastBlock: int64(blocks), clock: &playbackClock{at: time.Now().Add(time.Hour), limit: size, media: mediaTiming{size, time.Hour}}}
+		s.demands[d] = true
+	}
+	for block := int64(0); block < int64(blocks); block++ {
+		s.useBlocks[useBlockID{"benchmark", block}] = sources
+	}
+	return &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
 }

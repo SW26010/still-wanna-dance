@@ -169,7 +169,7 @@ func TestBlockObservationQueueGrowthAndGETBypass(t *testing.T) {
 			if b.Block >= 12 && b.Block <= 14 && b.State == "downloading" {
 				// Wait out GET handoffs too, so only the independent queue
 				// source can account for keeping these executions alive.
-				sources := v.Details[b.ID].Sources
+				sources := observedDetail(t, v, b.ID).Sources
 				if len(sources) != 1 || sources[0].Kind != "queue" {
 					return false
 				}

@@ -112,7 +112,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 		if current != nil && current != previous {
 			if detailID != "" {
 				var next *cacheproxy.BlockDetail
-				if v, ok := current.Details[detailID]; ok {
+				if v, ok := current.Detail(detailID); ok {
 					next = &v
 				}
 				if previous == nil || !reflect.DeepEqual(detail, next) {

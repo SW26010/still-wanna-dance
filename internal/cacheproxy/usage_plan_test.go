@@ -195,10 +195,12 @@ func TestSourceExitOnlyCreatesAuthorizedHandoffs(t *testing.T) {
 // receive only blockUse, before local availability or Blocking is applied.
 func testSourcePlan(s *Server, key string, now time.Time) (map[int64]map[blockSource]plannedNeed, bool) {
 	s.refreshUseSourcesLocked(now)
-	projected, active := s.projectUseLocked(key, now)
-	plan := make(map[int64]map[blockSource]plannedNeed, len(projected))
-	for id, needs := range projected {
-		plan[id.block] = needs
-	}
+	plan := make(map[int64]map[blockSource]plannedNeed)
+	active := s.visitUseLocked(allUseBlocks(key), now, func(id useBlockID, source blockSource, p plannedNeed) {
+		if plan[id.block] == nil {
+			plan[id.block] = make(map[blockSource]plannedNeed)
+		}
+		plan[id.block][source] = p
+	})
 	return plan, active
 }

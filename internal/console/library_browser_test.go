@@ -24,6 +24,15 @@ func TestLibraryBrowser(t *testing.T) {
 	if evidence == "" {
 		t.Skip("set SWD_LIBRARY_BROWSER_EVIDENCE for real library browser integration")
 	}
+	for _, scenario := range []string{"between-reads", "before-first-observation"} {
+		t.Run(scenario, func(t *testing.T) {
+			testLibraryBrowser(t, filepath.Join(evidence, scenario), scenario)
+		})
+	}
+}
+
+func testLibraryBrowser(t *testing.T, evidence, scenario string) {
+	t.Helper()
 	c := testConsole(t)
 	defer c.Close()
 	c.settings.VideoStorageMode = "unlimited"
@@ -75,7 +84,7 @@ func TestLibraryBrowser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
 	mediaURL := fmt.Sprintf("%s/files/2403/1-abc.mp4?e=%s&s=%d", proxy.URL, key, len(body))
-	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "library-live.mjs"), ui.URL, key, evidence, mediaURL)
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "library-live.mjs"), ui.URL, key, evidence, mediaURL, scenario)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("browser: %v\n%s", err, output)

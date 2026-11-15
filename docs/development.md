@@ -19,7 +19,7 @@ pnpm --dir webui check
 
 使用 `webui/package.json` 固定的 pnpm 版本。Windows 本机和 CI 的浏览器测试均使用 Edge；其他平台的 CI 使用 Playwright Chromium。当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
-曲库的真实 Console／下载引擎／Edge 联调可设置 `SWD_LIBRARY_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestLibraryBrowser$' -count=1 -v`。检查外部 GET 的完整下载发生在两次观察之间时，曲库无需手动检查便显示已保存；同时覆盖共享资源、搜索、偏好与删除。使用受控上游及临时文件，不启动游戏、网关或修改 hosts。
+曲库的真实 Console／下载引擎／Edge 联调可设置 `SWD_LIBRARY_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestLibraryBrowser$' -count=1 -v`。分别检查外部 GET 的完整下载发生在两次观察之间，以及曲库已读取但首次下载快照尚未采集时，曲库无需手动检查便显示已保存；同时覆盖共享资源、搜索、偏好与删除。两组证据分别写入 `between-reads` 和 `before-first-observation` 子目录。使用受控上游及临时文件，不启动游戏、网关或修改 hosts。
 
 多窗口实时订阅的真实 Console／浏览器回归可设置 `SWD_REALTIME_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestRealtime(Network|HistoryAndBlocks)Browsers$' -count=1 -v`。网络、历史和块视图分别从三个增加至六个同时可见页面，检查普通请求不因实时订阅排队、WebSocket／SSE 连接数、检测／取消跨页同步及关闭后连接释放；结果分别写入 `network`、`history`、`blocks` 子目录。只使用隔离配置和受控检测传输，不启动网关或修改 hosts。
 

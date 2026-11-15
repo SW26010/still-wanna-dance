@@ -2026,6 +2026,13 @@
       "bytes": 1322455,
       "sha256": "81f7eb51ac04b41cefd6847929f51f012d7184c322fa8d6790334776b4718fb7",
       "reason": "Reviewed generated Fluent WebUI bundle: the library keeps lightweight idle download observation and refreshes through one lifecycle revision callback, including flights completed between polls, repeated-error recovery and visibility baselines (2026-11-15). Rebuilt with unchanged locked dependencies; Edge regressions and an isolated real Console external GET verified automatic saved status without manual refresh."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322355,
+      "sha256": "430d3c0fd3a355b9d812f25cfbb5a8759fbd647d15bb0c75764cda3aee47e2fa",
+      "reason": "Reviewed generated Fluent WebUI bundle: every new download observation baseline reconciles the library once, covering complete flights before the first snapshot and after page, tab or action resets (2026-11-15). Rebuilt with unchanged locked dependencies; 101 Edge regressions and isolated real Console external GET scenarios passed. Matches webui/build-manifest.json."
     }
   ]
 }

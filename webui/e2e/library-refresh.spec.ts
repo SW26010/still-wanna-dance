@@ -14,13 +14,13 @@ async function checkTime(page:Page,label:'检查本地视频'|'更新曲库') {
   return value!;
 }
 
-test('library reads once per visit and checks local files only on demand',async({page})=>{
+test('library reconciles each download baseline then checks local files only on demand',async({page})=>{
   const api=await mockAPI(page,{libraryView:'list'});
   await page.clock.install({time:new Date('2026-10-28T08:00:00Z')});
   await page.goto('/#/library');
   await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
   const reads=()=>api.calls.filter(c=>['library','inventory','downloads'].includes(c.path)).map(c=>c.path).sort();
-  await expect.poll(reads).toEqual(['downloads','inventory','library']);
+  await expect.poll(reads).toEqual(['downloads','inventory','library','library']);
   const initial=reads().filter(path=>path!=='downloads');
   await page.clock.fastForward(31000);
   await expect.poll(()=>api.calls.filter(c=>c.path==='status').length).toBeGreaterThan(1);
@@ -37,7 +37,7 @@ test('library reads once per visit and checks local files only on demand',async(
   expect(api.calls.filter(c=>c.path==='inventory')).toHaveLength(1);
   expect(api.calls.some(c=>c.path==='inventory/scan')).toBe(false);
   await navigate(page,'关于');await navigate(page,'曲库');
-  await expect.poll(()=>api.calls.filter(c=>c.path==='library').length).toBe(3);
+  await expect.poll(()=>api.calls.filter(c=>c.path==='library').length).toBe(5);
   await expect.poll(()=>api.calls.filter(c=>c.path==='inventory').length).toBe(2);
 });
 
@@ -75,23 +75,24 @@ test('import progress refreshes one shared storage snapshot without polling unch
   const local=page.getByRole('group',{name:'本地视频',exact:true});
   const reads=()=>api.calls.filter(c=>c.path==='library').length;
   await expect(summaries).toHaveText(['本地视频：已用 2.000 GiB / 不限制','本地视频：已用 2.000 GiB / 不限制']);
-  expect(reads()).toBe(1);
+  await expect.poll(reads).toBe(2);
   api.files.push({...api.files[0],key:'key3',songs:[{id:'3',title:'新导入'}]});
   api.state.import.imported=3;api.state.import.checked=4;
   await expectWithClock(page,()=>local.textContent()).toContain('3 个');
   await expect(summaries).toHaveText(['本地视频：已用 3.000 GiB / 不限制','本地视频：已用 3.000 GiB / 不限制']);
-  expect(reads()).toBe(2);
+  expect(reads()).toBe(3);
   api.state.import.checked=5;api.state.import.skipped=2;
   await expectWithClock(page,()=>page.locator('#video-import').textContent()).toContain('5/20 个视频');
-  await page.clock.fastForward(31000);expect(reads()).toBe(2);
+  await page.clock.fastForward(31000);expect(reads()).toBe(3);
   // A new import can already have the same success count at its first observation.
   api.state.import.id=2;api.files.pop();
-  await expectWithClock(page,()=>local.textContent()).toContain('2 个');expect(reads()).toBe(3);
+  await expectWithClock(page,()=>local.textContent()).toContain('2 个');expect(reads()).toBe(4);
   await navigate(page,'关于');
   api.files.pop();api.state.import.imported=4;api.state.import.checked=6;
-  await page.clock.fastForward(11000);expect(reads()).toBe(3);
+  await page.clock.fastForward(11000);expect(reads()).toBe(4);
   await navigate(page,'曲库');
   await expect(summaries).toHaveText(['本地视频：已用 1.000 GiB / 不限制','本地视频：已用 1.000 GiB / 不限制']);
+  await expect.poll(reads).toBe(6);
   const returned=reads();
   api.files.pop();api.state.import.running=false;
   await expectWithClock(page,()=>local.textContent()).toContain('0 个');
@@ -226,6 +227,7 @@ for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const
   const button=page.getByRole('button',{name:kind==='local'?'检查本地视频':'更新曲库',exact:true});
   await expect(button).toBeEnabled();
   await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
+  await expect.poll(()=>localReads).toBe(2);
   const icon=button.locator('svg');
   await expect(icon).toBeVisible();
   expect(await icon.evaluate(el=>el.getAnimations().length)).toBe(0);
@@ -239,7 +241,7 @@ for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const
   holdLocal=kind==='local';
   await button.focus();await button.press('Enter');
   await expect(button).toBeDisabled();
-  if(kind==='local')await expect.poll(()=>localReads).toBe(2);
+  if(kind==='local')await expect.poll(()=>localReads).toBe(3);
   else await expect.poll(()=>inventoryReads).toBeGreaterThan(initialInventoryReads);
   await page.clock.runFor(50);
   expect(await layout()).toEqual(before);
@@ -256,7 +258,7 @@ for(const width of [1280,390,320])for(const kind of ['local','catalog'] as const
   await expect(page.getByRole('tooltip')).not.toContainText(/正在|更新中|检查中/);
   await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toHaveCount(0);
   await button.press('Enter');
-  if(kind==='local')expect(localReads).toBe(2);else expect(scans).toBe(1);
+  if(kind==='local')expect(localReads).toBe(3);else expect(scans).toBe(1);
   await page.getByRole('region',{name:'曲库概览'}).screenshot({path:info.outputPath('refreshing.png'),animations:'disabled'});
   await page.emulateMedia({reducedMotion:'reduce'});
   expect(await icon.evaluate(el=>el.getAnimations().length)).toBe(0);

@@ -114,9 +114,10 @@ for(const [width,theme] of [[1280,'light'],[390,'dark']] as const)test(`cover re
     if(url.pathname==='/api/library'&&url.searchParams.get('covers')==='1'&&response.ok())selections.push((await response.json()).covers['1'].source);
   });
   let coverReads=0;
+  const loadedCovers=new Set<string>();
   await page.route('**/api/library/cover?*',route=>{
     coverReads++;
-    refresh.api.coverFiles.add(new URL(route.request().url()).searchParams.get('id')!);
+    loadedCovers.add(new URL(route.request().url()).searchParams.get('id')!);
     return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect width="480" height="360" fill="#426c68"/></svg>'});
   });
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme});
@@ -124,7 +125,8 @@ for(const [width,theme] of [[1280,'light'],[390,'dark']] as const)test(`cover re
   const grid=page.getByRole('list',{name:'曲库封面'}),card=grid.getByRole('group',{name:'歌曲 1',exact:true});
   const image=card.locator('img.is-ready[src^="blob:"]'),favorite=card.getByRole('button',{name:'收藏',exact:true});
   await expect(image).toBeVisible();await expect.poll(()=>coverReads).toBe(2);
-  await expect.poll(()=>selections).toEqual(['category']);
+  await expect.poll(()=>selections).toEqual(['category','category']);
+  for(const id of loadedCovers)refresh.api.coverFiles.add(id);
   const source=await image.getAttribute('src'),original=await image.elementHandle();
   await card.getByRole('button',{name:'歌曲 1 的操作',exact:true}).click();
   await page.getByRole('menuitem',{name:'详情',exact:true}).click();
@@ -141,7 +143,7 @@ for(const [width,theme] of [[1280,'light'],[390,'dark']] as const)test(`cover re
     await page.screenshot({path:info.outputPath('cover-refreshing.png'),animations:'disabled'});
   } finally {refresh.release();}
   await expect(grid).toHaveAttribute('aria-busy','false');
-  await expect.poll(()=>selections).toEqual(['category','local']);
+  await expect.poll(()=>selections).toEqual(['category','category','local']);
   await expect(details).toBeVisible();
   expect(await image.getAttribute('src')).toBe(source);
   expect(await original!.evaluate(el=>el.isConnected)).toBe(true);

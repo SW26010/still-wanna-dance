@@ -22,6 +22,7 @@ type ActiveDownload struct {
 }
 
 type ActiveDownloads struct {
+	Revision       uint64           `json:"revision"`
 	Tasks          []ActiveDownload `json:"tasks"`
 	BytesPerSecond float64          `json:"bytesPerSecond"`
 }
@@ -46,6 +47,7 @@ func (s *Server) ActiveDownloads(ctx context.Context) (result ActiveDownloads, e
 		s.mu.Unlock()
 		return result, nil
 	}
+	result.Revision = s.downloadRevision
 	for key, f := range s.flights {
 		p := f.progress
 		if p == nil {

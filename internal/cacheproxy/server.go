@@ -67,6 +67,7 @@ type Server struct {
 	storageFailure   error // protected by mu; prevents new downloads until restart
 	storageFailed    chan struct{}
 	flights          map[string]*flight
+	downloadRevision uint64                   // protected by mu; advances on shared flight start/end
 	resourceUses     map[string]*resourceUse  // protected by mu; completed Range work with continuing usage
 	demands          map[*downloadDemand]bool // protected by mu, separate from file pins
 	preparationSeq   uint64                   // protected by mu; never reused during this engine's lifetime

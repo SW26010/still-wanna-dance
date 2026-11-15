@@ -2019,6 +2019,13 @@
       "bytes": 1321976,
       "sha256": "a4bcf5e967b91a5a6914abadbd0a62855805c4974398bb335346011f27010013",
       "reason": "Reviewed generated Fluent WebUI bundle: batch failure details load in pages of 50 from the result module and unmount when leaving the library; status polling carries only the summary (2026-11-15). Rebuilt with locked dependencies and verified against an isolated real Console restored from 10,575 complete failures."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322455,
+      "sha256": "81f7eb51ac04b41cefd6847929f51f012d7184c322fa8d6790334776b4718fb7",
+      "reason": "Reviewed generated Fluent WebUI bundle: the library keeps lightweight idle download observation and refreshes through one lifecycle revision callback, including flights completed between polls, repeated-error recovery and visibility baselines (2026-11-15). Rebuilt with unchanged locked dependencies; Edge regressions and an isolated real Console external GET verified automatic saved status without manual refresh."
     }
   ]
 }

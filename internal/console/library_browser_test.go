@@ -56,6 +56,8 @@ func TestLibraryBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.service = engine
+	proxy := httptest.NewServer(engine)
+	defer proxy.Close()
 	name := "共享视频"
 	if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{Source: "test", Revision: "20261024000000", Songs: []cacheproxy.CatalogSong{{ID: 1, Name: &name, MD5: key}, {ID: 8603, Name: &name, MD5: key}}}); err != nil {
 		t.Fatal(err)
@@ -72,7 +74,8 @@ func TestLibraryBrowser(t *testing.T) {
 	defer ui.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "library-live.mjs"), ui.URL, key, evidence)
+	mediaURL := fmt.Sprintf("%s/files/2403/1-abc.mp4?e=%s&s=%d", proxy.URL, key, len(body))
+	cmd := exec.CommandContext(ctx, "node", filepath.Join("..", "..", "webui", "test-support", "library-live.mjs"), ui.URL, key, evidence, mediaURL)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("browser: %v\n%s", err, output)

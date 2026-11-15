@@ -304,6 +304,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 		f.monitorSongs[v.songID] = true
 	}
 	s.flights[v.key] = f
+	s.downloadRevision++
 	if use := s.resourceUses[v.key]; use != nil {
 		use.video = resourceVideo(v)
 		use.video.songID, use.video.localOnly = v.songID, v.localOnly
@@ -345,6 +346,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 		s.finishLocalResource(f.ranges, f.err)
 		s.mu.Lock()
 		delete(s.flights, v.key)
+		s.downloadRevision++
 		s.continueResourceUseLocked(v, f)
 		if background {
 			s.background--

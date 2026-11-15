@@ -77,7 +77,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     const command=path.match(/^network\/(connectivity|calibration)\/(start|cancel)$/);
     if(command&&match(`POST ${path}`)){const kind=command[1] as keyof typeof diagnostics,diag=diagnostics[kind];diag.revision++;diag.running=command[2]==='start';diag.phase=diag.running?'running':'canceled';if(diag.running){diag.run++;diag.upstream=state.activeSettings.upstreamMode;if(kind==='connectivity')Object.assign(diag,{operation:body.operation});}await emit(kind);}
     if (match('GET inventory')) data={totalSongs:2,coveredSongs:1,coverageKnown:true,updated:'2026-10-16T00:00:00Z'};
-    if (match('GET downloads')) data={tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
+    if (match('GET downloads')) data={revision:0,tasks:[],bytesPerSecond:0,gets:{requests:[],total:0}};
     if (match('GET songs')) data={storageID:'fixture',entries:[],total:0};
     if(match('GET history'))data={storageID:'fixture',requests:[],hasMore:false,nextCursor:''};
     if(match('GET history/count'))data={storageID:'fixture',total:0,countedAt:Date.now()};

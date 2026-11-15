@@ -25,7 +25,7 @@ try {
   expect(firstPage.requests.every(r=>!('cache' in r))).toBe(true);
   const status=await(await page.request.get(baseURL+'/api/status',{headers:{'X-SWD-Token':token}})).json();
   expect(status).not.toHaveProperty('traffic');
-  const sourceHeading=page.getByRole('heading',{name:'近期响应来源',exact:true});
+  const sourceHeading=page.getByRole('heading',{name:'响应来源',exact:true});
   await expect(sourceHeading).toBeVisible();
   expect(firstPage.requests.every(r=>r.bytes===4&&r.sources.localBytes===blockBytes)).toBe(true);
   expect(firstPage.requests.every(r=>r.songID==='42'&&r.songTitle==='new current mapping'&&r.resource===key)).toBe(true);
@@ -111,7 +111,7 @@ try {
   const cached=await(await page.request.get(baseURL+'/api/history/stats',{headers:{'X-SWD-Token':token}})).json();
   expect(cached.to).toBe(latency.to);expect(cached.requests).toBe(601);
   await expect(page.getByRole('button',{name:/刷新来源统计|刷新响应时间统计/})).toHaveCount(0);
-  await sourceHeading.focus();await expect(page.getByRole('tooltip')).toContainText('最多最近 10,000 条原始请求');await page.keyboard.press('Escape');
+  await sourceHeading.focus();await expect(page.getByRole('tooltip')).toHaveText('视频响应中，下载、缓存和本地视频各自所占的比例。');await page.keyboard.press('Escape');
   const statsResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/history/stats');
   await page.getByRole('button',{name:'查询历史',exact:true}).click();
   const refreshed=await(await statsResponse).json();expect(refreshed.to).toBe(cached.to);expect(refreshed.requests).toBe(601);

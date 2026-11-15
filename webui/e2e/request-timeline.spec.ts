@@ -79,13 +79,13 @@ test('adjacent cancellation filter defaults on, resets pagination, and stays onl
 for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const)test(`response sources use frozen bytes and fit ${width}px ${scheme}`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:scheme,forcedColors:width===320?'active':'none'});
   const sources={downloadBytes:1048576,cacheBytes:2097152,localBytes:1048576};
-  await page.route('**/api/history/stats*',r=>r.fulfill({json:statisticsFixture({sources})}));
+  await page.route('**/api/history/stats*',r=>r.fulfill({json:statisticsFixture({sources,sourceSamples:6})}));
   await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:[{...record(1),sources},{...record(2),sources:{downloadBytes:0,cacheBytes:0,localBytes:0}},record(3),...(['downloadBytes','cacheBytes','localBytes'] as const).map((key,i)=>({...record(i+4),sources:{downloadBytes:0,cacheBytes:0,localBytes:0,[key]:100}}))],total:6,hasMore:false,nextCursor:''}}));
   await page.goto('/#/timeline');
   const summary=page.getByRole('region',{name:'响应来源统计'});
-  const heading=summary.getByRole('heading',{name:'近期响应来源',exact:true});
+  const heading=summary.getByRole('heading',{name:'响应来源',exact:true});
   await expect(heading).toBeVisible();
-  await heading.focus();await expect(page.getByRole('tooltip')).toContainText('最多最近 10,000 条原始请求');await page.keyboard.press('Escape');
+  await heading.focus();await expect(page.getByRole('tooltip')).toHaveText('视频响应中，下载、缓存和本地视频各自所占的比例。');await page.keyboard.press('Escape');
   await expect(summary.getByText('下载 25%',{exact:true})).toBeVisible();
   await expect(summary.getByText('缓存 50%',{exact:true})).toBeVisible();
   await expect(summary.getByText('本地视频 25%',{exact:true})).toBeVisible();

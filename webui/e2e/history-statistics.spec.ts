@@ -4,7 +4,7 @@ import {navigate} from './navigation';
 
 const visibility=async(page:import('@playwright/test').Page,hidden:boolean)=>page.evaluate(hidden=>{Object.defineProperty(document,'hidden',{configurable:true,value:hidden});document.dispatchEvent(new Event('visibilitychange'));},hidden);
 
-test('statistics follow history triggers without refresh controls or timers',async({page})=>{
+test('statistics use history triggers and concise explanations and sample tooltips without refresh controls or timers',async({page},info)=>{
   const api=await mockAPI(page);await page.clock.install();
   let reads=0;
   await page.route('**/api/history/stats',route=>{
@@ -12,8 +12,14 @@ test('statistics follow history triggers without refresh controls or timers',asy
     return route.fulfill({json:statisticsFixture({sourceSamples:181,sources:{downloadBytes:1,cacheBytes:0,localBytes:0},ready:{samples:5,p50MS:reads,p95MS:9}})});
   });
   await page.goto('/#/timeline');
+  const source=page.getByRole('heading',{name:'响应来源',exact:true});
   await expect(page.getByText('P50 1 ms · P95 9 ms',{exact:true})).toBeVisible();expect(reads).toBe(1);
   await expect(page.getByRole('button',{name:/刷新来源统计|刷新响应时间统计/})).toHaveCount(0);
+  for(const action of ['hover','focus'] as const){
+    await source[action]();await expect(page.getByRole('tooltip')).toHaveText('视频响应中，下载、缓存和本地视频各自所占的比例。');if(action==='focus')await page.screenshot({path:info.outputPath('source-explanation.png'),animations:'disabled'});await page.keyboard.press('Escape');await page.mouse.move(0,0);
+  }
+  const group=page.getByText('缓存／本地',{exact:true}).locator('..');
+  await group.focus();await expect(page.getByRole('tooltip')).toHaveText('样本 5 个');await page.screenshot({path:info.outputPath('latency-samples.png'),animations:'disabled'});await page.keyboard.press('Escape');
   await page.clock.fastForward(121000);expect(reads).toBe(1);
   await api.historyChanged();await expect(page.getByText('P50 2 ms · P95 9 ms',{exact:true})).toBeVisible();expect(reads).toBe(2);
   await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect.poll(()=>reads).toBe(3);

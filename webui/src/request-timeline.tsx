@@ -22,22 +22,16 @@ function SourceShares({sources,details=false}:{sources:ResponseSources|null|unde
   const total=sources.downloadBytes+sources.cacheBytes+sources.localBytes;
   if(!total)return <span>—</span>;
   return <div className={details?'inline':'table-source-shares'}>{([['下载',sources.downloadBytes],['缓存',sources.cacheBytes],[details?'本地视频':'本地',sources.localBytes]] as const).filter(([,bytes])=>details||bytes>0).map(([label,bytes])=>{
-    const share=<span tabIndex={details?0:undefined}>{label}{details||bytes!==total?` ${(bytes/total*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:''}</span>;
-    return details?<Tooltip key={label} content={`${label}：${bytes.toLocaleString()} 字节`} relationship="description">{share}</Tooltip>:<div key={label}>{share}</div>;
+    const share=<span key={label}>{label}{details||bytes!==total?` ${(bytes/total*100).toLocaleString(undefined,{maximumFractionDigits:1})}%`:''}</span>;
+    return details?share:<div key={label}>{share}</div>;
   })}</div>;
-}
-
-function statisticsDescription(v:RequestStatistics|undefined) {
-  const scope=`最近 72 小时内，最多最近 ${(v?.limit??10000).toLocaleString()} 条原始请求；先选取请求，再筛选有效样本。`;
-  return !v?scope:
-    `统计时间：${date(v.to)}。${scope}时间范围：${date(v.from)} 至 ${date(v.to)}（不含结束时刻）。已选 ${v.requests.toLocaleString()} 条${v.oldestAt!=null?`，最早请求 ${date(v.oldestAt)}`:''}；来源有效样本 ${v.sourceSamples.toLocaleString()} 个，响应时间有效样本 ${(v.ready.samples+v.blocking.samples).toLocaleString()} 个。不受列表筛选影响。`;
 }
 
 function ResponseSourceSummary({statistics:sources}:{statistics:ReturnType<typeof useResource<RequestStatistics>>}) {
   const styles=useSummaryStyles();
   return (<section aria-label="响应来源统计" aria-busy={sources.loading}>
       <div className={'inline history-summary '+styles.summary}>
-        <Tooltip content={statisticsDescription(sources.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>近期响应来源</Subtitle2></Tooltip>
+        <Tooltip content="视频响应中，下载、缓存和本地视频各自所占的比例。" relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应来源</Subtitle2></Tooltip>
         {sources.data?<SourceShares sources={sources.data.sources} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
     </section>);
@@ -70,8 +64,8 @@ export function RequestTimeline({visible}:{visible:boolean}) {
     <ResponseSourceSummary statistics={statistics}/>
     <section aria-label="响应时间" aria-busy={statistics.loading}>
       <div className={'inline history-summary '+styles.summary}>
-        <Tooltip content={'从收到请求到首次返回视频正文的时间。'+statisticsDescription(statistics.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip>
-        {([['等待下载',statistics.data?.blocking],['缓存／本地',statistics.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`有效样本 ${g?.samples??'—'} 个。${statisticsDescription(statistics.data)}`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?statistics.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
+        <Tooltip content="从收到请求到首次返回视频正文的时间" relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip>
+        {([['等待下载',statistics.data?.blocking],['缓存／本地',statistics.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`样本 ${g?.samples??'—'} 个`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?statistics.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
       </div>
       {visible&&statistics.error&&<MessageBar intent="error"><MessageBarBody>统计读取失败。{statistics.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
     </section><section id="recent" className="content-stack" tabIndex={-1}>

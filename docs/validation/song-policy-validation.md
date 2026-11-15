@@ -119,3 +119,37 @@
 本轮未启动 VRC、修改 hosts 或操作用户视频。变化可由隔离存储、真实服务与浏览器判断，不新增 VRC 待验项；没有把受控结果外推为新的游戏体验结论。
 
 进一步收敛文案：只将设置原有说明改为“收藏视频在预算内优先保留，不会自动下载。”；删除帮助、占用提示和 README 中失效的超预算例外，不另外强调收藏受预算约束或可能被清理。同步移除界面内容约定中的额外说明。前端重建、一致性与产物分类检查通过；Edge 定向回归 20/20 通过（8.8 秒），日志在忽略目录 `artifacts/favorite-budget-copy-browser.log`。后端实现未改动，既有验证结果继续适用。
+
+## 批量补齐按资源读取偏好（2026-11-15）
+
+逐资源处理原先在检查本地命中前调用全量 `SongPolicies`，重复读取全部偏好并构造 map。现在仅把当前资源本轮选中的关联歌曲交给 Store 内部偏好查询：单首关联按主键查询，多首关联复用现有 `json_each` 方式批量筛选，避免 SQL 参数数量限制。公开的全量快照接口和排序阶段必要的单次全量读取保留，不增加常驻缓存、配置或数据库迁移。
+
+每份资源仍在处理时读取最新偏好；正式准备入口及容量等待后的准入复查保留。屏蔽仍在本地命中计数之前过滤，屏蔽歌曲仍可为同资源的其他选中歌曲提供地址线索；已有需求的生命周期不变。
+
+### 受控开销对照
+
+`BenchmarkDownloadFillPolicies` 运行真实 `DownloadFill.Run` 和 SQLite adapter，每轮处理 5,000 个不同资源，全部使用本地命中快照；0／1,000 条偏好均与所选歌曲无关。建库、填充偏好及快照构造不计入测量，不涉及网络、实际视频文件 I/O 或游戏下载吞吐。环境为 Windows amd64、Go 1.27.3、Node 24.22.1、Ryzen 7 9850X3D；以下为每组 3 次单轮运行的中位数：
+
+| 偏好数量 | 优化前耗时 | 优化后耗时 | 优化前累计分配 | 优化后累计分配 |
+| --- | --- | --- | --- | --- |
+| 0 | 0.521 秒 | 0.458 秒 | 9.37 MiB | 10.08 MiB |
+| 1,000 | 2.269 秒 | 0.445 秒 | 824.96 MiB | 10.00 MiB |
+
+累计分配不是常驻内存；耗时只是本机受控场景观测，不能换算成实际下载速度。最终基准在本轮其他检查结束后单独执行。最初统一使用 JSON 筛选的中间版本已消除无关偏好数量带来的分配增长，但存在固定子查询开销，最终对单首关联使用单键查询；中间结果也保留在忽略目录。
+
+复跑命令：
+
+```powershell
+./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^$' -bench '^BenchmarkDownloadFillPolicies$' -benchtime=1x -benchmem -count=3
+```
+
+### 行为与回归范围
+
+- 新增分配回归通过实际批量入口处理 8 个本地命中资源，对照 0／1,000 条无关偏好。修复前连续两次失败，分配次数约为 481／46,602；修复后通过，允许固定运行时开销，不设置耗时阈值。
+- 新增检查覆盖空选择、普通／收藏／屏蔽歌曲、重复 ID、无关偏好排除及 64 位整数 ID；本地命中资源处理间屏蔽／取消屏蔽会影响下一份资源；资源级读取之后、准备入口之前屏蔽，仍返回跳过且不解析地址、不登记需求。
+- 最终偏好与批量回归通过：`-run 'DownloadFill|SongPolic|BlockedSong|BlockingDoesNotCancel|PreparationRechecksBlockedSongAfterCapacityWait|Batch|TargetDownload|FixedResourceFill' -count=1 -timeout=180s`，cacheproxy 26.385 秒、Console 13.315 秒。覆盖共享别名、历史歌曲、收藏排序、预算停止、扫描和取消；两包 `go vet` 通过。
+- 最终定向 Windows race 通过（124.387 秒，GCC 16.2.0）：`-run '^Test(DownloadFillPolicyAllocationsIndependentOfUnrelatedPreferences|DownloadFillReadsCurrentPoliciesBeforeLocalHits|DownloadFillRechecksPolicyAtAdmission|DownloadFillUsesBlockedSelectedSongAsAddressHint|SongPoliciesForSelectedSongs|PreparationRechecksBlockedSongAfterCapacityWait|BlockingDoesNotCancelAdmittedPreparation|BlockingDoesNotCancelAdmittedPlayback)$' -count=1 -timeout=180s`。覆盖本次查询与分配回归、共享资源屏蔽、准入复查及已准入来源不被撤销；未将该结果外推为整包 race 通过。
+
+失败与限制保留：Console 首轮沙箱检查在既有 `terms.json` 原子重命名处报无效句柄，使用相同隔离入口在普通 Windows 权限下通过；race 首轮沙箱检查报 `ThreadSanitizer: failed to restore address`。普通权限下较宽的 race 组合触及 180 秒总期限，超时堆栈停在 `createEmptyFixtureStore` 的 SQLite 种子数据清理，没有 DATA RACE 报告；该范围未完成。随后按同一期限收窄至上述直接相关检查并通过，没有延长测试期限或修改夹具／产品文件操作。
+
+证据在忽略目录 `artifacts/fill-policy/`：`before-test.log`、`before-bench.log` 保留原始复现；`after-test-bench.log` 与 `final-test-bench.log` 保留中间测量；`final-bench.log` 为最终独立基准；`regression.log`、`race.log`、`final-race.log` 保留环境失败及较宽 race 超时；`final-regression.log`、`focused-race.log` 为最终通过日志，`final-vet.log` 保存无输出成功的退出回执。本轮只使用隔离数据库、快照及受控上游，未启动游戏或修改系统 hosts，无需新增 VRC 验收项。

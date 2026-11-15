@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 )
 
@@ -32,13 +33,32 @@ func readSongPolicy(ctx context.Context, db *sql.DB, id int64) (SongPolicy, erro
 
 // SongPolicies is a sparse snapshot for source selection and display. Entry
 // points still check admission when creating work; this snapshot owns no demand.
-func (s *Store) SongPolicies(ctx context.Context) (resultValue map[int64]SongPolicy, resultErr error) {
+func (s *Store) SongPolicies(ctx context.Context) (map[int64]SongPolicy, error) {
+	return s.songPolicies(ctx, nil)
+}
+
+// songPolicies reads a fresh sparse snapshot for the selected song IDs. A nil
+// selection requests all preferences; an empty selection returns no entries.
+func (s *Store) songPolicies(ctx context.Context, ids []string) (resultValue map[int64]SongPolicy, resultErr error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
 	defer s.wg.Done()
 	defer func() { resultErr = s.storageError(resultErr) }()
-	rows, err := s.usage.db.QueryContext(ctx, "SELECT song_id,policy FROM song_preferences")
+	query := "SELECT song_id,policy FROM song_preferences"
+	var args []any
+	if len(ids) == 1 {
+		query += " WHERE song_id=?"
+		args = []any{ids[0]}
+	} else if ids != nil {
+		encoded, err := json.Marshal(ids)
+		if err != nil {
+			return nil, err
+		}
+		query += " WHERE song_id IN (SELECT CAST(value AS INTEGER) FROM json_each(?))"
+		args = append(args, string(encoded))
+	}
+	rows, err := s.usage.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, s.storageError(err)
 	}

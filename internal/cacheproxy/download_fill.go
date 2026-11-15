@@ -192,7 +192,7 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 		}
 		if !f.scanOnly {
 			var policies map[int64]SongPolicy
-			policies, err = s.Store.SongPolicies(ctx)
+			policies, err = s.Store.songPolicies(ctx, job.ids)
 			if err == nil {
 				for _, id := range job.ids {
 					n, _ := strconv.ParseInt(id, 10, 64)

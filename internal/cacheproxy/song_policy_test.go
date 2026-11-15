@@ -3,9 +3,37 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestSongPoliciesForSelectedSongs(t *testing.T) {
+	s, _ := fillPolicyFixture(t, 0, 0)
+	for id, policy := range map[int64]SongPolicy{42: SongFavorite, 43: SongBlocked, 44: SongBlocked, 9223372036854775807: SongFavorite} {
+		if err := s.Store.SetSongPolicy(t.Context(), id, policy); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		name string
+		ids  []string
+		want map[int64]SongPolicy
+	}{
+		{"empty", []string{}, map[int64]SongPolicy{}},
+		{"favorite", []string{"42"}, map[int64]SongPolicy{42: SongFavorite}},
+		{"blocked", []string{"43"}, map[int64]SongPolicy{43: SongBlocked}},
+		{"normal", []string{"45"}, map[int64]SongPolicy{}},
+		{"selected", []string{"42", "43", "45", "42", "9223372036854775807"}, map[int64]SongPolicy{42: SongFavorite, 43: SongBlocked, 9223372036854775807: SongFavorite}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := s.Store.songPolicies(t.Context(), tc.ids)
+			if err != nil || !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("policies=%v want=%v error=%v", got, tc.want, err)
+			}
+		})
+	}
+}
 
 func TestSongPoliciesPersistWithoutDownloadOrCatalogMutation(t *testing.T) {
 	s, cfg := setup(t, nil)

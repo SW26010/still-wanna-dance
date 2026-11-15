@@ -17,6 +17,25 @@ type libraryPage struct {
 	Covers map[string]songCoverChoice `json:"covers,omitempty"`
 }
 
+func (c *Console) scanLibrary(w http.ResponseWriter, r *http.Request) {
+	c.mu.Lock()
+	service, closing := c.service, c.closing
+	c.mu.Unlock()
+	if closing {
+		http.Error(w, "程序正在退出", http.StatusConflict)
+		return
+	}
+	if service != nil {
+		if err := service.RefreshLibraryInventory(r.Context()); err != nil {
+			preserveResponseFault(w, err)
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
 func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "method not allowed", 405)
@@ -59,7 +78,7 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.mu.Lock()
-	root, closing := libraryPaths(c.settings), c.closing
+	root, service, closing := libraryPaths(c.settings), c.service, c.closing
 	c.mu.Unlock()
 	if closing {
 		http.Error(w, "程序正在退出", 409)
@@ -72,7 +91,11 @@ func (c *Console) libraryAPI(w http.ResponseWriter, r *http.Request) {
 	var page cacheproxy.LibraryPage
 	_, err = c.businessStore()
 	if err == nil {
-		page, err = cacheproxy.ReadLibraryPage(ctx, root, q)
+		if service != nil {
+			page, err = service.ReadLibraryPage(ctx, q)
+		} else {
+			page, err = cacheproxy.ReadLibraryPage(ctx, root, q)
+		}
 	}
 	if err != nil {
 		preserveResponseFault(w, err)

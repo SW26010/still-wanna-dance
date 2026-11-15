@@ -198,6 +198,62 @@ func TestLibraryMissingStorageRemainsReadOnly(t *testing.T) {
 	}
 }
 
+func TestLibraryEngineReusesAndRefreshesInventory(t *testing.T) {
+	s, cfg := setup(t, nil)
+	key, external := videoKey("inventory shared"), videoKey("inventory external")
+	seedPrioritySong(t, s, "1", key)
+	seedPrioritySong(t, s, "2", key)
+	writeTestFile(t, cfg.videoFile(key), "shared")
+	if err := s.RefreshLibraryInventory(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// Paging must use the maintained stock. External changes enter through an
+	// explicit check (or periodic reconciliation), not another page's scan.
+	writeTestFile(t, cfg.videoFile(external), "external")
+	page, err := s.ReadLibraryPage(t.Context(), LibraryQuery{Filter: "saved"})
+	if err != nil || page.Total != 2 || page.FileCount != 1 || page.TotalBytes != 6 || len(page.Resources) != 1 || page.Resources[key].SongCount != 2 {
+		t.Fatal(page, err)
+	}
+	if err := s.RefreshLibraryInventory(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	page, err = s.ReadLibraryPage(t.Context(), LibraryQuery{View: "resources", Filter: "saved"})
+	if err != nil || page.Total != 2 || page.FileCount != 2 || page.TotalBytes != 14 || page.Resources[external].Local == nil {
+		t.Fatal(page, err)
+	}
+	removed, err := s.DeleteCache(t.Context(), []CacheSelection{{Key: key, Stamp: page.Resources[key].Local.Stamp}})
+	if err != nil || len(removed) != 1 || removed[0].Result != "deleted" {
+		t.Fatal(removed, err)
+	}
+	page, err = s.ReadLibraryPage(t.Context(), LibraryQuery{Filter: "saved"})
+	if err != nil || page.Total != 0 || page.FileCount != 1 || page.TotalBytes != 8 {
+		t.Fatal("deletion must update the maintained stock immediately", page, err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := s.RefreshLibraryInventory(ctx); err != context.Canceled {
+		t.Fatal(err)
+	}
+}
+
+func TestLibraryUnicodeSearchTreatsSQLWildcardsLiterally(t *testing.T) {
+	s, cfg := setup(t, nil)
+	key := videoKey("unicode search")
+	seedPrioritySong(t, s, "1", key)
+	if _, err := s.Store.db.Exec(`UPDATE songs SET name='ÄBC_100%\Tail',artist='Artist',dancer='Dancer',groupName='Group' WHERE id=1;
+ INSERT INTO songs(id,name) VALUES (2,'ABCX100fooTail')`); err != nil {
+		t.Fatal(err)
+	}
+	for _, view := range []string{"songs", "resources"} {
+		for _, search := range []string{"äbc_100%\\tail", "%", "_", "tail\nartist", "artist\ndancer\ngroup"} {
+			page, err := ReadLibraryPage(t.Context(), cfg.libraryPaths(), LibraryQuery{View: view, Search: search})
+			if err != nil || page.Total != 1 {
+				t.Fatalf("%s %q: %+v %v", view, search, page, err)
+			}
+		}
+	}
+}
+
 func TestLibraryDemandScoresPrecedeInitialScoresBeforePagination(t *testing.T) {
 	s, cfg := setup(t, nil)
 	ctx := context.Background()

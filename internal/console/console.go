@@ -720,6 +720,10 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 		c.preparePreview(w, r)
 		return
 	}
+	if r.URL.Path == "/api/library/scan" {
+		c.scanLibrary(w, r)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/vrcx/") {
 		c.serveVRCX(w, r)
 		return

@@ -42,7 +42,7 @@ export function useCacheActions(snapshot: Pick<LibraryPage,'storageID'|'resource
   return {operate,pending,result:feedback.value};
 }
 const inventoryRefreshInterval=(data:Inventory)=>data.scanning?1000:0;
-export function InventoryPanel({visible,waitingForDatabase,files,videoError,refresh,loading,loadedAt,readError,actions}: {visible:boolean;waitingForDatabase:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;loading:boolean;loadedAt?:number;readError?:string;actions:ReactNode}) {
+export function InventoryPanel({visible,waitingForDatabase,files,videoError,refresh,checkLocal,loading,loadedAt,readError,actions}: {visible:boolean;waitingForDatabase:boolean;videoError?:string;files?:Pick<LibraryPage,'fileCount'|'totalBytes'>;refresh:()=>void;checkLocal:()=>void;loading:boolean;loadedAt?:number;readError?:string;actions:ReactNode}) {
   const app = useApp(), s=app.status.data!;
   const [lastCheckedAt,setLastCheckedAt]=useState<number>();
   useEffect(()=>{
@@ -73,7 +73,7 @@ export function InventoryPanel({visible,waitingForDatabase,files,videoError,refr
   return <section id="overview" className="library-summary" aria-label="曲库概览">
     <div className="inline summary-values">
       <div role="group" aria-label="本地视频">
-        <div className="inline"><span className="secondary">本地视频</span><Tooltip content={<>检查本地视频<Text block size={200}>最后检查时间：{date(lastCheckedAt)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="检查本地视频" aria-busy={loading} disabled={app.unavailable||loading||waitingForDatabase} disabledFocusable={loading} onClick={refresh}/></Tooltip></div>
+        <div className="inline"><span className="secondary">本地视频</span><Tooltip content={<>检查本地视频<Text block size={200}>最后检查时间：{date(lastCheckedAt)}</Text></>} relationship="description"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-label="检查本地视频" aria-busy={loading} disabled={app.unavailable||loading||waitingForDatabase} disabledFocusable={loading} onClick={checkLocal}/></Tooltip></div>
         <Text block size={500} weight="semibold">{files?`${files.fileCount} 个 · ${gib(files.totalBytes)}`:'—'}</Text>
         {(waitingForDatabase||readError||videoError)&&<Text block size={200} role="status">{waitingForStorage?'待确认存储':'检查失败'}</Text>}
       </div>

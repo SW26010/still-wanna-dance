@@ -16,6 +16,10 @@ try {
   const priorScore=await rows.nth(2).getByRole('cell').nth(4).innerText();
   await expect(rows.nth(2).getByRole('cell').nth(4)).toHaveAccessibleName('初始分数 '+priorScore);
   expect(Number(priorScore)).toBeGreaterThan(0.1);
+  const localCheck=page.waitForResponse(response=>response.url().endsWith('/api/library/scan')&&response.request().method()==='POST');
+  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
+  expect((await localCheck).status()).toBe(200);
+  await expect(page.getByRole('button',{name:'检查本地视频',exact:true})).toBeEnabled();
   // Freeze browser polling so the external GET's entire real flight falls
   // between two reads. No batch action or manual library refresh can wake it.
   const clockTime=new Date('2026-11-15T08:00:00Z');

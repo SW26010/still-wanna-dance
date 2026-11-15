@@ -19,7 +19,7 @@ func (c *Console) serveRequestHistoryEvents(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "请先阅读并同意使用条款", http.StatusConflict)
 		return
 	}
-	store, err := c.businessStore()
+	store, err := c.openedBusinessStore()
 	if err != nil {
 		http.Error(w, "请求历史不可用，请检查数据库状态", http.StatusServiceUnavailable)
 		return
@@ -74,7 +74,9 @@ func (c *Console) serveRequestHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	store, err := c.businessStore()
+	// A retained write fault does not imply that committed history is unreadable.
+	// Let the shared reader report failures from its own read path.
+	store, err := c.openedBusinessStore()
 	if err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "请求历史读取失败，请稍后重试", http.StatusInternalServerError)

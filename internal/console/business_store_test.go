@@ -58,6 +58,15 @@ func TestApplicationReportsDatabaseOpenFailureWithoutCreatingLibrary(t *testing.
 	if c.store != nil || c.service != nil {
 		t.Fatal("missing database started a business store or engine")
 	}
+	for _, path := range []string{"/api/history", "/api/history/count", "/api/latency", "/api/response-sources"} {
+		r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		if w.Code != 500 {
+			t.Fatalf("%s accepted an unopened store: %d %s", path, w.Code, w.Body.String())
+		}
+	}
 	paths := libraryPaths(c.settings)
 	for _, path := range []string{paths.DatabasePath, paths.VideoDir} {
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {

@@ -20,7 +20,7 @@ import (
 )
 
 // Obstruct rollback-journal writes while keeping committed fixture data readable.
-func failDatabaseWrites(t *testing.T, path string) {
+func failDatabaseWrites(t *testing.T, path string) func() {
 	t.Helper()
 	if runtime.GOOS != "windows" {
 		if os.Geteuid() == 0 {
@@ -34,22 +34,25 @@ func failDatabaseWrites(t *testing.T, path string) {
 		if err := os.Chmod(dir, info.Mode().Perm()&^0222); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() {
+		restore := func() {
 			if err := os.Chmod(dir, info.Mode().Perm()); err != nil {
 				t.Error(err)
 			}
-		})
-		return
+		}
+		t.Cleanup(restore)
+		return restore
 	}
 	journal := path + "-journal"
 	if err := os.Mkdir(journal, 0700); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := os.Remove(journal); err != nil {
+	restore := func() {
+		if err := os.Remove(journal); err != nil && !os.IsNotExist(err) {
 			t.Error(err)
 		}
-	})
+	}
+	t.Cleanup(restore)
+	return restore
 }
 
 func consoleStorageError(t *testing.T, c *Console) string {

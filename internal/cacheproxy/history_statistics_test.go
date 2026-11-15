@@ -23,7 +23,7 @@ func TestHistoryStatisticsLimitsRawRequestsBeforeValidSamples(t *testing.T) {
  SELECT ?,CASE WHEN i>10000 THEN 'HEAD' ELSE 'GET' END,'','canceled',1,1,206,i*1000000,0,2,3,5 FROM n`, now.Add(-time.Hour).UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
-	v, err := s.History().Statistics(t.Context(), now, false)
+	v, err := s.History().Statistics(t.Context(), now)
 	if err != nil || v.Requests != 10000 || v.Limit != 10000 || v.SourceSamples != 9995 || v.Ready.Samples != 9995 || v.Blocking.Samples != 0 || v.Ready.P50MS == nil || *v.Ready.P50MS != 5003 || *v.Ready.P95MS != 9501 || v.Sources != (ResponseSources{DownloadBytes: 19990, CacheBytes: 29985, LocalBytes: 49975}) {
 		t.Fatalf("raw sample/nearest rank: %+v %v", v, err)
 	}
@@ -32,7 +32,7 @@ func TestHistoryStatisticsLimitsRawRequestsBeforeValidSamples(t *testing.T) {
 	}
 }
 
-func TestHistoryStatisticsCacheTTLManualRefreshAndFailure(t *testing.T) {
+func TestHistoryStatisticsCacheTTLAndFailure(t *testing.T) {
 	s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
@@ -46,41 +46,41 @@ func TestHistoryStatisticsCacheTTLManualRefreshAndFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := s.History()
-	first, err := h.Statistics(t.Context(), now, false)
+	first, err := h.Statistics(t.Context(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := s.usage.write([]usageEvent{e}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := h.Statistics(t.Context(), now.Add(59*time.Second), false)
+	got, err := h.Statistics(t.Context(), now.Add(59*time.Second))
 	if err != nil || !reflect.DeepEqual(got, first) {
 		t.Fatalf("cached data/time: %+v %v", got, err)
 	}
 	*got.Ready.P50MS = -1
 	*got.OldestAt = -1
-	got, err = h.Statistics(t.Context(), now.Add(time.Minute), false)
+	got, err = h.Statistics(t.Context(), now.Add(time.Minute))
 	if err != nil || got.Requests != 2 || got.Sources.DownloadBytes != 14 || *got.Ready.P50MS != 0.000123 {
 		t.Fatalf("expiry/mutation: %+v %v", got, err)
 	}
 	if err := s.usage.write([]usageEvent{e}); err != nil {
 		t.Fatal(err)
 	}
-	got, err = h.Statistics(t.Context(), now.Add(time.Minute+time.Second), true)
+	got, err = h.Statistics(t.Context(), now.Add(2*time.Minute))
 	if err != nil || got.Requests != 3 {
-		t.Fatalf("manual refresh: %+v %v", got, err)
+		t.Fatalf("expiry after write: %+v %v", got, err)
 	}
 	original := h.path
 	h.path = storagePath(t.TempDir())
-	if _, err = h.Statistics(t.Context(), now.Add(62*time.Second), true); !os.IsNotExist(err) {
+	if _, err = h.Statistics(t.Context(), now.Add(3*time.Minute)); !os.IsNotExist(err) {
 		t.Fatalf("missing file: %v", err)
 	}
 	h.path = original
-	if got, err = h.Statistics(t.Context(), now.Add(62*time.Second), true); err != nil || got.Requests != 3 {
+	if got, err = h.Statistics(t.Context(), now.Add(3*time.Minute)); err != nil || got.Requests != 3 {
 		t.Fatalf("failed refresh cached: %+v %v", got, err)
 	}
 	h.Close()
-	if _, err = h.Statistics(t.Context(), now, false); !errors.Is(err, context.Canceled) {
+	if _, err = h.Statistics(t.Context(), now); !errors.Is(err, context.Canceled) {
 		t.Fatalf("closed: %v", err)
 	}
 }
@@ -90,7 +90,7 @@ func TestHistoryStatisticsConcurrentRefreshAndCancellation(t *testing.T) {
 		t.Run(outcome, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				var cache historyCache[int]
-				if _, err := cache.get(t.Context(), false, func(int) bool { return true }, func() (int, error) { return 1, nil }); err != nil {
+				if _, err := cache.get(t.Context(), func(int) bool { return true }, func() (int, error) { return 1, nil }); err != nil {
 					t.Fatal(err)
 				}
 				entered, release := make(chan struct{}), make(chan struct{})
@@ -111,13 +111,13 @@ func TestHistoryStatisticsConcurrentRefreshAndCancellation(t *testing.T) {
 				waitCtx, cancelWait := context.WithCancel(t.Context())
 				defer cancelWait()
 				leader, waiters := make(chan error, 1), make(chan error, 8)
-				go func() { _, err := cache.get(ctx, true, func(int) bool { return true }, read); leader <- err }()
+				go func() { _, err := cache.get(ctx, func(v int) bool { return v == 2 }, read); leader <- err }()
 				<-entered
 				for i := 0; i < 8; i++ {
 					go func() {
-						v, err := cache.get(waitCtx, true, func(int) bool { return true }, read)
+						v, err := cache.get(waitCtx, func(v int) bool { return v == 2 }, read)
 						if err == nil && v != 2 {
-							err = errors.New("stale manual result")
+							err = errors.New("stale recomputed result")
 						}
 						waiters <- err
 					}()

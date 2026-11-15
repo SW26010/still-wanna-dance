@@ -64,8 +64,10 @@ try {
   await page.screenshot({path:join(output,'history-mobile.png'),fullPage:true});
   await page.reload();await expect(history.getByRole('link',{name:'ID 42',exact:true})).toHaveCount(50);
   const updated=page.waitForResponse(async r=>r.url().includes('/api/history?')&&r.ok()&&(await r.json()).requests.some(record=>record.songID==='84'));
+  const statsUpdate=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/history/stats'&&r.ok());
   const trigger=await page.request.post(baseURL+'/__fixture/request');expect(trigger.ok()).toBe(true);
   const committed=await(await updated).json();
+  const eventStatistics=await(await statsUpdate).json();expect(eventStatistics.to).toBe(latency.to);expect(eventStatistics.requests).toBe(601);
   await expect(history.getByRole('link',{name:'ID 84',exact:true})).toHaveCount(1);
   expect(committed.requests[0].songID).toBe('84');
   expect(committed).not.toHaveProperty('total');
@@ -108,9 +110,11 @@ try {
   }
   const cached=await(await page.request.get(baseURL+'/api/history/stats',{headers:{'X-SWD-Token':token}})).json();
   expect(cached.to).toBe(latency.to);expect(cached.requests).toBe(601);
-  const fresh=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/history/stats'&&new URL(r.url()).searchParams.get('refresh')==='true');
-  await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
-  const refreshed=await(await fresh).json();expect(refreshed.requests).toBe(606);expect(refreshed.to).toBeGreaterThan(cached.to);
+  await expect(page.getByRole('button',{name:/刷新来源统计|刷新响应时间统计/})).toHaveCount(0);
+  await sourceHeading.focus();await expect(page.getByRole('tooltip')).toContainText('最多最近 10,000 条原始请求');await page.keyboard.press('Escape');
+  const statsResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/history/stats');
+  await page.getByRole('button',{name:'查询历史',exact:true}).click();
+  const refreshed=await(await statsResponse).json();expect(refreshed.to).toBe(cached.to);expect(refreshed.requests).toBe(601);
   expect(errors).toEqual([]);
   await writeFile(join(output,'results.json'),JSON.stringify({records:606,lastPageBeforePair:13,resource:key,latency,sources,eventInsertedSong:'84',adjacentPair:pair,terminalOutcomes:['playback_info_failed','blocked'],errors},null,2));
 } finally {await browser.close();}

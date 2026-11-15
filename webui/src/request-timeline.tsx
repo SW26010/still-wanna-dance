@@ -1,6 +1,5 @@
 import {useCallback,useEffect,useLayoutEffect,useRef,useState,type Ref} from 'react';
 import {Button,Checkbox,Field,Input,Link,MessageBar,MessageBarBody,Spinner,Subtitle2,Tooltip,makeStyles,typographyStyles,TableCellLayout} from '@fluentui/react-components';
-import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {useApp,useFocusRecovery,useResource,type ResourceSubscription} from './hooks';
 import {Notification,RecordDetails} from './ui';
 import {RecordDataTable,TablePagination,type RecordColumn,type TableSort} from './data-table';
@@ -31,14 +30,14 @@ function SourceShares({sources,details=false}:{sources:ResponseSources|null|unde
 function statisticsDescription(v:RequestStatistics|undefined) {
   const scope=`最近 72 小时内，最多最近 ${(v?.limit??10000).toLocaleString()} 条原始请求；先选取请求，再筛选有效样本。`;
   return !v?scope:
-    `统计时间：${date(v.to)}。${scope}时间范围：${date(v.from)} 至 ${date(v.to)}（不含结束时刻）。已选 ${v.requests.toLocaleString()} 条${v.oldestAt!=null?`，最早请求 ${date(v.oldestAt)}`:''}；来源有效样本 ${v.sourceSamples.toLocaleString()} 个，响应时间有效样本 ${(v.ready.samples+v.blocking.samples).toLocaleString()} 个。约每分钟更新；不受列表筛选影响。`;
+    `统计时间：${date(v.to)}。${scope}时间范围：${date(v.from)} 至 ${date(v.to)}（不含结束时刻）。已选 ${v.requests.toLocaleString()} 条${v.oldestAt!=null?`，最早请求 ${date(v.oldestAt)}`:''}；来源有效样本 ${v.sourceSamples.toLocaleString()} 个，响应时间有效样本 ${(v.ready.samples+v.blocking.samples).toLocaleString()} 个。不受列表筛选影响。`;
 }
 
 function ResponseSourceSummary({statistics:sources}:{statistics:ReturnType<typeof useResource<RequestStatistics>>}) {
-  const app=useApp(),styles=useSummaryStyles();
-  return (<section aria-label="响应来源统计">
+  const styles=useSummaryStyles();
+  return (<section aria-label="响应来源统计" aria-busy={sources.loading}>
       <div className={'inline history-summary '+styles.summary}>
-        <div className="inline history-summary-heading"><Tooltip content={statisticsDescription(sources.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>近期响应来源</Subtitle2></Tooltip><Tooltip content="刷新来源统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={sources.loading} disabled={sources.loading||app.unavailable} disabledFocusable={sources.loading} onClick={sources.refresh}/></Tooltip></div>
+        <Tooltip content={statisticsDescription(sources.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>近期响应来源</Subtitle2></Tooltip>
         {sources.data?<SourceShares sources={sources.data.sources} details/>:<span>{sources.error?'读取失败':'正在读取…'}</span>}
       </div>
     </section>);
@@ -53,19 +52,28 @@ export function RequestTimeline({visible}:{visible:boolean}) {
   const sortFocus=useRef(false);
   const previousStorage=useRef(storage);
   useEffect(()=>{if(previousStorage.current!==storage){previousStorage.current=storage;setCursors(['']);}},[storage]);
-  const statistics=useResource<RequestStatistics>('history/stats',visible&&!app.stopped,app.revision,60000,true,undefined,'refresh=true');
+  const live=cursors.length===1&&!applied.to&&sort.direction==='descending';
+  const readStatistics=useRef<()=>void>(()=>{});
+  const subscribeStatistics=useCallback<ResourceSubscription>(read=>{
+    readStatistics.current=read;
+    // Live pages start with the history event; stable pages read once on entry.
+    if(!live)read();
+    return()=>{readStatistics.current=()=>{};};
+  },[live]);
+  const onHistoryRead=useCallback(()=>readStatistics.current(),[]);
+  const statistics=useResource<RequestStatistics>('history/stats',visible&&!app.stopped,app.revision,0,true,subscribeStatistics);
   const filter=new URLSearchParams({hideAdjacentCanceled:String(hideAdjacentCanceled)});
   for(const key of ['from','to'] as const){const value=milliseconds(applied[key]);if(value!==undefined)filter.set(key,String(value));}
   const query=new URLSearchParams({...sort,limit:'50',cursor:cursors.at(-1)!});
   filter.forEach((value,key)=>query.set(key,value));
   return <div className="page-stack">
     <ResponseSourceSummary statistics={statistics}/>
-    <section aria-label="响应时间">
+    <section aria-label="响应时间" aria-busy={statistics.loading}>
       <div className={'inline history-summary '+styles.summary}>
-        <div className="inline history-summary-heading"><Tooltip content={'从收到请求到首次返回视频正文的时间。'+statisticsDescription(statistics.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip><Tooltip content="刷新响应时间统计" relationship="label"><Button size="small" appearance="subtle" icon={<ArrowSync20Regular className="refresh-icon" aria-hidden="true"/>} aria-busy={statistics.loading} disabled={statistics.loading||app.unavailable} disabledFocusable={statistics.loading} onClick={statistics.refresh}/></Tooltip></div>
+        <Tooltip content={'从收到请求到首次返回视频正文的时间。'+statisticsDescription(statistics.data)} relationship="description"><Subtitle2 as="h2" tabIndex={0}>响应时间</Subtitle2></Tooltip>
         {([['等待下载',statistics.data?.blocking],['缓存／本地',statistics.data?.ready]] as const).map(([name,g])=><Tooltip key={name} content={`有效样本 ${g?.samples??'—'} 个。${statisticsDescription(statistics.data)}`} relationship="description"><span className="inline" tabIndex={0}><span>{name}</span><span>{!g?statistics.error?'读取失败':'正在读取…':g.samples?`P50 ${ms(g.p50MS)} · P95 ${ms(g.p95MS)}`:'—'}</span></span></Tooltip>)}
       </div>
-      {visible&&statistics.error&&<MessageBar intent="error"><MessageBarBody>近期统计读取失败，请重试。{statistics.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
+      {visible&&statistics.error&&<MessageBar intent="error"><MessageBarBody>统计读取失败。{statistics.data&&'当前显示上次结果。'}</MessageBarBody></MessageBar>}
     </section><section id="recent" className="content-stack" tabIndex={-1}>
     <form className="form-grid history-filter" onSubmit={e=>{e.preventDefault();const from=milliseconds(range.from),to=milliseconds(range.to);if((from!==undefined&&!Number.isFinite(from))||(to!==undefined&&!Number.isFinite(to))||(from!==undefined&&to!==undefined&&to<=from)){setError('结束时间必须晚于开始时间。');return;}sortFocus.current=false;setError('');setApplied({...range});setCursors(['']);setQueryRevision(v=>v+1);}}>
       <div className="history-range">
@@ -74,11 +82,11 @@ export function RequestTimeline({visible}:{visible:boolean}) {
       </div><div className="inline history-actions"><div className="inline"><Button type="submit" disabled={app.unavailable}>查询历史</Button><Button disabled={app.unavailable} onClick={()=>{sortFocus.current=false;const all={from:'',to:''};setRange(all);setApplied(all);setCursors(['']);setQueryRevision(v=>v+1);setError('');}}>全部保留期</Button></div>
       <Tooltip positioning="above" content="同一视频的前一次请求中断、后一次完成，通常是游戏播放器的正常行为。" relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} className="history-option" ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} label="隐藏相邻中断请求" checked={hideAdjacentCanceled} onChange={(_,v)=>{sortFocus.current=false;setHideAdjacentCanceled(!!v.checked);setCursors(['']);setQueryRevision(0);}}/>}</Tooltip></div>
     </form>
-    <HistoryPage focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={cursors.length===1&&!applied.to&&sort.direction==='descending'} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
+    <HistoryPage onRead={onHistoryRead} focusOnMount={queryRevision>0} focusSort={sortFocus.current} sort={sort} onSortChange={next=>{sortFocus.current=true;setSort(next);setCursors(['']);setQueryRevision(v=>v+1);}} key={storage+':'+query+':'+queryRevision} query={query.toString()} visible={visible} pageNumber={cursors.length} live={live} previous={()=>{sortFocus.current=false;setCursors(v=>v.slice(0,-1));setQueryRevision(v=>v+1);}} next={cursor=>{sortFocus.current=false;setCursors(v=>[...v,cursor]);setQueryRevision(v=>v+1);}}/>
   </section></div>;
 }
 
-function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,onSortChange,previous,next}:{focusOnMount:boolean;focusSort:boolean;sort:TableSort;onSortChange:(sort:TableSort)=>void;query:string;visible:boolean;pageNumber:number;live:boolean;previous:()=>void;next:(cursor:string)=>void}) {
+function HistoryPage({onRead,query,visible,pageNumber,live,focusOnMount,focusSort,sort,onSortChange,previous,next}:{onRead:()=>void;focusOnMount:boolean;focusSort:boolean;sort:TableSort;onSortChange:(sort:TableSort)=>void;query:string;visible:boolean;pageNumber:number;live:boolean;previous:()=>void;next:(cursor:string)=>void}) {
   const app=useApp(),focus=useFocusRecovery();
   const [connectionError,setConnectionError]=useState('');
   const subscribe=useCallback<ResourceSubscription>(invalidate=>{
@@ -92,7 +100,7 @@ function HistoryPage({query,visible,pageNumber,live,focusOnMount,focusSort,sort,
       connection:state=>setConnectionError(state==='invalid'?'历史更新无法读取，请重新查询。':state==='disconnected'?'历史更新连接已断开，正在重新连接…':''),
     });
   },[]);
-  const history=useResource<History>('history?'+query,visible&&!app.stopped,app.revision,0,false,live?subscribe:undefined);
+  const history=useResource<History>('history?'+query,visible&&!app.stopped,app.revision,0,false,live?subscribe:undefined,onRead);
   useLayoutEffect(()=>{if(focusOnMount&&visible){const target=focusSort?focus.ref.current?.querySelector<HTMLElement>('th[aria-sort="ascending"] [role="button"],th[aria-sort="descending"] [role="button"]'):focus.ref.current;target?.focus({preventScroll:true});if(!focusSort)target?.scrollIntoView({block:'start'});}},[]);
   const disabled=app.unavailable||(history.loading&&!history.data);
   const columns:RecordColumn<RequestRecord>[]=[

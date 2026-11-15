@@ -29,7 +29,7 @@ func TestHistoryLargeReadsPersistConcurrentObservations(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	cold, err := s.History().Statistics(t.Context(), now, false)
+	cold, err := s.History().Statistics(t.Context(), now)
 	t.Logf("cold bounded statistics: %s; raw=%d samples=%d", time.Since(start), cold.Requests, cold.Ready.Samples)
 	if err != nil || cold.Requests != 10000 || cold.Ready.Samples != 10000 || cold.Sources.DownloadBytes != 10000 || cold.Ready.P50MS == nil || *cold.Ready.P50MS != 0.994999 || *cold.Ready.P95MS != 0.999499 {
 		t.Fatalf("dense window: %+v %v", cold, err)
@@ -101,7 +101,7 @@ func TestHistoryLargeReadsPersistConcurrentObservations(t *testing.T) {
 			t.Errorf("next page: %v", err)
 			break
 		}
-		if _, err := s.History().Statistics(t.Context(), time.Now(), true); err != nil {
+		if _, err := readRequestStatistics(t.Context(), s.path, time.Now()); err != nil {
 			t.Error(err)
 			break
 		}

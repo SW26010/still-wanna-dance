@@ -179,13 +179,4 @@ func TestHistoryRetiredReadAPIs(t *testing.T) {
 			t.Fatalf("retired route %s returned %d", path, w.Code)
 		}
 	}
-	for _, raw := range []string{"invalid", "2"} {
-		r := httptest.NewRequest("GET", "http://"+c.address+"/api/history/stats?refresh="+raw, nil)
-		r.Header.Set("X-SWD-Token", c.token)
-		w := httptest.NewRecorder()
-		c.ServeHTTP(w, r)
-		if w.Code != 400 {
-			t.Fatalf("invalid refresh %s returned %d", raw, w.Code)
-		}
-	}
 }

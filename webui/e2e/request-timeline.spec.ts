@@ -117,12 +117,12 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
 });
 
 test('source refresh retains data and reports failures without showing zero',async({page})=>{
-  await mockAPI(page);let fail=false;
+  const api=await mockAPI(page);let fail=false;
   await page.route('**/api/history/stats*',r=>fail?r.fulfill({status:500,body:'failed'}):r.fulfill({json:statisticsFixture({sources:{downloadBytes:8,cacheBytes:0,localBytes:0}})}));
   await page.goto('/#/timeline');const summary=page.getByRole('region',{name:'响应来源统计'});
   await expect(summary).toContainText('下载 100%');fail=true;
-  await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
-  await expect(page.getByText('近期统计读取失败，请重试。当前显示上次结果。',{exact:true})).toBeVisible();await expect(summary).toContainText('下载 100%');
+  await api.historyChanged();
+  await expect(page.getByText('统计读取失败。当前显示上次结果。',{exact:true})).toBeVisible();await expect(summary).toContainText('下载 100%');
 });
 
 for(const populated of [false,true])test(`automatic history refresh preserves visible results and controls (${populated?'rows':'empty'})`,async({page})=>{
@@ -137,14 +137,14 @@ for(const populated of [false,true])test(`automatic history refresh preserves vi
   const pager=page.getByRole('navigation',{name:'历史分页',exact:true});
   await expect(pager.getByRole('status')).toHaveText('第1页 · 自动刷新');
   const table=page.getByRole('table',{name:'请求历史列表',exact:true}),position=await table.boundingBox();
-  await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeEnabled();
-  await page.clock.fastForward(60100);await expect.poll(()=>latencyReads).toBe(2);expect(reads).toBe(1);
-  await api.historyChanged();await expect.poll(()=>reads).toBe(2);
+  await expect(page.getByRole('region',{name:'响应来源统计',exact:true})).toHaveAttribute('aria-busy','false');
+  await page.clock.fastForward(60100);expect(latencyReads).toBe(1);expect(reads).toBe(1);
+  await api.historyChanged();await expect.poll(()=>reads).toBe(2);await expect.poll(()=>latencyReads).toBe(2);
   await expect(result).toBeVisible({timeout:1000});
   await expect(page.getByRole('button',{name:'刷新本页',exact:true})).toHaveCount(0);
   await expect(page.getByRole('checkbox',{name:'暂停请求刷新',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'按收到时间排序',exact:true})).toBeEnabled({timeout:1000});
-  await expect(page.getByRole('button',{name:'刷新响应时间统计',exact:true})).toBeDisabled({timeout:1000});
+  await expect(page.getByRole('region',{name:'响应来源统计',exact:true})).toHaveAttribute('aria-busy','true');
   expect(await table.boundingBox()).toEqual(position);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
   await expect(pager).toContainText('第1页 · 自动刷新');
@@ -170,7 +170,7 @@ test('paging during a background refresh ignores its late response',async({page}
   await expect(page.getByRole('button',{name:'请求 2 的明细',exact:true})).toHaveCount(0);
 });
 
-test('history events coalesce during reads without refreshing summaries or losing focus',async({page})=>{
+test('history events coalesce list and statistics reads without losing focus',async({page})=>{
   const api=await mockAPI(page);let reads=0,release!:()=>void;
   const pending=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/history?*',async route=>{
@@ -189,7 +189,7 @@ test('history events coalesce during reads without refreshing summaries or losin
   expect(reads).toBe(3);
   await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   await expect(details).toBeFocused();
-  expect(api.calls.filter(c=>['history/stats'].includes(c.path))).toHaveLength(summaryReads);
+  await expect.poll(()=>api.calls.filter(c=>c.path==='history/stats').length).toBe(summaryReads+2);
 });
 
 test('history reconnects and resumes with fresh data, releases hidden subscriptions, and can retry a failed query',async({page})=>{
@@ -231,7 +231,7 @@ test('history can requery while its event connection is disconnected',async({pag
   await expect(page.getByRole('listitem').getByText('历史更新连接已断开，正在重新连接…',{exact:true})).toHaveCount(0);
 });
 
-test('history pages beyond 500 without growing the DOM; filtering leaves latency window alone',async({page})=>{
+test('history pages beyond 500 without growing the DOM; statistics follow page reads without list filters',async({page})=>{
   await mockAPI(page);const queries:URLSearchParams[]=[];let latencyReads=0;
   await page.route('**/api/history?*',r=>{const q=new URL(r.request().url()).searchParams;queries.push(q);const index=Number(q.get('cursor')||0),total=q.has('to')?50:650;return r.fulfill({json:{storageID:'fixture',requests:Array.from({length:50},(_,i)=>record(index*50+i+1)),total,hasMore:(index+1)*50<total,nextCursor:String(index+1)}});});
   await page.route('**/api/history/stats*',r=>{latencyReads++;return r.fulfill({json:statisticsFixture({blocking:{samples:20,p50MS:10,p95MS:80}})});});
@@ -258,7 +258,7 @@ test('history pages beyond 500 without growing the DOM; filtering leaves latency
   await page.getByRole('button',{name:'上一页历史',exact:true}).click();await expect(page.getByText('第11页',{exact:true})).toBeVisible();
   await page.getByLabel('开始',{exact:true}).fill('2026-10-21T01:00');await page.getByLabel('结束',{exact:true}).fill('2026-10-22T01:00');
   await page.getByRole('button',{name:'查询历史',exact:true}).click();await expect(page.getByText('第1页',{exact:true})).toBeVisible();
-  expect(queries.at(-1)?.get('cursor')).toBe('');expect(Number(queries.at(-1)?.get('to'))-Number(queries.at(-1)?.get('from'))).toBe(86400000);expect(latencyReads).toBe(1);
+  expect(queries.at(-1)?.get('cursor')).toBe('');expect(Number(queries.at(-1)?.get('to'))-Number(queries.at(-1)?.get('from'))).toBe(86400000);await expect.poll(()=>latencyReads).toBeGreaterThan(1);
   await page.getByRole('button',{name:'全部保留期',exact:true}).click();await expect.poll(()=>queries.at(-1)?.has('from')).toBe(false);
 });
 
@@ -341,30 +341,4 @@ for(const width of [320,1280])test(`date errors stay with their field without ov
   await page.screenshot({path:info.outputPath('date-validation.png'),animations:'disabled'});
   await to.fill('2026-10-24T01:00');await expect(to).not.toHaveAttribute('aria-invalid','true');
   await expect(message).toHaveCount(0);
-});
-
-test('recent statistics share refresh, show coverage and suspend hidden pages',async({page})=>{
-  await mockAPI(page);await page.clock.install();
-  const queries:URLSearchParams[]=[];
-  await page.route('**/api/history/stats*',route=>{
-    queries.push(new URL(route.request().url()).searchParams);
-    return route.fulfill({json:statisticsFixture({requests:10000,sourceSamples:9995,oldestAt:Date.now()-3600000,sources:{downloadBytes:queries.length,cacheBytes:0,localBytes:0},ready:{samples:9995,p50MS:queries.length,p95MS:9}})});
-  });
-  await page.goto('/#/timeline');
-  const source=page.getByRole('button',{name:'刷新来源统计',exact:true});
-  await expect(page.getByText('P50 1 ms · P95 9 ms',{exact:true})).toBeVisible();expect(queries).toHaveLength(1);
-  await page.getByRole('heading',{name:'近期响应来源',exact:true}).focus();
-  await expect(page.getByRole('tooltip')).toContainText('统计时间：');
-  await expect(page.getByRole('tooltip')).toContainText('已选 10,000 条');
-  await expect(page.getByRole('tooltip')).toContainText('来源有效样本 9,995 个');
-  await expect(page.getByRole('tooltip')).toContainText('最早请求');
-  await page.keyboard.press('Escape');
-  await source.click();await expect(page.getByText('P50 2 ms · P95 9 ms',{exact:true})).toBeVisible();expect(queries.at(-1)?.get('refresh')).toBe('true');
-  await page.clock.fastForward(60100);await expect.poll(()=>queries.length).toBe(3);expect(queries.at(-1)?.has('refresh')).toBe(false);
-  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
-  await page.clock.fastForward(121000);expect(queries).toHaveLength(3);
-  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
-  await expect.poll(()=>queries.length).toBe(4);
-  await navigate(page,'设置');await page.clock.fastForward(121000);expect(queries).toHaveLength(4);
-  expect(await page.getByRole('region',{name:'历史总数',exact:true}).count()).toBe(0);
 });

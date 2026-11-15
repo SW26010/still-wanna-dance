@@ -284,7 +284,6 @@ form.actions { align-items: flex-end; }
 .table-pagination { justify-content: space-between; gap: var(--spacingHorizontalM); }
 .table-pagination > .inline { margin-inline-start: auto; }
 .history-summary { column-gap: var(--spacingHorizontalL); }
-.history-summary-heading { flex-wrap: nowrap; }
 .history-filter { display: flex; align-items: flex-end; flex-wrap: wrap; }
 .history-actions { flex: 1 1 auto; }
 .history-option { margin-inline-start: auto; }

@@ -44,14 +44,13 @@ export function useFocusRecovery() {
 export type ResourceSubscription = (invalidate:()=>void)=>()=>void;
 
 // One request at a time, abort stale reads on route/save/pause, suspend hidden tabs.
-export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false, subscribe?:ResourceSubscription, refreshQuery?:string) {
+export function useResource<T>(path: string, enabled = true, revision = 0, interval: number | ((data:T)=>number) = 5000, retain = false, subscribe?:ResourceSubscription, onRead?:()=>void) {
   const [data, setData] = useState<T>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const [errorCode,setErrorCode]=useState<string>();
   const [loadedRevision, setLoadedRevision] = useState<number>();
   const [loadedAt, setLoadedAt] = useState<number>();
   const [loadedPath,setLoadedPath]=useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
-  const handledRefresh=useRef(0);
   const refresh = useCallback(() => setRefreshKey(v => v + 1), []);
   useEffect(() => {
     if (!enabled) return;
@@ -59,16 +58,14 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
     // Keep following observed active work through transient read failures.
     let delay = typeof interval === 'number' ? interval : 0;
     const controller = new AbortController();
-    let manualRefresh=refreshKey!==handledRefresh.current;
     const run = async () => {
       clearTimeout(timer);
       if (disposed || document.hidden) return;
       if (pending) { rerun = true; return; }
       pending = true; setLoading(true);
       try {
-        const query=manualRefresh&&refreshQuery?(path.includes('?')?'&':'?')+refreshQuery:'';
-        manualRefresh=false;handledRefresh.current=refreshKey;
-        const next = await request<T>(path+query, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
+        onRead?.();
+        const next = await request<T>(path, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]));
         if (!disposed) { setData(next); setLoadedPath(path); setLoadedRevision(revision); setLoadedAt(Date.now()); setError(''); setErrorCode(undefined); delay = typeof interval === 'number' ? interval : interval(next); }
       } catch (e) { if (!disposed) { setError(String(e)); setErrorCode(e instanceof APIError?e.code:undefined); if (!retain) setData(undefined); } }
       finally {
@@ -85,7 +82,7 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
     const visibility = () => { if (document.hidden) clearTimeout(timer); else void run(); };
     void run(); document.addEventListener('visibilitychange', visibility);
     return () => { disposed=true;clearTimeout(timer);controller.abort();document.removeEventListener('visibilitychange',visibility); };
-  }, [path, enabled, revision, refreshKey, interval, retain, subscribe, refreshQuery]);
+  }, [path, enabled, revision, refreshKey, interval, retain, subscribe, onRead]);
   return { data, error, errorCode, loading, refresh, loadedRevision, loadedAt,loadedPath };
 }
 

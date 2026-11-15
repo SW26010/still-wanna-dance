@@ -34,10 +34,10 @@ type RequestStatistics struct {
 func ReadRequestStatistics(ctx context.Context, path string, now time.Time) (RequestStatistics, error) {
 	h := NewRequestHistory(path)
 	defer h.Close()
-	return h.Statistics(ctx, now, false)
+	return h.Statistics(ctx, now)
 }
 
-func (h *RequestHistory) Statistics(ctx context.Context, now time.Time, refresh bool) (RequestStatistics, error) {
+func (h *RequestHistory) Statistics(ctx context.Context, now time.Time) (RequestStatistics, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stop := context.AfterFunc(h.ctx, cancel)
@@ -45,7 +45,7 @@ func (h *RequestHistory) Statistics(ctx context.Context, now time.Time, refresh 
 	if err := h.ctx.Err(); err != nil {
 		return RequestStatistics{}, err
 	}
-	value, err := h.statistics.get(ctx, refresh, func(v RequestStatistics) bool {
+	value, err := h.statistics.get(ctx, func(v RequestStatistics) bool {
 		age := now.UnixMilli() - v.To
 		return age >= 0 && age < historyStatisticsTTL.Milliseconds()
 	}, func() (RequestStatistics, error) {

@@ -269,7 +269,13 @@ test('retained images respect their byte budget beyond the current working page'
   const sources=await trackCoverURLs(page),jpeg=await jpegFixture(page),size=700*1024;
   await coversFixture(page,75,Buffer.concat([jpeg,Buffer.alloc(size-jpeg.length)]));
   const retained=Math.floor(8*1024*1024/size),current=49;
+  // Current-page refreshes start after the next-page prefetch has completed.
+  const refreshed=Promise.all(['1','3'].map(id=>page.waitForResponse(response=>{
+    const url=new URL(response.url());
+    return url.pathname==='/api/library/cover'&&url.searchParams.get('id')===id&&url.searchParams.get('mode')==='refresh';
+  }).then(response=>response.finished())));
   await page.goto('/#/library');
+  await refreshed;
   await expect.poll(sources).toMatchObject({created:76,revoked:76-current-retained});
   const state=await sources();
   expect(state.active).toHaveLength(current+retained);

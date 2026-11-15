@@ -171,6 +171,17 @@ test('paging during a background refresh ignores its late response',async({page}
 });
 
 test('history events coalesce list and statistics reads without losing focus',async({page})=>{
+  // Observe browser delivery so the held read cannot overtake a sent frame.
+  await page.addInitScript(()=>{
+    const NativeWebSocket=WebSocket,historyDelivery={received:0};
+    Object.assign(window,{historyDelivery});
+    window.WebSocket=class extends NativeWebSocket{
+      constructor(...args:ConstructorParameters<typeof NativeWebSocket>){
+        super(...args);
+        if(new URL(this.url).pathname==='/api/history/events')this.addEventListener('message',()=>historyDelivery.received++);
+      }
+    };
+  });
   const api=await mockAPI(page);let reads=0,release!:()=>void;
   const pending=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/history?*',async route=>{
@@ -183,7 +194,10 @@ test('history events coalesce list and statistics reads without losing focus',as
   await details.click();await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   const summaryReads=api.calls.filter(c=>['history/stats'].includes(c.path)).length;
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
+  const delivered=()=>page.evaluate(()=>(window as Window&{historyDelivery:{received:number}}).historyDelivery.received);
+  const beforeBurst=await delivered();
   for(let i=0;i<8;i++)await api.historyChanged();
+  await expect.poll(delivered).toBe(beforeBurst+8);
   expect(reads).toBe(2);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
   expect(reads).toBe(3);

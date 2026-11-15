@@ -22,7 +22,7 @@ test('connection tables have no horizontal scroll range when their columns fit',
   await detail.hover();await expect(detail).toBeVisible();
   await expect(detail).toBeInViewport({ratio:1});
   await page.screenshot({path:info.outputPath('connection-details-hover-dark.png'),animations:'disabled'});
-  await panel.getByRole('heading',{name:'当前连接',exact:true}).hover();await expect(detail).toBeHidden();
+  await page.mouse.move(0,0);await expect(detail).toBeHidden();
   await trigger.focus();await page.keyboard.press('Enter');await expect(detail).toBeVisible();
   await page.keyboard.press('Escape');await expect(detail).toBeHidden();await expect(trigger).toBeFocused();
   await panel.screenshot({path:info.outputPath('connection-tables-narrow-dark.png'),animations:'disabled'});
@@ -50,7 +50,7 @@ test('network details preserve sample evidence and distinguish failures from mis
     const detail=page.locator('.fui-PopoverSurface:visible');await expect(detail).toContainText(expected[i]);
     if(i===0){await expect(detail).toContainText('512.0 KiB/s');await expect(detail).toContainText('2.00 s / 1.00 MiB');await expect(detail).toContainText('HTTP 200');}
     if(i===5){await expect(detail).toContainText('歌曲 #7');expect((await detail.innerText()).match(/API 通道 source-1/g)).toHaveLength(1);}
-    await panel.getByRole('heading',{name:'当前连接',exact:true}).hover();await expect(detail).toBeHidden();
+    await page.mouse.move(0,0);await expect(detail).toBeHidden();
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await panel.screenshot({path:info.outputPath('network-details.png'),animations:'disabled'});

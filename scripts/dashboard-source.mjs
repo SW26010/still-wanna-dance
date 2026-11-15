@@ -57,17 +57,3 @@ export function verifyDashboardBundle(source,bundle,manifest,seen) {
   const pkg=JSON.parse(fs.readFileSync(path.join(bundle,'dashboard/source/package.json'),'utf8'));
   if('v'+pkg.version!==release.version)throw Error('Dashboard source version mismatch');
 }
-export function rebuildDashboard(source,bundle,work) {
-  const release=checkDashboard(source);if(!release)return;
-  manager(release,source);
-  const checkout=path.join(work,'dashboard-rebuild'),store=path.join(work,'dashboard-store');
-  fs.cpSync(path.join(bundle,'dashboard/source'),checkout,{recursive:true});
-  fs.cpSync(path.join(bundle,'dashboard/store'),store,{recursive:true});
-  manager(release,checkout);
-  pnpm(['install','--offline','--frozen-lockfile','--ignore-scripts','--trust-policy','no-downgrade',...trustArgs(release),'--store-dir',store],checkout,{pnpm_config_cache_dir:path.join(store,'registry-cache')});
-  // Do not let upstream's optional git label accidentally refer to SWD's Git.
-  // No source patches: the release itself uses an empty commit suffix.
-  pnpm(['run','build'],checkout,{FONT:'none',GIT_DIR:path.join(work,'no-dashboard-git')});
-  for(const name of ['index.html','sw.js','THIRD_PARTY_NOTICES.md'])if(!fs.existsSync(path.join(checkout,'dist',name)))throw Error('Incomplete dashboard rebuild: '+name);
-  // Toolchain-dependent chunk hashes are not asserted equal to the release ZIP.
-}

@@ -59,8 +59,9 @@ pnpm v11 的 `projects/` 仅保存构建机项目链接，归档前清除；包�
 
 ## zashboard 静态面板
 
-源码包另含 dashboard/source（完整固定上游源码）与 dashboard/store（冻结锁的完整 npm 包及注册表元数据）。收集时仅在临时 fetch 副本声明 Windows/Linux/macOS 的 x64/arm64（Linux glibc 和 musl），不修改随包保存的上游源码或锁。版本、源码/发行包摘要和重建 pnpm 版本由 internal/dashboard/release.json 固定；scripts/dashboard-source.mjs 在收集、清单验证及离线重建中执行检查。安装禁用生命周期脚本，保留 no-downgrade；两项精确旧版本的 provenance 例外依据见 [核对记录](licenses/zashboard/dependency-trust.md)，不放宽其他包。
+源码包另含 dashboard/source（完整固定上游源码）与 dashboard/store（冻结锁的完整 npm 包及注册表元数据）。收集时仅在临时 fetch 副本声明 Windows/Linux/macOS 的 x64/arm64（Linux glibc 和 musl），不修改随包保存的上游源码或锁。版本、源码/发行包摘要和重建 pnpm 版本由 internal/dashboard/release.json 固定；scripts/dashboard-source.mjs 在收集和清单验证中执行检查。安装禁用生命周期脚本，保留 no-downgrade；两项精确旧版本的 provenance 例外依据见 [核对记录](licenses/zashboard/dependency-trust.md)，不放宽其他包。
 
-上游 `package.json` 声明 pnpm 11.20.0，而本发行的 `rebuildPackageManager` 固定为 11.25.0。收集与重建先检查实际 pnpm 版本，并显式让 pnpm 不按上游声明下载或切换版本；使用 Corepack 时也禁用项目版本切换和工具下载，要求事先安装所需版本。该设置对收集、离线安装及构建的子进程均生效，不依赖宿主封装器或热缓存。上游源码和锁文件保持原样。
+上游 `package.json` 声明 pnpm 11.20.0，而本发行的 `rebuildPackageManager` 固定为 11.25.0。收集先检查实际 pnpm 版本，并显式让 pnpm 不按上游声明下载或切换版本；使用 Corepack 时也禁用项目版本切换和工具下载，要求事先安装所需版本。该设置对源码收集的子进程生效，不依赖宿主封装器或热缓存。上游源码和锁文件保持原样。
 
-原版 no-fonts ZIP 随源码保留用于 Go 嵌入，离线重建另行运行固定源码的 Vite 构建，确认 index、service worker 和资源声明存在。不同 Node/打包器环境可能产生不同 chunk 字节，因此不声称与官方 ZIP 逐字节相同。字体是独立许可的原样资源，保留成品、来源、哈希及许可，不声称复现上游的字体子集生成链。更新面板时重新运行 scripts/dashboard-notices.mjs，并审阅运行模块、PWA/CSS、预打包内联代码与字体/纹理声明。
+SWD 使用按哈希核对的未修改 no-fonts ZIP，重建 SWD 时直接嵌入该归档。完整固定上游源码、锁文件、npm 包、构建入口和许可仍随源码包提供，供修改面板时按上游流程构建；发行门禁不再额外运行上游 Vite 构建，不承诺跨宿主环境离线复刻第三方面板或取得相同 chunk 字节。字体是独立许可的原样资源，保留成品、来源、哈希及许可，不声称复现上游的字体子集生成链。更新面板时重新运行 scripts/dashboard-notices.mjs，并审阅运行模块、PWA/CSS、预打包内联代码与字体/纹理声明。
+

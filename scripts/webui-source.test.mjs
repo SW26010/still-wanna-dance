@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {pnpm} from './webui-source.mjs';
-import {rebuildDashboard} from './dashboard-source.mjs';
+import {collectDashboard} from './dashboard-source.mjs';
 
 test('source pnpm commands explicitly avoid project-driven version switching',()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'swd-pnpm-policy-'));
@@ -35,7 +35,7 @@ const args=process.argv.slice(2);console.log(args[0]==='--version'?'11.25.0':arg
     fs.writeFileSync(path.join(temp,'docs/licenses/ZASHBOARD-NOTICES.txt'),notices);
     fs.writeFileSync(path.join(temp,'docs/licenses/zashboard-packages.json'),JSON.stringify({revision:'fixture',noticesSHA256:sha(notices)}));
     fs.writeFileSync(path.join(temp,'internal/dashboard/release.json'),JSON.stringify({revision:'fixture',assetSHA256:sha(asset),rebuildPackageManager:'pnpm@11.24.0'}));
-    assert.throws(()=>rebuildDashboard(temp,path.join(temp,'bundle'),path.join(temp,'work')),/rebuildPackageManager/);
+    assert.throws(()=>collectDashboard(temp,path.join(temp,'bundle'),path.join(temp,'work')),/rebuildPackageManager/);
   } finally {
     process.env.PATH=previousPath;
     for(const key of Object.keys(process.env))if(key.toLowerCase()==='pnpm_config_pm_on_fail')delete process.env[key];

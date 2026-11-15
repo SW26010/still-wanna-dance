@@ -76,23 +76,25 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid block", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
-	controller := http.NewResponseController(w)
+	stream := c.openRealtimeEvents(w, r)
+	if stream == nil {
+		return
+	}
+	defer stream.close()
 	if service == nil {
-		if err := writeServerEvent(w, controller, "blocks", 0, blockEvent{Reset: true, Blocks: []cacheproxy.BlockView{}, Removed: []string{}, Demands: []cacheproxy.BlockDemandView{}, RemovedDemands: []string{}}); err != nil {
+		if err := stream.write("blocks", 0, blockEvent{Reset: true, Blocks: []cacheproxy.BlockView{}, Removed: []string{}, Demands: []cacheproxy.BlockDemandView{}, RemovedDemands: []string{}}); err != nil {
 			return
 		}
 		// Wait for engine creation on this connection. Do not create an engine,
 		// retry periodically, or leave a worker behind when the page disappears.
-		service = c.waitBlockEngine(r.Context())
+		service = c.waitBlockEngine(stream.ctx)
 		if service == nil {
 			return
 		}
 	}
 	sub, err := service.ObserveBlocks()
 	if err != nil {
-		_ = writeServerEvent(w, controller, "closed", 0, struct{}{})
+		_ = stream.write("closed", 0, struct{}{})
 		return
 	}
 	defer sub.Close()
@@ -104,7 +106,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 	for {
 		current, changed, closed := sub.Snapshot()
 		if closed {
-			_ = writeServerEvent(w, controller, "closed", revision, struct{}{})
+			_ = stream.write("closed", revision, struct{}{})
 			return
 		}
 		if current != nil && current != previous {
@@ -115,7 +117,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 				}
 				if previous == nil || !reflect.DeepEqual(detail, next) {
 					revision++
-					if err := writeServerEvent(w, controller, "block-detail", revision, next); err != nil {
+					if err := stream.write("block-detail", revision, next); err != nil {
 						return
 					}
 					detail = next
@@ -125,13 +127,13 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 				// A new/reconnected client may share an old, unchanged snapshot.
 				// Anchor its clock at send time without mutating observed state.
 				event.At = time.Now().UnixMilli()
-				if err := writeServerEvent(w, controller, "blocks", revision, event); err != nil {
+				if err := stream.write("blocks", revision, event); err != nil {
 					return
 				}
 			}
 			previous = current
 		}
-		if r.Context().Err() != nil {
+		if stream.ctx.Err() != nil {
 			return
 		}
 		var speedChanged, cacheChanged <-chan struct{}
@@ -142,7 +144,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 			// speed when reconnecting, even if a shared observer is already live.
 			if previous != nil && speed != previousSpeed {
 				revision++
-				if err := writeServerEvent(w, controller, "download-speed", revision, struct {
+				if err := stream.write("download-speed", revision, struct {
 					BytesPerSecond float64 `json:"bytesPerSecond"`
 				}{speed}); err != nil {
 					return
@@ -153,7 +155,7 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 			cacheChanged = changed
 			if previous != nil && cacheBytes != previousCacheBytes {
 				revision++
-				if err := writeServerEvent(w, controller, "block-cache", revision, struct {
+				if err := stream.write("block-cache", revision, struct {
 					Bytes int64 `json:"bytes"`
 				}{cacheBytes}); err != nil {
 					return
@@ -162,7 +164,9 @@ func (c *Console) serveBlockEvents(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		select {
-		case <-r.Context().Done():
+		case <-stream.ctx.Done():
+			return
+		case <-c.lifecycle.stop:
 			return
 		case <-changed:
 		case <-speedChanged:

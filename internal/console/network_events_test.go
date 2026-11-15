@@ -86,6 +86,12 @@ func TestNetworkEventsSnapshotsAndCancellation(t *testing.T) {
 }
 
 func TestNetworkEventsAdmission(t *testing.T) {
+	for _, path := range []string{"/api/network/events", "/api/history/events", "/api/block-demands/events", "/api/block-demands/events?block=missing/0"} {
+		t.Run(path, func(t *testing.T) { testRealtimeEventsAdmission(t, path) })
+	}
+}
+
+func testRealtimeEventsAdmission(t *testing.T, path string) {
 	c := testConsole(t)
 	server := httptest.NewUnstartedServer(c)
 	c.address = server.Listener.Addr().String()
@@ -94,7 +100,7 @@ func TestNetworkEventsAdmission(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	for _, headers := range []http.Header{nil, {"Origin": {"http://untrusted.invalid"}}, {"Origin": {server.URL}, "Sec-Fetch-Site": {"cross-site"}}} {
-		conn, response, err := websocket.Dial(ctx, strings.Replace(server.URL, "http:", "ws:", 1)+"/api/network/events", &websocket.DialOptions{HTTPHeader: headers})
+		conn, response, err := websocket.Dial(ctx, strings.Replace(server.URL, "http:", "ws:", 1)+path, &websocket.DialOptions{HTTPHeader: headers})
 		if conn != nil {
 			conn.CloseNow()
 		}
@@ -105,7 +111,7 @@ func TestNetworkEventsAdmission(t *testing.T) {
 	c.mu.Lock()
 	c.terms = termsReceipt{}
 	c.mu.Unlock()
-	conn, response, err := websocket.Dial(ctx, strings.Replace(server.URL, "http:", "ws:", 1)+"/api/network/events", &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
+	conn, response, err := websocket.Dial(ctx, strings.Replace(server.URL, "http:", "ws:", 1)+path, &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
 	if conn != nil {
 		conn.CloseNow()
 	}

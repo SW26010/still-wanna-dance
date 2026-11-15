@@ -55,7 +55,6 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
   useEffect(() => {
     if (!enabled) return;
     let disposed = false, pending = false, rerun = false, timer: ReturnType<typeof setTimeout>;
-    let unsubscribe:(()=>void)|undefined;
     // Keep following observed active work through transient read failures.
     let delay = typeof interval === 'number' ? interval : 0;
     const controller = new AbortController();
@@ -73,17 +72,15 @@ export function useResource<T>(path: string, enabled = true, revision = 0, inter
         if (!disposed) { setLoading(false); if (rerun) { rerun = false; void run(); } else if (delay > 0) timer = setTimeout(run, delay); }
       }
     };
-    const suspend = () => { clearTimeout(timer); unsubscribe?.(); unsubscribe=undefined; };
-    const resume = () => {
-      if (document.hidden) return;
-      if (subscribe) {
-        if (!unsubscribe) { setLoading(true); unsubscribe=subscribe(()=>void run()); }
-      } else void run();
-    };
-    const visibility = () => { if (document.hidden) suspend(); else resume(); };
-    resume(); document.addEventListener('visibilitychange', visibility);
-    if(subscribe){addEventListener('pagehide',suspend);addEventListener('pageshow',resume);}
-    return () => { disposed = true; suspend(); controller.abort(); document.removeEventListener('visibilitychange', visibility); if(subscribe){removeEventListener('pagehide',suspend);removeEventListener('pageshow',resume);} };
+    if (subscribe) {
+      // The subscription owns transport visibility, page lifecycle and retries.
+      setLoading(true);
+      const unsubscribe=subscribe(()=>void run());
+      return () => { disposed=true;clearTimeout(timer);unsubscribe();controller.abort(); };
+    }
+    const visibility = () => { if (document.hidden) clearTimeout(timer); else void run(); };
+    void run(); document.addEventListener('visibilitychange', visibility);
+    return () => { disposed=true;clearTimeout(timer);controller.abort();document.removeEventListener('visibilitychange',visibility); };
   }, [path, enabled, revision, refreshKey, interval, retain, subscribe]);
   return { data, error, errorCode, loading, refresh, loadedRevision, loadedAt,loadedPath };
 }

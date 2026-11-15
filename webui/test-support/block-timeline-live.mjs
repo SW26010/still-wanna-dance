@@ -66,8 +66,8 @@ try {
   await page.evaluate(() => { location.hash = '#/library'; });
   await expect.poll(async () => (await page.request.get(url + '/__timeline/streams')).json()).toBe(0);
   expect(errors).toEqual([]);
-  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), cacheBytes: 3 * 1048576 + 37, flow: ['real HTTP Range download', 'SSE downloading and source details', 'zero SSE requests while offscreen', 'pinned details restored with four local protected blocks', 'cache display agrees with actual block files', 'speed event followed by zero', 'collapse keeps demand subscription', 'physical reclamation without subscribers', 'cache total refreshed to zero on return', 'zero SSE requests after navigation'], errors }, null, 2));
-  console.log('Real console + scheduler + Range download + browser SSE lifecycle passed.');
+  await writeFile(path.join(evidence, 'result.json'), JSON.stringify({ outcome: 'passed', browser: await browser.version(), cacheBytes: 3 * 1048576 + 37, flow: ['real HTTP Range download', 'WebSocket downloading and source details', 'zero block subscriptions while offscreen', 'pinned details restored with four local protected blocks', 'cache display agrees with actual block files', 'speed event followed by zero', 'collapse keeps demand subscription', 'physical reclamation without subscribers', 'cache total refreshed to zero on return', 'zero block subscriptions after navigation'], errors }, null, 2));
+  console.log('Real console + scheduler + Range download + browser WebSocket lifecycle passed.');
 } catch (error) {
   await page.screenshot({ path: path.join(evidence, 'failure.png'), fullPage: true });
   await writeFile(path.join(evidence, 'failure.txt'), String(error) + '\n' + await page.locator('body').innerText());

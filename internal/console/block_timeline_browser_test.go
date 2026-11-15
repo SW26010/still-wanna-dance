@@ -21,7 +21,7 @@ import (
 )
 
 // Opt-in because the Go suite must not require Node or an installed browser.
-// Unlike the memory UI fixture, this uses real console HTTP/SSE routes, the
+// Unlike the memory UI fixture, this uses real console HTTP/WebSocket routes, the
 // scheduler, a controlled loopback Range origin, and actual temporary files.
 func TestBlockTimelineBrowser(t *testing.T) {
 	evidence := os.Getenv("SWD_TIMELINE_BROWSER_EVIDENCE")
@@ -138,6 +138,6 @@ func TestBlockTimelineBrowser(t *testing.T) {
 		t.Fatal(ctx.Err())
 	}
 	if streams.Load() != 0 {
-		t.Fatal("browser left SSE requests open", streams.Load())
+		t.Fatal("browser left block subscriptions open", streams.Load())
 	}
 }

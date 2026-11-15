@@ -26,7 +26,7 @@ func (c *Console) serveRequestHistoryEvents(w http.ResponseWriter, r *http.Reque
 	}
 	// Every connection starts with an invalidation, including reconnections.
 	// No event replay or history rows are kept in memory for this stream.
-	serveDiagnosticEvents(w, r, "history", func() diagnosticEventSnapshot {
+	c.serveRealtimeEvents(w, r, "history", func() diagnosticEventSnapshot {
 		revision, changed, closed := store.RequestHistoryChanges()
 		state := struct {
 			Closed bool `json:"closed"`

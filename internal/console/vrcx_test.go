@@ -371,6 +371,16 @@ func TestVRCXPreviewApplyReplacementAndRetry(t *testing.T) {
 	if err = db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&count); err != nil || count != 0 {
 		t.Fatal("unmatched old row survived", count, err)
 	}
+	if _, err := db.Exec("INSERT INTO song_usage VALUES (99,1,1,2000)"); err != nil {
+		t.Fatal(err)
+	}
+	w = vrcxRequest(t, c, "apply", map[string]any{"id": p.ID, "overwrite": true})
+	if w.Code != 200 {
+		t.Fatal("completed overwrite token was not acknowledged", w.Code, w.Body.String())
+	}
+	if err := db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&count); err != nil || count != 1 {
+		t.Fatal("overwrite token replay removed a later demand", count, err)
+	}
 	afterConfig, _ := os.ReadFile(c.configPath)
 	if string(beforeConfig) != string(afterConfig) {
 		t.Fatal("import changed settings")

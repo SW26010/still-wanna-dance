@@ -3,7 +3,9 @@ package cacheproxy
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -71,9 +73,16 @@ func (s *Store) SongUsageCount(ctx context.Context) (resultValue int, resultErr 
 	return count, err
 }
 
-// ImportSongUsage serializes against the existing observation queue. All
-// accepted GETs are drained before the in-transaction empty check; later GETs
-// enqueue after commit. Replacement and any placeholder songs commit together.
+type usageImport struct {
+	ctx       context.Context
+	history   *SongUsageImport
+	overwrite bool
+	done      chan error
+}
+
+// ImportSongUsage places replacement in the observation queue. Earlier GETs
+// commit before its empty check; later GETs enqueue without waiting for the
+// transaction and are applied after it. Placeholder songs commit atomically.
 func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwrite bool) error {
 	if h == nil || h.Events == 0 || len(h.rows) == 0 {
 		return errors.New("没有有效历史需求，原统计保持不变")
@@ -84,31 +93,52 @@ func (s *Store) ImportSongUsage(ctx context.Context, h *SongUsageImport, overwri
 	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	command := &usageImport{ctx: ctx, history: h, overwrite: overwrite, done: make(chan error, 1)}
 	u := s.usage
 	u.mu.Lock()
-	defer u.mu.Unlock()
 	if u.closed {
+		u.mu.Unlock()
 		return errors.New("存储已关闭，请重新打开应用")
 	}
-	if !u.started {
-		return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
+	u.startWorkerLocked()
+	u.mu.Unlock()
+	if err := s.usage.enqueueControl(ctx, usageEvent{importUsage: command}); err != nil {
+		return err
 	}
-	done := make(chan struct{})
-	select {
-	case u.events <- usageEvent{barrier: done}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	return s.storageError(replaceSongUsage(ctx, u.db, h, overwrite))
+	// Once accepted, the worker owns the outcome. The context still cancels
+	// queued/running SQL, but cancellation cannot turn a committed replacement
+	// into a failure that would let the same Console token replay it.
+	return s.storageError(<-command.done)
 }
 
-func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) error {
-	tx, err := beginStorageWrite(ctx, db)
+func replaceSongUsage(ctx context.Context, db *sql.DB, h *SongUsageImport, overwrite bool) (resultErr error) {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	// Rollback-journal readers can coexist with the long write phase unless
+	// cache spilling acquires an EXCLUSIVE lock early. Keep only this import's
+	// dirty pages in memory; normal commit/rollback still uses SQLite locking.
+	var spill int
+	if err := conn.QueryRowContext(ctx, "PRAGMA cache_spill").Scan(&spill); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, "PRAGMA cache_spill=OFF"); err != nil {
+		return err
+	}
+	defer func() {
+		resetCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, err := conn.ExecContext(resetCtx, fmt.Sprintf("PRAGMA cache_spill=%d", spill))
+		if err != nil && !errors.Is(err, sql.ErrConnDone) {
+			// A discarded transaction connection needs no reset. Any other
+			// reset failure must not leave changed settings in the writer pool.
+			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			resultErr = errors.Join(resultErr, err)
+		}
+	}()
+	tx, err := beginStorageWriteOn(ctx, conn)
 	if err != nil {
 		return err
 	}

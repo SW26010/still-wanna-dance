@@ -9,7 +9,7 @@ import (
 
 func (s *Store) songResource(ctx context.Context, id string) (string, error) {
 	var key string
-	err := s.db.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key)
+	err := s.playbackDB.QueryRowContext(ctx, "SELECT md5 FROM song_media WHERE song_id=?", id).Scan(&key)
 	return key, err
 }
 func (s *Store) resourceSongs(ctx context.Context, key, preferred string, limit int) ([]string, error) {

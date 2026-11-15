@@ -22,11 +22,12 @@ import (
 // dependency on video directories, configuration snapshots or download workers.
 // The application closes it after every consumer has stopped.
 type Store struct {
-	path   string
-	db     *sql.DB
-	unlock func() error
-	usage  *usageStore
-	log    *slog.Logger
+	path       string
+	db         *sql.DB
+	playbackDB *sql.DB // Short reads cannot queue behind a long writer transaction.
+	unlock     func() error
+	usage      *usageStore
+	log        *slog.Logger
 
 	// Every mapping/preference commit and engine eviction/publication use the
 	// same locks. No post-commit callback substitutes for this exclusion.
@@ -139,7 +140,15 @@ func openStore(path string, create bool) (*Store, error) {
 		// are disposable after a failed SQLite transaction.
 		return nil, err
 	}
-	return newStore(path, db, unlock), nil
+	reader, err := connectStorageDatabase(path, "ro", false)
+	if err != nil {
+		db.Close()
+		unlock()
+		return nil, err
+	}
+	s := newStore(path, db, unlock)
+	s.playbackDB = reader
+	return s, nil
 }
 
 func newStore(path string, db *sql.DB, unlock func() error) *Store {
@@ -186,7 +195,7 @@ func (s *Store) Close() error {
 	s.history.Close()
 	// Synchronous operation failures were already returned to their callers.
 	// Close additionally reports work the background collector could not save.
-	s.closeErr = errors.Join(usageErr, s.db.Close(), s.unlock())
+	s.closeErr = errors.Join(usageErr, s.playbackDB.Close(), s.db.Close(), s.unlock())
 	close(s.done)
 	return s.closeErr
 }

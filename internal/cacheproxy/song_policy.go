@@ -65,7 +65,7 @@ func (s *Store) CheckSongAllowed(ctx context.Context, id int64) error {
 		return context.Canceled
 	}
 	defer s.wg.Done()
-	policy, err := readSongPolicy(ctx, s.usage.db, id)
+	policy, err := readSongPolicy(ctx, s.playbackDB, id)
 	if err != nil {
 		return s.storageError(err)
 	}

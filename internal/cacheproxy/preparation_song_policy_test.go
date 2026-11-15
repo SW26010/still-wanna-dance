@@ -26,6 +26,7 @@ func TestBlockingDoesNotCancelAdmittedPreparation(t *testing.T) {
 				}
 				t.Cleanup(func() { db.Close() })
 				s.Store.db = db
+				s.Store.playbackDB = db
 				s.Store.usage = &usageStore{db: db}
 				ctx := t.Context()
 				if kind == "queue" {

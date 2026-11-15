@@ -64,7 +64,7 @@ func (s *Server) releaseVideo(v video) {
 	}
 	if lastReference {
 		s.retentionMu.Lock()
-		s.requestRetentionLocked()
+		s.requestResourceRetentionLocked(v.key)
 		s.retentionMu.Unlock()
 	}
 }
@@ -102,16 +102,63 @@ func (s *Server) trimCache() {
 }
 
 func (s *Server) runRetention(reconcile bool) {
-	if err := s.trimCachePass(reconcile); err != nil {
+	s.reportRetentionError(s.trimCachePass(reconcile))
+}
+
+func (s *Server) reportRetentionError(err error) {
+	if err != nil {
 		s.cfg.Logger.Warn("视频容量清理失败", "event_name", "cache_eviction_failed", "error", err)
 	}
 }
 
+// Protection/reference changes coalesce by resource. Policy changes and
+// inventory reconciliation require a full pass; capacity ranking is global
+// only when the maintained byte count exceeds the budget.
+type retentionWork struct {
+	all  bool
+	keys map[string]bool
+}
+
+func (w *retentionWork) add(key string) {
+	if !w.all {
+		if w.keys == nil {
+			w.keys = make(map[string]bool)
+		}
+		w.keys[key] = true
+	}
+}
+
 func (s *Server) requestRetentionLocked() {
+	s.retentionPending = retentionWork{all: true}
+	s.wakeRetentionLocked()
+}
+
+func (s *Server) requestResourceRetentionLocked(key string) {
+	s.retentionPending.add(key)
+	s.wakeRetentionLocked()
+}
+
+func (s *Server) wakeRetentionLocked() {
 	select {
 	case s.retentionWake <- struct{}{}:
 	default:
 	}
+}
+
+func (s *Server) runRequestedRetention() {
+	s.reportRetentionError(s.Store.retentionDecision(func() error {
+		s.retentionMu.Lock()
+		work := s.retentionPending
+		s.retentionPending = retentionWork{}
+		if work.all {
+			s.nextProtectionExpiryLocked(time.Now())
+		}
+		s.retentionMu.Unlock()
+		if !work.all && len(work.keys) == 0 {
+			return nil
+		}
+		return s.trimCacheDecision(work.keys)
+	}))
 }
 
 func (s *Server) retentionLoop() {
@@ -122,7 +169,7 @@ func (s *Server) retentionLoop() {
 	defer protectionTimer.Stop()
 	for {
 		s.retentionMu.Lock()
-		next := s.nextProtectionExpiryLocked(time.Now())
+		next := s.protectionExpiry
 		s.retentionMu.Unlock()
 		protectionTimer.Stop()
 		var protectionExpired <-chan time.Time
@@ -134,9 +181,12 @@ func (s *Server) retentionLoop() {
 		case <-s.ctx.Done():
 			return
 		case <-s.retentionWake:
-			s.runRetention(false)
+			s.runRequestedRetention()
 		case <-protectionExpired:
-			s.runRetention(false)
+			s.retentionMu.Lock()
+			s.nextProtectionExpiryLocked(time.Now())
+			s.retentionMu.Unlock()
+			s.runRequestedRetention()
 		case <-ticker.C:
 			s.runRetention(true)
 		}
@@ -242,15 +292,22 @@ func (s *Server) trimCachePass(reconcile bool) error {
 			return err
 		}
 	}
-	return s.Store.retentionDecision(s.trimCacheDecision)
+	return s.Store.retentionDecision(func() error {
+		s.retentionMu.Lock()
+		s.nextProtectionExpiryLocked(time.Now())
+		s.retentionMu.Unlock()
+		return s.trimCacheDecision(nil)
+	})
 }
 
-func (s *Server) trimCacheDecision() error {
+// A nil selection checks all resources. A protection-only pass looks up just
+// the affected resources before considering the independent capacity limit.
+func (s *Server) trimCacheDecision(keys map[string]bool) error {
 	policies, err := s.resourcePolicies(context.Background())
 	if err != nil {
 		return err
 	}
-	s.reclaimBlocksWithPolicies(policies)
+	s.reclaimSelectedBlocks(policies, keys)
 	s.retentionMu.Lock()
 	limit := s.cfg.VideoBudgetBytes
 	unlimited := s.cfg.CacheUnlimited
@@ -259,9 +316,20 @@ func (s *Server) trimCacheDecision() error {
 	// existing protection and deletion reservations, including active readers.
 	s.retentionMu.Lock()
 	var blocked []retainedVideo
-	for key, item := range s.retained {
+	checkBlocked := func(key string, item retainedVideo) {
 		if policies[key].blocked && !s.videoProtectedLocked(key) && s.beginVideoRemovalLocked(key) {
 			blocked = append(blocked, item)
+		}
+	}
+	if keys == nil {
+		for key, item := range s.retained {
+			checkBlocked(key, item)
+		}
+	} else {
+		for key := range keys {
+			if item, ok := s.retained[key]; ok {
+				checkBlocked(key, item)
+			}
 		}
 	}
 	s.retentionMu.Unlock()

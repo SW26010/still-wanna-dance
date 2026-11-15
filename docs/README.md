@@ -31,7 +31,7 @@
 | WebUI 多窗口实时订阅 | [网络订阅修复](validation/network-realtime-20261115.md)保留网络双 SSE 的首次对照；[历史与块订阅修复](validation/webui-realtime-20261115.md)记录六窗口历史／块 SSE 阻塞复现、共用实时 module 和真实 Console／Edge 回归；现行规则见[实时订阅](webui-design.md#实时订阅) |
 | 首页块观察成本 | [快照优化验证](validation/block-observation-20261115.md)记录 256／1024／4096 块、共享来源的分配与持锁对照，以及按需详情、快照不可变性、race 和真实双窗口首页验证；现行规则见[按需块观测](block-scheduler-design.md#按需块观测2026-10-20) |
 | 批量失败观测成本 | [批量结果验证](validation/batch-results-20261115.md)记录增量进度、摘要状态、完整失败快照和按需分页的复制量及真实 Console／Edge 检查；现行规则见[下载结果边界](download-resource-design.md#5-容量接入准备回补与保留取舍)及[曲库读取](webui-design.md#曲库读取与刷新) |
-| 库存维护与决策互斥 | [扫描临界区验证](validation/retention-scan-20261112.md)记录扫描阻塞偏好写入的复现、锁范围缩减及库存增量一致性检查 |
+| 库存维护与决策互斥 | [扫描临界区与增量保留验证](validation/retention-scan-20261112.md)记录扫描锁范围与库存一致性，以及播放消费按资源检查、策略快照失效及性能对照 |
 | 临时块读取句柄 | [复用验证](validation/block-read-reuse-20261113.md)记录流读取／合并快照的重复开关复现、当前块句柄与文件引用生命周期、热缓存对照及基线已有的 Range 用例失败 |
 | HEAD 元数据与下载解耦 | [HEAD 验证](validation/head-metadata-20261115.md)记录冷 HEAD 多余回源、容量 503 的复现及元数据路径修复，包含普通／预览响应头和条件请求回归 |
 | Range 实体条件与测试同步 | [时序验证](validation/range-entity-timing-20261113.md)记录偶发 If-Match 断言的受控复现、冷启动与已建立实体的测试修正，以及整包和 race 通过结果 |

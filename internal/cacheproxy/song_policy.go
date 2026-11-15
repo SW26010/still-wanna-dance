@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"sync"
 )
 
 // SongPolicy is local user data, independent of catalog metadata and usage scores.
@@ -159,6 +160,27 @@ func (s *Store) resourcePolicies(ctx context.Context, retainFavorites bool) (res
 	return result, rows.Err()
 }
 
+// Snapshots are immutable. Keep database I/O off retentionMu so playback pins
+// and protection updates do not wait for policy queries. Committed writes
+// invalidate synchronously before Store releases its decision exclusion.
+type resourcePolicyCache struct {
+	mu       sync.Mutex
+	policies map[string]resourcePolicy
+}
+
 func (s *Server) resourcePolicies(ctx context.Context) (map[string]resourcePolicy, error) {
-	return s.Store.resourcePolicies(ctx, s.cfg.RetainFavorites)
+	c := &s.policyCache
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if c.policies == nil {
+		policies, err := s.Store.resourcePolicies(ctx, s.cfg.RetainFavorites)
+		if err != nil {
+			return nil, err
+		}
+		c.policies = policies
+	}
+	return c.policies, nil
 }

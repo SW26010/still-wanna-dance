@@ -11,7 +11,7 @@ import (
 
 // Attach an engine without its background loop so wakeups can be observed
 // without competing with a retention pass for the same coalescing channel.
-func retentionChangeEngine(t *testing.T) *Server {
+func retentionChangeEngine(t testing.TB) *Server {
 	t.Helper()
 	store, err := createEmptyFixtureStore(filepath.Join(t.TempDir(), "business.sqlite"))
 	if err != nil {
@@ -201,30 +201,14 @@ func TestBusinessWritesNotifyRetentionAndQueue(t *testing.T) {
 			write:     func(s *Server) error { return s.Store.SetSongPolicy(context.Background(), 1, SongFavorite) },
 			wantQueue: true,
 		},
-		{
-			name: "recorded existing mapping",
-			prepare: func(t *testing.T, s *Server) {
-				if _, err := s.Store.db.Exec("INSERT INTO media(md5) VALUES (?)", key); err != nil {
-					t.Fatal(err)
-				}
-				if _, err := s.Store.db.Exec("INSERT INTO songs(id) VALUES (1)"); err != nil {
-					t.Fatal(err)
-				}
-				if _, err := s.Store.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (1,?)", key); err != nil {
-					t.Fatal(err)
-				}
-				// Keep the worker's release from providing an unrelated last-pin wake.
-				v := video{key: key}
-				s.pinVideo(v)
-				t.Cleanup(func() { s.releaseVideo(v) })
-			},
-			write: func(s *Server) error { return s.recordSongVideo(context.Background(), "1", video{key: key}) },
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := retentionChangeEngine(t)
 			if tc.prepare != nil {
 				tc.prepare(t, s)
+			}
+			if _, err := s.resourcePolicies(t.Context()); err != nil {
+				t.Fatal(err)
 			}
 			select {
 			case <-s.retentionWake:
@@ -237,6 +221,12 @@ func TestBusinessWritesNotifyRetentionAndQueue(t *testing.T) {
 			}
 			requireRetentionWake(t, s, true)
 			requireQueueWake(t, changed, tc.wantQueue)
+			s.policyCache.mu.Lock()
+			cached := s.policyCache.policies != nil
+			s.policyCache.mu.Unlock()
+			if cached {
+				t.Fatal("committed write did not invalidate policies")
+			}
 			if tc.verify != nil {
 				tc.verify(t, s)
 			}
@@ -294,12 +284,16 @@ func TestFailedBusinessWritesDoNotNotify(t *testing.T) {
 			if _, err := s.Store.db.Exec("CREATE TRIGGER reject_write BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(ABORT,'injected failure'); END"); err != nil {
 				t.Fatal(err)
 			}
+			if _, err := s.resourcePolicies(t.Context()); err != nil {
+				t.Fatal(err)
+			}
 			changed := s.QueuePreparationChanged()
 			if err := tc.write(s); err == nil {
 				t.Fatal("injected write failure was ignored")
 			}
 			requireRetentionWake(t, s, false)
 			requireQueueWake(t, changed, false)
+			cachedResourcePolicies(t, s)
 			var count int
 			if err := s.Store.db.QueryRow("SELECT COUNT(*) FROM songs WHERE id=1").Scan(&count); err != nil || count != 0 {
 				t.Fatal("failed transaction left a placeholder", count, err)

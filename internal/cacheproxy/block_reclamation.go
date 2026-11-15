@@ -14,10 +14,10 @@ func (s *Server) aggressiveBlockReclamation() bool {
 
 // A completed write can create an unprotected block (for example, when the
 // download window starts before the independent local protection window).
-func (s *Server) requestBlockReclamation() {
+func (s *Server) requestBlockReclamation(key string) {
 	s.retentionMu.Lock()
 	if s.cfg.aggressiveBlockReclamation() {
-		s.requestRetentionLocked()
+		s.requestResourceRetentionLocked(key)
 	}
 	s.retentionMu.Unlock()
 }
@@ -30,6 +30,10 @@ func (s *Server) reclaimLocalBlocks() {
 }
 
 func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
+	s.reclaimSelectedBlocks(policies, nil)
+}
+
+func (s *Server) reclaimSelectedBlocks(policies map[string]resourcePolicy, keys map[string]bool) {
 	type cleanup struct {
 		blocks  *blockFiles
 		files   []*localBlockFile
@@ -40,10 +44,10 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 	s.retentionMu.Lock()
 	aggressive := s.cfg.aggressiveBlockReclamation()
 	now := time.Now()
-	for key, local := range s.localResources {
+	reclaim := func(key string, local *localResource) {
 		// A policy change does not interrupt work already using this resource.
 		if !aggressive && (!policies[key].blocked || s.versionPins[key] > 0) {
-			continue
+			return
 		}
 		blocks := local.storage
 		removed := false
@@ -60,6 +64,17 @@ func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
 			delete(s.localResources, key)
 		}
 		pending = append(pending, cleanup{blocks, files, empty})
+	}
+	if keys == nil {
+		for key, local := range s.localResources {
+			reclaim(key, local)
+		}
+	} else {
+		for key := range keys {
+			if local := s.localResources[key]; local != nil {
+				reclaim(key, local)
+			}
+		}
 	}
 	s.retentionMu.Unlock()
 	if len(changed) > 0 {

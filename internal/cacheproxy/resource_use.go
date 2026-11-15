@@ -46,9 +46,9 @@ func (s *Server) startResourceUseLocked(v video) {
 
 // Range downloads call this after a successful complete
 // block write. Observation is notified regardless of the reclamation policy.
-func (s *Server) notifyBlockStored() {
+func (s *Server) notifyBlockStored(key string) {
 	s.notifyBlockObservation()
-	s.requestBlockReclamation()
+	s.requestBlockReclamation(key)
 }
 
 // Availability changes only wake affected resources, without changing usage

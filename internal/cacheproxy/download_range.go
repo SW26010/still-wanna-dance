@@ -155,7 +155,7 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, pro
 			if _, err := sp.WriteAt((*buffer)[:end-start], start); err != nil {
 				return err
 			}
-			s.notifyBlockStored()
+			s.notifyBlockStored(v.key)
 		}
 		download.finish(block)
 		progress.Ready()

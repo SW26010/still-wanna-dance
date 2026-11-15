@@ -96,11 +96,14 @@ type Server struct {
 	sequence         atomic.Uint64
 	flightSequence   atomic.Uint64
 	retentionMu      sync.Mutex
-	retentionScanMu  sync.Mutex                           // Serializes inventory scans, independent of Store decisions.
+	retentionScanMu  sync.Mutex // Serializes inventory scans, independent of Store decisions.
+	policyCache      resourcePolicyCache
 	protection       map[string]map[int64]blockProtection // guarded by retentionMu
+	protectionExpiry time.Time                            // Earliest possible tail expiry; rebuilt only on expiry/full maintenance.
 	publications     map[string]*publicationReservation   // guarded by retentionMu; one per shared flight
 	localResources   map[string]*localResource            // guarded by retentionMu
 	retentionWake    chan struct{}
+	retentionPending retentionWork // guarded by retentionMu
 	retentionDone    chan struct{}
 	retained         map[string]retainedVideo
 	retainedBytes    int64

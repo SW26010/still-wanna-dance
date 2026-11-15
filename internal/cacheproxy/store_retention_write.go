@@ -8,7 +8,7 @@ import (
 
 // writeMapping serializes mapping snapshots and retention decisions with the
 // commit and its invalidation. prepare runs under both locks before the
-// transaction; false skips the transaction but still requests retention.
+// transaction; false skips both the transaction and policy invalidation.
 func (s *Store) writeMapping(ctx context.Context, prepare func() (bool, error), write func(*sql.Tx) error) error {
 	s.retentionRunMu.Lock()
 	defer s.retentionRunMu.Unlock()
@@ -49,7 +49,7 @@ func (s *Store) writeMapping(ctx context.Context, prepare func() (bool, error), 
 		s.metadataUpdated = time.Now()
 		s.mu.Unlock()
 	}
-	if changed || !needed {
+	if changed {
 		s.changed(false)
 	}
 	return nil

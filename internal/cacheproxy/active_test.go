@@ -47,13 +47,17 @@ func TestActiveSharedLifecycle(t *testing.T) {
 
 			})
 			v := parsedVideo(t, s, body)
+			idle, err := s.ActiveDownloads(context.Background())
+			if err != nil || idle.Revision != 0 || len(idle.Tasks) != 0 {
+				t.Fatalf("initial idle: %+v %v", idle, err)
+			}
 			first, reader, err := s.obtain(context.Background(), v)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer reader.Close()
 			unknown, err := s.ActiveDownloads(context.Background())
-			if err != nil || len(unknown.Tasks) != 1 || len(unknown.Tasks[0].Songs) != 0 {
+			if err != nil || unknown.Revision != 1 || len(unknown.Tasks) != 1 || len(unknown.Tasks[0].Songs) != 0 {
 				t.Fatalf("unknown song: %+v %v", unknown, err)
 			}
 			v.songID = "138"
@@ -107,7 +111,7 @@ func TestActiveSharedLifecycle(t *testing.T) {
 			assertResponse(t, request(s, "GET", videoURL(body), map[string]string{"Range": "bytes=0-2"}), 206, body[:3])
 			assertResponse(t, request(s, "GET", videoURL(body), map[string]string{"Range": "bytes=1-4"}), 206, body[1:5])
 			shared, err := s.ActiveDownloads(context.Background())
-			if err != nil || len(shared.Tasks) != 1 || shared.Tasks[0].Bytes != rangeBlockSize {
+			if err != nil || shared.Revision != 1 || len(shared.Tasks) != 1 || shared.Tasks[0].Bytes != rangeBlockSize {
 				t.Fatalf("Range bytes counted as upstream: %+v %v", shared, err)
 			}
 			var readers sync.WaitGroup
@@ -142,6 +146,13 @@ func TestActiveSharedLifecycle(t *testing.T) {
 			if err != nil || len(snap.Tasks) != 0 || snap.BytesPerSecond != 0 || calls.Load() < 2 || calls.Load() > 3 {
 				t.Fatalf("not cleaned or duplicate upstream: %+v %v calls=%d", snap, err, calls.Load())
 			}
+			wantRevision := uint64(2)
+			if outcome == "close" {
+				wantRevision = 0 // Closed engines publish an empty snapshot.
+			}
+			if snap.Revision != wantRevision {
+				t.Fatalf("finished revision=%d want=%d", snap.Revision, wantRevision)
+			}
 		})
 	}
 }
@@ -165,6 +176,23 @@ func TestActiveRateWindow(t *testing.T) {
 	p.changed = now.Add(-time.Second)
 	if p.rate(now) != 500 {
 		t.Fatal("startup rate denominator")
+	}
+}
+
+func TestActiveRevisionRetainsUnobservedFlight(t *testing.T) {
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		serveFixtureContent(w, r, payload)
+	})
+	before, err := s.ActiveDownloads(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Prefetch(t.Context(), videoURL(payload)); err != nil {
+		t.Fatal(err)
+	}
+	after, err := s.ActiveDownloads(t.Context())
+	if err != nil || len(before.Tasks) != 0 || len(after.Tasks) != 0 || after.Revision != before.Revision+2 {
+		t.Fatalf("unobserved lifecycle: before=%+v after=%+v err=%v", before, after, err)
 	}
 }
 

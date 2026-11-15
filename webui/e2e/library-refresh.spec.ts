@@ -21,10 +21,11 @@ test('library reads once per visit and checks local files only on demand',async(
   await expect(page.getByRole('table',{name:'曲库歌曲'}).locator('tbody tr')).toHaveCount(2);
   const reads=()=>api.calls.filter(c=>['library','inventory','downloads'].includes(c.path)).map(c=>c.path).sort();
   await expect.poll(reads).toEqual(['downloads','inventory','library']);
-  const initial=reads();
+  const initial=reads().filter(path=>path!=='downloads');
   await page.clock.fastForward(31000);
   await expect.poll(()=>api.calls.filter(c=>c.path==='status').length).toBeGreaterThan(1);
-  expect(reads()).toEqual(initial);
+  expect(reads().filter(path=>path!=='downloads')).toEqual(initial);
+  expect(api.calls.filter(c=>c.path==='downloads').length).toBeGreaterThan(1);
   const local=page.getByRole('group',{name:'本地视频',exact:true});
   const previous=await checkTime(page,'检查本地视频');
   const coverageTime=await checkTime(page,'更新曲库');
@@ -152,8 +153,8 @@ test('completed network checks publish new catalog data without a library timer 
 
 test('batch preparation and gaps between downloads keep progress reads alive until all work finishes',async({page})=>{
   const api=await mockAPI(page,{libraryView:'list'});
-  let tasks:Download[]=[],reads=0;
-  await page.route('**/api/downloads',route=>{reads++;return route.fulfill({json:{tasks}});});
+  let tasks:Download[]=[],reads=0,revision=0;
+  await page.route('**/api/downloads',route=>{reads++;return route.fulfill({json:{revision,tasks}});});
   await page.route('**/api/batch/start',route=>{api.state.batch={running:true,phase:'准备清单'};return route.fulfill({json:{ok:true}});});
   await page.clock.install();await page.goto('/#/library');
   await expect.poll(()=>reads).toBe(1);
@@ -162,22 +163,22 @@ test('batch preparation and gaps between downloads keep progress reads alive unt
   const duringPreparation=reads;
   await expectWithClock(page,()=>reads).toBeGreaterThan(duringPreparation);
   const task:Download={id:1,resource:'key1',host:'fixture',stage:'download',size:100,bytes:25,bytesPerSecond:10,idleMS:0};
-  tasks=[task];
+  tasks=[task];revision++;
   await expectWithClock(page,()=>page.getByText('下载中',{exact:true}).isVisible()).toBe(true);
-  tasks=[];
+  tasks=[];revision++;
   await expectWithClock(page,()=>page.getByText('下载中',{exact:true}).count()).toBe(0);
-  tasks=[{...task,bytes:75}];
+  tasks=[{...task,id:2,bytes:75}];revision++;
   await expectWithClock(page,()=>page.getByText('下载中',{exact:true}).isVisible()).toBe(true);
   api.state.batch={running:false,phase:'已停止'};
   await expectWithClock(page,()=>page.locator('#batch').textContent()).toContain('已停止');
   const afterBatchStops=reads;
-  tasks=[{...task,bytes:90}];
+  tasks=[{...task,id:2,bytes:90}];
   await expectWithClock(page,()=>reads).toBeGreaterThan(afterBatchStops);
   await expectWithClock(page,()=>page.getByText('下载中',{exact:true}).isVisible()).toBe(true);
-  tasks=[];
+  tasks=[];revision++;
   await expectWithClock(page,()=>page.getByText('下载中',{exact:true}).count()).toBe(0);
   const completed=reads;
-  await page.clock.fastForward(31000);expect(reads).toBe(completed);
+  await page.clock.fastForward(31000);await expect.poll(()=>reads).toBeGreaterThan(completed);
 });
 
 test('video directory failures preserve the last successful check time until recovery',async({page})=>{

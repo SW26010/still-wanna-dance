@@ -1,7 +1,7 @@
 import {chromium,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
-const [baseURL,key,output]=process.argv.slice(2);
+const [baseURL,key,output,mediaURL]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
 const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
 try {
@@ -16,10 +16,19 @@ try {
   const priorScore=await rows.nth(2).getByRole('cell').nth(4).innerText();
   await expect(rows.nth(2).getByRole('cell').nth(4)).toHaveAccessibleName('初始分数 '+priorScore);
   expect(Number(priorScore)).toBeGreaterThan(0.1);
-  await songs.getByRole('button',{name:'下载歌曲',exact:true}).first().click();
-  await expect(page.getByText('所选歌曲或资源已处理完成',{exact:true})).toBeVisible({timeout:20000});
-  await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
-  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2);
+  // Freeze browser polling so the external GET's entire real flight falls
+  // between two reads. No batch action or manual library refresh can wake it.
+  const clockTime=new Date('2026-11-15T08:00:00Z');
+  await page.clock.install({time:clockTime});await page.clock.pauseAt(new Date(+clockTime+100));
+  const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
+  const downloads=async()=>{const response=await page.request.get(baseURL+'/api/downloads',{headers:{'X-SWD-Token':token}});expect(response.ok()).toBe(true);return response.json();};
+  expect(await downloads()).toMatchObject({revision:0,tasks:[]});
+  const media=await page.request.get(mediaURL,{headers:{Host:'nya.xin.moe'}});
+  expect(media.ok()).toBe(true);expect(await media.text()).toBe('library browser video');
+  await expect.poll(downloads).toMatchObject({revision:2,tasks:[]});
+  await expect(songs.getByText('未保存',{exact:true})).toHaveCount(2);
+  await page.clock.resume();
+  await expect(songs.getByText('已保存',{exact:true})).toHaveCount(2,{timeout:15000});
   await page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true}).click();
   await expect(page.getByRole('listitem',{name:'歌曲 1 已设为收藏。',exact:true})).toBeVisible();
   await page.reload();await expect(page.getByRole('group',{name:'歌曲 1 的偏好',exact:true}).getByRole('button',{name:'收藏',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -83,5 +92,5 @@ try {
   await expect(resources.getByText('未保存',{exact:true})).toHaveCount(1);
   await expect(resources.getByRole('button',{name:'下载资源',exact:true})).toBeEnabled();
   expect(errors).toEqual([]);
-  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,fieldSearchAcrossViews:true,queryHistoryAndReload:true,invalidQueryRecovery:true,legacyLinks:true,realDemandBeforeLargerPrior:true,scoreDisplay:['0.10',priorScore],downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
+  await writeFile(join(output,'results.json'),JSON.stringify({resource:key,sharedSongs:2,externalDownloadBetweenReads:true,automaticallySaved:true,fieldSearchAcrossViews:true,queryHistoryAndReload:true,invalidQueryRecovery:true,legacyLinks:true,realDemandBeforeLargerPrior:true,scoreDisplay:['0.10',priorScore],downloaded:true,favoritePersisted:true,deleted:true,errors},null,2));
 }finally{await browser.close();}

@@ -9,7 +9,7 @@ for(const endpoint of ['inventory','downloads'] as const)for(const failure of ['
     if(fail)return failure==='503'?route.fulfill({status:503,json:{error:'temporarily unavailable'}}):route.abort('timedout');
     return route.fulfill({json:endpoint==='inventory'
       ?{totalSongs:2,coveredSongs:complete?2:1,coverageKnown:true,updated:complete?'2026-10-28T08:00:00Z':'2026-10-16T00:00:00Z',scanning:!complete}
-      :{tasks:complete?[]:[{id:1,resource:'key1',host:'fixture',stage:'download',size:100,bytes:75,bytesPerSecond:10,idleMS:0}]}});
+      :{revision:complete?2:1,tasks:complete?[]:[{id:1,resource:'key1',host:'fixture',stage:'download',size:100,bytes:75,bytesPerSecond:10,idleMS:0}]}});
   });
   await page.clock.install();await page.goto('/#/library');
   const coverage=page.getByRole('group',{name:'曲库覆盖率',exact:true}),update=page.getByRole('button',{name:'更新曲库',exact:true});
@@ -25,7 +25,9 @@ for(const endpoint of ['inventory','downloads'] as const)for(const failure of ['
   await expect.poll(()=>reads).toBe(4);
   if(endpoint==='inventory'){await expect(coverage).toContainText('100.0%');await expect(update).toHaveAttribute('aria-busy','false');}
   else await expect(page.getByText('下载中',{exact:true})).toHaveCount(0);
-  const completedReads=reads;await page.clock.fastForward(31000);expect(reads).toBe(completedReads);
+  const completedReads=reads;await page.clock.fastForward(31000);
+  if(endpoint==='downloads')await expect.poll(()=>reads).toBeGreaterThan(completedReads);
+  else expect(reads).toBe(completedReads);
 });
 
 test('an initial inventory failure does not start polling without observed active work',async({page})=>{

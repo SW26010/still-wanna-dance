@@ -9,18 +9,18 @@ import {RecordDataTable,TableText,TablePagination,paginationSummary,type RecordC
 import {ArrowDownloadRegular,DeleteRegular,FolderOpenRegular,HeartFilled,HeartRegular,PlayRegular,ProhibitedRegular,CircleRegular,GridRegular,TextBulletListRegular} from '@fluentui/react-icons';
 import {LibraryPreview,type PreviewSelection} from './library-preview';
 import {LibraryCoverCard,useLibraryCovers} from './library-covers';
+import {useDownloadObservation} from './download-observation';
 import {InventoryPanel,useCacheActions} from './cache';
 import {StorageBudgetNotice} from './cache-capacity';
 import {BatchPanel} from './home-library';
 import {ImportPanel} from './settings';
 import {VRCXImport,useVRCX} from './vrcx';
-import {date,mb,type Download,type LibraryPage,type LibrarySong,type LibraryResource,type SongPolicy} from './types';
+import {date,mb,type LibraryPage,type LibrarySong,type LibraryResource,type SongPolicy} from './types';
 import {isLibraryAnchor,readLibraryQuery,libraryAnchor,songHref,resourceHref,type LibraryQuery} from './library-query';
 import {FieldIssueIcon} from './field-validation';
 
 export {songHref,resourceHref} from './library-query';
 const scoreFormat=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2,minimumSignificantDigits:4,maximumSignificantDigits:4,roundingPriority:'lessPrecision'});
-const downloadRefreshInterval=(data:{tasks:Download[]})=>data.tasks.length?5000:0;
 const policyLabels:Record<SongPolicy,string>={normal:'普通',favorite:'收藏',blocked:'屏蔽'};
 function focusSection(id:string) {
   const target=document.getElementById(id);target?.focus({preventScroll:true});target?.scrollIntoView();
@@ -63,7 +63,7 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
   const searchError=page.errorCode==='invalid_library_search'?page.error.replace(/^Error: /,''):'';
   const resultUnit=resultQuery.view==='songs'?'首歌曲':'个资源';
   const resultCount=page.data&&!waitingForDatabase&&(!page.error||!!searchError)?<>共 <Text weight="bold">{page.data.total.toLocaleString()}</Text> {resultUnit}</>:'—';
-  const downloads=useResource<{tasks:Download[]}>('downloads',visible&&!app.stopped,app.revision,s.batch.running?5000:downloadRefreshInterval,true);
+  const downloads=useDownloadObservation(visible&&!app.stopped,app.revision,page.refresh);
   const feedback=usePageFeedback<{text:string;failed:boolean}>(visible?page.data?.storageID:undefined);
   // Same-query reads retain an actionable snapshot; query/save changes must wait for their own result.
   const pageUnavailable=!page.data||page.loadedPath!==pagePath||page.loadedRevision!==app.revision||waitingForDatabase||!!page.error;
@@ -89,14 +89,12 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
     if(visible&&page.loadedPath===pagePath&&page.data&&offset>=page.data.total&&offset>0)navigate({offset:0},true);
   },[visible,page.data,page.loadedPath,pagePath,offset]);
   const changeSort=(sort:TableSort)=>navigate({...sort,offset:0});
-  const previousTasks=useRef({batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported,downloads:downloads.data?.tasks});
+  const previousTasks=useRef({batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported});
   useEffect(()=>{
-    const tasks=downloads.data?.tasks;
-    const downloadEnded=tasks&&previousTasks.current.downloads?.some(previous=>!tasks.some(task=>task.id===previous.id));
     const imported=!!s.import.imported&&(previousTasks.current.importID!==s.import.id||previousTasks.current.imported!==s.import.imported);
-    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running||imported||downloadEnded))page.refresh();
-    previousTasks.current={batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported,downloads:visible?tasks:undefined};
-  },[s.batch.running,s.import.running,s.import.id,s.import.imported,downloads.data,visible,page.refresh]);
+    if(visible&&(previousTasks.current.batch&&!s.batch.running||previousTasks.current.import&&!s.import.running||imported))page.refresh();
+    previousTasks.current={batch:s.batch.running,import:s.import.running,importID:s.import.id,imported:s.import.imported};
+  },[s.batch.running,s.import.running,s.import.id,s.import.imported,visible,page.refresh]);
   useLayoutEffect(()=>{
     const section=['vrcx-import','video-import','batch'].includes(anchor);
     if(!visible||(!section&&(!isLibraryAnchor(anchor)||!anchor.includes('?'))))return;

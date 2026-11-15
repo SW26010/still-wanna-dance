@@ -131,6 +131,8 @@ Windows 定向 race 首批 292.222 秒未报告数据竞争，但新增取消测
 
 ## 状态提示与观测同步补充
 
+本节保留 `c0870123` 的实现与验证；随后合并历史导入的有序 worker 操作时，通用 `synchronize(ctx, apply)` 已由 `flush(ctx)` 与共用控制入队替代，取消和提交结果边界以[#28 合并记录](issue-28-validation.md#2026-11-15合并后的观测同步与导入结果)及[现行存储契约](../storage.md#打开失败与未来升级)为准。下文的旧 interface 名称不作为当前实现要求。
+
 跟进 P1：状态页为判断 VRCX 导入提示调用 `SongUsageCount`，原实现强制 `flush`。数据库连接占用且 1024 项观测队列满时，屏障发送持有 GET 也需要的互斥锁；已经取消的状态请求仍等待队列，新的 GET 观测随之阻塞。原探针在释放数据库后两者均返回，证明特定积压条件下的阻塞，不证明日常必现或永久卡死。
 
 `TestCanceledSongUsageCountDoesNotBlockGET` 固定占用真实应用数据库连接，等待实际 worker 的连接排队后填满观测队列，不替换 worker 或其锁。修复前连续两次失败：取消的状态查询和新 GET 观测都无法在数据库释放前返回，第二轮约 0.70 秒；原探针及回归失败分别保留在 `status-flush-probe.log`、`status-flush-regression-before.log`。

@@ -51,10 +51,16 @@ func TestUsageWorkerBorrowsApplicationDatabase(t *testing.T) {
 	if err := store.db.Ping(); err != nil {
 		t.Fatal("worker closed the application connection", err)
 	}
+	if err := store.playbackDB.Ping(); err != nil {
+		t.Fatal("worker closed the playback reader", err)
+	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.db.Ping(); err == nil {
 		t.Fatal("application did not close its connection")
+	}
+	if err := store.playbackDB.Ping(); err == nil {
+		t.Fatal("application did not close its playback reader")
 	}
 }

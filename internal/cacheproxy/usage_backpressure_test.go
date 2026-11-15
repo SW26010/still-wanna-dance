@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -62,53 +63,62 @@ func TestUsageSynchronizationCancellationDoesNotBlockGET(t *testing.T) {
 	for _, operation := range []string{"flush", "import"} {
 		for _, full := range []bool{false, true} {
 			t.Run(operation+map[bool]string{false: "/barrier_wait", true: "/queue_full"}[full], func(t *testing.T) {
-				s, _ := blockedUsageStore(t)
-				if full {
-					for range cap(s.usage.events) {
-						s.usage.startGET("1", "")
+				synctest.Test(t, func(t *testing.T) {
+					s, release := blockedUsageStore(t)
+					if full {
+						for range cap(s.usage.events) {
+							s.usage.startGET("1", "")
+						}
 					}
-				}
-				ctx, cancel := context.WithCancel(t.Context())
-				defer cancel()
-				done := make(chan error, 1)
-				go func() {
+					ctx, cancel := context.WithCancel(t.Context())
+					defer cancel()
+					done := make(chan error, 1)
+					go func() {
+						if operation == "import" {
+							done <- s.ImportSongUsage(ctx, historyAt(42, time.Now().UnixMilli()), true)
+						} else {
+							done <- s.usage.flush(ctx)
+						}
+					}()
+					synctest.Wait()
+					wantQueued := 1
+					if full {
+						wantQueued = cap(s.usage.events)
+					}
+					if len(s.usage.events) != wantQueued {
+						t.Fatal("synchronization did not reach the expected queue wait")
+					}
+					getDone := make(chan struct{})
+					go func() {
+						at := s.usage.startGET("2", "")
+						s.usage.record(usageEvent{songID: "2", at: at, method: "GET"})
+						close(getDone)
+					}()
+					select {
+					case <-getDone:
+					case <-time.After(250 * time.Millisecond):
+						t.Error("GET observation waited for synchronization")
+					}
+					cancel()
+					select {
+					case err := <-done:
+						if !errors.Is(err, context.Canceled) {
+							t.Error("synchronization ignored cancellation", err)
+						}
+					case <-time.After(250 * time.Millisecond):
+						t.Error("synchronization waited for the occupied database after cancellation")
+					}
+					release()
+					if err := s.usage.flush(t.Context()); err != nil {
+						t.Fatal(err)
+					}
 					if operation == "import" {
-						done <- s.ImportSongUsage(ctx, historyAt(42, time.Now().UnixMilli()), true)
-					} else {
-						done <- s.usage.flush(ctx)
+						var count int
+						if err := s.db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=42").Scan(&count); err != nil || count != 0 {
+							t.Errorf("canceled queued import committed: count=%d err=%v", count, err)
+						}
 					}
-				}()
-				waitUsageCondition(t, func() bool {
-					if !full {
-						return len(s.usage.events) == 1
-					}
-					// A full-queue sender holds only the shared lifecycle lock.
-					if s.usage.mu.TryLock() {
-						s.usage.mu.Unlock()
-						return false
-					}
-					return true
 				})
-				getDone := make(chan struct{})
-				go func() {
-					at := s.usage.startGET("2", "")
-					s.usage.record(usageEvent{songID: "2", at: at, method: "GET"})
-					close(getDone)
-				}()
-				select {
-				case <-getDone:
-				case <-time.After(250 * time.Millisecond):
-					t.Error("GET observation waited for synchronization")
-				}
-				cancel()
-				select {
-				case err := <-done:
-					if !errors.Is(err, context.Canceled) {
-						t.Error("synchronization ignored cancellation", err)
-					}
-				case <-time.After(250 * time.Millisecond):
-					t.Error("synchronization waited for the occupied database after cancellation")
-				}
 			})
 		}
 	}
@@ -154,20 +164,19 @@ func TestSongUsageCountReadsCommittedStateWithoutFlushing(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	if err := s.usage.start(0, true); err != nil {
-		t.Fatal(err)
-	}
 	paused, resume := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	defer once.Do(func() { close(resume) })
-	done := make(chan error, 1)
-	go func() {
-		done <- s.usage.synchronize(t.Context(), func() error {
-			close(paused)
-			<-resume
-			return nil
-		})
-	}()
+	// Pause the worker after a real detail commit, without occupying the
+	// database connection or replacing the production synchronization path.
+	s.usage.onHistoryChange = func(bool) {
+		close(paused)
+		<-resume
+	}
+	if err := s.usage.start(0, true); err != nil {
+		t.Fatal(err)
+	}
+	s.usage.record(usageEvent{at: time.Now().UnixMilli(), method: "HEAD"})
 	select {
 	case <-paused:
 	case <-time.After(time.Second):
@@ -180,9 +189,6 @@ func TestSongUsageCountReadsCommittedStateWithoutFlushing(t *testing.T) {
 		t.Errorf("status did not read committed state: count=%d err=%v", count, err)
 	}
 	once.Do(func() { close(resume) })
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
 	if err := s.usage.flush(t.Context()); err != nil {
 		t.Fatal(err)
 	}

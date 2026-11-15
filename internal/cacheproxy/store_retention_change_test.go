@@ -67,11 +67,11 @@ func requireDecisionBeforeWrite(t *testing.T, s *Server, decision, write func(co
 	defer cancel()
 	u := s.Store.usage
 	u.mu.Lock()
-	if u.started {
+	if u.started || u.running {
 		u.mu.Unlock()
 		t.Fatal("usage worker is already running")
 	}
-	u.started = true
+	u.started, u.running = true, true
 	u.mu.Unlock()
 
 	decisionDone := make(chan struct{})
@@ -82,12 +82,12 @@ func requireDecisionBeforeWrite(t *testing.T, s *Server, decision, write func(co
 	var barrier chan struct{}
 	defer func() {
 		u.mu.Lock()
-		u.started = false
+		u.started, u.running = false, false
 		u.mu.Unlock()
 		if barrier != nil {
 			close(barrier)
 		}
-		// Any flush that observed started=true sent its event under u.mu.
+		// Release any flush accepted before the synthetic worker stopped.
 		select {
 		case event := <-u.events:
 			if event.barrier != nil {

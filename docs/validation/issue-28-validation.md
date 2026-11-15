@@ -2,6 +2,46 @@
 
 2026-10-20。实现范围与现行契约见[歌曲统计设计](../song-catalog-design.md#vrcx-历史初始化)；本次增加可跳过的引导/设置入口、只读预览、空统计导入及显式整表覆盖，复用原需求计分与存储事务，不增加数据库版本或持久历史副本。
 
+## 2026-11-15：导入与完整缓存播放隔离
+
+旧实现跨越屏障和整个导入事务持有 GET 登记锁，并占用唯一数据库连接。新增 TestHistoricalUsageImportAllowsCachedPlayback 在真实 SQLite 插入触发器中暂停导入，经回环 HTTP 请求完整缓存歌曲：修复前连续两次在 1 秒客户端期限内收不到响应头，释放事务才结束等待，见 artifacts/vrcx-import-playback-before.log。这证明事务耦合，不代表日常导入必然造成同样等待。
+
+最终实现将导入作为统计 module 的有序队列操作，前序观察先写入、替换原子提交或回滚、后序 GET 再累计；等待控制操作的队列空间时也释放 GET 登记锁。闲置库复用同一 worker 执行替换，但不启用采集或清理。Store 保留唯一写连接，另持有播放短读的只读连接；直接视频 URL 的已验证 HIT 先识别相同媒体大小，避免无变化登记等待写连接。导入仅在固定写连接上临时关闭 cache_spill，防止长写入期间提前取得排他锁，结束后恢复原值；保留原日志模式与存储故障机制。脏页内存和正常提交阶段的锁边界见[存储契约](../storage.md)，未改 schema 或配置版本。
+
+最终定向回归通过（3.686 秒，artifacts/vrcx-import-no-spill.log）：真实 HTTP 覆盖歌曲 GET、Range、直接 URL 与 HEAD，分别在成功提交、取消回滚、4,000 首且 cache_size=1 的导入暂停期间返回 HIT；并验证旧已提交统计仍可见，提交／回滚后的需求累计、30 秒去重及 cache_spill 恢复。满队列控制操作等待可取消，GET 登记与响应完成保持原非阻塞溢出策略。闲置导入不清理已有请求明细、不接收新请求，之后启用采集仍正确累计；停止 worker 不关闭播放读连接，Store 关闭后两条连接均不可用。覆盖替换、空表权限、占位歌曲、失败回滚、重启、资源排序和淘汰的既有检查继续保留。
+
+最终定向 Windows race 通过（161.368 秒，artifacts/vrcx-import-final-race.log），包括导入／GET、满队列、闲置导入与采集启用、并发计分、锁冲突恢复、读写连接关闭及事务缓存参数恢复。缓存、Console、VRCX 三包 vet、gofmt 和差异检查通过，见 artifacts/vrcx-import-final-vet.log。
+
+最终三包完整回归通过：cacheproxy 244.138 秒、console 208.906 秒、vrcx 1.492 秒，见 artifacts/vrcx-import-final-packages.log。使用普通 Windows 权限和原有存储故障夹具，命令为 `test -tags=no_easytier ./internal/cacheproxy ./internal/console ./internal/vrcx -count=1`；包含恢复后的冻结数据库、回滚日志、历史可读及存储故障锁存检查。受控 HTTP 只证明服务端交付与统计时序，不声称验证真实播放器体验或任意磁盘条件下的起播耗时。
+
+评审补充：修复已提交结果与请求取消的返回竞态。`TestHistoricalUsageCommittedResultSurvivesCancellation` 包装真实 SQLite 的 Commit，在提交成功后取消请求并暂停回传，用 synctest 确认调用仍在等待 worker；修复前稳定返回 `context canceled`，见 `artifacts/vrcx-import-result-before.log`，修复后按 worker 的成功结果返回。已入队操作继续通过原 context 取消 SQL，只有入队前的等待可直接返回取消。Console 原有导入／重试用例增加已完成覆盖令牌的重试，确认后续新增需求仍保留。
+
+本次补充后的导入与队列回归通过（2.695 秒），VRCX Console 回归通过（11.367 秒）；提交后取消、暂停导入期间播放、覆盖令牌重试的定向 race 通过（cacheproxy 41.288 秒、console 7.104 秒），两包 vet、gofmt 和差异检查通过。输出分别保留于 `artifacts/vrcx-import-result-after.log`、`artifacts/vrcx-import-result-console.log`、`artifacts/vrcx-import-result-race.log`、`artifacts/vrcx-import-result-vet.log`。上段完整三包结果对应这次返回边界补充前的实现；本次按新增风险定向复验，没有重复执行整包。
+
+保留的探索与失败：首次扩展回归暴露直接 URL 的同步媒体登记，见 artifacts/vrcx-import-focused.log。中间方案曾启用业务库 WAL，定向 race 通过，但三包回归暴露日志模式／文件头夹具及 Console 共用回滚日志故障注入助手不再适用；见 artifacts/vrcx-import-packages.log、artifacts/vrcx-import-packages-normal.log。最终收敛为仅导入期间抑制溢出，撤回全局 WAL 及对应夹具修改，不能把中间 WAL 的通过记录当作最终实现证据。首次沙箱 race 的 ThreadSanitizer: failed to restore address 保留于 artifacts/vrcx-import-race.log，不计为通过。
+
+命令均经 scripts/with-test-temp.ps1 node scripts/go-patches.mjs，race 使用已有 w64devkit 2.10.0。只使用合成数据与隔离服务，未读取私人 VRCX 数据、启动游戏或修改 hosts，不新增 VRC 待验项。下文保留 10 月实现和交互调整时的历史验证范围，不作为当前导入锁实现的依据。
+
+## 2026-11-15：合并后的观测同步与导入结果
+
+本节记录 `codex/workspace-2` 与 main 的状态读取隔离、`codex/workspace-3` 的曲库下载观察修复合并时的兼容处理。上节“已入队后等待最终结果”收窄为**开始执行后**：尚未执行的导入可立即响应取消，之后 worker 使用已取消的上下文，不会提交；worker 在开始事务操作前标记执行，调用方此后等待真实结果，保留“提交成功后取消仍返回成功”的边界。
+
+同步屏障与导入共用 `enqueueControl`，等待队列空间不持有生命周期锁或 GET 时间戳／入队锁；保留 main 的 `flush(ctx)`、状态只读已提交统计和屏障结束批次。播放短读与媒体大小无变化检查继续使用只读连接，同时保留 main 的数据库错误分类。新增批量偏好回归适配 main 已有的 `DownloadFillProgress` 回调，没有改变进度语义。
+
+原有满队列／已入队取消回归改用 `synctest.Wait` 确认真实等待状态，不再通过持有某把实现锁判断；取消后释放数据库并排空队列，断言取消的导入没有落库。状态读取回归在真实明细提交回调中暂停 worker，保留不强制排空的检查，移除已经被有序导入替代的通用暂停回调。
+
+定向同步、导入期间真实 HTTP HIT 和提交后取消检查通过（`artifacts/merge-workspaces-20261115/synchronization.log`）；曲库受控 Edge 回归 42 项通过，真实 Console／引擎／Edge 的 `TestLibraryBrowser` 通过（9.010 秒，`library-browser.log` 与 `library-browser/`）。三包 vet 和桌面开发构建通过；本轮未启动构建后的 EXE、VRC 或修改系统 hosts。
+
+首轮合并检查的 cacheproxy 编译失败保留在 `focused-go.log`：新回归仍使用旧进度回调类型。Console 同轮回归通过，cacheproxy 的失败不计为通过；适配后另行执行下述合并回归。此前各工作区的失败与验证范围保持原记录，不外推为本轮全仓库、完整 race 或游戏体验结论。
+
+三包完整执行记录为 `packages.log`：VRCX 通过（1.897 秒），cacheproxy 276.346 秒内仅两项决策互斥回归失败，Console 222.858 秒内仅便携目录改名出现一次 `Access is denied`。两项互斥回归定向连续复现（`failures-repro.log`）；原因是既有夹具没有真实 worker，只设置 `started`，没有同步新增的 `running`，使 `flush` 在到达原屏障前返回。仅补齐合成运行状态及清理，不改变生产实现、等待期限或互斥断言，原用例连续两轮通过（0.820 秒，`retention-fixture-after.log`）。其余 cacheproxy 检查复用本次完整执行结果，未为测试夹具状态调整重复整包。
+
+适配后的两项决策互斥回归另通过 Windows race（20.848 秒，`race-retention-fixture.log`），没有竞态报告。
+
+合并交界处的 Windows race 分组通过：同步／满队列／取消／提交结果 73.411 秒（`race-synchronization.log`），导入期间歌曲 GET／Range／直接 URL／HEAD 播放 35.838 秒及 Console 已完成令牌重试 8.804 秒（`race-playback.log`）。较宽组合曾触及 180 秒整包预算，当时堆栈位于 SQLite 种子夹具构造，无 DATA RACE 报告；保留 `race.log`，该次不计通过。分组没有增加期限、修改行为断言或外推为整包 race。
+
+便携目录改名在相同权限、相同隔离入口下定向两轮及另外十轮均通过（`failures-repro.log`、`portable-move-recheck.log`）；十轮共 4.820 秒。Console 整包独立复核通过（179.586 秒，`console-recheck.log`）。没有修改 Close、文件替换或目录操作，也没有根据一次失败推定具体外部进程占用，首轮失败继续保留。全部 Windows 检查沿用隔离临时目录入口；最终 cacheproxy vet、gofmt 与差异检查通过，产物及源码一致性与实际浏览器检查范围以上述结果为限。
+
 ## 引导交互调整后的验证
 
 本节对应后续确认的现行交互，替代初版“引导中手动预览并立即导入”的验证前提。引导仅显示选项和指定的一行小字，不提供展开或手动选择 VRCX 路径；新库/空统计默认勾选，非空默认不勾选。进入启用页才读取默认历史，检查失败或无有效记录时跳过；最终应用才写入，非空覆盖也只在此时警告。

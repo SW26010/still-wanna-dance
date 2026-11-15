@@ -200,6 +200,44 @@ func TestHistoricalUsageResourceRankingAndEviction(t *testing.T) {
 	expectRetained(t, cold, false)
 }
 
+func TestHistoricalUsageIdleImportDoesNotCollectOrPrune(t *testing.T) {
+	s, err := createEmptyFixtureStore(storagePath(t.TempDir()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	// Existing retained details must survive an import without an engine,
+	// including when the default collection policy would remove them.
+	s.usage.unlimited = true
+	if err := s.usage.write([]usageEvent{{at: 1000, method: http.MethodGet}}); err != nil {
+		t.Fatal(err)
+	}
+	s.usage.unlimited = false
+	if err := s.ImportSongUsage(t.Context(), historyAt(42, 1000), false); err != nil {
+		t.Fatal(err)
+	}
+	s.usage.startGET("99", "")
+	if s.usage.started {
+		t.Fatal("idle import activated request collection")
+	}
+	var rows int
+	if err := s.db.QueryRow("SELECT count(*) FROM request_events").Scan(&rows); err != nil || rows != 1 {
+		t.Fatal("idle import pruned request details:", rows, err)
+	}
+	// Starting collection later must reuse the worker and preserve ordering.
+	if err := s.usage.start(0, true); err != nil {
+		t.Fatal(err)
+	}
+	s.usage.startGET("42", "")
+	s.usage.flush(t.Context())
+	if err := s.db.QueryRow("SELECT demand_count FROM song_usage WHERE song_id=42").Scan(&rows); err != nil || rows != 2 {
+		t.Fatal("collection after idle import:", rows, err)
+	}
+	if err := s.db.QueryRow("SELECT count(*) FROM song_usage WHERE song_id=99").Scan(&rows); err != nil || rows != 0 {
+		t.Fatal("idle import accepted a request before collection started:", rows, err)
+	}
+}
+
 func TestHistoricalUsageEmptyRollback(t *testing.T) {
 	root := t.TempDir()
 	ctx := context.Background()

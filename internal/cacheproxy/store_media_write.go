@@ -7,9 +7,20 @@ import (
 	"log/slog"
 )
 
-func (s *Store) recordMediaSize(ctx context.Context, key string, size int64) error {
-	_, err := s.db.ExecContext(ctx, upsertMediaSQL, key, size)
-	return s.metadataWriteError(ctx, err)
+func (s *Store) recordMediaSize(ctx context.Context, key string, size int64) (resultErr error) {
+	defer func() { resultErr = s.metadataWriteError(ctx, resultErr) }()
+	// A verified HIT normally already has this size. Detect that no-op on the
+	// short-read connection so serving it does not wait for an unrelated writer.
+	var current sql.NullInt64
+	err := s.playbackDB.QueryRowContext(ctx, "SELECT byte_size FROM media WHERE md5=?", key).Scan(&current)
+	if err == nil && (size == 0 || current.Valid && current.Int64 == size) {
+		return nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, upsertMediaSQL, key, size)
+	return err
 }
 
 func (s *Store) recordSongMapping(ctx context.Context, id, key string, log *slog.Logger) (resultErr error) {

@@ -61,7 +61,7 @@ func (s *Store) mediaTiming(ctx context.Context, v video) (mediaTiming, error) {
 	var size sql.NullInt64
 	var seconds sql.NullFloat64
 	if s != nil && s.usage != nil {
-		err := s.usage.db.QueryRowContext(ctx, `SELECT byte_size,
+		err := s.playbackDB.QueryRowContext(ctx, `SELECT byte_size,
  (SELECT MIN(s.end) FROM songs s JOIN song_media sm ON sm.song_id=s.id
   WHERE sm.md5=media.md5 AND (?='' OR s.id=?) AND s.end>0)
  FROM media WHERE md5=?`, v.songID, v.songID, v.key).Scan(&size, &seconds)

@@ -24,7 +24,7 @@ type usageEvent struct {
 	firstBodyBlocking                 *bool
 	completedAt                       int64
 	barrier                           chan struct{}
-	resume                            <-chan struct{}
+	importUsage                       *usageImport
 	at                                int64
 	key, method, rangeHeader, outcome string
 	bytes, elapsedMS                  int64
@@ -41,9 +41,12 @@ type usageStore struct {
 	orderMu   sync.Mutex   // Timestamp and enqueue ordinary observations together.
 	closed    bool
 	started   bool
+	running   bool
 	onError   func(error)
 	failure   error // Written by the worker; read after done closes.
 	events    chan usageEvent
+	space     chan struct{}
+	cleanup   chan struct{}
 	done      chan struct{}
 	now       func() time.Time
 
@@ -51,11 +54,11 @@ type usageStore struct {
 }
 
 func newUsage(db *sql.DB, log *slog.Logger) *usageStore {
-	return &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), done: make(chan struct{}), now: time.Now}
+	return &usageStore{db: db, log: log, events: make(chan usageEvent, 1024), space: make(chan struct{}), cleanup: make(chan struct{}, 1), done: make(chan struct{}), now: time.Now}
 }
 
-// Opening a library is not the beginning of request collection. Only an engine
-// that actually starts observing traffic activates this worker and its pruning.
+// Opening a library or importing usage does not begin request collection.
+// Only an engine observing traffic activates collection and pruning.
 func (u *usageStore) start(retentionDays int, unlimited bool) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -68,8 +71,16 @@ func (u *usageStore) start(retentionDays int, unlimited bool) error {
 	u.retention = time.Duration(retentionDays) * 24 * time.Hour
 	u.unlimited = unlimited
 	u.started = true
-	go u.run()
+	u.startWorkerLocked()
+	u.cleanup <- struct{}{}
 	return nil
+}
+
+func (u *usageStore) startWorkerLocked() {
+	if !u.running {
+		u.running = true
+		go u.run()
+	}
 }
 
 // Timestamp and enqueue under the same lock: response completion cannot reorder
@@ -103,13 +114,6 @@ func (u *usageStore) record(e usageEvent) {
 
 // Drain observations already accepted before ranking eviction candidates.
 func (u *usageStore) flush(ctx context.Context) error {
-	return u.synchronize(ctx, nil)
-}
-
-// synchronize waits for accepted observations and optionally pauses the worker
-// while apply runs. Later observations can enqueue (or drop when full), but are
-// not applied until apply returns. No blocking send holds orderMu.
-func (u *usageStore) synchronize(ctx context.Context, apply func() error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -121,37 +125,59 @@ func (u *usageStore) synchronize(ctx context.Context, apply func() error) error 
 		u.mu.RUnlock()
 		return fmt.Errorf("存储已关闭，请重新打开应用")
 	}
-	if !u.started {
-		defer u.mu.RUnlock()
-		if apply != nil {
-			return apply()
-		}
+	if !u.running {
+		u.mu.RUnlock()
 		return nil
 	}
+	u.mu.RUnlock()
 	done := make(chan struct{})
-	var resume chan struct{}
-	if apply != nil {
-		resume = make(chan struct{})
-		defer close(resume)
-	}
-	// The shared lifecycle lock protects sends from close, while allowing GET
-	// observations through their independent timestamp/enqueue lock.
-	select {
-	case u.events <- usageEvent{barrier: done, resume: resume}:
-		u.mu.RUnlock()
-	case <-ctx.Done():
-		u.mu.RUnlock()
-		return ctx.Err()
+	if err := u.enqueueControl(ctx, usageEvent{barrier: done}); err != nil {
+		return err
 	}
 	select {
 	case <-done:
-		if apply != nil {
-			return apply()
-		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// Reliable commands share observation order, but waiting for queue space must
+// never hold the lock used by GET registration or response completion.
+func (u *usageStore) enqueueControl(ctx context.Context, e usageEvent) error {
+	for {
+		u.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			u.mu.Unlock()
+			return err
+		}
+		if u.closed {
+			u.mu.Unlock()
+			return context.Canceled
+		}
+		select {
+		case u.events <- e:
+			u.mu.Unlock()
+			return nil
+		default:
+		}
+		space := u.space
+		u.mu.Unlock()
+		select {
+		case <-space:
+		case <-u.done:
+			return context.Canceled
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (u *usageStore) notifySpace() {
+	u.mu.Lock()
+	close(u.space)
+	u.space = make(chan struct{})
+	u.mu.Unlock()
 }
 
 func (u *usageStore) enqueueLocked(e usageEvent) {
@@ -172,7 +198,7 @@ func (u *usageStore) close() error {
 	u.mu.Lock()
 	if !u.closed {
 		u.closed = true
-		if u.started {
+		if u.running {
 			close(u.events)
 		} else {
 			close(u.done)
@@ -185,12 +211,16 @@ func (u *usageStore) close() error {
 
 func (u *usageStore) run() {
 	defer close(u.done)
-	// Run even without requests; catch up old databases gradually.
-	timer := time.NewTimer(0)
+	// Importing into an idle Store does not activate collection or pruning.
+	timer := time.NewTimer(time.Minute)
+	timer.Stop()
 	defer timer.Stop()
 	for {
 		var event usageEvent
 		select {
+		case <-u.cleanup:
+			timer.Reset(0)
+			continue
 		case <-timer.C:
 			deleted, err := u.prune(time.Now())
 			delay := time.Minute
@@ -215,9 +245,8 @@ func (u *usageStore) run() {
 		}
 		batch := []usageEvent{event}
 		// Drain an immediately available batch without delaying the request path.
-		// A synchronization point ends the batch so later observations cannot
-		// overtake an ordered operation, including a whole-table usage import.
-		for len(batch) < 128 && batch[len(batch)-1].barrier == nil {
+		// A synchronization point ends the batch before later observations.
+		for len(batch) < 128 && batch[len(batch)-1].barrier == nil && batch[len(batch)-1].importUsage == nil {
 			select {
 			case e, ok := <-u.events:
 				if !ok {
@@ -229,6 +258,13 @@ func (u *usageStore) run() {
 			}
 		}
 	write:
+		u.notifySpace()
+		// An import ends its batch. Earlier observations commit first; later
+		// observations remain queued until replacement commits or rolls back.
+		command := batch[len(batch)-1].importUsage
+		if command != nil {
+			batch = batch[:len(batch)-1]
+		}
 		if err := u.writeBatch(batch); err != nil {
 			if u.failure == nil {
 				u.failure = err
@@ -241,10 +277,15 @@ func (u *usageStore) run() {
 		for _, e := range batch {
 			if e.barrier != nil {
 				close(e.barrier)
-				if e.resume != nil {
-					<-e.resume
-				}
 			}
+		}
+		if command != nil {
+			close(command.started)
+			err := replaceSongUsage(command.ctx, u.db, command.history, command.overwrite)
+			if err != nil && u.onError != nil {
+				u.onError(err)
+			}
+			command.done <- err
 		}
 	}
 }
@@ -253,6 +294,9 @@ func (u *usageStore) run() {
 // Each attempt owns a fresh transaction with the existing two-second budget;
 // only SQLite lock conflicts are safe to replay after rollback/discard.
 func (u *usageStore) writeBatch(batch []usageEvent) error {
+	if len(batch) == 0 {
+		return nil
+	}
 	for attempt := 1; ; attempt++ {
 		err := u.write(batch)
 		if !isStorageBusy(err) || attempt == 3 {

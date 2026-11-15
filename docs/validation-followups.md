@@ -6,6 +6,8 @@
 
 ## 已知失败优先处理
 
+- **2026-11-15 有限历史读取整包检查中的 HEAD 失败**：cacheproxy 整包的 `TestPlaybackAPIStreamsAndReusesVideoCache` 在第三个 HEAD 得到 `502 / video metadata unavailable`，预期 200；Console 整包及本轮历史、统计、分页、导出定向与 race 均通过。HEAD 与文件检查路径本轮未修改，当前和修改前源码各定向十次均通过，首次失败尚未归因，不记为整包通过或已修复；后续对 HEAD／发布路径维护时优先复核。范围及日志见[有限读取验证](validation/history-bounded-reads-20261115.md#保留的失败与验证边界)，无需 VRC。
+
 - **2026-11-15 下载设置提示回归中的旧帮助断言**：下载页改为字段悬停说明并增加警告后，Edge 的 `download-settings`、`number-input`、`settings-structure`、`ui-layout` 共 24 项检查中 22 项通过，覆盖四项数值字段的标签悬停、键盘聚焦、Escape 关闭、保存、默认值及 320～1440px 布局。`settings-structure` 的两个帮助页断言仍查找“日志与当前路径”“开始使用”；检查变更前 `HEAD` 的 `help-content.tsx` 已无这些标题，属于既有测试与当前帮助内容不一致，留待帮助测试维护时更新，不扩大本次下载设置修改。结果及截图位于忽略目录 `artifacts/download-settings-hover-tests/`；此前沙箱 Edge 启动即退出的错误保留在 `artifacts/webui-tests/`，普通桌面权限复验后才得到上述界面结果。随后按反馈移除醒目警告框，最终在下载、缓存各自字段之后分别以次级小字提示。悬停定位复现表明整列宽度的触发区导致提示向右偏移：1440px 下提示左边缘为 376px，而输入框右边缘为 278px；只将触发区收窄到字段内容后原检查通过。定位失败及单项复验保留在 `artifacts/download-tooltip-position-{before,after}/`；最终 Edge 定向检查 14/14 通过，覆盖 320／1440px 的四项提示定位与键盘交互，截图位于 `artifacts/download-tooltip-position-final/`。前端构建与产物一致性检查通过；本次仅验证页面展示与交互，不涉及游戏运行。
 
 - **2026-11-02 beta.4 Windows race 测试时钟**：全量 race 的旧测试快照中，`TestRangeRedirectBudgetSurvivesBodyFailures` 在 SQLite 初始化前启动 3 秒调用期限，初始化耗尽期限后没有任何上游请求；现将该期限移至初始化完成后，保留重定向预算及调用超时断言。`TestRetainedQueueRefetchAfterEviction/published_then_enters_by_time` 在替换文件完成淘汰前就启动 500 毫秒保护窗口；高负载下原文件已受保护，测试仍要求其被淘汰。隔离对照延迟替换响应可使原准备条件失效；保持窗口远期直至淘汰完成，再调整播放时钟，让时间本身带需求进入窗口，慢响应对照 5/5 通过。两组完整定向用例普通模式各重复 10 次、Windows race 各重复 3 次通过；产品超时和淘汰规则未修改。原始失败与对照日志保存在忽略目录 `artifacts/beta4-local-preflight-20261101/`。

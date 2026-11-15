@@ -1,0 +1,52 @@
+# 有限近期统计与时间分页验证（2026-11-15）
+
+实施基线为 `41de6cec`，实现分为移除精确计数、只保留时间排序、合并有限近期统计三批提交；最后统一清理反馈与文档。现行计算规则只在[存储契约](../storage.md#请求统计的计算方式)维护，界面与分页见[历史查询范围](../webui-design.md#历史查询范围)。
+
+本轮全部使用隔离 SQLite、合成历史、受控视频上游及 Edge，没有读取私人历史、启动游戏、启动播放网关或修改系统 hosts；不新增 VRC 待验项。导出的整库快照隔离继续保留。
+
+## 行为与删除检查
+
+- 来源和首正文共用 `[now-72h, now)` 内最多最近 10,000 条原始请求；按到达时间和事件 ID 选取后，分别筛选有效样本。HEAD、无正文或观测未知的请求占用原始条数，不向旧记录补足有效样本。
+- 定向 Go 检查覆盖时间上下界、重复到达时间、有效／无效样本、空组、精确最近秩、保留期及重启。10,005 条同毫秒记录中最新五条为 HEAD，选出的原始请求为 10,000 条、有效 GET 为 9,995 个；P50 为 5003 ms、P95 为 9501 ms，来源字节与同一批请求一致。
+- 缓存保留计算时刻与范围，59 秒仍复用、60 秒重新计算；手动刷新立即读取新增请求。覆盖缓存对象不被调用者修改、失败不缓存、并发刷新只计算一次、首个调用取消后等待者接手、单个等待者取消与关闭。
+- 时间正序／倒序遍历同毫秒记录和超过 500 条的历史，不漏不重；完成时间更新不移动到达身份。原相邻中断隐藏的资源、歌曲冲突、时间、HEAD、跨筛选边界与分页检查保留。
+- 精确计数的界面、请求、接口、缓存和 SQL 已删除；歌曲／资源排序入口、查询分支、身份游标值及临时歌曲索引已删除。旧的全量来源求和、SQL 分位数、延迟派生索引和窗口边界缓存已删除。旧统计接口及计数接口返回 404，非法刷新参数返回 400。
+- 日常读取只经 `Page`／`Statistics`；`snapshot` 仅由 `Export` 使用。导出保留在线备份、版本失效、并发构建、取消与租约清理，不再准备派生索引或切换私有 WAL。没有并存的旧统计实现。
+
+## 实际规模与持续写入
+
+以 `SWD_HISTORY_LARGE_EVIDENCE=1` 执行 `TestHistoryLargeReadsPersistConcurrentObservations`，使用生产读写超时与真实 collector，在 6,000,000 条合成保留明细上检查：
+
+| 项目 | 本机观察 |
+| --- | --- |
+| 首次有限近期统计 | 17.2494 ms；原始 10,000 条、有效 10,000 个 |
+| 查询计划 | `SEARCH request_events USING INDEX request_events_time (requested_at>? AND requested_at<?)`；没有临时排序 |
+| 24 次分页及 12 次强制统计期间 | 1.0728 秒，完成 208 次请求／需求写入提交 |
+| 无读取对照的写入 P50／P95 | 2.5227／3.6321 ms（16 次） |
+| 并发读取时写入 P50／P95／最大值 | 3.0065／22.418／44.0482 ms（208 次） |
+| 副本与索引 | 未建立导出副本，无 `request_events_history_*` 派生索引 |
+| 重开数据库 | 224 条新增请求及对应需求计数、分数全部持久化 |
+
+建库、执行和重开共 102.38 秒，不能把此时间当作统计耗时。并发读取存在短暂写入延迟，但本组没有秒级阻塞、collector 失败或丢失写入。结果只覆盖本机合成负载，不证明所有磁盘和长期高负载均无等待；据此暂保留 10,000 条与 60 秒初始参数，不增加用户配置。原始日志为忽略目录 `artifacts/history-large-20261115.log`。
+
+## 浏览器、集成与静态检查
+
+| 检查 | 结果 |
+| --- | --- |
+| 历史、刷新与共用表格浏览器检查 | 28/28 通过；统一错误反馈后相关 22/22 再次通过 |
+| 可见性与手动刷新 | 隐藏标签及离开历史页无自动统计请求；恢复读取；手动请求带一次 `refresh=true`，后续自动请求恢复普通缓存读取；两项共用结果和忙碌状态 |
+| 展示与布局 | 统计时间、窗口、原始条数、最早请求与有效样本提示可通过键盘查看；1280px、390px 暗色、320px 强制高对比截图及横向溢出断言通过，已人工检查桌面与手机截图 |
+| 真实请求／SQLite 重开／Console HTTP／Edge | `TestRequestHistoryBrowser` 通过（最终联调 9.23 秒）；601 条保留样本、13 页、实时新增、相邻中断开关、身份与来源均通过；缓存仍为 601 条，手动刷新更新到 606 条 |
+| 最终 Go 定向回归 | cacheproxy 19.272 秒、Console 0.619 秒通过，包含历史、统计、来源及导出 |
+| Windows 定向 race | cacheproxy 391.514 秒、Console 25.889 秒通过，无竞态报告；使用已有 w64devkit GCC 与 `CGO_ENABLED=1` |
+| 静态检查 | 前端类型／产物一致性、两个 Go 包的 vet、gofmt、diff 空白检查及提交产物策略通过 |
+
+复验入口：`with-test-temp.ps1` 包装 `node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy ./internal/console -run 'TestHistory|TestLatency|TestResponseSources|TestExportRequestHistory' -count=1`；真实浏览器另设置 `SWD_HISTORY_BROWSER_EVIDENCE`。日志分别在 `artifacts/history-targeted-final-20261115.log`、`history-race-20261115.log`、`history-browser-20261115.log`，真实浏览器截图与结果在 `artifacts/history-browser-20261115/`；夹具截图在 `artifacts/webui-tests/`。这些本机文件不是公开证据附件。
+
+## 保留的失败与验证边界
+
+首次沙箱 Console 检查遇到已有 Windows `renameat: The handle is invalid` 限制，普通桌面权限下的同一隔离回归通过。首轮 race 未设置 CGO 而未执行；配置已有 GCC 后完成上述 race。清理过程中的旧快照探针、夹具接口及通知定位断言失败均保留在本轮运行历史中，修正后相关检查通过，未修改业务断言掩盖问题。
+
+扩大到两个完整 Go 包时，Console 通过（258.981 秒），cacheproxy 未全绿（281.141 秒）：`TestPlaybackAPIStreamsAndReusesVideoCache` 的第三个 HEAD 得到 `502 / video metadata unavailable`，预期 200。该 HEAD、文件检查及测试实现本轮未修改。随后当前源码与修改前 `41de6cec` 的独立源码各定向运行十次均通过，尚未确定首次失败原因，不能将整包标为通过，也不据此宣称已修复。日志为 `artifacts/history-packages-20261115.log`、`history-head-current-20261115.log`、`history-head-baseline-20261115.log`；此项属于独立非 VRC 跟进，本轮不扩大修改下载或 HEAD 行为。
+
+旧[计数与分页记录](request-history-read-cost-20261115.md)及[历史长读隔离记录](request-history-write-isolation-20261115.md)保留原始失败和当时结果，已在页首标明替代范围；其全量统计、精确计数、非时间排序和派生索引不再作为现行约束。

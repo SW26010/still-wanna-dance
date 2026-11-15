@@ -158,7 +158,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 		}
 	}
 	ready := false
-	for _, at := range []int64{now.Add(-72*time.Hour).UnixMilli() - 1, now.UnixMilli()} {
+	for _, at := range []int64{now.Add(-72*time.Hour).UnixMilli() - 1, now.Add(-72 * time.Hour).UnixMilli(), now.UnixMilli()} {
 		events = append(events, usageEvent{method: "GET", status: 200, at: at, bytes: 1, firstBodyNS: 1, firstBodyBlocking: &ready})
 	}
 	// Supported records with unknown timing, non-video errors and empty bodies
@@ -175,7 +175,7 @@ func TestLatencyRollingQuantilesCoverageAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, err := ReadRequestStatistics(context.Background(), cfg.Store.path, now)
-	if err != nil || r.Ready.Samples != 20 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
+	if err != nil || r.Ready.Samples != 21 || r.Blocking.Samples != 20 || r.Ready.P50MS == nil || *r.Ready.P50MS != 10 || *r.Ready.P95MS != 19 || *r.Blocking.P50MS != 100 || *r.Blocking.P95MS != 190 {
 		t.Fatalf("quantiles: %+v %v", r, err)
 	}
 	var openErr error

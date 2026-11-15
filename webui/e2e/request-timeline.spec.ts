@@ -122,7 +122,7 @@ test('source refresh retains data and reports failures without showing zero',asy
   await page.goto('/#/timeline');const summary=page.getByRole('region',{name:'响应来源统计'});
   await expect(summary).toContainText('下载 100%');fail=true;
   await page.getByRole('button',{name:'刷新来源统计',exact:true}).click();
-  await expect(summary).toContainText('来源统计读取失败，请重试。');await expect(summary).toContainText('下载 100%');
+  await expect(page.getByText('近期统计读取失败，请重试。当前显示上次结果。',{exact:true})).toBeVisible();await expect(summary).toContainText('下载 100%');
 });
 
 for(const populated of [false,true])test(`automatic history refresh preserves visible results and controls (${populated?'rows':'empty'})`,async({page})=>{

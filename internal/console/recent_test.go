@@ -167,3 +167,25 @@ VALUES (?,'GET','','completed',60,10,200,5000000,1,10,20,30)`, time.Now().Add(-t
 		t.Fatal("history read started engine or gateway")
 	}
 }
+
+func TestHistoryRetiredReadAPIs(t *testing.T) {
+	c := testConsole(t)
+	for _, path := range []string{"/api/history/count", "/api/latency", "/api/response-sources"} {
+		r := httptest.NewRequest("GET", "http://"+c.address+path, nil)
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		if w.Code != 404 {
+			t.Fatalf("retired route %s returned %d", path, w.Code)
+		}
+	}
+	for _, raw := range []string{"invalid", "2"} {
+		r := httptest.NewRequest("GET", "http://"+c.address+"/api/history/stats?refresh="+raw, nil)
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		if w.Code != 400 {
+			t.Fatalf("invalid refresh %s returned %d", raw, w.Code)
+		}
+	}
+}

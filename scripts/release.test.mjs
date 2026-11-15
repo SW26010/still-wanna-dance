@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { withTemp, repository } from './release-source.mjs';
-import { assetURL, releaseNames, checkReleaseManifest, downloadAssets, verifyRelease } from './release.mjs';
+import { assetURL, releaseNames, checkReleaseManifest, downloadAssets, downloadPreviousPortable, verifyRelease } from './release.mjs';
 
 const content = Buffer.from('test asset');
 const hash = crypto.createHash('sha256').update(content).digest('hex');
@@ -74,3 +74,29 @@ test('local verification rejects missing or corrupt source before extraction', (
   fs.writeFileSync(path.join(temp, m.assets[1].name), 'corrupt');
   assert.throws(() => verifyRelease({ manifest: m, directory: temp }), /checksum mismatch/);
 }));
+
+test('upgrade baseline downloads only the published portable and reuses it after rechecking identity', () => withTemp(async temp => {
+  const m = fixture(), a = m.assets[0], requested = [];
+  const files = new Map([[assetURL(m.tag, releaseNames(m.tag).manifest), JSON.stringify(m)], [a.url, content], [a.url + '.sha256', `${a.sha256}  ${a.name}\n`]]);
+  const fetcher = async url => { requested.push(url); return files.has(url) ? new Response(files.get(url)) : new Response('missing', { status: 404 }); };
+  const file = await downloadPreviousPortable({ tag: m.tag, directory: temp, fetcher });
+  assert.deepEqual(fs.readFileSync(file), content);
+  assert.equal(requested.length, 3);
+  await downloadPreviousPortable({ tag: m.tag, directory: temp, fetcher });
+  assert.equal(requested.filter(url => url === a.url).length, 1);
+  fs.writeFileSync(file, 'tampered');
+  await assert.rejects(downloadPreviousPortable({ tag: m.tag, directory: temp, fetcher }), /Existing previous portable differs/);
+}));
+
+test('bad or unavailable upgrade inputs fail before exposing a usable baseline', async () => {
+  for (const kind of ['manifest unavailable', 'wrong tag', 'checksum', 'bytes']) await withTemp(async temp => {
+    const m = fixture(), a = m.assets[0], tag = kind === 'wrong tag' ? 'v9.9.9' : m.tag;
+    const fetcher = async url => {
+      if (url.endsWith('-release.json')) return kind === 'manifest unavailable' ? new Response('', { status: 404 }) : new Response(JSON.stringify(m));
+      if (url.endsWith('.sha256')) return new Response(kind === 'checksum' ? 'wrong' : `${a.sha256}  ${a.name}`);
+      return new Response(kind === 'bytes' ? 'tampered' : content);
+    };
+    await assert.rejects(downloadPreviousPortable({ tag, directory: temp, fetcher }));
+    assert.equal(fs.existsSync(path.join(temp, a.name)), false);
+  });
+});

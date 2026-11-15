@@ -6,11 +6,11 @@
 ./scripts/package-portable.ps1 -Version dev-local
 ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-dev-local-windows-amd64-portable.zip
 
-# 正式产物：已有 v1.2.3 tag 必须指向当前干净 HEAD；不自动创建 tag 或发布
+# 正式交付阶段：业务/工具验证由预检及 Actions 门禁负责；不自动创建 tag 或发布
 ./scripts/package-portable.ps1 -ReleaseTag v1.2.3
 ```
 
-开发包先运行依赖无关的前端源码/资源清单校验（`scripts/check-webui.mjs`），再通过 `scripts/go-patches.mjs` 对 `./cmd/... ./internal/...` 执行带 `no_easytier` 标签的 Go test 和 vet，失败即停止。干净 CI 检出使用 `-AllPackages` 将开发包的 Go 测试与 vet 扩展至 `./...`，同时充当 Windows 全包检查；普通本地开发包仍只检查产品目录，避免扫入忽略目录中的实验代码。正式包在独立干净检出中运行全部 Node 测试和上述产品 Go 检查，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承外部 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
+开发包先运行依赖无关的前端源码/资源清单校验（`scripts/check-webui.mjs`），再通过 `scripts/go-patches.mjs` 对 `./cmd/... ./internal/...` 执行带 `no_easytier` 标签的 Go test 和 vet，失败即停止；独立干净检出可用 `-AllPackages` 扩展至 `./...`。正式包只负责交付构建与检查，业务和工具测试在 `scripts/release-preflight.ps1` 及 Actions 门禁中各执行一次，不在打包内部重复运行；它仍在独立干净检出中构建，排除原目录中被 Git 忽略的额外代码/嵌入资源。构建使用 `GOOS=windows GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0`、`-tags=no_easytier -trimpath -mod=readonly -ldflags '-s -w -H=windowsgui'`；不继承外部 GOFLAGS、工作区覆盖或 Go 实验配置，不自动下载工具链。
 
 ZIP 名允许带版本；ZIP 内固定为：
 
@@ -70,15 +70,29 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 启动发行工作流前，先完成[发布前本机 Windows 完整预检](development.md#发布前本机-windows-完整预检)；本节维护产物与公开交付规则。
 
-[`check` 工作流](../.github/workflows/check.yml)在 PR、main push、手动运行或推送 `v[0-9]*` tag 时执行 Windows 检查：前端一致性、代表性浏览器交互、真实 Console 双页面设置联调、Node 和 Go 测试、vet、gofmt，以及独立作业中的代表性 race 检查。手动运行或推送版本 tag 时改跑完整浏览器套件和全包 race，并额外构建、检查便携包；PR 和普通 main push 不打包。Windows CI 使用与本机一致的 Edge，以及固定版本并校验哈希的 w64devkit GCC。同一分支或 PR 的新提交会取消过期检查，同一发布 tag 的运行仍串行且不自动取消。`repository-artifacts` 在 Windows 单独检查仓库产物策略。
+[`check` 工作流](../.github/workflows/check.yml)按工具与仓库检查 → 产品/race 并行 → 一次正式交付 → 自动发布执行，各验证范围共用本机预检脚本。PR/main 使用代表性浏览器与 race，手动运行和 tag 使用完整浏览器及全包 race；产品仍完成真实 Console 联调、Go test/vet/build 和 gofmt。`repository-artifacts` 在分支 push／PR 时独立执行，在手动或 tag 检查时由 `check` 调用并作为打包门禁；它通过 `-Scope repository` 执行产物策略及其 Node 测试和 Python 测试，工具作业不重复这些测试。Windows CI 使用 Edge 和固定版本、校验哈希的 w64devkit GCC。同一分支或 PR 的新提交取消过期检查，同一发布 tag 的运行串行且不自动取消。没有发行 tag 时只检查，不再生成重复候选包。
 
-自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.0.0-beta.1`）。留空只检查并生成 ci 开发包；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
+自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.2.3`）。留空只检查；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
 
-发布运行先生成同一提交的 ci 候选包，再经现有正式入口构建 ZIP、完整源码和校验文件，同时完成源码离线重建、ZIP 冒烟及候选包到正式包的覆盖升级。该候选用于验证当前布局的覆盖过程，不代表历史配置迁移。产品测试、Windows race 和打包并行；三者全部成功后，独立发布 job 才取得 `contents: write`，复用标准 Release action 上传五个正式附件到草稿，并核对 GitHub 返回的大小与 SHA256；临时候选包不进入 Release。测试或打包失败时可分别重跑失败作业，发布作业复用该次成功上传的正式附件。
+版本更新与升级注意事项保存在 `docs/releases/<tag>.md`；存在对应文件时，打包作业将其附加到生成的 Release 正文。内容面向使用者，保留实际功能变化和升级影响。
+
+发布只构建一套正式 ZIP、对应源码、校验文件和清单，保留必要源码输入与许可、离线独立重建、实际 ZIP 冒烟和覆盖升级检查。源码交付范围以[对应源码说明](corresponding-source.md)为准，不增加与 SWD 交付无关的上游重建门槛。升级默认使用最近公开版本（含候选版）的实际 ZIP；`previous_tag` 可指定其他历史版本，通过公开清单与 SHA256 校验后下载，省去同一源码的 ci 候选构建。无历史发行时只做单包验证，不宣称跨版本升级通过。持久化格式变化仍须补相应旧格式数据迁移验证。
+
+产品和全量 race 全部通过，或完成下面的严格复用校验后，才进入交付构建。独立发布 job 只取得该次 Actions 已验证的五个正式附件并获得 `contents: write`，上传草稿后核对 GitHub 返回的大小与 SHA256。最终 Release 的附件始终来自 Actions。
+
+业务验证复用通过可选 `validation_run_id` 指定本仓库一次成功的完整 `check` 运行。脚本核对工作流、来源、完成状态、产品完整检查以及六个 race 作业的实际成功步骤；普通 main/PR 代表性检查、跳过或失败作业、其他仓库、复用后的运行均不能作为基线。用完整 Git diff（含删除和重命名）确认只有明确列出的交付脚本及文档变化；业务代码、业务测试、前端/Go 依赖、构建规则、验证入口和工作流变化一律拒绝复用。`release.mjs` 与 `release-source.mjs` 同时负责生产构建，整体排除在复用清单外，避免构建入口、编译参数或身份规则变更沿用旧业务结果。清单集中在 `scripts/release-validation.mjs`，工具回归与全部实际交付检查仍执行。留空即运行完整业务检查；不通过校验会立即停止，不静默扩大或缩小范围。初次采用本流程需要建立新的完整成功基线。
+
+| 后续情况 | 最少需要完成的工作 |
+| --- | --- |
+| 仅文档变化 | 复用仍适用的本机证据；发行时可指定有效完整运行，工具与最终交付仍验证 |
+| 仅允许清单内的交付脚本变化 | 本机补工具/交付阶段；Actions 指定有效完整运行复用业务结果 |
+| 业务、业务测试、依赖或构建／验证规则变化 | 本机补受影响验证，正式 Actions 完成产品与全量 race |
+| 同一次运行的打包或发布失败 | 归因后重跑失败作业；成功测试不重跑，发布复用本次已上传产物。后续复用检查按各产品／race 作业的最新尝试核验，保留先前已通过且未重跑的作业 |
+| 产物字节发生变化 | 重新完成受影响交付检查；不能覆盖已公开版本或不同内容的同名附件 |
 
 附件完整后自动发布，并从无凭据公共 URL 回下载 ZIP、源码、两个校验文件和发行清单，核对与已验证附件的身份、字节数及 SHA256。正式打包已对同一源码附件完成全新缓存独立重建，公开下载的哈希相同，因此自动流程不再重复重建；单独运行上面的 `verify-published` 仍会重新独立重建。失败时尝试恢复为草稿，工作流明确失败；只有公开附件检查成功才表示公开交付完成。带 `-beta` 等后缀的版本自动标为 Pre-release；此流程不设置 Latest。已有相同标签的草稿可复用，已有同名附件不覆盖，内容不符即停止。重跑失败的发布 job 会复用本次 Actions 附件；若重新构建导致附件不同，应检查草稿或使用新版本，不能覆盖已公开的交付。本地打包脚本负责准备与验证，附件由 Actions 上传。
 
-首次正式发布由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 汇总可靠性与公开交付、[#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总最终 Portable 与覆盖升级结果。#23/#24/#25/#27/#30 已完成的基础实现和证据按适用范围复用；发行前仍须对选定提交完成完整 `check`、正式打包、同布局前一候选包到最终 ZIP 的覆盖升级，以及上述公开下载验证。开发和 Windows 剩余范围以[非 VRC 验证跟进](validation-followups.md)为准，游戏剩余场景以 [VRC 台账](live-acceptance-backlog.md)为准；原 LA-033 的网页门禁与条款展示已转浏览器/集成验证，条款变更后的实际确认和跨用户凭据边界归 Windows 验证。最新交付证据见 [#26 验证记录](validation/issue-26-validation.md)，不以历史包的结果替代最终候选。
+首次正式发布由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 汇总可靠性与公开交付、[#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总最终 Portable 与覆盖升级结果。#23/#24/#25/#27/#30 的基础实现和证据按适用范围复用，历史记录中的同源码候选包路径由上面的实际旧版本基线流程替代。开发和 Windows 剩余范围以[非 VRC 验证跟进](validation-followups.md)为准，游戏剩余场景以 [VRC 台账](live-acceptance-backlog.md)为准。历史证据见 [#26 验证记录](validation/issue-26-validation.md)，不以历史包的结果替代最终交付。
 
 ## 覆盖升级与备份
 
@@ -97,7 +111,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 `test-portable-upgrade.ps1` 先验证两个真实 ZIP 的门禁、精确白名单、SHA256 和覆盖启动，再在默认目录、外置媒体、自定义配置三种布局上运行两个实际 EXE。集成测试隔离生成当前格式的配置、同用户 DPAPI 测试凭据/条款回执、通道密钥、任务快照、真实 SQLite 和通过导入入口发布的合成媒体；检查两个进程读取成功、持久文件哈希保持以及日志追加。它不读取个人数据、不接入游戏或修改 hosts。合成回执仅用于集成测试，不证明用户已阅读条款，也不替代跨用户环境或真实视频播放验收。
 
-开发包与正式包均可加 `-PreviousZip` 在输出前执行此检查；正式流程在独立干净检出中执行，证据输出至原仓库的 `artifacts/portable-upgrade/`。无前一包时只完成单包验证，不能宣称连续版本已验收。首发前可使用当前布局的两个候选版本，不增加旧配置迁移。最新范围及尚未满足的正式发布门槛见 [#26 验证记录](validation/issue-26-validation.md)。
+开发包与正式包均可加 `-PreviousZip` 在输出前执行此检查；正式流程在独立干净检出中执行，证据输出至原仓库的 `artifacts/portable-upgrade/`。有历史发行时使用其实际公开 ZIP；无前一包时只完成单包验证，不能宣称连续版本已验收。格式迁移范围仍按存储契约验证。历史交付结果见 [#26 验证记录](validation/issue-26-validation.md)。
 
 ## 2026-10-11 #23 / #27 本地验收
 

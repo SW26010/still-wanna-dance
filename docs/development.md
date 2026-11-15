@@ -65,19 +65,27 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 
 ## 发布前本机 Windows 完整预检
 
-正式发行前，由开发者先在本机对待发行源码完成以下完整预检，再启动发行 Action。日常开发仍按变更影响选择检查，PR/main 的代表性浏览器和 race 检查不代替本节完整预检，也不要求每次编辑或推送都重跑整套发布流程。
+正式发行前，由开发者先在本机对待发行源码完成以下完整预检，再启动发行 Action。统一入口为 `scripts/release-preflight.ps1`，Actions 的工具、产品和 race 作业也使用它。日常开发仍按变更影响选择检查，PR/main 的代表性浏览器和 race 检查不代替完整预检，也不要求每次编辑或推送都重跑整套发布流程。
 
-预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集；记录提交或可还原的源码快照。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐，Windows 测试统一经过下文的临时目录入口，日志放在临时目录之外。
+预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐；工具检查还需要 Python 3。设置 `CC` 指向工作流固定版本的 GCC，在独立检出中准备仅本地的测试 tag（不推送），然后运行：
+
+```powershell
+./scripts/release-preflight.ps1 -ReleaseTag v1.2.3-preflight -PreviousTag v1.2.2
+```
+
+顺序为工具与仓库检查 → 产品检查 → 完整 race → 最终交付预演；遇到失败即停止，避免在基础错误后继续耗时构建。`-PreviousTag` 下载并校验实际公开的前一版本 ZIP，已有有效下载只复核哈希；也可用 `-PreviousZip` 指定本地真实旧包及其 SHA256。首发没有旧包时省略，不为覆盖升级额外构建同源码候选包。产物使用测试 tag，不上传、不发布。日志与 `result.json` 保留在忽略目录 `artifacts/release-preflight/`，失败记录也保留；状态只说明该次运行的实际范围，不作为 Actions 跳过测试的凭据。
 
 | 范围 | 完成条件与现有入口 |
 | --- | --- |
 | 产品与工具检查 | 冻结锁文件安装前端依赖，运行前端一致性检查和完整浏览器套件、全部 `scripts/*.test.mjs`、Go `./...` 的 test/vet/build、gofmt、仓库产物策略及 Python 证据工具测试；Go 检查统一使用 `scripts/go-patches.mjs` 和 `no_easytier`，产品构建使用 `CGO_ENABLED=0` |
 | 前后端联调 | 运行本页的真实 Console 双浏览器设置检查；保存、持久化、重启等其他受影响流程复用对应隔离联调，不能用内存浏览器夹具代替 |
-| 完整 Windows race | 设置匹配 CI 的 `CC` 和 `CGO_ENABLED=1`，完成下文的全部 `test-race-shard.ps1` 分组，以及工作流 `Race-check remaining packages` 步骤覆盖的其余 Go 包；保留完整执行结果和跳过项 |
-| 正式包预演 | 在干净独立检出中使用仅本地的测试 tag，先构建候选包，再按[打包入口](packaging.md)用 `-ReleaseTag` 和 `-PreviousZip` 完成对应源码收集、全新缓存离线重建、实际 ZIP 启动及带持久数据的覆盖升级；测试 tag 不推送 |
-| 历史版本升级 | 涉及数据库、配置或持久化格式变化时，另用实际前一发行包和隔离旧数据验证迁移；同一源码的候选包到正式包升级不证明历史格式兼容 |
+| 完整 Windows race | 设置匹配 CI 的 `CC`，使用预检的 `-Scope race` 完成全部六组和其余 Go 包；分组入口与分配规则见下文 `test-race-shard.ps1`，保留完整执行结果和跳过项 |
+| 正式包预演 | 按[打包入口](packaging.md)完成必要对应源码收集、全新缓存离线重建和实际 ZIP 启动；打包不再嵌套工具或业务全量测试 |
+| 历史版本升级 | 使用实际前一发行包和隔离持久数据验证覆盖升级；涉及数据库、配置或持久化格式变化时，另完成对应历史格式迁移验证。同源码的候选包不能证明历史格式兼容 |
 
-完成记录写明源码、实际工具版本、通过/失败/跳过范围和证据路径；skip 不算通过，缺少专用环境只限制对应结论。失败先归因并完成相关修复与复验；后续变更按影响补验，复用仍适用的证据，纯文档修改不触发整套重跑。本机通过后，发行仍须由 GitHub Actions 确认 runner 环境、上传和公开附件回下载；本地结果不代替公开交付验证。
+失败先归因并成组修复，按受影响阶段补验：`-Scope tools`、`-Scope repository`、`-Scope product`、`-Scope race` 或 `-Scope delivery -ReleaseTag ...`；`repository` 维护独立的产物策略及 Python 检查，避免与 Actions 工具作业重复。本机全部 race 默认六组及其余包各跑一次，定向复验可用 `-Scope race -RaceShard 0`（0～5）。`-Representative` 只供日常产品/race 检查，不能用于完整预检或正式交付预演。新增了业务行为或依赖变化时补全相应产品、浏览器和 race；仅修改交付脚本时补工具与交付预演，纯文档修改不触发业务全量重跑。需要额外真实 Console 联调时仍按本页受影响行为选择，统一入口不宣称覆盖全部按需场景。
+
+完成记录写明源码、实际工具版本、通过/失败/跳过范围和证据路径；skip 不算通过，缺少专用环境只限制对应结论。本机通过后，最终发行仍须由 GitHub Actions 构建、上传和回下载公开附件。本地成功不代替公开交付验证。Actions 内的完整业务结果复用与失败重试规则统一见[打包说明](packaging.md)，无需为每个版本复制工作流。
 
 ## Console 路由与共享引擎
 

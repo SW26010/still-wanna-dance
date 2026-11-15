@@ -1,7 +1,10 @@
 name: repository-artifacts
 on:
   push:
+    branches:
+      - '**'
   pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -14,9 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: ./scripts/with-test-temp.ps1 node --test scripts/check-repository-artifacts.test.mjs
-      - run: node scripts/check-repository-artifacts.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: ./scripts/with-test-temp.ps1 python -m unittest discover -s scripts -p test_evidence_archive.py
+      - run: ./scripts/release-preflight.ps1 -Scope repository

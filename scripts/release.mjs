@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Local preparation/verification only. Publication is a separate operator step.
+// Local preparation/verification only. Actions publishes the verified artifacts.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, desktopBuildFlags, buildTags } from './release-source.mjs';
+import { run, goEnv, sha256, readJSON, writeJSON, filesUnder, withTemp, cleanRevision, createSource, extractSource, extractArchive, executableInfo, checkExecutable, rebuild, repository, desktopEntry, desktopBuildFlags } from './release-source.mjs';
 import { validateNotices } from './release-notices.mjs';
 import { checkBuildMetadata } from './build-info.mjs';
 import { runGo } from './go-patches.mjs';
@@ -97,12 +97,8 @@ export function createRelease({ root, tag, outputDir, previousZip }) {
     const checkout = path.join(temp, 'checkout');
     run('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', root, checkout], root);
     run('git', ['-c', 'core.autocrlf=false', 'checkout', '--quiet', '--detach', revision], checkout);
-    const nodeTests = fs.readdirSync(path.join(checkout, 'scripts')).filter(f => f.endsWith('.test.mjs')).map(f => 'scripts/' + f);
-    console.log('Checking clean release checkout...');
-    // Stream test output so failures written to stdout remain visible in CI.
-    run(process.execPath, ['--test', ...nodeTests], checkout, {}, { stdio: 'inherit' });
-    runGo(['test', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv(), { stdio: 'inherit' });
-    runGo(['vet', '-tags=' + buildTags, './cmd/...', './internal/...'], checkout, goEnv(), { stdio: 'inherit' });
+    // Product/tool tests belong to release-preflight and the workflow gates.
+    // Packaging always checks the actual delivery below, without nesting suites.
     const results = path.join(temp, 'results'); fs.mkdirSync(results);
     console.log('Collecting complete corresponding source...');
     const source = createSource({ root: checkout, tag, outputDir: results });
@@ -161,16 +157,44 @@ export function verifyRelease({ manifest, directory }) {
   });
 }
 
+async function downloadAsset(a, directory, fetcher) {
+  console.log(`Checking public ${a.kind} asset...`);
+  const response = await fetcher(a.url, { signal: AbortSignal.timeout(600000) });
+  if (!response.ok || response.status !== 200 || !response.body) throw Error(`Public ${a.kind} asset is unavailable (HTTP ${response.status})`);
+  const file = path.join(directory, a.name);
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file, { flags: 'wx' }));
+  if (fs.statSync(file).size !== a.bytes || sha256(file) !== a.sha256) throw Error(`Downloaded ${a.kind} asset differs from release manifest`);
+  return file;
+}
+
+export async function downloadPreviousPortable({ tag, directory, fetcher = fetch }) {
+  if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(tag)) throw Error('Invalid previous release tag');
+  const response = await fetcher(assetURL(tag, releaseNames(tag).manifest), { signal: AbortSignal.timeout(60000) });
+  if (!response.ok || response.status !== 200) throw Error(`Previous release manifest is unavailable (HTTP ${response.status})`);
+  const manifest = checkReleaseManifest(await response.json());
+  if (manifest.tag !== tag) throw Error('Previous release manifest has a different tag');
+  const a = manifest.assets.find(asset => asset.kind === 'portable');
+  const checksum = await fetcher(a.url + '.sha256', { signal: AbortSignal.timeout(60000) });
+  if (!checksum.ok || checksum.status !== 200 || (await checksum.text()).trim() !== `${a.sha256}  ${a.name}`) throw Error('Previous portable checksum is unavailable or differs');
+  directory = path.resolve(directory); fs.mkdirSync(directory, { recursive: true });
+  const file = path.join(directory, a.name), checksumFile = file + '.sha256', text = `${a.sha256}  ${a.name}\n`;
+  if (fs.existsSync(file)) {
+    if (fs.statSync(file).size !== a.bytes || sha256(file) !== a.sha256) throw Error('Existing previous portable differs from release manifest');
+  } else {
+    await withTemp(async temp => {
+      const downloaded = await downloadAsset(a, temp, fetcher);
+      fs.copyFileSync(downloaded, file, fs.constants.COPYFILE_EXCL);
+    });
+  }
+  if (fs.existsSync(checksumFile)) {
+    if (fs.readFileSync(checksumFile, 'utf8').trim() !== text.trim()) throw Error('Existing previous portable checksum differs');
+  } else fs.writeFileSync(checksumFile, text, { flag: 'wx' });
+  return file;
+}
+
 export async function downloadAssets(manifest, directory, fetcher = fetch) {
   checkReleaseManifest(manifest);
-  for (const a of manifest.assets) {
-    console.log(`Checking public ${a.kind} asset...`);
-    const response = await fetcher(a.url, { signal: AbortSignal.timeout(600000) });
-    if (!response.ok || response.status !== 200 || !response.body) throw Error(`Public ${a.kind} asset is unavailable (HTTP ${response.status})`);
-    const file = path.join(directory, a.name);
-    await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file, { flags: 'wx' }));
-    if (fs.statSync(file).size !== a.bytes || sha256(file) !== a.sha256) throw Error(`Downloaded ${a.kind} asset differs from release manifest`);
-  }
+  for (const a of manifest.assets) await downloadAsset(a, directory, fetcher);
   console.log('Checking public checksums and manifest...');
   for (const a of manifest.assets) {
     const response = await fetcher(a.url + '.sha256', { signal: AbortSignal.timeout(60000) });
@@ -191,6 +215,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     else if (command === 'verify') console.log(JSON.stringify(verifyRelease({ manifest: readJSON(a.manifest), directory: a.directory ?? path.dirname(path.resolve(a.manifest)) })));
     else if (command === 'verify-published') await withTemp(async temp => { const manifest = readJSON(a.manifest); await downloadAssets(manifest, temp); console.log(JSON.stringify(verifyRelease({ manifest, directory: temp }))); });
     else if (command === 'verify-published-assets') await withTemp(async temp => { const manifest = readJSON(a.manifest); await downloadAssets(manifest, temp); console.log(JSON.stringify({ tag: manifest.tag, revision: manifest.revision, verifiedAssets: true })); });
-    else throw Error('Use create --tag vX.Y.Z [--output artifacts], verify --manifest FILE [--directory DIR], verify-published --manifest FILE, or verify-published-assets --manifest FILE');
+    else if (command === 'download-previous') console.log(await downloadPreviousPortable({ tag: a.tag, directory: a.output ?? 'artifacts/upgrade-baseline' }));
+    else throw Error('Use create --tag vX.Y.Z [--output artifacts], verify --manifest FILE [--directory DIR], verify-published --manifest FILE, verify-published-assets --manifest FILE, or download-previous --tag vX.Y.Z [--output DIR]');
   } catch (e) { console.error(e.message); process.exitCode = 1; }
 }

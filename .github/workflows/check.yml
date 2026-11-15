@@ -6,6 +6,14 @@ on:
         description: 'Version to publish from the selected ref (empty = checks only)'
         type: string
         default: ''
+      validation_run_id:
+        description: 'Reuse a successful full check run for delivery/docs-only changes (optional)'
+        type: string
+        default: ''
+      previous_tag:
+        description: 'Upgrade baseline (empty = most recently published version)'
+        type: string
+        default: ''
   push:
     branches:
       - main
@@ -21,7 +29,88 @@ concurrency:
 env:
   RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 jobs:
+  repository:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/repository-artifacts.yml
+
+  validation:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reuse: ${{ steps.plan.outputs.reuse }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check validation reuse and select upgrade baseline
+        id: plan
+        uses: actions/github-script@v9
+        env:
+          VALIDATION_RUN_ID: ${{ inputs.validation_run_id }}
+          PREVIOUS_TAG: ${{ inputs.previous_tag }}
+        with:
+          script: |
+            const {execFileSync} = require('node:child_process');
+            const {pathToFileURL} = require('node:url');
+            const path = require('node:path');
+            const {checkValidationReuse} = await import(pathToFileURL(path.join(process.env.GITHUB_WORKSPACE, 'scripts/release-validation.mjs')).href);
+            core.setOutput('reuse', 'false');
+            const id = process.env.VALIDATION_RUN_ID;
+            if (id) {
+              if (!/^[1-9][0-9]*$/.test(id) || !Number.isSafeInteger(Number(id))) throw Error('Invalid validation_run_id');
+              const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id: Number(id)});
+              const {data: workflow} = await github.rest.actions.getWorkflow({...context.repo, workflow_id: 'check.yml'});
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {...context.repo, run_id: Number(id), filter: 'all', per_page: 100});
+              const input = {run, jobs, files: [], repository: `${context.repo.owner}/${context.repo.repo}`, workflowID: workflow.id, currentRunID: context.runId};
+              checkValidationReuse(input);
+              const files = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', run.head_sha, 'HEAD', '--'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+              checkValidationReuse({...input, files});
+              core.setOutput('reuse', 'true');
+              await core.summary.addHeading('Reused full product validation').addLink(`Run ${run.id} (${run.head_sha})`, run.html_url).addRaw(`\n\nDelivery/docs-only changes: ${files.length}\n`).write();
+            }
+            let previous = process.env.PREVIOUS_TAG;
+            if (process.env.RELEASE_TAG) {
+              if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(process.env.RELEASE_TAG)) throw Error('Invalid release_tag');
+              if (!previous) {
+                const releases = await github.paginate(github.rest.repos.listReleases, {...context.repo, per_page: 100});
+                previous = releases.filter(r => !r.draft && r.tag_name !== process.env.RELEASE_TAG && /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(r.tag_name)).sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at))[0]?.tag_name || '';
+              }
+              if (previous && (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(previous) || previous === process.env.RELEASE_TAG)) throw Error('Invalid previous_tag');
+              await core.summary.addRaw(`\nUpgrade baseline: ${previous || 'none (first publication; no cross-version claim)'}\n`).write();
+            }
+            core.setOutput('previous_tag', previous);
+
+  tools:
+    runs-on: windows-latest
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+      - name: Check release tools
+        run: ./scripts/release-preflight.ps1 -Scope tools
+      - name: Retain tool diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tool-failure-windows
+          path: artifacts/release-preflight
+          if-no-files-found: ignore
+
   test:
+    needs: [validation, tools, repository]
+    if: >-
+      always() && !cancelled() && needs.validation.result == 'success' && needs.tools.result == 'success' &&
+      (needs.repository.result == 'success' || needs.repository.result == 'skipped') && needs.validation.outputs.reuse != 'true'
     runs-on: windows-latest
     env:
       GOTOOLCHAIN: local
@@ -39,40 +128,26 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: webui/package.json
-      - run: pnpm --dir webui install --frozen-lockfile
-      - run: pnpm --dir webui check
-      - name: Representative browser checks
+      - name: Representative product checks
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
-        run: ./scripts/with-test-temp.ps1 pnpm --dir webui exec playwright test e2e/api-fixture.spec.ts e2e/terms-consent.spec.ts e2e/regressions.spec.ts
-      - name: Full browser checks
+        run: ./scripts/release-preflight.ps1 -Scope product -Representative
+      - name: Full product checks
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: ./scripts/with-test-temp.ps1 pnpm --dir webui test
-      - name: Real Console settings and acceleration integration
-        shell: pwsh
-        run: |
-          $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $env:GITHUB_WORKSPACE 'artifacts/settings-browser'
-          $env:SWD_HOSTS_BROWSER_EVIDENCE = Join-Path $env:GITHUB_WORKSPACE 'artifacts/hosts-browser'
-          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$' -count=1 -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: ./scripts/release-preflight.ps1 -Scope product
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: webui-failure-windows
           path: |
             artifacts/webui-tests
-            artifacts/settings-browser
-            artifacts/hosts-browser
+            artifacts/release-preflight
           if-no-files-found: ignore
-      - run: ./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs
-      - run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./...
-      - run: ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs vet -tags=no_easytier ./...
-      - name: Check Go formatting
-        shell: pwsh
-        run: |
-          $unformatted = @(gofmt -l cmd internal)
-          if ($LASTEXITCODE -ne 0 -or $unformatted.Count -ne 0) { $unformatted; throw 'Go files require formatting.' }
 
   race:
+    needs: [validation, tools, repository]
+    if: >-
+      always() && !cancelled() && needs.validation.result == 'success' && needs.tools.result == 'success' &&
+      (needs.repository.result == 'success' || needs.repository.result == 'skipped') && needs.validation.outputs.reuse != 'true'
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -101,30 +176,31 @@ jobs:
           $compiler = Join-Path $env:RUNNER_TEMP 'w64devkit/bin/gcc.exe'
           if (!(Test-Path -LiteralPath $compiler)) { throw 'Windows GCC is missing.' }
           "CC=$compiler" >> $env:GITHUB_ENV
-      - name: Race-check cache and Console shard
+      - name: Full Windows race shard
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: ./scripts/test-race-shard.ps1 -Shard ${{ matrix.shard }} -Shards 6
-      - name: Race-check remaining packages
-        if: matrix.shard == 0 && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
-        shell: pwsh
-        run: |
-          $packages = @(node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
-          if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining Go packages.' }
-          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race @packages -count=1 -timeout=45m
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: ./scripts/release-preflight.ps1 -Scope race -RaceShard ${{ matrix.shard }}
       - name: Representative race checks
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
-        shell: pwsh
-        run: |
-          $tests = '^(TestAnyTLSStreamConcurrentClose|TestVRChatExitWaitsWithoutPolling|TestVRChatExitWaitsForOtherInstancesAndRestart|TestVRChatExitObservationErrorsRecover|TestHTTPSeekDuringRangeInitialization|TestBlockDemandFollowsActualWaitAndIndependentReaders|TestNetworkConnectivityFullRunsThreeRequestsTogether|TestMixedDemandKeepsDeadlineAndOpportunisticAdmission)$'
-          ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier -race ./internal/blocksched ./internal/cacheproxy ./internal/console ./internal/desktop ./internal/proxyengine/mihomo "-run=$tests" -count=1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: ./scripts/release-preflight.ps1 -Scope race -Representative
+      - name: Retain race diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: race-failure-${{ matrix.shard }}
+          path: artifacts/release-preflight
+          if-no-files-found: ignore
 
   package:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    needs: [validation, tools, repository, test, race]
+    if: >-
+      always() && !cancelled() && (startsWith(github.ref, 'refs/tags/') || inputs.release_tag != '') &&
+      needs.validation.result == 'success' && needs.tools.result == 'success' && needs.repository.result == 'success' &&
+      (needs.validation.outputs.reuse == 'true' || (needs.test.result == 'success' && needs.race.result == 'success'))
     runs-on: windows-latest
     env:
       GOTOOLCHAIN: local
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT: '0'
+      PREVIOUS_TAG: ${{ needs.validation.outputs.previous_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -152,24 +228,21 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: webui/package.json
-      - name: Build all Windows Go packages
-        run: node scripts/go-patches.mjs build -tags=no_easytier ./...
-        env:
-          CGO_ENABLED: '0'
-      - name: Build upgrade candidate
-        if: env.RELEASE_TAG != ''
+      - name: Build and verify the final delivery once
         shell: pwsh
-        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -OutputDir artifacts/upgrade-baseline -AllPackages
-      - name: Build and verify release with candidate overlay upgrade
-        if: env.RELEASE_TAG != ''
+        run: |
+          $preflightArgs = @{ Scope = 'delivery'; ReleaseTag = $env:RELEASE_TAG }
+          if ($env:PREVIOUS_TAG) {
+            $preflightArgs.PreviousTag = $env:PREVIOUS_TAG
+          }
+          ./scripts/release-preflight.ps1 @preflightArgs
+      - name: Include version release notes
         shell: pwsh
-        run: ./scripts/package-portable.ps1 -ReleaseTag $env:RELEASE_TAG -PreviousZip artifacts/upgrade-baseline/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
-      - if: env.RELEASE_TAG == ''
-        shell: pwsh
-        run: ./scripts/package-portable.ps1 -Version ci-${{ github.run_number }} -AllPackages
-      - if: env.RELEASE_TAG == ''
-        shell: pwsh
-        run: ./scripts/test-portable.ps1 -Zip artifacts/still-wanna-dance-ci-${{ github.run_number }}-windows-amd64-portable.zip
+        run: |
+          $notes = "docs/releases/$env:RELEASE_TAG.md"
+          if (Test-Path -LiteralPath $notes) {
+            "`n" + (Get-Content -LiteralPath $notes -Raw) | Add-Content -LiteralPath "artifacts/still-wanna-dance-$env:RELEASE_TAG-release-notes.md" -Encoding utf8
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: still-wanna-dance-windows-amd64-portable
@@ -188,11 +261,12 @@ jobs:
           path: |
             artifacts/portable-smoke/**/*.log
             artifacts/portable-upgrade/**/*.log
+            artifacts/release-preflight
           if-no-files-found: ignore
 
   release:
-    needs: [test, race, package]
-    if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
+    needs: [package]
+    if: always() && !cancelled() && needs.package.result == 'success'
     runs-on: windows-latest
     permissions:
       contents: write

@@ -42,8 +42,16 @@ func (c *Console) serveDiagnosticExport(w http.ResponseWriter, r *http.Request) 
 	database, vrcDir := c.settings.DatabasePath, c.settings.effectiveVRChatLogDir()
 	logDir := c.files().LogDir
 	diagnostics := c.networkDiagnostics
+	store := c.store
 	c.mu.Unlock()
 	calibration := diagnosticCalibration(diagnostics)
+	var requests *cacheproxy.RequestHistory
+	if store != nil {
+		requests = store.History()
+	} else {
+		requests = cacheproxy.NewRequestHistory(database)
+		defer requests.Close()
+	}
 	file, err := os.CreateTemp("", "swd-diagnostics-*.zip")
 	if err != nil {
 		preserveResponseFault(w, err)
@@ -52,7 +60,7 @@ func (c *Console) serveDiagnosticExport(w http.ResponseWriter, r *http.Request) 
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	sources, err := writeDiagnosticArchive(ctx, file, input, database, logDir, vrcDir, calibration)
+	sources, err := writeDiagnosticArchive(ctx, file, input, requests, logDir, vrcDir, calibration)
 	if err != nil {
 		preserveResponseFault(w, err)
 		http.Error(w, "诊断包生成失败，请重试或缩短时间范围", 500)
@@ -94,7 +102,7 @@ func diagnosticCalibration(n *networkDiagnostics) []byte {
 	return data
 }
 
-func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRange, database, logDir, vrcDir string, calibration []byte) ([]diagnosticSource, error) {
+func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRange, history *cacheproxy.RequestHistory, logDir, vrcDir string, calibration []byte) ([]diagnosticSource, error) {
 	z := zip.NewWriter(w)
 	write := func(name string, data []byte) error {
 		entry, err := z.Create(name)
@@ -109,7 +117,7 @@ func writeDiagnosticArchive(ctx context.Context, w io.Writer, input diagnosticRa
 	if err != nil {
 		return nil, err
 	}
-	source.Records, err = cacheproxy.ExportRequestHistory(ctx, database, input.From, input.To, entry)
+	source.Records, err = history.Export(ctx, input.From, input.To, entry)
 	if err != nil {
 		source.Issues = append(source.Issues, err.Error())
 	}

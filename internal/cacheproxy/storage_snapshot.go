@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"modernc.org/sqlite"
 )
@@ -43,6 +44,18 @@ func snapshotStorageDatabase(ctx context.Context, path, destination string) erro
 				return err
 			}
 			more, err := backup.Step(128)
+			if isStorageBusy(err) {
+				// SQLite permits retrying a busy backup step. Keep the caller's
+				// deadline and let a concurrent business commit finish first.
+				timer := time.NewTimer(10 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return ctx.Err()
+				case <-timer.C:
+				}
+				continue
+			}
 			if err != nil {
 				return err
 			}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"still-wanna-dance/internal/cacheproxy"
 	"strings"
 	"testing"
 	"time"
@@ -65,7 +66,7 @@ func TestDiagnosticOptionalCalibration(t *testing.T) {
 	dir := t.TempDir()
 	for _, attachment := range [][]byte{nil, data} {
 		var buffer bytes.Buffer
-		sources, err := writeDiagnosticArchive(t.Context(), &buffer, diagnosticRange{From: 1, To: 2}, filepath.Join(dir, "missing.sqlite"), dir, dir, attachment)
+		sources, err := writeDiagnosticArchive(t.Context(), &buffer, diagnosticRange{From: 1, To: 2}, missingHistoryReader(t, filepath.Join(dir, "missing.sqlite")), dir, dir, attachment)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,7 +179,7 @@ func TestDiagnosticArchiveBoundariesAndPartialSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	var b bytes.Buffer
-	sources, err := writeDiagnosticArchive(t.Context(), &b, diagnosticRange{From: start.UnixMilli(), To: start.Add(time.Minute).UnixMilli(), Note: "用户观察"}, filepath.Join(dir, "missing.sqlite"), dir, dir, nil)
+	sources, err := writeDiagnosticArchive(t.Context(), &b, diagnosticRange{From: start.UnixMilli(), To: start.Add(time.Minute).UnixMilli(), Note: "用户观察"}, missingHistoryReader(t, filepath.Join(dir, "missing.sqlite")), dir, dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +208,7 @@ func TestDiagnosticArchiveBoundariesAndPartialSources(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, err := writeDiagnosticArchive(ctx, io.Discard, diagnosticRange{From: 1, To: 2}, "missing", dir, dir, nil); err == nil {
+	if _, err := writeDiagnosticArchive(ctx, io.Discard, diagnosticRange{From: 1, To: 2}, missingHistoryReader(t, "missing"), dir, dir, nil); err == nil {
 		t.Fatal("cancellation ignored")
 	}
 }
@@ -253,4 +254,11 @@ func TestDiagnosticExportAdmission(t *testing.T) {
 	if c.networkDiagnostics != diagnostics {
 		t.Fatal("export initialized diagnostics")
 	}
+}
+
+func missingHistoryReader(t *testing.T, path string) *cacheproxy.RequestHistory {
+	t.Helper()
+	history := cacheproxy.NewRequestHistory(path)
+	t.Cleanup(history.Close)
+	return history
 }

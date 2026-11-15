@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -19,15 +20,18 @@ import (
 
 var historyCountSequence atomic.Uint64
 
-func TestHistoryCountAllowsPersistentBusinessWrites(t *testing.T) {
-	for _, outcome := range []string{"complete", "scan-error"} {
-		t.Run(outcome, func(t *testing.T) {
-			testHistoryCountBusinessWrites(t, outcome == "scan-error")
-		})
+func TestHistoryReadsAllowPersistentBusinessWrites(t *testing.T) {
+	for _, operation := range []string{"count", "sources", "latency", "song", "resource", "export"} {
+		for _, outcome := range []string{"complete", "scan-error"} {
+			t.Run(operation+"/"+outcome, func(t *testing.T) {
+				testHistoryCountBusinessWrites(t, operation, outcome == "scan-error")
+			})
+		}
 	}
+
 }
 
-func testHistoryCountBusinessWrites(t *testing.T, failScan bool) {
+func testHistoryCountBusinessWrites(t *testing.T, operation string, failScan bool) {
 	t.Helper()
 	root := t.TempDir()
 	// Keep both the business database and any private snapshot in this test's
@@ -41,7 +45,8 @@ func testHistoryCountBusinessWrites(t *testing.T, failScan bool) {
 	}
 	defer s.Close()
 	s.usage.unlimited = true
-	if err := s.usage.write([]usageEvent{{at: 1000, method: "GET", outcome: "completed"}}); err != nil {
+	ready := false
+	if err := s.usage.write([]usageEvent{{at: 1000, method: "GET", songID: "42", key: strings.Repeat("a", 32), status: 200, bytes: 1, firstBodyNS: 1, firstBodyBlocking: &ready, sources: &ResponseSources{DownloadBytes: 1}, outcome: "completed"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec("PRAGMA busy_timeout=0"); err != nil {
@@ -75,13 +80,13 @@ func testHistoryCountBusinessWrites(t *testing.T, failScan bool) {
 	})
 
 	type countResult struct {
-		count RequestHistoryCount
+		value any
 		err   error
 	}
 	done := make(chan countResult, 1)
 	go func() {
-		count, err := CountRequestHistory(t.Context(), s.path, RequestQuery{Limit: 1})
-		done <- countResult{count, err}
+		value, err := readHistoryOperation(t.Context(), s.History(), operation)
+		done <- countResult{value, err}
 	}()
 	finished := false
 	defer func() {
@@ -144,8 +149,32 @@ func testHistoryCountBusinessWrites(t *testing.T, failScan bool) {
 		if result.err == nil || !strings.Contains(result.err.Error(), "controlled count scan failure") {
 			t.Errorf("count scan failure: %v", result.err)
 		}
-	} else if result.err != nil || result.count.Total != 1 || result.count.StorageID != DatabaseID(s.path) {
-		t.Errorf("count changed with later writes: %+v, %v", result.count, result.err)
+	} else {
+		if result.err != nil {
+			t.Errorf("isolated read: %v", result.err)
+		}
+		switch value := result.value.(type) {
+		case RequestHistoryCount:
+			if value.Total != 1 || value.StorageID != DatabaseID(s.path) {
+				t.Errorf("snapshot count: %+v", value)
+			}
+		case ResponseSources:
+			if value.DownloadBytes != 1 {
+				t.Errorf("snapshot sources: %+v", value)
+			}
+		case FirstBodyLatency:
+			if value.Ready.Samples != 1 {
+				t.Errorf("snapshot latency: %+v", value)
+			}
+		case RecentRequests:
+			if len(value.Requests) != 1 || value.Requests[0].At != 1000 {
+				t.Errorf("snapshot page: %+v", value)
+			}
+		case int64:
+			if value != 1 {
+				t.Errorf("snapshot export: %d", value)
+			}
+		}
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -155,5 +184,21 @@ func testHistoryCountBusinessWrites(t *testing.T, failScan bool) {
 		if entry.IsDir() {
 			t.Errorf("count left temporary snapshot directory: %s", entry.Name())
 		}
+	}
+}
+
+// These are the same typed operations used by Console; all share one reader.
+func readHistoryOperation(ctx context.Context, history *RequestHistory, operation string) (any, error) {
+	switch operation {
+	case "count":
+		return history.Count(ctx, RequestQuery{Limit: 1})
+	case "sources":
+		return history.Sources(ctx)
+	case "latency":
+		return history.Latency(ctx, time.UnixMilli(2000))
+	case "export":
+		return history.Export(ctx, 1, 2000, io.Discard)
+	default:
+		return history.Page(ctx, RequestQuery{Limit: 1, Sort: operation})
 	}
 }

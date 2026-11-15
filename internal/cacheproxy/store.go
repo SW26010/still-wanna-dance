@@ -46,6 +46,7 @@ type Store struct {
 	// One shared wakeup channel coalesces changes without retaining subscribers.
 	historyRevision uint64
 	historyChanged  chan struct{}
+	history         *RequestHistory
 }
 
 // OpenStore never creates a database, repairs its schema or recreates a lost
@@ -145,6 +146,7 @@ func newStore(path string, db *sql.DB, unlock func() error) *Store {
 	s := &Store{path: path, db: db, unlock: unlock, log: slog.Default(), done: make(chan struct{}), failed: make(chan struct{})}
 	s.usage = newUsage(db, s.log)
 	s.historyChanged = make(chan struct{})
+	s.history = NewRequestHistory(path)
 	s.usage.onHistoryChange = s.notifyHistoryChanged
 	// Lost observations are logged and reported by usage.close. Only terminal
 	// storage faults disable downloads; background conflicts and timeouts use
@@ -175,12 +177,16 @@ func (s *Store) Close() error {
 	s.retentionRunMu.Unlock()
 	s.wg.Wait()
 	usageErr := s.usage.close()
+	s.history.Close()
 	// Synchronous operation failures were already returned to their callers.
 	// Close additionally reports work the background collector could not save.
 	s.closeErr = errors.Join(usageErr, s.db.Close(), s.unlock())
 	close(s.done)
 	return s.closeErr
 }
+
+// History shares isolated reads and private query indexes for this Store.
+func (s *Store) History() *RequestHistory { return s.history }
 
 func (s *Store) beginRequest() bool {
 	s.mu.Lock()

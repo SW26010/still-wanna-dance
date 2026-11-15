@@ -55,6 +55,8 @@ pnpm --dir webui check
 
 ## 计数与业务写入隔离补充修复
 
+本节保留提交 `9b8034f1` 的阶段记录；下述仅隔离计数的实现及复跑命令已由[完整历史长读隔离与批次恢复](request-history-write-isolation-20261115.md)扩展，当前实现与验证以该记录及存储契约为准。
+
 上表中的独立计数仍在业务库的只读连接上执行；页面内复用结果没有隔离 SQLite 长读锁。300 万条约 2.26 秒的扫描仍可能超过默认 1 秒写锁等待，令收藏或请求批次提交失败。已有事务清理只保证失败连接不污染后续写入，不能挽回 `usage.run` 已丢弃的批次。
 
 新增 `TestHistoryCountAllowsPersistentBusinessWrites` 直接调用真实计数入口，在该次只读连接上用 TEMP view／SQLite 标量函数暂停扫描，保留原业务库结构与真实 SQLite 锁。写连接设 `busy_timeout=0`，将超时竞争缩成确定性断言；请求记录和热度均经过实际 `startGET`／`record`／`flush` 工作线程。修复前运行该测试，收藏报 `SQLITE_BUSY`，worker 的 3 项批次失败；同会话与关闭重开后，收藏、请求明细及歌曲需求均缺失，1.23 秒稳定复现。

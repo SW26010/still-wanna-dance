@@ -1,6 +1,7 @@
 package console
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -91,6 +92,11 @@ func (c *Console) loadSnapshots() {
 	if saved, err := readSnapshot[Batch](c, "batch-last-attempt"); err == nil && !saved.Finished.IsZero() {
 		saved.Running = false
 		c.batch = saved
+	}
+	// Older snapshots have no result identity. Assign one before publication so
+	// detail requests cannot accidentally page into a later run.
+	if c.batch.ID == "" {
+		c.batch.ID = rand.Text()
 	}
 	c.inventoryMu.Lock()
 	defer c.inventoryMu.Unlock()

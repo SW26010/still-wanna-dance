@@ -2012,6 +2012,13 @@
       "bytes": 1319959,
       "sha256": "659e23d30381bd7fe4cfb27ad3aea50332ccfdb6dd3e2eeb7f9f80be1af7f1e8",
       "reason": "Reviewed generated Fluent WebUI bundle: request history pages load independently of exact counts; filter-scoped count snapshots are reused during paging, sorting and live updates, with an explicit refresh action (2026-11-15). Rebuilt from the unchanged locked dependencies and verified by history browser regressions and real Console/SQLite integration."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1321976,
+      "sha256": "a4bcf5e967b91a5a6914abadbd0a62855805c4974398bb335346011f27010013",
+      "reason": "Reviewed generated Fluent WebUI bundle: batch failure details load in pages of 50 from the result module and unmount when leaving the library; status polling carries only the summary (2026-11-15). Rebuilt with locked dependencies and verified against an isolated real Console restored from 10,575 complete failures."
     }
   ]
 }

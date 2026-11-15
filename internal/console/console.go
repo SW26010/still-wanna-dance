@@ -603,7 +603,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			VideoImportSuggested: c.videoImportSuggestion,
 			ProxyModeMigrated:    c.proxyModeMigrated,
 			PortOK:               running, HTTPSPortOK: running, CDNError: c.cdnError,
-			Import: c.importStatus, Batch: c.batch, Queue: c.queue.snapshot(), LastBatch: c.lastBatch,
+			Import: c.importStatus, Batch: c.batch.summary(), Queue: c.queue.snapshot(), LastBatch: c.lastBatch.summary(),
 			SOCKS5PasswordSet:     saved.SOCKS5Password != "",
 			SOCKS5CredentialError: saved.proxySecretError,
 			SOCKS5Service:         c.socks5ServiceSnapshotLocked(),
@@ -622,7 +622,6 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for source, message := range c.actionErrors {
 			result.ActionErrors[source] = message
 		}
-		result.Batch.Failures = append([]Failure(nil), c.batch.Failures...)
 		// Port ownership and running must come from the same snapshot. Binding,
 		// releasing and probing ports share mu; engine I/O never holds it.
 		if !running {

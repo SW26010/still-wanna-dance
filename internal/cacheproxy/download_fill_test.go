@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -25,6 +26,60 @@ func fillTestCatalog(t *testing.T, s *Server, songs []CatalogSong) LocalCatalog 
 	}
 	t.Cleanup(release)
 	return local
+}
+
+func TestDownloadFillProgressDeliversFailuresOnce(t *testing.T) {
+	s, _ := setup(t, nil)
+	local := fillTestCatalog(t, s, []CatalogSong{
+		{ID: 3, MD5: videoKey("shared")}, {ID: 2, MD5: videoKey("shared")},
+		{ID: 1, MD5: videoKey("other")},
+	})
+	wantErr := errors.New("unavailable")
+	var delivered []DownloadFillFailure
+	var snapshots []DownloadFillProgress
+	result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, func(context.Context, int64) (string, error) {
+		return "", wantErr
+	}, func(progress DownloadFillProgress) {
+		delivered = append(delivered, progress.Failures...)
+		snapshots = append(snapshots, progress)
+	})
+	if err != nil || result.Failed != 3 || len(result.Failures) != 3 {
+		t.Fatalf("incomplete result: %+v, %v", result, err)
+	}
+	if !reflect.DeepEqual(delivered, result.Failures) {
+		t.Fatalf("progress delivered %d failures for %d failed songs", len(delivered), result.Failed)
+	}
+	for _, progress := range snapshots {
+		if len(progress.Failures) > 0 {
+			progress.Failures[0].SongID = "changed"
+			break
+		}
+	}
+	if result.Failures[0].SongID == "changed" {
+		t.Fatal("progress owns the final result's failure storage")
+	}
+}
+
+func TestDownloadFillFailureVolume(t *testing.T) {
+	s, _ := setup(t, nil)
+	songs := make([]CatalogSong, 5000)
+	for i := range songs {
+		songs[i] = CatalogSong{ID: int64(i + 1), MD5: videoKey(strconv.Itoa(i))}
+	}
+	local := fillTestCatalog(t, s, songs)
+	wantErr := errors.New("unavailable")
+	delivered := 0
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	result, err := s.NewDownloadFill(t.Context(), false, false).Run(local, func(context.Context, int64) (string, error) {
+		return "", wantErr
+	}, func(progress DownloadFillProgress) { delivered += len(progress.Failures) })
+	runtime.ReadMemStats(&after)
+	t.Logf("5,000 failures: %d progress entries, %.2f MiB cumulative allocation", delivered, float64(after.TotalAlloc-before.TotalAlloc)/(1024*1024))
+	if err != nil || result.Failed != 5000 || len(result.Failures) != 5000 || delivered != 5000 {
+		t.Fatalf("failed=%d stored=%d delivered=%d error=%v", result.Failed, len(result.Failures), delivered, err)
+	}
 }
 
 func TestDownloadFillTriesAllSharedSongCandidates(t *testing.T) {
@@ -279,7 +334,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	defer cancel()
 	var mu sync.Mutex
 	var calls []int64
-	var latest DownloadFillResult
+	var latest DownloadFillProgress
 	result, err := s.NewDownloadFill(ctx, false, false).Run(local, func(ctx context.Context, id int64) (string, error) {
 		mu.Lock()
 		calls = append(calls, id)
@@ -306,7 +361,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 		default:
 			return "", fmt.Errorf("unexpected candidate %d", id)
 		}
-	}, func(progress DownloadFillResult) {
+	}, func(progress DownloadFillProgress) {
 		mu.Lock()
 		defer mu.Unlock()
 		latest = progress
@@ -314,8 +369,8 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := DownloadFillResult{Total: 3, Checked: 2, Downloaded: 2, BudgetReached: true}
-	if !reflect.DeepEqual(result, want) || !reflect.DeepEqual(latest, want) {
+	want := DownloadFillSummary{Total: 3, Checked: 2, Downloaded: 2, BudgetReached: true}
+	if !reflect.DeepEqual(result.DownloadFillSummary, want) || !reflect.DeepEqual(latest.DownloadFillSummary, want) || len(result.Failures) != 0 || len(latest.Failures) != 0 {
 		t.Fatalf("result=%+v progress=%+v, want %+v", result, latest, want)
 	}
 	if !reflect.DeepEqual(calls, []int64{firstID, otherID}) {

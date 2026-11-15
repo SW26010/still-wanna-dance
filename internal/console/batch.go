@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"log/slog"
 	"strconv"
@@ -16,6 +17,7 @@ type Failure struct {
 	Error string `json:"error"`
 }
 type Batch struct {
+	ID             string                     `json:"id"`
 	Target         *cacheproxy.DownloadTarget `json:"target,omitempty"`
 	Catalog        cacheproxy.CatalogStatus   `json:"catalog"`
 	CatalogWarning string                     `json:"catalogWarning"`
@@ -36,7 +38,13 @@ type Batch struct {
 	Failed         int                        `json:"failed"`
 	Skipped        int                        `json:"skipped"`
 	Current        string                     `json:"current"`
-	Failures       []Failure                  `json:"failures"`
+	Failures       []Failure                  `json:"failures,omitempty"`
+}
+
+// The result owns all failures; polling only observes its constant-size summary.
+func (b Batch) summary() Batch {
+	b.Failures = nil
+	return b
 }
 
 func (c *Console) startBatch() error { return c.startBatchMode(false) }
@@ -93,7 +101,7 @@ func (c *Console) startBatchTargetLocked(scanOnly bool, target *cacheproxy.Downl
 	defer c.mu.Unlock()
 	c.batchCancel = cancel
 	c.batchDone = make(chan struct{})
-	c.batch = Batch{Running: true, ScanOnly: scanOnly, Target: target, Phase: "正在检查远端并更新本地清单"}
+	c.batch = Batch{ID: rand.Text(), Running: true, ScanOnly: scanOnly, Target: target, Phase: "正在检查远端并更新本地清单"}
 	if target != nil {
 		c.batch.Phase = "正在读取选中歌曲或资源"
 	}
@@ -208,7 +216,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		}
 		titles[strconv.FormatInt(song.ID, 10)] = name
 	}
-	progress := func(progress cacheproxy.DownloadFillResult) {
+	progress := func(progress cacheproxy.DownloadFillProgress) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.batch.Total, c.batch.Checked = progress.Total, progress.Checked
@@ -221,8 +229,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 		if progress.CurrentSongID != "" {
 			c.batch.Current = progress.CurrentSongID + " · " + titles[progress.CurrentSongID]
 		}
-		// Serialized progress only appends failures within this fill.
-		for _, failure := range progress.Failures[len(c.batch.Failures):] {
+		for _, failure := range progress.Failures {
 			id, _ := strconv.ParseInt(failure.SongID, 10, 64)
 			c.batch.Failures = append(c.batch.Failures, Failure{ID: id, Name: titles[failure.SongID], Error: failure.Err.Error()})
 		}
@@ -235,7 +242,7 @@ func (c *Console) runBatch(ctx context.Context, s *cacheproxy.Server, done chan 
 	var result cacheproxy.DownloadFillResult
 	if target != nil && target.Resource != "" && len(local.Songs) == 0 {
 		result, err = fill.RunResource(target.Resource)
-		progress(result)
+		progress(cacheproxy.DownloadFillProgress{DownloadFillSummary: result.DownloadFillSummary})
 	} else {
 		result, err = fill.Run(local, func(ctx context.Context, id int64) (string, error) {
 			return c.prefetchSong(ctx, s, id)

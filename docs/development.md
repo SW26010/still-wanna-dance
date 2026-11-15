@@ -41,6 +41,8 @@ Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_
 
 存储确认与字段故障修复的真实浏览器联调可设置 `SWD_STORAGE_REPAIR_BROWSER_EVIDENCE`，再运行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestStorageRepairBrowser$' -count=1 -v`。覆盖黄色一键确认、红色字段定位、视频策略取消／确认、保存后的待重启及重新打开，检查已有资料原字节保留；路径选择结果与 hosts 使用私有夹具。
 
+批量失败结果的真实 Console／浏览器检查可设置 `SWD_BATCH_BROWSER_EVIDENCE`，执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestBatchResultsBrowser$' -count=1`。从完整的 10,575 条失败快照重启隔离 Console，检查状态摘要、每页 50 行、翻页、切回首页后卸载及 390px 布局；不启动视频服务、网关或游戏。性能对照与验证边界见[批量结果验证](validation/batch-results-20261115.md)。
+
 ## 测试维护与 CI 修复
 
 目标是平衡发现真实问题的效果与长期维护成本，让失败容易复现和定位。测试数量、模拟数量和单次全绿都不能单独证明验证质量；选择能判断具体风险的最小可靠检查，验证分工以[实机验收机制](live-acceptance-process.md)为准。

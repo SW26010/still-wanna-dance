@@ -378,7 +378,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
 | data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法的直连通道、正字节/时长且非未来样本；代理样本不再恢复或保存。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移。它不是网络当前健康真相 |
 | data/state/inventory.json | schemaVersion=3、databasePath、videoDir、result；result 为 Inventory：catalog（revision/source）、coverageKnown/coveredSongs/unresolvedSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
-| data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：可选 target、catalog（revision/source）、catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/skipped/current/failures（id/name/error）。恢复 running=false；attempt 需 finished 非零。不是可恢复执行队列 |
+| data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：id（任务标识，旧快照缺少时在加载时补发）、可选 target、catalog（revision/source）、catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/skipped/current/failures（完整失败记录 id/name/error；无失败时可省略）。恢复 running=false；attempt 需 finished 非零。公共状态只传摘要，明细分页不截断快照。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |
 | data/state/webui-port.json | `{"port": 1–65535}`；仅保存最近成功启动的 WebUI 端口，缺失、不可读或无效时忽略；端口不可用时使用系统分配的端口。保存失败保留旧记录且不阻止启动，不作为实例发现或身份依据 |
 

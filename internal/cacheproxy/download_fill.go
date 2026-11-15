@@ -16,16 +16,27 @@ type DownloadFillFailure struct {
 	Err    error
 }
 
-// DownloadFillResult counts songs, including aliases of a shared resource.
+// DownloadFillSummary counts songs, including aliases of a shared resource.
 // An admitted resource contributes no result until its preparation finishes.
-// Failures is append-only across progress snapshots of the same Run.
-type DownloadFillResult struct {
+type DownloadFillSummary struct {
 	Total, Checked, Hits, Downloaded, Failed, Skipped int
 	Missing, Reused, CatalogHits                      int
 	Unresolved                                        int
 	BudgetReached                                     bool
 	CurrentSongID                                     string
-	Failures                                          []DownloadFillFailure
+}
+
+// DownloadFillResult owns the complete failure record after Run settles.
+type DownloadFillResult struct {
+	DownloadFillSummary
+	Failures []DownloadFillFailure
+}
+
+// DownloadFillProgress delivers each failure once, with the latest counters.
+// Its failure slice is independent of the result and other progress updates.
+type DownloadFillProgress struct {
+	DownloadFillSummary
+	Failures []DownloadFillFailure
 }
 
 // DownloadFill owns one fill's resource order, retry scopes and settlement.
@@ -52,7 +63,7 @@ func (s *Server) NewDownloadFill(ctx context.Context, scanOnly, retainFavorites 
 func (f *DownloadFill) RunResource(key string) (DownloadFillResult, error) {
 	ctx, finish := withBatchSongBudget(f.ctx)
 	defer finish()
-	result := DownloadFillResult{Total: 1}
+	result := DownloadFillResult{DownloadFillSummary: DownloadFillSummary{Total: 1}}
 	source, err := f.server.prefetchResource(ctx, key, "")
 	if errors.Is(err, ErrBatchBudget) {
 		result.BudgetReached = true
@@ -157,10 +168,11 @@ func (f *DownloadFill) fillResources(ctx context.Context, references map[string]
 // Run uses the existing song preparation adapter, forwarding an opaque context
 // through all retries. The adapter returns the engine's PrefetchDownload result;
 // fixed-resource preparation already owns bounded alias and URL retries.
-// Progress snapshots are serialized, independent copies; the callback must
+// Progress callbacks are serialized and contain only newly settled failures;
+// counters and failure slices are independent copies. The callback must
 // return promptly. Run waits for every started preparation and retry budget
 // scope to settle, including on cancellation. Shared engine work may outlive it.
-func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, int64) (string, error), progress func(DownloadFillResult)) (DownloadFillResult, error) {
+func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, int64) (string, error), progress func(DownloadFillProgress)) (DownloadFillResult, error) {
 	s, ctx := f.server, f.ctx
 	var result DownloadFillResult
 	jobs, err := f.fillResources(ctx, local.Files.References)
@@ -171,11 +183,10 @@ func (f *DownloadFill) Run(local LocalCatalog, prefetch func(context.Context, in
 	update := func(change func()) {
 		mu.Lock()
 		defer mu.Unlock()
+		previousFailures := len(result.Failures)
 		change()
 		if progress != nil {
-			snapshot := result
-			snapshot.Failures = slices.Clone(result.Failures)
-			progress(snapshot)
+			progress(DownloadFillProgress{DownloadFillSummary: result.DownloadFillSummary, Failures: slices.Clone(result.Failures[previousFailures:])})
 		}
 	}
 	update(func() { result.Total = len(local.Files.References) })

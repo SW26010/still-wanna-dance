@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,6 +62,7 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 			defer origin.Close()
 			var mu sync.Mutex
 			var attempts []string
+			working := tc.working
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/catalog" {
 					var entries []string
@@ -73,8 +75,9 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 				id := r.URL.Query().Get("id")
 				mu.Lock()
 				attempts = append(attempts, id)
+				workingID := working
 				mu.Unlock()
-				if id != tc.working {
+				if id != workingID {
 					http.Error(w, "obsolete song", http.StatusNotFound)
 					return
 				}
@@ -132,6 +135,19 @@ func TestMD5BatchTriesSharedSongIDs(t *testing.T) {
 				}
 			} else if b.Failed != 0 || b.Downloaded != total || downloads.Load() != 1 {
 				t.Fatalf("batch=%+v downloads=%d", b, downloads.Load())
+			}
+			if tc.name == "all_fail" {
+				saved, err := readSnapshot[Batch](c, "batch-last-attempt")
+				if err != nil || saved.ID != b.ID || !reflect.DeepEqual(saved.Failures, b.Failures) {
+					t.Fatal("settlement did not persist the complete result", err)
+				}
+				mu.Lock()
+				working = "1"
+				mu.Unlock()
+				waitMD5Batch(t, c, false)
+				if c.batch.ID == b.ID || len(c.batch.Failures) != 0 || c.batch.Downloaded != total || downloads.Load() != 1 {
+					t.Fatal("retry changed shared-resource settlement", c.batch)
+				}
 			}
 		})
 	}

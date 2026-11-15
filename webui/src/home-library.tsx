@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button, Link, Card, Title2, Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, Tooltip } from '@fluentui/react-components';
 import { Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { useApp, useResource } from './hooks';
@@ -6,7 +6,8 @@ import { Feedback, Panel, Progress, Hint, RecordDetails, StatusBadge } from './u
 import { BlockTimeline } from './block-timeline';
 import { UpstreamStatus } from './diagnostics';
 import { requestOutcome } from './requests';
-import { active, accelerationLabel, date, dated, type RequestRecord, type Status } from './types';
+import { TablePagination, paginationSummary } from './data-table';
+import { active, accelerationLabel, date, dated, type BatchFailurePage, type RequestRecord, type Status } from './types';
 
 const activationPermissionHint='可能请求 Windows 管理员授权（UAC）。';
 const portState=(available:boolean,owner?:Status['portOwner'])=>available?'可用':owner?`被 ${owner.name}（PID ${owner.pid}）占用`:'不可用或被系统保留';
@@ -48,7 +49,7 @@ export function Home({visible}: {visible:boolean}) {
     <BlockTimeline visible={visible}/>
   </div>;
 }
-export function BatchPanel({storageBudget}: {storageBudget:ReactNode}) {
+export function BatchPanel({storageBudget,visible}: {storageBudget:ReactNode;visible:boolean}) {
   const app=useApp(), s=app.status.data!, b=s.batch, saved=s.lastBatch;
   return <Panel id="batch" title="下载缺失视频" action={<Hint label="批量下载说明">检查当前清单中的歌曲；跳过屏蔽歌曲。按存储预算补齐。</Hint>}>
     {storageBudget}
@@ -59,6 +60,18 @@ export function BatchPanel({storageBudget}: {storageBudget:ReactNode}) {
     {b.catalogWarning&&<Feedback error><div className="toolbar"><span>{b.catalog?.revision?'在线曲库更新失败，本次使用已有清单。':'没有可用清单，请重试更新。'}</span><Button disabled={app.unavailable||b.running} onClick={()=>void app.action('batch/scan')}>重试更新</Button><RecordDetails title="在线更新错误详情"><p className="wrap">{b.catalogWarning}</p></RecordDetails></div></Feedback>}
     {b.budgetReached&&<Feedback>视频预算不足。<Link href="#storage-settings">调整保留空间</Link>后可重新开始。</Feedback>}
     <Feedback error>{b.error||s.actionErrors?.batch}</Feedback>
-    {!!b.failed&&<Table size="small" aria-label="批量任务失败记录"><TableHeader><TableRow><TableHeaderCell>歌曲</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{b.failures?.map(f=><TableRow key={f.id}><TableCell>{f.id} · {f.name}</TableCell><TableCell>{f.error}</TableCell></TableRow>)}</TableBody></Table>}
+    {visible&&!!b.failed&&b.id&&<BatchFailures key={b.id} id={b.id} failed={b.failed}/>}
   </Panel>;
+}
+
+function BatchFailures({id,failed}:{id:string;failed:number}) {
+  const app=useApp(),[offset,setOffset]=useState(0);
+  const path=`batch/failures?id=${encodeURIComponent(id)}&offset=${offset}`;
+  const page=useResource<BatchFailurePage>(path,!app.stopped,failed,0,true);
+  const ready=page.loadedPath===path;
+  return <div>
+    <Table size="small" aria-label="批量任务失败记录" aria-busy={page.loading}><TableHeader><TableRow><TableHeaderCell>歌曲</TableHeaderCell><TableHeaderCell>原因</TableHeaderCell></TableRow></TableHeader><TableBody>{page.data?.failures?.map(f=><TableRow key={f.id}><TableCell>{f.id} · {f.name}</TableCell><TableCell>{f.error}</TableCell></TableRow>)}</TableBody></Table>
+    <TablePagination label="批量任务失败记录" disabled={app.stopped||!ready||!!page.error} canPrevious={offset>0} canNext={offset+50<(page.data?.total||0)} previous={()=>setOffset(value=>Math.max(0,value-50))} next={()=>setOffset(value=>value+50)} summary={page.data?paginationSummary(page.data.offset/50+1,page.data.total,50):'正在读取失败记录…'}/>
+    {page.error&&<Feedback error><span>{page.error}</span><Button disabled={app.unavailable} onClick={page.refresh}>重试读取失败记录</Button></Feedback>}
+  </div>;
 }

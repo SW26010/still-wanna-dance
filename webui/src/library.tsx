@@ -211,6 +211,6 @@ function LibraryView({visible,anchor,browserAnchor,onNavigate}:{visible:boolean;
     </section>
     <VRCXImport model={history}/>
     <ImportPanel storageBudget={storageBudget}/>
-    <BatchPanel storageBudget={storageBudget}/>
+    <BatchPanel storageBudget={storageBudget} visible={visible}/>
   </div>;
 }

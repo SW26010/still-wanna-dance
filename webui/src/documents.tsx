@@ -51,7 +51,7 @@ function About({paths,heading='h1',update,refreshUpdate,updateUnavailable=false}
       <dt>目标平台</dt><dd>{build.target}</dd><dt>Go 工具链</dt><dd>{build.toolchain}</dd>
     </dl></Panel>}
     <Panel title="文件位置"><dl className="detail-grid"><dt>配置文件</dt><dd>{paths.Config}</dd><dt>数据库</dt><dd>{paths.Database||'尚未指定'}</dd><dt>本地视频</dt><dd>{paths.Videos||'尚未指定'}</dd><dt>程序日志</dt><dd>{paths.Log}</dd></dl></Panel>
-    <Panel title="特别感谢"><ul><li>华年忆梦</li><li>逻辑XR</li><li>小新喵</li></ul></Panel>
+    <Panel title="特别感谢"><ul><li>华年忆梦</li><li>逻辑XR</li><li>小新喵</li><li>小奇QAQ</li></ul></Panel>
     <small>© 2026 Still Wanna Dance contributors. GNU GPLv3.</small></>;
 }
 function Terms({heading='h1'}:{heading?:'h1'|'h2'}={}) {

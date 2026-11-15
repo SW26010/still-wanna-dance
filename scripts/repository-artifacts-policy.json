@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1320669,
+      "sha256": "5878222aee4dbfd0ccb1c6b2db99407ab4e144702f6c17db1b855d11309b0fab",
+      "reason": "Production WebUI rebuilt to add 小奇QAQ to the About page special thanks list; embedded in offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1320623,
       "sha256": "f905354ff56fef070fb37aa8d1fd1531ecd72c3e34f4672edd87862c9f176667",
       "reason": "Production WebUI rebuilt from merged sources with copy-required import space hints and history-driven statistics, preserving the current titles and tooltips; embedded in offline Go builds and verified against webui/build-manifest.json."

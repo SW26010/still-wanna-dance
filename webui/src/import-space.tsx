@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { request } from './api';
 
-type SpaceMode = 'same-volume' | 'cross-volume' | 'unknown';
+type SpaceMode = 'same-volume' | 'cross-volume' | 'copy-required' | 'unknown';
 const descriptions = {
   'same-volume': '预计不额外占用视频空间',
   'cross-volume': '预计需要额外空间',
+  'copy-required': '预计需要额外空间',
   unknown: '空间占用待确认',
   pending: '正在判断空间占用…',
   empty: '选择来源后显示空间预估',

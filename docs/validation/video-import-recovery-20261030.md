@@ -38,3 +38,18 @@
 - `go test -tags=no_easytier ./internal/cacheproxy ./internal/console -run 'Test.*Import|TestManagement' -count=1`、受影响两包 `go vet`、前端 TypeScript、资源重建及清单校验通过。真实浏览器检查通过对应测试的环境变量启用。
 
 首轮沙箱内遇到目录联接拒绝访问、既有原子保存 `The handle is invalid`；浏览器首轮启动阶段失败后未正常结束，已中止并转沙箱外验证。测试自身先后修正了对空任务的解引用，以及将页面既有 VRCX 检测误计为导入操作的断言，未修改产品行为绕过失败。相关失败与最终输出保存在忽略目录 `artifacts/import-space/` 的 `go-initial.log`、`go-native.log`、`go-native-fixed.log`、`go-final.log`、`browser-native.log`，联调证据在 `browser/`、`recovery-browser/`，夹具截图在 `artifacts/webui-tests/`。未新增 VRC 待验项。
+
+## 2026-11-15：移除目标卷的硬链接前提
+
+旧实现有两处依赖：源到暂存只对跨卷错误回退复制，暂存到正式目标则无条件再次硬链接。使用真实导入流程、只替换硬链接系统调用的回归 `TestImportWithoutHardLinks`，同卷注入 `ERROR_NOT_SUPPORTED` 时在暂存失败，跨卷注入 `ERROR_NOT_SAME_DEVICE` 后复制成功但在发布失败。仅扩大暂存回退条件后，两项仍在发布失败；改用禁止覆盖的重命名后通过，另补 `ERROR_INVALID_FUNCTION` 用例。该过程证明不能仅增加复制兜底而保留原发布方式。
+
+Windows 采用不含替换／跨卷复制标志的 [MoveFileExW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw)，空间预估通过打开的目录句柄读取 [FILE_SUPPORTS_HARD_LINKS](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getvolumeinformationbyhandlew)。Linux 使用 `renameat2(RENAME_NOREPLACE)`，不支持该原语时保留原硬链接发布兼容路径。现行范围以[视频导入规则](../video-import.md)为准。
+
+- Windows 定向回归通过：不支持硬链接的两种错误、跨卷复制路径、独立副本清理、访问拒绝与磁盘满错误保留、取消后暂存清理、导入途中出现的同名目标不覆盖且不发回执；原生发布同时覆盖已有文件、目录及超过 260 字符的路径。
+- 原硬链接优化保持：5 MiB 视频导入和清理的实际进程读取量各为 5 MiB。真实两卷 NTFS 复制、目标保留元数据、清理后内容保持、立即容量淘汰和跨卷目录联接识别通过；测试创建的外部临时目录已清理。
+- 两包关联回归通过：`./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy ./internal/console -run 'Test.*Import|TestPublishImportedVideo|TestTemporaryMediaAfterProcessTermination' -count=1`，覆盖固定清单、暂停恢复、成功回执和进程中断清理。未设置环境变量的可选浏览器／跨卷检查仍跳过；真实跨卷两项随后单独启用验证。
+- `webui/e2e/import-space.spec.ts` 的 3 项 Edge 检查通过，包括 320／1280px 下同卷需要复制的空间提示、布局稳定和旧请求不覆盖新选择。前端构建、TypeScript 与构建清单检查、两包 `go vet`、Linux 测试二进制交叉编译通过。
+
+本轮初次真实硬链接检查在沙箱中收到 `Access is denied`；Edge 也在启动时退出（`TransactNamedPipe`）。按开发约定转沙箱外后通过，没有将访问拒绝加入 Windows 复制兜底。浏览器失败资料保留于忽略目录 `artifacts/webui-tests/`，通过截图使用单独的 `artifacts/import-hardlinks-browser/`。尝试 macOS 交叉编译时遇到仓库已有的 `lockDirectory` 缺失，本轮没有扩展平台支持。
+
+验证边界：本机可用卷均为 NTFS，未实际挂载 exFAT/FAT 或网络共享；不支持硬链接的系统错误为受控注入，复制、校验、发布、回执清理使用真实实现。Windows 卷能力查询的支持路径和浏览器的复制提示已验证，无硬链接卷的真实查询结果尚未实测。Linux 只完成编译，未运行其内核／文件系统路径。未启动 VRC、修改 hosts 或操作用户视频，不新增 VRC 待验项。

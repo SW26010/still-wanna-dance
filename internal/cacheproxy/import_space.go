@@ -29,7 +29,7 @@ func EstimateImportSpace(source, destination string) string {
 		return "unknown"
 	}
 	if from == to {
-		return "same-volume"
+		return importSameVolumeSpace(destination)
 	}
 	return "cross-volume"
 }

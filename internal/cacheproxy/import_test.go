@@ -8,9 +8,65 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestPublishImportedVideo(t *testing.T) {
+	for _, kind := range []string{"new", "file", "directory", "long-path"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := t.TempDir()
+			if kind == "long-path" {
+				dir = filepath.Join(dir, strings.Repeat("nested-", 20), strings.Repeat("nested-", 20))
+			}
+			stage := filepath.Join(dir, "stage", "video")
+			destination := filepath.Join(dir, "video.mp4")
+			if err := os.MkdirAll(filepath.Dir(stage), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(stage, []byte("new video"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "file":
+				if err := os.WriteFile(destination, []byte("existing video"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "directory":
+				if err := os.Mkdir(destination, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err := publishImportedVideo(stage, destination)
+			if kind == "new" || kind == "long-path" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got, err := os.ReadFile(destination); err != nil || string(got) != "new video" {
+					t.Fatal("published content differs", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("publication replaced an existing destination")
+			}
+			if got, err := os.ReadFile(stage); err != nil || string(got) != "new video" {
+				t.Fatal("failed publication changed its stage", err)
+			}
+			if kind == "file" {
+				if !os.IsExist(err) {
+					t.Fatal("destination conflict must be recognizable", err)
+				}
+				if got, err := os.ReadFile(destination); err != nil || string(got) != "existing video" {
+					t.Fatal("existing destination changed", err)
+				}
+			} else if info, err := os.Stat(destination); err != nil || !info.IsDir() {
+				t.Fatal("existing directory changed", err)
+			}
+		})
+	}
+}
 
 func TestImportCrossVolumeCopy(t *testing.T) {
 	root := os.Getenv("SWD_IMPORT_TEST_VOLUME")

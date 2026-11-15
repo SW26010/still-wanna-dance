@@ -2075,6 +2075,13 @@
       "bytes": 1322631,
       "sha256": "1a0f0a9c839fe944d5eb5503911cef6bd815cf88eec7349b0ac30c5a61ae39f6",
       "reason": "Reviewed generated Fluent WebUI bundle after merging library SQL pagination and maintained inventory queries with download observation baseline reconciliation (2026-11-15). Preserves explicit local-video scans and refresh after scan failure. Rebuilt from unchanged locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322269,
+      "sha256": "571670f5282cf3884e1f62ec379cecc6c46aff03d212a1930c0331f88522143e",
+      "reason": "Reviewed generated Fluent WebUI bundle: video import shows the existing extra-space message when the target volume cannot hard-link files (2026-11-15). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json; three Edge space-preview regressions passed at 320px and 1280px."
     }
   ]
 }

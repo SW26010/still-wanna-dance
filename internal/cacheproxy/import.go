@@ -112,6 +112,10 @@ func (s *Server) ImportVideo(ctx context.Context, source string, allowed map[str
 
 // ImportSnapshotVideo never admits a replacement for the enumerated source.
 func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, allowed map[string]bool) (*ImportedVideo, error) {
+	return s.importSnapshotVideo(ctx, snapshot, allowed, os.Link)
+}
+
+func (s *Server) importSnapshotVideo(ctx context.Context, snapshot ImportFile, allowed map[string]bool, link func(string, string) error) (*ImportedVideo, error) {
 	if !s.beginRequest() {
 		return nil, context.Canceled
 	}
@@ -157,8 +161,8 @@ func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 			s.cfg.Logger.Warn("视频导入暂存清理失败", "event_name", "import_stage_cleanup_failed", "path", dir, "error", err)
 		}
 	}()
-	if err = os.Link(source, stage); err != nil {
-		if !importCrossDevice(err) {
+	if err = link(source, stage); err != nil {
+		if !importLinkUnavailable(err) {
 			return nil, fmt.Errorf("创建硬链接失败：%w", err)
 		}
 		out, e := os.OpenFile(stage, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -232,7 +236,7 @@ func (s *Server) ImportSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 		if policies[key].blocked {
 			return nil
 		}
-		if err = os.Link(stage, dest); err != nil {
+		if err = publishImportedVideo(stage, dest); err != nil {
 			if os.IsExist(err) {
 				return nil
 			}

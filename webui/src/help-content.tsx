@@ -12,6 +12,7 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
     {heading&&<Title2 as={heading}>帮助</Title2>}
     <Panel id="help-start" title="启动与退出">
       <p>完整解压 ZIP，运行 SWD.exe 并同意条款。在<Link href={pageHref('home')}>加速</Link>页点击「开始加速」，按提示完成管理员授权，然后在游戏里点歌。</p>
+      <p>在 WannaDance 房间设置中，CDN 请选择 Auto、CF 或 HKG；SHA 不支持加速，请勿选择。</p>
       <p>关闭网页后仍会继续加速，需要时从系统托盘重新打开。</p>
       <p id="help-stop" tabIndex={-1}>「停止加速」暂停游戏加速，独立下载仍会继续；「退出程序」结束后台工作。默认恢复游戏直连，可在<Link href={sectionHref('restoreHostsOnStopOrExit')}>停止与退出设置</Link>调整。关闭恢复后，下次游戏前需启动 SWD 并开启加速。</p>
     </Panel>
@@ -26,8 +27,9 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
     </Panel>
     <Panel id="help-playback" title="视频加载不出来，先做什么？">
       <ol className="help-steps">
-        <li><Subtitle2 as="h3">先确认加速已开启</Subtitle2>
-          <p>到<Link href={sectionHref('activation')}>加速状态</Link>查看「游戏连接」和「视频服务」。有错误先按提示处理；开启后重新点歌。仍没收到请求时，再尝试重进世界或重启游戏。</p>
+        <li><Subtitle2 as="h3">先确认已正确启动</Subtitle2>
+          <p>到<Link href={sectionHref('activation')}>加速状态</Link>查看「游戏连接」和「视频服务」。有错误先按提示处理。</p>
+          <p>在 WannaDance 房间设置中，CDN 请选择 Auto、CF 或 HKG；SHA 不支持加速，请勿选择。确认后重新点歌；仍没收到请求时，再尝试重进世界或重启游戏。</p>
         </li>
         <li><Subtitle2 as="h3">已经在下载，但一直很慢</Subtitle2>
           <p>到<Link href={pageHref('network')}>网络</Link>检查连接和下载速度。当前连接慢时，尝试更换<Term description="SWD 下载视频所用的网络连接，可以是直连或代理。">上游连接</Term>。</p>

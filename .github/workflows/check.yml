@@ -162,13 +162,10 @@ jobs:
           if-no-files-found: ignore
 
   race:
-    # Keep the daily check name stable when the matrix is skipped before expansion.
-    name: race (${{ matrix.shard || 0 }})
     needs: [validation, tools, repository]
     if: >-
       always() && !cancelled() && needs.validation.result == 'success' && needs.tools.result == 'success' &&
-      (needs.repository.result == 'success' || needs.repository.result == 'skipped') &&
-      needs.validation.outputs.product == 'true' && needs.validation.outputs.reuse != 'true'
+      (needs.repository.result == 'success' || needs.repository.result == 'skipped') && needs.validation.outputs.reuse != 'true'
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -178,15 +175,23 @@ jobs:
       GOTOOLCHAIN: local
       CGO_ENABLED: '1'
     steps:
+      # Expand the daily matrix so its required check keeps the name race (0).
+      - name: No race checks required
+        if: needs.validation.outputs.product != 'true'
+        run: Write-Host 'Product inputs are unchanged; race checks are not required.'
       - uses: actions/checkout@v4
+        if: needs.validation.outputs.product == 'true'
       - uses: actions/setup-node@v4
+        if: needs.validation.outputs.product == 'true'
         with:
           node-version-file: '.node-version'
       - uses: actions/setup-go@v5
+        if: needs.validation.outputs.product == 'true'
         with:
           go-version-file: 'go.mod'
           cache: false
       - name: Install pinned Windows GCC
+        if: needs.validation.outputs.product == 'true'
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP 'w64devkit-x64-2.10.0.7z.exe'
@@ -198,10 +203,10 @@ jobs:
           if (!(Test-Path -LiteralPath $compiler)) { throw 'Windows GCC is missing.' }
           "CC=$compiler" >> $env:GITHUB_ENV
       - name: Full Windows race shard
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        if: needs.validation.outputs.product == 'true' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
         run: ./scripts/release-preflight.ps1 -Scope race -RaceShard ${{ matrix.shard }}
       - name: Representative race checks
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
+        if: needs.validation.outputs.product == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')))
         run: ./scripts/release-preflight.ps1 -Scope race -Representative
       - name: Retain race diagnostics
         if: failure()

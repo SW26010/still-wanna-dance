@@ -51,23 +51,27 @@ type hostsController struct {
 	closed           bool
 	err              error
 	prepared         atomic.Bool            // helper acknowledged recovery capability; not an exit policy
-	authorizationID  atomic.Pointer[string] // identity of the latest successful helper authorization
+	authorizationID  atomic.Pointer[string] // latest connection authorization; cleanup-only helpers do not publish it
 	rollbackReady    bool                   // only the most recent dispatched enable may be rolled back
 	previousPrepared bool
 }
 
 func newHostsController(path string, launch func(context.Context) (hostsConnection, error)) *hostsController {
 	ctx, cancel := context.WithCancel(context.Background())
-	h := &hostsController{path: path, ctx: ctx, cancel: cancel}
-	h.launch = func(ctx context.Context) (hostsConnection, error) {
-		session, err := launch(ctx)
-		if err == nil {
-			id := rand.Text()
-			h.authorizationID.Store(&id)
-		}
-		return session, err
+	return &hostsController{path: path, ctx: ctx, cancel: cancel, launch: launch}
+}
+
+func (h *hostsController) ensureSession(publishAuthorization bool) error {
+	if h.session != nil {
+		return nil
 	}
-	return h
+	var err error
+	h.session, err = h.launch(h.ctx)
+	if err == nil && publishAuthorization {
+		id := rand.Text()
+		h.authorizationID.Store(&id)
+	}
+	return err
 }
 
 func (h *hostsController) change(action string, restore bool) error {
@@ -103,7 +107,7 @@ func (h *hostsController) change(action string, restore bool) error {
 		if action == "disable" {
 			return errHostsRestorePermission
 		}
-		h.session, err = h.launch(h.ctx)
+		err = h.ensureSession(true)
 		if err != nil {
 			return err
 		}
@@ -118,6 +122,10 @@ func (h *hostsController) change(action string, restore bool) error {
 // Prepare capability without changing hosts or the helper's crash cleanup.
 // Normal exit receives the committed policy from Console.Close after saving.
 func (h *hostsController) prepareRestore() error {
+	return h.prepareRestoreWithNotice(true)
+}
+
+func (h *hostsController) prepareRestoreWithNotice(publishAuthorization bool) error {
 	if h.closed || h.ctx.Err() != nil {
 		return rejectRequest(errors.New("程序正在退出"))
 	}
@@ -131,11 +139,8 @@ func (h *hostsController) prepareRestore() error {
 	if _, err = transformHosts(string(data), "disable"); err != nil {
 		return err
 	}
-	if h.session == nil {
-		h.session, err = h.launch(h.ctx)
-		if err != nil {
-			return err
-		}
+	if err = h.ensureSession(publishAuthorization); err != nil {
+		return err
 	}
 	err = h.session.request(hostsRequest{Action: "prepare", TermsVersion: legal.Version})
 	h.prepared.Store(err == nil)

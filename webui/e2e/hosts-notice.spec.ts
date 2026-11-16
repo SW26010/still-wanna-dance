@@ -12,7 +12,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
   await expect(page.getByRole('listitem',{name:noticeTitle,exact:true})).toHaveCount(0);
 
   // A tray/automatic authorization reaches any page through the ordinary status snapshot.
-  state.hosts.authorizationID='authorization-first';
+  Object.assign(state.hosts,{managed:true,authorizationID:'authorization-first'});
   await expect(page.getByRole('listitem',{name:noticeTitle,exact:true})).toBeVisible({timeout:10000});
   await expect(page.getByRole('link',{name:'打开退出设置',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -30,7 +30,7 @@ for(const width of [320,1280])test(`authorized helper offers a focused exit sett
 });
 
 test('authorization completed before opening the page is shown once, and later authorizations notify again',async({page})=>{
-  const {state}=await mockAPI(page);state.hosts.authorizationID='authorization-first';
+  const {state}=await mockAPI(page);Object.assign(state.hosts,{managed:true,authorizationID:'authorization-first'});
   await page.goto('/');
   await expect(page.getByRole('listitem',{name:noticeTitle,exact:true})).toBeVisible();
   await page.getByRole('button',{name:'关闭通知',exact:true}).click();
@@ -62,7 +62,7 @@ test('canceled authorization has no settings suggestion; successful authorizatio
 });
 
 for(const failure of ['access','read','write'] as const)test(`notification storage failures preserve the WebUI and settings link (${failure})`,async({page})=>{
-  const {state}=await mockAPI(page);state.hosts.authorizationID='authorization-first';
+  const {state}=await mockAPI(page);Object.assign(state.hosts,{managed:true,authorizationID:'authorization-first'});
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(failure=>{
     const fail=()=>{throw new DOMException('Injected notification storage failure',failure==='write'?'QuotaExceededError':'SecurityError');};

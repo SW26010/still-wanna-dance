@@ -75,6 +75,7 @@ test('help sections and direct anchors work without requiring a status connectio
   for(const name of ['启动与退出','视频加载不出来，先做什么？','留多少空间，哪些视频会保存？','备份与升级','反馈问题']){
     await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
   }
+  await expect(page.getByRole('button',{name:'恢复游戏直连',exact:true})).toBeDisabled();
   await page.goto('/#help-paths');
   await expect(page.locator('#help-paths')).toBeFocused();
   await expect(page.locator('#help-paths')).toBeInViewport();
@@ -82,6 +83,53 @@ test('help sections and direct anchors work without requiring a status connectio
   await expect(page.locator('#help-paths')).toBeFocused();
   await navigate(page,'关于');
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
+});
+
+for(const width of [320,1280])test(`uninstall restores the game connection and reports the outcome in a toast (${width})`,async({page},info)=>{
+  const api=await mockAPI(page);
+  api.state.running=true;api.state.hosts={ready:true,managed:true,message:'已接入'};
+  api.state.settings.restoreHostsOnStopOrExit=false;api.state.activeSettings.restoreHostsOnStopOrExit=false;
+  const settings=structuredClone(api.state.settings);
+  await page.setViewportSize({width,height:850});await page.goto('/#/help');
+  const restore=page.getByRole('button',{name:'恢复游戏直连',exact:true});
+  await restore.focus();await page.keyboard.press('Enter');
+  const notice=page.getByRole('listitem',{name:'游戏直连已恢复，可以退出程序后卸载。',exact:true});
+  await expect(notice).toBeVisible();await expect(restore).toBeFocused();await expect(restore).toBeEnabled();
+  const bounds=await notice.boundingBox();
+  expect(bounds!.x+bounds!.width).toBeGreaterThan(width-40);
+  expect(bounds!.y+bounds!.height).toBeGreaterThan(800);
+  expect(api.state.running).toBe(false);expect(api.state.hosts.managed).toBe(false);
+  expect(api.state.settings).toEqual(settings);expect(api.state.activeSettings.restoreHostsOnStopOrExit).toBe(false);
+  expect(api.calls.filter(c=>c.path==='activation/restore')).toHaveLength(1);
+  expect(api.calls.some(c=>c.path==='settings'||c.path==='exit')).toBe(false);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('restore-toast.png')});
+  await restore.click();
+  await expect(page.getByRole('listitem',{name:'未发现 SWD 接入，无需恢复；可以退出程序后卸载。',exact:true})).toBeVisible();
+});
+
+test('uninstall recovery disables repeat submissions and reports canceled or failed authorization',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.running=true;api.state.hosts={ready:true,managed:true,message:'已接入'};
+  let release=()=>{},attempts=0;
+  const gate=new Promise<void>(resolve=>release=resolve);
+  await page.route('**/api/activation/restore',async route=>{
+    attempts++;
+    if(attempts===1){await gate;await route.fulfill({status:400,json:{error:'管理员授权已取消',code:'uac_canceled'}});}
+    else await route.fulfill({status:400,json:{error:'恢复失败，请检查 hosts 文件权限。'}});
+  });
+  await page.goto('/#/help');
+  const restore=page.getByRole('button',{name:'恢复游戏直连',exact:true});
+  await restore.click();await expect(restore).toBeDisabled();
+  await expect(page.getByRole('listitem',{name:'正在恢复游戏直连，请留意管理员授权。',exact:true})).toBeVisible();
+  await page.keyboard.press('Enter');expect(attempts).toBe(1);
+  release();
+  await expect(page.getByRole('listitem',{name:'管理员授权已取消',exact:true})).toBeVisible();
+  await expect(restore).toBeEnabled();expect(api.state.running).toBe(true);expect(api.state.hosts.managed).toBe(true);
+  await restore.click();
+  await expect(page.getByRole('listitem',{name:'恢复失败，请检查 hosts 文件权限。',exact:true})).toBeVisible();
+  await expect(restore).toBeEnabled();
+  expect(attempts).toBe(2);expect(api.calls.some(c=>c.path==='settings'||c.path==='exit')).toBe(false);
 });
 
 test('exit restoration changes only after saving and applies to this exit',async({page},info)=>{

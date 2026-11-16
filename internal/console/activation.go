@@ -121,8 +121,15 @@ func (c *Console) enableAcceleration(inspect func() HostsStatus, change func(str
 // Stop only the gateway and its queue. The shared engine and authorized hosts
 // helper live until application exit, so resuming can reuse both.
 func (c *Console) disableAcceleration() error {
+	_, err := c.stopAcceleration(false)
+	return err
+}
+
+// Explicit restoration prepares permission before changing the running state.
+// Ordinary stop and exit still never launch an elevated helper.
+func (c *Console) stopAcceleration(restoreDirect bool) (bool, error) {
 	if !c.activationMu.TryLock() {
-		return rejectRequest(errors.New("正在处理加速，请等待当前操作完成"))
+		return false, rejectRequest(errors.New("正在处理加速，请等待当前操作完成"))
 	}
 	defer c.activationMu.Unlock()
 	c.lifecycleMu.Lock()
@@ -130,9 +137,19 @@ func (c *Console) disableAcceleration() error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
-		return rejectRequest(errors.New("程序正在退出"))
+		return false, rejectRequest(errors.New("程序正在退出"))
 	}
 	restore := c.settings.RestoreHostsOnStopOrExit
+	c.mu.Unlock()
+	managed := false
+	if restoreDirect {
+		if err := c.editor.hosts.prepareRestoreWithNotice(false); err != nil {
+			return false, err
+		}
+		managed = c.editor.hosts.status().Managed
+		restore = true
+	}
+	c.mu.Lock()
 	c.activation.Phase, c.activation.Error = "stopping", ""
 	c.activation.ConnectionError = ""
 	c.activation.restorePermissionMissing = false
@@ -153,7 +170,7 @@ func (c *Console) disableAcceleration() error {
 		c.activation.ConnectionError = err.Error()
 		c.activation.restorePermissionMissing = errors.Is(err, errHostsRestorePermission)
 	}
-	return err
+	return managed, err
 }
 
 func (c *Console) beginVideoRequest(arrived time.Time) func() {

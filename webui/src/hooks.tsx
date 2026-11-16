@@ -166,14 +166,19 @@ export function useConsole(enabled: boolean, page: string) {
     if (lock.current || stopped || shutdown.current) return false;
     lock.current = true; setBusy(true);
     const hosts = path === 'activation/enable';
+    const restoreDirect = path === 'activation/restore';
     const restorePermission = path === 'hosts/prepare' || path === 'settings' && typeof body === 'object' && body !== null && 'restoreHostsOnStopOrExit' in body && body.restoreHostsOnStopOrExit === true && status.data?.settings.restoreHostsOnStopOrExit !== true;
-    setMessage(hosts ? hostsActionPending : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
+    setMessage(hosts ? hostsActionPending : restoreDirect ? '正在恢复游戏直连，请留意管理员授权。' : restorePermission ? '正在准备退出恢复权限，请留意管理员授权。' : '正在处理…');
     try {
-      const result=await request<{action?:unknown}>(path, body, AbortSignal.timeout(hosts || restorePermission ? hostsActionTimeout : 30000));
+      const result=await request<{action?:unknown;restored?:boolean}>(path, body, AbortSignal.timeout(hosts || restorePermission || restoreDirect ? hostsActionTimeout : 30000));
       if(shutdown.current)return true;
       if(path==='exit'||path==='restart'){
         if(!isShutdownAction(result.action))throw new Error('Invalid shutdown acknowledgement');
         await acceptShutdown(result.action);return true;
+      }
+      if(restoreDirect){
+        if(typeof result.restored!=='boolean')throw new Error('Invalid restoration acknowledgement');
+        setMessage(result.restored?'游戏直连已恢复，可以退出程序后卸载。':'未发现 SWD 接入，无需恢复；可以退出程序后卸载。');return true;
       }
       setMessage(actionMessages[path] || (path.startsWith('upstream/check') ? '网络检测已开始，请查看检测结果。' : '请求已接受，请查看当前任务状态。')); return true;
     } catch (e) {

@@ -833,6 +833,16 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	case "/api/activation/disable":
 		source = "activation"
 		err = c.disableAcceleration()
+	case "/api/activation/restore":
+		source = "activation"
+		var restored bool
+		restored, err = c.stopAcceleration(true)
+		if err == nil {
+			c.recordActionError(source, nil)
+			slog.Info("WebUI 操作已完成", "event_name", "console_action_completed", "action", r.URL.Path)
+			writeJSON(w, map[string]bool{"ok": true, "restored": restored})
+			return
+		}
 	case "/api/hosts/prepare":
 		source = "hosts"
 		err = c.prepareHostsRestore()

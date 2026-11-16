@@ -115,7 +115,7 @@ export function App() {
     <Notification message={model.message} error={model.messageError} persistent={model.busy}/>
     <Notification message={updateNotice?`发现新版本 ${updateNotice}`:undefined} action={{href:'#/about',label:'查看更新'}}/>
     {proxyNotice&&<Notification message="上游连接已改为代理" body="自动选择模式已移除，原代理配置已保留。可在设置中切换为直连。" action={{href:'#network-proxy',label:'网络设置'}}/>}
-    <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID}/>
+    <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID} managed={!!s?.hosts.managed}/>
     {accepted&&!bootstrap.recovery&&<VideoImportSuggestion/>}
     {!s&&accepted&&!bootstrap.recovery&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;

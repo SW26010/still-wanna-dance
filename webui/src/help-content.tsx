@@ -1,13 +1,15 @@
 import { Link, Subtitle2, Title2, Tooltip } from '@fluentui/react-components';
-import type { PropsWithChildren } from 'react';
+import { useContext, type PropsWithChildren } from 'react';
 import { Panel, pageHref, sectionHref } from './ui';
 import { DiagnosticExport } from './diagnostic-export';
+import { ConsoleContext } from './hooks';
 
 function Term({children,description}:PropsWithChildren<{description:string}>) {
   return <Tooltip content={description} relationship="description"><span className="help-term" tabIndex={0}>{children}</span></Tooltip>;
 }
 
 export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
+  const app=useContext(ConsoleContext);
   return <article className="help-guide">
     {heading&&<Title2 as={heading}>帮助</Title2>}
     <Panel id="help-start" title="启动与退出">
@@ -60,7 +62,7 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
       <ul>
         <li><strong>备份或搬家：</strong>先正常退出，备份配置文件和数据库所在目录，视频按需备份。更换存储位置不自动搬移文件，搬好后在存储设置中选择新位置，保存并重启。</li>
         <li><strong>升级：</strong>退出程序，将新版 SWD.exe 和整个 licenses 文件夹覆盖到原目录，保留其他文件，再启动。</li>
-        <li><strong>卸载：</strong>开启并保存「停止加速或退出时恢复游戏直连」，退出并确认恢复成功，再备份数据、删除程序文件夹。外置的视频和数据库按需保留。</li>
+        <li><strong>卸载：</strong>先点击{app?<Link as="button" disabled={app.unavailable} disabledFocusable={app.unavailable} onClick={()=>void app.action('activation/restore')}>恢复游戏直连</Link>:<Link href="/#/help">恢复游戏直连</Link>}（会停止加速），恢复成功或提示无需恢复后，退出程序，再备份数据、删除程序文件夹。外置的视频和数据库按需保留。</li>
       </ul>
     </Panel>
     <Panel id="help-paths" title="反馈问题">

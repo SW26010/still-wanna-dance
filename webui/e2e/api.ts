@@ -100,6 +100,7 @@ export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'cov
     if (match('POST activation/enable')) {if(!state.hosts.ready){state.hosts.ready=true;state.hosts.managed=true;state.hosts.exitRestorePrepared=state.activeSettings.restoreHostsOnStopOrExit;}state.running=true;state.queue={running:state.activeSettings.queueWithGateway,desired:state.activeSettings.queueWithGateway};state.activation={phase:'waiting',readyAt:new Date().toISOString()};}
     if (match('POST hosts/prepare')&&state.hosts.managed&&state.activeSettings.restoreHostsOnStopOrExit) state.hosts.exitRestorePrepared=true;
     if (match('POST activation/disable')) {state.running=false;state.queue={running:false,desired:false};if(state.activeSettings.restoreHostsOnStopOrExit){state.hosts.ready=false;state.hosts.managed=false;state.hosts.exitRestorePrepared=false;}state.activation={phase:'stopped'};}
+    if (match('POST activation/restore')) {data={ok:true,restored:!!state.hosts.managed};state.running=false;state.queue={running:false,desired:false};if(state.hosts.managed){state.hosts.ready=false;state.hosts.managed=false;state.hosts.exitRestorePrepared=false;}state.activation={phase:'stopped'};}
     // These actions only acknowledge the request; tests needing progress provide their own route.
     match('POST cache/open','POST songs','POST inventory/scan',
       'POST batch/scan','POST batch/start','POST batch/download','POST batch/cancel',

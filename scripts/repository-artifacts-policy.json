@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1321985,
+      "sha256": "f652fb421f8a733a18e790a4ff3a024d67c2913c67061bfe3f5f9a8899fcb457",
+      "reason": "Production WebUI rebuilt with the uninstall recovery action in help, shared bottom-right Toast feedback and suppression of the keep-connection suggestion after restoration. Embedded in offline Go builds and verified against webui/build-manifest.json; locked dependencies are unchanged."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1321081,
       "sha256": "4a60e9bdd5e67087fed9a55fadb50b972d33fff0c84eb9451a987128ea9d946b",
       "reason": "Production WebUI rebuilt to explain supported WannaDance room CDN choices in startup help and the first playback troubleshooting step: Auto, CF and HKG; SHA does not support acceleration. Embedded in offline Go builds and verified against webui/build-manifest.json."

@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {request} from './api';
 import {useApp} from './hooks';
 import {Notification} from './ui';
@@ -28,18 +28,22 @@ export function VideoImportSuggestion() {
     onDismiss={()=>void acknowledge()} dismissLabel="不再提示" disabled={pending||app.unavailable}/>;
 }
 
-export function HostsAuthorizationNotice({authorizationID}:{authorizationID?:string}) {
+export function HostsAuthorizationNotice({authorizationID,managed}:{authorizationID?:string;managed:boolean}) {
   const [noticeID,setNoticeID]=useState('');
+  const seen=useRef('');
   useEffect(()=>{
     if(!authorizationID){setNoticeID('');return;}
+    if(!managed)setNoticeID('');
+    if(seen.current===authorizationID)return;
+    seen.current=authorizationID;
     // Acknowledge this authorization across reloads in the same tab.
     try {
       if(sessionStorage.getItem('swd-hosts-authorization')===authorizationID)return;
       sessionStorage.setItem('swd-hosts-authorization',authorizationID);
     }catch{ /* Storage is optional; keep the notice and in-page deduplication. */ }
-    setNoticeID(authorizationID);
-  },[authorizationID]);
-  return noticeID&&authorizationID?<Notification key={noticeID}
+    setNoticeID(managed?authorizationID:'');
+  },[authorizationID,managed]);
+  return noticeID&&authorizationID&&managed?<Notification key={noticeID}
     message="可在退出后保留游戏接入"
     body="在设置中关闭“停止加速或退出时恢复游戏直连”并保存。下次玩游戏前仍需启动 SWD。"
     action={{href:'#restoreHostsOnStopOrExit',label:'打开退出设置'}}/>:null;

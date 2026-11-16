@@ -1,10 +1,11 @@
-import {chromium,expect} from '@playwright/test';
+import {launchBrowser} from './browser.mjs';
+import {expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
 const [base,output,view='network']=process.argv.slice(2);
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.platform==='win32'?'msedge':'chromium'});
+const browser=await launchBrowser();
 const result={browser:browser.version(),realConsole:true,view,errors:[],probes:[]};
 const probe=page=>page.evaluate(async()=>{
   const start=performance.now();

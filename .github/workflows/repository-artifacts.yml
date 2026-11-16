@@ -16,8 +16,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: '.node-version'
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version-file: '.python-version'
       - run: ./scripts/release-preflight.ps1 -Scope repository

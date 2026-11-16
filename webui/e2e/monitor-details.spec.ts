@@ -50,6 +50,7 @@ test('network details preserve sample evidence and distinguish failures from mis
     const detail=page.locator('.fui-PopoverSurface:visible');await expect(detail).toContainText(expected[i]);
     if(i===0){await expect(detail).toContainText('512.0 KiB/s');await expect(detail).toContainText('2.00 s / 1.00 MiB');await expect(detail).toContainText('HTTP 200');}
     if(i===5){await expect(detail).toContainText('歌曲 #7');expect((await detail.innerText()).match(/API 通道 source-1/g)).toHaveLength(1);}
+    await detail.hover();await expect(detail).toBeVisible();
     await page.mouse.move(0,0);await expect(detail).toBeHidden();
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

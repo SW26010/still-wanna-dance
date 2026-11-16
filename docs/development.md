@@ -59,6 +59,12 @@ Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_
 
 CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包各自运行。上述原则的失败对照与适用边界见 [CI 稳定性验证](validation/ci-stability-20261028.md)，该记录描述当时构建，不替代本节现行规则。
 
+本机和 Actions 使用同一 `release-preflight.ps1` 入口。Node、Python 版本分别以根目录 `.node-version`、`.python-version` 为准，Go 以 `go.mod` 为准，pnpm 以 `webui/package.json` 的 `packageManager` 为准；预检发现版本不符即停止，并在本次进程内设置 `CI=true`，结束后恢复调用者环境。Go 业务测试显式使用 `-count=1`，避免本机测试缓存掩盖实际执行。
+
+浏览器测试固定两个 worker、零重试，双方均保留失败 trace；夹具和真实 Console 联调共用浏览器启动入口，Windows 使用 Edge，其他平台使用 Playwright Chromium，不按 `CI` 标记切换浏览器。每次浏览器套件启动时打印实际 Node、Playwright、浏览器版本及并发参数，排查环境差异时对照这些记录。
+
+慢封面响应、迟到的历史消息与错误提示的无障碍播报重叠属于常驻回归输入，PR/main 的代表性检查包含对应测试文件。它们主动构造已知风险顺序，不依赖碰巧繁忙的机器；响应延迟用于模拟输入，测试仍按实际完成事件同步，保持原有断言与期限。临时诊断开关、探针和额外日志在归因后移除。
+
 成功保存设置的用例通过 `webui/e2e/settings-actions.ts` 等待页面明确显示“待重启”或“已生效”，再读取状态或刷新页面；按钮禁用也可能表示请求尚未完成。验证处理中、失败和校验拒绝的用例仍直接控制请求并检查对应状态。
 
 验证异步轮询最终状态时，使用 `webui/e2e/clock.ts` 在断言等待期间持续推进模拟时钟；请求到达或局部 UI 更新不代表下一次轮询定时器已经注册。该助手保留默认断言期限，只用于验证持续轮询与最终状态；精确周期、超时和停止后的无请求检查仍显式推进指定时长。短暂通知的操作先完成，再对目标页面截图，避免截图采集与通知自动消失争抢时间。
@@ -67,7 +73,7 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 
 正式发行前，由开发者先在本机对待发行源码完成以下完整预检，再启动发行 Action。统一入口为 `scripts/release-preflight.ps1`，Actions 的工具、产品和 race 作业也使用它。日常开发仍按变更影响选择检查，PR/main 的代表性浏览器和 race 检查不代替完整预检，也不要求每次编辑或推送都重跑整套发布流程。
 
-预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐；工具检查还需要 Python 3。设置 `CC` 指向工作流固定版本的 GCC，在独立检出中准备仅本地的测试 tag（不推送），然后运行：
+预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐；工具检查还需要 Python 3。先在当前终端选择 `.node-version` 指定的 Node，再设置 `CC` 指向工作流固定版本的 GCC，在独立检出中准备仅本地的测试 tag（不推送），然后运行：
 
 ```powershell
 ./scripts/release-preflight.ps1 -ReleaseTag v1.2.3-preflight -PreviousTag v1.2.2

@@ -106,6 +106,7 @@ test('a rejected pause becomes available again after status refresh',async({page
   await page.goto('/#video-import');
   const pause=page.locator('#video-import').getByRole('button',{name:'暂停',exact:true});
   await pause.click();
+  await expect(page.locator('[aria-live="assertive"]')).toContainText('无法暂停，请重试');
   await expect(page.getByRole('listitem').getByText('无法暂停，请重试',{exact:true})).toBeVisible();
   await expect(pause).toBeEnabled();
 });

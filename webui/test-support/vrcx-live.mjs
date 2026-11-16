@@ -1,11 +1,12 @@
+import {launchBrowser} from './browser.mjs';
 // Opt-in integration against an isolated real Console; never uses personal data.
-import { chromium, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const [baseURL, source, output, mode='first-run'] = process.argv.slice(2);
 await mkdir(output, {recursive:true});
-const browser = await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+const browser = await launchBrowser();
 try {
   const page = await browser.newPage({viewport:{width:1280,height:950}});
   const errors = [];

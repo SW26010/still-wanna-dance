@@ -1,9 +1,10 @@
-import {chromium,expect} from '@playwright/test';
+import {launchBrowser} from './browser.mjs';
+import {expect} from '@playwright/test';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 const [baseURL,output]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.platform==='win32'?'msedge':'chromium'});
+const browser=await launchBrowser();
 try {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));

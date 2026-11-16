@@ -1,10 +1,11 @@
-import {chromium,expect} from '@playwright/test';
+import {launchBrowser} from './browser.mjs';
+import {expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
 const [baseURL,output,videoDir]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.platform==='win32'||!process.env.CI?'msedge':'chromium'});
+const browser=await launchBrowser();
 try {
   const first=await browser.newPage(),second=await browser.newPage(),errors=[];
   for(const page of [first,second])page.on('pageerror',error=>errors.push(error.message));

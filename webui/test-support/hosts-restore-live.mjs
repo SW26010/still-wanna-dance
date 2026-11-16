@@ -1,11 +1,12 @@
+import {launchBrowser} from './browser.mjs';
 // Production Console HTTP and a private hosts file; no mocked browser requests.
-import {chromium,expect} from '@playwright/test';
+import {expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
 const [baseURL,output]=process.argv.slice(2);
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+const browser=await launchBrowser();
 try {
   const page=await browser.newPage({viewport:{width:390,height:850}});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));

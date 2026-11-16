@@ -1,10 +1,11 @@
-import {chromium,expect} from '@playwright/test';
+import {launchBrowser} from './browser.mjs';
+import {expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 const [baseURL,key,output,mediaURL,scenario]=process.argv.slice(2);
 const beforeFirstObservation=scenario==='before-first-observation';
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:process.env.CI?'chromium':'msedge'});
+const browser=await launchBrowser();
 try {
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));

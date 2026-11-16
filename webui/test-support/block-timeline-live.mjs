@@ -1,12 +1,13 @@
+import {launchBrowser} from './browser.mjs';
 // Invoked only by TestBlockTimelineBrowser with its isolated loopback service.
-import { chromium, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const [url, evidence] = process.argv.slice(2);
 if (new URL(url).hostname !== '127.0.0.1' || !evidence) throw new Error('isolated service and evidence directory required');
 await mkdir(evidence, { recursive: true });
-const browser = await chromium.launch({ channel: process.env.CI ? 'chromium' : 'msedge', headless: true });
+const browser = await launchBrowser();
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
 const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));

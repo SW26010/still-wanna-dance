@@ -268,6 +268,11 @@ test('recent cover reuse retains at most three pages and releases evicted URLs',
 test('retained images respect their byte budget beyond the current working page',async({page})=>{
   const sources=await trackCoverURLs(page),jpeg=await jpegFixture(page),size=700*1024;
   await coversFixture(page,75,Buffer.concat([jpeg,Buffer.alloc(size-jpeg.length)]));
+  // Four workers need over five seconds for this transfer schedule, even on a fast host.
+  await page.route('**/api/library/cover?**',async route=>{
+    await new Promise(resolve=>setTimeout(resolve,300));
+    await route.fallback();
+  });
   const retained=Math.floor(8*1024*1024/size),current=49;
   // Current-page refreshes start after the next-page prefetch has completed.
   const refreshed=Promise.all(['1','3'].map(id=>page.waitForResponse(response=>{

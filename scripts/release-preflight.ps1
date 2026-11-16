@@ -20,9 +20,9 @@ function Invoke-Go([string[]]$CommandArgs) {
 }
 Push-Location (Split-Path -Parent $PSScriptRoot)
 $savedEnv = @{}
-foreach ($name in @('CGO_ENABLED', 'GOTOOLCHAIN', 'SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name) }
+foreach ($name in @('CI', 'CGO_ENABLED', 'GOTOOLCHAIN', 'SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name) }
 $transcript = $false
-$record = [ordered]@{ revision = ''; dirty = $false; scope = $Scope; representative = [bool]$Representative; raceShard = $RaceShard; passed = @(); status = 'failed' }
+$record = [ordered]@{ revision = ''; dirty = $false; scope = $Scope; representative = [bool]$Representative; raceShard = $RaceShard; environment = [ordered]@{ powershell = $PSVersionTable.PSVersion.ToString() }; passed = @(); status = 'failed' }
 try {
     if (($Scope -eq 'all' -or $Scope -eq 'delivery') -and (!$ReleaseTag -or $Representative)) { throw 'Full local preflight/delivery requires ReleaseTag and full checks.' }
     if ($RaceShard -ne -1 -and $Scope -ne 'race') { throw 'RaceShard applies only to the race scope.' }
@@ -41,11 +41,28 @@ try {
     Start-Transcript -LiteralPath (Join-Path $evidence 'checks.log') | Out-Null
     $transcript = $true
     Write-Host "Source: $($record.revision); dirty=$($record.dirty); scope=$Scope"
+    $env:CI = 'true'
     $env:GOTOOLCHAIN = 'local'
     $env:CGO_ENABLED = '0'
     foreach ($name in @('SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { [Environment]::SetEnvironmentVariable($name, $null) }
-    Invoke-Checked node @('--version')
-    if ($Scope -ne 'repository') { Invoke-Checked go @('version') }
+    $record.environment.node = (& node --version)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read Node version.' }
+    $expectedNode = 'v' + (Get-Content -Raw -LiteralPath .node-version).Trim()
+    if ($record.environment.node -cne $expectedNode) { throw "Use Node $expectedNode from .node-version; found $($record.environment.node)." }
+    Write-Host "Node: $($record.environment.node)"
+    if ($Scope -ne 'repository') {
+        $record.environment.go = (& go version)
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot read Go version.' }
+        $expectedGo = (Select-String -LiteralPath go.mod -Pattern '^go ([0-9.]+)$').Matches.Groups[1].Value
+        if (!$expectedGo -or !$record.environment.go.StartsWith("go version go$expectedGo ")) { throw "Use Go $expectedGo from go.mod; found $($record.environment.go)." }
+        Write-Host $record.environment.go
+    }
+    if ($Scope -in @('all', 'repository')) {
+        $record.environment.python = (& python --version)
+        $expectedPython = 'Python ' + (Get-Content -Raw -LiteralPath .python-version).Trim()
+        if ($LASTEXITCODE -ne 0 -or $record.environment.python -cne $expectedPython) { throw "Use $expectedPython from .python-version; found $($record.environment.python)." }
+        Write-Host $record.environment.python
+    }
     if ($Scope -in @('all', 'tools')) {
         $nodeTests = @(Get-ChildItem -LiteralPath scripts -Filter '*.test.mjs' | Where-Object { $_.Name -ne 'check-repository-artifacts.test.mjs' } | ForEach-Object { 'scripts/' + $_.Name })
         Invoke-Isolated (@('node', '--test') + $nodeTests)
@@ -58,10 +75,14 @@ try {
         $record.passed += 'repository'
     }
     if ($Scope -in @('all', 'product')) {
-        Invoke-Checked pnpm @('--version')
+        $record.environment.pnpm = (& pnpm --version)
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot read pnpm version.' }
+        $expectedPnpm = (Get-Content -Raw -LiteralPath webui/package.json | ConvertFrom-Json).packageManager
+        if ('pnpm@' + $record.environment.pnpm -cne $expectedPnpm) { throw "Use $expectedPnpm from webui/package.json; found pnpm@$($record.environment.pnpm)." }
+        Write-Host "pnpm: $($record.environment.pnpm)"
         Invoke-Checked pnpm @('--dir', 'webui', 'install', '--frozen-lockfile')
         Invoke-Checked pnpm @('--dir', 'webui', 'check')
-        if ($Representative) { Invoke-Isolated @('pnpm', '--dir', 'webui', 'exec', 'playwright', 'test', 'e2e/api-fixture.spec.ts', 'e2e/terms-consent.spec.ts', 'e2e/regressions.spec.ts') }
+        if ($Representative) { Invoke-Isolated @('pnpm', '--dir', 'webui', 'exec', 'playwright', 'test', 'e2e/api-fixture.spec.ts', 'e2e/terms-consent.spec.ts', 'e2e/regressions.spec.ts', 'e2e/import-recovery.spec.ts', 'e2e/library-covers.spec.ts', 'e2e/monitor-details.spec.ts', 'e2e/request-timeline.spec.ts') }
         else { Invoke-Isolated @('pnpm', '--dir', 'webui', 'test') }
         try {
             $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $evidence 'settings-browser'
@@ -70,7 +91,7 @@ try {
         } finally {
             foreach ($name in @('SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { [Environment]::SetEnvironmentVariable($name, $null) }
         }
-        Invoke-Go @('test', '-tags=no_easytier', './...')
+        Invoke-Go @('test', '-tags=no_easytier', './...', '-count=1')
         Invoke-Go @('vet', '-tags=no_easytier', './...')
         Invoke-Go @('build', '-tags=no_easytier', './...')
         $unformatted = @(& gofmt -l cmd internal)

@@ -173,20 +173,37 @@ test('paging during a background refresh ignores its late response',async({page}
 test('history events coalesce list and statistics reads without losing focus',async({page})=>{
   // Observe browser delivery so the held read cannot overtake a sent frame.
   await page.addInitScript(()=>{
-    const NativeWebSocket=WebSocket,historyDelivery={received:0};
+    const historyDelivery={received:0};
     Object.assign(window,{historyDelivery});
-    window.WebSocket=class extends NativeWebSocket{
-      constructor(...args:ConstructorParameters<typeof NativeWebSocket>){
-        super(...args);
-        if(new URL(this.url).pathname==='/api/history/events')this.addEventListener('message',()=>historyDelivery.received++);
+    // Record tagged frame consumption at the MessageEvent data boundary.
+    const descriptor=Object.getOwnPropertyDescriptor(MessageEvent.prototype,'data')!;
+    Object.defineProperty(MessageEvent.prototype,'data',{...descriptor,get(){
+      const data=descriptor.get!.call(this);
+      if(typeof data==='string'&&data.includes('"fixtureSequence":')){
+        const value=JSON.parse(data);
+        if(value.event==='history'&&Number.isSafeInteger(value.fixtureSequence))historyDelivery.received=value.fixtureSequence;
       }
-    };
+      return data;
+    }});
   });
   const api=await mockAPI(page);let reads=0,release!:()=>void;
+  const burst=8;
+  const delivered=()=>page.evaluate(()=>(window as Window&{historyDelivery:{received:number}}).historyDelivery.received);
+  await page.routeWebSocket(/\/api\/history\/events(?:\?|$)/,socket=>{
+    let frames=0;
+    const server=socket.connectToServer();
+    server.onMessage(async message=>{
+      // Deliver the burst's last frame after the POST has already returned.
+      const sequence=++frames;
+      if(sequence===burst+2)await new Promise(resolve=>setTimeout(resolve,200));
+      socket.send(JSON.stringify({...JSON.parse(String(message)),fixtureSequence:sequence}));
+    });
+  });
   const pending=new Promise<void>(resolve=>{release=resolve;});
   await page.route('**/api/history?*',async route=>{
     const read=++reads;
     if(read===2)await pending;
+    if(read>=3)await expect.poll(delivered).toBe(burst+2);
     await route.fulfill({json:{storageID:'fixture',requests:read<3?[record(1)]:[record(1),record(3)],total:read<3?1:2,hasMore:false,nextCursor:''}});
   });
   await page.goto('/#/timeline');
@@ -194,12 +211,13 @@ test('history events coalesce list and statistics reads without losing focus',as
   await details.click();await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   const summaryReads=api.calls.filter(c=>['history/stats'].includes(c.path)).length;
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
-  const delivered=()=>page.evaluate(()=>(window as Window&{historyDelivery:{received:number}}).historyDelivery.received);
   const beforeBurst=await delivered();
-  for(let i=0;i<8;i++)await api.historyChanged();
-  await expect.poll(delivered).toBe(beforeBurst+8);
+  expect(beforeBurst).toBe(2);
+  for(let i=0;i<burst;i++)await api.historyChanged();
+  await expect.poll(delivered).toBe(beforeBurst+burst);
   expect(reads).toBe(2);
   release();await expect(page.getByRole('button',{name:'请求 3 的明细',exact:true})).toBeVisible();
+  await expect(page.getByRole('table',{name:'请求历史列表',exact:true})).toHaveAttribute('aria-busy','false');
   expect(reads).toBe(3);
   await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   await expect(details).toBeFocused();

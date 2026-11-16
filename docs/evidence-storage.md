@@ -1,5 +1,7 @@
 # 证据与大文件存储约定
 
+本约定说明已按[公开内容边界](README.md)筛选的技术证据如何存放与校验，适用于仓库文件和公开附件。
+
 Git 保存源码、报告、精简统计、纯矢量 SVG 和清单。完整实验轨迹、逐请求记录、图片、压缩文件及构建产物使用版本化附件。必要的二进制测试样本单独登记：`internal/cacheproxy/testdata/storage-v2.sqlite` 至 `storage-v8.sqlite` 冻结保留，v2～v7 覆盖旧格式拒绝，v8 覆盖旧结构及迁移边界；`storage-v9.sqlite` 覆盖当前格式全部 10 张表、重开与备份。v8 原始占位 URL 无法迁移的失败样本保持不变，成功转换使用仅修正 URL 的隔离副本，见[v9 验证](validation/storage-v9-20261101.md)。产品运行所需的 `internal/branding/logo.ico`、`logo-light.ico` 及 EXE 图标资源 `logo_windows_amd64.syso` 另按精确路径、字节数与 SHA256 登记，保证普通离线构建不依赖附件下载。
 
 ## 文件归属

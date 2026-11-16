@@ -2173,6 +2173,13 @@
       "bytes": 1323204,
       "sha256": "6419f55d67df612643a6aee2a07f12b83e56929f42bce1a2cf76804018cd2290",
       "reason": "Reviewed generated Fluent WebUI bundle: completed download speed results show playback advice using the existing throughput bands and a 0.5 Mbps single-connection threshold; slow results link to network settings, and retained results restore their corresponding advice (2026-11-17). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1323233,
+      "sha256": "f458788f1383083294a1c863e1b7d4314f81c96e166aaaacf9bf1367bf5d4e9d",
+      "reason": "Reviewed generated Fluent WebUI bundle: download speed test status appears beside the card title and exposes technical details through a hover/focus tooltip; last-test time remains below the results, and the separate 2 Mbps reference caption is removed without changing gauge thresholds (2026-11-17). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

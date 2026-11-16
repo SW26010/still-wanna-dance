@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Card, Link, Spinner, Tooltip, Text, Subtitle2, Caption1, tokens } from '@fluentui/react-components';
 import { GaugeChart } from '@fluentui/react-charts';
 import { ArrowSync20Regular, Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { APIError, request } from './api';
-import { RecordDetails, Feedback, Notification, Panel, StatusBadge, pageHref, sectionHref } from './ui';
+import { Feedback, Notification, Panel, StatusBadge, pageHref, sectionHref } from './ui';
 import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
 import {subscribeDiagnostics,type DiagnosticKind,type DiagnosticState} from './diagnostic-stream';
@@ -88,7 +88,7 @@ export function UpstreamStatus({visible}:{visible:boolean}) {
     <Notification message={connectivity.actionError} error/>
   </Card>;
 }
-function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
+function Speed({state:s,discard,action,otherActivity}: {state?:Calibration;discard:boolean;action:ReactNode;otherActivity:boolean}) {
   const previous=s?.lastValid;
   const canceled=discard || ['canceling','canceled','failed'].includes(s?.phase || '');
   const complete=speedComplete(s);
@@ -107,10 +107,12 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
     '当前下载速度较充足，可正常提供播放。':undefined;
   const stages:Record<string,string>={single_warmup:'单连接预热…',single:'单连接测速…',ramping:'逐渐增加连接…',full_warmup:'多连接预热…',full:'多连接测速…',complete:'正在结束…'};
   const label = canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?previous?'未完成，保留上次结果':'测速未完成':previous?'上次有效结果':'尚未测速';
-  return <><p role="status">{label}</p>
+  const restored=canceled||(s?.phase==='completed'&&!complete), finished=s?.finished, savedFinished=previous?.finished;
+  const details=<div className="content-stack"><p>使用 CF 播放地址接口解析视频，分别测量单连接与多连接下载速度。并发连接数：{(live?s.open:result.fullConcurrency) || '—'}。</p><p>CPU 使用率：<span aria-label="多连接稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p></div>;
+  return <Panel title="下载速度测试" titleSuffix={<Tooltip content={details} relationship="description"><Caption1 className="secondary" role="status" tabIndex={0}>{label}</Caption1></Tooltip>} action={action}>
+    {otherActivity&&<Caption1 as="p" className="secondary">当前有其他网络请求，测速结果可能受影响。</Caption1>}
     {s?.phase==='failed' && s.reason==='preparation_insufficient' && <Feedback error>可用测速样本不足，请检查曲库与连通性后重试。</Feedback>}
     <div className="metrics"><div>单连接速度 <output><Text block size={600} font="numeric">{valid(single)?`${metric(single,8/1e6)} Mbps`:'—'}</Text></output></div><div>多连接速度<output><Text block size={600} font="numeric">{valid(full)?`${metric(full,8/1e6)} Mbps`:'—'}</Text></output></div></div>
-    <RecordDetails title="测速技术详情"><p>使用 CF 播放地址接口解析视频，分别测量单连接与多连接下载速度。并发连接数：{(live?s.open:result.fullConcurrency) || '—'}。</p><p>CPU 使用率：<span aria-label="多连接稳定采样阶段的平均 CPU 使用率">平均</span> <output>{metric(result.fullCPUPercent)}%</output> · <span aria-label="正式下载全程的 CPU P95，不含视频准备">p95</span> <output>{metric(result.cpuP95Percent)}%</output></p></RecordDetails>
     {usable ? <div role="group" aria-label={`${live?'当前':'多连接'} ${metric(ratio)} 倍，${advice}${live?'（测量中）':''}`}>
       <GaugeChart chartValue={ratio} maxValue={maximum} chartValueFormat={()=>metric(ratio)+'×'} sublabel={advice}
         segments={[
@@ -119,8 +121,10 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
           {legend:'可用',size:maximum-2,color:tokens.colorPaletteGreenBackground3,accessibilityData:{ariaLabel:'>2 倍可用'}},
         ]} />
     </div> : null}
-    {usable&&<Caption1 as="p">以 2 Mbps 为 1×</Caption1>}
-    {recommendation&&<p role="status">{recommendation}</p>}</>;
+    {recommendation&&<p role="status">{recommendation}</p>}
+    {dated(finished)&&<p className="secondary">最后测试：{date(finished)}</p>}
+    {restored&&dated(savedFinished)&&savedFinished!==finished&&<p className="secondary">保留的测速结果：{date(savedFinished)}</p>}
+  </Panel>;
 }
 export function Diagnostics({visible}: {visible:boolean}) {
   const app=useApp(),enabled=visible&&!app.stopped;
@@ -141,8 +145,6 @@ export function Diagnostics({visible}: {visible:boolean}) {
   const entries:Record<string,string>={api:'Udon','api-http':'Udon HTTP',kiva:'Kiva',wanna:'WannaInfo',cf:'CF'};
   const reasons:Record<string,string>={timeout:'请求超时',network_error:'网络请求失败',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',origin_timeout:'源站响应超时',http_error:'HTTP 响应异常',local_capacity:'代理连接额度已满',runtime_retired:'代理已退出',channel_unavailable:'连接不可用'};
   const shown=operations.flatMap(operation=>{const entries=rows.filter(row=>row.operation===operation);return entries.length?entries:[{operation}];});
-  const speedState=calibration.state, speedRestored=calibration.intent==='cancel'||['canceling','canceled','failed'].includes(speedState?.phase||'')||(speedState?.phase==='completed'&&!speedComplete(speedState));
-  const speedFinished=speedState?.finished, savedSpeedFinished=speedState?.lastValid?.finished;
   const notice=app.stopped?'':[...new Set([connectivity.message,calibration.message].filter(message=>message&&message!=='正在连接检测状态…'))].join('；');
   return <><Subtitle2 as="h2">检测上游：{upstream}</Subtitle2>
     <div className="settings-columns"><Panel title="连通性检测" action={button('connectivity','连通性检测')}>
@@ -156,11 +158,6 @@ export function Diagnostics({visible}: {visible:boolean}) {
       </p>)}</div>
       {dated(finished)&&<p className="secondary">最后测试：{date(finished)}</p>}
       {c?.initializing&&<p className="secondary">正在建立歌曲清单，暂时自动重试清单检测。</p>}
-    </Panel><Panel title="下载速度测试" action={button('calibration','下载速度测试')}>
-      {otherActivity&&<Caption1 as="p" className="secondary">当前有其他网络请求，测速结果可能受影响。</Caption1>}
-      <Speed state={speedState} discard={calibration.intent==='cancel'} />
-      {dated(speedFinished)&&<p className="secondary">最后测试：{date(speedFinished)}</p>}
-      {speedRestored&&dated(savedSpeedFinished)&&savedSpeedFinished!==speedFinished&&<p className="secondary">保留的测速结果：{date(savedSpeedFinished)}</p>}
-    </Panel></div><Notification message={notice} error/><Notification message={connectivity.actionError} error/><Notification message={calibration.actionError} error/></>;
+    </Panel><Speed state={calibration.state} discard={calibration.intent==='cancel'} action={button('calibration','下载速度测试')} otherActivity={!!otherActivity}/></div><Notification message={notice} error/><Notification message={connectivity.actionError} error/><Notification message={calibration.actionError} error/></>;
 
 }

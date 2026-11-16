@@ -66,7 +66,11 @@ test('sample preparation points to library and connectivity without fetching a c
   await expect(error).toBeVisible();
   await expect(error).toContainText('检查曲库与连通性后重试');
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
-  await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByRole('button',{name:'测速技术详情',exact:true})).toHaveCount(0);
+  await page.getByRole('heading',{name:'下载速度测试',exact:true}).locator('..').getByRole('status').focus();
+  await expect(page.getByRole('tooltip')).toContainText('并发连接数');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toBeHidden();
   await expect(page.getByRole('navigation',{name:'页面导航',exact:true})).toBeHidden();
   await page.screenshot({path:info.outputPath('sample-error.png'),fullPage:true,animations:'disabled'});
   await expect(page.getByText('检测上游：直连',{exact:true})).toBeVisible();

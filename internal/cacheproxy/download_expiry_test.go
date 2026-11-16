@@ -87,7 +87,7 @@ func TestExpiredGETHandoffUsesFutureUnconsumedRangeAndFixedExpiry(t *testing.T) 
 			t.Fatal("sole expired GET failed to transfer its eligible usage", context.Cause(d.ctx), len(handoffs), useCount(s))
 		}
 		h := handoffs[0]
-		if h.span != (useSpan{w.v.key, 5, 8}) || h.clock != *clock || h.until != now.Add(15*time.Second) {
+		if h.span != (useSpan{w.v.key, 5, 8}) || h.clock != *clock || h.until != now.Add(2*time.Second) {
 			t.Fatal("handoff included N<=E, changed N or refreshed its fixed expiry", h)
 		}
 		plan, _, _ := w.plan(now)
@@ -95,7 +95,7 @@ func TestExpiredGETHandoffUsesFutureUnconsumedRangeAndFixedExpiry(t *testing.T) 
 			t.Fatal("handoff gained startup permission or scheduled readable data", plan)
 		}
 		reconcileSession(t, w)
-		time.Sleep(5 * time.Second)
+		time.Sleep(2*time.Second - time.Nanosecond)
 		s.expireDownload(w.f, w.v.key, 1)
 		release()
 		handoffs = snapshotUseHandoffs(s)
@@ -107,14 +107,14 @@ func TestExpiredGETHandoffUsesFutureUnconsumedRangeAndFixedExpiry(t *testing.T) 
 			t.Fatal("GET expiry canceled the future execution", task.Err())
 		default:
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Nanosecond)
 		synctest.Wait()
 		if useCount(s) != 0 || len(snapshotUseHandoffs(s)) != 0 {
-			t.Fatal("handoff outlived E+15 seconds")
+			t.Fatal("handoff outlived E+2 seconds")
 		}
 		reconcileSession(t, w)
 		if err := task.Err(); !errors.Is(err, context.Canceled) {
-			t.Fatal("E+15 did not stop unsupported execution", err)
+			t.Fatal("E+2 did not stop unsupported execution", err)
 		}
 	})
 }
@@ -148,17 +148,17 @@ func TestDelayedExpiredGETHandoffKeepsFrozenExitAndIndependentGET(t *testing.T) 
 		w, s := testSession(t)
 		w.v.size = 2 * rangeBlockSize
 		exit := time.Now()
-		clock := &playbackClock{at: exit.Add(-blocksched.DownloadGrace), limit: w.v.size, media: mediaTiming{w.v.size, 64 * time.Second}}
+		clock := &playbackClock{at: exit.Add(-blocksched.DownloadGrace), limit: w.v.size, media: mediaTiming{w.v.size, 61 * time.Second}}
 		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
 		defer release()
 		// Delay collection of an already frozen service withdrawal. Block 1's
-		// N=E+2 has passed by collection, but was still future at the real exit.
+		// N=E+0.5 has passed by collection, but was still future at the real exit.
 		d.exit.recordReason(withdrawalDownloadExpired)
 		d.cancel(blocksched.ErrExpired)
-		time.Sleep(5 * time.Second)
+		time.Sleep(time.Second)
 		w.plan(time.Now())
 		handoffs := snapshotUseHandoffs(s)
-		if len(handoffs) != 1 || handoffs[0].span != (useSpan{w.v.key, 1, 2}) || handoffs[0].until != exit.Add(expiredGETHandoffGrace) {
+		if len(handoffs) != 1 || handoffs[0].span != (useSpan{w.v.key, 1, 2}) || handoffs[0].until != exit.Add(2*time.Second) {
 			t.Fatal("delayed exit used collection time for eligibility or expiry")
 		}
 		h := handoffs[0]
@@ -167,10 +167,10 @@ func TestDelayedExpiredGETHandoffKeepsFrozenExitAndIndependentGET(t *testing.T) 
 		next, end := addTestDemand(t, s, ctx, w.v, true)
 		defer end()
 		plan, _, _ := w.plan(time.Now())
-		if plan[1].need.WindowClosed || plan[1].need.ReadyBy != nextClock.at || h.until != exit.Add(expiredGETHandoffGrace) {
+		if plan[1].need.WindowClosed || plan[1].need.ReadyBy != nextClock.at || h.until != exit.Add(2*time.Second) {
 			t.Fatal("handoff blocked a new source or renewed itself")
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Second)
 		synctest.Wait()
 		plan, _, _ = w.plan(time.Now())
 		if len(snapshotUseHandoffs(s)) != 0 || useCount(s) != 1 || next.ctx.Err() != nil || plan[1].need.WindowClosed || plan[1].need.ReadyBy != nextClock.at {

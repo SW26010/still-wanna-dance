@@ -1087,3 +1087,14 @@ Go 1.27.3、Windows amd64、Ryzen 7 9850X3D；Go 检查均使用临时目录与�
 - 缓存与调度两包 vet 通过；GCC 16.2.0 下，消费、共享、保护、交接、截止及观测的定向 Windows race 通过（53.763 秒，`race.log`）。文件相关整包与 race 使用普通用户环境，沿用仓库已确认的沙箱限制处理方式。
 
 累计分配不是峰值内存。基准只测消费状态推进，未包含被唤醒的下载协调器、完整 HTTP 传输或后台回收工作，不证明普通歌曲播放卡顿或实际游戏性能收益。没有新增游戏专属验收项；本轮未启动 VRC、修改 hosts 或运行配置，未执行 commit／push。
+
+## 2026-11-16：GET 截止交接统一为 2 秒
+
+GET 因块截止退出后的交接由 E+15 秒缩短为 E+2 秒，与客户端关闭及队首退出共用 `handoffGrace`。未交付且原 N>E 的范围筛选、原 need-by、闭准入、固定退出时刻及独立来源共享规则保持不变。现行规则见 [canonical 交接规则](../download-resource-design.md#常规播放交接与同块需求重新接入)；此前 15 秒策略的实机报告及开发记录仅证明当时构建，继续保留。
+
+通过现有 `testing/synctest` 检查到期前 1 纳秒仍保留执行、E+2 秒释放无其他需求的执行，以及延迟收集退出时仍按原 E 筛选和计时、新 GET 不续长旧交接。真实 HTTP 回路覆盖合法在途块复用和同一 Run 内的正文重试。
+
+- 经临时目录与依赖补丁入口，缓存包的截止、交接、来源撤销、读取等待及本地保护定向回归通过（4.499 秒）；命令为 `test -tags=no_easytier ./internal/cacheproxy ./internal/blocksched -run 'Test.*(DownloadExpiry|ExpiredGET|ExpiredHandoff|Handoff|GETWithdrawal|ReadWaitDoesNotChangeUsage)' -count=1 -v`，调度包没有匹配用例，不计为调度包回归通过。
+- 缓存与调度两包 vet、修改文件 gofmt 和差异检查通过。日志位于忽略目录 `artifacts/handoff-two-seconds/{tests,vet}.log`。
+
+本轮未运行 VRC，不据自动检查宣称 2 秒交接改善真实播放或保证播放器在此期间重连；没有新增必须依赖游戏验证的场景。

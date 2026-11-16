@@ -11,12 +11,9 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
-// Creation events select a lifetime; all handoffs retain the source clock and
-// use the same closed-admission projection.
-const (
-	handoffGrace           = 2 * time.Second
-	expiredGETHandoffGrace = 15 * time.Second
-)
+// All handoffs share a fixed lifetime, retain the source clock and use the same
+// closed-admission projection.
+const handoffGrace = 2 * time.Second
 
 // Resource ownership feeds the block-demand adapter.
 var errPreempted = errors.Join(context.Canceled, errors.New("download stopped without active demand"))
@@ -265,7 +262,7 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 			case withdrawalSourceGone:
 				grace = handoffGrace
 			case withdrawalDownloadExpired:
-				grace = expiredGETHandoffGrace
+				grace = handoffGrace
 				// Playback time is monotone across the remaining span. Release
 				// N<=E and transfer the future suffix under the same registry lock.
 				first := span.first

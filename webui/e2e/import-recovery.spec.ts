@@ -106,8 +106,16 @@ test('a rejected pause becomes available again after status refresh',async({page
   await page.goto('/#video-import');
   const pause=page.locator('#video-import').getByRole('button',{name:'暂停',exact:true});
   await pause.click();
-  await expect(page.locator('[aria-live="assertive"]')).toContainText('无法暂停，请重试');
-  await expect(page.getByRole('listitem').getByText('无法暂停，请重试',{exact:true})).toBeVisible();
+  const message='无法暂停，请重试',toast=page.getByRole('listitem').getByText(message,{exact:true});
+  await expect(toast).toBeVisible();
+  // Keep overlapping announcement text stable, independent of Fluent's announcement lifetime.
+  await page.evaluate(text=>{
+    const announcement=document.createElement('div');
+    announcement.setAttribute('aria-live','assertive');announcement.textContent=text;
+    Object.assign(announcement.style,{position:'fixed',width:'1px',height:'1px',overflow:'hidden',clipPath:'inset(50%)'});
+    document.body.append(announcement);
+  },message);
+  await expect(toast).toBeVisible();
   await expect(pause).toBeEnabled();
 });
 

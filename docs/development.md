@@ -17,7 +17,7 @@ pnpm --dir webui check
 ./scripts/with-test-temp.ps1 pnpm --dir webui test
 ```
 
-使用 `webui/package.json` 固定的 pnpm 版本。Windows 本机和 CI 的浏览器测试均使用 Edge；其他平台的 CI 使用 Playwright Chromium。当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
+使用 `webui/package.json` 固定的 pnpm 版本。本机和 CI 的夹具回归均使用锁定 Playwright 所附的 Chromium，首次运行前执行 `pnpm --dir webui exec playwright install --no-shell chromium`；Windows 真实 Console 联调使用 Edge。当前 `pnpm --dir webui test` 只调用内存夹具，不修改 hosts 或访问真实上游。截图保存在忽略目录 `artifacts/webui-tests`。Windows 工具测试用 `./scripts/with-test-temp.ps1 node --test scripts/*.test.mjs`。Windows CI 同样使用临时目录包装器；Linux 可直接运行包装器后的原命令。架构、浏览器覆盖和真实系统验收边界见[Fluent 迁移记录](fluent-ui-migration.md)。
 
 曲库的真实 Console／下载引擎／Edge 联调可设置 `SWD_LIBRARY_BROWSER_EVIDENCE` 为隔离输出目录，再执行 `./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/console -run '^TestLibraryBrowser$' -count=1 -v`。分别检查外部 GET 的完整下载发生在两次观察之间，以及曲库已读取但首次下载快照尚未采集时，曲库无需手动检查便显示已保存；同时覆盖共享资源、搜索、偏好与删除。两组证据分别写入 `between-reads` 和 `before-first-observation` 子目录。使用受控上游及临时文件，不启动游戏、网关或修改 hosts。
 
@@ -61,7 +61,11 @@ CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包�
 
 本机和 Actions 使用同一 `release-preflight.ps1` 入口。Node、Python 版本分别以根目录 `.node-version`、`.python-version` 为准，Go 以 `go.mod` 为准，pnpm 以 `webui/package.json` 的 `packageManager` 为准；预检发现版本不符即停止，并在本次进程内设置 `CI=true`，结束后恢复调用者环境。Go 业务测试显式使用 `-count=1`，避免本机测试缓存掩盖实际执行。
 
-浏览器测试固定两个 worker、零重试，双方均保留失败 trace；夹具和真实 Console 联调共用浏览器启动入口，Windows 使用 Edge，其他平台使用 Playwright Chromium，不按 `CI` 标记切换浏览器。每次浏览器套件启动时打印实际 Node、Playwright、浏览器版本及并发参数，排查环境差异时对照这些记录。
+Python 通过现有 uv 管理。本机和 Actions 均使用 `uv run --no-project --managed-python --python <.python-version 中的版本> python ...`，复用已安装的匹配解释器，缺少时由同一管理器取得；不依赖系统 `python` 别名或其他应用附带的解释器。Actions 固定 uv 版本，预检记录实际 uv 和 Python 版本。
+
+更新固定工具版本时，先核对相应 Actions 安装器的可用版本，再使用相同版本完成本机预检；本机某个发行渠道已安装的版本不自动代表远端安装器能够提供。
+
+浏览器测试固定两个 worker、零重试，双方均保留失败 trace。夹具回归使用锁文件固定的 Playwright 所附 Chromium，预检负责安装同一浏览器构建，避免系统 Edge 与 runner 镜像更新不同步。真实 Console 联调共用浏览器启动入口，Windows 使用 Edge，其他平台使用 Playwright Chromium，不按 `CI` 标记切换浏览器。每次浏览器套件启动时打印实际 Node、Playwright、浏览器版本及并发参数，排查环境差异时对照这些记录。
 
 慢封面响应、迟到的历史消息与错误提示的无障碍播报重叠属于常驻回归输入，PR/main 的代表性检查包含对应测试文件。它们主动构造已知风险顺序，不依赖碰巧繁忙的机器；响应延迟用于模拟输入，测试仍按实际完成事件同步，保持原有断言与期限。临时诊断开关、探针和额外日志在归因后移除。
 

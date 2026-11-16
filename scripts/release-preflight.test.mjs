@@ -8,11 +8,11 @@ import { withTemp } from './release-source.mjs';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
 const ps = value => `'${value.replaceAll("'", "''")}'`;
-function preflight({ failProduct = false, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.14' } = {}) {
+function preflight({ failProduct = false, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.13' } = {}) {
   return withTemp(temp => {
     const root = path.join(temp, 'repo'), directory = path.join(root, 'scripts'); fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(root, '.node-version'), '22.23.4\n');
-    fs.writeFileSync(path.join(root, '.python-version'), '3.12.14\n');
+    fs.writeFileSync(path.join(root, '.python-version'), '3.12.13\n');
     fs.writeFileSync(path.join(root, 'go.mod'), 'module fixture\n\ngo 1.27.3\n');
     fs.mkdirSync(path.join(root, 'webui'));
     fs.writeFileSync(path.join(root, 'webui/package.json'), JSON.stringify({ packageManager: 'pnpm@11.25.0' }));
@@ -35,7 +35,7 @@ function global:node {
   }
 }
 function global:pnpm { $global:calls.Add(@('pnpm') + $args); $global:LASTEXITCODE = 0; if ($args[0] -eq '--version') { ${ps(pnpmVersion)} } }
-function global:python { $global:calls.Add(@('python') + $args); $global:LASTEXITCODE = 0; if ($args[0] -eq '--version') { ${ps(pythonVersion)} } }
+function global:uv { $global:calls.Add(@('uv') + $args); $global:LASTEXITCODE = 0; if ($args[0] -eq '--version') { 'uv 0.12.5' } elseif ($args[-1] -eq '--version') { ${ps(pythonVersion)} } }
 function global:go { if ($env:GOTOOLCHAIN -cne 'local') { throw 'Go probe allows automatic toolchain downloads' }; $global:LASTEXITCODE = 0; ${ps(goVersion)} }
 function global:gofmt { $global:LASTEXITCODE = 0 }
 function global:fixtureGcc { $global:LASTEXITCODE = 0 }
@@ -63,7 +63,9 @@ test('full preflight covers every race test once and builds delivery after all c
   assert.ok(result.contexts.every(call => call.ci === 'true'));
   assert.equal(result.record.environment.node, 'v22.23.4');
   assert.equal(result.record.environment.pnpm, '11.25.0');
-  assert.equal(result.record.environment.python, 'Python 3.12.14');
+  assert.equal(result.record.environment.python, 'Python 3.12.13');
+  const pythonCheck = result.calls.find(call => call[0] === 'uv' && call.includes('unittest'));
+  assert.ok(pythonCheck.includes('--managed-python') && pythonCheck.includes('3.12.13'));
   assert.ok(result.calls.some(call => call.includes('test') && call.includes('./...') && call.includes('-count=1')));
   assert.equal(result.settings, 'caller-settings'); assert.equal(result.hosts, 'caller-hosts');
   const integrationFlag = '-run=^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$';
@@ -96,7 +98,7 @@ test('toolchain mismatches stop before affected checks and restore the caller en
   for (const [options, expected] of [
     [{ nodeVersion: 'v24.22.1' }, /Use Node v22.23.4/],
     [{ goVersion: 'go version go1.28.0 windows/amd64' }, /Use Go 1.27.3/],
-    [{ pythonVersion: 'Python 3.13.0' }, /Use Python 3.12.14/],
+    [{ pythonVersion: 'Python 3.13.0' }, /Use Python 3.12.13/],
     [{ pnpmVersion: '11.24.0' }, /Use pnpm@11.25.0/],
   ]) {
     const result = preflight(options);

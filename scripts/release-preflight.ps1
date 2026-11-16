@@ -58,8 +58,12 @@ try {
         Write-Host $record.environment.go
     }
     if ($Scope -in @('all', 'repository')) {
-        $record.environment.python = (& python --version)
-        $expectedPython = 'Python ' + (Get-Content -Raw -LiteralPath .python-version).Trim()
+        $record.environment.uv = (& uv --version)
+        if ($LASTEXITCODE -ne 0) { throw 'uv is required to select the managed Python toolchain.' }
+        $pythonVersion = (Get-Content -Raw -LiteralPath .python-version).Trim()
+        $pythonArgs = @('run', '--no-project', '--managed-python', '--python', $pythonVersion, 'python')
+        $record.environment.python = (& uv @pythonArgs --version)
+        $expectedPython = 'Python ' + $pythonVersion
         if ($LASTEXITCODE -ne 0 -or $record.environment.python -cne $expectedPython) { throw "Use $expectedPython from .python-version; found $($record.environment.python)." }
         Write-Host $record.environment.python
     }
@@ -71,7 +75,7 @@ try {
     if ($Scope -in @('all', 'repository')) {
         Invoke-Isolated @('node', '--test', 'scripts/check-repository-artifacts.test.mjs')
         Invoke-Checked node @('scripts/check-repository-artifacts.mjs')
-        Invoke-Isolated @('python', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_*.py')
+        Invoke-Isolated (@('uv') + $pythonArgs + @('-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_*.py'))
         $record.passed += 'repository'
     }
     if ($Scope -in @('all', 'product')) {
@@ -81,6 +85,7 @@ try {
         if ('pnpm@' + $record.environment.pnpm -cne $expectedPnpm) { throw "Use $expectedPnpm from webui/package.json; found pnpm@$($record.environment.pnpm)." }
         Write-Host "pnpm: $($record.environment.pnpm)"
         Invoke-Checked pnpm @('--dir', 'webui', 'install', '--frozen-lockfile')
+        Invoke-Checked pnpm @('--dir', 'webui', 'exec', 'playwright', 'install', '--no-shell', 'chromium')
         Invoke-Checked pnpm @('--dir', 'webui', 'check')
         if ($Representative) { Invoke-Isolated @('pnpm', '--dir', 'webui', 'exec', 'playwright', 'test', 'e2e/api-fixture.spec.ts', 'e2e/terms-consent.spec.ts', 'e2e/regressions.spec.ts', 'e2e/import-recovery.spec.ts', 'e2e/library-covers.spec.ts', 'e2e/monitor-details.spec.ts', 'e2e/request-timeline.spec.ts') }
         else { Invoke-Isolated @('pnpm', '--dir', 'webui', 'test') }

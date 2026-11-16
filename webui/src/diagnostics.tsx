@@ -3,7 +3,7 @@ import { Button, Card, Link, Spinner, Tooltip, Text, Subtitle2, Caption1, tokens
 import { GaugeChart } from '@fluentui/react-charts';
 import { ArrowSync20Regular, Play20Filled, Stop20Filled } from '@fluentui/react-icons';
 import { APIError, request } from './api';
-import { RecordDetails, Feedback, Notification, Panel, StatusBadge, pageHref } from './ui';
+import { RecordDetails, Feedback, Notification, Panel, StatusBadge, pageHref, sectionHref } from './ui';
 import {useApp,useResource} from './hooks';
 import {date,dated} from './types';
 import {subscribeDiagnostics,type DiagnosticKind,type DiagnosticState} from './diagnostic-stream';
@@ -100,6 +100,11 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
   const ratio=valid(speed) && (result.referenceBitrateBPS || 0)>0 ? speed*8/result.referenceBitrateBPS! : undefined;
   const usable=valid(ratio) && (result!==s || ['running','completed'].includes(s?.phase || ''));
   const advice=usable?(ratio>2?'可用':ratio>1?'不稳定':'不可用'):'', maximum=Math.max(3,Math.ceil(ratio || 0));
+  const recommendation=!live&&usable&&valid(single)&&valid(full)?ratio<=1?
+    <>当前下载速度不足，建议尝试<Link href={sectionHref('network-proxy')}>切换上游</Link>。</>:
+    ratio<=2?'当前下载速度余量较小，部分视频可能播放卡顿。':
+    single*8/1e6<0.5?'当前预加载后通常可流畅播放，但未提前加载的视频可能出现卡顿。':
+    '当前下载速度较充足，可正常提供播放。':undefined;
   const stages:Record<string,string>={single_warmup:'单连接预热…',single:'单连接测速…',ramping:'逐渐增加连接…',full_warmup:'多连接预热…',full:'多连接测速…',complete:'正在结束…'};
   const label = canceled ? s?.running?'正在停止…':s?.phase==='failed'?previous?'未完成，保留上次结果':'测速未完成':previous?'已恢复上次结果':'已放弃检测' : s?.phase==='preparing'?'准备在线测速样本…'+(s.preparationProgress?` ${s.preparationProgress}%`:''): s?.running?stages[s.measurementStage || ''] || '测速中…':complete?'测速完成':s?.phase==='completed'?previous?'未完成，保留上次结果':'测速未完成':previous?'上次有效结果':'尚未测速';
   return <><p role="status">{label}</p>
@@ -114,7 +119,8 @@ function Speed({state:s,discard}: {state?:Calibration;discard:boolean}) {
           {legend:'可用',size:maximum-2,color:tokens.colorPaletteGreenBackground3,accessibilityData:{ariaLabel:'>2 倍可用'}},
         ]} />
     </div> : null}
-    {usable&&<Caption1 as="p">以 2 Mbps 为 1×</Caption1>}</>;
+    {usable&&<Caption1 as="p">以 2 Mbps 为 1×</Caption1>}
+    {recommendation&&<p role="status">{recommendation}</p>}</>;
 }
 export function Diagnostics({visible}: {visible:boolean}) {
   const app=useApp(),enabled=visible&&!app.stopped;

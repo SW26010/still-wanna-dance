@@ -2166,6 +2166,13 @@
       "bytes": 1322473,
       "sha256": "53aa43eca3e6d1a3faa6e00c7768ffa7188c2f57136dcd040223a79560e102e9",
       "reason": "Reviewed generated Fluent WebUI bundle: the proxy backend selector lists Mihomo (Clash) before external SOCKS5; the corresponding help condition reads 已有Clash配置. Switching from direct to proxy selects Mihomo for an unconfigured external endpoint while preserving existing proxy configurations. Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1323204,
+      "sha256": "6419f55d67df612643a6aee2a07f12b83e56929f42bce1a2cf76804018cd2290",
+      "reason": "Reviewed generated Fluent WebUI bundle: completed download speed results show playback advice using the existing throughput bands and a 0.5 Mbps single-connection threshold; slow results link to network settings, and retained results restore their corresponding advice (2026-11-17). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

@@ -2387,3 +2387,11 @@ build/check、差异检查及产物登记校验通过。`settings-help.spec.ts`�
 随后调整为较长的 CDN 提示在下方，对四项 `stop and resume` 用例定向复验全部通过，包含最终上下顺序、字体、总高度、按钮位置及 Tooltip 检查；已查看最终卡片截图，结果在 `artifacts/cdn-hint-layout/reordered/` 和 `reordered.log`。
 
 前端 build/check、内嵌资源一致性、bundle 精确登记及差异检查通过。浏览器及 Node.js／Playwright 版本同上节，验证使用内存接口夹具，不外推真实系统 DPI、UAC 或游戏体验。随后通过标准桌面构建入口生成 `dev-cdn-hints`，`-build-info` 核对 Windows amd64、Go 1.27.3 及开发构建身份通过；未启动日常程序或游戏。
+
+## 2026-11-17：测速结果的播放建议
+
+完整测速结果使用已有多连接分档生成播放建议，速度较充足时再按单连接 0.5 Mbps 区分冷加载风险；低速建议中的“切换上游”链接定位“设置 → 网络”。测量中不展示建议，取消、失败或采样未完成时跟随上次有效结果恢复。现行文案和边界见[内容约定](../webui-content.md)。
+
+`components.spec.ts`、`network-diagnostics.spec.ts` 和 `diagnostic-stream.spec.ts` 共 **20 项通过**，覆盖仪表阈值、实时观测、取消恢复、检测时间及订阅生命周期。补充浏览器检查通过 2／4 Mbps 边界和 0.5 Mbps 前后、零速度、测量中隐藏、失败／取消／未完成时的结果恢复，以及链接的键盘跳转；跳转不保存设置或发起检测。已查看 1280px 浅色、320px 深色、390px 高对比度及 320px 冷加载建议截图，文字正常换行且无横向溢出，浏览器无页面异常。
+
+前端 build/check、内嵌资源一致性、生成 bundle 的精确登记及差异检查通过。验证使用 Node.js 24.22.1、Playwright 1.64.1、Chromium 156.0.8078.4 和内存夹具，结果保留于忽略目录 `artifacts/speed-result-advice/`。首次运行因沙箱浏览器缓存路径不可用而未进入用例；显式指定已有 Chromium 后仍在沙箱启动时退出，普通用户权限下完成上述检查，原失败日志保留。以上验证只证明界面规则与交互，不证明具体网络下的播放体验。随后通过标准桌面构建入口生成 `dev-speed-advice`，`-build-info` 核对 Windows amd64、Go 1.27.3 及开发构建身份通过。

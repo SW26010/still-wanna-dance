@@ -172,7 +172,7 @@ for(const width of [320,1280])test(`help terms and task links work at ${width}px
   await page.emulateMedia({colorScheme:width===320?'dark':'light'});
   await page.goto('/#/help');
   const guide=page.locator('.help-guide');
-  for(const term of ['上游连接','SOCKS5','Mihomo','房间队列预加载','预计请求命中率','VRCX']){
+  for(const term of ['上游连接','SOCKS5','Mihomo (Clash)','房间队列预加载','预计请求命中率','VRCX']){
     const trigger=guide.locator('.help-term').getByText(term,{exact:true});
     await trigger.hover();await expect(page.getByRole('tooltip')).toBeVisible();
     await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();

@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {Buffer} from 'node:buffer';
 import {mockAPI} from './api';
 import {coverOnFirstFrame,libraryOnClickFrame} from '../test-support/cover-frame.mjs';
+import {launchBrowser} from '../test-support/browser.mjs';
 import type {LibraryCoverChoice,LibraryPage,LibrarySong} from '../src/types';
 
 async function trackCoverURLs(page:Page) {
@@ -175,7 +176,17 @@ test('returning to cover view reuses images without rereading files or another s
   await expect(page.getByRole('list',{name:'曲库封面'}).locator('img.is-ready')).toHaveCount(3);
 });
 
-test('paging shows cached JPEGs on the first frame without rereading their files',async({page})=>{
+function expectCoverFrame(images:{source:string;complete:boolean;width:number;visibility:string}[],source?:string|null) {
+  expect(images).toHaveLength(1);
+  const image=images[0];
+  expect(image.source).toEqual(source??expect.stringMatching(/^blob:/));
+  // A retained Blob does not keep the browser's decoded-image cache alive.
+  // Loaded images must already be shown; pending images keep the neutral surface.
+  expect(image.visibility).toBe(image.complete?'visible':'hidden');
+  if(image.complete)expect(image.width).toBe(480);
+}
+
+async function checkCoverPaging(page:Page,pressure:boolean) {
   const jpeg=await jpegFixture(page);
   const {modes,choices,calls}=await coversFixture(page,51,jpeg);
   for(const id of Object.keys(choices))choices[id]={source:id==='2'?'category':'local',refresh:id==='3'};
@@ -189,18 +200,39 @@ test('paging shows cached JPEGs on the first frame without rereading their files
   const first=page.getByRole('group',{name:'歌曲 1',exact:true}).locator('.library-cover-play img.is-ready');
   await expect(first).toHaveJSProperty('naturalWidth',480);
   const original=await first.getAttribute('src');
+  if(pressure){
+    const cache=await page.context().newCDPSession(page);
+    try {
+      await cache.send('HeapProfiler.collectGarbage');
+      await cache.send('Memory.simulatePressureNotification',{level:'critical'});
+    }finally{await cache.detach();}
+  }
   paused=true;
   const forward=await coverOnFirstFrame(page,'51',()=>page.getByRole('button',{name:'下一页曲库',exact:true}).click());
-  expect(forward).toContainEqual(expect.objectContaining({complete:true,width:480,visibility:'visible'}));
+  expectCoverFrame(forward);
   const next=page.getByRole('group',{name:'歌曲 51',exact:true}).locator('.library-cover-play');
   await expect(next).toHaveCSS('background-image','none');
   await expect(next.locator('img.is-ready')).toHaveJSProperty('naturalWidth',480);
   await expect(next.locator('img')).toHaveAttribute('src',/^blob:/);
   const backward=await coverOnFirstFrame(page,'1',()=>page.getByRole('button',{name:'上一页曲库',exact:true}).click());
-  expect(backward).toContainEqual({source:original,complete:true,width:480,visibility:'visible'});
+  expectCoverFrame(backward,original);
   await expect(first).toHaveAttribute('src',original!);
   await expect(first).toBeVisible();
   expect(rereads).toBe(0);expect(calls.some(call=>call.path==='library/covers')).toBe(false);
+}
+
+for(const pressure of [false,true])test(`paging shows loaded JPEGs on the first frame without file rereads (${pressure?'reclaimed':'warm'} image cache)`,async({page},info)=>{
+  if(!pressure)return checkCoverPaging(page,false);
+  // Memory pressure affects a whole browser, so give it a separate process.
+  const browser=await launchBrowser({channel:info.project.use.channel,headless:info.project.use.headless});
+  try {
+    const isolated=await browser.newPage({baseURL:info.project.use.baseURL});
+    try {await checkCoverPaging(isolated,true);}
+    catch(error){
+      await isolated.screenshot({path:info.outputPath('cache-pressure.png')});
+      throw error;
+    }
+  }finally{await browser.close();}
 });
 
 test('paging keeps old covers at their current position until the destination page is committed',async({page})=>{

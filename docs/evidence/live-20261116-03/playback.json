@@ -1,0 +1,444 @@
+{
+  "status": "completed-observation",
+  "timeBasis": "Seconds relative to each first NSPlayer GET; human feedback approximate to seconds, game log second precision.",
+  "normalityBasis": "Explicit operator instruction: unreported audiovisual anomalies mean normal. 3214 also explicitly confirmed normal around504.",
+  "cases": [
+    {
+      "song": "3214",
+      "early504": true,
+      "holeStartBytes": 16777216,
+      "holeBytes": 1048576,
+      "injectedCount": 1,
+      "firstPlayerRange": "bytes=0-",
+      "sourceReleasedT": 66.002,
+      "http": [
+        {
+          "event": "request",
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 1,
+          "t": null,
+          "bytes": 360448,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "event": "response-ended",
+          "id": 2,
+          "t": 47.155,
+          "bytes": 16777216,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 3,
+          "t": 47.262,
+          "player": true,
+          "range": "bytes=16769024-45849827"
+        },
+        {
+          "event": "injected-504",
+          "id": 3,
+          "t": 47.262
+        },
+        {
+          "event": "request",
+          "id": 4,
+          "t": 79.256,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 4,
+          "t": 79.268,
+          "bytes": 397086,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 5,
+          "t": 79.714,
+          "player": true,
+          "range": "bytes=16769024-45849827"
+        },
+        {
+          "event": "response-ended",
+          "id": 5,
+          "t": 106.415,
+          "bytes": 29080804,
+          "complete": true
+        }
+      ],
+      "game": [
+        {
+          "event": "video_start",
+          "t": 3.504
+        },
+        {
+          "event": "error",
+          "t": 72.504
+        },
+        {
+          "event": "reload_retry",
+          "t": 77.504
+        },
+        {
+          "event": "video_start",
+          "t": 79.504
+        }
+      ],
+      "human": [
+        {
+          "event": "playback_started",
+          "t": 4.504
+        },
+        {
+          "event": "black_screen",
+          "t": 74.504
+        },
+        {
+          "event": "playback_resumed",
+          "t": 81.504
+        }
+      ],
+      "seconds504ToBlack": 27.242,
+      "blackSeconds": 7,
+      "observedUntilT": 219.448,
+      "naturallyEnded": false,
+      "normalExceptReportedEvents": true,
+      "completionBasis": "intentionally switched away before natural end"
+    },
+    {
+      "song": "1314",
+      "early504": true,
+      "holeStartBytes": 14680064,
+      "holeBytes": 1048576,
+      "injectedCount": 1,
+      "firstPlayerRange": "bytes=0-",
+      "sourceReleasedT": 66,
+      "http": [
+        {
+          "event": "request",
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 1,
+          "t": null,
+          "bytes": 331550,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "event": "response-ended",
+          "id": 2,
+          "t": 51.435,
+          "bytes": 14680064,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 3,
+          "t": 51.616,
+          "player": true,
+          "range": "bytes=14671872-54919232"
+        },
+        {
+          "event": "injected-504",
+          "id": 3,
+          "t": 51.617
+        },
+        {
+          "event": "request",
+          "id": 4,
+          "t": 79.603,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 4,
+          "t": 79.616,
+          "bytes": 397086,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 5,
+          "t": 80.061,
+          "player": true,
+          "range": "bytes=14671872-54919232"
+        },
+        {
+          "event": "response-ended",
+          "id": 5,
+          "t": 130.766,
+          "bytes": 40247361,
+          "complete": true
+        }
+      ],
+      "game": [
+        {
+          "event": "video_start",
+          "t": 2.793
+        },
+        {
+          "event": "error",
+          "t": 72.793
+        },
+        {
+          "event": "reload_retry",
+          "t": 77.793
+        },
+        {
+          "event": "video_start",
+          "t": 79.793
+        }
+      ],
+      "human": [
+        {
+          "event": "playback_started",
+          "t": 2.793
+        },
+        {
+          "event": "black_screen",
+          "t": 73.793
+        },
+        {
+          "event": "playback_resumed",
+          "t": 80.793
+        }
+      ],
+      "seconds504ToBlack": 22.176,
+      "blackSeconds": 7,
+      "observedUntilT": 179.166,
+      "naturallyEnded": false,
+      "normalExceptReportedEvents": true,
+      "completionBasis": "intentionally switched away before natural end"
+    },
+    {
+      "song": "6776",
+      "early504": true,
+      "holeStartBytes": 12582912,
+      "holeBytes": 1048576,
+      "injectedCount": 1,
+      "firstPlayerRange": "bytes=0-",
+      "sourceReleasedT": 66.003,
+      "http": [
+        {
+          "event": "request",
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 1,
+          "t": null,
+          "bytes": 331550,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "event": "response-ended",
+          "id": 2,
+          "t": 52.699,
+          "bytes": 12582912,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 3,
+          "t": 52.843,
+          "player": true,
+          "range": "bytes=12574720-67256324"
+        },
+        {
+          "event": "injected-504",
+          "id": 3,
+          "t": 52.843
+        },
+        {
+          "event": "request",
+          "id": 4,
+          "t": 92.824,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 4,
+          "t": 92.836,
+          "bytes": 397086,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 5,
+          "t": 93.287,
+          "player": true,
+          "range": "bytes=12574720-67256324"
+        },
+        {
+          "event": "response-ended",
+          "id": 5,
+          "t": 176.685,
+          "bytes": 54362112,
+          "complete": false
+        }
+      ],
+      "game": [
+        {
+          "event": "video_start",
+          "t": 3.052
+        },
+        {
+          "event": "error",
+          "t": 86.052
+        },
+        {
+          "event": "reload_retry",
+          "t": 91.052
+        },
+        {
+          "event": "video_start",
+          "t": 93.052
+        }
+      ],
+      "human": [
+        {
+          "event": "playback_started",
+          "t": 4.052
+        },
+        {
+          "event": "black_screen",
+          "t": 87.052
+        },
+        {
+          "event": "playback_resumed",
+          "t": 94.052
+        }
+      ],
+      "seconds504ToBlack": 34.209,
+      "blackSeconds": 7,
+      "observedUntilT": 172.851,
+      "naturallyEnded": false,
+      "normalExceptReportedEvents": true,
+      "completionBasis": "intentionally switched away before natural end"
+    },
+    {
+      "song": "3136",
+      "early504": false,
+      "holeStartBytes": 16777216,
+      "holeBytes": 1048576,
+      "injectedCount": 0,
+      "firstPlayerRange": "bytes=0-",
+      "sourceReleasedT": 66.002,
+      "http": [
+        {
+          "event": "request",
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": ""
+        },
+        {
+          "event": "response-ended",
+          "id": 1,
+          "t": null,
+          "bytes": 331550,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "event": "response-ended",
+          "id": 2,
+          "t": 45.163,
+          "bytes": 16777216,
+          "complete": false
+        },
+        {
+          "event": "request",
+          "id": 3,
+          "t": 45.22,
+          "player": true,
+          "range": "bytes=16769024-67222867"
+        },
+        {
+          "event": "response-ended",
+          "id": 3,
+          "t": 87.518,
+          "bytes": 50453844,
+          "complete": true
+        }
+      ],
+      "game": [
+        {
+          "event": "video_start",
+          "t": 8.525
+        },
+        {
+          "event": "video_end",
+          "t": 294.525
+        }
+      ],
+      "human": [
+        {
+          "event": "playback_started",
+          "t": 8.525
+        },
+        {
+          "event": "playback_naturally_ended",
+          "t": 294.525
+        }
+      ],
+      "seconds504ToBlack": null,
+      "blackSeconds": null,
+      "observedUntilT": 294.525,
+      "naturallyEnded": true,
+      "normalExceptReportedEvents": true,
+      "completionBasis": "human and game end"
+    }
+  ],
+  "cleanup": {
+    "hostsChanged": false,
+    "experimentListenersRemaining": 0,
+    "allRecordedExperimentProcessesExited": true,
+    "normalServiceRestored": false,
+    "preexistingHostsRetained": true
+  }
+}

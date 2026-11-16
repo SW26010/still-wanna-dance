@@ -50,6 +50,7 @@
 | [acceptance/](acceptance/) | 已实际开展的游戏/实网验收报告；新游戏批次使用[报告模板](live-acceptance-report-template.md) |
 | [history/](history/) | 原版调查、被替代的设计、阶段审计和旧台账快照；[旧命令行服务手册](history/command-line-service-20261103.md)只适用于移除前版本，文件名中的 `original-` 指原版调查 |
 | [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[等权初始表半衰期回测](research/equal-requester-priority-20261026.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[HTTP/HTTPS、104 地址与 Speedtest 对照](research/issue-21-cf-triad-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
+| 播放器重试与下载交接证据 | [等待与交接实测](acceptance/live-acceptance-20261116-01.md)、[提前 504 与手动刷新](acceptance/live-acceptance-20261116-02.md)、[跨歌曲预读 504 重复观察](acceptance/live-acceptance-20261116-03.md)；[证据复核](research/issue-51-retry-handoff-followup-20261116.md)汇总请求、交接与原始时间线的记录和复算 |
 | 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
 | 子类别封面来源 | [类别图片与映射核对](research/category-cover-sources-20261112.md)记录 50 类映射、官方来源、原图／母版归档、4:3 受控导出与运行素材体积预算，并保留此前日志、缓存及旧套图调查的边界 |
 | 曲库改造决策 | [Udon 曲库与资源映射决策](research/udon-catalog-decision-draft-20261029.md)保存目标、实施边界及验证；现行规则回到[曲库设计](song-catalog-design.md)，预置维护见[资源快照](../data/media-seed/README.md) |

@@ -1,0 +1,1771 @@
+{
+  "status": "completed-observation",
+  "timeBasis": "seconds from first player GET, separate zero for each sample; operator/game times approximately one second",
+  "cases": [
+    {
+      "id": "baseline",
+      "song": "4598",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66.001
+      ],
+      "injections": 0,
+      "observed": [
+        {
+          "event": "start",
+          "t": 2.747,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 10.747,
+          "source": "operator"
+        },
+        {
+          "event": "resume-two-audio-bursts-then-normal",
+          "t": 65.747,
+          "source": "operator"
+        },
+        {
+          "event": "end",
+          "t": 135.747,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 331550,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 34.394,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 34.908,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "finish": {
+            "t": 64.951,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 4,
+          "t": 64.96,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "finish": {
+            "t": 66.027,
+            "bytes": 1736704,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 66.029,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "finish": {
+            "t": 80.265,
+            "bytes": 19228030,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": -0.253,
+          "event": "sync",
+          "target": 3.21,
+          "current": 0
+        },
+        {
+          "t": 0.747,
+          "event": "sync",
+          "target": 3.84,
+          "current": 3.2
+        },
+        {
+          "t": 2.747,
+          "event": "sync",
+          "target": 0.24,
+          "current": 3.84
+        },
+        {
+          "t": 2.747,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.747,
+          "event": "sync",
+          "target": 0.25,
+          "current": 3.84
+        },
+        {
+          "t": 2.747,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.747,
+          "event": "sync",
+          "target": 0.25
+        },
+        {
+          "t": 12.747,
+          "event": "sync",
+          "target": 10.37,
+          "current": 7.24
+        },
+        {
+          "t": 15.747,
+          "event": "sync",
+          "target": 13.37,
+          "current": 7.24
+        },
+        {
+          "t": 18.747,
+          "event": "sync",
+          "target": 16.37,
+          "current": 7.24
+        },
+        {
+          "t": 21.747,
+          "event": "sync",
+          "target": 19.37,
+          "current": 7.24
+        },
+        {
+          "t": 24.747,
+          "event": "sync",
+          "target": 22.37,
+          "current": 7.24
+        },
+        {
+          "t": 27.747,
+          "event": "sync",
+          "target": 25.37,
+          "current": 7.24
+        },
+        {
+          "t": 30.747,
+          "event": "sync",
+          "target": 28.38,
+          "current": 7.24
+        },
+        {
+          "t": 33.747,
+          "event": "sync",
+          "target": 31.38,
+          "current": 7.24
+        },
+        {
+          "t": 36.747,
+          "event": "sync",
+          "target": 34.38,
+          "current": 7.24
+        },
+        {
+          "t": 39.747,
+          "event": "sync",
+          "target": 37.38,
+          "current": 7.24
+        },
+        {
+          "t": 42.747,
+          "event": "sync",
+          "target": 40.38,
+          "current": 7.24
+        },
+        {
+          "t": 45.747,
+          "event": "sync",
+          "target": 43.38,
+          "current": 7.24
+        },
+        {
+          "t": 48.747,
+          "event": "sync",
+          "target": 46.38,
+          "current": 7.24
+        },
+        {
+          "t": 51.747,
+          "event": "sync",
+          "target": 49.38,
+          "current": 7.24
+        },
+        {
+          "t": 54.747,
+          "event": "sync",
+          "target": 52.38,
+          "current": 7.24
+        },
+        {
+          "t": 57.747,
+          "event": "sync",
+          "target": 55.38,
+          "current": 7.24
+        },
+        {
+          "t": 60.747,
+          "event": "sync",
+          "target": 58.38,
+          "current": 7.24
+        },
+        {
+          "t": 63.747,
+          "event": "sync",
+          "target": 61.39,
+          "current": 7.24
+        },
+        {
+          "t": 135.747,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 135.747,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 135.747,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "60d7b09a8f6cd7d8c75fefb7b4a1737074d64795cc193b4cee86439e514be1f9",
+        "proxy": "61d5bbd8083bf73781936b63010b0c04f47c725dcdcbef69d99114e607afb250",
+        "game": "117bdf465f5f078c743167c873eb457302a929a54ad38844ad623a451bdae319"
+      },
+      "injectionEvents": [],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "early504",
+      "song": "4598",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66
+      ],
+      "injections": 1,
+      "observed": [
+        {
+          "event": "start",
+          "t": 2.08,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 9.08,
+          "source": "operator"
+        },
+        {
+          "event": "black",
+          "t": 34.08,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 40.08,
+          "source": "operator"
+        },
+        {
+          "event": "end-normal",
+          "t": 135.08,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 360448,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 32.72,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 33.223,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "injectedStatus": 504
+        },
+        {
+          "id": 4,
+          "t": 39.039,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 39.051,
+            "bytes": 397086,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 39.483,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "finish": {
+            "t": 39.831,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 6,
+          "t": 39.832,
+          "player": true,
+          "range": "bytes=9240576-35169661",
+          "finish": {
+            "t": 59.009,
+            "bytes": 25929086,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.08,
+          "event": "sync",
+          "target": 1.77,
+          "current": 0
+        },
+        {
+          "t": 1.08,
+          "event": "sync",
+          "target": 2.94,
+          "current": 1.77
+        },
+        {
+          "t": 2.08,
+          "event": "sync",
+          "target": 0.3,
+          "current": 2.94
+        },
+        {
+          "t": 2.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.08,
+          "event": "sync",
+          "target": 0.3,
+          "current": 2.94
+        },
+        {
+          "t": 2.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.08,
+          "event": "sync",
+          "target": 0.3
+        },
+        {
+          "t": 10.08,
+          "event": "sync",
+          "target": 8.68,
+          "current": 7.24
+        },
+        {
+          "t": 13.08,
+          "event": "sync",
+          "target": 11.68,
+          "current": 7.24
+        },
+        {
+          "t": 16.08,
+          "event": "sync",
+          "target": 14.68,
+          "current": 7.24
+        },
+        {
+          "t": 19.08,
+          "event": "sync",
+          "target": 17.68,
+          "current": 7.24
+        },
+        {
+          "t": 22.08,
+          "event": "sync",
+          "target": 20.69,
+          "current": 7.24
+        },
+        {
+          "t": 25.08,
+          "event": "sync",
+          "target": 23.69,
+          "current": 7.24
+        },
+        {
+          "t": 28.08,
+          "event": "sync",
+          "target": 26.69,
+          "current": 7.24
+        },
+        {
+          "t": 31.08,
+          "event": "sync",
+          "target": 29.69,
+          "current": 7.24
+        },
+        {
+          "t": 33.08,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 38.08,
+          "event": "Retrying load"
+        },
+        {
+          "t": 39.08,
+          "event": "sync",
+          "target": 37.92,
+          "current": 0
+        },
+        {
+          "t": 39.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 39.08,
+          "event": "sync",
+          "target": 37.92,
+          "current": 0
+        },
+        {
+          "t": 39.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 39.08,
+          "event": "sync",
+          "target": 37.92
+        },
+        {
+          "t": 135.08,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 135.08,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 135.08,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "f1258b1225b7e36f93054831d0ba64524b8db26f38c839340f63650e3161ddda",
+        "proxy": "5f4176062b9dcce883f01ca68fda5554ea098eb481071b50a4452d9d8844b827",
+        "game": "567b2518d2f1f1d2f7cfe26e3ca1fd4b8f638682b80b9c220af55989ce46117d"
+      },
+      "injectionEvents": [
+        {
+          "t": 33.223,
+          "id": 3
+        }
+      ],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "song2502",
+      "song": "2502",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66
+      ],
+      "injections": 0,
+      "observed": [
+        {
+          "event": "start",
+          "t": 3.98,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 7.98,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 36.98,
+          "source": "operator"
+        },
+        {
+          "event": "end",
+          "t": 209.98,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 331550,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 6.553,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 6.176,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 6.18,
+            "bytes": 331550,
+            "complete": false
+          }
+        },
+        {
+          "id": 4,
+          "t": 6.621,
+          "player": true,
+          "range": "bytes=2088960-80602638",
+          "finish": {
+            "t": 6.965,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 6.974,
+          "player": true,
+          "range": "bytes=2088960-80602638",
+          "finish": {
+            "t": 37.009,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 6,
+          "t": 37.018,
+          "player": true,
+          "range": "bytes=10534912-80602638",
+          "finish": {
+            "t": 72.525,
+            "bytes": 70067727,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": -6.02,
+          "event": "OnVideoError"
+        },
+        {
+          "t": -1.02,
+          "event": "Retrying load"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.98,
+          "event": "sync",
+          "target": 0.25
+        },
+        {
+          "t": 5.98,
+          "event": "sync",
+          "target": 3.2,
+          "current": 0
+        },
+        {
+          "t": 5.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 5.98,
+          "event": "sync",
+          "target": 3.21,
+          "current": 0
+        },
+        {
+          "t": 5.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 5.98,
+          "event": "sync",
+          "target": 3.21
+        },
+        {
+          "t": 6.98,
+          "event": "sync",
+          "target": 3.26,
+          "current": 0
+        },
+        {
+          "t": 9.98,
+          "event": "sync",
+          "target": 6.26,
+          "current": 0
+        },
+        {
+          "t": 12.98,
+          "event": "sync",
+          "target": 9.26,
+          "current": 0
+        },
+        {
+          "t": 15.98,
+          "event": "sync",
+          "target": 12.26,
+          "current": 0
+        },
+        {
+          "t": 18.98,
+          "event": "sync",
+          "target": 15.26,
+          "current": 0
+        },
+        {
+          "t": 21.98,
+          "event": "sync",
+          "target": 18.26,
+          "current": 0
+        },
+        {
+          "t": 24.98,
+          "event": "sync",
+          "target": 21.26,
+          "current": 0
+        },
+        {
+          "t": 27.98,
+          "event": "sync",
+          "target": 24.26,
+          "current": 0
+        },
+        {
+          "t": 30.98,
+          "event": "sync",
+          "target": 27.27,
+          "current": 0
+        },
+        {
+          "t": 33.98,
+          "event": "sync",
+          "target": 30.27,
+          "current": 0
+        },
+        {
+          "t": 36.98,
+          "event": "sync",
+          "target": 33.28,
+          "current": 0
+        },
+        {
+          "t": 209.98,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 209.98,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 209.98,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "4f033b888df4c2f5d844c370f522b63b07e47f4ca24f0ef36ac6f597274fdf97",
+        "proxy": "741bde4b5296c32ea57de502679e29fc91c6499566531b3ae29b6b94085a0edd",
+        "game": "d45a6a4b08c97ef83b5170e0f0757810fe19e9c3740f0c184a145b258ef58e33"
+      },
+      "injectionEvents": [],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "later4598",
+      "song": "4598",
+      "warmBlocks": 4,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66
+      ],
+      "injections": 1,
+      "observed": [
+        {
+          "event": "start",
+          "t": 0.095,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 15.095,
+          "source": "operator"
+        },
+        {
+          "event": "black",
+          "t": 34.095,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 40.095,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 360448,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 33.745,
+            "bytes": 4194304,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 34.245,
+          "player": true,
+          "range": "bytes=4186112-35169661",
+          "injectedStatus": 504
+        },
+        {
+          "id": 4,
+          "t": 40.109,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 40.122,
+            "bytes": 528158,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 40.56,
+          "player": true,
+          "range": "bytes=4186112-35169661",
+          "finish": {
+            "t": 40.901,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 6,
+          "t": 40.91,
+          "player": true,
+          "range": "bytes=10649600-35169661",
+          "finish": {
+            "t": 58.889,
+            "bytes": 24520062,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.095,
+          "event": "sync",
+          "target": 5.11,
+          "current": 0
+        },
+        {
+          "t": 0.095,
+          "event": "sync",
+          "target": 0.35,
+          "current": 5.11
+        },
+        {
+          "t": 0.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.095,
+          "event": "sync",
+          "target": 0.35,
+          "current": 5.11
+        },
+        {
+          "t": 0.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.095,
+          "event": "sync",
+          "target": 0.35
+        },
+        {
+          "t": 16.095,
+          "event": "sync",
+          "target": 16.21,
+          "current": 14.71
+        },
+        {
+          "t": 19.095,
+          "event": "sync",
+          "target": 19.22,
+          "current": 14.71
+        },
+        {
+          "t": 22.095,
+          "event": "sync",
+          "target": 22.22,
+          "current": 14.71
+        },
+        {
+          "t": 25.095,
+          "event": "sync",
+          "target": 25.23,
+          "current": 14.71
+        },
+        {
+          "t": 28.095,
+          "event": "sync",
+          "target": 28.23,
+          "current": 14.71
+        },
+        {
+          "t": 31.095,
+          "event": "sync",
+          "target": 31.23,
+          "current": 14.71
+        },
+        {
+          "t": 34.095,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 39.095,
+          "event": "Retrying load"
+        },
+        {
+          "t": 40.095,
+          "event": "sync",
+          "target": 40.76,
+          "current": 0
+        },
+        {
+          "t": 40.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 40.095,
+          "event": "sync",
+          "target": 40.76,
+          "current": 0
+        },
+        {
+          "t": 40.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 40.095,
+          "event": "sync",
+          "target": 40.76
+        },
+        {
+          "t": 133.095,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 133.095,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 133.095,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "bc2db03fcf6611900fc16c309432bef76e601894f002a1c162e093e276aaaa72",
+        "proxy": "0b689fb5a3795ddfb0558e8d997873ab613d519fcf2d0c1a10b6ddeab89c0682",
+        "game": "9ac335d64fd24d9cbdece7dd4fb667619b3941ce31e29ae27aa4706daa8664c2"
+      },
+      "injectionEvents": [
+        {
+          "t": 34.255,
+          "id": 3
+        }
+      ],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "three4598",
+      "song": "4598",
+      "warmBlocks": 2,
+      "holeBlocks": 3,
+      "graceSeconds": 30,
+      "release": [
+        66
+      ],
+      "injections": 1,
+      "observed": [
+        {
+          "event": "stalled-from-start",
+          "t": 5.12,
+          "source": "operator"
+        },
+        {
+          "event": "black",
+          "t": 32.12,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 39.12,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 360448,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 31.768,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 32.284,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "injectedStatus": 504
+        },
+        {
+          "id": 4,
+          "t": 38.134,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 38.138,
+            "bytes": 360448,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 38.579,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "finish": {
+            "t": 38.926,
+            "bytes": 8192,
+            "complete": false
+          }
+        },
+        {
+          "id": 6,
+          "t": 38.928,
+          "player": true,
+          "range": "bytes=9240576-35169661",
+          "finish": {
+            "t": 58.019,
+            "bytes": 25929086,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.12,
+          "event": "sync",
+          "target": 1.98,
+          "current": 0
+        },
+        {
+          "t": 2.12,
+          "event": "sync",
+          "target": 4.09,
+          "current": 1.97
+        },
+        {
+          "t": 4.12,
+          "event": "sync",
+          "target": 0.27,
+          "current": 4.07
+        },
+        {
+          "t": 4.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 4.12,
+          "event": "sync",
+          "target": 0.28,
+          "current": 4.07
+        },
+        {
+          "t": 4.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 4.12,
+          "event": "sync",
+          "target": 0.28
+        },
+        {
+          "t": 5.12,
+          "event": "sync",
+          "target": 1.61,
+          "current": 4.07
+        },
+        {
+          "t": 8.12,
+          "event": "sync",
+          "target": 4.61,
+          "current": 4.07
+        },
+        {
+          "t": 11.12,
+          "event": "sync",
+          "target": 7.61,
+          "current": 4.07
+        },
+        {
+          "t": 14.12,
+          "event": "sync",
+          "target": 10.61,
+          "current": 4.07
+        },
+        {
+          "t": 17.12,
+          "event": "sync",
+          "target": 13.61,
+          "current": 4.07
+        },
+        {
+          "t": 20.12,
+          "event": "sync",
+          "target": 16.62,
+          "current": 4.07
+        },
+        {
+          "t": 23.12,
+          "event": "sync",
+          "target": 19.62,
+          "current": 4.07
+        },
+        {
+          "t": 26.12,
+          "event": "sync",
+          "target": 22.62,
+          "current": 4.07
+        },
+        {
+          "t": 29.12,
+          "event": "sync",
+          "target": 25.62,
+          "current": 4.07
+        },
+        {
+          "t": 32.12,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 37.12,
+          "event": "Retrying load"
+        },
+        {
+          "t": 38.12,
+          "event": "sync",
+          "target": 34.98,
+          "current": 0
+        },
+        {
+          "t": 38.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 38.12,
+          "event": "sync",
+          "target": 34.98,
+          "current": 0
+        },
+        {
+          "t": 38.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 38.12,
+          "event": "sync",
+          "target": 34.98
+        },
+        {
+          "t": 137.12,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 137.12,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 137.12,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "2040a476b5254be06db0de1b2201fcb3f24c553ff42aed7dc155052c27c0d3ec",
+        "proxy": "4e31bcfd740876f6fdb5ca7bdf2042dc5ff3d85292132445b3f2961d197061dd",
+        "game": "3241c386ee0a1287940b46bdb48b092ee136e16ec9f9a514c48c2674006f7646"
+      },
+      "injectionEvents": [
+        {
+          "t": 32.293,
+          "id": 3
+        }
+      ],
+      "outsideObservationRequests": [
+        {
+          "id": 7,
+          "t": 231.604,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 231.617,
+            "bytes": 528158,
+            "complete": false
+          }
+        },
+        {
+          "id": 8,
+          "t": 232.057,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 234.405,
+            "bytes": 4329165,
+            "complete": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "manual4598",
+      "song": "4598",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66
+      ],
+      "injections": 0,
+      "observed": [
+        {
+          "event": "start",
+          "t": -11.182,
+          "source": "operator"
+        },
+        {
+          "event": "refresh-while-normal",
+          "t": 9.818,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 12.818,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": 0,
+          "player": true,
+          "range": "bytes=4329165-35169661",
+          "finish": {
+            "t": 11.361,
+            "bytes": 15339252,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 10.964,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 10.983,
+            "bytes": 397086,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 11.43,
+          "player": true,
+          "range": "bytes=19287757-35169661",
+          "finish": {
+            "t": 23.27,
+            "bytes": 15881905,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": -17.182,
+          "event": "sync",
+          "target": 0.88,
+          "current": 0
+        },
+        {
+          "t": -16.182,
+          "event": "sync",
+          "target": 2.17,
+          "current": 0.87
+        },
+        {
+          "t": -13.182,
+          "event": "sync",
+          "target": 5.18,
+          "current": 2.17
+        },
+        {
+          "t": -12.182,
+          "event": "sync",
+          "target": 0.23,
+          "current": 5.17
+        },
+        {
+          "t": -12.182,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": -12.182,
+          "event": "sync",
+          "target": 0.24,
+          "current": 5.17
+        },
+        {
+          "t": -12.182,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": -12.182,
+          "event": "sync",
+          "target": 0.24
+        },
+        {
+          "t": 9.818,
+          "event": "ReloadVideo Button Clicked"
+        },
+        {
+          "t": 9.818,
+          "event": "OnUSharpVideoReload"
+        },
+        {
+          "t": 10.818,
+          "event": "sync",
+          "target": 23.69,
+          "current": 0
+        },
+        {
+          "t": 10.818,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 10.818,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 10.818,
+          "event": "sync",
+          "target": 23.96
+        },
+        {
+          "t": 120.818,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 120.818,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 120.818,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "b8352025308d45622b721bcc539db7e6b9fac7993137ff7221de48e7c3a778d7",
+        "proxy": "cbf5d6d97c62a1303356cb130ecf97061082d0b8564385bb1d5a575e764166db",
+        "game": "39080c9d55b28c6936f374d7a5ac16e1ccde14b0532e525d90366aefe00fa914"
+      },
+      "injectionEvents": [],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "manual8935",
+      "song": "8935",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66.001
+      ],
+      "injections": 0,
+      "observed": [
+        {
+          "event": "start",
+          "t": 4.541,
+          "source": "operator"
+        },
+        {
+          "event": "approximate-stall",
+          "t": 9.541,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 331550,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 25.173,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 14.991,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 14.995,
+            "bytes": 397086,
+            "complete": false
+          }
+        },
+        {
+          "id": 4,
+          "t": 15.378,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 15.773,
+            "bytes": 2097152,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 15.782,
+          "player": true,
+          "range": "bytes=3178496-21996299",
+          "finish": {
+            "t": 28.914,
+            "bytes": 18817804,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.541,
+          "event": "sync",
+          "target": 0.24
+        },
+        {
+          "t": 12.541,
+          "event": "sync",
+          "target": 9.25,
+          "current": 6.08
+        },
+        {
+          "t": 13.541,
+          "event": "ReloadVideo Button Clicked"
+        },
+        {
+          "t": 13.541,
+          "event": "OnUSharpVideoReload"
+        },
+        {
+          "t": 15.541,
+          "event": "sync",
+          "target": 11.58,
+          "current": 0
+        },
+        {
+          "t": 15.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 15.541,
+          "event": "sync",
+          "target": 11.59,
+          "current": 0
+        },
+        {
+          "t": 15.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 15.541,
+          "event": "sync",
+          "target": 11.59
+        },
+        {
+          "t": 81.541,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 81.541,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 81.541,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "6ac14f7c3935bf57a23a5a339a811d69f807f2ab889bdd0d8d1b2142e16dad2f",
+        "proxy": "454534766c3dcd826338d86fa09a935db55e60e14e37a1271d080ef4d2231697",
+        "game": "1a4c52ee49e2ba499bf4a05a7c1e9365331299ec2c09218deab9a67c917a70c3"
+      },
+      "injectionEvents": [],
+      "outsideObservationRequests": []
+    },
+    {
+      "id": "prefetch5396",
+      "song": "5396",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "graceSeconds": 30,
+      "release": [
+        66.001
+      ],
+      "injections": 1,
+      "observed": [
+        {
+          "event": "start",
+          "t": 2.735,
+          "source": "operator"
+        },
+        {
+          "event": "black",
+          "t": 101.735,
+          "source": "operator"
+        },
+        {
+          "event": "resume",
+          "t": 107.735,
+          "source": "operator"
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": null,
+            "bytes": 331550,
+            "complete": false
+          }
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "finish": {
+            "t": 48.376,
+            "bytes": 16777216,
+            "complete": false
+          }
+        },
+        {
+          "id": 3,
+          "t": 48.439,
+          "player": true,
+          "range": "bytes=16769024-38976067",
+          "injectedStatus": 504
+        },
+        {
+          "id": 4,
+          "t": 107.047,
+          "player": false,
+          "range": "",
+          "finish": {
+            "t": 107.05,
+            "bytes": 397086,
+            "complete": false
+          }
+        },
+        {
+          "id": 5,
+          "t": 107.493,
+          "player": true,
+          "range": "bytes=16769024-38976067",
+          "finish": {
+            "t": 130.314,
+            "bytes": 22207044,
+            "complete": true
+          }
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": -6.265,
+          "event": "OnVideoError"
+        },
+        {
+          "t": -1.265,
+          "event": "Retrying load"
+        },
+        {
+          "t": -0.265,
+          "event": "sync",
+          "target": 1.79,
+          "current": 0
+        },
+        {
+          "t": 1.735,
+          "event": "sync",
+          "target": 3.19,
+          "current": 1.77
+        },
+        {
+          "t": 2.735,
+          "event": "sync",
+          "target": 0.27,
+          "current": 3.17
+        },
+        {
+          "t": 2.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.735,
+          "event": "sync",
+          "target": 0.27,
+          "current": 3.17
+        },
+        {
+          "t": 2.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.735,
+          "event": "sync",
+          "target": 0.27
+        },
+        {
+          "t": 100.735,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 105.735,
+          "event": "Retrying load"
+        },
+        {
+          "t": 107.735,
+          "event": "sync",
+          "target": 105.25,
+          "current": 0
+        },
+        {
+          "t": 107.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 107.735,
+          "event": "sync",
+          "target": 105.25,
+          "current": 0
+        },
+        {
+          "t": 107.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 107.735,
+          "event": "sync",
+          "target": 105.25
+        },
+        {
+          "t": 206.735,
+          "event": "OnVideoEnd"
+        },
+        {
+          "t": 206.735,
+          "event": "OnVideoEnd",
+          "nonowner": true
+        }
+      ],
+      "gameEnd": 206.735,
+      "completion": "game-end-observed",
+      "rawFingerprints": {
+        "engine": "0b9d36131911188d02ca66694873bec1fffb435305e8a0701aec4103668e3d79",
+        "proxy": "0ebf7febbe217ba2654f442252bedbc7ff1c2e55c2023a492f93bfe02e3e5a0c",
+        "game": "569d55fa724f0069ddd48da87a1de7a757e6e944d1ab8a90d1d9a5c30e01ddd3"
+      },
+      "injectionEvents": [
+        {
+          "t": 48.44,
+          "id": 3
+        }
+      ],
+      "outsideObservationRequests": []
+    }
+  ],
+  "limitations": {
+    "song2502": "No injected504. Additional start event before stall; operator confirmed no repeated manual action. After stall, SWD ended partial response and player requested later bytes before hole release, without another world reload in that interval.",
+    "manual4598": "Refresh occurred during normal playback. First player GET was beyond blocked range and after reported playback start; cached reuse is possible, not established root cause. Not a blocked-refresh success.",
+    "three4598": "Operator reported stalled from start; game start callback is not proof of smooth initial playback.",
+    "prefetch5396": "504 at48.440s, black-screen report at101.734s. Source released at66.001s, but no new player request until107.493s. No same-media non-injected prefetch control.",
+    "manual8935": "Manual click time from game log; operator reports immediate recovery without exact timestamp. Old and new player requests overlapped.",
+    "all": "Fixed snapshot and controlled origin; one observation per variant; no product implementation change. HTTP writes do not prove media consumption. No universal optimal threshold or guaranteed cross-role behavior."
+  },
+  "cleanup": {
+    "hostsModified": false,
+    "hostsUnchanged": true,
+    "preexistingMappingRetained": true,
+    "normalPlaybackServiceRestored": false,
+    "remainingListenerCount": 0,
+    "experimentProcessesExited": true
+  },
+  "requestBoundary": "Requests after game end are retained separately as outsideObservationRequests and are not attributed to the completed playback."
+}

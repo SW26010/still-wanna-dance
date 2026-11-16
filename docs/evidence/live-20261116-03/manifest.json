@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261116-03",
+  "status": "completed-observation",
+  "hashBasis": "git-blob",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261116-03.md",
+      "bytes": 5312,
+      "sha256": "8b9d0c13aa5abd567056225d96e8cb0a519e6030528d405a469adbedfb078e3c",
+      "source": "Selected experiment events, operator feedback and verified fixture identity",
+      "sanitization": "Relative sample times; identities, paths, hosts, raw log lines and media omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-03/checkpoint.json",
+      "bytes": 3071,
+      "sha256": "ac7aea9cb8e1ded730fb514d97058c87cb2ccc8f9abfd9359fe2e09b4323b95c",
+      "source": "Retained historical preparation snapshot; superseded by playback.json",
+      "sanitization": "Relative sample times; identities, paths, hosts, raw log lines and media omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-03/playback.json",
+      "bytes": 9923,
+      "sha256": "21233aac2f465e690e48ec574426bc9268d65dc276fb2b2437abd20798f64249",
+      "source": "Selected experiment events, operator feedback and verified fixture identity",
+      "sanitization": "Relative sample times; identities, paths, hosts, raw log lines and media omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-03/provenance.json",
+      "bytes": 2729,
+      "sha256": "1858e27c2c56fe6cd34b09483a967d7a791fe0269865ce84ed9bfb6816c8be6e",
+      "source": "Selected experiment events, operator feedback and verified fixture identity",
+      "sanitization": "Relative sample times; identities, paths, hosts, raw log lines and media omitted"
+    }
+  ]
+}

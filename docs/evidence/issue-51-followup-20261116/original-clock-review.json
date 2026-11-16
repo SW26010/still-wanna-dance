@@ -1,0 +1,77 @@
+{
+  "sourceBatch": "LIVE-20261116-03",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "codeReviewSHA": "f47846cc34330d9f87994171c43784b983048fa1",
+  "timeBasis": "Relative to each first NSPlayer GET; log timestamps rounded to milliseconds when parsed.",
+  "observedTimingFallbackBitsPerSecond": 2000000,
+  "rows": [
+    {
+      "song": "3214",
+      "observed": {
+        "injectedT": 47.262,
+        "oldMissingBlockNeedByT": 67.111,
+        "injectionAfterOldNeedBySeconds": -19.849,
+        "previousDeliveredBytes": 16777216,
+        "retryRange": "bytes=16769024-45849827",
+        "retryBacktrackBytes": 8192,
+        "engineEstimatedDurationSeconds": 183.399312,
+        "normalAtInjection": true
+      },
+      "recalculation": {
+        "fileBytes": 45849828,
+        "mediaDurationSeconds": 213.578,
+        "missingBlockStartBytes": 16777216,
+        "estimatedNeedByT": 78.151749,
+        "formula": "missingBlockStartBytes / fileBytes * mediaDurationSeconds; first player GET is t=0",
+        "status": "Arithmetic estimate only; not a measured playback position or a tested rejection policy"
+      }
+    },
+    {
+      "song": "1314",
+      "observed": {
+        "injectedT": 51.617,
+        "oldMissingBlockNeedByT": 58.72,
+        "injectionAfterOldNeedBySeconds": -7.103,
+        "previousDeliveredBytes": 14680064,
+        "retryRange": "bytes=14671872-54919232",
+        "retryBacktrackBytes": 8192,
+        "engineEstimatedDurationSeconds": 219.676932,
+        "normalAtInjection": true
+      },
+      "recalculation": {
+        "fileBytes": 54919233,
+        "mediaDurationSeconds": 353.524,
+        "missingBlockStartBytes": 14680064,
+        "estimatedNeedByT": 94.49795,
+        "formula": "missingBlockStartBytes / fileBytes * mediaDurationSeconds; first player GET is t=0",
+        "status": "Arithmetic estimate only; not a measured playback position or a tested rejection policy"
+      }
+    },
+    {
+      "song": "6776",
+      "observed": {
+        "injectedT": 52.843,
+        "oldMissingBlockNeedByT": 50.334,
+        "injectionAfterOldNeedBySeconds": 2.509,
+        "previousDeliveredBytes": 12582912,
+        "retryRange": "bytes=12574720-67256324",
+        "retryBacktrackBytes": 8192,
+        "engineEstimatedDurationSeconds": 269.0253,
+        "normalAtInjection": true
+      },
+      "recalculation": {
+        "fileBytes": 67256325,
+        "mediaDurationSeconds": 522.264,
+        "missingBlockStartBytes": 12582912,
+        "estimatedNeedByT": 97.709798,
+        "formula": "missingBlockStartBytes / fileBytes * mediaDurationSeconds; first player GET is t=0",
+        "status": "Arithmetic estimate only; not a measured playback position or a tested rejection policy"
+      }
+    }
+  ],
+  "limitations": [
+    "Media duration was available in the preparation manifest but not inserted into the engine catalog timing.",
+    "Recalculation does not model variable bitrate, actual start delay, seek, pause or room synchronization.",
+    "No new live trial or product change; independent rejection margin remains unspecified."
+  ]
+}

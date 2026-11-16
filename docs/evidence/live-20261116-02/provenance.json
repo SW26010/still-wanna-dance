@@ -1,0 +1,134 @@
+{
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "productReleaseTested": false,
+  "binaries": [
+    {
+      "samples": [
+        "baseline",
+        "early504"
+      ],
+      "file": "hole-engine-30.test.exe",
+      "sha256": "cb834fe314fdcfd2840950aebd2e6d3fe91eb9232128dcd25c1fe2eba20ca25a",
+      "fixturePatch": "../live-20261116-01/fixtures/hole.patch"
+    },
+    {
+      "samples": [
+        "song2502",
+        "later4598",
+        "three4598",
+        "manual4598",
+        "manual8935",
+        "prefetch5396"
+      ],
+      "file": "variable-engine-30.test.exe",
+      "sha256": "d4cb3f37cdb4e465a4d629f0d0d1e62802b7bd00bec3779a237bf9df5df15fa3",
+      "fixturePatch": "variable-fixture.patch"
+    }
+  ],
+  "shimFiles": [
+    "retry-504-prototype.mjs",
+    "retry-504-variable.mjs"
+  ],
+  "configuration": {
+    "ordinarySlots": 2,
+    "blockBytes": 1048576,
+    "releaseAfterFirstPlayerGETSeconds": 66,
+    "forceFreshResponses": true,
+    "role": "nonowner"
+  },
+  "calibration": [
+    {
+      "song": "2502",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "futureSeconds": 0.028832700000000044,
+      "blocked": [
+        {
+          "block": 2,
+          "seconds": 1.033694
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "4598",
+      "warmBlocks": 4,
+      "holeBlocks": 1,
+      "futureSeconds": 0.016079400000000077,
+      "blocked": [
+        {
+          "block": 4,
+          "seconds": 1.0182618000000003
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "4598",
+      "warmBlocks": 2,
+      "holeBlocks": 3,
+      "futureSeconds": 0.015137699999999768,
+      "blocked": [
+        {
+          "block": 2,
+          "seconds": 1.0189081999999998
+        },
+        {
+          "block": 3,
+          "seconds": 1.0208401999999996
+        },
+        {
+          "block": 4,
+          "seconds": 1.0467546999999995
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "8935",
+      "warmBlocks": 2,
+      "holeBlocks": 1,
+      "futureSeconds": 0.028346299999999984,
+      "blocked": [
+        {
+          "block": 2,
+          "seconds": 1.0352778
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "5396",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "futureSeconds": 0.02898599999999999,
+      "blocked": [
+        {
+          "block": 16,
+          "seconds": 1.0324321
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "buildCommand": "node scripts/go-patches.mjs test -c -tags no_easytier ./internal/cacheproxy",
+  "environment": {
+    "platform": "Windows",
+    "vrchatVersions": [
+      "2026.4.1p1-1937-299983b13b-Release"
+    ]
+  },
+  "excludedPreparation": "Initial sandbox startup did not persist; no player sample was obtained. Preserved separately.",
+  "media": [
+    {
+      "song": "4598",
+      "bytes": 35169662,
+      "md5": "ba52593f9a238a486df91a1bf23b9248"
+    },
+    {
+      "song": "2502",
+      "bytes": 80602639,
+      "md5": "303ee3623afb3fcf8b062f174b9ff4e6"
+    }
+  ]
+}

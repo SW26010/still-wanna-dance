@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261116-02",
+  "status": "completed-observation",
+  "hashBasis": "git-blob",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "buildIdentity": "provenance.json",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261116-02.md",
+      "bytes": 9674,
+      "sha256": "66200a65cc3a375ff896fa3d56d684c61dae51b8403d92ccefd16aa03d053bcb",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/playback.json",
+      "bytes": 39104,
+      "sha256": "ec881c9c2ad09f35b30bcc4b1897542a9a53c48ea17be4a0c4272b1181986a85",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/provenance.json",
+      "bytes": 3013,
+      "sha256": "cac5dc4cb819eb81578857fbc590fa463ebd706e7cc0191dfc03e220c127ac6f",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/retry-504-prototype.mjs",
+      "bytes": 7459,
+      "sha256": "e4f5ca28ae3500a84ef9997357da7ad8cb6010443ac05e7a48017b0281174a2c",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/retry-504-variable.mjs",
+      "bytes": 7598,
+      "sha256": "162c4c77c88b48685fd722f8f05aa0f0acb00838e4079392182fbb12cb104aa6",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/variable-fixture.patch",
+      "bytes": 13496,
+      "sha256": "75fed9db6ffa26038ebfa75c303a808243417bafd7479937008a27f36a63de88",
+      "source": "Recorded experiment or fixture source",
+      "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
+    }
+  ]
+}

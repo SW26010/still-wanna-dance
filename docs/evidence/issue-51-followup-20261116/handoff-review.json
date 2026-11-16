@@ -1,0 +1,329 @@
+{
+  "kind": "Retrospective analysis of existing live traces; no new game experiment",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "codeReviewSHA": "a962fd6e0b742d1b8748f829af411737c9c86080",
+  "sourceBatch": "LIVE-20261116-01",
+  "timeBasis": "seconds from each sample first player GET; independent zeros",
+  "units": {
+    "blockIndex": "zero-based, 1MiB each",
+    "handoffLastBlock": "exclusive",
+    "slotSeconds": "sum of execution occupancy, not wall time"
+  },
+  "selection": "Player GET gaps greater than2s; N10R excluded because old synchronization target contaminated initial playback",
+  "scopeNotes": [
+    "Eight gaps in seven selected samples; not a prevalence estimate for normal use.",
+    "Game events are second-resolution; nearby HTTP504 and video-error ordering is not a subsecond causal measurement.",
+    "Resolver GET can arrive before player GET and may create SWD demand; occupancy is cut at the first new GET including resolver.",
+    "A scheduled run lifetime is not an exact socket-cleanup interval.",
+    "laterServerResponseIncludesBlock means successful server response bytes cover that block; it does not prove playback consumption.",
+    "No2s-versus15s handoff counterfactual was executed; savings or recovery benefit are not measured.",
+    "All block completions after hole occurred before these gaps in single-hole samples; cached blocks can still have protection references."
+  ],
+  "samples": [
+    {
+      "id": "O20",
+      "role": "owner",
+      "graceSeconds": 20,
+      "blockedBlocks": "all-blocks-after-warm-prefix",
+      "rawEngineSHA256": "e1fa4fec58ce6bbcb9457fac5267dc4e4d9e80f0c8db2e83b97abcb42d517079",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 48.392,
+          "nextPlayerGETStarted": 54.643,
+          "playerGETGapSeconds": 6.251,
+          "firstNewGETIncludingResolver": 54.19,
+          "videoErrorGame": 47.756,
+          "retryingLoadGame": 52.756,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 48.392,
+              "first": 7,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 63.392,
+              "firstNeedBy": 49.363
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [
+            {
+              "block": 7,
+              "start": 28.389,
+              "end": 66.001,
+              "reason": "execution",
+              "closedAtPlus2": true,
+              "laterServerResponseIncludesBlock": true
+            },
+            {
+              "block": 8,
+              "start": 28.389,
+              "end": 66.001,
+              "reason": "execution",
+              "closedAtPlus2": true,
+              "laterServerResponseIncludesBlock": true
+            }
+          ],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 11.596,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 32,
+          "allBlocksAfterHoleCompletedBy": 66.022
+        }
+      ]
+    },
+    {
+      "id": "N20",
+      "role": "nonowner",
+      "graceSeconds": 20,
+      "blockedBlocks": "all-blocks-after-warm-prefix",
+      "rawEngineSHA256": "39a243ff5e4d9cfb96adba48dee1831983b2a96e8fb5fbe3b34b7296b1280d31",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 48.398,
+          "nextPlayerGETStarted": 54.641,
+          "playerGETGapSeconds": 6.243,
+          "firstNewGETIncludingResolver": 54.195,
+          "videoErrorGame": 48.221,
+          "retryingLoadGame": 53.221,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 48.398,
+              "first": 7,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 63.398,
+              "firstNeedBy": 49.369
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [
+            {
+              "block": 7,
+              "start": 28.389,
+              "end": 66,
+              "reason": "execution",
+              "closedAtPlus2": true,
+              "laterServerResponseIncludesBlock": false
+            },
+            {
+              "block": 15,
+              "start": 28.389,
+              "end": 66,
+              "reason": "execution",
+              "closedAtPlus2": true,
+              "laterServerResponseIncludesBlock": true
+            }
+          ],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 11.594,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 32,
+          "allBlocksAfterHoleCompletedBy": 66.017
+        }
+      ]
+    },
+    {
+      "id": "H10",
+      "role": "nonowner",
+      "graceSeconds": 10,
+      "blockedBlocks": "block2-only",
+      "rawEngineSHA256": "537f86c4874a2127f2206750cb74c281a1f4b2c52c64fe3d895addf76bf48d8b",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 28.395,
+          "nextPlayerGETStarted": 35.098,
+          "playerGETGapSeconds": 6.703,
+          "firstNewGETIncludingResolver": 34.622,
+          "videoErrorGame": 27.76,
+          "retryingLoadGame": 32.76,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 28.395,
+              "first": 5,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 43.395,
+              "firstNeedBy": 30.977
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.029
+        }
+      ]
+    },
+    {
+      "id": "H5",
+      "role": "nonowner",
+      "graceSeconds": 5,
+      "blockedBlocks": "block2-only",
+      "rawEngineSHA256": "71a99d5206e70a1cd05c9d8f0180d0eece028bac6c2a276e6e63ab7f2fb2450a",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 23.484,
+          "nextPlayerGETStarted": 29.745,
+          "playerGETGapSeconds": 6.261,
+          "firstNewGETIncludingResolver": 29.311,
+          "videoErrorGame": 22.641,
+          "retryingLoadGame": 27.641,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 23.484,
+              "first": 4,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 38.484,
+              "firstNeedBy": 26.873
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.017
+        }
+      ]
+    },
+    {
+      "id": "HO5",
+      "role": "owner",
+      "graceSeconds": 5,
+      "blockedBlocks": "block2-only",
+      "rawEngineSHA256": "5aad4b8e469c193ac6aee299ab416451dcb02031097b076261808168b82fa84f",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 18.391,
+          "nextPlayerGETStarted": 24.622,
+          "playerGETGapSeconds": 6.231,
+          "firstNewGETIncludingResolver": 24.177,
+          "videoErrorGame": 18.275,
+          "retryingLoadGame": 23.275,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 18.391,
+              "first": 4,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 33.391,
+              "firstNeedBy": 21.779
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.019
+        },
+        {
+          "previousPlayerGETEnded": 48.038,
+          "nextPlayerGETStarted": 54.316,
+          "playerGETGapSeconds": 6.278,
+          "firstNewGETIncludingResolver": 53.862,
+          "videoErrorGame": 47.275,
+          "retryingLoadGame": 52.275,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 48.038,
+              "first": 4,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 63.038,
+              "firstNeedBy": 51.426
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.019
+        }
+      ]
+    },
+    {
+      "id": "H2",
+      "role": "nonowner",
+      "graceSeconds": 2,
+      "blockedBlocks": "block2-only",
+      "rawEngineSHA256": "1b1fafb8c93fef95b1ac116f2ea0039a31712785fd3ecfb55f3412a55fb06cc9",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 12.391,
+          "nextPlayerGETStarted": 18.642,
+          "playerGETGapSeconds": 6.251,
+          "firstNewGETIncludingResolver": 18.189,
+          "videoErrorGame": 11.854,
+          "retryingLoadGame": 16.854,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 12.391,
+              "first": 3,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 27.391,
+              "firstNeedBy": 14.585
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.018
+        }
+      ]
+    },
+    {
+      "id": "S5",
+      "role": "nonowner",
+      "graceSeconds": 5,
+      "blockedBlocks": "block2-only",
+      "rawEngineSHA256": "b368234c02f1a52c0295bf43ea9b4240df9c170456847c561c99930c65c863be",
+      "gaps": [
+        {
+          "previousPlayerGETEnded": 18.391,
+          "nextPlayerGETStarted": 24.658,
+          "playerGETGapSeconds": 6.267,
+          "firstNewGETIncludingResolver": 24.225,
+          "videoErrorGame": 18.164,
+          "retryingLoadGame": 23.164,
+          "errorToReloadGameSeconds": 5,
+          "previousStatus": 504,
+          "previousOutcome": "expired",
+          "handoffs": [
+            {
+              "t": 18.391,
+              "first": 4,
+              "lastExclusive": 34,
+              "reason": "download_deadline",
+              "until": 33.391,
+              "firstNeedBy": 21.78
+            }
+          ],
+          "scheduledRunsStillActiveTwoSecondsAfterExit": [],
+          "cumulativeSlotSecondsBeforeAnyNewGET": 0,
+          "upstreamBytesBeforeAnyNewGET": 0,
+          "unfinishedBlockCountAtGap": 1,
+          "allBlocksAfterHoleCompletedBy": 0.018
+        }
+      ]
+    }
+  ]
+}

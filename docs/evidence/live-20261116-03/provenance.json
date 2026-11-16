@@ -1,0 +1,113 @@
+{
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "binary": {
+    "file": "variable-engine-30.test.exe",
+    "sha256": "d4cb3f37cdb4e465a4d629f0d0d1e62802b7bd00bec3779a237bf9df5df15fa3",
+    "fixturePatch": "../live-20261116-02/variable-fixture.patch"
+  },
+  "shim": {
+    "file": "../live-20261116-02/retry-504-variable.mjs",
+    "sha256": "162c4c77c88b48685fd722f8f05aa0f0acb00838e4079392182fbb12cb104aa6"
+  },
+  "environment": {
+    "platform": "Windows",
+    "vrchatVersions": [
+      "2026.4.1p1-1937-299983b13b-Release"
+    ]
+  },
+  "configuration": {
+    "role": "nonowner",
+    "ordinarySlots": 2,
+    "blockBytes": 1048576,
+    "graceSeconds": 30,
+    "sourceReleaseAfterFirstPlayerGETSeconds": 66,
+    "holeBlocks": 1,
+    "originalMediaForEverySong": true
+  },
+  "calibration": [
+    {
+      "song": "3214",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "futureSeconds": 0.04706439999999998,
+      "blocked": [
+        {
+          "block": 16,
+          "seconds": 1.0309000000000001
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "1314",
+      "warmBlocks": 14,
+      "holeBlocks": 1,
+      "futureSeconds": 0.009758299999999963,
+      "blocked": [
+        {
+          "block": 14,
+          "seconds": 1.0178548
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "6776",
+      "warmBlocks": 12,
+      "holeBlocks": 1,
+      "futureSeconds": 0.010541999999999916,
+      "blocked": [
+        {
+          "block": 12,
+          "seconds": 1.0192428
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "3136",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "futureSeconds": 0.010588800000000446,
+      "blocked": [
+        {
+          "block": 16,
+          "seconds": 1.0098396000000003
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "media": [
+    {
+      "song": "3214",
+      "bytes": 45849828,
+      "md5": "c123d0dd70b20aabcc2544c4e3fe294b",
+      "durationSeconds": 213.578
+    },
+    {
+      "song": "1314",
+      "bytes": 54919233,
+      "md5": "3590929cbfde34b1e542150d48546150",
+      "durationSeconds": 353.524
+    },
+    {
+      "song": "6776",
+      "bytes": 67256325,
+      "md5": "c156912b596f0dccdda03210bbcdbac2",
+      "durationSeconds": 522.264
+    },
+    {
+      "song": "3136",
+      "bytes": 67222868,
+      "md5": "ce8532582d841b47375eadff0afc4ff8",
+      "durationSeconds": 286.14
+    }
+  ],
+  "limitations": [
+    "Different songs are not matched pairs.",
+    "Injected504 bypasses SWD demand; no production handoff cost conclusion.",
+    "Buffer exhaustion/internal error handling not directly instrumented.",
+    "Three injected cases intentionally switched away; control observed through natural end."
+  ]
+}

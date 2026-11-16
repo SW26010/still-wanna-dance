@@ -10,7 +10,13 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 ## 文件索引
 
+2026-11-16 [跨歌曲预读 504 重复观察](../acceptance/live-acceptance-20261116-03.md)：[清单](live-20261116-03/manifest.json)、[四笔记录](live-20261116-03/playback.json)。三首均在正常播放时收到 504，约 22–34 秒后黑屏、约 7 秒后恢复；关闭注入的另一首正常至自然结束。不同歌曲不是严格配对，未测播放器内部缓存；本批服务已清理。
+
+2026-11-16 [一次提前 504 的正式播放观察](../acceptance/live-acceptance-20261116-02.md)：[清单](live-20261116-02/manifest.json)、[八笔记录](live-20261116-02/playback.json)。补齐连续三块、手动刷新与预读观察；该批预读 504 后约 53 秒才报告黑屏，跨歌曲重复结果见上条。本批实验服务已清理。
+
 2026-11-16 [播放器等待、重请求与下载延续观察](../acceptance/live-acceptance-20261116-01.md)：[清单](live-20261116-01/manifest.json)、[真实引擎播放](live-20261116-01/engine-playback.json)、[直接供数](live-20261116-01/direct-playback.json)、[脚本成本](live-20261116-01/scripted-cost.json)。整理两日 issue #51 正式播放实验，分别记录等待头／正文、总速率 1 Mbps、need-by 与读取时钟、单缺块和短故障，以及 owner 回零、非 owner 跟随进度；保留缓存命中、重叠请求、旧进度、提前结束和未测范围。未改产品默认窗口，未发布原始附件。
+
+同批日志的[请求、504 与交接证据复核](../research/issue-51-retry-handoff-followup-20261116.md)：[交接复核](issue-51-followup-20261116/handoff-review.json)、[原始时钟复核](issue-51-followup-20261116/original-clock-review.json)、[清单](issue-51-followup-20261116/manifest.json)。7 笔样本的 8 次约 6 秒空档对应截止 504 与世界错误恢复；另记录预读样本实际默认码率时钟和媒体时长换算的区别。没有新增游戏样本或 2 秒／15 秒交接收益对照。
 
 2026-11-13 [刷新状态对照与加载窗口复现](../acceptance/live-acceptance-20261113-09.md)：[清单](live-20261113-09/manifest.json)、[三段请求与点击证据](live-20261113-09/midbody.json)。刚卡顿与黑屏但已再次起播时点击触发重载，旧请求可重叠；11577 自动重试加载窗口内再次出现点击无回调，不能再仅记偶发。保留前歌重叠、未命中样本和内部条件未归因的边界。
 

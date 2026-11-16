@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "batch": "issue-51-followup-20261116",
+  "kind": "Existing trace review, subsequent live results and arithmetic timing recalculation",
+  "hashBasis": "git-blob",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "codeReviewSHA": "a962fd6e0b742d1b8748f829af411737c9c86080",
+  "sourceBatch": "LIVE-20261116-01",
+  "buildProvenance": "../live-20261116-01/provenance.json",
+  "files": [
+    {
+      "path": "docs/research/issue-51-retry-handoff-followup-20261116.md",
+      "bytes": 12764,
+      "sha256": "72bf82e9f0f3a8eba371273a34c78d1e3442178b87d3388e75274291427b7055",
+      "source": "Scoped source review and attributed observation summaries; proposal excluded",
+      "sanitization": "No player or room identities, private paths, absolute event times, credentials or full raw logs"
+    },
+    {
+      "path": "docs/evidence/issue-51-followup-20261116/handoff-review.json",
+      "bytes": 11343,
+      "sha256": "8cd541642a7de2f7aa5b6014a9d77c9d32509bb223a77b52f248dcdd59b2d707",
+      "source": "Allowlisted relative timing, handoff and scheduler events from retained original traces",
+      "sanitization": "No player or room identities, private paths, absolute event times, credentials or full raw logs"
+    },
+    {
+      "path": "docs/evidence/issue-51-followup-20261116/original-clock-review.json",
+      "source": "Allowlisted original engine/proxy events and arithmetic recalculation using retained media metadata",
+      "sanitization": "Relative times and media measurements; no identities, private paths, credentials or raw log lines",
+      "bytes": 3084,
+      "sha256": "894032ea16afb30d4c7b7b98868a65f533bf349c2862c6d96354c891b3079b69"
+    }
+  ],
+  "additionalSourceBatches": [
+    "LIVE-20261116-02",
+    "LIVE-20261116-03"
+  ]
+}

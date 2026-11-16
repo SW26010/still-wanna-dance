@@ -1,0 +1,127 @@
+{
+  "status": "interim-evidence-only",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "binarySHA256": "d4cb3f37cdb4e465a4d629f0d0d1e62802b7bd00bec3779a237bf9df5df15fa3",
+  "fixturePatch": "../live-20261116-02/variable-fixture.patch",
+  "shim": "../live-20261116-02/retry-504-variable.mjs",
+  "configuration": {
+    "role": "nonowner",
+    "blockBytes": 1048576,
+    "graceSeconds": 30,
+    "releaseSeconds": 66,
+    "holeBlocks": 1,
+    "observationSeconds": 150
+  },
+  "plannedCases": [
+    {
+      "sample": "on3214",
+      "song": "3214",
+      "warmBlocks": 16,
+      "enabled": true,
+      "estimatedHoleSeconds": 78.15174876660389
+    },
+    {
+      "sample": "on1314",
+      "song": "1314",
+      "warmBlocks": 14,
+      "enabled": true,
+      "estimatedHoleSeconds": 94.49795020873653
+    },
+    {
+      "sample": "on6776",
+      "song": "6776",
+      "warmBlocks": 12,
+      "enabled": true,
+      "estimatedHoleSeconds": 97.70979833893689
+    },
+    {
+      "sample": "off3136",
+      "song": "3136",
+      "warmBlocks": 16,
+      "enabled": false,
+      "estimatedHoleSeconds": 71.41368300799067
+    }
+  ],
+  "calibration": [
+    {
+      "song": "3214",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "futureSeconds": 0.04706439999999998,
+      "blocked": [
+        {
+          "block": 16,
+          "seconds": 1.0309000000000001
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "1314",
+      "warmBlocks": 14,
+      "holeBlocks": 1,
+      "futureSeconds": 0.009758299999999963,
+      "blocked": [
+        {
+          "block": 14,
+          "seconds": 1.0178548
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "6776",
+      "warmBlocks": 12,
+      "holeBlocks": 1,
+      "futureSeconds": 0.010541999999999916,
+      "blocked": [
+        {
+          "block": 12,
+          "seconds": 1.0192428
+        }
+      ],
+      "passed": true
+    },
+    {
+      "song": "3136",
+      "warmBlocks": 16,
+      "holeBlocks": 1,
+      "futureSeconds": 0.010588800000000446,
+      "blocked": [
+        {
+          "block": 16,
+          "seconds": 1.0098396000000003
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "observed": {
+    "song": "3214",
+    "firstPlayerRange": "bytes=0-",
+    "firstPlayerResponse": {
+      "end": 47.155,
+      "bytes": 16777216,
+      "complete": false
+    },
+    "retry": {
+      "t": 47.262,
+      "range": "bytes=16769024-45849827",
+      "injectedStatus": 504
+    },
+    "humanPlaybackFeedbackAvailable": false,
+    "conclusion": "No judgment of visible playback or stable reproduction"
+  },
+  "environmentCheckpoint": {
+    "fourExperimentProcessesRunning": true,
+    "processIdentitiesVerified": true,
+    "hostsUnchanged": true,
+    "cleanupPerformed": false
+  },
+  "limitations": [
+    "Cross-song observations are not matched same-media causal comparisons.",
+    "Byte-to-time estimates do not establish actual playback position.",
+    "No human feedback associated with the recorded504.",
+    "Other planned cases have no recorded live results in this checkpoint."
+  ]
+}

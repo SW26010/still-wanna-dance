@@ -70,6 +70,7 @@ test('diagnostics use the active configuration while preserving the unsaved prox
   const api=await mockAPI(page);await page.goto('/#network-proxy');
   await expect(page.getByRole('combobox',{name:'上游连接',exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
+  await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('external-socks5');
   await page.getByRole('textbox',{name:'SOCKS5 地址',exact:true}).fill('127.0.0.1:7891');
   await expect(page.getByRole('heading',{name:'设置',level:1,exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'检查当前连接',exact:true})).not.toBeVisible();

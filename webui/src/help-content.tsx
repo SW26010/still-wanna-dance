@@ -22,8 +22,8 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
       <p>SWD 默认直连 CF 播放入口，无需配置代理；连接失败或下载慢时，再尝试代理。在<Link href={sectionHref('network-proxy')}>设置 → 网络</Link>中按已有条件选择：</p>
       <ul>
         <li><strong>没有代理，或直连已够用：</strong>「上游连接」选择「直连」，无需准备代理配置。</li>
+        <li><strong>已有Clash配置：</strong>选择「代理」和「<Term description="SWD 内置的代理工具。导入节点配置后，在网络页的代理面板选择节点。">Mihomo (Clash)</Term>」，导入兼容的 YAML／JSON 配置文件，也可选择 Base64 或 URL 来源。单独的节点分享链接不能直接导入；重启后到网络页的代理面板选择节点。</li>
         <li><strong>已有代理软件：</strong>「上游连接」选择「代理」，「代理后端」选择「外部 <Term description="填写代理软件提供的 SOCKS5 地址和端口，让 SWD 通过它下载。">SOCKS5</Term>」，填写该软件提供的 SOCKS5 地址与端口；需要认证时再填用户名和密码。使用期间保持代理软件运行，节点也在该软件中切换。</li>
-        <li><strong>有 Mihomo 配置，想由 SWD 连接：</strong>选择「代理」和「内嵌 <Term description="SWD 内置的代理工具。导入节点配置后，在网络页的代理面板选择节点。">Mihomo</Term>」，导入兼容的 YAML／JSON 配置文件，也可选择 Base64 或 URL 来源。单独的节点分享链接不能直接导入；重启后到网络页的代理面板选择节点。</li>
       </ul>
       <p>修改后点击「保存设置」，再按提示「重启并应用」。到<Link href={pageHref('network')}>网络</Link>页先检查连通性，再运行下载速度测试；检测使用当前已生效的上游。</p>
     </Panel>

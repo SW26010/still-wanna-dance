@@ -5,6 +5,7 @@ test('SOCKS5 validation uses a stable Fluent icon and tooltip without native bub
   const api=await mockAPI(page);
   await page.goto('/#network-proxy');
   await page.getByRole('combobox',{name:'上游连接',exact:true}).selectOption('proxy');
+  await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('external-socks5');
   const address=page.getByRole('textbox',{name:'SOCKS5 地址',exact:true});
   const username=page.getByRole('textbox',{name:'SOCKS5 用户名（可选）',exact:true});
   const before=await username.boundingBox();

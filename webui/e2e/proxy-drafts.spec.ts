@@ -13,6 +13,38 @@ async function inspect(page:Page,text='fixture-node') {
   await page.getByRole('button',{name:'导入',exact:true}).click();
 }
 
+test('first proxy selection prefers Mihomo when no external endpoint is configured',async({page})=>{
+  const api=await mockAPI(page);await page.goto('/#network-proxy');
+  const upstream=page.getByRole('combobox',{name:'上游连接',exact:true});
+  await upstream.selectOption('proxy');
+  const backend=page.getByRole('combobox',{name:'代理后端',exact:true});
+  await expect(backend.locator('option')).toHaveText(['Mihomo (Clash)','外部 SOCKS5']);
+  await expect(backend).toHaveValue('mihomo');
+  await expect(page.getByRole('textbox',{name:'导入配置文件',exact:true})).toBeVisible();
+  await expect(page.getByRole('textbox',{name:/SOCKS5 地址/})).toHaveCount(0);
+  expect(api.calls.some(c=>c.path==='settings')).toBe(false);
+  await backend.selectOption('external-socks5');
+  await page.getByRole('textbox',{name:/SOCKS5 地址/}).fill('127.0.0.1:7891');
+  await upstream.selectOption('direct');await upstream.selectOption('proxy');
+  await expect(backend).toHaveValue('external-socks5');
+  await expect(page.getByRole('textbox',{name:/SOCKS5 地址/})).toHaveValue('127.0.0.1:7891');
+});
+
+test('switching to proxy keeps an existing external SOCKS5 configuration',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.settings.socks5Address='127.0.0.1:1080';
+  await page.goto('/#network-proxy');
+  const upstream=page.getByRole('combobox',{name:'上游连接',exact:true});
+  await upstream.selectOption('proxy');
+  const backend=page.getByRole('combobox',{name:'代理后端',exact:true});
+  await expect(backend).toHaveValue('external-socks5');
+  await expect(page.getByRole('textbox',{name:/SOCKS5 地址/})).toHaveValue('127.0.0.1:1080');
+  await backend.selectOption('mihomo');
+  await upstream.selectOption('direct');await upstream.selectOption('proxy');
+  await expect(backend).toHaveValue('mihomo');
+  expect(api.calls.some(c=>c.path==='settings')).toBe(false);
+});
+
 test('failed settings save retains the draft for retry and success does not discard it',async({page})=>{
   const api=await mockAPI(page);let fail=true;
   await page.route('**/api/proxy/import',r=>r.fulfill({json:report('saved-draft')}));

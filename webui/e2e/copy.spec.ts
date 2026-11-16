@@ -14,6 +14,7 @@ test('key consequences stay near their related choices',async({page})=>{
   const upstream = page.getByRole('combobox',{name:'上游连接',exact:true});
   await expect(upstream.locator('option')).toHaveText(['直连','代理']);
   await upstream.selectOption('proxy');
+  await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('external-socks5');
   await expect(page.getByText('留空保留已有密码；清空用户名可移除认证。',{exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'代理后端',exact:true}).selectOption('mihomo');
   await navigate(page,'加速');await page.getByRole('status',{name:'游戏连接',exact:true}).hover();

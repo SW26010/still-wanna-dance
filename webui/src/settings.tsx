@@ -29,12 +29,15 @@ function NetworkFields({editor}:{editor:SettingsEditor}) {
     : status.proxyNodes?.error?'配置不可用':'未导入配置';
   const chooseFile=()=>{if(!locked)fileInput.current?.click();};
   return <div className="form-grid">
-    <ValidationField name="upstreamMode" label="上游连接"><Select name="upstreamMode" disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({upstreamMode: v.value})}>
+    <ValidationField name="upstreamMode" label="上游连接"><Select name="upstreamMode" disabled={locked} value={d.upstreamMode} onChange={(_, v) => update({
+      upstreamMode: v.value,
+      ...(d.upstreamMode==='direct'&&v.value==='proxy'&&d.proxyBackend==='external-socks5'&&!d.socks5Address.trim()?{proxyBackend:'mihomo'}:{}),
+    })}>
       {!['direct','proxy'].includes(d.upstreamMode)&&<option value={d.upstreamMode}>无效值：{d.upstreamMode||'空'}</option>}
       <option value="direct">直连</option><option value="proxy">代理</option></Select></ValidationField>
 
     {(d.upstreamMode && d.upstreamMode !== 'direct'||!['external-socks5','mihomo'].includes(d.proxyBackend)) && <>
-      <ValidationField name="proxyBackend" label="代理后端"><Select name="proxyBackend" disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}>{!['external-socks5','mihomo'].includes(d.proxyBackend)&&<option value={d.proxyBackend}>无效值：{d.proxyBackend||'空'}</option>}<option value="external-socks5">外部 SOCKS5</option><option value="mihomo">内嵌 Mihomo</option></Select></ValidationField>
+      <ValidationField name="proxyBackend" label="代理后端"><Select name="proxyBackend" disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}>{!['external-socks5','mihomo'].includes(d.proxyBackend)&&<option value={d.proxyBackend}>无效值：{d.proxyBackend||'空'}</option>}<option value="mihomo">Mihomo (Clash)</option><option value="external-socks5">外部 SOCKS5</option></Select></ValidationField>
       {d.proxyBackend !== 'mihomo' ? <>
         <ValidationField name="socks5Address" label="SOCKS5 地址" required hint="代理软件的主机:端口。"><Input name="socks5Address" disabled={connectionDisabled} required value={d.socks5Address} onChange={(_, v) => update({socks5Address: v.value})} placeholder="127.0.0.1:7891" autoComplete="off" /></ValidationField>
         <ValidationField name="socks5Username" label="SOCKS5 用户名（可选）"><Input name="socks5Username" disabled={connectionDisabled} value={d.socks5Username} onChange={(_, v) => update({socks5Username: v.value})} autoComplete="off" /></ValidationField>

@@ -1,0 +1,9 @@
+{
+  "experimentEngineStopped": true,
+  "tlsHelperStopped": true,
+  "captureStopped": true,
+  "experimentPortsWithoutListener": true,
+  "hostsModifiedByExperiment": false,
+  "hostsEqualBefore": true,
+  "rawEvidenceRetainedLocally": true
+}

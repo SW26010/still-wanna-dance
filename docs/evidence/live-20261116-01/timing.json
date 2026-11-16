@@ -1,0 +1,65 @@
+{
+  "stableNeedByRequests": [
+    {
+      "label": "2MiB initial request, natural client cancellation",
+      "grace": 30,
+      "range": "bytes=0-",
+      "requestStart": 0,
+      "lastSuccessfulServerWrite": 0.127,
+      "needBy": 8.389,
+      "requestFinished": 32.859,
+      "observedOutcome": "canceled",
+      "secondsFromLastWriteToFinish": 32.732,
+      "sampleId": "H30"
+    },
+    {
+      "label": "8KiB backtrack replacement, SWD expiration",
+      "grace": 30,
+      "range": "bytes=2088960-35169661",
+      "requestStart": 33.363,
+      "lastSuccessfulServerWrite": 33.364,
+      "needBy": 33.395,
+      "requestFinished": 63.396,
+      "observedOutcome": "expired",
+      "secondsFromLastWriteToFinish": 30.032,
+      "sampleId": "H30"
+    },
+    {
+      "label": "16MiB initial request, natural client cancellation",
+      "grace": 60,
+      "range": "bytes=0-",
+      "requestStart": 0,
+      "lastSuccessfulServerWrite": 12.053,
+      "needBy": 67.109,
+      "requestFinished": 44.623,
+      "observedOutcome": "canceled",
+      "secondsFromLastWriteToFinish": 32.57,
+      "sampleId": "P16"
+    },
+    {
+      "label": "2MiB initial request, grace2 expiration",
+      "grace": 2,
+      "range": "",
+      "requestStart": 0,
+      "lastSuccessfulServerWrite": 0.13,
+      "needBy": 8.388,
+      "requestFinished": 10.388,
+      "observedOutcome": "expired",
+      "secondsFromLastWriteToFinish": 10.258,
+      "sampleId": "H2"
+    }
+  ],
+  "directRepeated75Seconds": {
+    "lastSuccessfulServerWrite": 0.116,
+    "userApproximateVisibleStall": 16.172,
+    "clientCancellation": 31.138,
+    "lastWriteToCancellationSeconds": 31.022000000000002,
+    "visibleStallToCancellationSeconds": 14.966000000000001,
+    "writtenBytes": 2097152
+  },
+  "notes": [
+    "时间均相对各样本的首个播放器GET；不同样本不能按同一个零点直接拼接。",
+    "只保留实测时间，不把server Write当成客户端消费。",
+    "DownloadGrace固定源码实现为ReadyBy+DownloadGrace；来源需求变化可调整截止。"
+  ]
+}

@@ -1,0 +1,354 @@
+diff --git a/internal/cacheproxy/issue51_lab_test.go b/internal/cacheproxy/issue51_lab_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/cacheproxy/issue51_lab_test.go
+@@ -0,0 +1,203 @@
++package cacheproxy
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"io"
++	"log/slog"
++	"net"
++	"net/http"
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"still-wanna-dance/internal/blocksched"
++)
++
++// Private research harness: production engine and scheduler, controlled local
++// media transport. Never compiled into the desktop product.
++func TestIssue51LabServer(t *testing.T) {
++	root, file := os.Getenv("LAB51_ROOT"), os.Getenv("LAB51_FILE")
++	if root == "" || file == "" {
++		t.Skip("explicit isolated lab inputs required")
++	}
++	data, err := os.ReadFile(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	body := string(data)
++	target := videoURL(body)
++	if err = os.MkdirAll(root, 0700); err != nil {
++		t.Fatal(err)
++	}
++	trace, err := os.Create(filepath.Join(root, "engine.jsonl"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer trace.Close()
++	log := slog.New(slog.NewJSONHandler(trace, &slog.HandlerOptions{Level: slog.LevelDebug}))
++	var slowGate *lab51RateGate
++	slowSeconds := 60
++	if value := os.Getenv("LAB51_SLOW_SECONDS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 {
++			t.Fatal("invalid slow duration")
++		}
++		slowSeconds = v
++	}
++	if os.Getenv("LAB51_MODE") == "slow" {
++		slowGate = newLab51RateGate()
++		watchCtx, stopWatch := context.WithCancel(context.Background())
++		t.Cleanup(func() { stopWatch(); slowGate.restore() })
++		go func() {
++			tick := time.NewTicker(20 * time.Millisecond)
++			defer tick.Stop()
++			for {
++				select {
++				case <-watchCtx.Done():
++					return
++				case <-tick.C:
++				}
++				if _, e := os.Stat(filepath.Join(root, "slow-start")); e == nil {
++					break
++				}
++			}
++			slowGate.start(125000)
++			log.Info("lab_rate_started", "aggregate_bytes_per_second", 125000, "duration_seconds", slowSeconds)
++			timer := time.NewTimer(time.Duration(slowSeconds) * time.Second)
++			defer timer.Stop()
++			select {
++			case <-watchCtx.Done():
++				return
++			case <-timer.C:
++			}
++			slowGate.restore()
++			log.Info("lab_rate_restored")
++		}()
++	}
++	var once sync.Once
++	release := make(chan struct{})
++	delay := 66 * time.Second
++	if value := os.Getenv("LAB51_RELEASE_SECONDS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 {
++			t.Fatal("invalid release delay")
++		}
++		delay = time.Duration(v) * time.Second
++	}
++	s, _ := setup(t, nil, func(cfg *Config) {
++		cfg.Logger = log
++		cfg.ObserveDownloadBytes = func(n int64) { log.Info("lab_upstream_bytes", "bytes", n) }
++		cfg.BeginResourceLoad = func() func() {
++			started := time.Now()
++			log.Info("lab_execution_acquired")
++			return func() { log.Info("lab_execution_released", "elapsed_ms", time.Since(started).Milliseconds()) }
++		}
++		cfg.DownloadConcurrencySoftLimit = 2
++		cfg.DownloadGrowInterval = 0
++		cfg.CacheUnlimited = true
++		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
++		cfg.ResourceTransports = func(string) []http.RoundTripper {
++			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
++				resp := fixtureRangeResponse(r, body)
++				var start, end int64
++				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
++				if slowGate != nil {
++					resp.Body = slowGate.reader(r.Context(), resp.Body, start)
++					return resp, nil
++				}
++				if start < 2*DefaultBlockSize {
++					return resp, nil
++				}
++				src := resp.Body
++				sent := int64(0)
++				resp.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
++					if sent >= 128*1024 {
++						select {
++						case <-release:
++						case <-r.Context().Done():
++							return 0, r.Context().Err()
++						}
++					}
++					if sent < 128*1024 && int64(len(p)) > 128*1024-sent {
++						p = p[:128*1024-sent]
++					}
++					n, e := src.Read(p)
++					sent += int64(n)
++					return n, e
++				}))
++				return resp, nil
++			})}
++		}
++	})
++	seedPreview(t, s, body)
++	for _, q := range []string{"INSERT INTO songs(id) VALUES(4598) ON CONFLICT DO NOTHING", fmt.Sprintf("INSERT INTO song_media(song_id,md5) SELECT 4598,md5 FROM song_media WHERE song_id='1' ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5")} {
++		if _, err = s.Store.db.Exec(q); err != nil {
++			t.Fatal(err)
++		}
++	}
++	listener, err := net.Listen("tcp4", os.Getenv("LAB51_LISTEN"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path != "/Api/Songs/play" || r.URL.Query().Get("id") != "4598" {
++			http.NotFound(w, r)
++			return
++		}
++		log.Info("lab_client_request", "method", r.Method, "range", r.Header.Get("Range"), "player", strings.HasPrefix(r.UserAgent(), "NSPlayer/"))
++		if r.Method == "GET" && strings.HasPrefix(r.UserAgent(), "NSPlayer/") {
++			once.Do(func() {
++				log.Info("lab_clock_started", "release_after_seconds", delay.Seconds())
++				if slowGate == nil {
++					go func() { time.Sleep(delay); close(release); log.Info("lab_upstream_released") }()
++				}
++			})
++		}
++		r = r.Clone(r.Context())
++		r.Host = "api.udon.dance"
++		r.URL.Host = r.Host
++		r.URL.Scheme = "http"
++		s.ServeHTTP(w, r)
++	})}
++	done := make(chan error, 1)
++	go func() { done <- server.Serve(listener) }()
++	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "engine uses its unchanged byte-to-time fallback; no catalog duration inserted"}
++	if slowGate != nil {
++		ready["mode"] = "slow"
++		delete(ready, "releaseAfterFirstPlayerGETSeconds")
++		ready["aggregateBytesPerSecond"] = 125000
++		ready["slowSeconds"] = slowSeconds
++		ready["startTrigger"] = "slow-start file after actual OnVideoStart"
++	}
++	readyBytes, _ := json.Marshal(ready)
++	if err = os.WriteFile(filepath.Join(root, "ready.json"), readyBytes, 0600); err != nil {
++		t.Fatal(err)
++	}
++	ticker := time.NewTicker(200 * time.Millisecond)
++	defer ticker.Stop()
++	until := time.NewTimer(15 * time.Minute)
++	defer until.Stop()
++	for {
++		select {
++		case err := <-done:
++			if err != http.ErrServerClosed {
++				t.Fatal(err)
++			}
++			return
++		case <-ticker.C:
++			if _, e := os.Stat(filepath.Join(root, "stop")); e == nil {
++				server.Close()
++				return
++			}
++		case <-until.C:
++			server.Close()
++			t.Fatal("lab watchdog reached")
++		}
++	}
++}
+diff --git a/internal/cacheproxy/issue51_rate_test.go b/internal/cacheproxy/issue51_rate_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/cacheproxy/issue51_rate_test.go
+@@ -0,0 +1,141 @@
++package cacheproxy
++
++import (
++	"bytes"
++	"context"
++	"io"
++	"sync"
++	"testing"
++	"time"
++
++	"golang.org/x/time/rate"
++)
++
++// Private upstream body gate. Every transport in this engine shares one limiter.
++type lab51RateGate struct {
++	started chan struct{}
++	limiter *rate.Limiter
++	limited context.Context
++	restore context.CancelFunc
++}
++
++func newLab51RateGate() *lab51RateGate {
++	ctx, cancel := context.WithCancel(context.Background())
++	return &lab51RateGate{started: make(chan struct{}), limited: ctx, restore: cancel}
++}
++
++func (g *lab51RateGate) start(bytesPerSecond int) {
++	g.limiter = rate.NewLimiter(rate.Limit(bytesPerSecond), 16384)
++	g.limiter.AllowN(time.Now(), 16384) // no initial burst or accumulated idle credit
++	close(g.started)
++}
++
++func (g *lab51RateGate) reader(ctx context.Context, src io.ReadCloser, offset int64) io.ReadCloser {
++	return &lab51RateReader{gate: g, ctx: ctx, src: src, offset: offset}
++}
++
++type lab51RateReader struct {
++	gate   *lab51RateGate
++	ctx    context.Context
++	src    io.ReadCloser
++	offset int64
++}
++
++func (r *lab51RateReader) Close() error { return r.src.Close() }
++func (r *lab51RateReader) Read(p []byte) (int, error) {
++	g := r.gate
++	if err := r.ctx.Err(); err != nil {
++		return 0, err
++	}
++	select {
++	case <-g.started:
++	default:
++		if r.offset < 2*DefaultBlockSize {
++			if int64(len(p)) > 2*DefaultBlockSize-r.offset {
++				p = p[:2*DefaultBlockSize-r.offset]
++			}
++			n, e := r.src.Read(p)
++			r.offset += int64(n)
++			return n, e
++		}
++		select {
++		case <-g.started:
++		case <-r.ctx.Done():
++			return 0, r.ctx.Err()
++		case <-g.limited.Done():
++			return 0, context.Canceled
++		}
++	}
++	if g.limited.Err() == nil {
++		if len(p) > 16384 {
++			p = p[:16384]
++		}
++		waitCtx, cancel := context.WithCancel(r.ctx)
++		stop := context.AfterFunc(g.limited, cancel)
++		err := g.limiter.WaitN(waitCtx, len(p))
++		stop()
++		cancel()
++		if r.ctx.Err() != nil {
++			return 0, r.ctx.Err()
++		}
++		if err != nil && g.limited.Err() == nil {
++			return 0, err
++		}
++	}
++	n, e := r.src.Read(p)
++	r.offset += int64(n)
++	return n, e
++}
++
++func TestLab51SharedRateAndCancel(t *testing.T) {
++	g := newLab51RateGate()
++	defer g.restore()
++	g.start(128 * 1024)
++	payload := bytes.Repeat([]byte{73}, 64*1024)
++	start := time.Now()
++	var wg sync.WaitGroup
++	for range 2 {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			r := g.reader(context.Background(), io.NopCloser(bytes.NewReader(payload)), 2*DefaultBlockSize)
++			got, e := io.ReadAll(r)
++			if e != nil || !bytes.Equal(got, payload) {
++				t.Errorf("payload: %d bytes, %v", len(got), e)
++			}
++		}()
++	}
++	wg.Wait()
++	if elapsed := time.Since(start); elapsed < 950*time.Millisecond {
++		t.Fatalf("aggregate rate exceeded: %v", elapsed)
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	if _, e := g.reader(ctx, io.NopCloser(bytes.NewReader(payload)), 0).Read(make([]byte, 1)); e != context.Canceled {
++		t.Fatalf("cancel: %v", e)
++	}
++	g.restore()
++	start = time.Now()
++	got, e := io.ReadAll(g.reader(context.Background(), io.NopCloser(bytes.NewReader(payload)), 2*DefaultBlockSize))
++	if e != nil || !bytes.Equal(got, payload) || time.Since(start) > time.Second {
++		t.Fatal("restore did not remove rate limit")
++	}
++}
++
++func TestLab51PrestartGate(t *testing.T) {
++	g := newLab51RateGate()
++	defer g.restore()
++	ctx, cancel := context.WithCancel(context.Background())
++	r := g.reader(ctx, io.NopCloser(bytes.NewReader([]byte{1})), 2*DefaultBlockSize)
++	done := make(chan error, 1)
++	go func() { _, e := r.Read(make([]byte, 1)); done <- e }()
++	select {
++	case <-done:
++		t.Fatal("body escaped prestart gate")
++	case <-time.After(30 * time.Millisecond):
++	}
++	cancel()
++	if e := <-done; e != context.Canceled {
++		t.Fatalf("cancel before start: %v", e)
++	}
++}

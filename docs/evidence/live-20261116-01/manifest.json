@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261116-01",
+  "sourceBatches": [
+    "LIVE-20261115-01",
+    "LIVE-20261116-01"
+  ],
+  "hashBasis": "git-blob",
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "buildIdentity": "provenance.json#builds",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261116-01.md",
+      "bytes": 14722,
+      "sha256": "49257b7216ceafe48824472a7e7ec5767e3682403f1d91fa453fb68c946c02fc",
+      "source": "Operator observations and scoped server/game evidence",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/cleanup.json",
+      "bytes": 238,
+      "sha256": "8447a699248ae5feb4efa78899eca3e13f565f6268854c4bcccd4da235934671",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/direct-playback.json",
+      "bytes": 26521,
+      "sha256": "4ca922591a54627f92c1ff2f4019771c5a3df655de6b80f3642e60dc69dac2d4",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/engine-playback.json",
+      "bytes": 141498,
+      "sha256": "da9e34ce79f6eb7390f7eee572d2f72700d5f59a8b72d544e233dcdd461b6ef0",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/clock.patch",
+      "bytes": 12878,
+      "sha256": "77f818dfd2443629b14d467a1ab3ff5830b80cade0ed30b6c6cf166c5e7babd8",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/fresh.patch",
+      "bytes": 11007,
+      "sha256": "995360d9abf69bf50b8ea2dfc81cdca10288d443ad064b7ad35178bc53ab2c16",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/hole.patch",
+      "bytes": 13032,
+      "sha256": "9492096a4d971dc884ff746fdc8c5b630ee700785ffbe63aeb40cb01ebf29e1d",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/original.patch",
+      "bytes": 5118,
+      "sha256": "f1d26fb4dc9e0b73f87ea70aefb72f26b6a68b06e66cadb7bdcd6024089ce507",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/probe-header.patch",
+      "bytes": 22374,
+      "sha256": "4130eb60a2c0d5e0bccbcf5d2bd4dfc5d77f6e4cc4cc67bb166b9724ed9d91a6",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/probe-rate.patch",
+      "bytes": 19067,
+      "sha256": "7830060c99132e2bedea9834c52f31bfa151b28560c5eea99176c44579f7245e",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/fixtures/rate.patch",
+      "bytes": 10606,
+      "sha256": "c80e65a6ca04031f6e26f0b71bbc42349e3e22f7defe5849d533c24559f62ec4",
+      "source": "Recorded experimental fixture source; fixed-commit patch",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/provenance.json",
+      "bytes": 12832,
+      "sha256": "d12bc223137f49c6b7ff20d00eba2dfe674c5f65508558ca1b60a4386d39770b",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/sample-limitations.json",
+      "bytes": 1626,
+      "sha256": "2fe421aa3209d09d4cf78d41ca11039f1cae03404e574350a393b05781d2f0d5",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/scripted-cost.json",
+      "bytes": 5863,
+      "sha256": "a690b5178b87637bbdbffeb0c65614939b8de8b3a83900f084c90120432266e2",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    },
+    {
+      "path": "docs/evidence/live-20261116-01/timing.json",
+      "bytes": 2056,
+      "sha256": "037c69656f29fb6f34b811ffb8265747ff3c0ed6fd784929d2e3ca59194b42d1",
+      "source": "Allowlisted observations, measurements or source fingerprints",
+      "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
+    }
+  ]
+}

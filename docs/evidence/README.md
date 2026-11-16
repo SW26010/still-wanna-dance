@@ -10,6 +10,8 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 ## 文件索引
 
+2026-11-16 [播放器等待、重请求与下载延续观察](../acceptance/live-acceptance-20261116-01.md)：[清单](live-20261116-01/manifest.json)、[真实引擎播放](live-20261116-01/engine-playback.json)、[直接供数](live-20261116-01/direct-playback.json)、[脚本成本](live-20261116-01/scripted-cost.json)。整理两日 issue #51 正式播放实验，分别记录等待头／正文、总速率 1 Mbps、need-by 与读取时钟、单缺块和短故障，以及 owner 回零、非 owner 跟随进度；保留缓存命中、重叠请求、旧进度、提前结束和未测范围。未改产品默认窗口，未发布原始附件。
+
 2026-11-13 [刷新状态对照与加载窗口复现](../acceptance/live-acceptance-20261113-09.md)：[清单](live-20261113-09/manifest.json)、[三段请求与点击证据](live-20261113-09/midbody.json)。刚卡顿与黑屏但已再次起播时点击触发重载，旧请求可重叠；11577 自动重试加载窗口内再次出现点击无回调，不能再仅记偶发。保留前歌重叠、未命中样本和内部条件未归因的边界。
 
 2026-11-13 [正常播放手动刷新对照](../acceptance/live-acceptance-20261113-08.md)：[清单](live-20261113-08/manifest.json)、[按钮、重载与 Range](live-20261113-08/midbody.json)。非 owner 正常播放单击有即时重载回调，Range 回零后前跳，音画与当前进度正常；与加载中点击不同，内部条件未归因。

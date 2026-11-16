@@ -1,0 +1,220 @@
+{
+  "kind": "scripted clients; not game playback",
+  "noRecovery": [
+    {
+      "grace": 20,
+      "client": {
+        "kind": "scripted client, no inactivity retry; upstream restoration later than this observation",
+        "grace": 20,
+        "status": 206,
+        "headersSeconds": 0.027,
+        "end": "TypeError",
+        "cause": "UND_ERR_SOCKET",
+        "seconds": 28.409,
+        "bytes": 2097152
+      },
+      "upstreamBytes": 2752512,
+      "bytesNotDeliveredToClient": 655360,
+      "executionCount": 7,
+      "totalExecutionMilliseconds": 86772,
+      "lastExecutionReleasedSeconds": 43.389,
+      "deadlineRetirements": 1,
+      "block2": [
+        {
+          "t": 0.001,
+          "event": "queued",
+          "reason": "demand",
+          "needBy": 8.388,
+          "waitSince": null
+        },
+        {
+          "t": 0.002,
+          "event": "started",
+          "reason": "demand",
+          "needBy": 8.388,
+          "waitSince": null
+        },
+        {
+          "t": 28.389,
+          "event": "retired",
+          "reason": "download_deadline",
+          "needBy": 8.388,
+          "waitSince": 0.011
+        }
+      ],
+      "upstreamReleased": false
+    },
+    {
+      "grace": 30,
+      "client": {
+        "kind": "scripted client, no inactivity retry; upstream restoration later than this observation",
+        "grace": 30,
+        "status": 206,
+        "headersSeconds": 0.028,
+        "end": "TypeError",
+        "cause": "UND_ERR_SOCKET",
+        "seconds": 38.411,
+        "bytes": 2097152
+      },
+      "upstreamBytes": 2752512,
+      "bytesNotDeliveredToClient": 655360,
+      "executionCount": 9,
+      "totalExecutionMilliseconds": 106771,
+      "lastExecutionReleasedSeconds": 53.391,
+      "deadlineRetirements": 1,
+      "block2": [
+        {
+          "t": 0.002,
+          "event": "queued",
+          "reason": "demand",
+          "needBy": 8.39,
+          "waitSince": null
+        },
+        {
+          "t": 0.003,
+          "event": "started",
+          "reason": "demand",
+          "needBy": 8.39,
+          "waitSince": null
+        },
+        {
+          "t": 38.39,
+          "event": "retired",
+          "reason": "download_deadline",
+          "needBy": 8.39,
+          "waitSince": 0.012
+        }
+      ],
+      "upstreamReleased": false
+    },
+    {
+      "grace": 35,
+      "client": {
+        "kind": "scripted client, no inactivity retry; upstream restoration later than this observation",
+        "grace": 35,
+        "status": 206,
+        "headersSeconds": 0.027,
+        "end": "TypeError",
+        "cause": "UND_ERR_SOCKET",
+        "seconds": 43.41,
+        "bytes": 2097152
+      },
+      "upstreamBytes": 2752512,
+      "bytesNotDeliveredToClient": 655360,
+      "executionCount": 9,
+      "totalExecutionMilliseconds": 116770,
+      "lastExecutionReleasedSeconds": 58.389,
+      "deadlineRetirements": 1,
+      "block2": [
+        {
+          "t": 0.001,
+          "event": "queued",
+          "reason": "demand",
+          "needBy": 8.388,
+          "waitSince": null
+        },
+        {
+          "t": 0.002,
+          "event": "started",
+          "reason": "demand",
+          "needBy": 8.388,
+          "waitSince": null
+        },
+        {
+          "t": 43.389,
+          "event": "retired",
+          "reason": "download_deadline",
+          "needBy": 8.388,
+          "waitSince": 0.01
+        }
+      ],
+      "upstreamReleased": false
+    },
+    {
+      "grace": 60,
+      "client": {
+        "kind": "scripted client, no inactivity retry; upstream restoration later than this observation",
+        "grace": 60,
+        "status": 206,
+        "headersSeconds": 0.028,
+        "end": "TypeError",
+        "cause": "UND_ERR_SOCKET",
+        "seconds": 68.411,
+        "bytes": 2097152
+      },
+      "upstreamBytes": 2883584,
+      "bytesNotDeliveredToClient": 786432,
+      "executionCount": 12,
+      "totalExecutionMilliseconds": 166771,
+      "lastExecutionReleasedSeconds": 83.391,
+      "deadlineRetirements": 1,
+      "block2": [
+        {
+          "t": 0.002,
+          "event": "queued",
+          "reason": "demand",
+          "needBy": 8.39,
+          "waitSince": null
+        },
+        {
+          "t": 0.003,
+          "event": "started",
+          "reason": "demand",
+          "needBy": 8.39,
+          "waitSince": null
+        },
+        {
+          "t": 68.39,
+          "event": "retired",
+          "reason": "download_deadline",
+          "needBy": 8.39,
+          "waitSince": 0.012
+        }
+      ],
+      "upstreamReleased": false
+    }
+  ],
+  "abandonAt10Seconds": [
+    {
+      "grace": 30,
+      "client": {
+        "kind": "script client cancels at10 seconds; no retry",
+        "grace": 30,
+        "status": 206,
+        "end": "TimeoutError",
+        "seconds": 10.015,
+        "bytes": 2097152,
+        "executionsDrainedBeforeEngineStop": true
+      },
+      "upstreamBytes": 2359296,
+      "bytesNotDeliveredToClient": 262144,
+      "executionCount": 4,
+      "totalExecutionMilliseconds": 23976,
+      "lastExecutionReleasedSeconds": 11.992,
+      "upstreamReleased": false
+    },
+    {
+      "grace": 60,
+      "client": {
+        "kind": "script client cancels at10 seconds; no retry",
+        "grace": 60,
+        "status": 206,
+        "end": "TimeoutError",
+        "seconds": 10.015,
+        "bytes": 2097152,
+        "executionsDrainedBeforeEngineStop": true
+      },
+      "upstreamBytes": 2359296,
+      "bytesNotDeliveredToClient": 262144,
+      "executionCount": 4,
+      "totalExecutionMilliseconds": 23977,
+      "lastExecutionReleasedSeconds": 11.992,
+      "upstreamReleased": false
+    }
+  ],
+  "notes": [
+    "未交付此客户端的字节不是永久无用传输的测量值。",
+    "退出后执行释放在停止实验服务之前完成。",
+    "没有并发竞争用户，不测量其实际等待。"
+  ]
+}

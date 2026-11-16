@@ -1,0 +1,156 @@
+diff --git a/internal/cacheproxy/issue51_lab_test.go b/internal/cacheproxy/issue51_lab_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/cacheproxy/issue51_lab_test.go
+@@ -0,0 +1,151 @@
++package cacheproxy
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"io"
++	"log/slog"
++	"net"
++	"net/http"
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"still-wanna-dance/internal/blocksched"
++)
++
++// Private research harness: production engine and scheduler, controlled local
++// media transport. Never compiled into the desktop product.
++func TestIssue51LabServer(t *testing.T) {
++	root, file := os.Getenv("LAB51_ROOT"), os.Getenv("LAB51_FILE")
++	if root == "" || file == "" {
++		t.Skip("explicit isolated lab inputs required")
++	}
++	data, err := os.ReadFile(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	body := string(data)
++	target := videoURL(body)
++	if err = os.MkdirAll(root, 0700); err != nil {
++		t.Fatal(err)
++	}
++	trace, err := os.Create(filepath.Join(root, "engine.jsonl"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer trace.Close()
++	log := slog.New(slog.NewJSONHandler(trace, &slog.HandlerOptions{Level: slog.LevelDebug}))
++	var once sync.Once
++	release := make(chan struct{})
++	delay := 66 * time.Second
++	if value := os.Getenv("LAB51_RELEASE_SECONDS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 {
++			t.Fatal("invalid release delay")
++		}
++		delay = time.Duration(v) * time.Second
++	}
++	s, _ := setup(t, nil, func(cfg *Config) {
++		cfg.Logger = log
++		cfg.ObserveDownloadBytes = func(n int64) { log.Info("lab_upstream_bytes", "bytes", n) }
++		cfg.BeginResourceLoad = func() func() {
++			started := time.Now()
++			log.Info("lab_execution_acquired")
++			return func() { log.Info("lab_execution_released", "elapsed_ms", time.Since(started).Milliseconds()) }
++		}
++		cfg.DownloadConcurrencySoftLimit = 2
++		cfg.DownloadGrowInterval = 0
++		cfg.CacheUnlimited = true
++		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
++		cfg.ResourceTransports = func(string) []http.RoundTripper {
++			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
++				resp := fixtureRangeResponse(r, body)
++				var start, end int64
++				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
++				if start < 2*DefaultBlockSize {
++					return resp, nil
++				}
++				src := resp.Body
++				sent := int64(0)
++				resp.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
++					if sent >= 128*1024 {
++						select {
++						case <-release:
++						case <-r.Context().Done():
++							return 0, r.Context().Err()
++						}
++					}
++					if sent < 128*1024 && int64(len(p)) > 128*1024-sent {
++						p = p[:128*1024-sent]
++					}
++					n, e := src.Read(p)
++					sent += int64(n)
++					return n, e
++				}))
++				return resp, nil
++			})}
++		}
++	})
++	seedPreview(t, s, body)
++	for _, q := range []string{"INSERT INTO songs(id) VALUES(4598) ON CONFLICT DO NOTHING", fmt.Sprintf("INSERT INTO song_media(song_id,md5) SELECT 4598,md5 FROM song_media WHERE song_id='1' ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5")} {
++		if _, err = s.Store.db.Exec(q); err != nil {
++			t.Fatal(err)
++		}
++	}
++	listener, err := net.Listen("tcp4", os.Getenv("LAB51_LISTEN"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path != "/Api/Songs/play" || r.URL.Query().Get("id") != "4598" {
++			http.NotFound(w, r)
++			return
++		}
++		log.Info("lab_client_request", "method", r.Method, "range", r.Header.Get("Range"), "player", strings.HasPrefix(r.UserAgent(), "NSPlayer/"))
++		if r.Method == "GET" && strings.HasPrefix(r.UserAgent(), "NSPlayer/") {
++			once.Do(func() {
++				log.Info("lab_clock_started", "release_after_seconds", delay.Seconds())
++				go func() { time.Sleep(delay); close(release); log.Info("lab_upstream_released") }()
++			})
++		}
++		r = r.Clone(r.Context())
++		r.Host = "api.udon.dance"
++		r.URL.Host = r.Host
++		r.URL.Scheme = "http"
++		s.ServeHTTP(w, r)
++	})}
++	done := make(chan error, 1)
++	go func() { done <- server.Serve(listener) }()
++	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "engine uses its unchanged byte-to-time fallback; no catalog duration inserted"}
++	readyBytes, _ := json.Marshal(ready)
++	if err = os.WriteFile(filepath.Join(root, "ready.json"), readyBytes, 0600); err != nil {
++		t.Fatal(err)
++	}
++	ticker := time.NewTicker(200 * time.Millisecond)
++	defer ticker.Stop()
++	until := time.NewTimer(15 * time.Minute)
++	defer until.Stop()
++	for {
++		select {
++		case err := <-done:
++			if err != http.ErrServerClosed {
++				t.Fatal(err)
++			}
++			return
++		case <-ticker.C:
++			if _, e := os.Stat(filepath.Join(root, "stop")); e == nil {
++				server.Close()
++				return
++			}
++		case <-until.C:
++			server.Close()
++			t.Fatal("lab watchdog reached")
++		}
++	}
++}

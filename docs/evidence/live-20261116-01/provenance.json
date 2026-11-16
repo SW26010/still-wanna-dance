@@ -1,0 +1,333 @@
+{
+  "batch": "LIVE-20261116-01",
+  "sourceBatches": [
+    "LIVE-20261115-01",
+    "LIVE-20261116-01"
+  ],
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "snapshot": "fixed commit archive; unrelated workspace changes excluded",
+  "productReleasePackageTested": false,
+  "builds": [
+    {
+      "family": "original",
+      "graceSeconds": 30,
+      "file": "engine-30.test.exe",
+      "sha256": "5585b256f5fb03228a8459490c4b922b7c19c63220f98a88b800ffa90f4d5d33"
+    },
+    {
+      "family": "original",
+      "graceSeconds": 60,
+      "file": "engine-60.test.exe",
+      "sha256": "0db3b5b8ec7c5bdb1997d310fd1880ef25205b1e0964c5615579a160b5dabdd3"
+    },
+    {
+      "family": "rate",
+      "graceSeconds": 20,
+      "file": "rate-engine-20.test.exe",
+      "sha256": "593a0b2a906a909f5860c40a42ba7bb03ff6d99f19ce1e29ab0779420354027c"
+    },
+    {
+      "family": "rate",
+      "graceSeconds": 30,
+      "file": "rate-engine-30.test.exe",
+      "sha256": "c1df93eac0c2f1ada9c7afa4ee72bef347cdd252061a250c32fe7a377bfa7370"
+    },
+    {
+      "family": "rate",
+      "graceSeconds": 35,
+      "file": "rate-engine-35.test.exe",
+      "sha256": "78ae2c2806751695ebf0029d015ecc267d7117a0389b6773dd7492a556de4252"
+    },
+    {
+      "family": "rate",
+      "graceSeconds": 60,
+      "file": "rate-engine-60.test.exe",
+      "sha256": "4942d419e8ff4ca29c2af7858d992a1120eb61b3d67b73080e5db4c87c903e2d"
+    },
+    {
+      "family": "clock",
+      "graceSeconds": 60,
+      "file": "clock-engine-60.test.exe",
+      "sha256": "976395e8bc4e772288b29ddc3df6b64a8bc485fb341442f2fca6b46e8531ecc4"
+    },
+    {
+      "family": "clock",
+      "graceSeconds": 10,
+      "file": "clock-engine-10.test.exe",
+      "sha256": "16abb7e644e69e22e7598686617f9a49a13582dd6c69a5e26c5b4f057e06c04d"
+    },
+    {
+      "family": "hole",
+      "graceSeconds": 10,
+      "file": "hole-engine-10.test.exe",
+      "sha256": "2f4042073872bc75edbbe448a1bfaf7b73cccf0f6ae83748bb16eca42e0cd154"
+    },
+    {
+      "family": "hole",
+      "graceSeconds": 30,
+      "file": "hole-engine-30.test.exe",
+      "sha256": "cb834fe314fdcfd2840950aebd2e6d3fe91eb9232128dcd25c1fe2eba20ca25a"
+    },
+    {
+      "family": "hole",
+      "graceSeconds": 5,
+      "file": "hole-engine-5.test.exe",
+      "sha256": "ee7dc431c51fe602fd762ce6474551e40c0ae11f9f0fd76a3b8be4732c43c7bb"
+    },
+    {
+      "family": "hole",
+      "graceSeconds": 2,
+      "file": "hole-engine-2.test.exe",
+      "sha256": "2a100752ac5f3647cf9a7915db26244713cac2086bfff5bd59a7987febe498e8"
+    },
+    {
+      "family": "fresh",
+      "graceSeconds": 20,
+      "file": "fresh-engine-20.test.exe",
+      "sha256": "f332c42ac16e920d578e5c2541df0cec64bfb365901ae8b56499521b6f2c1647"
+    },
+    {
+      "family": "direct",
+      "file": "live-get-probe.exe",
+      "sha256": "08ac87eee1de95b5f7c73a0c6b020189c3d09955792bacb4d2f9bf03eb556cc9"
+    },
+    {
+      "family": "probe-rate",
+      "file": "live-get-probe.exe",
+      "sha256": "f27aed8b1810491c8d0707d89a6824eb07d07a5ddd27b334a76b9ac89aac1581"
+    },
+    {
+      "family": "probe-header",
+      "file": "header-probe.exe",
+      "sha256": "960f583a238959ca7f4e44717ffe5f067e802030826157b5ce97b01ca3a98528"
+    }
+  ],
+  "fixturePatches": [
+    {
+      "family": "original",
+      "patch": "fixtures/original.patch",
+      "patchSHA256": "f1d26fb4dc9e0b73f87ea70aefb72f26b6a68b06e66cadb7bdcd6024089ce507",
+      "files": [
+        {
+          "path": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256LF": "3b198fea277a9e346496b5a74209f53501bb962b6da42a6328553ef3c2ad94ab",
+          "originalFileSHA256": "3b198fea277a9e346496b5a74209f53501bb962b6da42a6328553ef3c2ad94ab"
+        }
+      ]
+    },
+    {
+      "family": "rate",
+      "patch": "fixtures/rate.patch",
+      "patchSHA256": "c80e65a6ca04031f6e26f0b71bbc42349e3e22f7defe5849d533c24559f62ec4",
+      "files": [
+        {
+          "path": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256LF": "fc46eb87142d00ef56c655f34c7ee603acf5a309209abc66150a00cf5914c695",
+          "originalFileSHA256": "fc46eb87142d00ef56c655f34c7ee603acf5a309209abc66150a00cf5914c695"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256LF": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697",
+          "originalFileSHA256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        }
+      ]
+    },
+    {
+      "family": "fresh",
+      "patch": "fixtures/fresh.patch",
+      "patchSHA256": "995360d9abf69bf50b8ea2dfc81cdca10288d443ad064b7ad35178bc53ab2c16",
+      "files": [
+        {
+          "path": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256LF": "983a954a9da9d35730bc03f043710aee4dad3a392361793bab30fadd3e8027de",
+          "originalFileSHA256": "983a954a9da9d35730bc03f043710aee4dad3a392361793bab30fadd3e8027de"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256LF": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697",
+          "originalFileSHA256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        }
+      ]
+    },
+    {
+      "family": "clock",
+      "patch": "fixtures/clock.patch",
+      "patchSHA256": "77f818dfd2443629b14d467a1ab3ff5830b80cade0ed30b6c6cf166c5e7babd8",
+      "files": [
+        {
+          "path": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256LF": "faaaf01e34f6bdb20f26c3a25469266fd8433cb1f48a8af238ce23896182b022",
+          "originalFileSHA256": "faaaf01e34f6bdb20f26c3a25469266fd8433cb1f48a8af238ce23896182b022"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256LF": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697",
+          "originalFileSHA256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_supply_test.go",
+          "sha256LF": "b8ca0d5b99c16bfcbf7b0cbaa65d19db2758df8c7c425598a04bf46913a79f69",
+          "originalFileSHA256": "b8ca0d5b99c16bfcbf7b0cbaa65d19db2758df8c7c425598a04bf46913a79f69"
+        }
+      ]
+    },
+    {
+      "family": "hole",
+      "patch": "fixtures/hole.patch",
+      "patchSHA256": "9492096a4d971dc884ff746fdc8c5b630ee700785ffbe63aeb40cb01ebf29e1d",
+      "files": [
+        {
+          "path": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256LF": "d544466097487f480c8c57094a7c8a52f55c463f3db1af5131be8e6ab8b44d39",
+          "originalFileSHA256": "d544466097487f480c8c57094a7c8a52f55c463f3db1af5131be8e6ab8b44d39"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256LF": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697",
+          "originalFileSHA256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        },
+        {
+          "path": "internal/cacheproxy/issue51_supply_test.go",
+          "sha256LF": "b8ca0d5b99c16bfcbf7b0cbaa65d19db2758df8c7c425598a04bf46913a79f69",
+          "originalFileSHA256": "b8ca0d5b99c16bfcbf7b0cbaa65d19db2758df8c7c425598a04bf46913a79f69"
+        }
+      ]
+    },
+    {
+      "family": "probe-rate",
+      "patch": "fixtures/probe-rate.patch",
+      "patchSHA256": "7830060c99132e2bedea9834c52f31bfa151b28560c5eea99176c44579f7245e",
+      "files": [
+        {
+          "path": "experiments/live-get-probe/body.go",
+          "sha256LF": "74e71a5dea62927939e608ceba8e81dafc7090a1141064c848c4a8b7b7edd9b7",
+          "originalFileSHA256": "74e71a5dea62927939e608ceba8e81dafc7090a1141064c848c4a8b7b7edd9b7"
+        },
+        {
+          "path": "experiments/live-get-probe/body_rate_test.go",
+          "sha256LF": "ee226e37208aa29fff94c71d29895a76869783383a0e1a3b2a17520ad8a62ee3",
+          "originalFileSHA256": "ee226e37208aa29fff94c71d29895a76869783383a0e1a3b2a17520ad8a62ee3"
+        }
+      ]
+    },
+    {
+      "family": "probe-header",
+      "patch": "fixtures/probe-header.patch",
+      "patchSHA256": "4130eb60a2c0d5e0bccbcf5d2bd4dfc5d77f6e4cc4cc67bb166b9724ed9d91a6",
+      "files": [
+        {
+          "path": "experiments/live-get-probe/body.go",
+          "sha256LF": "267926cf5ff90e6826200e95966af93c3f30ae7d59a5c45eafb0f51919dc4c6e",
+          "originalFileSHA256": "267926cf5ff90e6826200e95966af93c3f30ae7d59a5c45eafb0f51919dc4c6e"
+        },
+        {
+          "path": "experiments/live-get-probe/body_rate_test.go",
+          "sha256LF": "ee226e37208aa29fff94c71d29895a76869783383a0e1a3b2a17520ad8a62ee3",
+          "originalFileSHA256": "ee226e37208aa29fff94c71d29895a76869783383a0e1a3b2a17520ad8a62ee3"
+        },
+        {
+          "path": "experiments/live-get-probe/header_gate_test.go",
+          "sha256LF": "a59016291318218687709b225bc1f734c2febe368da26e97483c2b63c9aa8175",
+          "originalFileSHA256": "a59016291318218687709b225bc1f734c2febe368da26e97483c2b63c9aa8175"
+        }
+      ]
+    }
+  ],
+  "buildParameters": {
+    "engine": "node scripts/go-patches.mjs test -c -tags no_easytier ./internal/cacheproxy",
+    "run": "-test.run ^TestIssue51LabServer$ -test.v -test.timeout 16m",
+    "policy": "replace DownloadGrace constant in isolated source with the listed grace before building; restore afterwards",
+    "inputs": "LAB51_FILE points to locally verified media; LAB51_ROOT is isolated data; LAB51_LISTEN is loopback",
+    "optionalInputs": [
+      "LAB51_RELEASE_SECONDS",
+      "LAB51_FORCE_FRESH",
+      "LAB51_WARM_BLOCKS",
+      "LAB51_SINGLE_HOLE"
+    ],
+    "artifactBoundary": "No executables, media or full logs are included."
+  },
+  "environment": {
+    "platform": "Windows; local loopback controlled origin",
+    "vrchatVersions": [
+      "2026.4.1p1-1937-299983b13b-Release"
+    ],
+    "worldVersion": "20261115135121",
+    "roles": [
+      "owner",
+      "nonowner"
+    ],
+    "privateIdentities": "omitted"
+  },
+  "rawInputFingerprints": [
+    {
+      "sampleId": "O30",
+      "engineLogSHA256": "24d4fa5831cbbfc9f321c98baaddc245ddfb0c66d1ff15c0f18d5705b6aedad2",
+      "gameSnapshotSHA256": null
+    },
+    {
+      "sampleId": "O60",
+      "engineLogSHA256": "46cce5ce10fa8f3de9796018a749cbfc3678a4236810c2aea195ca0017df63a9",
+      "gameSnapshotSHA256": null
+    },
+    {
+      "sampleId": "O35",
+      "engineLogSHA256": "831cf1cb7cd5472555cbe77b3ef544d3a3bfb734a10ba14c73e29c148fd25b81",
+      "gameSnapshotSHA256": null
+    },
+    {
+      "sampleId": "O20",
+      "engineLogSHA256": "e1fa4fec58ce6bbcb9457fac5267dc4e4d9e80f0c8db2e83b97abcb42d517079",
+      "gameSnapshotSHA256": null
+    },
+    {
+      "sampleId": "N20",
+      "engineLogSHA256": "39a243ff5e4d9cfb96adba48dee1831983b2a96e8fb5fbe3b34b7296b1280d31",
+      "gameSnapshotSHA256": "58aaa34ee966992c5d430a91cfadec28708551e9c633855c8b2e078e3a943ec4"
+    },
+    {
+      "sampleId": "P16",
+      "engineLogSHA256": "82b38ccd6fe259bd3224ef0e3a810afa69dfe409dd310d83c0c6de406ec3ee9a",
+      "gameSnapshotSHA256": "6d0e00b78c791e88d224250d2987f9c32acdd1408000d05520b3490ab0ed6714"
+    },
+    {
+      "sampleId": "N10R",
+      "engineLogSHA256": "a199dee61e21234900f03e0e808b70ff784da7db0736cea88d137001dbc7658f",
+      "gameSnapshotSHA256": "223124e1f048637d0cd56226e8f2b93113aaefc554e9427273c1b9f7bfcd12fb"
+    },
+    {
+      "sampleId": "H10",
+      "engineLogSHA256": "537f86c4874a2127f2206750cb74c281a1f4b2c52c64fe3d895addf76bf48d8b",
+      "gameSnapshotSHA256": "3f0b032cdfb2ed1f89d45fb144b7a5d0f47ff9ae5912c43589fdbd0503f5e58e"
+    },
+    {
+      "sampleId": "H30",
+      "engineLogSHA256": "69cce75057446846aa59191cc839a5cf64e8bae47d8b4048f5ab01e2154d9767",
+      "gameSnapshotSHA256": "384e59d4c163c4b76d9e0b5fee2651c70e4670dc8a80172da8a57cbfd67f1ef3"
+    },
+    {
+      "sampleId": "H5",
+      "engineLogSHA256": "71a99d5206e70a1cd05c9d8f0180d0eece028bac6c2a276e6e63ab7f2fb2450a",
+      "gameSnapshotSHA256": "39eeec559df78c4186fde07c81bb9c68b72e17f9df50b60bc51648073a169b7f"
+    },
+    {
+      "sampleId": "HO5",
+      "engineLogSHA256": "5aad4b8e469c193ac6aee299ab416451dcb02031097b076261808168b82fa84f",
+      "gameSnapshotSHA256": "1103ead89a3da93421dba0767aee5e00f237c62b9a7cdbaf2b0053aaeb365633"
+    },
+    {
+      "sampleId": "H2",
+      "engineLogSHA256": "1b1fafb8c93fef95b1ac116f2ea0039a31712785fd3ecfb55f3412a55fb06cc9",
+      "gameSnapshotSHA256": "cf3c6d3a11f921bc2a45de01b82c01d3c2e7b2552cb468009d9f3a878cee9bb6"
+    },
+    {
+      "sampleId": "S5",
+      "engineLogSHA256": "b368234c02f1a52c0295bf43ea9b4240df9c170456847c561c99930c65c863be",
+      "gameSnapshotSHA256": "d2f2dfba95eb403ae1745dedb4681a74f2dbc9b17328fa97fdfc795d72aa093b"
+    },
+    {
+      "sampleId": "S30",
+      "engineLogSHA256": "2ef317347191ba6cef6376f0738feee05d39ca9a919f9adeb86268bd3e949e16",
+      "gameSnapshotSHA256": "8a1a389c023187b71e9d2c3d8da89b9e19b167a7c59ad47930b2b2a328485e7c"
+    }
+  ]
+}

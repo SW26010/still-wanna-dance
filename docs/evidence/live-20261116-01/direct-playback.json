@@ -1,0 +1,1106 @@
+{
+  "timeBasis": "each sample has an independent zero at its first player GET",
+  "samples": [
+    {
+      "id": "D75a",
+      "sourceBatch": "LIVE-20261115-01",
+      "timeBasis": "seconds from first player GET",
+      "holdAfterPrefixSeconds": null,
+      "requests": [
+        {
+          "id": 1,
+          "method": "GET",
+          "range": "",
+          "role": "resolver-or-other",
+          "status": 200,
+          "contentRange": "",
+          "writeBytes": 180224,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              0,
+              180224
+            ]
+          ],
+          "start": -0.395,
+          "firstWrite": -0.394,
+          "lastWrite": -0.385,
+          "end": -0.385
+        },
+        {
+          "id": 2,
+          "method": "GET",
+          "range": "bytes=0-",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 0-35169661/35169662",
+          "writeBytes": 2097152,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              0,
+              2097152
+            ]
+          ],
+          "start": 0,
+          "firstWrite": 0.002,
+          "lastWrite": 0.125,
+          "end": 33.604
+        },
+        {
+          "id": 3,
+          "method": "GET",
+          "range": "bytes=2088960-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 2088960-35169661/35169662",
+          "writeBytes": 0,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [],
+          "start": 34.107,
+          "firstWrite": null,
+          "lastWrite": null,
+          "end": 65.601
+        },
+        {
+          "id": 4,
+          "method": "GET",
+          "range": "bytes=2088960-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 2088960-35169661/35169662",
+          "writeBytes": 3981312,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              2088960,
+              6070272
+            ]
+          ],
+          "start": 66.107,
+          "firstWrite": 73.674,
+          "lastWrite": 73.706,
+          "end": 73.706
+        },
+        {
+          "id": 5,
+          "method": "GET",
+          "range": "bytes=17334272-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 17334272-35169661/35169662",
+          "writeBytes": 17835390,
+          "canceled": false,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              17334272,
+              35169662
+            ]
+          ],
+          "start": 73.707,
+          "firstWrite": 73.707,
+          "lastWrite": 87.011,
+          "end": 87.011
+        }
+      ],
+      "gameEvents": [
+        {
+          "event": "Video loaded",
+          "t": -0.36
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 8.64
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 8.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 0,
+          "t": 8.64
+        },
+        {
+          "event": "OnVideoStart",
+          "role": "owner",
+          "t": 8.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 9.02,
+          "currentSeconds": 7.31,
+          "t": 17.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 12.02,
+          "currentSeconds": 7.31,
+          "t": 20.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 15.03,
+          "currentSeconds": 7.31,
+          "t": 23.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 18.03,
+          "currentSeconds": 7.31,
+          "t": 26.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 21.03,
+          "currentSeconds": 7.31,
+          "t": 29.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 24.03,
+          "currentSeconds": 7.31,
+          "t": 32.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 27.03,
+          "currentSeconds": 7.31,
+          "t": 35.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 30.03,
+          "currentSeconds": 7.31,
+          "t": 38.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 33.03,
+          "currentSeconds": 7.31,
+          "t": 41.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 36.03,
+          "currentSeconds": 7.31,
+          "t": 44.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 39.03,
+          "currentSeconds": 7.31,
+          "t": 47.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 42.03,
+          "currentSeconds": 7.31,
+          "t": 50.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 45.03,
+          "currentSeconds": 7.31,
+          "t": 53.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 48.03,
+          "currentSeconds": 7.31,
+          "t": 56.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 51.03,
+          "currentSeconds": 7.31,
+          "t": 59.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 54.03,
+          "currentSeconds": 7.31,
+          "t": 62.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 57.03,
+          "currentSeconds": 7.31,
+          "t": 65.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 60.03,
+          "currentSeconds": 7.31,
+          "t": 68.64
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 63.04,
+          "currentSeconds": 7.31,
+          "t": 71.64
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 141.64
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 141.64
+        },
+        {
+          "event": "OnVideoError",
+          "t": 142.64
+        }
+      ],
+      "observations": [],
+      "audioVideo": "initial-playback-then-stall; recovery-not-observed",
+      "limitations": [
+        "首轮中断样本未观察到恢复，保留，不并入成功恢复样本。"
+      ],
+      "role": "owner"
+    },
+    {
+      "id": "D75",
+      "sourceBatch": "LIVE-20261115-01",
+      "timeBasis": "seconds from first player GET",
+      "holdAfterPrefixSeconds": 75,
+      "requests": [
+        {
+          "id": 1,
+          "method": "GET",
+          "range": "",
+          "role": "resolver-or-other",
+          "status": 200,
+          "contentRange": "",
+          "writeBytes": 180224,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              0,
+              180224
+            ]
+          ],
+          "start": -0.397,
+          "firstWrite": -0.396,
+          "lastWrite": -0.388,
+          "end": -0.387
+        },
+        {
+          "id": 2,
+          "method": "GET",
+          "range": "bytes=0-",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 0-35169661/35169662",
+          "writeBytes": 2097152,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              0,
+              2097152
+            ]
+          ],
+          "start": 0,
+          "firstWrite": 0,
+          "lastWrite": 0.116,
+          "end": 31.138
+        },
+        {
+          "id": 3,
+          "method": "GET",
+          "range": "bytes=2088960-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 2088960-35169661/35169662",
+          "writeBytes": 0,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [],
+          "start": 31.643,
+          "firstWrite": null,
+          "lastWrite": null,
+          "end": 63.141
+        },
+        {
+          "id": 4,
+          "method": "GET",
+          "range": "bytes=2088960-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 2088960-35169661/35169662",
+          "writeBytes": 4210688,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              2088960,
+              6299648
+            ]
+          ],
+          "start": 63.65,
+          "firstWrite": 75.342,
+          "lastWrite": 75.376,
+          "end": 75.376
+        },
+        {
+          "id": 5,
+          "method": "GET",
+          "range": "bytes=17334272-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 17334272-35169661/35169662",
+          "writeBytes": 17835390,
+          "canceled": false,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              17334272,
+              35169662
+            ]
+          ],
+          "start": 75.377,
+          "firstWrite": 75.377,
+          "lastWrite": 88.672,
+          "end": 88.672
+        }
+      ],
+      "gameEvents": [
+        {
+          "event": "Video loaded",
+          "t": 0.172
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 8.172
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 8.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 0,
+          "t": 8.172
+        },
+        {
+          "event": "OnVideoStart",
+          "role": "owner",
+          "t": 8.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 9.01,
+          "currentSeconds": 7.24,
+          "t": 17.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 12.01,
+          "currentSeconds": 7.24,
+          "t": 20.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 15.01,
+          "currentSeconds": 7.24,
+          "t": 23.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 18.01,
+          "currentSeconds": 7.24,
+          "t": 26.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 21.01,
+          "currentSeconds": 7.24,
+          "t": 29.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 24.02,
+          "currentSeconds": 7.24,
+          "t": 32.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 27.02,
+          "currentSeconds": 7.24,
+          "t": 35.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 30.02,
+          "currentSeconds": 7.24,
+          "t": 38.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 33.02,
+          "currentSeconds": 7.24,
+          "t": 41.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 36.02,
+          "currentSeconds": 7.24,
+          "t": 44.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 39.02,
+          "currentSeconds": 7.24,
+          "t": 47.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 42.03,
+          "currentSeconds": 7.24,
+          "t": 50.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 45.03,
+          "currentSeconds": 7.24,
+          "t": 53.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 48.03,
+          "currentSeconds": 7.24,
+          "t": 56.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 51.03,
+          "currentSeconds": 7.24,
+          "t": 59.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 54.04,
+          "currentSeconds": 7.24,
+          "t": 62.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 57.04,
+          "currentSeconds": 7.24,
+          "t": 65.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 60.04,
+          "currentSeconds": 7.24,
+          "t": 68.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 63.04,
+          "currentSeconds": 7.24,
+          "t": 71.172
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 66.05,
+          "currentSeconds": 7.24,
+          "t": 74.172
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 141.172
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 141.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 143.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 148.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 149.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 154.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 155.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 160.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 161.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 166.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 168.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 173.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 174.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 179.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 180.172
+        },
+        {
+          "event": "Retrying load",
+          "t": 185.172
+        },
+        {
+          "event": "OnVideoError",
+          "t": 186.172
+        }
+      ],
+      "observations": [
+        {
+          "event": "click",
+          "t": -0.828,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 16.172,
+          "source": "operator"
+        },
+        {
+          "event": "video-recovery",
+          "t": 76.172,
+          "source": "operator"
+        },
+        {
+          "event": "playback-end",
+          "t": 144.172,
+          "source": "operator"
+        }
+      ],
+      "audioVideo": "periodic-burst-noise-after-video-resumed",
+      "limitations": [
+        "未直接确认恢复首帧位置；不以服务器写出证明客户端消费。"
+      ],
+      "role": "owner"
+    },
+    {
+      "id": "D25",
+      "sourceBatch": "LIVE-20261115-01",
+      "timeBasis": "seconds from first player GET",
+      "holdAfterPrefixSeconds": 25,
+      "requests": [
+        {
+          "id": 1,
+          "method": "GET",
+          "range": "",
+          "role": "resolver-or-other",
+          "status": 200,
+          "contentRange": "",
+          "writeBytes": 180224,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              0,
+              180224
+            ]
+          ],
+          "start": -0.389,
+          "firstWrite": -0.388,
+          "lastWrite": -0.381,
+          "end": -0.379
+        },
+        {
+          "id": 2,
+          "method": "GET",
+          "range": "bytes=0-",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 0-35169661/35169662",
+          "writeBytes": 35169662,
+          "canceled": false,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              0,
+              35169662
+            ]
+          ],
+          "start": 0,
+          "firstWrite": 0.001,
+          "lastWrite": 26.054,
+          "end": 26.055
+        }
+      ],
+      "observations": [
+        {
+          "event": "playback-start",
+          "t": 8.921,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 15.921,
+          "source": "operator"
+        },
+        {
+          "event": "playback-resume",
+          "t": 26.921,
+          "source": "operator"
+        }
+      ],
+      "audioVideo": "no-abnormality-reported-after-recovery",
+      "limitations": [
+        "未直接确认恢复首帧位置；不以服务器写出证明客户端消费。"
+      ],
+      "role": "owner"
+    },
+    {
+      "id": "HEAD45",
+      "timeBasis": "seconds from first player GET",
+      "holdPhase": "before-response-headers",
+      "releaseSeconds": 45.03,
+      "requests": [
+        {
+          "id": 2,
+          "arrived": 0,
+          "range": "bytes=0-",
+          "headers": null,
+          "firstBody": null,
+          "bytes": 0,
+          "end": 33.684,
+          "canceled": true,
+          "phase": "before_headers"
+        },
+        {
+          "id": 4,
+          "arrived": 29.959,
+          "range": "bytes=0-",
+          "headers": 45.128,
+          "status": 206,
+          "firstBody": 45.128,
+          "bytes": 35169662,
+          "end": 71.582,
+          "canceled": false
+        },
+        {
+          "id": 5,
+          "arrived": 33.7,
+          "range": "bytes=0-",
+          "headers": 45.118,
+          "status": 206,
+          "firstBody": 45.119,
+          "bytes": 1966080,
+          "end": 45.326,
+          "canceled": true
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 28.642,
+          "event": "Retrying load"
+        },
+        {
+          "t": 44.642,
+          "event": "Video loaded"
+        },
+        {
+          "t": 44.642,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 44.642,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 44.642,
+          "event": "OnVideoStart",
+          "role": "owner"
+        }
+      ],
+      "observations": [
+        {
+          "event": "playback-start",
+          "t": 45.642,
+          "source": "operator"
+        }
+      ],
+      "audioVideo": "no-exception-reported",
+      "limitations": [
+        "解析GET未延迟；重复起播日志不能直接当成多个起播回调。",
+        "这两笔是起播，不是独立手动Seek。"
+      ],
+      "role": "owner"
+    },
+    {
+      "id": "BODY45",
+      "timeBasis": "seconds from first player GET",
+      "holdPhase": "after-headers-before-first-body",
+      "releaseSeconds": 45.024,
+      "requests": [
+        {
+          "id": 2,
+          "arrived": 0,
+          "range": "bytes=0-",
+          "headers": 0,
+          "status": 206,
+          "firstBody": null,
+          "bytes": 0,
+          "end": 33.281,
+          "canceled": true
+        },
+        {
+          "id": 4,
+          "arrived": 29.95,
+          "range": "bytes=0-",
+          "headers": 29.95,
+          "status": 206,
+          "firstBody": 45.044,
+          "bytes": 35169662,
+          "end": 56.365,
+          "canceled": false
+        },
+        {
+          "id": 5,
+          "arrived": 33.797,
+          "range": "bytes=0-35169661",
+          "headers": 33.806,
+          "status": 206,
+          "firstBody": 45.038,
+          "bytes": 5996544,
+          "end": 45.121,
+          "canceled": true
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 28.25,
+          "event": "Retrying load"
+        },
+        {
+          "t": 45.25,
+          "event": "Video loaded"
+        },
+        {
+          "t": 45.25,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 45.25,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 45.25,
+          "event": "OnVideoStart",
+          "role": "owner"
+        }
+      ],
+      "observations": [
+        {
+          "event": "playback-start",
+          "t": 45.25,
+          "source": "operator"
+        }
+      ],
+      "audioVideo": "no-exception-reported",
+      "limitations": [
+        "解析GET未延迟；重复起播日志不能直接当成多个起播回调。",
+        "这两笔是起播，不是独立手动Seek。"
+      ],
+      "role": "owner"
+    },
+    {
+      "id": "RATE1",
+      "timeBasis": "seconds from first player GET",
+      "rate": {
+        "configuredBytesPerSecond": 125000,
+        "durationSeconds": 60,
+        "serverWrittenBytes": 7471104,
+        "averageBytesPerSecond": 124518.4
+      },
+      "rateStarted": 9.091,
+      "requests": [
+        {
+          "id": 1,
+          "method": "GET",
+          "range": "",
+          "role": "resolver-or-other",
+          "status": 200,
+          "contentRange": "",
+          "writeBytes": 180224,
+          "canceled": true,
+          "writeFailures": 1,
+          "intervals": [
+            [
+              0,
+              180224
+            ]
+          ],
+          "start": -0.493,
+          "firstWrite": -0.484,
+          "lastWrite": -0.477,
+          "end": -0.477
+        },
+        {
+          "id": 2,
+          "method": "GET",
+          "range": "bytes=0-",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 0-35169661/35169662",
+          "writeBytes": 4718592,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              0,
+              4718592
+            ]
+          ],
+          "start": 0,
+          "firstWrite": 0,
+          "lastWrite": 30.128,
+          "end": 30.128
+        },
+        {
+          "id": 3,
+          "method": "GET",
+          "range": "bytes=5275648-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 5275648-35169661/35169662",
+          "writeBytes": 1605632,
+          "canceled": true,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              5275648,
+              6881280
+            ]
+          ],
+          "start": 30.129,
+          "firstWrite": 30.261,
+          "lastWrite": 43.006,
+          "end": 43.006
+        },
+        {
+          "id": 4,
+          "method": "GET",
+          "range": "bytes=12009472-35169661",
+          "role": "WMF-player",
+          "status": 206,
+          "contentRange": "bytes 12009472-35169661/35169662",
+          "writeBytes": 23160190,
+          "canceled": false,
+          "writeFailures": 0,
+          "intervals": [
+            [
+              12009472,
+              35169662
+            ]
+          ],
+          "start": 43.007,
+          "firstWrite": 43.139,
+          "lastWrite": 69.245,
+          "end": 69.246
+        }
+      ],
+      "gameEvents": [
+        {
+          "event": "Video loaded",
+          "t": -0.03
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 7.97
+        },
+        {
+          "event": "OnVideoStart",
+          "t": 7.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 0,
+          "t": 7.97
+        },
+        {
+          "event": "OnVideoStart",
+          "role": "owner",
+          "t": 7.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 15.01,
+          "currentSeconds": 13.18,
+          "t": 22.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 18.02,
+          "currentSeconds": 13.18,
+          "t": 25.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 21.02,
+          "currentSeconds": 13.18,
+          "t": 28.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 24.02,
+          "currentSeconds": 13.18,
+          "t": 31.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 27.02,
+          "currentSeconds": 13.18,
+          "t": 34.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 30.02,
+          "currentSeconds": 13.18,
+          "t": 37.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 33.02,
+          "currentSeconds": 13.18,
+          "t": 40.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 36.02,
+          "currentSeconds": 13.18,
+          "t": 43.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 39.02,
+          "currentSeconds": 13.18,
+          "t": 46.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 42.03,
+          "currentSeconds": 13.18,
+          "t": 49.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 45.03,
+          "currentSeconds": 13.18,
+          "t": 52.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 48.03,
+          "currentSeconds": 45.38,
+          "t": 55.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 51.03,
+          "currentSeconds": 49.45,
+          "t": 58.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 54.04,
+          "currentSeconds": 49.45,
+          "t": 61.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 57.04,
+          "currentSeconds": 49.45,
+          "t": 64.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 60.05,
+          "currentSeconds": 49.45,
+          "t": 67.97
+        },
+        {
+          "event": "Syncing video",
+          "targetSeconds": 63.05,
+          "currentSeconds": 62.46,
+          "t": 70.97
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 140.97
+        },
+        {
+          "event": "OnVideoEnd",
+          "t": 140.97
+        }
+      ],
+      "observations": [
+        {
+          "event": "playback-start",
+          "t": 8.97,
+          "source": "operator"
+        },
+        {
+          "event": "stall",
+          "t": 21.97,
+          "source": "operator"
+        },
+        {
+          "event": "intermittent",
+          "t": 56.97,
+          "source": "operator"
+        },
+        {
+          "event": "approximately-smooth",
+          "t": 71.97,
+          "source": "operator"
+        },
+        {
+          "event": "playback-end",
+          "t": 141.97,
+          "source": "operator"
+        }
+      ],
+      "audioVideo": "audio-normal-explicitly-confirmed-after-recovery",
+      "limitations": [
+        "解析GET不限速；播放器GET共用125000B/s额度。",
+        "使用直接供数工具，没有运行SWD块调度器。"
+      ],
+      "role": "owner"
+    }
+  ]
+}

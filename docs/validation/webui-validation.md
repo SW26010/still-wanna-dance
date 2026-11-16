@@ -2377,3 +2377,13 @@ build/check、差异检查及产物登记校验通过。`settings-help.spec.ts`�
 - 扩展现有接入与权限修复用例，在修复前复现 1440px 下提示缺失，320px 隐藏行为通过；结果保留于忽略目录 `artifacts/browser-hint-fix/before/` 和 `before.log`。
 - 修复后运行 `acceleration.spec.ts`、`runtime-status.spec.ts`，共 **30 项通过**，覆盖无权限启动、取消授权、修复成功、停止与恢复、状态读取失败及组件错误提示。已查看 1440px 浅色与 320px 深色截图，宽屏提示和黄色权限警告同时显示，窄屏没有挤动操作按钮；结果在 `artifacts/browser-hint-fix/after/` 和 `after.log`。
 - 前端 build/check、内嵌资源一致性、bundle 精确登记及差异检查通过。验证使用 Node.js 24.22.1、Playwright 1.64.1、Chromium 156.0.8078.4 和内存接口夹具，不外推真实 UAC 或 VRC 行为；未重建日常 EXE。
+
+## 2026-11-16：首页 CDN 与关闭浏览器提示叠放
+
+加速标题右侧从上到下显示“可关闭浏览器，减少资源占用”和“请在房间内将 CDN 设为 Auto、CF 或 HKG”，共用次级字体和紧凑行高。两句沿用原有提示的就绪条件及窄屏隐藏规则；CDN 文字的标准 Tooltip 在悬停或键盘聚焦时说明“SHA 不支持加速”。
+
+`acceleration.spec.ts`、`runtime-status.spec.ts` 共 **30 项通过**，检查两行字体一致、上下排列且总高度落在标题内，启停及 Tooltip 出现／关闭前后的卡片和按钮位置一致；1280px 下提示与按钮不重叠，320／390px 隐藏整组提示。悬停、键盘聚焦、描述关联及 Escape 关闭通过，原有无恢复权限、授权取消、权限修复和后台状态回归通过。已查看 1440px 下正常接入及缺恢复权限的卡片截图。结果保留于忽略目录 `artifacts/cdn-hint-layout/browser/` 和 `browser.log`。
+
+随后调整为较长的 CDN 提示在下方，对四项 `stop and resume` 用例定向复验全部通过，包含最终上下顺序、字体、总高度、按钮位置及 Tooltip 检查；已查看最终卡片截图，结果在 `artifacts/cdn-hint-layout/reordered/` 和 `reordered.log`。
+
+前端 build/check、内嵌资源一致性、bundle 精确登记及差异检查通过。浏览器及 Node.js／Playwright 版本同上节，验证使用内存接口夹具，不外推真实系统 DPI、UAC 或游戏体验。随后通过标准桌面构建入口生成 `dev-cdn-hints`，`-build-info` 核对 Windows amd64、Go 1.27.3 及开发构建身份通过；未启动日常程序或游戏。

@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1322238,
+      "sha256": "88983ef5bb8f61f2b73abe344e0ed1edb0193c820f5fdcc04f9539757ac978f0",
+      "reason": "Production WebUI rebuilt with stacked CDN and close-browser hints beside the acceleration title, including an accessible SHA limitation tooltip. Embedded in offline Go builds and verified against webui/build-manifest.json; locked dependencies are unchanged."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1321985,
       "sha256": "67edf3683e4d48e15381d5621ac380a8c711bed1cd55e74b2a0c8461fec2a5e2",
       "reason": "Production WebUI rebuilt to keep the close-browser hint visible while acceleration is ready but exit restore permission is missing; connection errors and restore repair actions retain their existing behavior. Embedded in offline Go builds and verified against webui/build-manifest.json."

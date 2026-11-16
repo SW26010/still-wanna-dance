@@ -137,7 +137,9 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   // The hint follows its card's 30rem container threshold, not viewport width.
   await page.setViewportSize({width:restore?1440:320,height:900});await page.goto('/');
   const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
+  const cdnHint=page.getByText('请在房间内将 CDN 设为 Auto、CF 或 HKG',{exact:true});
   await expect(browserHint).toHaveCount(0);
+  await expect(cdnHint).toHaveCount(0);
   const card=page.locator('#activation'),before=await card.boundingBox();
   const buttonBefore=await page.getByRole('button',{name:'开始加速',exact:true}).boundingBox();
   await expect(card.getByRole('link',{name:/检查连接|查看接入诊断/})).toHaveCount(0);
@@ -149,19 +151,40 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   expect(await stop.boundingBox()).toEqual(buttonBefore);
   if(restore){
     await expect(browserHint).toBeVisible();
-    const titleBox=(await card.getByRole('heading',{name:'加速运行中',exact:true}).boundingBox())!,hintBox=(await browserHint.boundingBox())!;
+    await expect(cdnHint).toBeVisible();
+    const titleBox=(await card.getByRole('heading',{name:'加速运行中',exact:true}).boundingBox())!,hintBox=(await card.locator('.acceleration-hints').boundingBox())!;
     expect(hintBox.x).toBeGreaterThan(titleBox.x+titleBox.width);
     expect(hintBox.y).toBeGreaterThanOrEqual(titleBox.y);
     expect(hintBox.y+hintBox.height).toBeLessThanOrEqual(titleBox.y+titleBox.height);
-    await page.setViewportSize({width:390,height:900});await expect(browserHint).toBeHidden();
-    await page.setViewportSize({width:1440,height:900});await expect(browserHint).toBeVisible();
-  }else await expect(browserHint).toBeHidden();
+    const cdnBox=(await cdnHint.boundingBox())!,browserBox=(await browserHint.boundingBox())!;
+    expect(cdnBox.x).toBe(browserBox.x);
+    expect(browserBox.y+browserBox.height).toBeLessThanOrEqual(cdnBox.y);
+    const font=(element:HTMLElement)=>{const s=getComputedStyle(element);return [s.fontFamily,s.fontSize,s.fontWeight,s.lineHeight,s.color];};
+    expect(await cdnHint.evaluate(font)).toEqual(await browserHint.evaluate(font));
+    await page.mouse.move(0,0);await expect(page.getByRole('tooltip')).toBeHidden();
+    await cdnHint.hover();await expect(page.getByRole('tooltip')).toHaveText('SHA 不支持加速');
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+    await page.mouse.move(0,0);await cdnHint.focus();
+    await expect(page.getByRole('tooltip')).toHaveText('SHA 不支持加速');
+    await expect(cdnHint).toHaveAccessibleDescription('SHA 不支持加速');
+    await page.keyboard.press('Escape');await expect(page.getByRole('tooltip')).toBeHidden();
+    await cdnHint.blur();
+    expect(await card.boundingBox()).toEqual(before);
+    expect(await stop.boundingBox()).toEqual(buttonBefore);
+    await page.setViewportSize({width:1280,height:900});await expect(cdnHint).toBeVisible();
+    const compactHints=(await card.locator('.acceleration-hints').boundingBox())!,compactButton=(await stop.boundingBox())!;
+    expect(compactHints.x+compactHints.width).toBeLessThan(compactButton.x);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.setViewportSize({width:390,height:900});await expect(browserHint).toBeHidden();await expect(cdnHint).toBeHidden();
+    await page.setViewportSize({width:1440,height:900});await expect(browserHint).toBeVisible();await expect(cdnHint).toBeVisible();
+  }else {await expect(browserHint).toBeHidden();await expect(cdnHint).toBeHidden();}
   await card.screenshot({path:info.outputPath('running-card.png'),animations:'disabled'});
   await page.mouse.move(0,0);await stop.hover();
   await expect(page.getByRole('tooltip')).toHaveText('停止加速');
   await stop.click();
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
   await expect(browserHint).toHaveCount(0);
+  await expect(cdnHint).toHaveCount(0);
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
   await expect(page.getByText(`游戏连接：${restore?'未接入':'已接入'}`,{exact:true})).toBeVisible();

@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkValidationReuse } from './release-validation.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { withTemp } from './release-source.mjs';
+import { checkValidationReuse, needsProductValidation, productValidationInputs, hasSuccessfulCheck } from './release-validation.mjs';
+import webuiManifest from '../webui/build-manifest.json' with { type: 'json' };
 
 function fixture() {
   const passed = name => ({ name, status: 'completed', conclusion: 'success' });
@@ -66,3 +72,125 @@ test('delivery-only retries retain passed checks while each business job uses it
     assert.doesNotThrow(() => checkValidationReuse(retried));
   }
 });
+
+test('daily filtering and validation reuse share the documentation and delivery boundary', () => {
+  const documentation = ['docs/development.md', 'docs/acceptance/sample.md',
+    'docs/evidence/sample/results.json', 'docs/evidence/sample/fixtures/probe.patch',
+    'docs/images/webui-library.png', 'scripts/package-portable.ps1'];
+  assert.deepEqual(productValidationInputs(documentation), []);
+  assert.doesNotThrow(() => checkValidationReuse({ ...fixture(), files: documentation }));
+  const compiled = [...new Set([...Object.keys(webuiManifest.inputs), ...Object.keys(webuiManifest.outputs)])];
+  const unknown = ['docs/evidence/runtime.go', 'docs/research/unknown.json', 'unknown-file'];
+  assert.deepEqual(productValidationInputs([...compiled, ...unknown]), [...compiled, ...unknown]);
+  for (const file of [...compiled, ...unknown]) {
+    assert.throws(() => checkValidationReuse({ ...fixture(), files: [file] }), /stale/, file);
+  }
+});
+
+test('daily skips require a completed successful check on the exact comparison revision', () => {
+  const run = fixture().run;
+  assert.equal(hasSuccessfulCheck([run], 'owner/repo', run.head_sha), true);
+  assert.equal(hasSuccessfulCheck([], 'owner/repo', run.head_sha), false);
+  for (const patch of [{ head_sha: 'b'.repeat(40) }, { status: 'in_progress' }, { conclusion: 'failure' },
+    { conclusion: 'cancelled' }, { repository: { full_name: 'other/repo' } }, { head_repository: { full_name: 'fork/repo' } }]) {
+    assert.equal(hasSuccessfulCheck([{ ...run, ...patch }], 'owner/repo', run.head_sha), false);
+  }
+});
+
+function repository(root) {
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git('init', '--quiet', '--initial-branch=main');
+  git('config', 'core.autocrlf', 'false');
+  const commit = files => {
+    for (const [file, content] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), content);
+    }
+    git('add', '-A');
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'fixture');
+    return git('rev-parse', 'HEAD');
+  };
+  return { git, commit };
+}
+
+test('push planning includes every commit and both sides of deletions and renames', () => withTemp(root => {
+  const { git, commit } = repository(root);
+  const base = commit({ 'internal/example.go': 'package example\n', 'docs/guide.md': 'guide\n' });
+  commit({ 'docs/guide.md': 'revised guide\n' });
+  const event = { eventName: 'push', ref: 'refs/heads/main', before: base };
+  assert.equal(needsProductValidation(event, root), false);
+  git('mv', 'docs/guide.md', 'docs/renamed.md'); commit({});
+  assert.equal(needsProductValidation(event, root), false);
+  commit({ 'internal/example.go': 'package example\n// changed\n' });
+  commit({ 'docs/renamed.md': 'another documentation commit\n' });
+  assert.equal(needsProductValidation(event, root), true);
+  const before = git('rev-parse', 'HEAD');
+  git('mv', 'internal/example.go', 'docs/example.md'); commit({});
+  assert.equal(needsProductValidation({ ...event, before }, root), true);
+}));
+
+test('PR planning uses its merge base, excluding changes made only on the base branch', () => withTemp(root => {
+  const { git, commit } = repository(root);
+  const base = commit({ 'internal/example.go': 'package example\n' });
+  git('checkout', '--quiet', '-b', 'topic');
+  const head = commit({ 'docs/guide.md': 'guide\n' });
+  git('checkout', '--quiet', 'main');
+  const advanced = commit({ 'internal/base.go': 'package example\n' });
+  const event = { eventName: 'pull_request', ref: 'refs/pull/1/merge', base: advanced, head };
+  assert.notEqual(base, advanced);
+  assert.equal(needsProductValidation(event, root), false);
+  git('checkout', '--quiet', 'topic');
+  commit({ 'internal/topic.go': 'package example\n' });
+  const updated = commit({ 'docs/guide.md': 'updated guide\n' });
+  assert.equal(needsProductValidation({ ...event, head: updated }, root), true);
+}));
+
+test('manual/tag checks and unavailable or invalid comparisons always require product validation', () => withTemp(root => {
+  for (const event of [
+    { eventName: 'workflow_dispatch' }, { eventName: 'push', ref: 'refs/tags/v2.3.4' },
+    { eventName: 'push', ref: 'refs/heads/main', before: '0'.repeat(40) },
+    { eventName: 'push', ref: 'refs/heads/main', before: 'a'.repeat(40) },
+    { eventName: 'push', ref: 'refs/heads/main', before: '--invalid' },
+    { eventName: 'pull_request', base: 'a'.repeat(40) },
+    { eventName: 'pull_request', base: 'a'.repeat(40), head: 'b'.repeat(40) },
+    { eventName: 'merge_group' },
+  ]) assert.equal(needsProductValidation(event, root), true, JSON.stringify(event));
+}));
+
+test('the workflow planning step skips documentation pushes/PRs but retains manual checks', () => withTemp(async root => {
+  for (const file of ['scripts/release-validation.mjs', 'webui/build-manifest.json']) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.copyFileSync(new URL('../' + file, import.meta.url), path.join(root, file));
+  }
+  const { commit } = repository(root);
+  const base = commit({ 'internal/example.go': 'package example\n' });
+  const head = commit({ 'docs/evidence/sample/results.json': '{}\n', 'docs/evidence/sample/fixtures/probe.patch': 'archived patch\n' });
+  const workflow = fs.readFileSync(new URL('../.github/workflows/check.yml', import.meta.url), 'utf8');
+  const lines = workflow.split('          script: |')[1].split(/\r?\n/).slice(1), body = [];
+  for (const line of lines) { if (line && !line.startsWith('            ')) break; body.push(line.slice(12)); }
+  const plan = new (Object.getPrototypeOf(async function () {}).constructor)('context', 'core', 'github', 'require', body.join('\n'));
+  const saved = Object.fromEntries(['GITHUB_WORKSPACE', 'VALIDATION_RUN_ID', 'PREVIOUS_TAG', 'RELEASE_TAG'].map(name => [name, process.env[name]]));
+  try {
+    Object.assign(process.env, { GITHUB_WORKSPACE: root, VALIDATION_RUN_ID: '', PREVIOUS_TAG: '', RELEASE_TAG: '' });
+    for (const [context, expected, prior = 'passed'] of [
+      [{ eventName: 'push', ref: 'refs/heads/main', payload: { before: base } }, 'false'],
+      [{ eventName: 'pull_request', ref: 'refs/pull/1/merge', payload: { pull_request: { base: { sha: base }, head: { sha: head } } } }, 'false'],
+      [{ eventName: 'workflow_dispatch', ref: 'refs/heads/main', payload: {} }, 'true'],
+      [{ eventName: 'push', ref: 'refs/heads/main', payload: { before: base } }, 'true', 'missing'],
+      [{ eventName: 'push', ref: 'refs/heads/main', payload: { before: base } }, 'true', 'unavailable'],
+    ]) {
+      const outputs = {};
+      const github = { rest: { actions: { listWorkflowRuns() {} } }, paginate: async (_method, params) => {
+        assert.equal(params.workflow_id, 'check.yml'); assert.equal(params.head_sha, base);
+        if (prior === 'unavailable') throw Error('API unavailable');
+        return prior === 'passed' ? [{ ...fixture().run, head_sha: base }] : [];
+      } };
+      await plan({ ...context, repo: { owner: 'owner', repo: 'repo' } },
+        { setOutput: (name, value) => { outputs[name] = value; }, info: () => {}, warning: () => {} }, github, createRequire(import.meta.url));
+      assert.equal(outputs.product, expected);
+      assert.equal(outputs.reuse, 'false');
+    }
+  } finally {
+    for (const [name, value] of Object.entries(saved)) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+  }
+}));

@@ -40,12 +40,13 @@ jobs:
       actions: read
     outputs:
       reuse: ${{ steps.plan.outputs.reuse }}
+      product: ${{ steps.plan.outputs.product }}
       previous_tag: ${{ steps.plan.outputs.previous_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check validation reuse and select upgrade baseline
+      - name: Plan checks and select upgrade baseline
         id: plan
         uses: actions/github-script@v9
         env:
@@ -56,7 +57,23 @@ jobs:
             const {execFileSync} = require('node:child_process');
             const {pathToFileURL} = require('node:url');
             const path = require('node:path');
-            const {checkValidationReuse} = await import(pathToFileURL(path.join(process.env.GITHUB_WORKSPACE, 'scripts/release-validation.mjs')).href);
+            const {checkValidationReuse, needsProductValidation, hasSuccessfulCheck} = await import(pathToFileURL(path.join(process.env.GITHUB_WORKSPACE, 'scripts/release-validation.mjs')).href);
+            let product = needsProductValidation({
+              eventName: context.eventName, ref: context.ref, before: context.payload.before,
+              base: context.payload.pull_request?.base.sha, head: context.payload.pull_request?.head.sha,
+            }, process.env.GITHUB_WORKSPACE);
+            if (!product) {
+              const base = context.eventName === 'pull_request' ? context.payload.pull_request.base.sha : context.payload.before;
+              try {
+                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {...context.repo, workflow_id: 'check.yml', head_sha: base, per_page: 100});
+                product = !hasSuccessfulCheck(runs, `${context.repo.owner}/${context.repo.repo}`, base);
+              } catch {
+                product = true;
+                core.warning('Cannot verify prior checks; product validation will run.');
+              }
+            }
+            core.setOutput('product', String(product));
+            core.info(product ? 'Product checks required (changed inputs or no verified prior result).' : 'Documentation/delivery-only changes with successful prior checks; product and race checks are not required.');
             core.setOutput('reuse', 'false');
             const id = process.env.VALIDATION_RUN_ID;
             if (id) {
@@ -110,7 +127,8 @@ jobs:
     needs: [validation, tools, repository]
     if: >-
       always() && !cancelled() && needs.validation.result == 'success' && needs.tools.result == 'success' &&
-      (needs.repository.result == 'success' || needs.repository.result == 'skipped') && needs.validation.outputs.reuse != 'true'
+      (needs.repository.result == 'success' || needs.repository.result == 'skipped') &&
+      needs.validation.outputs.product == 'true' && needs.validation.outputs.reuse != 'true'
     runs-on: windows-latest
     env:
       GOTOOLCHAIN: local
@@ -144,10 +162,13 @@ jobs:
           if-no-files-found: ignore
 
   race:
+    # Keep the daily check name stable when the matrix is skipped before expansion.
+    name: race (${{ matrix.shard || 0 }})
     needs: [validation, tools, repository]
     if: >-
       always() && !cancelled() && needs.validation.result == 'success' && needs.tools.result == 'success' &&
-      (needs.repository.result == 'success' || needs.repository.result == 'skipped') && needs.validation.outputs.reuse != 'true'
+      (needs.repository.result == 'success' || needs.repository.result == 'skipped') &&
+      needs.validation.outputs.product == 'true' && needs.validation.outputs.reuse != 'true'
     runs-on: windows-latest
     strategy:
       fail-fast: false

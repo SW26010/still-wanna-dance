@@ -59,6 +59,10 @@ Mihomo 完整配置的真实浏览器联调可设置 `SWD_MIHOMO_CONFIG_BROWSER_
 
 CI 浏览器失败保留 trace 与截图；产品检查、race 和按需打包各自运行。上述原则的失败对照与适用边界见 [CI 稳定性验证](validation/ci-stability-20261028.md)，该记录描述当时构建，不替代本节现行规则。
 
+PR/main 的 `check` 工作流照常启动，工具和仓库检查保留。普通 push 比较整个 `before..HEAD`，PR 比较合并基点到分支 head；删除和重命名同时检查原、新路径。仅当全部改动属于明确的非业务范围，且比较起点在同一工作流中已有成功检查，才跳过产品与 race 作业；没有成功记录（包括检查仍在执行或失败）、历史不可用或 API 查询失败时保留业务检查。手动运行和版本 tag 不使用这条日常跳过规则，跳过的作业不能成为正式发行的完整验证基线。
+
+非业务范围与发行验证复用共用 `scripts/release-validation.mjs` 的分类：明确列出的交付文件、说明文档，以及验收／证据等约定目录的静态资料。不能将整个 `docs/` 视为非业务：前端构建清单声明的输入和产物始终需要产品验证，未知资料或代码也默认需要检查。只在作业条件中分流，避免整条工作流被路径过滤后缺少必需状态。
+
 本机和 Actions 使用同一 `release-preflight.ps1` 入口。Node、Python 版本分别以根目录 `.node-version`、`.python-version` 为准，Go 以 `go.mod` 为准，pnpm 以 `webui/package.json` 的 `packageManager` 为准；预检发现版本不符即停止，并在本次进程内设置 `CI=true`，结束后恢复调用者环境。Go 业务测试显式使用 `-count=1`，避免本机测试缓存掩盖实际执行。
 
 Python 通过现有 uv 管理。本机和 Actions 均使用 `uv run --no-project --managed-python --python <.python-version 中的版本> python ...`，复用已安装的匹配解释器，缺少时由同一管理器取得；不依赖系统 `python` 别名或其他应用附带的解释器。Actions 固定 uv 版本，预检记录实际 uv 和 Python 版本。

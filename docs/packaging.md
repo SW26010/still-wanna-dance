@@ -70,7 +70,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 启动发行工作流前，先完成[发布前本机 Windows 完整预检](development.md#发布前本机-windows-完整预检)；本节维护产物与公开交付规则。
 
-[`check` 工作流](../.github/workflows/check.yml)按工具与仓库检查 → 产品/race 并行 → 一次正式交付 → 自动发布执行，各验证范围共用本机预检脚本。PR/main 使用代表性浏览器与 race，手动运行和 tag 使用完整浏览器及全包 race；产品仍完成真实 Console 联调、Go test/vet/build 和 gofmt。`repository-artifacts` 在分支 push／PR 时独立执行，在手动或 tag 检查时由 `check` 调用并作为打包门禁；它通过 `-Scope repository` 执行产物策略及其 Node 测试和 Python 测试，工具作业不重复这些测试。Windows CI 使用 Edge 和固定版本、校验哈希的 w64devkit GCC。同一分支或 PR 的新提交取消过期检查，同一发布 tag 的运行串行且不自动取消。没有发行 tag 时只检查，不再生成重复候选包。
+[`check` 工作流](../.github/workflows/check.yml)按工具与仓库检查 → 产品/race 并行 → 一次正式交付 → 自动发布执行，各验证范围共用本机预检脚本。PR/main 按[日常分流规则](development.md#测试维护与-ci-修复)决定是否运行产品与 race；需要运行时使用代表性浏览器与 race，手动运行和 tag 使用完整浏览器及全包 race。产品作业完成真实 Console 联调、Go test/vet/build 和 gofmt。`repository-artifacts` 在分支 push／PR 时独立执行，在手动或 tag 检查时由 `check` 调用并作为打包门禁；它通过 `-Scope repository` 执行产物策略及其 Node 测试和 Python 测试，工具作业不重复这些测试。Windows 真实 Console 联调使用 Edge，夹具浏览器使用锁定的 Chromium，race 使用固定版本、校验哈希的 w64devkit GCC。同一分支或 PR 的新提交取消过期检查，同一发布 tag 的运行串行且不自动取消。没有发行 tag 时只检查，不再生成重复候选包。
 
 自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.2.3`）。留空只检查；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
 
@@ -80,7 +80,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 产品和全量 race 全部通过，或完成下面的严格复用校验后，才进入交付构建。独立发布 job 只取得该次 Actions 已验证的五个正式附件并获得 `contents: write`，上传草稿后核对 GitHub 返回的大小与 SHA256。最终 Release 的附件始终来自 Actions。
 
-业务验证复用通过可选 `validation_run_id` 指定本仓库一次成功的完整 `check` 运行。脚本核对工作流、来源、完成状态、产品完整检查以及六个 race 作业的实际成功步骤；普通 main/PR 代表性检查、跳过或失败作业、其他仓库、复用后的运行均不能作为基线。用完整 Git diff（含删除和重命名）确认只有明确列出的交付脚本及文档变化；业务代码、业务测试、前端/Go 依赖、构建规则、验证入口和工作流变化一律拒绝复用。`release.mjs` 与 `release-source.mjs` 同时负责生产构建，整体排除在复用清单外，避免构建入口、编译参数或身份规则变更沿用旧业务结果。清单集中在 `scripts/release-validation.mjs`，工具回归与全部实际交付检查仍执行。留空即运行完整业务检查；不通过校验会立即停止，不静默扩大或缩小范围。初次采用本流程需要建立新的完整成功基线。
+业务验证复用通过可选 `validation_run_id` 指定本仓库一次成功的完整 `check` 运行。脚本核对工作流、来源、完成状态、产品完整检查以及六个 race 作业的实际成功步骤；普通 main/PR 代表性检查、跳过或失败作业、其他仓库、复用后的运行均不能作为基线。用完整 Git diff（含删除和重命名）按与日常分流相同的分类确认只有非业务交付文件或文档资料变化；前端构建清单中的输入和产物（包括位于 `docs/` 的数据及嵌入许可）、业务代码、业务测试、前端/Go 依赖、构建规则、验证入口和工作流变化一律拒绝复用。`release.mjs` 与 `release-source.mjs` 同时负责生产构建，整体排除在复用清单外，避免构建入口、编译参数或身份规则变更沿用旧业务结果。清单集中在 `scripts/release-validation.mjs`，工具回归与全部实际交付检查仍执行。留空即运行完整业务检查；不通过校验会立即停止，不静默扩大或缩小范围。初次采用本流程需要建立新的完整成功基线。
 
 | 后续情况 | 最少需要完成的工作 |
 | --- | --- |

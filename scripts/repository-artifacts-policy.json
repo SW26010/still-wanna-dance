@@ -2152,6 +2152,13 @@
       "bytes": 1321509,
       "sha256": "0b07fc7cfd870f9d1043b0f3da54d9cebb1f636a4feecf6575822ca769a385ba",
       "reason": "Reviewed generated Fluent WebUI bundle: VRCX detection keeps the library import suggestion and removes the global startup notification and its tab-local acknowledgement (2026-11-16). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1322379,
+      "sha256": "f04ff1567932e3b9f8523d50e6e1151ce548bde41830d62da25d7c57738b329b",
+      "reason": "Reviewed generated Fluent WebUI bundle: first browser use recommends the existing download speed test after consent and a successful status read; localStorage remembers the notice independently of configuration files, and the link only navigates (2026-11-16). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

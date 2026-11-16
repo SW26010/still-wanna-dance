@@ -10,7 +10,9 @@ export function statusFixture(): Status {
   const settings: Settings = {theme:'system',logLevel:'info',retainFavorites:true,databasePath:'C:\\UI-Test\\storage\\storage.sqlite',videoDir:'D:\\Videos',blockCacheDir:'',videoBudgetBytes:40*1073741824,videoStorageMode:'unlimited',requestRetentionMode:'unlimited',requestRetentionDays:0,prepareAheadSeconds:500,downloadConcurrencySoftLimit:16,downloadGrowIntervalMS:250,localProtectionGraceSeconds:300,upstreamMode:'direct',proxyBackend:'external-socks5',socks5Address:'',socks5Username:'',autoAccelerate:false,autoOpenWebUI:true,exitWithVRChat:false,queueWithGateway:true,restoreHostsOnStopOrExit:true,vrchatLogDir:''};
   return {vrcxImportAvailable:true,videoImportSuggested:false,running:false,settings:{...settings},activeSettings:{...settings},restartRequired:false,hosts:{ready:false,message:'尚未接入'},portOK:true,httpsPortOK:true,batch:{},lastBatch:{},import:{},queue:{},defaultLogDir:'C:\\UI-Test\\logs',defaultDatabasePath:settings.databasePath,defaultVideoDir:settings.videoDir,defaultBlockCacheDir:'C:\\UI-Test\\work',portableDir:'C:\\UI-Test',activation:{},upstreamMonitor:{results:[]},catalogSync:{initializing:false,checking:false}};
 }
-export async function mockAPI(page: Page,{libraryView}:{libraryView?:'list'|'covers'}={}) {
+export async function mockAPI(page: Page,{libraryView,firstUse=false}:{libraryView?:'list'|'covers';firstUse?:boolean}={}) {
+  // Most fixtures use a returning browser; first-use recommendation tests opt in.
+  if(!firstUse)await page.addInitScript(()=>localStorage.setItem('swd-speed-test-suggestion','shown'));
   if(libraryView)await page.addInitScript(view=>{
     if(view==='list')localStorage.setItem('swd-library-list-run','browser-fixture-token');
     else localStorage.removeItem('swd-library-list-run');

@@ -14,6 +14,7 @@ import { request } from './api';
 import { exitConnectionMessage } from './types';
 import { HostsAuthorizationNotice, VideoImportSuggestion } from './hosts-notice';
 import { VRCXProvider } from './vrcx';
+import { SpeedTestSuggestion } from './speed-test-notice';
 
 const useStyles = makeStyles({
   exitButton: {
@@ -117,6 +118,7 @@ export function App() {
     {proxyNotice&&<Notification message="上游连接已改为代理" body="自动选择模式已移除，原代理配置已保留。可在设置中切换为直连。" action={{href:'#network-proxy',label:'网络设置'}}/>}
     <HostsAuthorizationNotice authorizationID={s?.hosts.authorizationID} managed={!!s?.hosts.managed}/>
     {accepted&&!bootstrap.recovery&&<VideoImportSuggestion/>}
+    {accepted&&!bootstrap.recovery&&<SpeedTestSuggestion/>}
     {!s&&accepted&&!bootstrap.recovery&&!documentPage&&!model.status.error&&<Spinner label="正在读取程序状态…"/>}
   </div>;
   return <ConsoleContext.Provider value={model}><div className="shell">

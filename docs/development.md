@@ -97,7 +97,7 @@ Python 通过现有 uv 管理。本机和 Actions 均使用 `uv run --no-project
 | 正式包预演 | 按[打包入口](packaging.md)完成必要对应源码收集、全新缓存离线重建和实际 ZIP 启动；打包不再嵌套工具或业务全量测试 |
 | 历史版本升级 | 使用实际前一发行包和隔离持久数据验证覆盖升级；涉及数据库、配置或持久化格式变化时，另完成对应历史格式迁移验证。同源码的候选包不能证明历史格式兼容 |
 
-失败先归因并成组修复，按受影响阶段补验：`-Scope tools`、`-Scope repository`、`-Scope product`、`-Scope race` 或 `-Scope delivery -ReleaseTag ...`；`repository` 维护独立的产物策略及 Python 检查，避免与 Actions 工具作业重复。本机全部 race 默认六组及其余包各跑一次，定向复验可用 `-Scope race -RaceShard 0`（0～5）。`-Representative` 只供日常产品/race 检查，不能用于完整预检或正式交付预演。新增了业务行为或依赖变化时补全相应产品、浏览器和 race；仅修改交付脚本时补工具与交付预演，纯文档修改不触发业务全量重跑。需要额外真实 Console 联调时仍按本页受影响行为选择，统一入口不宣称覆盖全部按需场景。
+失败先归因并成组修复，按受影响阶段补验：`-Scope tools`、`-Scope repository`、`-Scope product`、`-Scope race` 或 `-Scope delivery -ReleaseTag ...`；`repository` 维护独立的产物策略及 Python 检查，避免与 Actions 工具作业重复。本机完整 race 默认同时启动全部六组，每组独立保存 `race-shard-N/checks.log` 和 `result.json`；等待六组全部结束后汇总，任一组失败则本阶段失败，保留其他组的实际结果。六组成功后，其余 Go 包只检查一次。定向复验可用 `-Scope race -RaceShard 0`（0～5），显式选择第 0 组时也检查其余包一次。`-Representative` 只供日常产品/race 检查，不能用于完整预检或正式交付预演。新增了业务行为或依赖变化时补全相应产品、浏览器和 race；仅修改交付脚本时补工具与交付预演，纯文档修改不触发业务全量重跑。需要额外真实 Console 联调时仍按本页受影响行为选择，统一入口不宣称覆盖全部按需场景。
 
 完成记录写明源码、实际工具版本、通过/失败/跳过范围和证据路径；skip 不算通过，缺少专用环境只限制对应结论。本机通过后，最终发行仍须由 GitHub Actions 构建、上传和回下载公开附件。本地成功不代替公开交付验证。Actions 内的完整业务结果复用与失败重试规则统一见[打包说明](packaging.md)，无需为每个版本复制工作流。
 
@@ -155,7 +155,7 @@ Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也
 
 同轮本地验证：使用 Go 1.27.3 后 46 个 Node 工具测试及全部跟踪 Go 包的 vet 通过。Go 检查限定 `cmd`、`internal`、`data`、`experiments`，避免本地忽略目录中的历史探针被 `./...` 收集；CI 干净检出保留 `./...`。首次包测试仅 Console 的临时 hosts 夹具发生一次替换拒绝访问，其他包通过；原用例连续 10 次复核及 Console 整包复核通过（85.440 秒），未修改产品文件操作或放宽测试。过程中的旧 Go 拒绝、历史探针加载失败和夹具失败均保留在同一忽略目录，最终结果见 `windows-node-toolchain-after.log`、`windows-tracked-go-after.log`、`windows-tracked-vet-after.log`、`consent-startup-recheck.log` 与 `windows-console-recheck.log`。
 
-Windows CI 的 PR 和 main push 运行代表性 race；手动或版本 tag 检查额外运行全包 race。独立作业下载固定的 w64devkit 2.10.0 并核对 SHA256，再设置 `CGO_ENABLED=1` 和 `CC`。Windows 下大量 SQLite 测试开启 race 后整包超过 Go 默认的 10 分钟上限，因此缓存和 Console 包由 `scripts/test-race-shard.ps1` 依据 Go 列出的顶层测试分为六组；每个测试及其子测试恰好分配一组，其余包由第 0 组检查。每组设 45 分钟的整包期限，测试自身的等待期限不变。本机可使用同版本 GCC，分别运行 `./scripts/test-race-shard.ps1 -Shard 0` 至 `-Shard 5`，并单独检查其他跟踪包；工具及验证日志保存在忽略目录 `artifacts/`，不依赖全局 PATH。此前三组在本机通过，但 CI 第 2 组触及 45 分钟整包上限；改为六组以减小每组工作量，保留原失败记录和测试期限。
+Windows CI 的 PR 和 main push 运行代表性 race；手动或版本 tag 检查额外运行全包 race。独立作业下载固定的 w64devkit 2.10.0 并核对 SHA256，再设置 `CGO_ENABLED=1` 和 `CC`。Windows 下大量 SQLite 测试开启 race 后整包超过 Go 默认的 10 分钟上限，因此缓存和 Console 包由 `scripts/test-race-shard.ps1` 依据 Go 列出的顶层测试分为六组；每个测试及其子测试恰好分配一组，其余包在六组外统一检查一次，CI 由第 0 组负责。每组设 45 分钟的整包期限，测试自身的等待期限不变。本机使用同版本 GCC，运行 `./scripts/release-preflight.ps1 -Scope race`；`test-race-all.ps1` 通过六个独立 PowerShell 后台任务同时执行各组，沿用当前工具链与临时目录隔离。定向使用上述 `-RaceShard` 入口，避免重复检查或遗漏其余包；工具及验证日志保存在忽略目录 `artifacts/`，不依赖全局 PATH。此前三组在本机通过，但 CI 第 2 组触及 45 分钟整包上限；改为六组以减小每组工作量，保留原失败记录和测试期限。
 
 真实磁盘耗尽是独立的 Windows 环境检查，不在普通测试中自动执行。`scripts/test-storage-full.ps1` 使用 Hyper-V 的虚拟磁盘命令创建新的固定 128 MiB NTFS 镜像；只接受本仓库 `artifacts/` 下的测试二进制和证据目录，校验新磁盘身份及容量后才初始化，并为宿主卷保留至少 512 MiB 空间。测试再次校验卷标记与容量，分别填满块、发布和数据库所在的可丢弃卷，检查错误、关闭、清理及已提交数据；结束后卸载并删除本次镜像，保留日志与 `result.json`。不接受现有磁盘号或镜像路径，不填满日常使用的卷。构建不需管理员权限，挂载阶段需要 Windows 管理员令牌；UAC 未确认时此项仍为未验证。
 

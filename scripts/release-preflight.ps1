@@ -111,8 +111,8 @@ try {
             $tests = '^(TestAnyTLSStreamConcurrentClose|TestVRChatExitWaitsWithoutPolling|TestVRChatExitWaitsForOtherInstancesAndRestart|TestVRChatExitObservationErrorsRecover|TestHTTPSeekDuringRangeInitialization|TestBlockDemandFollowsActualWaitAndIndependentReaders|TestNetworkConnectivityFullRunsThreeRequestsTogether|TestMixedDemandKeepsDeadlineAndOpportunisticAdmission)$'
             Invoke-Go @('test', '-tags=no_easytier', '-race', './internal/blocksched', './internal/cacheproxy', './internal/console', './internal/desktop', './internal/proxyengine/mihomo', "-run=$tests", '-count=1')
         } else {
-            $shards = if ($RaceShard -eq -1) { @(0..5) } else { @($RaceShard) }
-            foreach ($shard in $shards) { & "$PSScriptRoot/test-race-shard.ps1" -Shard $shard -Shards 6 }
+            if ($RaceShard -eq -1) { & "$PSScriptRoot/test-race-all.ps1" -EvidenceDirectory $evidence }
+            else { & "$PSScriptRoot/test-race-shard.ps1" -Shard $RaceShard -Shards 6 }
             if ($RaceShard -in @(-1, 0)) {
                 $packages = @(& node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
                 if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining Go packages.' }

@@ -8,7 +8,7 @@ import { withTemp } from './release-source.mjs';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
 const ps = value => `'${value.replaceAll("'", "''")}'`;
-function preflight({ failProduct = false, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.13' } = {}) {
+function preflight({ failProduct = false, failRace = false, raceShard, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.13' } = {}) {
   return withTemp(temp => {
     const root = path.join(temp, 'repo'), directory = path.join(root, 'scripts'); fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(root, '.node-version'), '22.23.4\n');
@@ -17,6 +17,10 @@ function preflight({ failProduct = false, nodeVersion = 'v22.23.4', goVersion = 
     fs.mkdirSync(path.join(root, 'webui'));
     fs.writeFileSync(path.join(root, 'webui/package.json'), JSON.stringify({ packageManager: 'pnpm@11.25.0' }));
     for (const name of ['release-preflight.ps1', 'with-test-temp.ps1', 'test-race-shard.ps1']) fs.copyFileSync(path.join(scripts, name), path.join(directory, name));
+    fs.writeFileSync(path.join(directory, 'test-race-all.ps1'), `param($EvidenceDirectory)
+$global:calls.Add(@('race-all', $EvidenceDirectory))
+${failRace ? "throw 'fixture race failure'" : 'foreach ($shard in 0..5) { & "$PSScriptRoot/test-race-shard.ps1" -Shard $shard -Shards 6 }'}
+`);
     fs.writeFileSync(path.join(directory, 'package-portable.ps1'), 'param($ReleaseTag, $PreviousZip)\n$global:calls.Add(@("delivery", $ReleaseTag))\n$global:LASTEXITCODE = 0\n');
     const result = path.join(temp, 'result.json'), driver = path.join(temp, 'driver.ps1');
     fs.writeFileSync(driver, `
@@ -42,7 +46,7 @@ function global:fixtureGcc { $global:LASTEXITCODE = 0 }
 $env:CI = 'caller-ci'; $env:CGO_ENABLED = 'before'; $env:GOTOOLCHAIN = 'before'; $env:CC = 'fixtureGcc'
 $env:SWD_SETTINGS_BROWSER_EVIDENCE = 'caller-settings'; $env:SWD_HOSTS_BROWSER_EVIDENCE = 'caller-hosts'
 $caught = ''
-try { & ${ps(path.join(directory, 'release-preflight.ps1'))} -ReleaseTag v1.2.3-preflight } catch { $caught = $_.ToString() }
+try { & ${ps(path.join(directory, 'release-preflight.ps1'))} ${raceShard === undefined ? '-ReleaseTag v1.2.3-preflight' : `-Scope race -RaceShard ${raceShard}`} } catch { $caught = $_.ToString() }
 $record = Get-ChildItem -LiteralPath ${ps(path.join(root, 'artifacts/release-preflight'))} -Filter result.json -Recurse | ForEach-Object { Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json }
 @{ calls = @($global:calls.ToArray()); contexts = @($global:contexts.ToArray()); error = $caught; record = $record; ci = $env:CI; cgo = $env:CGO_ENABLED; toolchain = $env:GOTOOLCHAIN; settings = $env:SWD_SETTINGS_BROWSER_EVIDENCE; hosts = $env:SWD_HOSTS_BROWSER_EVIDENCE } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath ${ps(result)}
 `);
@@ -58,6 +62,8 @@ test('full preflight covers every race test once and builds delivery after all c
   assert.equal(result.record.status, 'passed');
   assert.deepEqual(result.record.passed, ['tools', 'repository', 'product', 'race', 'delivery']);
   assert.equal(result.calls.at(-1)[0], 'delivery');
+  const raceAll = result.calls.filter(call => call[0] === 'race-all');
+  assert.equal(raceAll.length, 1); assert.match(raceAll[0][1], /release-preflight/);
   assert.equal(result.cgo, 'before'); assert.equal(result.toolchain, 'before');
   assert.equal(result.ci, 'caller-ci');
   assert.ok(result.contexts.every(call => call.ci === 'true'));
@@ -81,6 +87,31 @@ test('full preflight covers every race test once and builds delivery after all c
     for (let n = 0; n < 12; n++) assert.equal(runs.filter(call => new RegExp(call.find(arg => arg.startsWith('-run=')).slice(5)).test(`TestT${n}`)).length, 1);
   }
   assert.equal(result.calls.filter(call => call.includes('still-wanna-dance/internal/example') && call.includes('-race')).length, 1);
+});
+
+test('race failure retains evidence and stops remaining packages and delivery', () => {
+  const result = preflight({ failRace: true });
+  assert.match(result.error, /fixture race failure/);
+  assert.equal(result.record.status, 'failed');
+  assert.deepEqual(result.record.passed, ['tools', 'repository', 'product']);
+  assert.equal(result.calls.some(call => call[0] === 'delivery' || call.includes('still-wanna-dance/internal/example')), false);
+  assert.equal(result.cgo, 'before'); assert.equal(result.ci, 'caller-ci');
+});
+
+test('an explicit race shard runs only its group and shard zero checks other packages once', () => {
+  for (const raceShard of [0, 3]) {
+    const result = preflight({ raceShard });
+    assert.equal(result.error, ''); assert.equal(result.record.status, 'passed');
+    assert.deepEqual(result.record.passed, ['race']);
+    assert.equal(result.calls.some(call => call[0] === 'race-all'), false);
+    for (const packageName of ['./internal/cacheproxy', './internal/console']) {
+      const runs = result.calls.filter(call => call.includes(packageName) && call.some(arg => arg.startsWith('-run=')));
+      assert.equal(runs.length, 1);
+      const pattern = new RegExp(runs[0].find(arg => arg.startsWith('-run=')).slice(5));
+      for (let n = 0; n < 12; n++) assert.equal(pattern.test(`TestT${n}`), n % 6 === raceShard);
+    }
+    assert.equal(result.calls.filter(call => call.includes('still-wanna-dance/internal/example') && call.includes('-race')).length, raceShard === 0 ? 1 : 0);
+  }
 });
 
 test('product failure stops later checks and delivery, retaining failure evidence and environment', () => {

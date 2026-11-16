@@ -133,7 +133,7 @@ func NewCalibration(client *http.Client, upstream string, options CalibrationOpt
 	return &Calibration{client: client, options: options, changed: make(chan struct{}),
 		state: CalibrationStatus{Phase: "idle", Upstream: upstream, Samples: []CalibrationSample{}},
 		limits: calibrationLimits{minimum: 10 * time.Second, duration: 120 * time.Second, interval: time.Second,
-			warmup: time.Second, window: 3 * time.Second, prepare: 30 * time.Second,
+			warmup: 3 * time.Second, window: 5 * time.Second, prepare: 30 * time.Second,
 			reserveVideos: 16}}
 }
 

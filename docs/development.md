@@ -81,7 +81,9 @@ Python 通过现有 uv 管理。本机和 Actions 均使用 `uv run --no-project
 
 正式发行前，由开发者先在本机对待发行源码完成以下完整预检，再启动发行 Action。统一入口为 `scripts/release-preflight.ps1`，Actions 的工具、产品和 race 作业也使用它。日常开发仍按变更影响选择检查，PR/main 的代表性浏览器和 race 检查不代替完整预检，也不要求每次编辑或推送都重跑整套发布流程。
 
-预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集。Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐；工具检查还需要 Python 3。先在当前终端选择 `.node-version` 指定的 Node，再设置 `CC` 指向工作流固定版本的 GCC，在独立检出中准备仅本地的测试 tag（不推送），然后运行：
+预检使用干净的独立检出，避免 `artifacts/` 中的历史探针被 `./...` 收集。Windows 交付预演应选择较短的检出位置（如仓库下的 `artifacts/r`），为临时目录和 pnpm 路径预留空间。离线前端重建的 esbuild 可执行路径达到 260 字符时，Node 启动会报 `ENOENT`，即使文件存在；本机同一二进制的 259／260 字符对照已复现该边界。缩短检出位置后重跑交付阶段，不通过放宽校验或跳过离线重建处理。
+
+Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflows/check.yml)及锁文件对齐；工具检查还需要 Python 3。先在当前终端选择 `.node-version` 指定的 Node，再设置 `CC` 指向工作流固定版本的 GCC，在独立检出中准备仅本地的测试 tag（不推送），然后运行：
 
 ```powershell
 ./scripts/release-preflight.ps1 -ReleaseTag v1.2.3-preflight -PreviousTag v1.2.2

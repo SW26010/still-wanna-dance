@@ -36,7 +36,7 @@ export function Home({visible}: {visible:boolean}) {
   return <div className="page-stack">
     <div className="home-cards"><UpstreamStatus visible={visible}/><Card id="activation" size="small" className="acceleration-card" tabIndex={-1}>
       <div className="toolbar spread acceleration-heading"><div className="acceleration-title"><Title2 as="h2" className={!s.running&&!active(s)?'acceleration-idle':undefined} aria-live="polite" aria-atomic="true">{stopping?'正在停止加速':active(s)?'正在开启加速':accelerationLabel(s)}</Title2>
-        {s.running&&s.hosts.ready&&!connectionReason&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
+        {s.running&&s.hosts.ready&&!connectionError&&!serviceError&&!active(s)&&!uncertain&&<span className="secondary acceleration-hint">可关闭浏览器，减少资源占用</span>}</div>
         <Tooltip content={accelerationAction} relationship="label"><Button className="acceleration-action" appearance="secondary" size="large" icon={s.running?<Stop20Filled aria-hidden="true"/>:<Play20Filled aria-hidden="true"/>} aria-label={accelerationAction} disabled={app.unavailable} onClick={()=>void app.action(s.running?'activation/disable':'activation/enable')}/></Tooltip></div>
       <div className="toolbar condition-strip">
         <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionDescription} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>

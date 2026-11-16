@@ -8,6 +8,13 @@
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
       "bytes": 1321985,
+      "sha256": "67edf3683e4d48e15381d5621ac380a8c711bed1cd55e74b2a0c8461fec2a5e2",
+      "reason": "Production WebUI rebuilt to keep the close-browser hint visible while acceleration is ready but exit restore permission is missing; connection errors and restore repair actions retain their existing behavior. Embedded in offline Go builds and verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1321985,
       "sha256": "f652fb421f8a733a18e790a4ff3a024d67c2913c67061bfe3f5f9a8899fcb457",
       "reason": "Production WebUI rebuilt with the uninstall recovery action in help, shared bottom-right Toast feedback and suppression of the keep-connection suggestion after restoration. Embedded in offline Go builds and verified against webui/build-manifest.json; locked dependencies are unchanged."
     },

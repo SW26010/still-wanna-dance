@@ -66,11 +66,13 @@ test('opening the network page does not restart acceleration or request detectio
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path))).toEqual([]);
 });
 
-for(const width of [320,1280])test(`existing connection accelerates without permission and repairs from its status (${width})`,async({page},info)=>{
+for(const width of [320,1440])test(`existing connection accelerates without permission and repairs from its status (${width})`,async({page},info)=>{
   const api=await mockAPI(page);api.state.hosts={ready:true,managed:true,exitRestorePrepared:false,message:'已配置'};
   await page.setViewportSize({width,height:850});
   await page.emulateMedia({colorScheme:width===320?'dark':'light'});
   await page.goto('/');
+  const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
+  await expect(browserHint).toHaveCount(0);
   const connection=page.getByRole('status',{name:'游戏连接',exact:true});
   await expect(connection).toHaveText('游戏连接：需检查');await connection.hover();
   const popup=page.getByRole('group',{name:'游戏连接说明',exact:true});
@@ -83,6 +85,9 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   await expect(connection).toHaveText('游戏连接：需检查');
+  if(width===1440)await expect(browserHint).toBeVisible();else await expect(browserHint).toBeHidden();
+  expect(api.calls.some(c=>c.path==='hosts/prepare')).toBe(false);
+  await page.locator('#activation').screenshot({path:info.outputPath('running-without-restore-permission.png'),animations:'disabled'});
   await page.mouse.move(0,0);await page.getByRole('button',{name:'停止加速',exact:true}).hover();
   await expect(page.getByRole('tooltip')).toHaveText('停止加速');
   await page.getByRole('button',{name:'退出程序',exact:true}).hover();
@@ -92,6 +97,7 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   await popup.getByRole('button',{name:'修复',exact:true}).click();
   await expect(popup.getByRole('button',{name:'修复',exact:true})).toBeEnabled();
   await expect(connection).toHaveText('游戏连接：需检查');
+  if(width===1440)await expect(browserHint).toBeVisible();else await expect(browserHint).toBeHidden();
   await expect(page.getByRole('listitem',{name:'管理员授权已取消',exact:true})).toHaveCount(0);
   await page.unroute('**/api/hosts/prepare');
   await page.keyboard.press('Escape');await expect(popup).toBeHidden();
@@ -104,6 +110,7 @@ for(const width of [320,1280])test(`existing connection accelerates without perm
   await page.keyboard.press('Enter');
   await expect(connection).toHaveText('游戏连接：已接入');
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
+  if(width===1440)await expect(browserHint).toBeVisible();else await expect(browserHint).toBeHidden();
   expect(api.calls.filter(c=>c.path==='hosts/prepare')).toHaveLength(1);
   await navigate(page,'网络');
   await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();

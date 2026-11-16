@@ -54,6 +54,16 @@ async function coversFixture(page:Page,count=3,image?:Buffer) {
   return {...api,songs,requested,modes,queries,choices};
 }
 
+function coverRefreshes(page:Page,ids:string[]) {
+  return Promise.all(ids.map(id=>page.waitForResponse(response=>{
+    const url=new URL(response.url());
+    return url.pathname==='/api/library/cover'&&url.searchParams.get('id')===id&&url.searchParams.get('mode')==='refresh';
+  }).then(async response=>{
+    expect(response.ok()).toBe(true);
+    expect(await response.finished()).toBeNull();
+  })));
+}
+
 test('all bundled category images decode at the recorded size',async({page})=>{
   await coversFixture(page);await page.goto('/#/library');
   const manifest=JSON.parse(readFileSync(new URL('../../docs/research/category-cover-assets-20261112.json',import.meta.url),'utf8'));
@@ -124,14 +134,15 @@ test('default cover view loads current and next pages in priority order and pres
   const {requested,modes,queries,songs}=await coversFixture(page,75);
   songs.splice(0,50,...songs.slice(0,50).reverse());
   await page.setViewportSize({width:1280,height:800});
+  const refreshed=coverRefreshes(page,['1','3']);
   await page.goto('/#/library');
+  await refreshed;
   const search=page.getByRole('searchbox',{name:'搜索曲库'}),tabs=page.getByRole('tablist',{name:'曲库视图'});
   const before={search:await search.boundingBox(),tabs:await tabs.boundingBox()};
   const grid=page.getByRole('list',{name:'曲库封面'});
   await expect(grid.getByRole('listitem')).toHaveCount(50);
-  await expect.poll(()=>requested.includes('1')).toBe(true);
-  await expect.poll(()=>requested.includes('75')).toBe(true);
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
+  expect(requested).toContain('1');expect(requested).toContain('75');
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(2);
   expect(requested.slice(0,6)).toEqual(['3','1','50','49','48','47']);
   const network=requested.map((id,i)=>({id,mode:modes[i]})).filter(r=>r.mode!=='cached');
   expect(network.slice(0,48).every(r=>Number(r.id)<=50&&r.mode==='fetch')).toBe(true);
@@ -159,15 +170,18 @@ for(const failure of ['page','choices'] as const)test(`next-page ${failure} fail
     if(new URL(route.request().url()).searchParams.get('offset')==='50'){failed=true;await route.fulfill({json:{songs:[]}});}
     else await route.fallback();
   });
+  const refreshed=coverRefreshes(page,['1','3']);
   await page.goto('/#/library');
-  await expect.poll(()=>failed).toBe(true);
+  await refreshed;
+  expect(failed).toBe(true);
   for(const id of ['1','3'])await expect(page.getByRole('group',{name:`歌曲 ${id}`,exact:true}).locator('img')).toHaveJSProperty('naturalWidth',480);
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(2);
 });
 
 test('returning to cover view reuses images without rereading files or another session update',async({page})=>{
-  const {modes}=await coversFixture(page);await page.goto('/#/library');
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
+  const {modes}=await coversFixture(page),refreshed=coverRefreshes(page,['1','3']);
+  await page.goto('/#/library');await refreshed;
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(2);
   await page.getByRole('button',{name:'切换到列表视图',exact:true}).click();
   await page.getByRole('button',{name:'切换到封面视图',exact:true}).click();
   await expect.poll(()=>modes.filter(mode=>mode==='fetch').length).toBe(2);
@@ -195,8 +209,10 @@ async function checkCoverPaging(page:Page,pressure:boolean) {
     if(paused&&new URL(route.request().url()).searchParams.get('id')!=='2'){rereads++;await route.abort();}
     else await route.fallback();
   });
+  const refreshed=coverRefreshes(page,['3']);
   await page.goto('/#/library');
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(1);
+  await refreshed;
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(1);
   const first=page.getByRole('group',{name:'歌曲 1',exact:true}).locator('.library-cover-play img.is-ready');
   await expect(first).toHaveJSProperty('naturalWidth',480);
   const original=await first.getAttribute('src');
@@ -238,8 +254,18 @@ for(const pressure of [false,true])test(`paging shows loaded JPEGs on the first 
 test('paging keeps old covers at their current position until the destination page is committed',async({page})=>{
   const jpeg=await jpegFixture(page),{choices,modes}=await coversFixture(page,100,jpeg);
   for(const id of Object.keys(choices))choices[id]={source:id==='2'?'category':'local',refresh:id==='3'};
-  await page.goto('/#/library');
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(1);
+  // Keep setup beyond the default five-second polling window on any host.
+  let delayed=false;
+  await page.route('**/api/library?**',async route=>{
+    if(!delayed&&new URL(route.request().url()).searchParams.get('offset')==='50'){
+      delayed=true;await new Promise(resolve=>setTimeout(resolve,5500));
+    }
+    await route.fallback();
+  });
+  const refreshed=coverRefreshes(page,['3']);
+  await page.goto('/#/library');await refreshed;
+  expect(delayed).toBe(true);
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(1);
   for(const [buttonName,offset,from,to] of [['下一页曲库','50','1','51'],['上一页曲库','0','51','1']]){
     const button=page.getByRole('button',{name:buttonName,exact:true});
     await button.scrollIntoViewIfNeeded();
@@ -268,7 +294,9 @@ test('undecodable refreshes retain loaded images and release rejected URLs',asyn
     if(new URL(route.request().url()).searchParams.get('mode')==='refresh')return route.fulfill({contentType:'image/jpeg',body:'not an image'});
     await route.fallback();
   });
+  const refreshed=coverRefreshes(page,['1','3']);
   await page.goto('/#/library');
+  await refreshed;
   await expect.poll(sources).toMatchObject({created:4,revoked:2});
   const active=(await sources()).active;expect(active).toHaveLength(2);
   for(const id of ['1','3']){
@@ -282,12 +310,16 @@ test('recent cover reuse retains at most three pages and releases evicted URLs',
   const sources=await trackCoverURLs(page);
   const {modes,choices}=await coversFixture(page,200);
   for(const id of Object.keys(choices))choices[id]={source:id==='2'?'category':'local',refresh:['1','51','101'].includes(id)};
+  const refreshed=coverRefreshes(page,['1']);
   await page.goto('/#/library');
+  await refreshed;
   await expect.poll(sources).toMatchObject({created:100,revoked:1});
   const original=await page.getByRole('group',{name:'歌曲 1',exact:true}).locator('img').getAttribute('src');
-  for(const checks of [2,3]){
+  for(const [id,checks] of [['51',2],['101',3]] as const){
+    const refreshed=coverRefreshes(page,[id]);
     await page.getByRole('button',{name:'下一页曲库',exact:true}).click();
-    await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(checks);
+    await refreshed;
+    expect(modes.filter(mode=>mode==='refresh')).toHaveLength(checks);
   }
   await expect.poll(sources).toMatchObject({created:202,revoked:52});
   const active=(await sources()).active;
@@ -307,10 +339,7 @@ test('retained images respect their byte budget beyond the current working page'
   });
   const retained=Math.floor(8*1024*1024/size),current=49;
   // Current-page refreshes start after the next-page prefetch has completed.
-  const refreshed=Promise.all(['1','3'].map(id=>page.waitForResponse(response=>{
-    const url=new URL(response.url());
-    return url.pathname==='/api/library/cover'&&url.searchParams.get('id')===id&&url.searchParams.get('mode')==='refresh';
-  }).then(response=>response.finished())));
+  const refreshed=coverRefreshes(page,['1','3']);
   await page.goto('/#/library');
   await refreshed;
   await expect.poll(sources).toMatchObject({created:76,revoked:76-current-retained});
@@ -472,8 +501,10 @@ for(const change of ['search','page'] as const)test(`pending hover details are c
     if(changing&&(change==='page'?q.get('offset')==='50':q.get('q')==='封面')){started=true;await response;}
     await route.fallback();
   });
+  const refreshed=coverRefreshes(page,['1','3']);
   await page.goto('/#/library');
-  await expect.poll(()=>modes.filter(mode=>mode==='refresh').length).toBe(2);
+  await refreshed;
+  expect(modes.filter(mode=>mode==='refresh')).toHaveLength(2);
   if(change==='search')await page.getByRole('searchbox',{name:'搜索曲库'}).focus();
   await page.getByRole('group',{name:'歌曲 1',exact:true}).getByRole('button',{name:'预览歌曲 1：封面测试歌曲 1',exact:true}).hover();
   await page.clock.runFor(200);changing=true;

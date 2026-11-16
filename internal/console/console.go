@@ -43,7 +43,6 @@ type Console struct {
 	channelIdentity        proxyChannelIdentity
 	vrcxMu                 sync.Mutex // preview/apply/discard; acquire before lifecycleMu
 	vrcxPreview            *vrcxPreview
-	vrcxNotify             bool // startup Toast only; set during automatic library creation
 	vrcxImportDismissed    bool // protected by mu; persisted user choice outside editable Settings
 	videoImportSuggestion  bool // protected by mu; only the first run of a configuration, until acknowledged
 	proxyModeMigrated      bool // startup notice; migration is already persisted

@@ -104,7 +104,6 @@ func (c *Console) prepareDefaultLibrary() error {
 			return withSettingFields(fmt.Errorf("无法创建默认数据库：%w", err), "databasePath")
 		}
 		c.store = store
-		c.vrcxNotify = true
 	}
 	c.settings = s
 	return nil

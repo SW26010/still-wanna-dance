@@ -69,7 +69,6 @@ func (c *Console) serveVRCX(w http.ResponseWriter, r *http.Request) {
 			c.mu.Lock()
 			suggested := !c.vrcxImportDismissed && count == 0 && result["found"] == true
 			result["suggested"] = suggested
-			result["notify"] = suggested && c.vrcxNotify
 			c.mu.Unlock()
 		}
 		writeJSON(w, result)

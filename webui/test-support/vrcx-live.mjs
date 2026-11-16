@@ -15,16 +15,9 @@ try {
   page.on('request',request=>{if(request.url().includes('/api/vrcx/'))calls.push(new URL(request.url()).pathname);});
   await page.goto(baseURL+'/');
   const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
-  if(mode==='first-run') {
-    await expect(notice).toBeVisible();
-    expect(calls).toEqual(['/api/vrcx/detect']);
-    await page.screenshot({path:join(output,'toast.png'),animations:'disabled'});
-    await notice.getByRole('link',{name:'前往曲库',exact:true}).click();
-  } else {
-    await expect.poll(()=>calls.length).toBe(1);
-    await expect(notice).toHaveCount(0);
-    await page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name:'曲库',exact:true}).click();
-  }
+  await expect.poll(()=>calls.length).toBe(1);
+  await expect(notice).toHaveCount(0);
+  await page.getByRole('navigation',{name:'页面导航',exact:true}).getByRole('link',{name:'曲库',exact:true}).click();
   await expect(notice).toHaveCount(0);
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toBeVisible();
   expect(calls).toEqual(['/api/vrcx/detect']);

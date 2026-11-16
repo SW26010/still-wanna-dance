@@ -127,15 +127,15 @@ func TestVRCXSuggestionUsesEmptyStatisticsAndPersistedDismissal(t *testing.T) {
 			for range 2 { // Refreshes and other tabs retain the same decision.
 				w := vrcxRequest(t, c, "detect", map[string]any{})
 				var result struct {
-					Found, Suggested, Notify bool
-					ExistingSongs            int
-					TargetError              string
+					Found, Suggested bool
+					ExistingSongs    int
+					TargetError      string
 				}
 				if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil {
 					t.Fatal(w.Code, w.Body.String())
 				}
 				wantSuggestion := scenario == "file" || scenario == "existing" || scenario == "reopened"
-				if result.Suggested != wantSuggestion || result.Notify != (scenario == "file") || result.Found != (scenario != "missing" && scenario != "directory") || result.TargetError != "" {
+				if result.Suggested != wantSuggestion || result.Found != (scenario != "missing" && scenario != "directory") || result.TargetError != "" {
 					t.Fatal("unexpected suggestion", w.Body.String())
 				}
 			}

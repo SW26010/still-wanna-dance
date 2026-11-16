@@ -2145,6 +2145,13 @@
       "bytes": 1322269,
       "sha256": "571670f5282cf3884e1f62ec379cecc6c46aff03d212a1930c0331f88522143e",
       "reason": "Reviewed generated Fluent WebUI bundle: video import shows the existing extra-space message when the target volume cannot hard-link files (2026-11-15). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json; three Edge space-preview regressions passed at 320px and 1280px."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1321509,
+      "sha256": "0b07fc7cfd870f9d1043b0f3da54d9cebb1f636a4feecf6575822ca769a385ba",
+      "reason": "Reviewed generated Fluent WebUI bundle: VRCX detection keeps the library import suggestion and removes the global startup notification and its tab-local acknowledgement (2026-11-16). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

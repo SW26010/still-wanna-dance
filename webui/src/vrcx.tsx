@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type PropsWithC
 import { Button, useRestoreFocusTarget } from '@fluentui/react-components';
 import { APIError, request } from './api';
 import { useApp } from './hooks';
-import { Feedback, Notification, Panel } from './ui';
+import { Feedback, Panel } from './ui';
 import { PathField, usePathPicker } from './path-picker';
 import { displayStoragePath } from './storage-path';
 
@@ -19,7 +19,7 @@ function useVRCXImport(target: string) {
   const picker = usePathPicker();
   const [path, setPath] = useState(''), [defaultPath, setDefaultPath] = useState(''), [found, setFound] = useState<boolean>(), [targetPending, setTargetPending] = useState(true), [targetError, setTargetError] = useState('');
   const [preview, setPreview] = useState<Preview>(), [pending, setPending] = useState(false), [message, setMessage] = useState('');
-  const [detectedSuggestion, setSuggested] = useState(false), [notify,setNotify] = useState(false);
+  const [detectedSuggestion, setSuggested] = useState(false);
   const suggested = detectedSuggestion && !!app.status.data?.vrcxImportAvailable;
   const mounted = useRef(true), controller = useRef<AbortController | undefined>(undefined), current = useRef<Preview | undefined>(undefined), lock = useRef(false), revision = useRef(0);
   const locked = app.unavailable || pending || picker.pending || targetPending;
@@ -34,8 +34,8 @@ function useVRCXImport(target: string) {
     let canceled = false;
     setTargetPending(true); setTargetError('');
     setSuggested(false);
-    void request<{path:string;found:boolean;suggested?:boolean;notify?:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
-      if (!canceled) { setDefaultPath(result.path); setFound(result.found); setTargetError(result.targetError || ''); setSuggested(!!result.suggested); setNotify(!!result.notify); }
+    void request<{path:string;found:boolean;suggested?:boolean;existingSongs?:number;targetError?:string}>('vrcx/detect', {}).then(result => {
+      if (!canceled) { setDefaultPath(result.path); setFound(result.found); setTargetError(result.targetError || ''); setSuggested(!!result.suggested); }
     }).catch(() => { if (!canceled) { setFound(false); setTargetError('无法检查目标歌曲统计'); } })
       .finally(() => { if(!canceled)setTargetPending(false); });
     return () => { canceled = true; };
@@ -100,7 +100,7 @@ function useVRCXImport(target: string) {
       }
     } finally { if (mounted.current) busy(false); }
   }
-  return {target, path, defaultPath, found, suggested, notify, preview, pending, targetPending, targetError, message, pickerError:picker.error, locked, choose, inspect, apply, dismiss, confirmOverwrite,
+  return {target, path, defaultPath, found, suggested, preview, pending, targetPending, targetError, message, pickerError:picker.error, locked, choose, inspect, apply, dismiss, confirmOverwrite,
     resetPath: () => { clear(); setPath(''); }};
 }
 type VRCXModel = ReturnType<typeof useVRCXImport>;
@@ -110,24 +110,9 @@ export function useVRCX() {
   if (!model) throw new Error('VRCXProvider is required');
   return model;
 }
-export function VRCXProvider({target,page,children}:PropsWithChildren<{target:string;page:string}>) {
-  const model = useVRCXImport(target), app = useApp();
-  const announced = useRef(false), [notice,setNotice] = useState(false);
-  useEffect(() => {
-    if (!model.suggested || !model.notify || page === 'library' || app.stopped) setNotice(false);
-    if (!model.suggested || !model.notify || announced.current || app.stopped) return;
-    announced.current = true;
-    // Like other startup notices, remember only a tab-local acknowledgement.
-    try {
-      if (sessionStorage.getItem('swd-vrcx-suggestion')) return;
-      sessionStorage.setItem('swd-vrcx-suggestion','shown');
-    } catch { /* Optional storage; in-page deduplication still applies. */ }
-    if (page !== 'library') setNotice(true);
-  },[model.suggested,model.notify,page,app.stopped]);
-  return <VRCXContext.Provider value={model}>
-    {notice&&<Notification message="检测到 VRCX 数据库" body="可在曲库导入历史，安排歌曲下载与保留顺序。" action={{href:'#/library',label:'前往曲库'}} persistent/>}
-    {children}
-  </VRCXContext.Provider>;
+export function VRCXProvider({target,children}:PropsWithChildren<{target:string}>) {
+  const model = useVRCXImport(target);
+  return <VRCXContext.Provider value={model}>{children}</VRCXContext.Provider>;
 }
 
 export function VRCXImport({model:m}: {model:VRCXModel}) {

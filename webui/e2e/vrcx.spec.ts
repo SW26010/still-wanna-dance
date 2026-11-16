@@ -13,7 +13,7 @@ async function fixture(page: Page, existing = 0, suggested = false) {
     if(req.method()!=='POST'||!['detect','dismiss','preview','apply','discard'].includes(path))return route.fallback();
     const body=req.postDataJSON();
     calls.push({path,body});
-    if(path==='detect')return route.fulfill({json:{path:report.source,found:true,suggested:suggested&&report.existingSongs===0,notify:suggested&&report.existingSongs===0,existingSongs:report.existingSongs}});
+    if(path==='detect')return route.fulfill({json:{path:report.source,found:true,suggested:suggested&&report.existingSongs===0,existingSongs:report.existingSongs}});
     if(path==='dismiss'){suggested=false;return route.fulfill({json:{ok:true}});}
 
     if(path==='preview') return route.fulfill({json:report});
@@ -63,9 +63,10 @@ for (const width of [390,1280]) test(`first library offers VRCX import without r
   await consent.getByRole('button',{name:'同意完整条款',exact:true}).click();
   await expect(page.getByRole('heading',{name:'加速',exact:true})).toBeVisible();
   const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
-  await expect(notice).toBeVisible();
+  await expect.poll(()=>calls.map(c=>c.path)).toEqual(['detect']);
+  await expect(notice).toHaveCount(0);
   expect(calls.map(c=>c.path)).toEqual(['detect']);
-  await notice.getByRole('link',{name:'前往曲库',exact:true}).click();
+  await navigate(page,'曲库');
   await expect(notice).toHaveCount(0);
   const action=page.getByRole('button',{name:'导入历史',exact:true});
   await expect(action).toBeVisible();
@@ -84,36 +85,23 @@ for (const width of [390,1280]) test(`first library offers VRCX import without r
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('closing the startup toast does not import or dismiss the library suggestion and reload does not repeat it',async({page})=>{
+test('VRCX detection only suggests import in the library through navigation and reload',async({page})=>{
   const {calls}=await fixture(page,0,true);await page.goto('/');
   const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
-  await expect(notice).toBeVisible();
-  await notice.getByRole('button',{name:'关闭通知',exact:true}).click();
+  await expect.poll(()=>calls.map(c=>c.path)).toEqual(['detect']);
   await expect(notice).toHaveCount(0);
-  await page.reload();await expect.poll(()=>calls.filter(c=>c.path==='detect').length).toBe(2);
+  await navigate(page,'历史');await expect(notice).toHaveCount(0);
   await navigate(page,'曲库');
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toBeVisible();
+  expect(calls.map(c=>c.path)).toEqual(['detect']);
+  await page.reload();
+  await expect(page.getByRole('button',{name:'导入历史',exact:true})).toBeVisible();
+  await expect(notice).toHaveCount(0);
   await navigate(page,'加速');await expect(notice).toHaveCount(0);
   expect(calls.map(c=>c.path)).toEqual(['detect','detect']);
 });
 
-test('the startup toast waits for a click and stays dismissed after closing',async({page})=>{
-  await page.clock.install();
-  const {calls}=await fixture(page,0,true);await page.goto('/');
-  const notice=page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true});
-  await expect(notice).toBeVisible();
-  await page.bringToFront();
-  await page.clock.runFor(12000);
-  await expect(notice).toBeVisible();
-  await navigate(page,'历史');
-  await expect(notice).toBeVisible();
-  await notice.getByRole('button',{name:'关闭通知',exact:true}).click();
-  await navigate(page,'加速');
-  await expect(notice).toHaveCount(0);
-  expect(calls.map(c=>c.path)).toEqual(['detect']);
-});
-
-for(const condition of ['missing','existing','unavailable'] as const)test(`startup toast stays quiet when ${condition}`,async({page})=>{
+for(const condition of ['missing','existing','unavailable'] as const)test(`VRCX import suggestion stays hidden when ${condition}`,async({page})=>{
   const {calls}=await fixture(page,condition==='existing'?3:0,false);
   if(condition==='missing')await page.route('**/api/vrcx/detect',r=>r.fulfill({json:{found:false,suggested:false,existingSongs:0}}));
   if(condition==='unavailable')await page.route('**/api/vrcx/detect',r=>r.fulfill({status:500,body:'无法检查目标歌曲统计'}));
@@ -137,18 +125,6 @@ test('ignoring VRCX suggestion survives navigation and reload without reading th
   await expect.poll(()=>calls.filter(c=>c.path==='detect').length).toBe(2);
   expect(calls.map(c=>c.path)).toEqual(['detect','dismiss','detect']);
   await expect(page.getByRole('button',{name:'导入历史',exact:true})).toHaveCount(0);
-});
-
-test('an empty reopened library keeps its suggestion without another startup toast',async({page})=>{
-  const {calls,report}=await fixture(page,0,true);
-  let detections=0;
-  await page.route('**/api/vrcx/detect',r=>{detections++;return r.fulfill({json:{path:report.source,found:true,suggested:true,notify:false,existingSongs:0}});});
-  await page.goto('/');await expect.poll(()=>detections).toBe(1);
-  await expect(page.getByRole('listitem',{name:'检测到 VRCX 数据库',exact:true})).toHaveCount(0);
-  await navigate(page,'曲库');await expect(page.getByRole('button',{name:'导入历史',exact:true})).toBeVisible();
-  await page.reload();await expect.poll(()=>detections).toBe(2);
-  await expect(page.getByRole('button',{name:'导入历史',exact:true})).toBeVisible();
-  expect(calls.some(c=>c.path==='preview'||c.path==='apply')).toBe(false);
 });
 
 test('the normal status refresh removes the suggestion when the first demand is stored',async({page})=>{

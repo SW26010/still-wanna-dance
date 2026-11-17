@@ -208,7 +208,7 @@ test('history events coalesce list and statistics reads without losing focus',as
   });
   await page.goto('/#/timeline');
   const details=page.getByRole('button',{name:'请求 1 的明细',exact:true});
-  await details.click();await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
+  await details.focus();await page.keyboard.press('Enter');await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toBeVisible();
   const summaryReads=api.calls.filter(c=>['history/stats'].includes(c.path)).length;
   await api.historyChanged();await expect.poll(()=>reads).toBe(2);
   const beforeBurst=await delivered();

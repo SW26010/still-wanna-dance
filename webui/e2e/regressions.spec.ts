@@ -53,7 +53,7 @@ test('request detail keeps identity, expansion and focus while adjacent records 
   const record=(id:number)=>({id,at:Date.now(),resource:'fixture-resource',method:'GET',range:'bytes=0-',elapsedMS:100,bytes:200,status:206,outcome:'completed',songID:'42'});
   await page.route('**/api/history?*',r=>r.fulfill({json:{storageID:'fixture',requests:ids.map(record),total:ids.length,hasMore:false,nextCursor:''}}));
   await page.clock.install();await page.goto('/#recent');
-  const detail=page.getByRole('button',{name:'请求 3 的明细',exact:true});await detail.click();const element=await detail.elementHandle();
+  const detail=page.getByRole('button',{name:'请求 3 的明细',exact:true});await detail.focus();await page.keyboard.press('Enter');const element=await detail.elementHandle();
   ids=[4,3];await page.clock.fastForward(5100);
   await expect(detail).toHaveAttribute('aria-expanded','true');await expect(detail).toBeFocused();
   expect(await element!.evaluate(el=>el.isConnected)).toBe(true);

@@ -38,9 +38,9 @@ test('cache renders Unix millisecond request times and zero as no record', async
   await page.goto('/#/library?view=resources');
   const rows=page.getByRole('table',{name:'曲库资源'}).locator('tbody tr');
   const requested=await page.evaluate(at=>new Date(at).toLocaleString(),api.files[0].lastRequest);
-  await rows.first().getByRole('button',{name:'资源 key1 的详情',exact:true}).click();
+  await rows.first().getByRole('button',{name:'资源 key1 的详情',exact:true}).focus();await page.keyboard.press('Enter');
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：'+requested);await page.keyboard.press('Escape');
-  await rows.nth(1).getByRole('button',{name:'资源 key2 的详情',exact:true}).click();
+  await rows.nth(1).getByRole('button',{name:'资源 key2 的详情',exact:true}).focus();await page.keyboard.press('Enter');
   await expect(page.locator('.fui-PopoverSurface:visible')).toContainText('最近请求：无记录');await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'检查本地视频',exact:true}).click();
   await navigateSettings(page,'下载与缓存'); await navigate(page,'曲库');

@@ -40,7 +40,7 @@ test('request results explain terminal causes and preserve unknown legacy reason
     await page.keyboard.press('Escape');
     await expect(page.getByRole('tooltip')).toHaveCount(0);
   }
-  await page.getByRole('button',{name:'请求 1 的明细',exact:true}).click();
+  await page.getByRole('button',{name:'请求 1 的明细',exact:true}).focus();await page.keyboard.press('Enter');
   await expect(page.getByRole('group',{name:'请求 1 的明细',exact:true})).toContainText('等待超时 · 已超过本次播放所需数据的下载截止时间');
   await page.keyboard.press('Escape');
   await page.screenshot({path:info.outputPath('request-outcomes.png'),fullPage:true,animations:'disabled'});
@@ -333,7 +333,7 @@ for(const [width,scheme] of [[1280,'light'],[390,'dark'],[320,'light']] as const
   }
   await expect(table.getByRole('button',{name:/交付比例说明|请求来源说明/})).toHaveCount(0);
   await page.getByLabel('历史查询结果',{exact:true}).screenshot({path:info.outputPath('history-table.png'),animations:'disabled'});
-  await page.getByRole('button',{name:'请求 1 的明细',exact:true}).click();
+  await page.getByRole('button',{name:'请求 1 的明细',exact:true}).focus();await page.keyboard.press('Enter');
   await expect(page.getByLabel('请求 1 的明细',{exact:true}).getByText(title,{exact:true})).toBeVisible();
   await expect(page.getByLabel('请求 1 的明细',{exact:true}).getByText('10 ms · Blocking',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

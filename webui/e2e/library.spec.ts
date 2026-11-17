@@ -264,7 +264,7 @@ for(const theme of ['light','dark'] as const)test(`demand scores use a hundred-p
   }
   const color=(i:number)=>rows.nth(i).getByRole('cell').nth(4).locator('span').evaluate(el=>getComputedStyle(el).color);
   expect(await color(1)).not.toBe(await color(6));
-  await table.getByRole('button',{name:'歌曲 6 的详情',exact:true}).click();
+  await table.getByRole('button',{name:'歌曲 6 的详情',exact:true}).focus();await page.keyboard.press('Enter');
   await expect(page.getByText('分数来源',{exact:true})).toBeVisible();
   await expect(page.getByText('初始分数',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
@@ -671,7 +671,7 @@ test('compact rows, tooltip and operation feedback keep the table in place',asyn
 
 test('record details link navigates without leaving a blocking surface',async({page})=>{
   await libraryFixture(page);await page.goto('/#/library');
-  await page.getByRole('button',{name:'歌曲 1 的详情',exact:true}).click();
+  await page.getByRole('button',{name:'歌曲 1 的详情',exact:true}).focus();await page.keyboard.press('Enter');
   await page.getByRole('link',{name:key,exact:true}).click();
   await expect(page.getByRole('table',{name:'曲库资源'})).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);

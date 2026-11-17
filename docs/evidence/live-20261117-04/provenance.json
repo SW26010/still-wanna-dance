@@ -1,0 +1,31 @@
+{
+  "sourceSHA": "d7be45246d572567935a288e5a9ec34d60ec660a",
+  "binarySHA256": "30ffc6a0b588e1ddc9ccff5415b2e5a28a4bda81ca12cd4341b51645e131f7f0",
+  "fixtureSHA256": "04926b023bc3d71e62d3801c27e15b36acf601f5062432c0ef9a6ed3a7cb1553",
+  "relaySHA256": "4b0bada4a2583a9d1bc01f32899362e7205290f645a4262cbaa5206ff1baf8db",
+  "compiledSourceFiles": [
+    {
+      "file": "internal/cacheproxy/server.go",
+      "sha256": "ab3d7364ddc06d90c04ee8c79f4680c268c029d37a83135ac84cd0145debff84"
+    },
+    {
+      "file": "internal/cacheproxy/issue51_lab_test.go",
+      "sha256": "0752472a6f78896e32ffc725ff243dbc987a7ce149e9bc58a196465218f93250"
+    },
+    {
+      "file": "internal/cacheproxy/issue51_supply_test.go",
+      "sha256": "f155c1f9080ce33114fdfcbef3d2b1b0e6986bac1adf6c0e1515556f3ed779f2"
+    }
+  ],
+  "fixtureBase": "LIVE-20261117-02 owner fixture v3",
+  "productPolicyChanged": false,
+  "cleanup": {
+    "status": "Prior per-case exits retained; final case transfer completion and game-end event do not establish overall batch service cleanup."
+  },
+  "snapshotStatus": "Includes all ten observed cases, excluded/supplemental cases retained, and final 206 game-end event",
+  "strategyVariants": {
+    "owner": "model off; normal headers flushed early",
+    "nonowner504": "model on, zero margin, nonowner gate retained; early header mode off",
+    "nonowner206": "model off; normal headers flushed early"
+  }
+}

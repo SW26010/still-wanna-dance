@@ -1,0 +1,24 @@
+{
+  "scope": "Local development checks, not game validation",
+  "checks": [
+    {
+      "command": "test -race ./internal/vrclog ./experiments/playback-model/... -count=1",
+      "passed": true
+    },
+    {
+      "command": "test -tags=no_easytier ./internal/console -run Queue|Vrchat -count=1",
+      "passed": true,
+      "environment": "ordinary user outside sandbox",
+      "priorFailure": "sandbox regression command Queue|VRC|Vrchat|Playback|Model|Admission|Handoff|Replay hit known renameat: The handle is invalid during Console fixture terms.json replacement; parser and model passed"
+    },
+    {
+      "command": "vet ./internal/vrclog ./experiments/playback-model/...",
+      "passed": true
+    },
+    {
+      "command": "check-engine.mjs with fixed test binary and independent output directory",
+      "passed": true,
+      "scope": "Synthetic log + loopback HTTP; repeated public runner agrees with recorded result"
+    }
+  ]
+}

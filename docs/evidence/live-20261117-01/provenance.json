@@ -1,0 +1,86 @@
+{
+  "sourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+  "workspaceHEADAtStart": "47e663763983d22a41a5587fe482f8811df37876",
+  "productReleaseTested": false,
+  "binary": {
+    "name": "model-engine.test.exe",
+    "sha256": "dee0329066cdece21aa31ad834265ba72db3c0f372a3580d19dda60b65167c8f"
+  },
+  "sourceReconstruction": [
+    "../live-20261116-02/variable-fixture.patch",
+    "../../../experiments/playback-model/engine-fixture.patch",
+    "Run gofmt on internal/cacheproxy/issue51_model_test.go after applying the model fixture patch",
+    "Copy opt-in model and vrclog source into isolated tree, then restore sourceSnapshots below; verify compiledSourceFiles before building"
+  ],
+  "sourceSnapshots": {
+    "internal/vrclog/parser.go": "parser.go.txt",
+    "experiments/playback-model/model.go": "model.go.txt",
+    "experiments/playback-model/model_test.go": "model-test.go.txt"
+  },
+  "compiledSourceFiles": [
+    {
+      "path": "internal/cacheproxy/demand.go",
+      "sha256": "ab7c020a7915c69e70d9457fab89bf124afd6c93a9c20755aec35798baa12fe8"
+    },
+    {
+      "path": "internal/cacheproxy/issue51_lab_test.go",
+      "sha256": "ba6e85bc1a5725713e7908dcb397a709cfeef340c208f5a6e199d5585562cdd4"
+    },
+    {
+      "path": "internal/cacheproxy/issue51_supply_test.go",
+      "sha256": "7dcf8b2e93fbefb812e2e5db26d7cbfaa1021629fdc1105d95dcb1c021f9d985"
+    },
+    {
+      "path": "internal/cacheproxy/issue51_model_test.go",
+      "sha256": "d52b5554a2ba061d28b73776c15c53fafdc8c07418ec38b4528fdd77c893e04e"
+    },
+    {
+      "path": "internal/vrclog/parser.go",
+      "sha256": "7975857cd4953f320d9cc752c24401b834ea8be41d0468d03e5404021f462222"
+    },
+    {
+      "path": "internal/vrclog/tail.go",
+      "sha256": "cf73196850aff0c8452c0262f231931c5d345f5c7d82cf02e79888fa59807986"
+    },
+    {
+      "path": "internal/vrclog/playback.go",
+      "sha256": "1d167a6885fd9e5df852e35fe9c39de7b3a193c097feb50eb2ab6ac28af16c95"
+    },
+    {
+      "path": "experiments/playback-model/model.go",
+      "sha256": "f6380adc62380df104507981aeb02d36ca94d53b1c4dfbce8b245f7ffa8724b3"
+    }
+  ],
+  "configuration": {
+    "role": "nonowner",
+    "ordinarySlots": 2,
+    "blockBytes": 1048576,
+    "sourcePartialBytes": 131072,
+    "sourceReleaseAfterFirstPlayerGETSeconds": 66,
+    "modelMarginSeconds": 5,
+    "defaultHandoffSeconds": 2,
+    "modelHandoffSeconds": 10,
+    "downloadExtensionSeconds": 30,
+    "proxy504Injection": false,
+    "model504Enabled": true,
+    "originalMediaForEverySong": true
+  },
+  "environment": {
+    "platform": "Windows",
+    "osVersion": "10.0.26300.0",
+    "vrchatVersion": "2026.4.1p1",
+    "world": "WannaDance; exact world build not captured"
+  },
+  "cleanup": {
+    "allExperimentProcessesStopped": true,
+    "experimentalListenerCount": 0,
+    "hostsUnchanged": true,
+    "normalServiceRunningBefore": false,
+    "normalServiceStarted": false
+  },
+  "limitations": [
+    "Experimental source predates current main; tested optional active model engine, not desktop observation-only canary",
+    "Raw game logs and local paths retained privately",
+    "Five interpretable cases and one confounded case; no universal stability claim"
+  ]
+}

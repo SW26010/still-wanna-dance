@@ -1,0 +1,45 @@
+{
+  "binarySHA256": "30ffc6a0b588e1ddc9ccff5415b2e5a28a4bda81ca12cd4341b51645e131f7f0",
+  "controlledHTTPOnly": true,
+  "gameBehaviorVerified": false,
+  "results": [
+    {
+      "earlyHeaders": false,
+      "passed": true,
+      "headStatus": 200,
+      "invalidRangeStatus": 416,
+      "validRangeContentVerified": true,
+      "waitingResponse": {
+        "status": 504,
+        "headerMs": 30001.677200000002,
+        "endMs": 30001.7707,
+        "bytes": 16,
+        "complete": true,
+        "contentLength": "16",
+        "contentRange": null
+      },
+      "activeDemandsAfterReturn": 0,
+      "terminalCause": "download-needby-window-expired",
+      "modelEnabled": false
+    },
+    {
+      "earlyHeaders": true,
+      "passed": true,
+      "headStatus": 200,
+      "invalidRangeStatus": 416,
+      "validRangeContentVerified": true,
+      "waitingResponse": {
+        "status": 206,
+        "headerMs": 5.856700000000046,
+        "endMs": 30002.1629,
+        "bytes": 0,
+        "complete": false,
+        "contentLength": "10003838",
+        "contentRange": "bytes 25165824-35169661/35169662"
+      },
+      "activeDemandsAfterReturn": 0,
+      "terminalCause": "download-needby-window-expired",
+      "modelEnabled": false
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "productReleaseTested": false,
+  "baseline": "Formal request/demand logic at fixed current main; common fault source and matching catalog metadata; disabled model uses formal handoff path directly.",
+  "builds": [
+    {
+      "version": 1,
+      "baseSHA": "d7be45246d572567935a288e5a9ec34d60ec660a",
+      "binaryName": "owner-ab.test.exe",
+      "binarySHA256": "9c004022ce23c84852d9f8743fda76049262ee00283e7ecd92648975f36b0c14",
+      "compiledSourceFiles": [
+        {
+          "file": "internal/cacheproxy/demand.go",
+          "sha256": "9a29d02d3f58b43ab6ebe6e469fc9435525b70ff42b1d57d104de3c000544e40"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256": "ba6e85bc1a5725713e7908dcb397a709cfeef340c208f5a6e199d5585562cdd4"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_model_test.go",
+          "sha256": "fa8cb41a5ecb09011ee755962abd5531cfffb758e14863080c7517195b1acb5b"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_supply_test.go",
+          "sha256": "7dcf8b2e93fbefb812e2e5db26d7cbfaa1021629fdc1105d95dcb1c021f9d985"
+        },
+        {
+          "file": "experiments/playback-model/model.go",
+          "sha256": "a50a2e41ffc12973d91d86199ff73ff658f042fab7880b04cb51221ed681c852"
+        },
+        {
+          "file": "experiments/playback-model/model_test.go",
+          "sha256": "8742e5fd13d5d5983b27f50ba79011545e22d11a1ec20e017b3c92771a67135b"
+        },
+        {
+          "file": "internal/vrclog/parser.go",
+          "sha256": "7122c1765937056953504d991bc759d6305d78a27f5a5ce8ec6e33b90352ff35"
+        },
+        {
+          "file": "internal/vrclog/tail.go",
+          "sha256": "cf73196850aff0c8452c0262f231931c5d345f5c7d82cf02e79888fa59807986"
+        },
+        {
+          "file": "internal/vrclog/playback.go",
+          "sha256": "1d167a6885fd9e5df852e35fe9c39de7b3a193c097feb50eb2ab6ac28af16c95"
+        }
+      ],
+      "reconstruction": {
+        "fixture": "owner-fixture-v1-v2.patch",
+        "model": "model-v1.go.txt",
+        "modelTest": "model-v1-test.go.txt",
+        "vrclog": "Copy opt-in parser/tail/playback files identified by compiled source hashes from workspace; all other sources from fixed base",
+        "experimentalPackage": "Copy experiments/playback-model, then replace model.go/model_test.go with indicated snapshots",
+        "fixtureSHA256": "9306fbd557fa612cea44fc3d16426c9afa2e6203bec52fa4ffe5fb03e128b430"
+      }
+    },
+    {
+      "version": 2,
+      "baseSHA": "d7be45246d572567935a288e5a9ec34d60ec660a",
+      "binaryName": "owner-ab-v2.test.exe",
+      "binarySHA256": "b7e29a9226d47527c60ef1c17425cfc0ea2aa40b11b1cb1e40a200fa8fa97f2a",
+      "compiledSourceFiles": [
+        {
+          "file": "internal/cacheproxy/demand.go",
+          "sha256": "9a29d02d3f58b43ab6ebe6e469fc9435525b70ff42b1d57d104de3c000544e40"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256": "ba6e85bc1a5725713e7908dcb397a709cfeef340c208f5a6e199d5585562cdd4"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_model_test.go",
+          "sha256": "fa8cb41a5ecb09011ee755962abd5531cfffb758e14863080c7517195b1acb5b"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_supply_test.go",
+          "sha256": "7dcf8b2e93fbefb812e2e5db26d7cbfaa1021629fdc1105d95dcb1c021f9d985"
+        },
+        {
+          "file": "experiments/playback-model/model.go",
+          "sha256": "000eee4d7445468ad2c7d19d03626d48d978380f6f1ba313780d894bf98dfbad"
+        },
+        {
+          "file": "experiments/playback-model/model_test.go",
+          "sha256": "ce4c982905bb671605e65170bb5abb954f131280eca616759304921720bccb92"
+        },
+        {
+          "file": "internal/vrclog/parser.go",
+          "sha256": "7122c1765937056953504d991bc759d6305d78a27f5a5ce8ec6e33b90352ff35"
+        },
+        {
+          "file": "internal/vrclog/tail.go",
+          "sha256": "cf73196850aff0c8452c0262f231931c5d345f5c7d82cf02e79888fa59807986"
+        },
+        {
+          "file": "internal/vrclog/playback.go",
+          "sha256": "1d167a6885fd9e5df852e35fe9c39de7b3a193c097feb50eb2ab6ac28af16c95"
+        }
+      ],
+      "reconstruction": {
+        "fixture": "owner-fixture-v1-v2.patch",
+        "model": "model-v2-v3.go.txt",
+        "modelTest": "model-v2-v3-test.go.txt",
+        "vrclog": "Copy opt-in parser/tail/playback files identified by compiled source hashes from workspace; all other sources from fixed base",
+        "experimentalPackage": "Copy experiments/playback-model, then replace model.go/model_test.go with indicated snapshots",
+        "fixtureSHA256": "9306fbd557fa612cea44fc3d16426c9afa2e6203bec52fa4ffe5fb03e128b430"
+      }
+    },
+    {
+      "version": 3,
+      "baseSHA": "d7be45246d572567935a288e5a9ec34d60ec660a",
+      "binaryName": "owner-ab-v3.test.exe",
+      "binarySHA256": "e021d7be2b659a0680ab67821f5ffcd1c78db06718a2cde24b55d35d2687aeb8",
+      "compiledSourceFiles": [
+        {
+          "file": "internal/cacheproxy/demand.go",
+          "sha256": "9a29d02d3f58b43ab6ebe6e469fc9435525b70ff42b1d57d104de3c000544e40"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_lab_test.go",
+          "sha256": "f6195bcfa4a9b064e57efe213c6c6021ca32dd388e7e5b34ea0ffc5a2dcd8de2"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_model_test.go",
+          "sha256": "fa8cb41a5ecb09011ee755962abd5531cfffb758e14863080c7517195b1acb5b"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_rate_test.go",
+          "sha256": "a472916dca7f033a7ca78d67466a9ab719d00611ce5f15f78470d4aed8936697"
+        },
+        {
+          "file": "internal/cacheproxy/issue51_supply_test.go",
+          "sha256": "7dcf8b2e93fbefb812e2e5db26d7cbfaa1021629fdc1105d95dcb1c021f9d985"
+        },
+        {
+          "file": "experiments/playback-model/model.go",
+          "sha256": "000eee4d7445468ad2c7d19d03626d48d978380f6f1ba313780d894bf98dfbad"
+        },
+        {
+          "file": "experiments/playback-model/model_test.go",
+          "sha256": "ce4c982905bb671605e65170bb5abb954f131280eca616759304921720bccb92"
+        },
+        {
+          "file": "internal/vrclog/parser.go",
+          "sha256": "7122c1765937056953504d991bc759d6305d78a27f5a5ce8ec6e33b90352ff35"
+        },
+        {
+          "file": "internal/vrclog/tail.go",
+          "sha256": "cf73196850aff0c8452c0262f231931c5d345f5c7d82cf02e79888fa59807986"
+        },
+        {
+          "file": "internal/vrclog/playback.go",
+          "sha256": "1d167a6885fd9e5df852e35fe9c39de7b3a193c097feb50eb2ab6ac28af16c95"
+        }
+      ],
+      "reconstruction": {
+        "fixture": "owner-fixture-v3.patch",
+        "model": "model-v2-v3.go.txt",
+        "modelTest": "model-v2-v3-test.go.txt",
+        "vrclog": "Copy opt-in parser/tail/playback files identified by compiled source hashes from workspace; all other sources from fixed base",
+        "experimentalPackage": "Copy experiments/playback-model, then replace model.go/model_test.go with indicated snapshots",
+        "fixtureSHA256": "3cbc589fb63e6cd1a6b7cb3e806dd823618534da5b327a539814259e499f9e46"
+      }
+    }
+  ],
+  "cleanup": {
+    "allCaseProcessesStopped": true,
+    "supportStopped": true,
+    "experimentListenerCount": 0,
+    "hostsUnchanged": true,
+    "normalServiceAutomaticallyStarted": false
+  },
+  "unmeasured": "Exact VRChat/world build versions, real-network quota, timing of all human-visible events, cold-cache equivalence."
+}

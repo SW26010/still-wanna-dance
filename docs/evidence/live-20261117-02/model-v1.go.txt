@@ -1,0 +1,219 @@
+// Package playbackmodel is an opt-in issue51 experiment, not a product policy.
+package playbackmodel
+
+import (
+	"math"
+	"sync"
+	"time"
+
+	"still-wanna-dance/internal/vrclog"
+)
+
+type Media struct {
+	SongID  int64   `json:"songID"`
+	Key     string  `json:"key"`
+	Bytes   int64   `json:"bytes"`
+	Seconds float64 `json:"seconds"`
+	// Explicit must mean matching catalog/probed metadata, never a bitrate fallback.
+	Explicit bool `json:"explicit"`
+}
+
+type Options struct {
+	Enabled bool
+	// AllowOwner is only for the owner A/B experiment; the default remains off.
+	AllowOwner    bool
+	Margin        time.Duration
+	MaxEventDelay time.Duration
+}
+
+type Transfer struct {
+	SongID                                int64
+	Key                                   string
+	Start, End, DeliveredThrough, Missing int64 // End is exclusive; error bodies excluded.
+}
+
+type Request struct {
+	SongID              int64
+	Key                 string
+	Start, End, Missing int64
+	BlockReady          bool
+}
+type Decision struct {
+	Reject bool      `json:"reject"`
+	Reason string    `json:"reason"`
+	NeedBy time.Time `json:"needBy,omitempty"`
+}
+type Handoff struct {
+	First, Last int64
+	Grace       time.Duration
+} // Half-open block indexes.
+
+// Model is shared by one formal player. Callers must not merge independent players.
+// All times are supplied to allow offline replay, including delayed log delivery.
+type Model struct {
+	mu                                                      sync.Mutex
+	opts                                                    Options
+	song                                                    int64
+	ownerKnown, owner, active, synced, recovering, rejected bool
+	anchor, lastEvent, lastStart                            time.Time
+	position                                                float64
+}
+
+func New(opts Options) *Model { return &Model{opts: opts} }
+
+func (m *Model) clear() {
+	m.song = 0
+	m.ownerKnown = false
+	m.owner = false
+	m.active = false
+	m.synced = false
+	m.recovering = false
+	m.rejected = false
+	m.anchor = time.Time{}
+	m.position = 0
+	m.lastStart = time.Time{}
+}
+
+func (m *Model) Observe(event vrclog.Event, receivedAt time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if event.Reset {
+		m.clear()
+		m.lastEvent = time.Time{}
+		return
+	}
+	e := event.Playback
+	if e == nil {
+		return
+	}
+	if e.At.Before(m.lastEvent) {
+		return
+	}
+	m.lastEvent = e.At
+	if e.At.After(receivedAt) || m.opts.MaxEventDelay <= 0 || receivedAt.Sub(e.At) > m.opts.MaxEventDelay {
+		m.clear()
+		return
+	}
+	switch e.Kind {
+	case "role":
+		if e.Owner != nil {
+			m.ownerKnown = true
+			m.owner = *e.Owner
+		}
+	case "transport":
+		if e.Playing != nil && !*e.Playing {
+			m.active = false
+			m.synced = false
+		}
+	case "start":
+		if e.SongID <= 0 {
+			m.clear()
+			return
+		}
+		if m.song == e.SongID && m.active && e.At.Equal(m.lastStart) {
+			return
+		}
+		if m.song != e.SongID {
+			m.rejected = false
+		}
+		m.song = e.SongID
+		m.lastStart = e.At
+		m.active = true
+		m.synced = false
+		m.recovering = false
+	case "sync":
+		if m.active && m.song > 0 && e.Position >= 0 && !math.IsNaN(e.Position) && !math.IsInf(e.Position, 0) {
+			m.anchor = e.At
+			m.position = e.Position
+			m.synced = true
+		}
+	case "error", "reload":
+		if e.SongID != 0 && e.SongID != m.song {
+			m.clear()
+			return
+		}
+		m.recovering = true
+	case "pause":
+		m.active = false
+		m.synced = false
+	case "stop", "end":
+		m.clear()
+	}
+}
+
+func validMedia(v Media) bool {
+	return v.Explicit && v.SongID > 0 && v.Key != "" && v.Bytes > 0 && v.Seconds > 0 && v.Seconds < 86400 && !math.IsNaN(v.Seconds) && !math.IsInf(v.Seconds, 0)
+}
+
+func (m *Model) needBy(v Media, offset int64, now time.Time) (time.Time, bool) {
+	if !m.opts.Enabled || m.opts.Margin < 0 || !m.active || !m.synced || m.song != v.SongID || !validMedia(v) || offset < 0 || offset >= v.Bytes || now.Before(m.anchor) {
+		return time.Time{}, false
+	}
+	if m.position > v.Seconds || now.Sub(m.anchor).Seconds()+m.position > v.Seconds+m.opts.Margin.Seconds() {
+		return time.Time{}, false
+	}
+	seconds := float64(offset)/float64(v.Bytes)*v.Seconds - m.position
+	return m.anchor.Add(time.Duration(seconds * float64(time.Second))), true
+}
+
+// Admit runs before any upstream GET or demand is created. The previous transfer
+// may still be active; DeliveredThrough must be a snapshot at this request arrival.
+// One rejection per observed song playback prevents a reload rejection loop.
+func (m *Model) Admit(now time.Time, v Media, previous *Transfer, r Request) Decision {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	no := func(reason string) Decision { return Decision{Reason: reason} }
+	if !m.opts.Enabled {
+		return no("disabled")
+	}
+	if !m.ownerKnown || (m.owner && !m.opts.AllowOwner) {
+		return no("nonowner-not-confirmed")
+	}
+	if m.rejected || m.recovering {
+		return no("recovery-pass-through")
+	}
+	if previous == nil || r.SongID != v.SongID || r.Key != v.Key || previous.SongID != r.SongID || previous.Key != r.Key {
+		return no("unassociated-request")
+	}
+	p := previous
+	if r.BlockReady || r.Missing != p.Missing || p.DeliveredThrough != p.Missing || p.Missing <= p.Start || p.Missing >= p.End || p.End > v.Bytes || r.End != p.End || r.Start < 0 || r.Start > r.Missing {
+		return no("not-same-unready-suffix")
+	}
+	if r.Start != p.DeliveredThrough && r.Start != max(p.Start, p.DeliveredThrough-8192) {
+		return no("range-changed")
+	}
+	n, ok := m.needBy(v, r.Missing, now)
+	if !ok {
+		return no("model-unavailable")
+	}
+	if !now.After(n.Add(m.opts.Margin)) {
+		return Decision{Reason: "within-model-window", NeedBy: n}
+	}
+	m.rejected = true
+	return Decision{Reject: true, Reason: "obsolete-continuation", NeedBy: n}
+}
+
+// Handoffs only selects lifetimes for the caller's already-eligible remaining
+// range. It does not create demands, move download need-by or admit downloads.
+func (m *Model) Handoffs(now time.Time, v Media, first, last, blockSize int64) []Handoff {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if first < 0 || last <= first || blockSize <= 0 {
+		return nil
+	}
+	var out []Handoff
+	for b := first; b < last; b++ {
+		grace := 2 * time.Second
+		if b <= math.MaxInt64/blockSize {
+			if n, ok := m.needBy(v, b*blockSize, now); ok && !now.After(n.Add(m.opts.Margin)) {
+				grace = 10 * time.Second
+			}
+		}
+		if len(out) > 0 && out[len(out)-1].Grace == grace {
+			out[len(out)-1].Last = b + 1
+		} else {
+			out = append(out, Handoff{First: b, Last: b + 1, Grace: grace})
+		}
+	}
+	return out
+}

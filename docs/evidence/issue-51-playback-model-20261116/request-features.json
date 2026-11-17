@@ -1,0 +1,3381 @@
+{
+  "method": "Read-only replay of selected recorded HTTP sequences; game events are independent audit labels, not candidate runtime inputs. Adjacent resolver/player means adjacent request starts, not proof of a new play. Null times remain unknown. Counts describe this selected dataset, not frequency in normal use.",
+  "limitations": [
+    "1113/06 requests1-4 belong to preceding media and are excluded.",
+    "01/N10R and02/manual4598 retain original timing/cache limitations; first observed request is not proof of first request in playback lifetime.",
+    "Player/resolver labels are inherited from source evidence; User-Agent distinguishes observed client families, not unique users.",
+    "No inference of delivered video bytes from error-response bodies."
+  ],
+  "sources": [
+    {
+      "path": "docs/evidence/live-20261116-01/engine-playback.json",
+      "sha256": "da9e34ce79f6eb7390f7eee572d2f72700d5f59a8b72d544e233dcdd461b6ef0"
+    },
+    {
+      "path": "docs/evidence/live-20261116-02/playback.json",
+      "sha256": "ec881c9c2ad09f35b30bcc4b1897542a9a53c48ea17be4a0c4272b1181986a85"
+    },
+    {
+      "path": "docs/evidence/live-20261116-03/playback.json",
+      "sha256": "21233aac2f465e690e48ec574426bc9268d65dc276fb2b2437abd20798f64249"
+    },
+    {
+      "path": "docs/evidence/live-20261113-04/formal-retries.json",
+      "sha256": "54d74132fa30ea385213539046b2c4b29a6f1cecf8b1d0253c9232553fbe9612"
+    },
+    {
+      "path": "docs/evidence/live-20261113-05/midbody.json",
+      "sha256": "2338d48a832c01d64e0d4e7d8f616ff97063c5bbbcd8fe216efe2d0a28e702d4"
+    },
+    {
+      "path": "docs/evidence/live-20261113-06/midbody.json",
+      "sha256": "8595a72dc090a810703fa37ec920e742e45e0b41a9e67bf67f102b2698294cfe"
+    },
+    {
+      "path": "docs/evidence/live-20261113-08/midbody.json",
+      "sha256": "2731180e82aa45c7bb53e6620444bffb08530879857051abce3843281ee77b12"
+    },
+    {
+      "path": "docs/evidence/live-20261028-01/cold-seek.json",
+      "sha256": "b3c9f69a9565b00ba4e145149bd5263037fd81f7efdb968a8c1c2717bbeec4f6"
+    }
+  ],
+  "summary": {
+    "caseCount": 30,
+    "pairs": 57,
+    "pairsAfterFirstPlayer": 28,
+    "firstPlayerWithoutRange": [
+      "01/N20",
+      "01/N10R",
+      "01/H2"
+    ],
+    "firstPlayerNonzeroRange": [
+      "02/manual4598"
+    ],
+    "casesWithPlayerOverlap": [
+      "01/N20",
+      "01/N10R",
+      "01/H5",
+      "02/manual8935",
+      "1113/04"
+    ],
+    "timedPairs": 46,
+    "resolverEndGapSeconds": {
+      "min": 0.331,
+      "max": 0.473
+    }
+  },
+  "cases": [
+    {
+      "id": "01/O30",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.406,
+          "resolverEndGapSeconds": 0.4
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.405,
+          "player": false,
+          "range": "",
+          "end": -0.399,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 32.069,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 32.571,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 62.604,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 62.607,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 66.042,
+          "bytes": 2621440,
+          "status": 206
+        },
+        {
+          "id": 5,
+          "t": 66.046,
+          "player": true,
+          "range": "bytes=14614528-35169661",
+          "end": 81.136,
+          "bytes": 20555134,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 8.031,
+          "event": "OnVideoStart",
+          "owner": true
+        }
+      ]
+    },
+    {
+      "id": "01/O60",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.472,
+          "resolverEndGapSeconds": 0.463
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.471,
+          "player": false,
+          "range": "",
+          "end": -0.462,
+          "bytes": 229376,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 34.125,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 34.643,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 66.065,
+          "bytes": 4431872,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 66.069,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "end": 80.113,
+          "bytes": 19228030,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 2.085,
+          "event": "OnVideoStart",
+          "owner": true
+        }
+      ]
+    },
+    {
+      "id": "01/O35",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.45,
+          "resolverEndGapSeconds": 0.443
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.449,
+          "player": false,
+          "range": "",
+          "end": -0.442,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 32.98,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 33.484,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 64.971,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 65.487,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 66.031,
+          "bytes": 1318912,
+          "status": 206
+        },
+        {
+          "id": 5,
+          "t": 66.034,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "end": 80.099,
+          "bytes": 19228030,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 1.937,
+          "event": "OnVideoStart",
+          "owner": true
+        }
+      ]
+    },
+    {
+      "id": "01/O20",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.453,
+          "resolverEndGapSeconds": 0.448
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 54.643,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.452,
+          "resolverEndGapSeconds": 0.45
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.452,
+          "player": false,
+          "range": "",
+          "end": -0.447,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 28.389,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 28.403,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 48.392,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 54.191,
+          "player": false,
+          "range": "",
+          "end": 54.193,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 54.643,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 90.697,
+          "bytes": 33072510,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 7.756,
+          "event": "OnVideoStart",
+          "owner": true
+        },
+        {
+          "t": 47.756,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 52.756,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 65.756,
+          "event": "OnVideoStart",
+          "owner": true
+        }
+      ]
+    },
+    {
+      "id": "01/N20",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": ""
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.462,
+          "resolverEndGapSeconds": 0.456
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 54.641,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.445,
+          "resolverEndGapSeconds": 0.444
+        }
+      ],
+      "playerOverlaps": [
+        {
+          "older": 5,
+          "newer": 6,
+          "secondsUntilOldEnded": 0.004
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.462,
+          "player": false,
+          "range": "",
+          "end": -0.456,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "",
+          "end": 28.389,
+          "bytes": 2097152,
+          "status": 200
+        },
+        {
+          "id": 3,
+          "t": 28.401,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 48.398,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 54.196,
+          "player": false,
+          "range": "",
+          "end": 54.197,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 54.641,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 66.371,
+          "bytes": 884736,
+          "status": 206
+        },
+        {
+          "id": 6,
+          "t": 66.367,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "end": 80.583,
+          "bytes": 19228030,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 3.221,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 48.221,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 53.221,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 66.221,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/P16",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.412,
+          "resolverEndGapSeconds": 0.404
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.411,
+          "player": false,
+          "range": "",
+          "end": -0.403,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 44.623,
+          "bytes": 16777216,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 44.678,
+          "player": true,
+          "range": "bytes=16769024-35169661",
+          "end": 66.119,
+          "bytes": 18400638,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 0.015,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/N10R",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": ""
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.45,
+          "resolverEndGapSeconds": 0.443
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 16.461,
+          "range": "bytes=2088960-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.453,
+          "resolverEndGapSeconds": 0.451
+        },
+        {
+          "resolver": 8,
+          "player": 9,
+          "t": 43.122,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.451,
+          "resolverEndGapSeconds": 0.45
+        },
+        {
+          "resolver": 12,
+          "player": 13,
+          "t": 69.871,
+          "range": "bytes=2088960-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.443,
+          "resolverEndGapSeconds": 0.442
+        }
+      ],
+      "playerOverlaps": [
+        {
+          "older": 13,
+          "newer": 14,
+          "secondsUntilOldEnded": 0.004
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.45,
+          "player": false,
+          "range": "",
+          "end": -0.443,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "",
+          "end": 0.186,
+          "bytes": 2097152,
+          "status": 200
+        },
+        {
+          "id": 3,
+          "t": 0.19,
+          "player": true,
+          "range": "bytes=35094528-35169661",
+          "end": 10.187,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 16.008,
+          "player": false,
+          "range": "",
+          "end": 16.01,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 16.461,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 16.806,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 6,
+          "t": 16.82,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 26.84,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 7,
+          "t": 26.843,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 36.842,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 8,
+          "t": 42.671,
+          "player": false,
+          "range": "",
+          "end": 42.672,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 9,
+          "t": 43.122,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 53.122,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 10,
+          "t": 53.138,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 53.617,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 11,
+          "t": 53.629,
+          "player": true,
+          "range": "bytes=12009472-35169661",
+          "end": 63.618,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 12,
+          "t": 69.428,
+          "player": false,
+          "range": "",
+          "end": 69.429,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 13,
+          "t": 69.871,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 70.228,
+          "bytes": 884736,
+          "status": 206
+        },
+        {
+          "id": 14,
+          "t": 70.224,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "end": 84.26,
+          "bytes": 19228030,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 8.553,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 9.553,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 14.553,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 16.553,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 36.553,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 41.553,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 53.553,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 63.553,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 68.553,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 69.553,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/H10",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.463,
+          "resolverEndGapSeconds": 0.455
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 35.098,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.476,
+          "resolverEndGapSeconds": 0.473
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.462,
+          "player": false,
+          "range": "",
+          "end": -0.454,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 18.39,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 18.395,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 28.395,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 34.622,
+          "player": false,
+          "range": "",
+          "end": 34.625,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 35.098,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 45.098,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 6,
+          "t": 45.117,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 45.554,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 7,
+          "t": 45.567,
+          "player": true,
+          "range": "bytes=10649600-35169661",
+          "end": 63.568,
+          "bytes": 24520062,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 1.76,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 27.76,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 32.76,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 44.76,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/H30",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.442,
+          "resolverEndGapSeconds": 0.434
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.442,
+          "player": false,
+          "range": "",
+          "end": -0.434,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 32.859,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 33.363,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 63.396,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 63.41,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 66.034,
+          "bytes": 2359296,
+          "status": 206
+        },
+        {
+          "id": 5,
+          "t": 66.037,
+          "player": true,
+          "range": "bytes=17334272-35169661",
+          "end": 79.073,
+          "bytes": 17835390,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 0.247,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/H5",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.405,
+          "resolverEndGapSeconds": 0.397
+        },
+        {
+          "resolver": 3,
+          "player": 4,
+          "t": 5.094,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.332,
+          "resolverEndGapSeconds": 0.331
+        },
+        {
+          "resolver": 7,
+          "player": 8,
+          "t": 29.745,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.433,
+          "resolverEndGapSeconds": 0.432
+        }
+      ],
+      "playerOverlaps": [
+        {
+          "older": 2,
+          "newer": 4,
+          "secondsUntilOldEnded": 8.295
+        },
+        {
+          "older": 4,
+          "newer": 5,
+          "secondsUntilOldEnded": 5.09
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.404,
+          "player": false,
+          "range": "",
+          "end": -0.396,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 13.389,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 4.762,
+          "player": false,
+          "range": "",
+          "end": 4.763,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 4,
+          "t": 5.094,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 18.483,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 5,
+          "t": 13.393,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 18.391,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 6,
+          "t": 18.487,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 23.484,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 7,
+          "t": 29.312,
+          "player": false,
+          "range": "",
+          "end": 29.313,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 8,
+          "t": 29.745,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 34.745,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 9,
+          "t": 34.761,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 35.202,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 10,
+          "t": 35.206,
+          "player": true,
+          "range": "bytes=7847936-35169661",
+          "end": 55.393,
+          "bytes": 27321726,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 3.641,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 4.641,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 22.641,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 27.641,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 34.641,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/HO5",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.463,
+          "resolverEndGapSeconds": 0.455
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 24.622,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.445,
+          "resolverEndGapSeconds": 0.443
+        },
+        {
+          "resolver": 8,
+          "player": 9,
+          "t": 54.316,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.453,
+          "resolverEndGapSeconds": 0.452
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.462,
+          "player": false,
+          "range": "",
+          "end": -0.454,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 13.389,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 13.393,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 18.391,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 24.177,
+          "player": false,
+          "range": "",
+          "end": 24.179,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 24.622,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 29.623,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 6,
+          "t": 29.639,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 43.027,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 7,
+          "t": 43.04,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 48.038,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 8,
+          "t": 53.863,
+          "player": false,
+          "range": "",
+          "end": 53.864,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 9,
+          "t": 54.316,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 59.316,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 10,
+          "t": 59.332,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 85.446,
+          "bytes": 35169662,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 8.275,
+          "event": "OnVideoStart",
+          "owner": true
+        },
+        {
+          "t": 18.275,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 23.275,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 29.275,
+          "event": "OnVideoStart",
+          "owner": true
+        },
+        {
+          "t": 47.275,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 52.275,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 59.275,
+          "event": "OnVideoStart",
+          "owner": true
+        }
+      ]
+    },
+    {
+      "id": "01/H2",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": ""
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.445,
+          "resolverEndGapSeconds": 0.435
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 18.642,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.452,
+          "resolverEndGapSeconds": 0.451
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.445,
+          "player": false,
+          "range": "",
+          "end": -0.435,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "",
+          "end": 10.388,
+          "bytes": 2097152,
+          "status": 200
+        },
+        {
+          "id": 3,
+          "t": 10.401,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 12.391,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 18.19,
+          "player": false,
+          "range": "",
+          "end": 18.191,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 18.642,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 20.642,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 6,
+          "t": 20.658,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 21.091,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 7,
+          "t": 21.105,
+          "player": true,
+          "range": "bytes=3866624-35169661",
+          "end": 44.253,
+          "bytes": 31303038,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 3.854,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 11.854,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 16.854,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 20.854,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/S5",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.461,
+          "resolverEndGapSeconds": 0.453
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 24.658,
+          "range": "bytes=2097152-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.433,
+          "resolverEndGapSeconds": 0.431
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.46,
+          "player": false,
+          "range": "",
+          "end": -0.452,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 13.39,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 13.403,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 18.391,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 4,
+          "t": 24.225,
+          "player": false,
+          "range": "",
+          "end": 24.227,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 24.658,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 25.004,
+          "bytes": 884736,
+          "status": 206
+        },
+        {
+          "id": 6,
+          "t": 25.008,
+          "player": true,
+          "range": "bytes=3866624-35169661",
+          "end": 48.138,
+          "bytes": 31303038,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 8.164,
+          "event": "OnVideoStart",
+          "owner": false
+        },
+        {
+          "t": 18.164,
+          "event": "OnVideoError",
+          "owner": null
+        },
+        {
+          "t": 23.164,
+          "event": "Retrying load",
+          "owner": null
+        },
+        {
+          "t": 24.164,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "01/S30",
+      "source": "docs/evidence/live-20261116-01/engine-playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0.001,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0.001,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 0.463,
+          "resolverEndGapSeconds": 0.455
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -0.462,
+          "player": false,
+          "range": "",
+          "end": -0.454,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": 0.001,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 26.107,
+          "bytes": 35169662,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 2.397,
+          "event": "OnVideoStart",
+          "owner": false
+        }
+      ]
+    },
+    {
+      "id": "02/baseline",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 34.394,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 34.908,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 64.951,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 64.96,
+          "player": true,
+          "range": "bytes=2097152-35169661",
+          "end": 66.027,
+          "bytes": 1736704,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 66.029,
+          "player": true,
+          "range": "bytes=15941632-35169661",
+          "end": 80.265,
+          "bytes": 19228030,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 2.747,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.747,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/early504",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 39.483,
+          "range": "bytes=2088960-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.444,
+          "resolverEndGapSeconds": 0.432
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 360448,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 32.72,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 33.223,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": null,
+          "bytes": null,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 39.039,
+          "player": false,
+          "range": "",
+          "end": 39.051,
+          "bytes": 397086,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 39.483,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 39.831,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 6,
+          "t": 39.832,
+          "player": true,
+          "range": "bytes=9240576-35169661",
+          "end": 59.009,
+          "bytes": 25929086,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 2.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 33.08,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 38.08,
+          "event": "Retrying load"
+        },
+        {
+          "t": 39.08,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 39.08,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/song2502",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 3,
+          "player": 4,
+          "t": 6.621,
+          "range": "bytes=2088960-80602638",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.445,
+          "resolverEndGapSeconds": 0.441
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 6.553,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 6.176,
+          "player": false,
+          "range": "",
+          "end": 6.18,
+          "bytes": 331550,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 6.621,
+          "player": true,
+          "range": "bytes=2088960-80602638",
+          "end": 6.965,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 6.974,
+          "player": true,
+          "range": "bytes=2088960-80602638",
+          "end": 37.009,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 6,
+          "t": 37.018,
+          "player": true,
+          "range": "bytes=10534912-80602638",
+          "end": 72.525,
+          "bytes": 70067727,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": -6.02,
+          "event": "OnVideoError"
+        },
+        {
+          "t": -1.02,
+          "event": "Retrying load"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 5.98,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 5.98,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/later4598",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 40.56,
+          "range": "bytes=4186112-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.451,
+          "resolverEndGapSeconds": 0.438
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 360448,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 33.745,
+          "bytes": 4194304,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 34.245,
+          "player": true,
+          "range": "bytes=4186112-35169661",
+          "end": null,
+          "bytes": null,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 40.109,
+          "player": false,
+          "range": "",
+          "end": 40.122,
+          "bytes": 528158,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 40.56,
+          "player": true,
+          "range": "bytes=4186112-35169661",
+          "end": 40.901,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 6,
+          "t": 40.91,
+          "player": true,
+          "range": "bytes=10649600-35169661",
+          "end": 58.889,
+          "bytes": 24520062,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 0.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 34.095,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 39.095,
+          "event": "Retrying load"
+        },
+        {
+          "t": 40.095,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 40.095,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/three4598",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 38.579,
+          "range": "bytes=2088960-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.445,
+          "resolverEndGapSeconds": 0.441
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 360448,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 31.768,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 32.284,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": null,
+          "bytes": null,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 38.134,
+          "player": false,
+          "range": "",
+          "end": 38.138,
+          "bytes": 360448,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 38.579,
+          "player": true,
+          "range": "bytes=2088960-35169661",
+          "end": 38.926,
+          "bytes": 8192,
+          "status": null
+        },
+        {
+          "id": 6,
+          "t": 38.928,
+          "player": true,
+          "range": "bytes=9240576-35169661",
+          "end": 58.019,
+          "bytes": 25929086,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 4.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 4.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 32.12,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 37.12,
+          "event": "Retrying load"
+        },
+        {
+          "t": 38.12,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 38.12,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/manual4598",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 1,
+        "t": 0,
+        "range": "bytes=4329165-35169661"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 2,
+          "player": 3,
+          "t": 11.43,
+          "range": "bytes=19287757-35169661",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.466,
+          "resolverEndGapSeconds": 0.447
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": 0,
+          "player": true,
+          "range": "bytes=4329165-35169661",
+          "end": 11.361,
+          "bytes": 15339252,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 10.964,
+          "player": false,
+          "range": "",
+          "end": 10.983,
+          "bytes": 397086,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 11.43,
+          "player": true,
+          "range": "bytes=19287757-35169661",
+          "end": 23.27,
+          "bytes": 15881905,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": -12.182,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": -12.182,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 9.818,
+          "event": "ReloadVideo Button Clicked"
+        },
+        {
+          "t": 9.818,
+          "event": "OnUSharpVideoReload"
+        },
+        {
+          "t": 10.818,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 10.818,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/manual8935",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 3,
+          "player": 4,
+          "t": 15.378,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.387,
+          "resolverEndGapSeconds": 0.383
+        }
+      ],
+      "playerOverlaps": [
+        {
+          "older": 2,
+          "newer": 4,
+          "secondsUntilOldEnded": 9.795
+        },
+        {
+          "older": 2,
+          "newer": 5,
+          "secondsUntilOldEnded": 9.391
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 25.173,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 14.991,
+          "player": false,
+          "range": "",
+          "end": 14.995,
+          "bytes": 397086,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 15.378,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 15.773,
+          "bytes": 2097152,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 15.782,
+          "player": true,
+          "range": "bytes=3178496-21996299",
+          "end": 28.914,
+          "bytes": 18817804,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 0.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 3.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 13.541,
+          "event": "ReloadVideo Button Clicked"
+        },
+        {
+          "t": 13.541,
+          "event": "OnUSharpVideoReload"
+        },
+        {
+          "t": 15.541,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 15.541,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "02/prefetch5396",
+      "source": "docs/evidence/live-20261116-02/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 107.493,
+          "range": "bytes=16769024-38976067",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.446,
+          "resolverEndGapSeconds": 0.443
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550,
+          "status": null
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 48.376,
+          "bytes": 16777216,
+          "status": null
+        },
+        {
+          "id": 3,
+          "t": 48.439,
+          "player": true,
+          "range": "bytes=16769024-38976067",
+          "end": null,
+          "bytes": null,
+          "status": null
+        },
+        {
+          "id": 4,
+          "t": 107.047,
+          "player": false,
+          "range": "",
+          "end": 107.05,
+          "bytes": 397086,
+          "status": null
+        },
+        {
+          "id": 5,
+          "t": 107.493,
+          "player": true,
+          "range": "bytes=16769024-38976067",
+          "end": 130.314,
+          "bytes": 22207044,
+          "status": null
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "t": -6.265,
+          "event": "OnVideoError"
+        },
+        {
+          "t": -1.265,
+          "event": "Retrying load"
+        },
+        {
+          "t": 2.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 2.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 100.735,
+          "event": "OnVideoError"
+        },
+        {
+          "t": 105.735,
+          "event": "Retrying load"
+        },
+        {
+          "t": 107.735,
+          "event": "OnVideoStart"
+        },
+        {
+          "t": 107.735,
+          "event": "OnVideoStart"
+        }
+      ]
+    },
+    {
+      "id": "03/3214",
+      "source": "docs/evidence/live-20261116-03/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 79.714,
+          "range": "bytes=16769024-45849827",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.458,
+          "resolverEndGapSeconds": 0.446
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 360448
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 47.155,
+          "bytes": 16777216
+        },
+        {
+          "id": 3,
+          "t": 47.262,
+          "player": true,
+          "range": "bytes=16769024-45849827",
+          "end": null,
+          "bytes": null
+        },
+        {
+          "id": 4,
+          "t": 79.256,
+          "player": false,
+          "range": "",
+          "end": 79.268,
+          "bytes": 397086
+        },
+        {
+          "id": 5,
+          "t": 79.714,
+          "player": true,
+          "range": "bytes=16769024-45849827",
+          "end": 106.415,
+          "bytes": 29080804
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "event": "video_start",
+          "t": 3.504
+        },
+        {
+          "event": "error",
+          "t": 72.504
+        },
+        {
+          "event": "reload_retry",
+          "t": 77.504
+        },
+        {
+          "event": "video_start",
+          "t": 79.504
+        }
+      ]
+    },
+    {
+      "id": "03/1314",
+      "source": "docs/evidence/live-20261116-03/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 80.061,
+          "range": "bytes=14671872-54919232",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.458,
+          "resolverEndGapSeconds": 0.445
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 51.435,
+          "bytes": 14680064
+        },
+        {
+          "id": 3,
+          "t": 51.616,
+          "player": true,
+          "range": "bytes=14671872-54919232",
+          "end": null,
+          "bytes": null
+        },
+        {
+          "id": 4,
+          "t": 79.603,
+          "player": false,
+          "range": "",
+          "end": 79.616,
+          "bytes": 397086
+        },
+        {
+          "id": 5,
+          "t": 80.061,
+          "player": true,
+          "range": "bytes=14671872-54919232",
+          "end": 130.766,
+          "bytes": 40247361
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "event": "video_start",
+          "t": 2.793
+        },
+        {
+          "event": "error",
+          "t": 72.793
+        },
+        {
+          "event": "reload_retry",
+          "t": 77.793
+        },
+        {
+          "event": "video_start",
+          "t": 79.793
+        }
+      ]
+    },
+    {
+      "id": "03/6776",
+      "source": "docs/evidence/live-20261116-03/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 93.287,
+          "range": "bytes=12574720-67256324",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.463,
+          "resolverEndGapSeconds": 0.451
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 52.699,
+          "bytes": 12582912
+        },
+        {
+          "id": 3,
+          "t": 52.843,
+          "player": true,
+          "range": "bytes=12574720-67256324",
+          "end": null,
+          "bytes": null
+        },
+        {
+          "id": 4,
+          "t": 92.824,
+          "player": false,
+          "range": "",
+          "end": 92.836,
+          "bytes": 397086
+        },
+        {
+          "id": 5,
+          "t": 93.287,
+          "player": true,
+          "range": "bytes=12574720-67256324",
+          "end": 176.685,
+          "bytes": 54362112
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "event": "video_start",
+          "t": 3.052
+        },
+        {
+          "event": "error",
+          "t": 86.052
+        },
+        {
+          "event": "reload_retry",
+          "t": 91.052
+        },
+        {
+          "event": "video_start",
+          "t": 93.052
+        }
+      ]
+    },
+    {
+      "id": "03/3136",
+      "source": "docs/evidence/live-20261116-03/playback.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": null,
+          "resolverEndGapSeconds": null
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": null,
+          "player": false,
+          "range": "",
+          "end": null,
+          "bytes": 331550
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 45.163,
+          "bytes": 16777216
+        },
+        {
+          "id": 3,
+          "t": 45.22,
+          "player": true,
+          "range": "bytes=16769024-67222867",
+          "end": 87.518,
+          "bytes": 50453844
+        }
+      ],
+      "gameAuditOnly": [
+        {
+          "event": "video_start",
+          "t": 8.525
+        },
+        {
+          "event": "video_end",
+          "t": 294.525
+        }
+      ]
+    },
+    {
+      "id": "1113/04",
+      "source": "docs/evidence/live-20261113-04/formal-retries.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": 0,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 19.598,
+          "resolverEndGapSeconds": 0.379
+        },
+        {
+          "resolver": 3,
+          "player": 4,
+          "t": 29.938,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 20.387,
+          "resolverEndGapSeconds": 0.381
+        },
+        {
+          "resolver": 6,
+          "player": 7,
+          "t": 59.945,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 20.388,
+          "resolverEndGapSeconds": 0.387
+        },
+        {
+          "resolver": 10,
+          "player": 11,
+          "t": 77.053,
+          "range": "bytes=1966080-80602638",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 7.501,
+          "resolverEndGapSeconds": 0.434
+        }
+      ],
+      "playerOverlaps": [
+        {
+          "older": 2,
+          "newer": 4,
+          "secondsUntilOldEnded": 0.062
+        },
+        {
+          "older": 4,
+          "newer": 5,
+          "secondsUntilOldEnded": 29.926
+        },
+        {
+          "older": 5,
+          "newer": 7,
+          "secondsUntilOldEnded": 0.068
+        },
+        {
+          "older": 5,
+          "newer": 8,
+          "secondsUntilOldEnded": 0.059
+        },
+        {
+          "older": 7,
+          "newer": 8,
+          "secondsUntilOldEnded": 17.033
+        },
+        {
+          "older": 7,
+          "newer": 9,
+          "secondsUntilOldEnded": 16.961
+        },
+        {
+          "older": 8,
+          "newer": 9,
+          "secondsUntilOldEnded": 16.759
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "t": -19.598,
+          "player": false,
+          "range": "",
+          "end": -0.379,
+          "bytes": 20,
+          "status": 503
+        },
+        {
+          "id": 2,
+          "t": 0,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 30,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 3,
+          "t": 9.551,
+          "player": false,
+          "range": "",
+          "end": 29.557,
+          "bytes": 20,
+          "status": 503
+        },
+        {
+          "id": 4,
+          "t": 29.938,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 59.939,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 5,
+          "t": 30.013,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 60.013,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 6,
+          "t": 39.557,
+          "player": false,
+          "range": "",
+          "end": 59.558,
+          "bytes": 20,
+          "status": 503
+        },
+        {
+          "id": 7,
+          "t": 59.945,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 76.987,
+          "bytes": 2326528,
+          "status": 206
+        },
+        {
+          "id": 8,
+          "t": 59.954,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 76.785,
+          "bytes": 2621440,
+          "status": 206
+        },
+        {
+          "id": 9,
+          "t": 60.026,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 76.792,
+          "bytes": 2195456,
+          "status": 206
+        },
+        {
+          "id": 10,
+          "t": 69.552,
+          "player": false,
+          "range": "",
+          "end": 76.619,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 11,
+          "t": 77.053,
+          "player": true,
+          "range": "bytes=1966080-80602638",
+          "end": 111.641,
+          "bytes": 68288512,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": []
+    },
+    {
+      "id": "1113/05",
+      "source": "docs/evidence/live-20261113-05/midbody.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": -1.024,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": -1.024,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 13.798,
+          "resolverEndGapSeconds": 0.38
+        },
+        {
+          "resolver": 5,
+          "player": 6,
+          "t": 108.463,
+          "range": "bytes=16777216-82818593",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.439,
+          "resolverEndGapSeconds": 0.437
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -14.822,
+          "player": false,
+          "range": "",
+          "end": -1.404,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": -1.024,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 41.634,
+          "bytes": 16777216,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 42.144,
+          "player": true,
+          "range": "bytes=16769024-82818593",
+          "end": 72.166,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 72.171,
+          "player": true,
+          "range": "bytes=16777216-82818593",
+          "end": 102.17,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 5,
+          "t": 108.024,
+          "player": false,
+          "range": "",
+          "end": 108.026,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 6,
+          "t": 108.463,
+          "player": true,
+          "range": "bytes=16777216-82818593",
+          "end": 166.269,
+          "bytes": 66041378,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": []
+    },
+    {
+      "id": "1113/06",
+      "source": "docs/evidence/live-20261113-06/midbody.json",
+      "firstPlayer": {
+        "id": 6,
+        "t": -0.308,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 5,
+          "player": 6,
+          "t": -0.308,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 10.913,
+          "resolverEndGapSeconds": 0.371
+        },
+        {
+          "resolver": 9,
+          "player": 10,
+          "t": 108.96,
+          "range": "bytes=16777216-56581103",
+          "startsAtZeroOrUnranged": false,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.382,
+          "resolverEndGapSeconds": 0.38
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 5,
+          "t": -11.221,
+          "player": false,
+          "range": "",
+          "end": -0.679,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 6,
+          "t": -0.308,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 42.625,
+          "bytes": 16777216,
+          "status": 206
+        },
+        {
+          "id": 7,
+          "t": 42.699,
+          "player": true,
+          "range": "bytes=16769024-56581103",
+          "end": 72.726,
+          "bytes": 8192,
+          "status": 206
+        },
+        {
+          "id": 8,
+          "t": 72.73,
+          "player": true,
+          "range": "bytes=16777216-56581103",
+          "end": 102.729,
+          "bytes": 16,
+          "status": 504
+        },
+        {
+          "id": 9,
+          "t": 108.578,
+          "player": false,
+          "range": "",
+          "end": 108.58,
+          "bytes": 393216,
+          "status": 200
+        },
+        {
+          "id": 10,
+          "t": 108.96,
+          "player": true,
+          "range": "bytes=16777216-56581103",
+          "end": 124.146,
+          "bytes": 917504,
+          "status": 206
+        },
+        {
+          "id": 11,
+          "t": 124.149,
+          "player": true,
+          "range": "bytes=37535744-56581103",
+          "end": 137.67,
+          "bytes": 19045360,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": []
+    },
+    {
+      "id": "1113/08",
+      "source": "docs/evidence/live-20261113-08/midbody.json",
+      "firstPlayer": {
+        "id": 2,
+        "t": -0.353,
+        "range": "bytes=0-"
+      },
+      "resolverPlayerPairs": [
+        {
+          "resolver": 1,
+          "player": 2,
+          "t": -0.353,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": true,
+          "resolverStartGapSeconds": 4.815,
+          "resolverEndGapSeconds": 0.391
+        },
+        {
+          "resolver": 4,
+          "player": 5,
+          "t": 28.215,
+          "range": "bytes=0-",
+          "startsAtZeroOrUnranged": true,
+          "firstPlayer": false,
+          "resolverStartGapSeconds": 0.394,
+          "resolverEndGapSeconds": 0.392
+        }
+      ],
+      "playerOverlaps": [],
+      "requests": [
+        {
+          "id": 1,
+          "t": -5.168,
+          "player": false,
+          "range": "",
+          "end": -0.744,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 2,
+          "t": -0.353,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 0.119,
+          "bytes": 1048576,
+          "status": 206
+        },
+        {
+          "id": 3,
+          "t": 0.122,
+          "player": true,
+          "range": "bytes=3883008-35364862",
+          "end": 28.145,
+          "bytes": 23592960,
+          "status": 206
+        },
+        {
+          "id": 4,
+          "t": 27.821,
+          "player": false,
+          "range": "",
+          "end": 27.823,
+          "bytes": 262144,
+          "status": 200
+        },
+        {
+          "id": 5,
+          "t": 28.215,
+          "player": true,
+          "range": "bytes=0-",
+          "end": 28.667,
+          "bytes": 2097152,
+          "status": 206
+        },
+        {
+          "id": 6,
+          "t": 28.67,
+          "player": true,
+          "range": "bytes=8814592-35364862",
+          "end": 60.297,
+          "bytes": 26550271,
+          "status": 206
+        }
+      ],
+      "gameAuditOnly": []
+    }
+  ],
+  "coldSeek": {
+    "source": "docs/evidence/live-20261028-01/cold-seek.json",
+    "rangeStart": 40681472,
+    "targetBlock": 38,
+    "requests": [
+      {
+        "id": "request-1",
+        "t": -90.044,
+        "range": ""
+      },
+      {
+        "id": "request-2",
+        "t": -69.63,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-4",
+        "t": -69.58,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-5",
+        "t": -69.556,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-6",
+        "t": -60.118,
+        "range": ""
+      },
+      {
+        "id": "request-7",
+        "t": -39.697,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-8",
+        "t": -39.559,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-9",
+        "t": -39.546,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-10",
+        "t": -39.535,
+        "range": "bytes=0-"
+      },
+      {
+        "id": "request-11",
+        "t": -30.435,
+        "range": "bytes=4603904-52379699"
+      },
+      {
+        "id": "request-12",
+        "t": -30.068,
+        "range": ""
+      },
+      {
+        "id": "request-13",
+        "t": -29.608,
+        "range": "bytes=524288-52379699"
+      },
+      {
+        "id": "request-14",
+        "t": 0,
+        "range": "bytes=40681472-52379699"
+      },
+      {
+        "id": "request-15",
+        "t": 35.952,
+        "range": ""
+      },
+      {
+        "id": "request-16",
+        "t": 36.41,
+        "range": "bytes=0-"
+      }
+    ]
+  }
+}

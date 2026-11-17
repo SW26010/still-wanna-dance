@@ -1,4 +1,5 @@
-// Package vrclog reads only queue and lifecycle evidence, never player identities.
+// Package vrclog reads selected queue/lifecycle evidence and opt-in playback facts,
+// never retaining player identities.
 package vrclog
 
 import (
@@ -12,8 +13,9 @@ type Song struct {
 }
 
 type Event struct {
-	Reset bool
-	Songs []Song
+	Reset    bool
+	Songs    []Song
+	Playback *PlaybackEvent // Only populated by the opt-in playback parser.
 }
 
 // Parse accepts complete queue snapshots, not current-video userData or previews.

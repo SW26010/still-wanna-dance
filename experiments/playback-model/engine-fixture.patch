@@ -1,0 +1,189 @@
+diff --git a/internal/cacheproxy/demand.go b/internal/cacheproxy/demand.go
+index d82fd4df..d287eee9 100644
+--- a/internal/cacheproxy/demand.go
++++ b/internal/cacheproxy/demand.go
+@@ -15,7 +15,7 @@ import (
+ // use the same closed-admission projection.
+ const (
+ 	handoffGrace           = 2 * time.Second
+-	expiredGETHandoffGrace = 15 * time.Second
++	expiredGETHandoffGrace = 2 * time.Second
+ )
+ 
+ // Resource ownership feeds the block-demand adapter.
+@@ -275,7 +275,11 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
+ 				s.releaseUseLocked(useSpan{span.key, first, span.first}, exit.at)
+ 			}
+ 		}
+-		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason)
++		if lab51Model != nil && d.playback && grace > 0 {
++			lab51EndUse(s, span, exit, clock)
++		} else {
++			s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason)
++		}
+ 	}
+ 	delete(s.demands, d)
+ 	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)
+diff --git a/internal/cacheproxy/issue51_lab_test.go b/internal/cacheproxy/issue51_lab_test.go
+index 878a63d0..229b6887 100644
+--- a/internal/cacheproxy/issue51_lab_test.go
++++ b/internal/cacheproxy/issue51_lab_test.go
+@@ -44,14 +44,22 @@ func TestIssue51LabServer(t *testing.T) {
+ 	log := slog.New(slog.NewJSONHandler(trace, &slog.HandlerOptions{Level: slog.LevelDebug}))
+ 	forceFresh := os.Getenv("LAB51_FORCE_FRESH") == "1"
+ 	singleHole := os.Getenv("LAB51_SINGLE_HOLE") == "1"
+- song := os.Getenv("LAB51_SONG")
+- if song == "" { song = "4598" }
+- songID, songErr := strconv.Atoi(song)
+- if songErr != nil || songID < 1 { t.Fatal("invalid controlled song") }
+- holeBlocks := 1
+- if value := os.Getenv("LAB51_HOLE_BLOCKS"); value != "" {
+-   v, e := strconv.Atoi(value); if e != nil || v < 1 || v > 8 { t.Fatal("invalid hole count") }; holeBlocks = v
+- }
++	song := os.Getenv("LAB51_SONG")
++	if song == "" {
++		song = "4598"
++	}
++	songID, songErr := strconv.Atoi(song)
++	if songErr != nil || songID < 1 {
++		t.Fatal("invalid controlled song")
++	}
++	holeBlocks := 1
++	if value := os.Getenv("LAB51_HOLE_BLOCKS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 || v > 8 {
++			t.Fatal("invalid hole count")
++		}
++		holeBlocks = v
++	}
+ 	warmBlocks := 2
+ 	if value := os.Getenv("LAB51_WARM_BLOCKS"); value != "" {
+ 		v, e := strconv.Atoi(value)
+@@ -161,6 +169,7 @@ func TestIssue51LabServer(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 	}
++	lab51InitModel(t, s, root, int64(songID), videoKey(body), int64(len(data)), int64(warmBlocks)*DefaultBlockSize, release, log)
+ 	listener, err := net.Listen("tcp4", os.Getenv("LAB51_LISTEN"))
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -194,16 +203,19 @@ func TestIssue51LabServer(t *testing.T) {
+ 		r.Host = "api.udon.dance"
+ 		r.URL.Host = r.Host
+ 		r.URL.Scheme = "http"
++		if lab51BeforeDemand(w, r, wire) {
++			return
++		}
+ 		s.ServeHTTP(w, r)
+ 	})}
+ 	done := make(chan error, 1)
+ 	go func() { done <- server.Serve(listener) }()
+-	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "engine uses its unchanged byte-to-time fallback; no catalog duration inserted"}
++	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "explicit matching media duration inserted; experimental log model and2/10s handoff"}
+ 	ready["forceFreshResponses"] = forceFresh
+ 	ready["warmBlocks"] = warmBlocks
+ 	ready["singleHole"] = singleHole
+- ready["song"] = song
+- ready["holeBlocks"] = holeBlocks
++	ready["song"] = song
++	ready["holeBlocks"] = holeBlocks
+ 	ready["httpSupplyClock"] = true
+ 	if slowGate != nil {
+ 		ready["mode"] = "slow"
+diff --git a/internal/cacheproxy/issue51_supply_test.go b/internal/cacheproxy/issue51_supply_test.go
+index 60f60074..93027149 100644
+--- a/internal/cacheproxy/issue51_supply_test.go
++++ b/internal/cacheproxy/issue51_supply_test.go
+@@ -13,6 +13,7 @@ type lab51SupplyWriter struct {
+ 	firstSuccessfulWrite time.Time
+ 	lastSuccessfulWrite  time.Time
+ 	writeFailed          bool
++	onWrite              func(int, int)
+ }
+ 
+ func (w *lab51SupplyWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+@@ -26,6 +27,9 @@ func (w *lab51SupplyWriter) Write(p []byte) (int, error) {
+ 	}
+ 	n, err := w.ResponseWriter.Write(p)
+ 	w.bytes += int64(n)
++	if w.onWrite != nil && n > 0 {
++		w.onWrite(n, w.status)
++	}
+ 	if err == nil && n > 0 {
+ 		now := time.Now()
+ 		if w.firstSuccessfulWrite.IsZero() {
+diff --git a/internal/cacheproxy/issue51_model_test.go b/internal/cacheproxy/issue51_model_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/cacheproxy/issue51_model_test.go
+@@ -0,0 +1,70 @@
++package cacheproxy
++
++import (
++ "context"
++ "log/slog"
++ "net/http"
++ "os"
++ "strconv"
++ "strings"
++ "sync"
++ "testing"
++ "time"
++ model "still-wanna-dance/experiments/playback-model"
++ "still-wanna-dance/internal/vrclog"
++)
++
++// Private integration adapter: only the isolated test executable sees these hooks.
++var lab51Model *model.Model
++var lab51Media model.Media
++var lab51HistoryMu sync.Mutex
++var lab51Previous *model.Transfer
++var lab51Missing int64
++var lab51Release <-chan struct{}
++var lab51ModelLog *slog.Logger
++
++func lab51InitModel(t *testing.T,s *Server,root string,songID int64,key string,size,missing int64,release <-chan struct{},log *slog.Logger){
++ seconds,err:=strconv.ParseFloat(os.Getenv("LAB51_MEDIA_SECONDS"),64)
++ if err!=nil||seconds<=0||seconds>=86400{t.Fatal("explicit matching media duration required")}
++ margin,err:=strconv.Atoi(os.Getenv("LAB51_MODEL_MARGIN_SECONDS"));if err!=nil||margin<0||margin>60{t.Fatal("explicit model margin required")}
++ enabled:=os.Getenv("LAB51_MODEL_ENABLED")=="1"
++ lab51Media=model.Media{SongID:songID,Key:key,Bytes:size,Seconds:seconds,Explicit:true}
++ lab51Model=model.New(model.Options{Enabled:enabled,Margin:time.Duration(margin)*time.Second,MaxEventDelay:4*time.Second})
++ lab51Missing,lab51Release,lab51ModelLog=missing,release,log
++ if _,err=s.Store.db.Exec("UPDATE songs SET end=? WHERE id=?",seconds,songID);err!=nil{t.Fatal(err)}
++ log.Info("lab_model_metadata","seconds",seconds,"bytes",size,"model_enabled",enabled,"margin_seconds",margin,"default_handoff_seconds",2,"model_handoff_seconds",10)
++ if !enabled{return}
++ dir:=os.Getenv("LAB51_GAME_LOG_DIR");if dir==""{t.Fatal("log directory required when model enabled")}
++ ctx,cancel:=context.WithCancel(context.Background());t.Cleanup(cancel)
++ tail:=&vrclog.Tail{Dir:dir,Playback:true}
++ poll:=func(){events,err:=tail.Poll(time.Now());if err!=nil{lab51Model.Observe(vrclog.Event{Reset:true},time.Now());return};for _,e:=range events{lab51Model.Observe(e,time.Now())}}
++ poll()
++ go func(){tick:=time.NewTicker(vrclog.PollInterval);defer tick.Stop();for{select{case<-ctx.Done():return;case<-tick.C:poll()}}}()
++}
++
++func lab51BeforeDemand(w http.ResponseWriter,r *http.Request,wire *lab51SupplyWriter)bool{
++ if r.Method!="GET"||!strings.HasPrefix(r.UserAgent(),"NSPlayer/"){return false}
++ start,end:=int64(0),lab51Media.Bytes
++ if h:=r.Header.Get("Range");h!=""{
++  if !strings.HasPrefix(h,"bytes=")||strings.Contains(h,","){return false}
++  a,b,ok:=strings.Cut(strings.TrimPrefix(h,"bytes="),"-");if !ok{return false}
++  var err error;start,err=strconv.ParseInt(a,10,64);if err!=nil{return false}
++  if b!=""{n,err:=strconv.ParseInt(b,10,64);if err!=nil{return false};end=n+1}
++ }
++ ready:=false;select{case<-lab51Release:ready=true;default:}
++ lab51HistoryMu.Lock();var previous *model.Transfer;if lab51Previous!=nil{p:=*lab51Previous;previous=&p};lab51HistoryMu.Unlock()
++ d:=lab51Model.Admit(time.Now(),lab51Media,previous,model.Request{SongID:lab51Media.SongID,Key:lab51Media.Key,Start:start,End:end,Missing:lab51Missing,BlockReady:ready})
++ lab51ModelLog.Info("lab_model_admission","reject",d.Reject,"reason",d.Reason,"need_by",d.NeedBy,"range_start",start)
++ if d.Reject{w.Header().Set("Cache-Control","no-store");http.Error(w,"Gateway Timeout",504);return true}
++ p:=&model.Transfer{SongID:lab51Media.SongID,Key:lab51Media.Key,Start:start,End:end,DeliveredThrough:start,Missing:lab51Missing}
++ lab51HistoryMu.Lock();lab51Previous=p;lab51HistoryMu.Unlock()
++ wire.onWrite=func(n int,status int){if status!=200&&status!=206{return};lab51HistoryMu.Lock();p.DeliveredThrough+=int64(n);lab51HistoryMu.Unlock()}
++ return false
++}
++
++func lab51EndUse(s *Server,span useSpan,exit *sourceWithdrawal,clock playbackClock){
++ for _,part:=range lab51Model.Handoffs(exit.at,lab51Media,span.first,span.last,s.cfg.BlockSize){
++  lab51ModelLog.Info("lab_model_handoff","first",part.First,"last",part.Last,"seconds",part.Grace.Seconds())
++  s.endUseLocked(useSpan{span.key,part.First,part.Last},exit.at,part.Grace,clock,sourceGET,exit.reason)
++ }
++}

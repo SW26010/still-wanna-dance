@@ -1,0 +1,572 @@
+{
+  "selection": "Three most negative files, three most positive, first three tail-metadata files, and 24 evenly spaced files sorted by private resource key; deduplicated.",
+  "toleranceSeconds": 1e-05,
+  "pyav": "19.0.2",
+  "libraries": {
+    "libavutil": [
+      61,
+      1,
+      102
+    ],
+    "libavcodec": [
+      63,
+      1,
+      102
+    ],
+    "libavformat": [
+      63,
+      1,
+      102
+    ],
+    "libavdevice": [
+      63,
+      1,
+      102
+    ],
+    "libavfilter": [
+      12,
+      1,
+      102
+    ],
+    "libswscale": [
+      10,
+      1,
+      102
+    ],
+    "libswresample": [
+      7,
+      1,
+      102
+    ]
+  },
+  "results": [
+    {
+      "songs": [
+        3637
+      ],
+      "packets": 23974,
+      "blocks": 35,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986306615378e-07,
+      "maxTimeErrorSeconds": 4.965986306615378e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        6889
+      ],
+      "packets": 14821,
+      "blocks": 30,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986306615378e-07,
+      "maxTimeErrorSeconds": 4.965986306615378e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        11296
+      ],
+      "packets": 16143,
+      "blocks": 15,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.784580482919409e-07,
+      "maxTimeErrorSeconds": 4.784580482919409e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        6763
+      ],
+      "packets": 35688,
+      "blocks": 41,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.920635205962753e-07,
+      "maxTimeErrorSeconds": 4.920635205962753e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        3081
+      ],
+      "packets": 22197,
+      "blocks": 37,
+      "mismatches": 16,
+      "timelineMismatches": 0,
+      "syncMismatches": 16,
+      "maxTimelineErrorSeconds": 4.852607702332534e-07,
+      "maxTimeErrorSeconds": 4.104099999999988,
+      "details": [
+        {
+          "block": 5,
+          "column": 7,
+          "index": 43.777067,
+          "demux": 42.475766666666665
+        },
+        {
+          "block": 6,
+          "column": 7,
+          "index": 49.115733,
+          "demux": 46.27956666666667
+        },
+        {
+          "block": 7,
+          "column": 7,
+          "index": 54.4544,
+          "demux": 53.053
+        },
+        {
+          "block": 8,
+          "column": 7,
+          "index": 59.793067,
+          "demux": 56.423033333333336
+        },
+        {
+          "block": 9,
+          "column": 7,
+          "index": 65.131733,
+          "demux": 63.32993333333334
+        },
+        {
+          "block": 11,
+          "column": 7,
+          "index": 75.809067,
+          "demux": 73.10636666666667
+        },
+        {
+          "block": 16,
+          "column": 7,
+          "index": 105.7056,
+          "demux": 104.5044
+        },
+        {
+          "block": 20,
+          "column": 7,
+          "index": 127.0269,
+          "demux": 123.3232
+        },
+        {
+          "block": 21,
+          "column": 7,
+          "index": 131.764967,
+          "demux": 128.19473333333335
+        },
+        {
+          "block": 22,
+          "column": 7,
+          "index": 137.203733,
+          "demux": 133.29983333333334
+        },
+        {
+          "block": 23,
+          "column": 7,
+          "index": 142.5424,
+          "demux": 138.4383
+        },
+        {
+          "block": 26,
+          "column": 7,
+          "index": 167.333833,
+          "demux": 164.99816666666666
+        },
+        {
+          "block": 27,
+          "column": 7,
+          "index": 182.2821,
+          "demux": 178.74523333333335
+        },
+        {
+          "block": 30,
+          "column": 7,
+          "index": 219.4192,
+          "demux": 215.88233333333332
+        },
+        {
+          "block": 34,
+          "column": 7,
+          "index": 269.602667,
+          "demux": 266.63303333333334
+        },
+        {
+          "block": 35,
+          "column": 7,
+          "index": 279.5793,
+          "demux": 278.5783
+        }
+      ]
+    },
+    {
+      "songs": [
+        10992
+      ],
+      "packets": 18810,
+      "blocks": 46,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.920634921745659e-07,
+      "maxTimeErrorSeconds": 4.920634921745659e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        7809
+      ],
+      "packets": 15316,
+      "blocks": 61,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986306615378e-07,
+      "maxTimeErrorSeconds": 4.965986306615378e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        7876
+      ],
+      "packets": 15120,
+      "blocks": 60,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 7.281179136953142e-06,
+      "maxTimeErrorSeconds": 7.281179136953142e-06,
+      "details": []
+    },
+    {
+      "songs": [
+        7847
+      ],
+      "packets": 14901,
+      "blocks": 57,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 7.294784580835767e-06,
+      "maxTimeErrorSeconds": 7.294784580835767e-06,
+      "details": []
+    },
+    {
+      "songs": [
+        6350
+      ],
+      "packets": 19146,
+      "blocks": 36,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.920634921745659e-07,
+      "maxTimeErrorSeconds": 4.920634921745659e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        6325
+      ],
+      "packets": 20931,
+      "blocks": 78,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986590832472e-07,
+      "maxTimeErrorSeconds": 4.965986590832472e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        10942
+      ],
+      "packets": 23184,
+      "blocks": 77,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.988662141158784e-07,
+      "maxTimeErrorSeconds": 4.988662141158784e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        8101
+      ],
+      "packets": 13441,
+      "blocks": 13,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.852607702332534e-07,
+      "maxTimeErrorSeconds": 4.852607702332534e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        4249
+      ],
+      "packets": 13484,
+      "blocks": 51,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 3.3333333249174757e-07,
+      "maxTimeErrorSeconds": 3.3333333249174757e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        11333
+      ],
+      "packets": 13667,
+      "blocks": 39,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.5351475819188636e-07,
+      "maxTimeErrorSeconds": 4.5351475819188636e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        1055
+      ],
+      "packets": 14149,
+      "blocks": 39,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.897959087202253e-07,
+      "maxTimeErrorSeconds": 4.897959087202253e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        9100
+      ],
+      "packets": 16657,
+      "blocks": 30,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.943310614180518e-07,
+      "maxTimeErrorSeconds": 4.943310614180518e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        3734
+      ],
+      "packets": 15520,
+      "blocks": 57,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986413196788e-07,
+      "maxTimeErrorSeconds": 4.965986413196788e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        7360
+      ],
+      "packets": 17642,
+      "blocks": 81,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 3.33333360913457e-07,
+      "maxTimeErrorSeconds": 3.33333360913457e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        5793
+      ],
+      "packets": 11406,
+      "blocks": 45,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.852607702332534e-07,
+      "maxTimeErrorSeconds": 4.852607702332534e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        9830,
+        10313
+      ],
+      "packets": 13736,
+      "blocks": 37,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 3.333333467026023e-07,
+      "maxTimeErrorSeconds": 3.333333467026023e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        10583
+      ],
+      "packets": 14954,
+      "blocks": 41,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.988662141158784e-07,
+      "maxTimeErrorSeconds": 4.988662141158784e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        6628
+      ],
+      "packets": 13815,
+      "blocks": 32,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.8979592293108e-07,
+      "maxTimeErrorSeconds": 4.8979592293108e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        1613
+      ],
+      "packets": 17407,
+      "blocks": 19,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.3990928588755196e-07,
+      "maxTimeErrorSeconds": 4.3990928588755196e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        9805
+      ],
+      "packets": 18785,
+      "blocks": 50,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.98866207010451e-07,
+      "maxTimeErrorSeconds": 4.98866207010451e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        6320
+      ],
+      "packets": 14840,
+      "blocks": 49,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.988662283267331e-07,
+      "maxTimeErrorSeconds": 4.988662283267331e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        3092
+      ],
+      "packets": 15367,
+      "blocks": 58,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 3.333333467026023e-07,
+      "maxTimeErrorSeconds": 3.333333467026023e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        10260
+      ],
+      "packets": 18268,
+      "blocks": 74,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.943310614180518e-07,
+      "maxTimeErrorSeconds": 4.943310614180518e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        3223
+      ],
+      "packets": 20417,
+      "blocks": 44,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.965986590832472e-07,
+      "maxTimeErrorSeconds": 4.965986590832472e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        2199,
+        8103
+      ],
+      "packets": 14789,
+      "blocks": 55,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 3.33333360913457e-07,
+      "maxTimeErrorSeconds": 3.33333360913457e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        11201
+      ],
+      "packets": 18039,
+      "blocks": 91,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.943310614180518e-07,
+      "maxTimeErrorSeconds": 4.943310614180518e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        5280
+      ],
+      "packets": 18684,
+      "blocks": 73,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.920634921745659e-07,
+      "maxTimeErrorSeconds": 4.920634921745659e-07,
+      "details": []
+    },
+    {
+      "songs": [
+        4993
+      ],
+      "packets": 20554,
+      "blocks": 27,
+      "mismatches": 0,
+      "timelineMismatches": 0,
+      "syncMismatches": 0,
+      "maxTimelineErrorSeconds": 4.784580482919409e-07,
+      "maxTimeErrorSeconds": 4.784580482919409e-07,
+      "details": []
+    }
+  ]
+}

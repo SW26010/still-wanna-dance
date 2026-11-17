@@ -1,0 +1,1004 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261117-01",
+  "timeBasis": "Relative seconds from first NSPlayer GET in each case; engine/proxy millisecond timestamps and game/observer second timestamps",
+  "cases": [
+    {
+      "id": "gap4598",
+      "song": "4598",
+      "classification": "stalled-suffix",
+      "mediaBytes": 35169662,
+      "mediaSeconds": 133,
+      "missingRange": [
+        2097152,
+        3145728
+      ],
+      "status": "observed-to-end",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 30.94,
+          "bytes": 2097152,
+          "complete": false,
+          "videoBytes": 2097152
+        },
+        {
+          "id": 4,
+          "t": 31.442,
+          "range": "bytes=2088960-35169661",
+          "status": 504,
+          "endT": 31.452,
+          "bytes": 16,
+          "complete": true,
+          "videoBytes": 0
+        },
+        {
+          "id": 6,
+          "t": 37.726,
+          "range": "bytes=2088960-35169661",
+          "status": 206,
+          "endT": 38.088,
+          "bytes": 8192,
+          "complete": false,
+          "videoBytes": 8192
+        },
+        {
+          "id": 7,
+          "t": 38.097,
+          "range": "bytes=7847936-35169661",
+          "status": 206,
+          "endT": 58.164,
+          "bytes": 27321726,
+          "complete": true,
+          "videoBytes": 27321726
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.002,
+          "start": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 31.452,
+          "start": 2088960,
+          "reject": true,
+          "reason": "obsolete-continuation",
+          "needByT": 11.956,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": -14.496
+        },
+        {
+          "t": 37.728,
+          "start": 2088960,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 38.099,
+          "start": 7847936,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        }
+      ],
+      "sourceReleaseT": 66.002,
+      "handoffs": [
+        {
+          "t": -0.392,
+          "first": 1,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 30.95,
+          "first": 2,
+          "last": 6,
+          "seconds": 2
+        },
+        {
+          "t": 30.95,
+          "first": 6,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 37.296,
+          "first": 1,
+          "last": 8,
+          "seconds": 2
+        },
+        {
+          "t": 37.296,
+          "first": 8,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 38.098,
+          "first": 2,
+          "last": 8,
+          "seconds": 2
+        },
+        {
+          "t": 38.098,
+          "first": 8,
+          "last": 34,
+          "seconds": 10
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_playing",
+          "t": 6.356,
+          "approximate": false
+        },
+        {
+          "event": "user_stalled",
+          "t": 13.356,
+          "approximate": false
+        },
+        {
+          "event": "user_black",
+          "t": 32.356,
+          "approximate": false
+        },
+        {
+          "event": "user_resumed",
+          "t": 39.356,
+          "approximate": false
+        },
+        {
+          "event": "user_ended",
+          "t": 139.356,
+          "approximate": true
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 4.356,
+          "kind": "start",
+          "song": "4598"
+        },
+        {
+          "t": 31.356,
+          "kind": "error",
+          "song": "4598"
+        },
+        {
+          "t": 36.356,
+          "kind": "reload",
+          "song": "4598"
+        },
+        {
+          "t": 37.356,
+          "kind": "start",
+          "song": "4598"
+        },
+        {
+          "t": 137.356,
+          "kind": "end",
+          "song": "4598"
+        },
+        {
+          "t": 139.356,
+          "kind": "error",
+          "song": "4332"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 34383230,
+        "upstreamBytesBeforeFirstPlayerExit": 34252158,
+        "summedExecutionResidenceSeconds": 36.155
+      },
+      "limitations": [
+        "No same-song model-off control",
+        "No2s-only handoff control",
+        "Game and human timestamps have second precision"
+      ]
+    },
+    {
+      "id": "prefetch3214",
+      "song": "3214",
+      "classification": "prefetch-suffix",
+      "mediaBytes": 45849828,
+      "mediaSeconds": 213,
+      "missingRange": [
+        16777216,
+        17825792
+      ],
+      "status": "observed-to-end",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 46.183,
+          "bytes": 16777216,
+          "complete": false,
+          "videoBytes": 16777216
+        },
+        {
+          "id": 4,
+          "t": 46.194,
+          "range": "bytes=16769024-45849827",
+          "status": 206,
+          "endT": 72.678,
+          "bytes": 29080804,
+          "complete": true,
+          "videoBytes": 29080804
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.002,
+          "start": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 46.195,
+          "start": 16769024,
+          "reject": false,
+          "reason": "within-model-window",
+          "needByT": 80.268,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": 39.073
+        }
+      ],
+      "sourceReleaseT": 66.003,
+      "handoffs": [
+        {
+          "t": -0.373,
+          "first": 1,
+          "last": 44,
+          "seconds": 2
+        },
+        {
+          "t": 46.193,
+          "first": 16,
+          "last": 44,
+          "seconds": 10
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_playing",
+          "t": 4.588,
+          "approximate": false
+        },
+        {
+          "event": "user_ended",
+          "t": 217.588,
+          "approximate": false
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 2.588,
+          "kind": "start",
+          "song": "3214"
+        },
+        {
+          "t": 216.588,
+          "kind": "end",
+          "song": "3214"
+        },
+        {
+          "t": 218.588,
+          "kind": "error",
+          "song": "8565"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 45849828,
+        "upstreamBytesBeforeFirstPlayerExit": 44932324,
+        "summedExecutionResidenceSeconds": 66.378
+      },
+      "limitations": [
+        "No same-song model-off control",
+        "No2s-only handoff control",
+        "Game and human timestamps have second precision"
+      ]
+    },
+    {
+      "id": "gap2502",
+      "song": "2502",
+      "classification": "stalled-suffix",
+      "mediaBytes": 80602639,
+      "mediaSeconds": 206,
+      "missingRange": [
+        2097152,
+        3145728
+      ],
+      "status": "observed-to-natural-end",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 34.035,
+          "bytes": 2097152,
+          "complete": false,
+          "videoBytes": 2097152
+        },
+        {
+          "id": 4,
+          "t": 34.538,
+          "range": "bytes=2088960-80602638",
+          "status": 504,
+          "endT": 34.547,
+          "bytes": 16,
+          "complete": true,
+          "videoBytes": 0
+        },
+        {
+          "id": 6,
+          "t": 40.827,
+          "range": "bytes=2088960-80602638",
+          "status": 206,
+          "endT": 41.172,
+          "bytes": 8192,
+          "complete": false,
+          "videoBytes": 8192
+        },
+        {
+          "id": 7,
+          "t": 41.181,
+          "range": "bytes=14893056-80602638",
+          "status": 206,
+          "endT": 74.342,
+          "bytes": 65709583,
+          "complete": true,
+          "videoBytes": 65709583
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.001,
+          "start": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 34.546,
+          "start": 2088960,
+          "reject": true,
+          "reason": "obsolete-continuation",
+          "needByT": 5.953,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": -23.593
+        },
+        {
+          "t": 40.828,
+          "start": 2088960,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 41.182,
+          "start": 14893056,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        }
+      ],
+      "sourceReleaseT": 66.002,
+      "handoffs": [
+        {
+          "t": -0.391,
+          "first": 1,
+          "last": 77,
+          "seconds": 2
+        },
+        {
+          "t": 34.036,
+          "first": 2,
+          "last": 11,
+          "seconds": 2
+        },
+        {
+          "t": 34.036,
+          "first": 11,
+          "last": 77,
+          "seconds": 10
+        },
+        {
+          "t": 40.374,
+          "first": 1,
+          "last": 13,
+          "seconds": 2
+        },
+        {
+          "t": 40.374,
+          "first": 13,
+          "last": 77,
+          "seconds": 10
+        },
+        {
+          "t": 41.181,
+          "first": 2,
+          "last": 14,
+          "seconds": 2
+        },
+        {
+          "t": 41.181,
+          "first": 14,
+          "last": 77,
+          "seconds": 10
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_stalled_at_start",
+          "t": 5.444,
+          "approximate": false
+        },
+        {
+          "event": "user_black",
+          "t": 35.444,
+          "approximate": false
+        },
+        {
+          "event": "user_resumed",
+          "t": 42.444,
+          "approximate": false
+        },
+        {
+          "event": "user_natural_end",
+          "t": null,
+          "approximate": false,
+          "exactTimeNotProvided": true
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.444,
+          "kind": "start",
+          "song": "2502"
+        },
+        {
+          "t": 34.444,
+          "kind": "error",
+          "song": "2502"
+        },
+        {
+          "t": 39.444,
+          "kind": "reload",
+          "song": "2502"
+        },
+        {
+          "t": 40.444,
+          "kind": "start",
+          "song": "2502"
+        },
+        {
+          "t": 206.444,
+          "kind": "end",
+          "song": "2502"
+        },
+        {
+          "t": 208.444,
+          "kind": "error",
+          "song": "9648"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 79816207,
+        "upstreamBytesBeforeFirstPlayerExit": 79685135,
+        "summedExecutionResidenceSeconds": 38.571
+      },
+      "limitations": [
+        "No same-song model-off control",
+        "No2s-only handoff control",
+        "Game and human timestamps have second precision"
+      ]
+    },
+    {
+      "id": "prefetch1314",
+      "song": "1314",
+      "classification": "prefetch-suffix",
+      "mediaBytes": 54919233,
+      "mediaSeconds": 354,
+      "missingRange": [
+        16777216,
+        17825792
+      ],
+      "status": "observed-to-end",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 54.424,
+          "bytes": 16777216,
+          "complete": false,
+          "videoBytes": 16777216
+        },
+        {
+          "id": 4,
+          "t": 54.628,
+          "range": "bytes=16769024-54919232",
+          "status": 206,
+          "endT": 102.908,
+          "bytes": 38150209,
+          "complete": true,
+          "videoBytes": 38150209
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.002,
+          "start": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 54.629,
+          "start": 16769024,
+          "reject": false,
+          "reason": "within-model-window",
+          "needByT": 110.678,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": 61.049
+        }
+      ],
+      "sourceReleaseT": 66.002,
+      "handoffs": [
+        {
+          "t": -0.394,
+          "first": 0,
+          "last": 53,
+          "seconds": 2
+        },
+        {
+          "t": 54.434,
+          "first": 16,
+          "last": 53,
+          "seconds": 10
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_playing",
+          "t": 4.835,
+          "approximate": false
+        },
+        {
+          "event": "user_ended",
+          "t": 357.835,
+          "approximate": false
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 2.835,
+          "kind": "start",
+          "song": "1314"
+        },
+        {
+          "t": 356.835,
+          "kind": "end",
+          "song": "1314"
+        },
+        {
+          "t": 357.835,
+          "kind": "error",
+          "song": "3031"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 54919233,
+        "upstreamBytesBeforeFirstPlayerExit": 54001729,
+        "summedExecutionResidenceSeconds": 66.399
+      },
+      "limitations": [
+        "No same-song model-off control",
+        "No2s-only handoff control",
+        "Game and human timestamps have second precision"
+      ]
+    },
+    {
+      "id": "boundary5396",
+      "song": "5396",
+      "classification": "confounded",
+      "mediaBytes": 38976068,
+      "mediaSeconds": 204,
+      "missingRange": [
+        5242880,
+        6291456
+      ],
+      "status": "confounded-observation-ended",
+      "requests": [
+        {
+          "id": 1,
+          "t": 0,
+          "range": "",
+          "status": 200,
+          "endT": 0.055,
+          "bytes": 753664,
+          "complete": false,
+          "videoBytes": 753664
+        },
+        {
+          "id": 3,
+          "t": 6.275,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 6.74,
+          "bytes": 4292608,
+          "complete": false,
+          "videoBytes": 4292608
+        },
+        {
+          "id": 4,
+          "t": 6.741,
+          "range": "bytes=6094848-38976067",
+          "status": 504,
+          "endT": 36.743,
+          "bytes": 16,
+          "complete": true,
+          "videoBytes": 0
+        },
+        {
+          "id": 7,
+          "t": 57.972,
+          "range": "bytes=3932160-38976067",
+          "status": 206,
+          "endT": 94.273,
+          "bytes": 35043908,
+          "complete": true,
+          "videoBytes": 35043908
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.004,
+          "start": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 6.275,
+          "start": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 6.742,
+          "start": 6094848,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 57.972,
+          "start": 3932160,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        }
+      ],
+      "sourceReleaseT": 66.004,
+      "handoffs": [
+        {
+          "t": 0.056,
+          "first": 1,
+          "last": 38,
+          "seconds": 2
+        },
+        {
+          "t": 5.891,
+          "first": 1,
+          "last": 38,
+          "seconds": 2
+        },
+        {
+          "t": 6.741,
+          "first": 5,
+          "last": 38,
+          "seconds": 2
+        },
+        {
+          "t": 36.742,
+          "first": 12,
+          "last": 38,
+          "seconds": 2
+        },
+        {
+          "t": 57.529,
+          "first": 1,
+          "last": 38,
+          "seconds": 2
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_playing",
+          "t": 62.891,
+          "approximate": false
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": -0.109,
+          "kind": "error",
+          "song": "5396"
+        },
+        {
+          "t": 4.891,
+          "kind": "reload",
+          "song": "5396"
+        },
+        {
+          "t": 5.891,
+          "kind": "start",
+          "song": "5396"
+        },
+        {
+          "t": 17.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 22.891,
+          "kind": "reload",
+          "song": "8137"
+        },
+        {
+          "t": 23.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 28.891,
+          "kind": "reload",
+          "song": "8137"
+        },
+        {
+          "t": 30.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 35.891,
+          "kind": "reload",
+          "song": "8137"
+        },
+        {
+          "t": 36.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 41.891,
+          "kind": "reload",
+          "song": "8137"
+        },
+        {
+          "t": 42.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 47.891,
+          "kind": "reload",
+          "song": "8137"
+        },
+        {
+          "t": 48.891,
+          "kind": "error",
+          "song": "8137"
+        },
+        {
+          "t": 61.891,
+          "kind": "start",
+          "song": "5396"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 39238212,
+        "upstreamBytesBeforeFirstPlayerExit": 38058564,
+        "summedExecutionResidenceSeconds": 41.378
+      },
+      "limitations": [
+        "Automatic loading before reported start and intervening other-song logs; fault timer already running; exclude from clean boundary results"
+      ]
+    },
+    {
+      "id": "boundary8935",
+      "song": "8935",
+      "classification": "near-admission-boundary",
+      "mediaBytes": 21996300,
+      "mediaSeconds": 78,
+      "missingRange": [
+        8388608,
+        9437184
+      ],
+      "status": "observed-to-natural-end",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "endT": 40.096,
+          "bytes": 8388608,
+          "complete": false,
+          "videoBytes": 8388608
+        },
+        {
+          "id": 4,
+          "t": 40.597,
+          "range": "bytes=8380416-21996299",
+          "status": 206,
+          "endT": 66.026,
+          "bytes": 3645440,
+          "complete": false,
+          "videoBytes": 3645440
+        },
+        {
+          "id": 5,
+          "t": 66.035,
+          "range": "bytes=16252928-21996299",
+          "status": 206,
+          "endT": 69.577,
+          "bytes": 5743372,
+          "complete": true,
+          "videoBytes": 5743372
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0.001,
+          "start": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        },
+        {
+          "t": 40.607,
+          "start": 8380416,
+          "reject": false,
+          "reason": "within-model-window",
+          "needByT": 37.998,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": 2.391
+        },
+        {
+          "t": 66.035,
+          "start": 16252928,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "needByT": null,
+          "marginSeconds": 5,
+          "beforeThresholdSeconds": null
+        }
+      ],
+      "sourceReleaseT": 66.002,
+      "handoffs": [
+        {
+          "t": -0.394,
+          "first": 0,
+          "last": 21,
+          "seconds": 2
+        },
+        {
+          "t": 40.104,
+          "first": 8,
+          "last": 21,
+          "seconds": 10
+        },
+        {
+          "t": 66.034,
+          "first": 12,
+          "last": 15,
+          "seconds": 2
+        },
+        {
+          "t": 66.034,
+          "first": 15,
+          "last": 21,
+          "seconds": 10
+        }
+      ],
+      "userObservations": [
+        {
+          "event": "user_playing",
+          "t": 9.512,
+          "approximate": false
+        },
+        {
+          "event": "user_stalled",
+          "t": 38.512,
+          "approximate": false
+        },
+        {
+          "event": "user_resumed",
+          "t": 66.512,
+          "approximate": false,
+          "interveningBlackScreen": false
+        },
+        {
+          "event": "user_natural_end",
+          "t": 86.512,
+          "approximate": false
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 8.512,
+          "kind": "start",
+          "song": "8935"
+        },
+        {
+          "t": 86.512,
+          "kind": "end",
+          "song": "8935"
+        },
+        {
+          "t": 87.512,
+          "kind": "error",
+          "song": "2250"
+        }
+      ],
+      "unreportedAV": "normal by prior observer convention; not an instrumented measurement",
+      "cost": {
+        "upstreamBytes": 21996300,
+        "upstreamBytesBeforeFirstPlayerExit": 21078796,
+        "summedExecutionResidenceSeconds": 66.4
+      },
+      "limitations": [
+        "No same-song model-off control",
+        "No2s-only handoff control",
+        "Game and human timestamps have second precision"
+      ]
+    }
+  ]
+}

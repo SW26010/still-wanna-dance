@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "status": "offline-replay-and-controlled-engine-check-not-game-validation",
+  "hashBasis": "git-blob (UTF-8 text normalized to LF by repository attributes)",
+  "reproduce": "HTTP audit: node docs/evidence/issue-51-playback-model-20261116/review.mjs. Log replay and isolated engine: experiments/playback-model/README.md. Original game logs and private input are intentionally not published.",
+  "files": [
+    {
+      "path": "docs/evidence/issue-51-playback-model-20261116/review.mjs",
+      "bytes": 5193,
+      "sha256": "b3a4eda3ed9cf8e5a73db81851517ed6089fecacad3f4c004c45f7b5c5e2aecc",
+      "source": "Previously sanitized HTTP evidence audit",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "docs/evidence/issue-51-playback-model-20261116/request-features.json",
+      "bytes": 77106,
+      "sha256": "1b9681892c07fe5d5700ae12bca803b7695207a6710f5dbe1e555b38c138f5e4",
+      "source": "Previously sanitized HTTP evidence audit",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "docs/evidence/issue-51-playback-model-20261116/log-model-replay.json",
+      "bytes": 85115,
+      "sha256": "078e7e560b5a08dc68d80d5a4ab15e01993bf84728a548641d37ee170a684084",
+      "source": "Original private game log replay, recorded HTTP traces and read-only catalog metadata",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "docs/evidence/issue-51-playback-model-20261116/model-engine-check.json",
+      "bytes": 1155,
+      "sha256": "00b6a649306d6e7f5241c8b61eae7213124f1ffe16551ddd1b4dfcbd41a454ce",
+      "source": "Controlled real SWD engine using synthetic logs and loopback HTTP",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "docs/evidence/issue-51-playback-model-20261116/development-checks.json",
+      "bytes": 941,
+      "sha256": "dda31429a55e5bf20aa7c6a1de498e84088a068956971e5b76410145ff32df93",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "docs/research/issue-51-request-admission-proposal.md",
+      "bytes": 16292,
+      "sha256": "1296ab71958bafc8f0096ba1a0e01c7546c60a87be907c432b8c3cd8a339b5f0",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "internal/vrclog/parser.go",
+      "bytes": 1823,
+      "sha256": "7122c1765937056953504d991bc759d6305d78a27f5a5ce8ec6e33b90352ff35",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "internal/vrclog/tail.go",
+      "bytes": 3602,
+      "sha256": "cf73196850aff0c8452c0262f231931c5d345f5c7d82cf02e79888fa59807986",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "internal/vrclog/playback.go",
+      "bytes": 3414,
+      "sha256": "1d167a6885fd9e5df852e35fe9c39de7b3a193c097feb50eb2ab6ac28af16c95",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "internal/vrclog/playback_test.go",
+      "bytes": 2579,
+      "sha256": "785594dd96e14513dc7a07b4c6d6ebb0c555ba165a409996067420d2338a77fe",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/README.md",
+      "bytes": 8616,
+      "sha256": "76df25021bedd875bde4b41279f3e6fd04e3345394ff4257490d594fe586d4bc",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/model.go",
+      "bytes": 6472,
+      "sha256": "000eee4d7445468ad2c7d19d03626d48d978380f6f1ba313780d894bf98dfbad",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/model_test.go",
+      "bytes": 7016,
+      "sha256": "ce4c982905bb671605e65170bb5abb954f131280eca616759304921720bccb92",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/handler.go",
+      "bytes": 790,
+      "sha256": "cd94889798a59c63ad43e1fbf97f4845d92e7454d0c11fff737a6dec43856057",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/cmd/replay/main.go",
+      "bytes": 4897,
+      "sha256": "43fa9ddbf4a984cd9d41299ddc3d89ebb1db6d19ffdc1e16f6e178f8ea5745b4",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/engine-fixture.patch",
+      "bytes": 8975,
+      "sha256": "3a912d494abf38bf4a9012e80d7ef396eeeb4224b36523989d7f43dcb6b33b7e",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    },
+    {
+      "path": "experiments/playback-model/check-engine.mjs",
+      "bytes": 4642,
+      "sha256": "e18ec56ce094e7764b59885ff5e9feb60e60bdb96aa5aa0d2a967cbf561f094f",
+      "source": "Experimental implementation, documentation or development check",
+      "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
+    }
+  ],
+  "engine": {
+    "baseSourceSHA": "96d95141db7afbf7baaecb34601a33e339ca444d",
+    "baseFixture": "docs/evidence/live-20261116-02/variable-fixture.patch",
+    "modelFixture": "experiments/playback-model/engine-fixture.patch",
+    "binarySHA256": "dee0329066cdece21aa31ad834265ba72db3c0f372a3580d19dda60b65167c8f"
+  },
+  "followup": "../live-20261117-01/manifest.json"
+}

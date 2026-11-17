@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "status": "offline-media-index-study-no-product-policy-change",
+  "hashBasis": "UTF-8 text normalized to LF",
+  "tools": {
+    "mp4box": "2.5.0",
+    "npmPackageSHA512Base64": "AK5FQsN5aD2m91HuCGPlRDomDhGxK0o4F8ZVyAbAfcMWBW2QlhZvE0S7v9lBq0Ib4eONq7mT1SBVdrnnIrn4pw==",
+    "pyav": "19.0.2",
+    "python": "3.12.13"
+  },
+  "scope": "10197 local MP4 indexes; 10152 catalog matches; no media uploaded or rewritten; no game observation added.",
+  "validation": "Eight live-test media files have exact packet agreement within floating-point rounding. Additional 33-file check: all block timelines within 10 microseconds; 16 next-sync disagreements in song 3081 remain, and checker exits 1.",
+  "sanitization": "No personal paths, resource keys, media, raw game logs, player identities or credentials. Only aggregate figures, selected song IDs, timing and size measurements.",
+  "privateInputs": [
+    {
+      "label": "inventory.private.json",
+      "bytes": 4157052,
+      "sha256": "9b1260c6ada76870cfce261036a1fab6298942b79863f62cb7c7590600fb5273",
+      "retention": "local ignored artifacts; not published"
+    },
+    {
+      "label": "full/part-0.jsonl",
+      "bytes": 9322675,
+      "sha256": "6a639c5bd636ee82234be86af19fa91ce134bbc89134df5fed3bb0a48c5bb86d",
+      "retention": "local ignored artifacts; not published"
+    },
+    {
+      "label": "full/part-1.jsonl",
+      "bytes": 9446327,
+      "sha256": "97e2e60523ca83556768af4fc6bc4a1f143f9f5ed086c2abbfb5d76ff9652652",
+      "retention": "local ignored artifacts; not published"
+    },
+    {
+      "label": "full/part-2.jsonl",
+      "bytes": 9455746,
+      "sha256": "1da8e8ff4900651c84d74ce7a49d0262e7d1c2ffcc37bd4cea36450a7cfaab0a",
+      "retention": "local ignored artifacts; not published"
+    },
+    {
+      "label": "full/part-3.jsonl",
+      "bytes": 9394412,
+      "sha256": "b55f77d11d638cd251469be27e06369a53babd848755ccf4fbab4c9c5da83950",
+      "retention": "local ignored artifacts; not published"
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/research/issue-51-media-time-map-20261117.md",
+      "bytes": 7422,
+      "sha256": "86020d91b1b6799d3477f43befb440d39dc8ec627405a2ef15377aeef084b9ed"
+    },
+    {
+      "path": "experiments/playback-model/media-map.mjs",
+      "bytes": 8066,
+      "sha256": "b973a933608aea20fad74a8efb41536bcb9e97629023bf7b5a9781f82c951613"
+    },
+    {
+      "path": "experiments/playback-model/summarize-media-map.mjs",
+      "bytes": 6457,
+      "sha256": "fccc84049bedc3ab4f3b41a950b4e88a104aefe8bd723db056f625b649ff1261"
+    },
+    {
+      "path": "experiments/playback-model/verify-media-map.py",
+      "bytes": 5040,
+      "sha256": "61b91c47eb565052512769df887f6a7a4140c757d8e881615b8fd65f83dcb8f6"
+    },
+    {
+      "path": "docs/evidence/issue-51-media-map-20261117/summary.json",
+      "bytes": 17568,
+      "sha256": "1c69a145dd2d5935249cd1eedc0f134cf1d29febff0cdc5f40420a2f84ffcfde"
+    },
+    {
+      "path": "docs/evidence/issue-51-media-map-20261117/independent-check.json",
+      "bytes": 12857,
+      "sha256": "1883bf61a145dfb4590f1711653d91237b188d9fbc92a83c3bc01cf5e650cbcd"
+    },
+    {
+      "path": "docs/evidence/issue-51-media-map-20261117/live-media-check.json",
+      "bytes": 2889,
+      "sha256": "dde7b48fdbc4572d1a004874a54d0d533832afbefaff2c7edd417dfa0eeeda1e"
+    }
+  ]
+}

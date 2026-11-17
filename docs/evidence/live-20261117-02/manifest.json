@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261117-02",
+  "status": "four-observations-completed-with-owner-regression",
+  "hashBasis": "git-blob (UTF-8 normalized to LF)",
+  "sanitization": "No original game logs, player/room identities, private filesystem paths, signed resource URLs or credentials. Game and service events use relative sample times.",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261117-02.md",
+      "bytes": 8152,
+      "sha256": "f12fc58e99b79b33d2e157b3243da654ad80254fd078ad1c9de6a8beb3c8a9ee"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/calibration-v1.json",
+      "bytes": 973,
+      "sha256": "fa0e2e751383177c6b44beacb6f898c4f9005ac667370e137769df8101b08a65"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/calibration-v2.json",
+      "bytes": 973,
+      "sha256": "8c87cad98658075b0d9c80958592715c6aa33aacbe0978cf4542c8e43006cf9b"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/calibration-v3.json",
+      "bytes": 981,
+      "sha256": "8ec12cf22ac762008e094779b31a909c9395c0cd59b3619ee8897e7a1ce9c4e5"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/model-v1-test.go.txt",
+      "bytes": 6962,
+      "sha256": "8742e5fd13d5d5983b27f50ba79011545e22d11a1ec20e017b3c92771a67135b"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/model-v1.go.txt",
+      "bytes": 6399,
+      "sha256": "a50a2e41ffc12973d91d86199ff73ff658f042fab7880b04cb51221ed681c852"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/model-v2-v3-test.go.txt",
+      "bytes": 7016,
+      "sha256": "ce4c982905bb671605e65170bb5abb954f131280eca616759304921720bccb92"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/model-v2-v3.go.txt",
+      "bytes": 6472,
+      "sha256": "000eee4d7445468ad2c7d19d03626d48d978380f6f1ba313780d894bf98dfbad"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/owner-fixture-v1-v2.patch",
+      "bytes": 19402,
+      "sha256": "9306fbd557fa612cea44fc3d16426c9afa2e6203bec52fa4ffe5fb03e128b430"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/owner-fixture-v3.patch",
+      "bytes": 19440,
+      "sha256": "3cbc589fb63e6cd1a6b7cb3e806dd823618534da5b327a539814259e499f9e46"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/playback.json",
+      "bytes": 23821,
+      "sha256": "a2da9f65c9dc55f0102a282023648471d2d6e1a418b9fe386a7ef16b502dac9a"
+    },
+    {
+      "path": "docs/evidence/live-20261117-02/provenance.json",
+      "bytes": 7893,
+      "sha256": "ff8060cf90ac8aa6cb44969efb95f0415b12f45bde496a5432bdce3e57571cad"
+    },
+    {
+      "path": "experiments/playback-model/model.go",
+      "bytes": 6472,
+      "sha256": "000eee4d7445468ad2c7d19d03626d48d978380f6f1ba313780d894bf98dfbad"
+    },
+    {
+      "path": "experiments/playback-model/model_test.go",
+      "bytes": 7016,
+      "sha256": "ce4c982905bb671605e65170bb5abb954f131280eca616759304921720bccb92"
+    },
+    {
+      "path": "experiments/playback-model/owner-fixture.patch",
+      "bytes": 19440,
+      "sha256": "3cbc589fb63e6cd1a6b7cb3e806dd823618534da5b327a539814259e499f9e46"
+    }
+  ]
+}

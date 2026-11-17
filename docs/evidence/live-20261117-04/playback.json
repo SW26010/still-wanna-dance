@@ -1,0 +1,3855 @@
+{
+  "batch": "LIVE-20261117-04",
+  "status": "observations-through-final-206-recovery-and-game-end",
+  "timeBasis": "Seconds from each sample first formal NSPlayer GET; user and game timestamps have second precision; inferred minute corrections flagged.",
+  "sanitization": "Whitelisted fields only; no raw lines, identities, URLs, private paths or absolute event times.",
+  "samples": [
+    {
+      "sample": "owner3214",
+      "classification": "owner-refresh-repeat",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3214,
+        "role": "owner",
+        "seconds": 213,
+        "modelEnabled": false,
+        "marginSeconds": 0,
+        "earlyHeaders": true,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": null,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          8388608,
+          9437184
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.462,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.448,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "45849828",
+          "contentRange": null
+        },
+        {
+          "t": -0.447,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": ""
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 200,
+          "length": "45849828",
+          "contentRange": null
+        },
+        {
+          "t": 41.958,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 8388608,
+          "complete": false
+        },
+        {
+          "t": 42.463,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=8380416-45849827"
+        },
+        {
+          "t": 42.473,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "length": "37469412",
+          "contentRange": "bytes 8380416-45849827/45849828"
+        },
+        {
+          "t": 54.792,
+          "event": "request",
+          "id": 4,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 54.803,
+          "event": "response-headers",
+          "id": 4,
+          "status": 200,
+          "length": "45849828",
+          "contentRange": null
+        },
+        {
+          "t": 54.804,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 327680,
+          "complete": false
+        },
+        {
+          "t": 55.233,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": ""
+        },
+        {
+          "t": 55.235,
+          "event": "response-headers",
+          "id": 5,
+          "status": 200,
+          "length": "45849828",
+          "contentRange": null
+        },
+        {
+          "t": 55.688,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 4915200,
+          "complete": false
+        },
+        {
+          "t": 55.698,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=10764288-45849827"
+        },
+        {
+          "t": 55.701,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "length": "35085540",
+          "contentRange": "bytes 10764288-45849827/45849828"
+        },
+        {
+          "t": 56.217,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 87.687,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 35085540,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.449,
+          "endT": -0.442,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 32768,
+          "headersT": -0.448,
+          "lastSuccessfulWriteT": -0.442,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 41.968,
+          "player": true,
+          "range": "",
+          "status": 200,
+          "bytes": 8388608,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 6.396,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 54.803,
+          "endT": 54.805,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1245184,
+          "headersT": 54.803,
+          "lastSuccessfulWriteT": 54.805,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 55.234,
+          "endT": 55.698,
+          "player": true,
+          "range": "",
+          "status": 200,
+          "bytes": 5799936,
+          "headersT": 55.235,
+          "lastSuccessfulWriteT": 55.388,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 3,
+          "requestT": 42.473,
+          "endT": 56.227,
+          "player": true,
+          "range": "bytes=8380416-45849827",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 42.474,
+          "lastSuccessfulWriteT": 42.474,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 6,
+          "requestT": 55.699,
+          "endT": 86.743,
+          "player": true,
+          "range": "bytes=10764288-45849827",
+          "status": 206,
+          "bytes": 35085540,
+          "headersT": 55.701,
+          "lastSuccessfulWriteT": 86.743,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 42.473,
+          "reject": false,
+          "reason": "disabled",
+          "start": 8380416,
+          "needByT": null
+        },
+        {
+          "t": 55.234,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 55.699,
+          "reject": false,
+          "reason": "disabled",
+          "start": 10764288,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 4.261
+        },
+        {
+          "kind": "user-stall",
+          "t": 42.261
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 54.261
+        },
+        {
+          "kind": "user-resume",
+          "t": 56.261
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 3.261,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 3.261,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 42.261,
+          "kind": "sync",
+          "targetSeconds": 39.07
+        },
+        {
+          "t": 45.261,
+          "kind": "sync",
+          "targetSeconds": 42.07
+        },
+        {
+          "t": 48.261,
+          "kind": "sync",
+          "targetSeconds": 45.08
+        },
+        {
+          "t": 51.261,
+          "kind": "sync",
+          "targetSeconds": 48.09
+        },
+        {
+          "t": 54.261,
+          "kind": "sync",
+          "targetSeconds": 51.09
+        },
+        {
+          "t": 55.261,
+          "kind": "sync",
+          "targetSeconds": 51.88
+        },
+        {
+          "t": 55.261,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 217.261,
+          "kind": "end"
+        },
+        {
+          "t": 217.261,
+          "kind": "end"
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "owner2502",
+      "classification": "owner-refresh-repeat",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 2502,
+        "role": "owner",
+        "seconds": 206,
+        "modelEnabled": false,
+        "marginSeconds": 0,
+        "earlyHeaders": true,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": null,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          8388608,
+          9437184
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.455,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.45,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "80602639",
+          "contentRange": null
+        },
+        {
+          "t": -0.449,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "80602639",
+          "contentRange": "bytes 0-80602638/80602639"
+        },
+        {
+          "t": 35.53,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 8388608,
+          "complete": false
+        },
+        {
+          "t": 36.035,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=8380416-80602638"
+        },
+        {
+          "t": 36.046,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "length": "72222223",
+          "contentRange": "bytes 8380416-80602638/80602639"
+        },
+        {
+          "t": 39.553,
+          "event": "request",
+          "id": 4,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 39.564,
+          "event": "response-headers",
+          "id": 4,
+          "status": 200,
+          "length": "80602639",
+          "contentRange": null
+        },
+        {
+          "t": 39.565,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 327680,
+          "complete": false
+        },
+        {
+          "t": 39.944,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 39.946,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "length": "80602639",
+          "contentRange": "bytes 0-80602638/80602639"
+        },
+        {
+          "t": 39.953,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 40.375,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 4521984,
+          "complete": false
+        },
+        {
+          "t": 40.376,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=13860864-80602638"
+        },
+        {
+          "t": 40.38,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "length": "66741775",
+          "contentRange": "bytes 13860864-80602638/80602639"
+        },
+        {
+          "t": 74.315,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 66741775,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.451,
+          "endT": -0.445,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 32768,
+          "headersT": -0.45,
+          "lastSuccessfulWriteT": -0.445,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 35.539,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 8388608,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 3.467,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 39.564,
+          "endT": 39.567,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1114112,
+          "headersT": 39.564,
+          "lastSuccessfulWriteT": 39.566,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 3,
+          "requestT": 36.046,
+          "endT": 39.954,
+          "player": true,
+          "range": "bytes=8380416-80602638",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 36.046,
+          "lastSuccessfulWriteT": 36.047,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 39.946,
+          "endT": 40.377,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 5406720,
+          "headersT": 39.946,
+          "lastSuccessfulWriteT": 40.081,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 40.378,
+          "endT": 73.891,
+          "player": true,
+          "range": "bytes=13860864-80602638",
+          "status": 206,
+          "bytes": 66741775,
+          "headersT": 40.38,
+          "lastSuccessfulWriteT": 73.89,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 36.046,
+          "reject": false,
+          "reason": "disabled",
+          "start": 8380416,
+          "needByT": null
+        },
+        {
+          "t": 39.946,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 40.378,
+          "reject": false,
+          "reason": "disabled",
+          "start": 13860864,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 3.832
+        },
+        {
+          "kind": "user-stall",
+          "t": 26.832
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 38.832
+        },
+        {
+          "kind": "user-resume",
+          "t": 40.832
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 2.832,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 2.832,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 26.832,
+          "kind": "sync",
+          "targetSeconds": 24.05
+        },
+        {
+          "t": 29.832,
+          "kind": "sync",
+          "targetSeconds": 27.05
+        },
+        {
+          "t": 32.832,
+          "kind": "sync",
+          "targetSeconds": 30.06
+        },
+        {
+          "t": 35.832,
+          "kind": "sync",
+          "targetSeconds": 33.06
+        },
+        {
+          "t": 38.832,
+          "kind": "sync",
+          "targetSeconds": 36.06
+        },
+        {
+          "t": 39.832,
+          "kind": "sync",
+          "targetSeconds": 37.03
+        },
+        {
+          "t": 39.832,
+          "kind": "start",
+          "ownerStart": true
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerAuto4598",
+      "classification": "excluded-hole-not-requested",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 4598,
+        "role": "nonowner",
+        "seconds": 133,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.454,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.435,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "35169662",
+          "contentRange": null
+        },
+        {
+          "t": -0.432,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 134942,
+          "complete": false
+        },
+        {
+          "t": -0.001,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=26337280-35169661"
+        },
+        {
+          "t": 0.006,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "8832382",
+          "contentRange": "bytes 26337280-35169661/35169662"
+        },
+        {
+          "t": 6.471,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 8832382,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.441,
+          "endT": -0.431,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": -0.435,
+          "lastSuccessfulWriteT": -0.432,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 5.726,
+          "player": true,
+          "range": "bytes=26337280-35169661",
+          "status": 206,
+          "bytes": 8832382,
+          "headersT": 0.006,
+          "lastSuccessfulWriteT": 5.726,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "start": 26337280,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 3.861
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.861,
+          "kind": "sync",
+          "targetSeconds": 3.74
+        },
+        {
+          "t": 2.861,
+          "kind": "sync",
+          "targetSeconds": 0.39
+        },
+        {
+          "t": 2.861,
+          "kind": "sync",
+          "targetSeconds": 0.39
+        },
+        {
+          "t": 2.861,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 2.861,
+          "kind": "sync",
+          "targetSeconds": 0.39
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerAuto3136",
+      "classification": "504-automatic",
+      "observationWindowSeconds": 150,
+      "excludedLaterRequests": 6,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.401,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.391,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.389,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 134942,
+          "complete": false
+        },
+        {
+          "t": -0.001,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 31.034,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 31.548,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 31.549,
+          "event": "response-headers",
+          "id": 3,
+          "status": 504,
+          "length": "16",
+          "contentRange": null
+        },
+        {
+          "t": 31.55,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 16,
+          "complete": true
+        },
+        {
+          "t": 37.38,
+          "event": "request",
+          "id": 4,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 37.39,
+          "event": "response-headers",
+          "id": 4,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 37.391,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 37.835,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 37.837,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 38.189,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 38.19,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=5423104-67222867"
+        },
+        {
+          "t": 38.193,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "length": "61799764",
+          "contentRange": "bytes 5423104-67222867/67222868"
+        },
+        {
+          "t": 80.102,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 49942260,
+          "complete": false
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.398,
+          "endT": -0.388,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": -0.392,
+          "lastSuccessfulWriteT": -0.389,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 31.043,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0,
+          "lastSuccessfulWriteT": 0.178,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 31.549,
+          "endT": 31.549,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 504,
+          "bytes": 16,
+          "headersT": 31.549,
+          "lastSuccessfulWriteT": 31.549,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 37.389,
+          "endT": 37.392,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 37.39,
+          "lastSuccessfulWriteT": 37.391,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 5,
+          "requestT": 37.837,
+          "endT": 38.19,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 37.837,
+          "lastSuccessfulWriteT": 37.837,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 38.192,
+          "endT": 80.104,
+          "player": true,
+          "range": "bytes=5423104-67222867",
+          "status": 206,
+          "bytes": 50823168,
+          "headersT": 38.194,
+          "lastSuccessfulWriteT": 79.918,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 31.549,
+          "reject": true,
+          "reason": "obsolete-continuation",
+          "start": 2088960,
+          "needByT": 12.935
+        },
+        {
+          "t": 37.837,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 2088960,
+          "needByT": null
+        },
+        {
+          "t": 38.192,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 5423104,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 5.343
+        },
+        {
+          "kind": "user-stall",
+          "t": 15.343
+        },
+        {
+          "kind": "user-black-screen",
+          "t": 32.343
+        },
+        {
+          "kind": "user-resume",
+          "t": 39.343
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 4.343,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 4.343,
+          "kind": "sync",
+          "targetSeconds": 0.28
+        },
+        {
+          "t": 4.343,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 13.343,
+          "kind": "sync",
+          "targetSeconds": 9.3
+        },
+        {
+          "t": 16.343,
+          "kind": "sync",
+          "targetSeconds": 12.31
+        },
+        {
+          "t": 19.343,
+          "kind": "sync",
+          "targetSeconds": 15.31
+        },
+        {
+          "t": 22.343,
+          "kind": "sync",
+          "targetSeconds": 18.32
+        },
+        {
+          "t": 25.343,
+          "kind": "sync",
+          "targetSeconds": 21.33
+        },
+        {
+          "t": 28.343,
+          "kind": "sync",
+          "targetSeconds": 24.33
+        },
+        {
+          "t": 31.343,
+          "kind": "error"
+        },
+        {
+          "t": 36.343,
+          "kind": "automatic-reload"
+        },
+        {
+          "t": 37.343,
+          "kind": "sync",
+          "targetSeconds": 33.8
+        },
+        {
+          "t": 37.343,
+          "kind": "sync",
+          "targetSeconds": 33.81
+        },
+        {
+          "t": 37.343,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 37.343,
+          "kind": "sync",
+          "targetSeconds": 33.81
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerManual3136",
+      "classification": "supplement-click-after-504",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.469,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.449,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.446,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 134942,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 0.346,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 1146880,
+          "complete": false
+        },
+        {
+          "t": 0.356,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=66912256-67222867"
+        },
+        {
+          "t": 0.358,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "length": "310612",
+          "contentRange": "bytes 66912256-67222867/67222868"
+        },
+        {
+          "t": 0.36,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 310612,
+          "complete": true
+        },
+        {
+          "t": 4.414,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=851968-66912255"
+        },
+        {
+          "t": 4.424,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "66060288",
+          "contentRange": "bytes 851968-66912255/67222868"
+        },
+        {
+          "t": 39.721,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 1245184,
+          "complete": false
+        },
+        {
+          "t": 39.73,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2097152-66912255"
+        },
+        {
+          "t": 39.731,
+          "event": "response-headers",
+          "id": 5,
+          "status": 504,
+          "length": "16",
+          "contentRange": null
+        },
+        {
+          "t": 39.732,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 16,
+          "complete": true
+        },
+        {
+          "t": 45.558,
+          "event": "request",
+          "id": 6,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 45.569,
+          "event": "response-headers",
+          "id": 6,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 45.571,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 45.962,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 45.964,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 46.444,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 46.445,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=6127616-67222867"
+        },
+        {
+          "t": 46.448,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "length": "61095252",
+          "contentRange": "bytes 6127616-67222867/67222868"
+        },
+        {
+          "t": 97.926,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 61095252,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.455,
+          "endT": -0.444,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": -0.449,
+          "lastSuccessfulWriteT": -0.446,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 0.356,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 0.184,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 0.357,
+          "endT": 0.359,
+          "player": true,
+          "range": "bytes=66912256-67222867",
+          "status": 206,
+          "bytes": 310612,
+          "headersT": 0.359,
+          "lastSuccessfulWriteT": 0.359,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 4.423,
+          "endT": 39.721,
+          "player": true,
+          "range": "bytes=851968-66912255",
+          "status": 206,
+          "bytes": 1245184,
+          "headersT": 4.424,
+          "lastSuccessfulWriteT": 4.425,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 5,
+          "requestT": 39.732,
+          "endT": 39.732,
+          "player": true,
+          "range": "bytes=2097152-66912255",
+          "status": 504,
+          "bytes": 16,
+          "headersT": 39.732,
+          "lastSuccessfulWriteT": 39.732,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 45.569,
+          "endT": 45.572,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 45.57,
+          "lastSuccessfulWriteT": 45.571,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 7,
+          "requestT": 45.964,
+          "endT": 46.445,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 45.964,
+          "lastSuccessfulWriteT": 46.135,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 8,
+          "requestT": 46.446,
+          "endT": 97.024,
+          "player": true,
+          "range": "bytes=6127616-67222867",
+          "status": 206,
+          "bytes": 61095252,
+          "headersT": 46.448,
+          "lastSuccessfulWriteT": 97.024,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 0.357,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "start": 66912256,
+          "needByT": null
+        },
+        {
+          "t": 4.423,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 851968,
+          "needByT": null
+        },
+        {
+          "t": 39.732,
+          "reject": true,
+          "reason": "obsolete-continuation",
+          "start": 2097152,
+          "needByT": 16.716
+        },
+        {
+          "t": 45.964,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 46.446,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 6127616,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [
+        {
+          "t": 39.721,
+          "cause": "download-needby-window-expired"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 9.124
+        },
+        {
+          "kind": "user-stall",
+          "t": 25.124,
+          "minuteInferred": true,
+          "timeConfirmationPending": true
+        },
+        {
+          "kind": "user-black-and-manual-refresh",
+          "t": 42.124,
+          "minuteInferred": true,
+          "timeConfirmationPending": true
+        },
+        {
+          "kind": "user-resume",
+          "t": 48.124
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.124,
+          "kind": "sync",
+          "targetSeconds": 286.13
+        },
+        {
+          "t": 4.124,
+          "kind": "sync",
+          "targetSeconds": 0.29
+        },
+        {
+          "t": 8.124,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 8.124,
+          "kind": "sync",
+          "targetSeconds": 0.28
+        },
+        {
+          "t": 8.124,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 17.124,
+          "kind": "sync",
+          "targetSeconds": 9.29
+        },
+        {
+          "t": 20.124,
+          "kind": "sync",
+          "targetSeconds": 12.3
+        },
+        {
+          "t": 23.124,
+          "kind": "sync",
+          "targetSeconds": 15.3
+        },
+        {
+          "t": 26.124,
+          "kind": "sync",
+          "targetSeconds": 18.31
+        },
+        {
+          "t": 29.124,
+          "kind": "sync",
+          "targetSeconds": 21.32
+        },
+        {
+          "t": 32.124,
+          "kind": "sync",
+          "targetSeconds": 24.33
+        },
+        {
+          "t": 35.124,
+          "kind": "sync",
+          "targetSeconds": 27.33
+        },
+        {
+          "t": 38.124,
+          "kind": "sync",
+          "targetSeconds": 30.34
+        },
+        {
+          "t": 39.124,
+          "kind": "error"
+        },
+        {
+          "t": 44.124,
+          "kind": "automatic-reload"
+        },
+        {
+          "t": 46.124,
+          "kind": "sync",
+          "targetSeconds": 38.1
+        },
+        {
+          "t": 46.124,
+          "kind": "sync",
+          "targetSeconds": 38.11
+        },
+        {
+          "t": 46.124,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 46.124,
+          "kind": "sync",
+          "targetSeconds": 38.11
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerImmediate5043136",
+      "classification": "excluded-friend-operation-no-user-refresh",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.473,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.453,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.45,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 134942,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 9.727,
+          "event": "request",
+          "id": 3,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 9.738,
+          "event": "response-headers",
+          "id": 3,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 9.739,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 10.047,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 10.113,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 10.114,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 10.459,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 10.468,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 10.472,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 40.505,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 40.513,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=6127616-67222867"
+        },
+        {
+          "t": 40.515,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "length": "61095252",
+          "contentRange": "bytes 6127616-67222867/67222868"
+        },
+        {
+          "t": 91.94,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 61095252,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.459,
+          "endT": -0.448,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": -0.453,
+          "lastSuccessfulWriteT": -0.449,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 9.738,
+          "endT": 9.74,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 9.738,
+          "lastSuccessfulWriteT": 9.739,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 10.048,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 0.183,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 10.114,
+          "endT": 10.468,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 10.115,
+          "lastSuccessfulWriteT": 10.115,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 5,
+          "requestT": 10.469,
+          "endT": 40.504,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 10.472,
+          "lastSuccessfulWriteT": 10.472,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 40.515,
+          "endT": 91.272,
+          "player": true,
+          "range": "bytes=6127616-67222867",
+          "status": 206,
+          "bytes": 61095252,
+          "headersT": 40.516,
+          "lastSuccessfulWriteT": 91.272,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 10.114,
+          "reject": false,
+          "reason": "within-model-window",
+          "start": 2088960,
+          "needByT": 11.62
+        },
+        {
+          "t": 10.469,
+          "reject": false,
+          "reason": "within-model-window",
+          "start": 2088960,
+          "needByT": 11.62
+        },
+        {
+          "t": 40.515,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 6127616,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [
+        {
+          "t": 40.504,
+          "cause": "download-needby-window-expired"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 2.998
+        },
+        {
+          "kind": "user-black-screen",
+          "t": 12.998
+        },
+        {
+          "kind": "user-resume",
+          "t": 41.998
+        },
+        {
+          "kind": "user-no-manual-refresh",
+          "t": null,
+          "manualRefreshPerformed": false
+        },
+        {
+          "kind": "user-friend-operation-confirmed",
+          "t": null
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 2.998,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 2.998,
+          "kind": "sync",
+          "targetSeconds": 0.3
+        },
+        {
+          "t": 2.998,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 9.998,
+          "kind": "sync",
+          "targetSeconds": 7.12
+        },
+        {
+          "t": 9.998,
+          "kind": "sync",
+          "targetSeconds": 7.13
+        },
+        {
+          "t": 9.998,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 9.998,
+          "kind": "sync",
+          "targetSeconds": 7.13
+        },
+        {
+          "t": 11.998,
+          "kind": "sync",
+          "targetSeconds": 9.32
+        },
+        {
+          "t": 14.998,
+          "kind": "sync",
+          "targetSeconds": 12.32
+        },
+        {
+          "t": 17.998,
+          "kind": "sync",
+          "targetSeconds": 15.33
+        },
+        {
+          "t": 20.998,
+          "kind": "sync",
+          "targetSeconds": 18.34
+        },
+        {
+          "t": 23.998,
+          "kind": "sync",
+          "targetSeconds": 21.34
+        },
+        {
+          "t": 26.998,
+          "kind": "sync",
+          "targetSeconds": 24.35
+        },
+        {
+          "t": 29.998,
+          "kind": "sync",
+          "targetSeconds": 27.35
+        },
+        {
+          "t": 32.998,
+          "kind": "sync",
+          "targetSeconds": 30.36
+        },
+        {
+          "t": 35.998,
+          "kind": "sync",
+          "targetSeconds": 33.36
+        },
+        {
+          "t": 38.998,
+          "kind": "sync",
+          "targetSeconds": 36.37
+        },
+        {
+          "t": 41.998,
+          "kind": "sync",
+          "targetSeconds": 39.37
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerImmediate5043136r2",
+      "classification": "504-policy-refresh-after-1-second",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.469,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.457,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.454,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 200478,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 15.252,
+          "event": "request",
+          "id": 3,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 15.255,
+          "event": "response-headers",
+          "id": 3,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 15.256,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 15.633,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 15.635,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 16.111,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 1343488,
+          "complete": false
+        },
+        {
+          "t": 16.112,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2260992-67222867"
+        },
+        {
+          "t": 27.833,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 46.114,
+          "event": "response-headers",
+          "id": 5,
+          "status": 504,
+          "length": "16",
+          "contentRange": null
+        },
+        {
+          "t": 46.115,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 16,
+          "complete": true
+        },
+        {
+          "t": 51.906,
+          "event": "request",
+          "id": 6,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 51.908,
+          "event": "response-headers",
+          "id": 6,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 51.909,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 52.342,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=901120-67222867"
+        },
+        {
+          "t": 52.343,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "length": "66321748",
+          "contentRange": "bytes 901120-67222867/67222868"
+        },
+        {
+          "t": 52.687,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 855797,
+          "complete": false
+        },
+        {
+          "t": 52.696,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=7847936-67222867"
+        },
+        {
+          "t": 52.699,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "length": "59374932",
+          "contentRange": "bytes 7847936-67222867/67222868"
+        },
+        {
+          "t": 102.594,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 59374932,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.465,
+          "endT": -0.454,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 753664,
+          "headersT": -0.459,
+          "lastSuccessfulWriteT": -0.455,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 15.254,
+          "endT": 15.256,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 15.254,
+          "lastSuccessfulWriteT": 15.255,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 4,
+          "requestT": 15.634,
+          "endT": 16.112,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 15.635,
+          "lastSuccessfulWriteT": 15.808,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 27.841,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 0.29,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 16.113,
+          "endT": 46.113,
+          "player": true,
+          "range": "bytes=2260992-67222867",
+          "status": 504,
+          "bytes": 16,
+          "headersT": 46.113,
+          "lastSuccessfulWriteT": 46.113,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 51.907,
+          "endT": 51.91,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 51.908,
+          "lastSuccessfulWriteT": 51.908,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 7,
+          "requestT": 52.343,
+          "endT": 52.695,
+          "player": true,
+          "range": "bytes=901120-67222867",
+          "status": 206,
+          "bytes": 1196032,
+          "headersT": 52.343,
+          "lastSuccessfulWriteT": 52.344,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 8,
+          "requestT": 52.697,
+          "endT": 101.692,
+          "player": true,
+          "range": "bytes=7847936-67222867",
+          "status": 206,
+          "bytes": 59374932,
+          "headersT": 52.699,
+          "lastSuccessfulWriteT": 101.692,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 15.634,
+          "reject": false,
+          "reason": "range-changed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 16.113,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 2260992,
+          "needByT": null
+        },
+        {
+          "t": 52.343,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 901120,
+          "needByT": null
+        },
+        {
+          "t": 52.697,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 7847936,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [
+        {
+          "t": 46.113,
+          "cause": "download-needby-window-expired"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 5.49
+        },
+        {
+          "kind": "user-stall",
+          "t": 13.49
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 14.49
+        },
+        {
+          "kind": "user-black-screen",
+          "t": 17.49,
+          "approximate": true
+        },
+        {
+          "kind": "user-resume",
+          "t": 54.49
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.49,
+          "kind": "sync",
+          "targetSeconds": 2.14
+        },
+        {
+          "t": 1.49,
+          "kind": "sync",
+          "targetSeconds": 3.96
+        },
+        {
+          "t": 4.49,
+          "kind": "sync",
+          "targetSeconds": 0.36
+        },
+        {
+          "t": 4.49,
+          "kind": "sync",
+          "targetSeconds": 0.37
+        },
+        {
+          "t": 4.49,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 4.49,
+          "kind": "sync",
+          "targetSeconds": 0.37
+        },
+        {
+          "t": 13.49,
+          "kind": "sync",
+          "targetSeconds": 10.21
+        },
+        {
+          "t": 15.49,
+          "kind": "sync",
+          "targetSeconds": 11.89
+        },
+        {
+          "t": 15.49,
+          "kind": "sync",
+          "targetSeconds": 11.89
+        },
+        {
+          "t": 15.49,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 15.49,
+          "kind": "sync",
+          "targetSeconds": 11.89
+        },
+        {
+          "t": 16.49,
+          "kind": "sync",
+          "targetSeconds": 13.21
+        },
+        {
+          "t": 19.49,
+          "kind": "sync",
+          "targetSeconds": 16.21
+        },
+        {
+          "t": 22.49,
+          "kind": "sync",
+          "targetSeconds": 19.22
+        },
+        {
+          "t": 25.49,
+          "kind": "sync",
+          "targetSeconds": 22.22
+        },
+        {
+          "t": 28.49,
+          "kind": "sync",
+          "targetSeconds": 25.23
+        },
+        {
+          "t": 31.49,
+          "kind": "sync",
+          "targetSeconds": 28.23
+        },
+        {
+          "t": 34.49,
+          "kind": "sync",
+          "targetSeconds": 31.24
+        },
+        {
+          "t": 37.49,
+          "kind": "sync",
+          "targetSeconds": 34.25
+        },
+        {
+          "t": 40.49,
+          "kind": "sync",
+          "targetSeconds": 37.26
+        },
+        {
+          "t": 43.49,
+          "kind": "sync",
+          "targetSeconds": 40.26
+        },
+        {
+          "t": 45.49,
+          "kind": "error"
+        },
+        {
+          "t": 50.49,
+          "kind": "automatic-reload"
+        },
+        {
+          "t": 52.49,
+          "kind": "sync",
+          "targetSeconds": 48.47
+        },
+        {
+          "t": 52.49,
+          "kind": "sync",
+          "targetSeconds": 48.47
+        },
+        {
+          "t": 52.49,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 52.49,
+          "kind": "sync",
+          "targetSeconds": 48.47
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerDelayed5043136",
+      "classification": "504-policy-refresh-after-3-seconds",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.404,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.393,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.39,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 69406,
+          "complete": false
+        },
+        {
+          "t": -0.001,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 16.013,
+          "event": "request",
+          "id": 3,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 16.015,
+          "event": "response-headers",
+          "id": 3,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 16.016,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 16.394,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 16.397,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 16.892,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 16.893,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2260992-67222867"
+        },
+        {
+          "t": 26.171,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 46.894,
+          "event": "response-headers",
+          "id": 5,
+          "status": 504,
+          "length": "16",
+          "contentRange": null
+        },
+        {
+          "t": 46.904,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 16,
+          "complete": true
+        },
+        {
+          "t": 52.683,
+          "event": "request",
+          "id": 6,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 52.695,
+          "event": "response-headers",
+          "id": 6,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 52.696,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 53.128,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 53.13,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 53.477,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 53.487,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=9027584-67222867"
+        },
+        {
+          "t": 53.491,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "length": "58195284",
+          "contentRange": "bytes 9027584-67222867/67222868"
+        },
+        {
+          "t": 102.452,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 58195284,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.4,
+          "endT": -0.389,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 524288,
+          "headersT": -0.394,
+          "lastSuccessfulWriteT": -0.391,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 16.015,
+          "endT": 16.017,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 16.015,
+          "lastSuccessfulWriteT": 16.016,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 4,
+          "requestT": 16.396,
+          "endT": 16.893,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 16.397,
+          "lastSuccessfulWriteT": 16.578,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 26.182,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 0.167,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 16.894,
+          "endT": 46.894,
+          "player": true,
+          "range": "bytes=2260992-67222867",
+          "status": 504,
+          "bytes": 16,
+          "headersT": 46.894,
+          "lastSuccessfulWriteT": 46.894,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 52.695,
+          "endT": 52.697,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 52.695,
+          "lastSuccessfulWriteT": 52.696,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 7,
+          "requestT": 53.129,
+          "endT": 53.487,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 53.13,
+          "lastSuccessfulWriteT": 53.13,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 8,
+          "requestT": 53.488,
+          "endT": 101.81,
+          "player": true,
+          "range": "bytes=9027584-67222867",
+          "status": 206,
+          "bytes": 58195284,
+          "headersT": 53.491,
+          "lastSuccessfulWriteT": 101.809,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 16.396,
+          "reject": false,
+          "reason": "range-changed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 16.894,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 2260992,
+          "needByT": null
+        },
+        {
+          "t": 53.129,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 2088960,
+          "needByT": null
+        },
+        {
+          "t": 53.488,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 9027584,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [
+        {
+          "t": 46.894,
+          "cause": "download-needby-window-expired"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 3.833
+        },
+        {
+          "kind": "user-stall",
+          "t": 11.833
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 14.833
+        },
+        {
+          "kind": "user-black-screen",
+          "t": 21.833
+        },
+        {
+          "kind": "user-resume",
+          "t": 54.833
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 1.833,
+          "kind": "sync",
+          "targetSeconds": 4.94
+        },
+        {
+          "t": 2.833,
+          "kind": "sync",
+          "targetSeconds": 0.29
+        },
+        {
+          "t": 2.833,
+          "kind": "sync",
+          "targetSeconds": 0.29
+        },
+        {
+          "t": 2.833,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 2.833,
+          "kind": "sync",
+          "targetSeconds": 0.29
+        },
+        {
+          "t": 13.833,
+          "kind": "sync",
+          "targetSeconds": 11.38
+        },
+        {
+          "t": 16.833,
+          "kind": "sync",
+          "targetSeconds": 14.24
+        },
+        {
+          "t": 16.833,
+          "kind": "sync",
+          "targetSeconds": 14.24
+        },
+        {
+          "t": 16.833,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 16.833,
+          "kind": "sync",
+          "targetSeconds": 14.24
+        },
+        {
+          "t": 16.833,
+          "kind": "sync",
+          "targetSeconds": 14.38
+        },
+        {
+          "t": 19.833,
+          "kind": "sync",
+          "targetSeconds": 17.38
+        },
+        {
+          "t": 22.833,
+          "kind": "sync",
+          "targetSeconds": 20.39
+        },
+        {
+          "t": 25.833,
+          "kind": "sync",
+          "targetSeconds": 23.4
+        },
+        {
+          "t": 28.833,
+          "kind": "sync",
+          "targetSeconds": 26.41
+        },
+        {
+          "t": 31.833,
+          "kind": "sync",
+          "targetSeconds": 29.41
+        },
+        {
+          "t": 34.833,
+          "kind": "sync",
+          "targetSeconds": 32.42
+        },
+        {
+          "t": 37.833,
+          "kind": "sync",
+          "targetSeconds": 35.43
+        },
+        {
+          "t": 40.833,
+          "kind": "sync",
+          "targetSeconds": 38.43
+        },
+        {
+          "t": 43.833,
+          "kind": "sync",
+          "targetSeconds": 41.44
+        },
+        {
+          "t": 46.833,
+          "kind": "error"
+        },
+        {
+          "t": 51.833,
+          "kind": "automatic-reload"
+        },
+        {
+          "t": 52.833,
+          "kind": "sync",
+          "targetSeconds": 50.82
+        },
+        {
+          "t": 52.833,
+          "kind": "sync",
+          "targetSeconds": 50.83
+        },
+        {
+          "t": 52.833,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 52.833,
+          "kind": "sync",
+          "targetSeconds": 50.83
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonownerDelayed5043136r2",
+      "classification": "504-policy-refresh-after-8-seconds",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": true,
+        "marginSeconds": 0,
+        "earlyHeaders": false,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": 10,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.398,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.379,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.377,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 5.731,
+          "event": "request",
+          "id": 3,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 5.742,
+          "event": "response-headers",
+          "id": 3,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 5.743,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 360448,
+          "complete": false
+        },
+        {
+          "t": 6.118,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 6.185,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 6.187,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 8.952,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 8.963,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 8.966,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 21.361,
+          "event": "request",
+          "id": 6,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 21.371,
+          "event": "response-headers",
+          "id": 6,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 21.372,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 266014,
+          "complete": false
+        },
+        {
+          "t": 21.742,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 21.744,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 22.291,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 22.3,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=3162112-67222867"
+        },
+        {
+          "t": 22.304,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "length": "64060756",
+          "contentRange": "bytes 3162112-67222867/67222868"
+        },
+        {
+          "t": 38.999,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 39.009,
+          "event": "request",
+          "id": 9,
+          "player": true,
+          "range": "bytes=2932736-67222867"
+        },
+        {
+          "t": 57.157,
+          "event": "response-ended",
+          "id": 9,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 76.537,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 64060756,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.386,
+          "endT": -0.376,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 786432,
+          "headersT": -0.38,
+          "lastSuccessfulWriteT": -0.377,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 5.742,
+          "endT": 5.744,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 5.742,
+          "lastSuccessfulWriteT": 5.743,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 6.119,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0.001,
+          "lastSuccessfulWriteT": 0.25,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 4,
+          "requestT": 6.187,
+          "endT": 8.963,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 6.187,
+          "lastSuccessfulWriteT": 6.188,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 6,
+          "requestT": 21.37,
+          "endT": 21.373,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 1048576,
+          "headersT": 21.371,
+          "lastSuccessfulWriteT": 21.372,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 7,
+          "requestT": 21.744,
+          "endT": 22.3,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 21.744,
+          "lastSuccessfulWriteT": 21.914,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 8.964,
+          "endT": 38.999,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 8.966,
+          "lastSuccessfulWriteT": 8.966,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 9,
+          "requestT": 39.01,
+          "endT": 57.157,
+          "player": true,
+          "range": "bytes=2932736-67222867",
+          "status": 503,
+          "bytes": 20,
+          "headersT": 57.157,
+          "lastSuccessfulWriteT": 57.157,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 8,
+          "requestT": 22.302,
+          "endT": 75.731,
+          "player": true,
+          "range": "bytes=3162112-67222867",
+          "status": 206,
+          "bytes": 64060756,
+          "headersT": 22.304,
+          "lastSuccessfulWriteT": 75.731,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "nonowner-not-confirmed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 6.187,
+          "reject": false,
+          "reason": "within-model-window",
+          "start": 2088960,
+          "needByT": 12.307
+        },
+        {
+          "t": 8.964,
+          "reject": false,
+          "reason": "within-model-window",
+          "start": 2088960,
+          "needByT": 11.767
+        },
+        {
+          "t": 21.744,
+          "reject": false,
+          "reason": "range-changed",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 22.302,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 3162112,
+          "needByT": null
+        },
+        {
+          "t": 39.01,
+          "reject": false,
+          "reason": "not-same-unready-suffix",
+          "start": 2932736,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [
+        {
+          "t": 38.999,
+          "cause": "download-needby-window-expired"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 4.755
+        },
+        {
+          "kind": "user-stall",
+          "t": 12.755
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 20.755
+        },
+        {
+          "kind": "user-resume",
+          "t": 24.755
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 1.755,
+          "kind": "sync",
+          "targetSeconds": 2.64
+        },
+        {
+          "t": 3.755,
+          "kind": "sync",
+          "targetSeconds": 0.37
+        },
+        {
+          "t": 3.755,
+          "kind": "sync",
+          "targetSeconds": 0.37
+        },
+        {
+          "t": 3.755,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 3.755,
+          "kind": "sync",
+          "targetSeconds": 0.37
+        },
+        {
+          "t": 5.755,
+          "kind": "sync",
+          "targetSeconds": 2.91
+        },
+        {
+          "t": 5.755,
+          "kind": "sync",
+          "targetSeconds": 2.91
+        },
+        {
+          "t": 5.755,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 5.755,
+          "kind": "sync",
+          "targetSeconds": 2.91
+        },
+        {
+          "t": 13.755,
+          "kind": "sync",
+          "targetSeconds": 10.64
+        },
+        {
+          "t": 16.755,
+          "kind": "sync",
+          "targetSeconds": 13.64
+        },
+        {
+          "t": 19.755,
+          "kind": "sync",
+          "targetSeconds": 16.65
+        },
+        {
+          "t": 21.755,
+          "kind": "sync",
+          "targetSeconds": 18.71
+        },
+        {
+          "t": 21.755,
+          "kind": "sync",
+          "targetSeconds": 18.71
+        },
+        {
+          "t": 21.755,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 21.755,
+          "kind": "sync",
+          "targetSeconds": 18.71
+        }
+      ],
+      "sampleProcessesStopped": true
+    },
+    {
+      "sample": "nonowner206Manual3136",
+      "classification": "206-policy-refresh-after-8-seconds",
+      "observationWindowSeconds": null,
+      "excludedLaterRequests": 0,
+      "config": {
+        "song": 3136,
+        "role": "nonowner",
+        "seconds": 286,
+        "modelEnabled": false,
+        "marginSeconds": 0,
+        "earlyHeaders": true,
+        "defaultHandoffSeconds": 2,
+        "modelHandoffSeconds": null,
+        "downloadGraceSeconds": 30,
+        "holeRange": [
+          2097152,
+          3145728
+        ],
+        "holeEndExclusive": true,
+        "sourceReleaseSeconds": 86400
+      },
+      "http": [
+        {
+          "t": -0.454,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.441,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": -0.44,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 21.673,
+          "event": "request",
+          "id": 3,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 21.684,
+          "event": "response-headers",
+          "id": 3,
+          "status": 200,
+          "length": "67222868",
+          "contentRange": null
+        },
+        {
+          "t": 21.685,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 327680,
+          "complete": false
+        },
+        {
+          "t": 22.066,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 22.068,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "length": "67222868",
+          "contentRange": "bytes 0-67222867/67222868"
+        },
+        {
+          "t": 22.593,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 22.602,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=3162112-67222867"
+        },
+        {
+          "t": 22.605,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "length": "64060756",
+          "contentRange": "bytes 3162112-67222867/67222868"
+        },
+        {
+          "t": 35.673,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 2097152,
+          "complete": false
+        },
+        {
+          "t": 36.174,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=2088960-67222867"
+        },
+        {
+          "t": 36.185,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "length": "65133908",
+          "contentRange": "bytes 2088960-67222867/67222868"
+        },
+        {
+          "t": 57.125,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 76.423,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 64060756,
+          "complete": true
+        }
+      ],
+      "supplies": [
+        {
+          "id": 1,
+          "requestT": -0.443,
+          "endT": -0.437,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 32768,
+          "headersT": -0.442,
+          "lastSuccessfulWriteT": -0.437,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "id": 3,
+          "requestT": 21.682,
+          "endT": 21.686,
+          "player": false,
+          "range": "",
+          "status": 200,
+          "bytes": 884736,
+          "headersT": 21.683,
+          "lastSuccessfulWriteT": 21.684,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 4,
+          "requestT": 22.067,
+          "endT": 22.601,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 22.067,
+          "lastSuccessfulWriteT": 22.279,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 2,
+          "requestT": 0,
+          "endT": 35.682,
+          "player": true,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "headersT": 0,
+          "lastSuccessfulWriteT": 0.461,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 6,
+          "requestT": 36.183,
+          "endT": 57.126,
+          "player": true,
+          "range": "bytes=2088960-67222867",
+          "status": 206,
+          "bytes": 8192,
+          "headersT": 36.184,
+          "lastSuccessfulWriteT": 36.184,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "id": 5,
+          "requestT": 22.603,
+          "endT": 75.74,
+          "player": true,
+          "range": "bytes=3162112-67222867",
+          "status": 206,
+          "bytes": 64060756,
+          "headersT": 22.605,
+          "lastSuccessfulWriteT": 75.74,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "admission": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 22.067,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 22.603,
+          "reject": false,
+          "reason": "disabled",
+          "start": 3162112,
+          "needByT": null
+        },
+        {
+          "t": 36.183,
+          "reject": false,
+          "reason": "disabled",
+          "start": 2088960,
+          "needByT": null
+        }
+      ],
+      "sourceReleaseEvents": [],
+      "streamFailures": [],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 4.972
+        },
+        {
+          "kind": "user-stall",
+          "t": 12.972
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 20.972
+        },
+        {
+          "kind": "user-resume",
+          "t": 22.972
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.972,
+          "kind": "sync",
+          "targetSeconds": 3.52
+        },
+        {
+          "t": 2.972,
+          "kind": "sync",
+          "targetSeconds": 0.27
+        },
+        {
+          "t": 2.972,
+          "kind": "sync",
+          "targetSeconds": 0.28
+        },
+        {
+          "t": 2.972,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 2.972,
+          "kind": "sync",
+          "targetSeconds": 0.28
+        },
+        {
+          "t": 12.972,
+          "kind": "sync",
+          "targetSeconds": 10.05
+        },
+        {
+          "t": 15.972,
+          "kind": "sync",
+          "targetSeconds": 13.06
+        },
+        {
+          "t": 18.972,
+          "kind": "sync",
+          "targetSeconds": 16.07
+        },
+        {
+          "t": 21.972,
+          "kind": "sync",
+          "targetSeconds": 19.01
+        },
+        {
+          "t": 21.972,
+          "kind": "sync",
+          "targetSeconds": 19.01
+        },
+        {
+          "t": 21.972,
+          "kind": "start",
+          "ownerStart": false
+        },
+        {
+          "t": 21.972,
+          "kind": "sync",
+          "targetSeconds": 19.01
+        },
+        {
+          "t": 21.972,
+          "kind": "sync",
+          "targetSeconds": 19.07
+        },
+        {
+          "t": 288.972,
+          "kind": "end"
+        },
+        {
+          "t": 288.972,
+          "kind": "end"
+        }
+      ],
+      "sampleProcessesStopped": false
+    }
+  ]
+}

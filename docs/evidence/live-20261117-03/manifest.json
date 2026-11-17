@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261117-03",
+  "status": "observations-completed",
+  "hashBasis": "git-blob (UTF-8 normalized to LF)",
+  "sanitization": "Whitelisted event fields and relative times only; no raw game log, player/room identities, private filesystem paths or signed URLs.",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261117-03.md",
+      "bytes": 4953,
+      "sha256": "d4da92329a1d86a02927fa6309cdb61d9bbe6e015238ced33efaacb4cc4b2c85"
+    },
+    {
+      "path": "docs/evidence/live-20261117-03/headers-calibration.json",
+      "bytes": 1245,
+      "sha256": "a7c66bfe31b81ee7b2e4fb0cf90e84a1c5bf6a70130fc4a02173d0905d1c7d63"
+    },
+    {
+      "path": "docs/evidence/live-20261117-03/headers-first-fixture.patch",
+      "bytes": 16221,
+      "sha256": "04926b023bc3d71e62d3801c27e15b36acf601f5062432c0ef9a6ed3a7cb1553"
+    },
+    {
+      "path": "docs/evidence/live-20261117-03/playback.json",
+      "bytes": 54145,
+      "sha256": "be8942c197c4c4f61a251505fc6597ccfbbc482d92fb8d3f98b3fe392eb9899f"
+    },
+    {
+      "path": "docs/evidence/live-20261117-03/provenance.json",
+      "bytes": 1014,
+      "sha256": "cc3fd42bfcef77d018bf9faa074c4532ffb2732b5c7b897590dd03b0153e4d80"
+    }
+  ]
+}

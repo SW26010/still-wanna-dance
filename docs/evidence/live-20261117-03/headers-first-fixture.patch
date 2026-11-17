@@ -1,0 +1,443 @@
+diff --git a/internal/cacheproxy/server.go b/internal/cacheproxy/server.go
+--- a/internal/cacheproxy/server.go
++++ b/internal/cacheproxy/server.go
+@@ -784,6 +784,12 @@
+ 		return
+ 	}
+ 	w.status = status
++	if lab51EarlyHeaders && (status == http.StatusOK || status == http.StatusPartialContent) {
++		w.commit()
++		if err := http.NewResponseController(w.ResponseWriter).Flush(); err != nil {
++			panic(http.ErrAbortHandler)
++		}
++	}
+ }
+ func (w *streamResponseWriter) commit() {
+ 	if w.committed {
+diff --git a/internal/cacheproxy/issue51_lab_test.go b/internal/cacheproxy/issue51_lab_test.go
+--- a/internal/cacheproxy/issue51_lab_test.go
++++ b/internal/cacheproxy/issue51_lab_test.go
+@@ -22,195 +22,202 @@
+ 
+ // Private research harness: production engine and scheduler, controlled local
+ // media transport. Never compiled into the desktop product.
+-func TestIssue51LabServer(t *testing.T) {
+-	root, file := os.Getenv("LAB51_ROOT"), os.Getenv("LAB51_FILE")
+-	if root == "" || file == "" {
+-		t.Skip("explicit isolated lab inputs required")
+-	}
+-	data, err := os.ReadFile(file)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	body := string(data)
+-	target := videoURL(body)
+-	if err = os.MkdirAll(root, 0700); err != nil {
+-		t.Fatal(err)
+-	}
+-	trace, err := os.Create(filepath.Join(root, "engine.jsonl"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer trace.Close()
+-	log := slog.New(slog.NewJSONHandler(trace, &slog.HandlerOptions{Level: slog.LevelDebug}))
+-	forceFresh := os.Getenv("LAB51_FORCE_FRESH") == "1"
+-	singleHole := os.Getenv("LAB51_SINGLE_HOLE") == "1"
+-	song := os.Getenv("LAB51_SONG")
+-	if song == "" {
+-		song = "4598"
+-	}
+-	songID, songErr := strconv.Atoi(song)
+-	if songErr != nil || songID < 1 {
+-		t.Fatal("invalid controlled song")
+-	}
+-	holeBlocks := 1
+-	if value := os.Getenv("LAB51_HOLE_BLOCKS"); value != "" {
+-		v, e := strconv.Atoi(value)
+-		if e != nil || v < 1 || v > 8 {
+-			t.Fatal("invalid hole count")
+-		}
+-		holeBlocks = v
+-	}
+-	warmBlocks := 2
+-	if value := os.Getenv("LAB51_WARM_BLOCKS"); value != "" {
+-		v, e := strconv.Atoi(value)
+-		if e != nil || v < 1 || v > len(data)/int(DefaultBlockSize)-holeBlocks {
+-			t.Fatal("invalid warm block count")
+-		}
+-		warmBlocks = v
+-	}
+-	var labSequence atomic.Int64
+-	var slowGate *lab51RateGate
+-	slowSeconds := 60
+-	if value := os.Getenv("LAB51_SLOW_SECONDS"); value != "" {
+-		v, e := strconv.Atoi(value)
+-		if e != nil || v < 1 {
+-			t.Fatal("invalid slow duration")
+-		}
+-		slowSeconds = v
+-	}
+-	if os.Getenv("LAB51_MODE") == "slow" {
+-		slowGate = newLab51RateGate()
+-		watchCtx, stopWatch := context.WithCancel(context.Background())
+-		t.Cleanup(func() { stopWatch(); slowGate.restore() })
+-		go func() {
+-			tick := time.NewTicker(20 * time.Millisecond)
+-			defer tick.Stop()
+-			for {
+-				select {
+-				case <-watchCtx.Done():
+-					return
+-				case <-tick.C:
+-				}
+-				if _, e := os.Stat(filepath.Join(root, "slow-start")); e == nil {
+-					break
+-				}
+-			}
+-			slowGate.start(125000)
+-			log.Info("lab_rate_started", "aggregate_bytes_per_second", 125000, "duration_seconds", slowSeconds)
+-			timer := time.NewTimer(time.Duration(slowSeconds) * time.Second)
+-			defer timer.Stop()
+-			select {
+-			case <-watchCtx.Done():
+-				return
+-			case <-timer.C:
+-			}
+-			slowGate.restore()
+-			log.Info("lab_rate_restored")
+-		}()
+-	}
+-	var once sync.Once
+-	release := make(chan struct{})
+-	delay := 66 * time.Second
+-	if value := os.Getenv("LAB51_RELEASE_SECONDS"); value != "" {
+-		v, e := strconv.Atoi(value)
+-		if e != nil || v < 1 {
+-			t.Fatal("invalid release delay")
+-		}
+-		delay = time.Duration(v) * time.Second
+-	}
+-	s, _ := setup(t, nil, func(cfg *Config) {
+-		cfg.Logger = log
+-		cfg.ObserveDownloadBytes = func(n int64) { log.Info("lab_upstream_bytes", "bytes", n) }
+-		cfg.BeginResourceLoad = func() func() {
+-			started := time.Now()
+-			log.Info("lab_execution_acquired")
+-			return func() { log.Info("lab_execution_released", "elapsed_ms", time.Since(started).Milliseconds()) }
+-		}
+-		cfg.DownloadConcurrencySoftLimit = 2
+-		cfg.DownloadGrowInterval = 0
+-		cfg.CacheUnlimited = true
+-		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
+-		cfg.ResourceTransports = func(string) []http.RoundTripper {
+-			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+-				resp := fixtureRangeResponse(r, body)
+-				var start, end int64
+-				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+-				if slowGate != nil {
+-					resp.Body = slowGate.reader(r.Context(), resp.Body, start)
+-					return resp, nil
+-				}
+-				if start < int64(warmBlocks)*DefaultBlockSize || (singleHole && start >= int64(warmBlocks+holeBlocks)*DefaultBlockSize) {
+-					return resp, nil
+-				}
+-				src := resp.Body
+-				sent := int64(0)
+-				resp.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
+-					if sent >= 128*1024 {
+-						select {
+-						case <-release:
+-						case <-r.Context().Done():
+-							return 0, r.Context().Err()
+-						}
+-					}
+-					if sent < 128*1024 && int64(len(p)) > 128*1024-sent {
+-						p = p[:128*1024-sent]
+-					}
+-					n, e := src.Read(p)
+-					sent += int64(n)
+-					return n, e
+-				}))
+-				return resp, nil
+-			})}
+-		}
+-	})
+-	seedPreview(t, s, body)
+-	for _, q := range []string{fmt.Sprintf("INSERT INTO songs(id) VALUES(%d) ON CONFLICT DO NOTHING", songID), fmt.Sprintf("INSERT INTO song_media(song_id,md5) SELECT %d,md5 FROM song_media WHERE song_id='1' ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", songID)} {
+-		if _, err = s.Store.db.Exec(q); err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-	lab51InitModel(t, s, root, int64(songID), videoKey(body), int64(len(data)), int64(warmBlocks)*DefaultBlockSize, release, log)
+-	listener, err := net.Listen("tcp4", os.Getenv("LAB51_LISTEN"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-		if r.URL.Path != "/Api/Songs/play" || r.URL.Query().Get("id") != song {
+-			http.NotFound(w, r)
+-			return
+-		}
+-		labID := labSequence.Add(1)
+-		wire := &lab51SupplyWriter{ResponseWriter: w}
+-		w = wire
+-		defer func() {
+-			log.Info("lab_http_supply", "lab_id", labID, "status", wire.status, "bytes", wire.bytes, "first_successful_write", wire.firstSuccessfulWrite, "last_successful_write", wire.lastSuccessfulWrite, "write_failed", wire.writeFailed)
+-		}()
+-		log.Info("lab_client_request", "lab_id", labID, "method", r.Method, "range", r.Header.Get("Range"), "player", strings.HasPrefix(r.UserAgent(), "NSPlayer/"))
+-		if r.Method == "GET" && strings.HasPrefix(r.UserAgent(), "NSPlayer/") {
+-			once.Do(func() {
+-				log.Info("lab_clock_started", "release_after_seconds", delay.Seconds())
+-				if slowGate == nil {
+-					go func() { time.Sleep(delay); close(release); log.Info("lab_upstream_released") }()
+-				}
+-			})
+-		}
+-		r = r.Clone(r.Context())
+-		if forceFresh && r.Method == http.MethodGet {
+-			log.Info("lab_cache_validation_ignored", "if_none_match_present", r.Header.Get("If-None-Match") != "", "if_modified_since_present", r.Header.Get("If-Modified-Since") != "")
+-			r.Header.Del("If-None-Match")
+-			r.Header.Del("If-Modified-Since")
+-		}
+-		r.Host = "api.udon.dance"
+-		r.URL.Host = r.Host
+-		r.URL.Scheme = "http"
+-		if lab51BeforeDemand(w, r, wire) {
+-			return
+-		}
+-		s.ServeHTTP(w, r)
+-	})}
+-	done := make(chan error, 1)
+-	go func() { done <- server.Serve(listener) }()
+-	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "explicit matching media duration inserted; experimental log model and2/10s handoff"}
++var lab51EarlyHeaders bool
++
++func TestIssue51LabServer(t *testing.T) {
++	lab51EarlyHeaders = os.Getenv("LAB51_EARLY_HEADERS") == "1"
++	root, file := os.Getenv("LAB51_ROOT"), os.Getenv("LAB51_FILE")
++	if root == "" || file == "" {
++		t.Skip("explicit isolated lab inputs required")
++	}
++	data, err := os.ReadFile(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	body := string(data)
++	target := videoURL(body)
++	if err = os.MkdirAll(root, 0700); err != nil {
++		t.Fatal(err)
++	}
++	trace, err := os.Create(filepath.Join(root, "engine.jsonl"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer trace.Close()
++	log := slog.New(slog.NewJSONHandler(trace, &slog.HandlerOptions{Level: slog.LevelDebug}))
++	forceFresh := os.Getenv("LAB51_FORCE_FRESH") == "1"
++	singleHole := os.Getenv("LAB51_SINGLE_HOLE") == "1"
++	song := os.Getenv("LAB51_SONG")
++	if song == "" {
++		song = "4598"
++	}
++	songID, songErr := strconv.Atoi(song)
++	if songErr != nil || songID < 1 {
++		t.Fatal("invalid controlled song")
++	}
++	holeBlocks := 1
++	if value := os.Getenv("LAB51_HOLE_BLOCKS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 || v > 8 {
++			t.Fatal("invalid hole count")
++		}
++		holeBlocks = v
++	}
++	warmBlocks := 2
++	if value := os.Getenv("LAB51_WARM_BLOCKS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 || v > len(data)/int(DefaultBlockSize)-holeBlocks {
++			t.Fatal("invalid warm block count")
++		}
++		warmBlocks = v
++	}
++	var labSequence atomic.Int64
++	var slowGate *lab51RateGate
++	slowSeconds := 60
++	if value := os.Getenv("LAB51_SLOW_SECONDS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 {
++			t.Fatal("invalid slow duration")
++		}
++		slowSeconds = v
++	}
++	if os.Getenv("LAB51_MODE") == "slow" {
++		slowGate = newLab51RateGate()
++		watchCtx, stopWatch := context.WithCancel(context.Background())
++		t.Cleanup(func() { stopWatch(); slowGate.restore() })
++		go func() {
++			tick := time.NewTicker(20 * time.Millisecond)
++			defer tick.Stop()
++			for {
++				select {
++				case <-watchCtx.Done():
++					return
++				case <-tick.C:
++				}
++				if _, e := os.Stat(filepath.Join(root, "slow-start")); e == nil {
++					break
++				}
++			}
++			slowGate.start(125000)
++			log.Info("lab_rate_started", "aggregate_bytes_per_second", 125000, "duration_seconds", slowSeconds)
++			timer := time.NewTimer(time.Duration(slowSeconds) * time.Second)
++			defer timer.Stop()
++			select {
++			case <-watchCtx.Done():
++				return
++			case <-timer.C:
++			}
++			slowGate.restore()
++			log.Info("lab_rate_restored")
++		}()
++	}
++	var once sync.Once
++	release := make(chan struct{})
++	delay := 66 * time.Second
++	if value := os.Getenv("LAB51_RELEASE_SECONDS"); value != "" {
++		v, e := strconv.Atoi(value)
++		if e != nil || v < 1 {
++			t.Fatal("invalid release delay")
++		}
++		delay = time.Duration(v) * time.Second
++	}
++	s, _ := setup(t, nil, func(cfg *Config) {
++		cfg.Logger = log
++		cfg.ObserveDownloadBytes = func(n int64) { log.Info("lab_upstream_bytes", "bytes", n) }
++		cfg.BeginResourceLoad = func() func() {
++			started := time.Now()
++			log.Info("lab_execution_acquired")
++			return func() { log.Info("lab_execution_released", "elapsed_ms", time.Since(started).Milliseconds()) }
++		}
++		cfg.DownloadConcurrencySoftLimit = 2
++		cfg.DownloadGrowInterval = 0
++		cfg.CacheUnlimited = true
++		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return target, nil }
++		cfg.ResourceTransports = func(string) []http.RoundTripper {
++			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
++				resp := fixtureRangeResponse(r, body)
++				var start, end int64
++				fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
++				if slowGate != nil {
++					resp.Body = slowGate.reader(r.Context(), resp.Body, start)
++					return resp, nil
++				}
++				if start < int64(warmBlocks)*DefaultBlockSize || (singleHole && start >= int64(warmBlocks+holeBlocks)*DefaultBlockSize) {
++					return resp, nil
++				}
++				src := resp.Body
++				sent := int64(0)
++				resp.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
++					if sent >= 128*1024 {
++						select {
++						case <-release:
++						case <-r.Context().Done():
++							return 0, r.Context().Err()
++						}
++					}
++					if sent < 128*1024 && int64(len(p)) > 128*1024-sent {
++						p = p[:128*1024-sent]
++					}
++					n, e := src.Read(p)
++					sent += int64(n)
++					return n, e
++				}))
++				return resp, nil
++			})}
++		}
++	})
++	seedPreview(t, s, body)
++	for _, q := range []string{fmt.Sprintf("INSERT INTO songs(id) VALUES(%d) ON CONFLICT DO NOTHING", songID), fmt.Sprintf("INSERT INTO song_media(song_id,md5) SELECT %d,md5 FROM song_media WHERE song_id='1' ON CONFLICT(song_id) DO UPDATE SET md5=excluded.md5", songID)} {
++		if _, err = s.Store.db.Exec(q); err != nil {
++			t.Fatal(err)
++		}
++	}
++	lab51InitModel(t, s, root, int64(songID), videoKey(body), int64(len(data)), int64(warmBlocks)*DefaultBlockSize, release, log)
++	listener, err := net.Listen("tcp4", os.Getenv("LAB51_LISTEN"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path != "/Api/Songs/play" || r.URL.Query().Get("id") != song {
++			http.NotFound(w, r)
++			return
++		}
++		labID := labSequence.Add(1)
++		wire := &lab51SupplyWriter{ResponseWriter: w}
++		w = wire
++		defer func() {
++			s.mu.Lock()
++			activeDemands := len(s.demands)
++			s.mu.Unlock()
++			log.Info("lab_http_supply", "active_demands_after_return", activeDemands, "lab_id", labID, "status", wire.status, "headers_written_at", wire.headersWrittenAt, "bytes", wire.bytes, "first_successful_write", wire.firstSuccessfulWrite, "last_successful_write", wire.lastSuccessfulWrite, "write_failed", wire.writeFailed)
++		}()
++		log.Info("lab_client_request", "lab_id", labID, "method", r.Method, "range", r.Header.Get("Range"), "player", strings.HasPrefix(r.UserAgent(), "NSPlayer/"))
++		if r.Method == "GET" && strings.HasPrefix(r.UserAgent(), "NSPlayer/") {
++			once.Do(func() {
++				log.Info("lab_clock_started", "release_after_seconds", delay.Seconds())
++				if slowGate == nil {
++					go func() { time.Sleep(delay); close(release); log.Info("lab_upstream_released") }()
++				}
++			})
++		}
++		r = r.Clone(r.Context())
++		if forceFresh && r.Method == http.MethodGet {
++			log.Info("lab_cache_validation_ignored", "if_none_match_present", r.Header.Get("If-None-Match") != "", "if_modified_since_present", r.Header.Get("If-Modified-Since") != "")
++			r.Header.Del("If-None-Match")
++			r.Header.Del("If-Modified-Since")
++		}
++		r.Host = "api.udon.dance"
++		r.URL.Host = r.Host
++		r.URL.Scheme = "http"
++		if lab51BeforeDemand(w, r, wire) {
++			return
++		}
++		s.ServeHTTP(w, r)
++	})}
++	done := make(chan error, 1)
++	go func() { done <- server.Serve(listener) }()
++	ready := map[string]any{"address": listener.Addr().String(), "downloadGraceSeconds": blocksched.DownloadGrace.Seconds(), "releaseAfterFirstPlayerGETSeconds": delay.Seconds(), "blockSize": DefaultBlockSize, "bytes": len(data), "timeBasis": "explicit matching media duration inserted; experimental log model and2/10s handoff"}
++	ready["earlyHeaders"] = lab51EarlyHeaders
+ 	ready["forceFreshResponses"] = forceFresh
+ 	ready["warmBlocks"] = warmBlocks
+ 	ready["singleHole"] = singleHole
+diff --git a/internal/cacheproxy/issue51_supply_test.go b/internal/cacheproxy/issue51_supply_test.go
+--- a/internal/cacheproxy/issue51_supply_test.go
++++ b/internal/cacheproxy/issue51_supply_test.go
+@@ -9,16 +9,18 @@
+ type lab51SupplyWriter struct {
+ 	http.ResponseWriter
+ 	status               int
+-	bytes                int64
+-	firstSuccessfulWrite time.Time
+-	lastSuccessfulWrite  time.Time
+-	writeFailed          bool
+-	onWrite              func(int, int)
+-}
+-
+-func (w *lab51SupplyWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+-func (w *lab51SupplyWriter) WriteHeader(status int) {
+-	w.status = status
++	headersWrittenAt     time.Time
++	bytes                int64
++	firstSuccessfulWrite time.Time
++	lastSuccessfulWrite  time.Time
++	writeFailed          bool
++	onWrite              func(int, int)
++}
++
++func (w *lab51SupplyWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
++func (w *lab51SupplyWriter) WriteHeader(status int) {
++	w.status = status
++	w.headersWrittenAt = time.Now()
+ 	w.ResponseWriter.WriteHeader(status)
+ }
+ func (w *lab51SupplyWriter) Write(p []byte) (int, error) {

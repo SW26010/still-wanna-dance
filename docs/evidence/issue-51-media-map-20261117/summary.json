@@ -1,0 +1,714 @@
+{
+  "schemaVersion": 1,
+  "blockBytes": 1048576,
+  "definitions": {
+    "block": "Zero-based; block 0 and blocks without visible audio/video samples excluded from aggregate statistics.",
+    "firstPresentation": "Earliest visible edited audio/video PTS touching the block, including samples crossing a block boundary; not measured player buffer exhaustion.",
+    "error": "Catalog duration * block start / total bytes minus first presentation time; positive means the linear estimate is later.",
+    "margin": "Added to the linear estimate; percentages count hypothetical thresholds over file blocks, not actual requests, failure probabilities or recovery rates.",
+    "quantiles": "Sorted values at floor(q * count), capped at count - 1."
+  },
+  "inventory": {
+    "scanned": 10197,
+    "parsed": 10197,
+    "failed": 0,
+    "catalogMatched": 10152,
+    "progressive": 10074,
+    "bytes": 473483947835,
+    "metadataBytesRead": 2343060972,
+    "nonzeroCatalogStartFiles": 5,
+    "ambiguousCatalogDurationFiles": 0
+  },
+  "catalogMinusContainerSeconds": {
+    "count": 10152,
+    "min": -8.067,
+    "p1": -0.978667,
+    "p5": -0.92,
+    "p50": -0.331,
+    "p95": 0.326,
+    "p99": 0.452,
+    "max": 2.89
+  },
+  "durationOutliersOver2Seconds": [
+    {
+      "songs": [
+        4293
+      ],
+      "catalog": 313,
+      "container": 310.11
+    },
+    {
+      "songs": [
+        3914
+      ],
+      "catalog": 192,
+      "container": 200.067
+    },
+    {
+      "songs": [
+        1519
+      ],
+      "catalog": 233,
+      "container": 235.102
+    }
+  ],
+  "allMatched": {
+    "files": 10152,
+    "blocks": 445436,
+    "linearMinusFirstPresentationSeconds": {
+      "count": 445436,
+      "min": -54.647064,
+      "p1": -13.199016,
+      "p5": -6.717765,
+      "p50": 0.673423,
+      "p95": 7.629653,
+      "p99": 14.012144,
+      "max": 115.684476
+    },
+    "containerLinearMinusFirstPresentationSeconds": {
+      "count": 445436,
+      "min": -54.593978,
+      "p1": -13.112591,
+      "p5": -6.625368,
+      "p50": 0.844474,
+      "p95": 7.803597,
+      "p99": 14.177054,
+      "max": 116.13116
+    },
+    "blockPresentationSpanSeconds": {
+      "count": 445436,
+      "min": 0.016666,
+      "p1": 1.799333,
+      "p5": 2.444889,
+      "p50": 3.872653,
+      "p95": 8.981334,
+      "p99": 15.1151,
+      "max": 44.010794
+    },
+    "nextSyncAfterBlockMinusFirstPresentationSeconds": {
+      "count": 431821,
+      "min": 0.266666,
+      "p1": 2.866667,
+      "p5": 3.613333,
+      "p50": 6.278245,
+      "p95": 12.223667,
+      "p99": 17.746104,
+      "max": 44.910794
+    },
+    "presentationMinusDecodeSeconds": {
+      "count": 445436,
+      "min": 0,
+      "p1": 0,
+      "p5": 0,
+      "p50": 0.0025,
+      "p95": 0.020669,
+      "p99": 0.022688,
+      "max": 0.077
+    },
+    "margins": [
+      {
+        "seconds": -10,
+        "earlyPct": 97.253253,
+        "earlyOver5Pct": 89.43507,
+        "lateOver5Pct": 0.787094,
+        "lateOver15Pct": 0.098555,
+        "equalFileEarlyPct": 97.330539
+      },
+      {
+        "seconds": -6,
+        "earlyPct": 92.261964,
+        "earlyOver5Pct": 57.268384,
+        "lateOver5Pct": 2.140375,
+        "lateOver15Pct": 0.209458,
+        "equalFileEarlyPct": 92.220086
+      },
+      {
+        "seconds": -3,
+        "earlyPct": 80.463636,
+        "earlyOver5Pct": 17.68043,
+        "lateOver5Pct": 4.545883,
+        "lateOver15Pct": 0.396016,
+        "equalFileEarlyPct": 80.052291
+      },
+      {
+        "seconds": -2,
+        "earlyPct": 72.612901,
+        "earlyOver5Pct": 13.335474,
+        "lateOver5Pct": 5.878735,
+        "lateOver15Pct": 0.491429,
+        "equalFileEarlyPct": 72.027355
+      },
+      {
+        "seconds": 0,
+        "earlyPct": 36.219569,
+        "earlyOver5Pct": 7.807182,
+        "lateOver5Pct": 10.56493,
+        "lateOver15Pct": 0.787094,
+        "equalFileEarlyPct": 37.246779
+      },
+      {
+        "seconds": 2,
+        "earlyPct": 17.68043,
+        "earlyOver5Pct": 4.634336,
+        "lateOver5Pct": 19.536364,
+        "lateOver15Pct": 1.278298,
+        "equalFileEarlyPct": 18.566869
+      },
+      {
+        "seconds": 5,
+        "earlyPct": 7.807182,
+        "earlyOver5Pct": 2.157886,
+        "lateOver5Pct": 63.780431,
+        "lateOver15Pct": 2.746747,
+        "equalFileEarlyPct": 8.143764
+      },
+      {
+        "seconds": 10,
+        "earlyPct": 2.157886,
+        "earlyOver5Pct": 0.653293,
+        "lateOver5Pct": 92.192818,
+        "lateOver15Pct": 10.56493,
+        "equalFileEarlyPct": 2.189539
+      }
+    ]
+  },
+  "progressiveMatched": {
+    "files": 10030,
+    "blocks": 439406,
+    "linearMinusFirstPresentationSeconds": {
+      "count": 439406,
+      "min": -54.647064,
+      "p1": -13.249138,
+      "p5": -6.749652,
+      "p50": 0.695992,
+      "p95": 7.673767,
+      "p99": 14.06793,
+      "max": 115.684476
+    },
+    "containerLinearMinusFirstPresentationSeconds": {
+      "count": 439406,
+      "min": -54.593978,
+      "p1": -13.159632,
+      "p5": -6.662366,
+      "p50": 0.86634,
+      "p95": 7.850184,
+      "p99": 14.225976,
+      "max": 116.13116
+    },
+    "blockPresentationSpanSeconds": {
+      "count": 439406,
+      "min": 0.016666,
+      "p1": 1.797334,
+      "p5": 2.435769,
+      "p50": 3.877823,
+      "p95": 9.009009,
+      "p99": 15.137234,
+      "max": 44.010794
+    },
+    "nextSyncAfterBlockMinusFirstPresentationSeconds": {
+      "count": 425984,
+      "min": 0.266666,
+      "p1": 2.86,
+      "p5": 3.6,
+      "p50": 6.271746,
+      "p95": 12.245566,
+      "p99": 17.767425,
+      "max": 44.910794
+    },
+    "presentationMinusDecodeSeconds": {
+      "count": 439406,
+      "min": 0,
+      "p1": 0,
+      "p5": 0,
+      "p50": 0.002494,
+      "p95": 0.020667,
+      "p99": 0.022677,
+      "max": 0.077
+    },
+    "margins": [
+      {
+        "seconds": -10,
+        "earlyPct": 97.216697,
+        "earlyOver5Pct": 89.310114,
+        "lateOver5Pct": 0.797895,
+        "lateOver15Pct": 0.099908,
+        "equalFileEarlyPct": 97.300846
+      },
+      {
+        "seconds": -6,
+        "earlyPct": 92.170567,
+        "earlyOver5Pct": 56.807144,
+        "lateOver5Pct": 2.169292,
+        "lateOver15Pct": 0.212332,
+        "equalFileEarlyPct": 92.147585
+      },
+      {
+        "seconds": -3,
+        "earlyPct": 80.240598,
+        "earlyOver5Pct": 17.664529,
+        "lateOver5Pct": 4.60326,
+        "lateOver15Pct": 0.401451,
+        "equalFileEarlyPct": 79.867623
+      },
+      {
+        "seconds": -2,
+        "earlyPct": 72.31467,
+        "earlyOver5Pct": 13.351434,
+        "lateOver5Pct": 5.950533,
+        "lateOver15Pct": 0.498173,
+        "equalFileEarlyPct": 71.778779
+      },
+      {
+        "seconds": 0,
+        "earlyPct": 35.672931,
+        "earlyOver5Pct": 7.851736,
+        "lateOver5Pct": 10.689886,
+        "lateOver15Pct": 0.797895,
+        "equalFileEarlyPct": 36.795936
+      },
+      {
+        "seconds": 2,
+        "earlyPct": 17.664529,
+        "earlyOver5Pct": 4.676313,
+        "lateOver5Pct": 19.759402,
+        "lateOver15Pct": 1.295613,
+        "equalFileEarlyPct": 18.556086
+      },
+      {
+        "seconds": 5,
+        "earlyPct": 7.851736,
+        "earlyOver5Pct": 2.182947,
+        "lateOver5Pct": 64.327069,
+        "lateOver15Pct": 2.783303,
+        "equalFileEarlyPct": 8.186313
+      },
+      {
+        "seconds": 10,
+        "earlyPct": 2.182947,
+        "earlyOver5Pct": 0.662258,
+        "lateOver5Pct": 92.148264,
+        "lateOver15Pct": 10.689886,
+        "equalFileEarlyPct": 2.212123
+      }
+    ]
+  },
+  "tailMetadataMatched": {
+    "files": 122,
+    "blocks": 6030,
+    "linearMinusFirstPresentationSeconds": {
+      "count": 6030,
+      "min": -14.562681,
+      "p1": -8.109456,
+      "p5": -4.822221,
+      "p50": -0.634457,
+      "p95": 2.243508,
+      "p99": 6.206801,
+      "max": 13.477811
+    },
+    "containerLinearMinusFirstPresentationSeconds": {
+      "count": 6030,
+      "min": -14.549418,
+      "p1": -7.641894,
+      "p5": -4.575766,
+      "p50": -0.564484,
+      "p95": 2.273813,
+      "p99": 6.209467,
+      "max": 13.491374
+    },
+    "blockPresentationSpanSeconds": {
+      "count": 6030,
+      "min": 0.320794,
+      "p1": 2.118401,
+      "p5": 3.182172,
+      "p50": 3.788245,
+      "p95": 6.870349,
+      "p99": 10.504399,
+      "max": 22.704093
+    },
+    "nextSyncAfterBlockMinusFirstPresentationSeconds": {
+      "count": 5837,
+      "min": 2.235566,
+      "p1": 3.794996,
+      "p5": 4.191396,
+      "p50": 6.663946,
+      "p95": 10.336871,
+      "p99": 14.8148,
+      "max": 28.276326
+    },
+    "presentationMinusDecodeSeconds": {
+      "count": 6030,
+      "min": 0,
+      "p1": 0,
+      "p5": 0,
+      "p50": 0.004932,
+      "p95": 0.021331,
+      "p99": 0.022913,
+      "max": 0.023214
+    },
+    "margins": [
+      {
+        "seconds": -10,
+        "earlyPct": 99.917081,
+        "earlyOver5Pct": 98.54063,
+        "lateOver5Pct": 0,
+        "lateOver15Pct": 0,
+        "equalFileEarlyPct": 99.771438
+      },
+      {
+        "seconds": -6,
+        "earlyPct": 98.922056,
+        "earlyOver5Pct": 90.878939,
+        "lateOver5Pct": 0.033167,
+        "lateOver15Pct": 0,
+        "equalFileEarlyPct": 98.179955
+      },
+      {
+        "seconds": -3,
+        "earlyPct": 96.716418,
+        "earlyOver5Pct": 18.839138,
+        "lateOver5Pct": 0.364842,
+        "lateOver15Pct": 0,
+        "equalFileEarlyPct": 95.232931
+      },
+      {
+        "seconds": -2,
+        "earlyPct": 94.344942,
+        "earlyOver5Pct": 12.172471,
+        "lateOver5Pct": 0.646766,
+        "lateOver15Pct": 0,
+        "equalFileEarlyPct": 92.461577
+      },
+      {
+        "seconds": 0,
+        "earlyPct": 76.053068,
+        "earlyOver5Pct": 4.560531,
+        "lateOver5Pct": 1.45937,
+        "lateOver15Pct": 0,
+        "equalFileEarlyPct": 74.308325
+      },
+      {
+        "seconds": 2,
+        "earlyPct": 18.839138,
+        "earlyOver5Pct": 1.575456,
+        "lateOver5Pct": 3.283582,
+        "lateOver15Pct": 0.016584,
+        "equalFileEarlyPct": 19.453296
+      },
+      {
+        "seconds": 5,
+        "earlyPct": 4.560531,
+        "earlyOver5Pct": 0.331675,
+        "lateOver5Pct": 23.946932,
+        "lateOver15Pct": 0.082919,
+        "equalFileEarlyPct": 4.645955
+      },
+      {
+        "seconds": 10,
+        "earlyPct": 0.331675,
+        "earlyOver5Pct": 0,
+        "lateOver5Pct": 95.439469,
+        "lateOver15Pct": 1.45937,
+        "equalFileEarlyPct": 0.332985
+      }
+    ]
+  },
+  "maxKeyframeGapPerFileSeconds": {
+    "count": 10197,
+    "min": 0.5,
+    "p1": 0.5,
+    "p5": 1.2,
+    "p50": 5.066667,
+    "p95": 7,
+    "p99": 7.007007,
+    "max": 12.513
+  },
+  "targets": [
+    {
+      "song": 4598,
+      "block": 2,
+      "bytes": 35169662,
+      "catalogSeconds": 133,
+      "containerSeconds": 133.167,
+      "linearSeconds": 7.930733,
+      "firstAVSeconds": 7.848345,
+      "firstDecodeSeconds": 7.841167,
+      "lastAVEndSeconds": 11.4114,
+      "firstVideoSeconds": 7.874533,
+      "firstAudioSeconds": 7.848345,
+      "nextSyncAfterBlockSeconds": 14.8148,
+      "errorSeconds": 0.082388
+    },
+    {
+      "song": 2502,
+      "block": 2,
+      "bytes": 80602639,
+      "catalogSeconds": 206,
+      "containerSeconds": 206.403,
+      "linearSeconds": 5.359791,
+      "firstAVSeconds": 5.24,
+      "firstDecodeSeconds": 5.24,
+      "lastAVEndSeconds": 8.64,
+      "firstVideoSeconds": 5.24,
+      "firstAudioSeconds": 5.24771,
+      "nextSyncAfterBlockSeconds": 9.92,
+      "errorSeconds": 0.119791
+    },
+    {
+      "song": 3214,
+      "block": 16,
+      "bytes": 45849828,
+      "catalogSeconds": 213,
+      "containerSeconds": 213.578,
+      "linearSeconds": 77.940249,
+      "firstAVSeconds": 73.328617,
+      "firstDecodeSeconds": 73.30664,
+      "lastAVEndSeconds": 77.877878,
+      "firstVideoSeconds": 73.340007,
+      "firstAudioSeconds": 73.328617,
+      "nextSyncAfterBlockSeconds": 78.144811,
+      "errorSeconds": 4.611632
+    },
+    {
+      "song": 1314,
+      "block": 16,
+      "bytes": 54919233,
+      "catalogSeconds": 354,
+      "containerSeconds": 353.524,
+      "linearSeconds": 108.14307,
+      "firstAVSeconds": 87.045292,
+      "firstDecodeSeconds": 87.045292,
+      "lastAVEndSeconds": 92.258833,
+      "firstVideoSeconds": 87.045292,
+      "firstAudioSeconds": 87.05161,
+      "nextSyncAfterBlockSeconds": 96.096,
+      "errorSeconds": 21.097778
+    },
+    {
+      "song": 1314,
+      "block": 14,
+      "bytes": 54919233,
+      "catalogSeconds": 354,
+      "containerSeconds": 353.524,
+      "linearSeconds": 94.625186,
+      "firstAVSeconds": 74.721814,
+      "firstDecodeSeconds": 74.699625,
+      "lastAVEndSeconds": 80.121708,
+      "firstVideoSeconds": 74.741333,
+      "firstAudioSeconds": 74.721814,
+      "nextSyncAfterBlockSeconds": 85.418667,
+      "errorSeconds": 19.903372
+    },
+    {
+      "song": 6776,
+      "block": 12,
+      "bytes": 67256325,
+      "catalogSeconds": 522,
+      "containerSeconds": 522.264,
+      "linearSeconds": 97.660407,
+      "firstAVSeconds": 87.353933,
+      "firstDecodeSeconds": 87.353933,
+      "lastAVEndSeconds": 94.961533,
+      "firstVideoSeconds": 87.353933,
+      "firstAudioSeconds": 87.376689,
+      "nextSyncAfterBlockSeconds": 96.096,
+      "errorSeconds": 10.306474
+    },
+    {
+      "song": 5396,
+      "block": 16,
+      "bytes": 38976068,
+      "catalogSeconds": 204,
+      "containerSeconds": 204.684,
+      "linearSeconds": 87.81163,
+      "firstAVSeconds": 102.4,
+      "firstDecodeSeconds": 102.4,
+      "lastAVEndSeconds": 107.166667,
+      "firstVideoSeconds": 102.4,
+      "firstAudioSeconds": 102.4,
+      "nextSyncAfterBlockSeconds": 111.466667,
+      "errorSeconds": -14.58837
+    },
+    {
+      "song": 5396,
+      "block": 5,
+      "bytes": 38976068,
+      "catalogSeconds": 204,
+      "containerSeconds": 204.684,
+      "linearSeconds": 27.441134,
+      "firstAVSeconds": 34.9,
+      "firstDecodeSeconds": 34.9,
+      "lastAVEndSeconds": 41.6,
+      "firstVideoSeconds": 34.9,
+      "firstAudioSeconds": 34.922812,
+      "nextSyncAfterBlockSeconds": 45.6,
+      "errorSeconds": -7.458866
+    },
+    {
+      "song": 8935,
+      "block": 8,
+      "bytes": 21996300,
+      "catalogSeconds": 78,
+      "containerSeconds": 78,
+      "linearSeconds": 29.746431,
+      "firstAVSeconds": 29.12,
+      "firstDecodeSeconds": 29.12,
+      "lastAVEndSeconds": 33.12,
+      "firstVideoSeconds": 29.12,
+      "firstAudioSeconds": 29.12,
+      "nextSyncAfterBlockSeconds": 33.6,
+      "errorSeconds": 0.626431
+    },
+    {
+      "song": 8935,
+      "block": 2,
+      "bytes": 21996300,
+      "catalogSeconds": 78,
+      "containerSeconds": 78,
+      "linearSeconds": 7.436608,
+      "firstAVSeconds": 6.84,
+      "firstDecodeSeconds": 6.84,
+      "lastAVEndSeconds": 10.68,
+      "firstVideoSeconds": 6.84,
+      "firstAudioSeconds": 6.848,
+      "nextSyncAfterBlockSeconds": 10.8,
+      "errorSeconds": 0.596608
+    }
+  ],
+  "liveThresholdReplay": [
+    {
+      "case": "gap4598",
+      "song": 4598,
+      "block": 2,
+      "requestT": 31.452,
+      "linearNeedByT": 11.956,
+      "indexFirstUseT": 11.873612,
+      "requestMinusIndexFirstUseSeconds": 19.578388,
+      "thresholdOnlyReject": [
+        {
+          "margin": -2,
+          "reject": true
+        },
+        {
+          "margin": 0,
+          "reject": true
+        },
+        {
+          "margin": 2,
+          "reject": true
+        },
+        {
+          "margin": 5,
+          "reject": true
+        }
+      ]
+    },
+    {
+      "case": "prefetch3214",
+      "song": 3214,
+      "block": 16,
+      "requestT": 46.195,
+      "linearNeedByT": 80.268,
+      "indexFirstUseT": 75.656368,
+      "requestMinusIndexFirstUseSeconds": -29.461368,
+      "thresholdOnlyReject": [
+        {
+          "margin": -2,
+          "reject": false
+        },
+        {
+          "margin": 0,
+          "reject": false
+        },
+        {
+          "margin": 2,
+          "reject": false
+        },
+        {
+          "margin": 5,
+          "reject": false
+        }
+      ]
+    },
+    {
+      "case": "gap2502",
+      "song": 2502,
+      "block": 2,
+      "requestT": 34.546,
+      "linearNeedByT": 5.953,
+      "indexFirstUseT": 5.833209,
+      "requestMinusIndexFirstUseSeconds": 28.712791,
+      "thresholdOnlyReject": [
+        {
+          "margin": -2,
+          "reject": true
+        },
+        {
+          "margin": 0,
+          "reject": true
+        },
+        {
+          "margin": 2,
+          "reject": true
+        },
+        {
+          "margin": 5,
+          "reject": true
+        }
+      ]
+    },
+    {
+      "case": "prefetch1314",
+      "song": 1314,
+      "block": 16,
+      "requestT": 54.629,
+      "linearNeedByT": 110.678,
+      "indexFirstUseT": 89.580222,
+      "requestMinusIndexFirstUseSeconds": -34.951222,
+      "thresholdOnlyReject": [
+        {
+          "margin": -2,
+          "reject": false
+        },
+        {
+          "margin": 0,
+          "reject": false
+        },
+        {
+          "margin": 2,
+          "reject": false
+        },
+        {
+          "margin": 5,
+          "reject": false
+        }
+      ]
+    },
+    {
+      "case": "boundary8935",
+      "song": 8935,
+      "block": 8,
+      "requestT": 40.607,
+      "linearNeedByT": 37.998,
+      "indexFirstUseT": 37.371569,
+      "requestMinusIndexFirstUseSeconds": 3.235431,
+      "thresholdOnlyReject": [
+        {
+          "margin": -2,
+          "reject": true
+        },
+        {
+          "margin": 0,
+          "reject": true
+        },
+        {
+          "margin": 2,
+          "reject": true
+        },
+        {
+          "margin": 5,
+          "reject": false
+        }
+      ]
+    }
+  ]
+}

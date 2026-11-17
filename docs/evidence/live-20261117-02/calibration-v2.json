@@ -1,0 +1,46 @@
+{
+  "binarySHA256": "b7e29a9226d47527c60ef1c17425cfc0ea2aa40b11b1cb1e40a200fa8fa97f2a",
+  "controlledHTTPAndLogOnly": true,
+  "gameBehaviorVerified": false,
+  "results": [
+    {
+      "enabled": false,
+      "passed": true,
+      "firstVideoBytes": 2097152,
+      "retryStatus": 206,
+      "rejectedBeforeSWDDemand": null,
+      "tenSecondHandoffObserved": false,
+      "handoffs": []
+    },
+    {
+      "enabled": true,
+      "passed": true,
+      "firstVideoBytes": 2097152,
+      "retryStatus": 504,
+      "rejectedBeforeSWDDemand": true,
+      "tenSecondHandoffObserved": true,
+      "handoffs": [
+        {
+          "first": 2,
+          "last": 7,
+          "seconds": 2
+        },
+        {
+          "first": 7,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "first": 2,
+          "last": 7,
+          "seconds": 2
+        },
+        {
+          "first": 7,
+          "last": 34,
+          "seconds": 10
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2413 @@
+{
+  "batch": "LIVE-20261117-03",
+  "status": "completed",
+  "samples": [
+    {
+      "sample": "headersLate4598",
+      "config": {
+        "sample": "headersLate4598",
+        "group": "C",
+        "song": "4598",
+        "warmBlocks": 24,
+        "holeBlocks": 1,
+        "seconds": 133,
+        "releaseSeconds": 180,
+        "earlyHeaders": true
+      },
+      "observationWindowSeconds": null,
+      "timeBasis": "seconds relative to first NSPlayer GET; game timestamps have one-second precision; user approximations retained",
+      "user": [
+        {
+          "kind": "user-start",
+          "t": 5.337,
+          "approximate": false
+        },
+        {
+          "kind": "user-stall",
+          "t": 96.337,
+          "approximate": true
+        },
+        {
+          "kind": "user-stalled-until-end",
+          "t": null,
+          "approximate": false
+        }
+      ],
+      "http": [
+        {
+          "t": -0.463,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.45,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": -0.449,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": ""
+        },
+        {
+          "t": 0,
+          "event": "response-headers",
+          "id": 2,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": 53.03,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 25165824,
+          "complete": false
+        },
+        {
+          "t": 53.067,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=25157632-35169661"
+        },
+        {
+          "t": 53.07,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "contentRange": "bytes 25157632-35169661/35169662"
+        },
+        {
+          "t": 83.102,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 92.567,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=25165824-35169661"
+        },
+        {
+          "t": 92.57,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "contentRange": "bytes 25165824-35169661/35169662"
+        },
+        {
+          "t": 122.569,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 123.07,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=25165824-35169661"
+        },
+        {
+          "t": 123.081,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "contentRange": "bytes 25165824-35169661/35169662"
+        },
+        {
+          "t": 153.081,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 153.583,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=25165824-35169661"
+        },
+        {
+          "t": 153.593,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "contentRange": "bytes 25165824-35169661/35169662"
+        },
+        {
+          "t": 180.013,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 1474560,
+          "complete": false
+        }
+      ],
+      "supply": [
+        {
+          "t": -0.444,
+          "id": 1,
+          "status": 200,
+          "bytes": 32768,
+          "headerT": -0.45,
+          "lastWriteT": -0.444,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 53.032,
+          "id": 2,
+          "status": 200,
+          "bytes": 25165824,
+          "headerT": 0.001,
+          "lastWriteT": 18.145,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 83.101,
+          "id": 3,
+          "status": 206,
+          "bytes": 8192,
+          "headerT": 53.07,
+          "lastWriteT": 53.071,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 122.569,
+          "id": 4,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 92.57,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 153.08,
+          "id": 5,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 123.081,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 180.014,
+          "id": 6,
+          "status": 206,
+          "bytes": 2392064,
+          "headerT": 153.593,
+          "lastWriteT": 180.013,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "sourceReleases": [
+        180.001
+      ],
+      "admissions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 0
+        },
+        {
+          "t": 53.07,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 25157632
+        },
+        {
+          "t": 92.569,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 25165824
+        },
+        {
+          "t": 123.08,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 25165824
+        },
+        {
+          "t": 153.592,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 25165824
+        }
+      ],
+      "game": [
+        {
+          "t": 3.337,
+          "kind": "sync",
+          "position": 0
+        },
+        {
+          "t": 3.337,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 97.337,
+          "kind": "sync",
+          "position": 93.11
+        },
+        {
+          "t": 100.337,
+          "kind": "sync",
+          "position": 96.11
+        },
+        {
+          "t": 103.337,
+          "kind": "sync",
+          "position": 99.12
+        },
+        {
+          "t": 106.337,
+          "kind": "sync",
+          "position": 102.12
+        },
+        {
+          "t": 109.337,
+          "kind": "sync",
+          "position": 105.13
+        },
+        {
+          "t": 112.337,
+          "kind": "sync",
+          "position": 108.13
+        },
+        {
+          "t": 115.337,
+          "kind": "sync",
+          "position": 111.13
+        },
+        {
+          "t": 118.337,
+          "kind": "sync",
+          "position": 114.14
+        },
+        {
+          "t": 121.337,
+          "kind": "sync",
+          "position": 117.15
+        },
+        {
+          "t": 124.337,
+          "kind": "sync",
+          "position": 120.15
+        },
+        {
+          "t": 127.337,
+          "kind": "sync",
+          "position": 123.15
+        },
+        {
+          "t": 130.337,
+          "kind": "sync",
+          "position": 126.16
+        },
+        {
+          "t": 133.337,
+          "kind": "sync",
+          "position": 129.16
+        },
+        {
+          "t": 136.337,
+          "kind": "sync",
+          "position": 132.17
+        },
+        {
+          "t": 137.337,
+          "kind": "end"
+        },
+        {
+          "t": 137.337,
+          "kind": "end"
+        },
+        {
+          "t": 139.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 142.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 145.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 148.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 151.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 154.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 157.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 160.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 163.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 166.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 169.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 172.337,
+          "kind": "sync",
+          "position": 133.17
+        },
+        {
+          "t": 175.337,
+          "kind": "sync",
+          "position": 133.17
+        }
+      ],
+      "privateSourceSHA256": "a35197256252eac2d7a380ea0970d6a3f62ffadd2bbd5b8b7f41c0b2557ab1ec"
+    },
+    {
+      "sample": "autoLong1314",
+      "config": {
+        "sample": "autoLong1314",
+        "group": "C",
+        "song": "1314",
+        "warmBlocks": 16,
+        "holeBlocks": 1,
+        "seconds": 354,
+        "releaseSeconds": 180,
+        "earlyHeaders": true,
+        "manualRefresh": false,
+        "purpose": "Automatic retry/recovery with source restoration before song end"
+      },
+      "observationWindowSeconds": null,
+      "timeBasis": "seconds relative to first NSPlayer GET; game timestamps have one-second precision; user approximations retained",
+      "user": [
+        {
+          "kind": "user-start",
+          "t": 2.215,
+          "approximate": false
+        },
+        {
+          "kind": "user-stall",
+          "t": 89.215,
+          "approximate": true
+        },
+        {
+          "kind": "user-resume",
+          "t": 120.215,
+          "approximate": false,
+          "audio": "two bursts before recovery"
+        },
+        {
+          "kind": "user-resume-correction",
+          "t": 180.215,
+          "approximate": false,
+          "supersedesT": 120.215,
+          "audio": "two bursts before recovery"
+        },
+        {
+          "kind": "user-natural-end",
+          "t": 355.215,
+          "approximate": false
+        }
+      ],
+      "http": [
+        {
+          "t": -0.454,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.44,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": -0.439,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.001,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": ""
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": 52.915,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 16777216,
+          "complete": false
+        },
+        {
+          "t": 53.048,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=16769024-54919232"
+        },
+        {
+          "t": 53.051,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "contentRange": "bytes 16769024-54919232/54919233"
+        },
+        {
+          "t": 83.104,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 84.363,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 84.365,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 114.365,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 114.88,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 114.882,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 144.882,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 145.387,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 145.397,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 175.397,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 175.912,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 175.923,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 180.029,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 3899392,
+          "complete": false
+        },
+        {
+          "t": 180.03,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=33603584-54919232"
+        },
+        {
+          "t": 180.033,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "contentRange": "bytes 33603584-54919232/54919233"
+        },
+        {
+          "t": 206.458,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 21315649,
+          "complete": true
+        }
+      ],
+      "supply": [
+        {
+          "t": -0.434,
+          "id": 1,
+          "status": 200,
+          "bytes": 32768,
+          "headerT": -0.441,
+          "lastWriteT": -0.434,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 52.917,
+          "id": 2,
+          "status": 200,
+          "bytes": 16777216,
+          "headerT": 0.002,
+          "lastWriteT": 20.014,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 83.103,
+          "id": 3,
+          "status": 206,
+          "bytes": 8192,
+          "headerT": 53.051,
+          "lastWriteT": 53.051,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 114.365,
+          "id": 4,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 84.365,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 144.882,
+          "id": 5,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 114.882,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 175.397,
+          "id": 6,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 145.397,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 180.029,
+          "id": 7,
+          "status": 206,
+          "bytes": 4751360,
+          "headerT": 175.923,
+          "lastWriteT": 180.023,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 205.435,
+          "id": 8,
+          "status": 206,
+          "bytes": 21315649,
+          "headerT": 180.032,
+          "lastWriteT": 205.427,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "sourceReleases": [
+        180.001
+      ],
+      "admissions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 0
+        },
+        {
+          "t": 53.05,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16769024
+        },
+        {
+          "t": 84.365,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 114.882,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 145.397,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 175.921,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 180.03,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 33603584
+        }
+      ],
+      "game": [
+        {
+          "t": 1.215,
+          "kind": "sync",
+          "position": 0
+        },
+        {
+          "t": 1.215,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 88.215,
+          "kind": "sync",
+          "position": 87.1
+        },
+        {
+          "t": 91.215,
+          "kind": "sync",
+          "position": 90.11
+        },
+        {
+          "t": 94.215,
+          "kind": "sync",
+          "position": 93.11
+        },
+        {
+          "t": 97.215,
+          "kind": "sync",
+          "position": 96.12
+        },
+        {
+          "t": 100.215,
+          "kind": "sync",
+          "position": 99.13
+        },
+        {
+          "t": 103.215,
+          "kind": "sync",
+          "position": 102.13
+        },
+        {
+          "t": 106.215,
+          "kind": "sync",
+          "position": 105.14
+        },
+        {
+          "t": 109.215,
+          "kind": "sync",
+          "position": 108.14
+        },
+        {
+          "t": 112.215,
+          "kind": "sync",
+          "position": 111.15
+        },
+        {
+          "t": 115.215,
+          "kind": "sync",
+          "position": 114.15
+        },
+        {
+          "t": 118.215,
+          "kind": "sync",
+          "position": 117.15
+        },
+        {
+          "t": 121.215,
+          "kind": "sync",
+          "position": 120.16
+        },
+        {
+          "t": 124.215,
+          "kind": "sync",
+          "position": 123.16
+        },
+        {
+          "t": 127.215,
+          "kind": "sync",
+          "position": 126.16
+        },
+        {
+          "t": 130.215,
+          "kind": "sync",
+          "position": 129.17
+        },
+        {
+          "t": 133.215,
+          "kind": "sync",
+          "position": 132.17
+        },
+        {
+          "t": 136.215,
+          "kind": "sync",
+          "position": 135.17
+        },
+        {
+          "t": 139.215,
+          "kind": "sync",
+          "position": 138.17
+        },
+        {
+          "t": 142.215,
+          "kind": "sync",
+          "position": 141.17
+        },
+        {
+          "t": 145.215,
+          "kind": "sync",
+          "position": 144.17
+        },
+        {
+          "t": 148.215,
+          "kind": "sync",
+          "position": 147.18
+        },
+        {
+          "t": 151.215,
+          "kind": "sync",
+          "position": 150.19
+        },
+        {
+          "t": 154.215,
+          "kind": "sync",
+          "position": 153.2
+        },
+        {
+          "t": 157.215,
+          "kind": "sync",
+          "position": 156.2
+        },
+        {
+          "t": 160.215,
+          "kind": "sync",
+          "position": 159.21
+        },
+        {
+          "t": 163.215,
+          "kind": "sync",
+          "position": 162.21
+        },
+        {
+          "t": 166.215,
+          "kind": "sync",
+          "position": 165.22
+        },
+        {
+          "t": 169.215,
+          "kind": "sync",
+          "position": 168.22
+        },
+        {
+          "t": 172.215,
+          "kind": "sync",
+          "position": 171.23
+        },
+        {
+          "t": 175.215,
+          "kind": "sync",
+          "position": 174.23
+        },
+        {
+          "t": 178.215,
+          "kind": "sync",
+          "position": 177.23
+        },
+        {
+          "t": 354.215,
+          "kind": "end"
+        },
+        {
+          "t": 354.215,
+          "kind": "end"
+        }
+      ],
+      "privateSourceSHA256": "9988da9d0a75c268c61dd3af71f9e0637b865e9fccc375e57701f143091fcf33"
+    },
+    {
+      "sample": "persistentLong1314",
+      "config": {
+        "sample": "persistentLong1314",
+        "group": "C",
+        "song": "1314",
+        "warmBlocks": 16,
+        "holeBlocks": 1,
+        "seconds": 354,
+        "releaseSeconds": 86400,
+        "earlyHeaders": true,
+        "manualRefresh": false,
+        "purpose": "Hole remains unreadable throughout the bounded run; valid headers and unchanged response deadline; verify actual hole encounter, exclude cached bypass"
+      },
+      "observationWindowSeconds": null,
+      "timeBasis": "seconds relative to first NSPlayer GET; game timestamps have one-second precision; user approximations retained",
+      "user": [
+        {
+          "kind": "user-start",
+          "t": 9.644,
+          "approximate": false
+        },
+        {
+          "kind": "user-stall",
+          "t": 96.644,
+          "approximate": true
+        },
+        {
+          "kind": "user-black-screen",
+          "t": 275.644,
+          "approximate": true
+        },
+        {
+          "kind": "user-restart",
+          "t": 289.644,
+          "approximate": true
+        },
+        {
+          "kind": "user-restall",
+          "t": 370.644,
+          "approximate": true
+        },
+        {
+          "kind": "user-next-song-accidental",
+          "t": null,
+          "approximate": false,
+          "manualRefreshPerformed": false
+        }
+      ],
+      "http": [
+        {
+          "t": -0.467,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.453,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": -0.452,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.002,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 0,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "contentRange": "bytes 0-54919232/54919233"
+        },
+        {
+          "t": 52.34,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 16777216,
+          "complete": false
+        },
+        {
+          "t": 52.412,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=16769024-54919232"
+        },
+        {
+          "t": 52.414,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "contentRange": "bytes 16769024-54919232/54919233"
+        },
+        {
+          "t": 82.465,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 8192,
+          "complete": false
+        },
+        {
+          "t": 91.863,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 91.874,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 121.874,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 122.39,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 122.4,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 152.4,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 152.911,
+          "event": "request",
+          "id": 6,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 152.912,
+          "event": "response-headers",
+          "id": 6,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 182.912,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 183.418,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 183.427,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 213.427,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 213.931,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 213.933,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 243.932,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 244.438,
+          "event": "request",
+          "id": 9,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 244.448,
+          "event": "response-headers",
+          "id": 9,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 274.448,
+          "event": "response-ended",
+          "id": 9,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 280.248,
+          "event": "request",
+          "id": 10,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 280.259,
+          "event": "response-headers",
+          "id": 10,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": 280.26,
+          "event": "response-ended",
+          "id": 10,
+          "bytes": 393216,
+          "complete": false
+        },
+        {
+          "t": 280.707,
+          "event": "request",
+          "id": 11,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 280.709,
+          "event": "response-headers",
+          "id": 11,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 310.709,
+          "event": "response-ended",
+          "id": 11,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 311.21,
+          "event": "request",
+          "id": 12,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 311.22,
+          "event": "response-headers",
+          "id": 12,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 341.22,
+          "event": "response-ended",
+          "id": 12,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 341.722,
+          "event": "request",
+          "id": 13,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 341.733,
+          "event": "response-headers",
+          "id": 13,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 364.18,
+          "event": "response-ended",
+          "id": 13,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 364.181,
+          "event": "request",
+          "id": 14,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 364.184,
+          "event": "response-headers",
+          "id": 14,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 394.183,
+          "event": "response-ended",
+          "id": 14,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 394.699,
+          "event": "request",
+          "id": 15,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 394.709,
+          "event": "response-headers",
+          "id": 15,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 424.709,
+          "event": "response-ended",
+          "id": 15,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 425.214,
+          "event": "request",
+          "id": 16,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 425.216,
+          "event": "response-headers",
+          "id": 16,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 442.308,
+          "event": "response-ended",
+          "id": 16,
+          "bytes": 0,
+          "complete": false
+        }
+      ],
+      "supply": [
+        {
+          "t": -0.447,
+          "id": 1,
+          "status": 200,
+          "bytes": 32768,
+          "headerT": -0.454,
+          "lastWriteT": -0.447,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 52.348,
+          "id": 2,
+          "status": 206,
+          "bytes": 16777216,
+          "headerT": 0.001,
+          "lastWriteT": 19.435,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 82.464,
+          "id": 3,
+          "status": 206,
+          "bytes": 8192,
+          "headerT": 52.413,
+          "lastWriteT": 52.413,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 121.874,
+          "id": 4,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 91.874,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 152.399,
+          "id": 5,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 122.4,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 182.912,
+          "id": 6,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 152.912,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 213.427,
+          "id": 7,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 183.427,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 243.932,
+          "id": 8,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 213.933,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 274.447,
+          "id": 9,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 244.448,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 280.26,
+          "id": 10,
+          "status": 200,
+          "bytes": 1081344,
+          "headerT": 280.259,
+          "lastWriteT": 280.26,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 310.708,
+          "id": 11,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 280.709,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 341.22,
+          "id": 12,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 311.22,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 364.181,
+          "id": 13,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 341.733,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 394.182,
+          "id": 14,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 364.183,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 424.709,
+          "id": 15,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 394.709,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 442.309,
+          "id": 16,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 425.216,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "sourceReleases": [],
+      "admissions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 0
+        },
+        {
+          "t": 52.411,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16769024
+        },
+        {
+          "t": 91.873,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 122.399,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 152.912,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 183.427,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 213.932,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 244.447,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 280.708,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 311.219,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 341.732,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 364.182,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 394.709,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 425.215,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        }
+      ],
+      "game": [
+        {
+          "t": 8.644,
+          "kind": "sync",
+          "position": 0
+        },
+        {
+          "t": 8.644,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 95.644,
+          "kind": "sync",
+          "position": 87.11
+        },
+        {
+          "t": 98.644,
+          "kind": "sync",
+          "position": 90.11
+        },
+        {
+          "t": 101.644,
+          "kind": "sync",
+          "position": 93.11
+        },
+        {
+          "t": 104.644,
+          "kind": "sync",
+          "position": 96.12
+        },
+        {
+          "t": 107.644,
+          "kind": "sync",
+          "position": 99.12
+        },
+        {
+          "t": 110.644,
+          "kind": "sync",
+          "position": 102.13
+        },
+        {
+          "t": 113.644,
+          "kind": "sync",
+          "position": 105.13
+        },
+        {
+          "t": 116.644,
+          "kind": "sync",
+          "position": 108.14
+        },
+        {
+          "t": 119.644,
+          "kind": "sync",
+          "position": 111.14
+        },
+        {
+          "t": 122.644,
+          "kind": "sync",
+          "position": 114.14
+        },
+        {
+          "t": 125.644,
+          "kind": "sync",
+          "position": 117.15
+        },
+        {
+          "t": 128.644,
+          "kind": "sync",
+          "position": 120.15
+        },
+        {
+          "t": 131.644,
+          "kind": "sync",
+          "position": 123.15
+        },
+        {
+          "t": 134.644,
+          "kind": "sync",
+          "position": 126.16
+        },
+        {
+          "t": 137.644,
+          "kind": "sync",
+          "position": 129.16
+        },
+        {
+          "t": 140.644,
+          "kind": "sync",
+          "position": 132.17
+        },
+        {
+          "t": 143.644,
+          "kind": "sync",
+          "position": 135.17
+        },
+        {
+          "t": 146.644,
+          "kind": "sync",
+          "position": 138.17
+        },
+        {
+          "t": 149.644,
+          "kind": "sync",
+          "position": 141.18
+        },
+        {
+          "t": 152.644,
+          "kind": "sync",
+          "position": 144.16
+        },
+        {
+          "t": 155.644,
+          "kind": "sync",
+          "position": 147.16
+        },
+        {
+          "t": 158.644,
+          "kind": "sync",
+          "position": 150.16
+        },
+        {
+          "t": 161.644,
+          "kind": "sync",
+          "position": 153.17
+        },
+        {
+          "t": 164.644,
+          "kind": "sync",
+          "position": 156.17
+        },
+        {
+          "t": 167.644,
+          "kind": "sync",
+          "position": 159.17
+        },
+        {
+          "t": 170.644,
+          "kind": "sync",
+          "position": 162.18
+        },
+        {
+          "t": 173.644,
+          "kind": "sync",
+          "position": 165.18
+        },
+        {
+          "t": 176.644,
+          "kind": "sync",
+          "position": 168.19
+        },
+        {
+          "t": 179.644,
+          "kind": "sync",
+          "position": 171.19
+        },
+        {
+          "t": 182.644,
+          "kind": "sync",
+          "position": 174.19
+        },
+        {
+          "t": 185.644,
+          "kind": "sync",
+          "position": 177.19
+        },
+        {
+          "t": 188.644,
+          "kind": "sync",
+          "position": 180.2
+        },
+        {
+          "t": 191.644,
+          "kind": "sync",
+          "position": 183.2
+        },
+        {
+          "t": 194.644,
+          "kind": "sync",
+          "position": 186.21
+        },
+        {
+          "t": 197.644,
+          "kind": "sync",
+          "position": 189.21
+        },
+        {
+          "t": 200.644,
+          "kind": "sync",
+          "position": 192.22
+        },
+        {
+          "t": 203.644,
+          "kind": "sync",
+          "position": 195.22
+        },
+        {
+          "t": 206.644,
+          "kind": "sync",
+          "position": 198.23
+        },
+        {
+          "t": 209.644,
+          "kind": "sync",
+          "position": 201.23
+        },
+        {
+          "t": 212.644,
+          "kind": "sync",
+          "position": 204.24
+        },
+        {
+          "t": 215.644,
+          "kind": "sync",
+          "position": 207.25
+        },
+        {
+          "t": 218.644,
+          "kind": "sync",
+          "position": 210.25
+        },
+        {
+          "t": 221.644,
+          "kind": "sync",
+          "position": 213.26
+        },
+        {
+          "t": 224.644,
+          "kind": "sync",
+          "position": 216.27
+        },
+        {
+          "t": 227.644,
+          "kind": "sync",
+          "position": 219.27
+        },
+        {
+          "t": 230.644,
+          "kind": "sync",
+          "position": 222.28
+        },
+        {
+          "t": 233.644,
+          "kind": "sync",
+          "position": 225.28
+        },
+        {
+          "t": 236.644,
+          "kind": "sync",
+          "position": 228.29
+        },
+        {
+          "t": 239.644,
+          "kind": "sync",
+          "position": 231.3
+        },
+        {
+          "t": 242.644,
+          "kind": "sync",
+          "position": 234.3
+        },
+        {
+          "t": 245.644,
+          "kind": "sync",
+          "position": 237.31
+        },
+        {
+          "t": 248.644,
+          "kind": "sync",
+          "position": 240.31
+        },
+        {
+          "t": 251.644,
+          "kind": "sync",
+          "position": 243.31
+        },
+        {
+          "t": 254.644,
+          "kind": "sync",
+          "position": 246.32
+        },
+        {
+          "t": 257.644,
+          "kind": "sync",
+          "position": 249.32
+        },
+        {
+          "t": 260.644,
+          "kind": "sync",
+          "position": 252.32
+        },
+        {
+          "t": 263.644,
+          "kind": "sync",
+          "position": 255.32
+        },
+        {
+          "t": 266.644,
+          "kind": "sync",
+          "position": 258.33
+        },
+        {
+          "t": 269.644,
+          "kind": "sync",
+          "position": 261.34
+        },
+        {
+          "t": 272.644,
+          "kind": "sync",
+          "position": 264.35
+        },
+        {
+          "t": 273.644,
+          "kind": "error"
+        },
+        {
+          "t": 278.644,
+          "kind": "reload"
+        },
+        {
+          "t": 280.644,
+          "kind": "sync",
+          "position": 0
+        },
+        {
+          "t": 280.644,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 368.644,
+          "kind": "sync",
+          "position": 88.14
+        },
+        {
+          "t": 371.644,
+          "kind": "sync",
+          "position": 91.15
+        },
+        {
+          "t": 374.644,
+          "kind": "sync",
+          "position": 94.15
+        },
+        {
+          "t": 377.644,
+          "kind": "sync",
+          "position": 97.15
+        },
+        {
+          "t": 380.644,
+          "kind": "sync",
+          "position": 100.15
+        },
+        {
+          "t": 383.644,
+          "kind": "sync",
+          "position": 103.15
+        },
+        {
+          "t": 386.644,
+          "kind": "sync",
+          "position": 106.16
+        },
+        {
+          "t": 389.644,
+          "kind": "sync",
+          "position": 109.16
+        },
+        {
+          "t": 392.644,
+          "kind": "sync",
+          "position": 112.16
+        },
+        {
+          "t": 395.644,
+          "kind": "sync",
+          "position": 115.16
+        },
+        {
+          "t": 398.644,
+          "kind": "sync",
+          "position": 118.17
+        },
+        {
+          "t": 401.644,
+          "kind": "sync",
+          "position": 121.18
+        },
+        {
+          "t": 404.644,
+          "kind": "sync",
+          "position": 124.18
+        },
+        {
+          "t": 407.644,
+          "kind": "sync",
+          "position": 127.19
+        },
+        {
+          "t": 410.644,
+          "kind": "sync",
+          "position": 130.2
+        },
+        {
+          "t": 413.644,
+          "kind": "sync",
+          "position": 133.2
+        },
+        {
+          "t": 416.644,
+          "kind": "sync",
+          "position": 136.21
+        },
+        {
+          "t": 419.644,
+          "kind": "sync",
+          "position": 139.21
+        },
+        {
+          "t": 422.644,
+          "kind": "sync",
+          "position": 142.21
+        },
+        {
+          "t": 425.644,
+          "kind": "sync",
+          "position": 145.21
+        },
+        {
+          "t": 428.644,
+          "kind": "sync",
+          "position": 148.22
+        },
+        {
+          "t": 431.644,
+          "kind": "sync",
+          "position": 151.22
+        }
+      ],
+      "privateSourceSHA256": "856941f21f93ba4f09dc8abe34efdd23e96b8dd38f20dc64e4392c9d3a7196ac"
+    },
+    {
+      "sample": "manualPersistent1314",
+      "config": {
+        "sample": "manualPersistent1314",
+        "group": "C",
+        "song": "1314",
+        "warmBlocks": 16,
+        "holeBlocks": 1,
+        "seconds": 354,
+        "releaseSeconds": 86400,
+        "earlyHeaders": true,
+        "manualRefresh": true,
+        "purpose": "One owner manual refresh after confirmed stall; persistent hole, compare with preceding automatic reload; prior attempt ended by accidental next-song action"
+      },
+      "observationWindowSeconds": null,
+      "timeBasis": "seconds relative to first NSPlayer GET; game timestamps have one-second precision; user approximations retained",
+      "user": [
+        {
+          "kind": "user-start",
+          "t": 4.913,
+          "approximate": false
+        },
+        {
+          "kind": "user-stall",
+          "t": 91.913,
+          "approximate": false
+        },
+        {
+          "kind": "user-manual-refresh",
+          "t": 104.913,
+          "approximate": false
+        },
+        {
+          "kind": "user-resume-following-progress",
+          "t": 107.913,
+          "approximate": false
+        },
+        {
+          "kind": "user-natural-end",
+          "t": 357.913,
+          "approximate": true
+        }
+      ],
+      "http": [
+        {
+          "t": -0.448,
+          "event": "request",
+          "id": 1,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": -0.443,
+          "event": "response-headers",
+          "id": 1,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": -0.442,
+          "event": "response-ended",
+          "id": 1,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": -0.001,
+          "event": "request",
+          "id": 2,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 0.001,
+          "event": "response-headers",
+          "id": 2,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 30.001,
+          "event": "response-ended",
+          "id": 2,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 30.51,
+          "event": "request",
+          "id": 3,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 30.512,
+          "event": "response-headers",
+          "id": 3,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 60.512,
+          "event": "response-ended",
+          "id": 3,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 61.023,
+          "event": "request",
+          "id": 4,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 61.024,
+          "event": "response-headers",
+          "id": 4,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 86.813,
+          "event": "response-ended",
+          "id": 4,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 86.823,
+          "event": "request",
+          "id": 5,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 86.826,
+          "event": "response-headers",
+          "id": 5,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 105.907,
+          "event": "request",
+          "id": 6,
+          "player": false,
+          "range": ""
+        },
+        {
+          "t": 105.909,
+          "event": "response-headers",
+          "id": 6,
+          "status": 200,
+          "contentRange": null
+        },
+        {
+          "t": 105.911,
+          "event": "response-ended",
+          "id": 6,
+          "bytes": 131072,
+          "complete": false
+        },
+        {
+          "t": 106.309,
+          "event": "request",
+          "id": 7,
+          "player": true,
+          "range": "bytes=0-"
+        },
+        {
+          "t": 106.311,
+          "event": "response-headers",
+          "id": 7,
+          "status": 206,
+          "contentRange": "bytes 0-54919232/54919233"
+        },
+        {
+          "t": 106.768,
+          "event": "response-ended",
+          "id": 7,
+          "bytes": 4849664,
+          "complete": false
+        },
+        {
+          "t": 106.778,
+          "event": "request",
+          "id": 8,
+          "player": true,
+          "range": "bytes=19628032-54919232"
+        },
+        {
+          "t": 106.783,
+          "event": "response-headers",
+          "id": 8,
+          "status": 206,
+          "contentRange": "bytes 19628032-54919232/54919233"
+        },
+        {
+          "t": 116.824,
+          "event": "response-ended",
+          "id": 5,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 117.338,
+          "event": "request",
+          "id": 9,
+          "player": true,
+          "range": "bytes=16777216-54919232"
+        },
+        {
+          "t": 117.348,
+          "event": "response-headers",
+          "id": 9,
+          "status": 206,
+          "contentRange": "bytes 16777216-54919232/54919233"
+        },
+        {
+          "t": 119.995,
+          "event": "response-ended",
+          "id": 9,
+          "bytes": 0,
+          "complete": false
+        },
+        {
+          "t": 151.728,
+          "event": "response-ended",
+          "id": 8,
+          "bytes": 35291201,
+          "complete": true
+        }
+      ],
+      "supply": [
+        {
+          "t": -0.438,
+          "id": 1,
+          "status": 200,
+          "bytes": 32768,
+          "headerT": -0.444,
+          "lastWriteT": -0.438,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 30,
+          "id": 2,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 0.001,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 60.511,
+          "id": 3,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 30.511,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 86.822,
+          "id": 4,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 61.024,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 0
+        },
+        {
+          "t": 105.912,
+          "id": 6,
+          "status": 200,
+          "bytes": 622592,
+          "headerT": 105.909,
+          "lastWriteT": 105.911,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "t": 106.779,
+          "id": 7,
+          "status": 206,
+          "bytes": 5701632,
+          "headerT": 106.311,
+          "lastWriteT": 106.468,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "t": 116.824,
+          "id": 5,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 86.826,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "t": 120.005,
+          "id": 9,
+          "status": 206,
+          "bytes": 0,
+          "headerT": 117.348,
+          "lastWriteT": null,
+          "activeDemandsAfterReturn": 1
+        },
+        {
+          "t": 150.426,
+          "id": 8,
+          "status": 206,
+          "bytes": 35291201,
+          "headerT": 106.783,
+          "lastWriteT": 150.426,
+          "activeDemandsAfterReturn": 0
+        }
+      ],
+      "sourceReleases": [],
+      "admissions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 30.511,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 61.023,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 86.824,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        },
+        {
+          "t": 106.31,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 0
+        },
+        {
+          "t": 106.78,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 19628032
+        },
+        {
+          "t": 117.347,
+          "reject": false,
+          "reason": "disabled",
+          "rangeStart": 16777216
+        }
+      ],
+      "game": [
+        {
+          "t": 2.913,
+          "kind": "sync",
+          "position": 0
+        },
+        {
+          "t": 2.913,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 89.913,
+          "kind": "sync",
+          "position": 87.12
+        },
+        {
+          "t": 92.913,
+          "kind": "sync",
+          "position": 90.12
+        },
+        {
+          "t": 95.913,
+          "kind": "sync",
+          "position": 93.13
+        },
+        {
+          "t": 98.913,
+          "kind": "sync",
+          "position": 96.13
+        },
+        {
+          "t": 101.913,
+          "kind": "sync",
+          "position": 99.13
+        },
+        {
+          "t": 104.913,
+          "kind": "sync",
+          "position": 102.13
+        },
+        {
+          "t": 105.913,
+          "kind": "sync",
+          "position": 103.08
+        },
+        {
+          "t": 105.913,
+          "kind": "start",
+          "ownerBranch": true
+        },
+        {
+          "t": 356.913,
+          "kind": "end"
+        },
+        {
+          "t": 356.913,
+          "kind": "end"
+        }
+      ],
+      "privateSourceSHA256": "d04245617dd2cf4b46813cc32289c4ec714f4b9f59371e991a1db89a93fe2152"
+    }
+  ]
+}

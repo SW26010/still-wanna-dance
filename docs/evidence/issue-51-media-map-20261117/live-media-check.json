@@ -1,0 +1,130 @@
+{
+  "pyav": "19.0.2",
+  "libraries": {
+    "libavutil": [
+      61,
+      1,
+      102
+    ],
+    "libavcodec": [
+      63,
+      1,
+      102
+    ],
+    "libavformat": [
+      63,
+      1,
+      102
+    ],
+    "libavdevice": [
+      63,
+      1,
+      102
+    ],
+    "libavfilter": [
+      12,
+      1,
+      102
+    ],
+    "libswscale": [
+      10,
+      1,
+      102
+    ],
+    "libswresample": [
+      7,
+      1,
+      102
+    ]
+  },
+  "results": [
+    {
+      "song": 4598,
+      "indexSamples": 9726,
+      "packetsMatched": 9726,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 2.842170943040401e-14,
+      "maxDTSErrorSeconds": 2.842170943040401e-14
+    },
+    {
+      "song": 2502,
+      "indexSamples": 14049,
+      "packetsMatched": 14049,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 0.0,
+      "maxDTSErrorSeconds": 0.0
+    },
+    {
+      "song": 3214,
+      "indexSamples": 15597,
+      "packetsMatched": 15597,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 2.842170943040401e-14,
+      "maxDTSErrorSeconds": 2.842170943040401e-14
+    },
+    {
+      "song": 1314,
+      "indexSamples": 23701,
+      "packetsMatched": 23701,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 5.684341886080802e-14,
+      "maxDTSErrorSeconds": 5.684341886080802e-14
+    },
+    {
+      "song": 6776,
+      "indexSamples": 38142,
+      "packetsMatched": 38142,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 1.1368683772161603e-13,
+      "maxDTSErrorSeconds": 1.1368683772161603e-13
+    },
+    {
+      "song": 5396,
+      "indexSamples": 14954,
+      "packetsMatched": 14954,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 2.842170943040401e-14,
+      "maxDTSErrorSeconds": 2.842170943040401e-14
+    },
+    {
+      "song": 8935,
+      "indexSamples": 5607,
+      "packetsMatched": 5607,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 0.0,
+      "maxDTSErrorSeconds": 0.0
+    },
+    {
+      "song": 3136,
+      "indexSamples": 20907,
+      "packetsMatched": 20907,
+      "unknownPackets": 0,
+      "indexSamplesNotDemuxed": 0,
+      "sizeMismatches": 0,
+      "keyFlagMismatches": 0,
+      "maxPTSErrorSeconds": 5.684341886080802e-14,
+      "maxDTSErrorSeconds": 5.684341886080802e-14
+    }
+  ]
+}

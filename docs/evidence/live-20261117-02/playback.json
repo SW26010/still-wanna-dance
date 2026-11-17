@@ -1,0 +1,1044 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261117-02",
+  "timeBasis": "Seconds relative to first NSPlayer GET per case; game/user second precision, service millisecond precision.",
+  "cases": [
+    {
+      "id": "A4598",
+      "group": "A",
+      "song": 4598,
+      "role": "owner",
+      "otherPlayersPresent": true,
+      "mode": "paired-early-block",
+      "modelEnabled": false,
+      "marginSeconds": 0,
+      "roleGateBypassed": false,
+      "missingRange": [
+        2097152,
+        3145728
+      ],
+      "releaseSeconds": 66,
+      "sourceReleaseT": 66.001,
+      "binarySHA256": "9c004022ce23c84852d9f8743fda76049262ee00283e7ecd92648975f36b0c14",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "endT": 32.012,
+          "firstSuccessfulWriteT": 0.001,
+          "lastSuccessfulWriteT": 0.145
+        },
+        {
+          "id": 4,
+          "t": 32.531,
+          "range": "bytes=2088960-35169661",
+          "status": 206,
+          "bytes": 8192,
+          "endT": 62.562,
+          "firstSuccessfulWriteT": 32.532,
+          "lastSuccessfulWriteT": 32.532
+        },
+        {
+          "id": 5,
+          "t": 62.572,
+          "range": "bytes=2097152-35169661",
+          "status": 206,
+          "bytes": 2588672,
+          "endT": 66.029,
+          "firstSuccessfulWriteT": 66.005,
+          "lastSuccessfulWriteT": 66.016
+        },
+        {
+          "id": 6,
+          "t": 66.03,
+          "range": "bytes=14614528-35169661",
+          "status": 206,
+          "bytes": 20555134,
+          "endT": 80.514,
+          "firstSuccessfulWriteT": 66.032,
+          "lastSuccessfulWriteT": 80.509
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 32.531,
+          "reject": false,
+          "reason": "disabled",
+          "start": 2088960,
+          "needByT": null
+        },
+        {
+          "t": 62.572,
+          "reject": false,
+          "reason": "disabled",
+          "start": 2097152,
+          "needByT": null
+        },
+        {
+          "t": 66.03,
+          "reject": false,
+          "reason": "disabled",
+          "start": 14614528,
+          "needByT": null
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 8.309,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 17.309,
+          "kind": "sync",
+          "targetSeconds": 9.01
+        },
+        {
+          "t": 20.309,
+          "kind": "sync",
+          "targetSeconds": 12.02
+        },
+        {
+          "t": 23.309,
+          "kind": "sync",
+          "targetSeconds": 15.02
+        },
+        {
+          "t": 26.309,
+          "kind": "sync",
+          "targetSeconds": 18.03
+        },
+        {
+          "t": 29.309,
+          "kind": "sync",
+          "targetSeconds": 21.03
+        },
+        {
+          "t": 32.309,
+          "kind": "sync",
+          "targetSeconds": 24.03
+        },
+        {
+          "t": 35.309,
+          "kind": "sync",
+          "targetSeconds": 27.03
+        },
+        {
+          "t": 38.309,
+          "kind": "sync",
+          "targetSeconds": 30.03
+        },
+        {
+          "t": 41.309,
+          "kind": "sync",
+          "targetSeconds": 33.03
+        },
+        {
+          "t": 44.309,
+          "kind": "sync",
+          "targetSeconds": 36.03
+        },
+        {
+          "t": 47.309,
+          "kind": "sync",
+          "targetSeconds": 39.03
+        },
+        {
+          "t": 50.309,
+          "kind": "sync",
+          "targetSeconds": 42.03
+        },
+        {
+          "t": 53.309,
+          "kind": "sync",
+          "targetSeconds": 45.03
+        },
+        {
+          "t": 56.309,
+          "kind": "sync",
+          "targetSeconds": 48.03
+        },
+        {
+          "t": 59.309,
+          "kind": "sync",
+          "targetSeconds": 51.04
+        },
+        {
+          "t": 62.309,
+          "kind": "sync",
+          "targetSeconds": 54.04
+        },
+        {
+          "t": 65.309,
+          "kind": "sync",
+          "targetSeconds": 57.04
+        },
+        {
+          "t": 141.309,
+          "kind": "end"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 10.309,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-stall",
+          "t": 17.309,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-resume",
+          "t": 68.309,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-natural-end",
+          "t": null,
+          "exactTimeReported": false
+        }
+      ],
+      "gameStartToEndSeconds": 133,
+      "modelRejections": 0,
+      "sourceBytes": 35300734,
+      "handoffs": [],
+      "unreportedAV": "User convention: unreported audio/video abnormalities treated as normal; missing exact event times remain unknown."
+    },
+    {
+      "id": "B4598",
+      "group": "B",
+      "song": 4598,
+      "role": "owner",
+      "otherPlayersPresent": true,
+      "mode": "paired-early-block",
+      "modelEnabled": true,
+      "marginSeconds": 0,
+      "roleGateBypassed": true,
+      "missingRange": [
+        2097152,
+        3145728
+      ],
+      "releaseSeconds": 66,
+      "sourceReleaseT": 66.001,
+      "binarySHA256": "b7e29a9226d47527c60ef1c17425cfc0ea2aa40b11b1cb1e40a200fa8fa97f2a",
+      "requests": [
+        {
+          "id": 3,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 2097152,
+          "endT": 34.545,
+          "firstSuccessfulWriteT": 0.001,
+          "lastSuccessfulWriteT": 0.107
+        },
+        {
+          "id": 4,
+          "t": 35.051,
+          "range": "bytes=2088960-35169661",
+          "status": 504,
+          "bytes": 16,
+          "endT": 35.051,
+          "firstSuccessfulWriteT": 35.051,
+          "lastSuccessfulWriteT": 35.051
+        },
+        {
+          "id": 6,
+          "t": 41.3,
+          "range": "bytes=2088960-35169661",
+          "status": 206,
+          "bytes": 8192,
+          "endT": 45.731,
+          "firstSuccessfulWriteT": 41.3,
+          "lastSuccessfulWriteT": 41.3
+        },
+        {
+          "id": 7,
+          "t": 45.732,
+          "range": "bytes=2088960-35169661",
+          "status": 206,
+          "bytes": 4759552,
+          "endT": 66.035,
+          "firstSuccessfulWriteT": 45.734,
+          "lastSuccessfulWriteT": 66.025
+        },
+        {
+          "id": 8,
+          "t": 66.037,
+          "range": "bytes=6586368-35169661",
+          "status": 206,
+          "bytes": 28583294,
+          "endT": 86.5,
+          "firstSuccessfulWriteT": 66.039,
+          "lastSuccessfulWriteT": 86.496
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 35.051,
+          "reject": true,
+          "reason": "obsolete-continuation",
+          "start": 2088960,
+          "needByT": 12.747
+        },
+        {
+          "t": 41.3,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 2088960,
+          "needByT": null
+        },
+        {
+          "t": 45.732,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 2088960,
+          "needByT": null
+        },
+        {
+          "t": 66.037,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 6586368,
+          "needByT": null
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 4.837,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 4.837,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 13.837,
+          "kind": "sync",
+          "targetSeconds": 9.01
+        },
+        {
+          "t": 16.837,
+          "kind": "sync",
+          "targetSeconds": 12.01
+        },
+        {
+          "t": 19.837,
+          "kind": "sync",
+          "targetSeconds": 15.02
+        },
+        {
+          "t": 22.837,
+          "kind": "sync",
+          "targetSeconds": 18.02
+        },
+        {
+          "t": 25.837,
+          "kind": "sync",
+          "targetSeconds": 21.02
+        },
+        {
+          "t": 28.837,
+          "kind": "sync",
+          "targetSeconds": 24.02
+        },
+        {
+          "t": 31.837,
+          "kind": "sync",
+          "targetSeconds": 27.02
+        },
+        {
+          "t": 34.837,
+          "kind": "sync",
+          "targetSeconds": 30.03
+        },
+        {
+          "t": 34.837,
+          "kind": "error"
+        },
+        {
+          "t": 39.837,
+          "kind": "reload"
+        },
+        {
+          "t": 40.837,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 40.837,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 49.837,
+          "kind": "sync",
+          "targetSeconds": 8.3
+        },
+        {
+          "t": 52.837,
+          "kind": "sync",
+          "targetSeconds": 11.3
+        },
+        {
+          "t": 55.837,
+          "kind": "sync",
+          "targetSeconds": 14.3
+        },
+        {
+          "t": 58.837,
+          "kind": "sync",
+          "targetSeconds": 17.31
+        },
+        {
+          "t": 61.837,
+          "kind": "sync",
+          "targetSeconds": 20.31
+        },
+        {
+          "t": 64.837,
+          "kind": "sync",
+          "targetSeconds": 23.31
+        },
+        {
+          "t": 174.837,
+          "kind": "end"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 6.837,
+          "exactTimeReported": true,
+          "earlyStallReported": true,
+          "stallExactTimeUnknown": true
+        },
+        {
+          "kind": "user-black",
+          "t": 35.837,
+          "exactTimeReported": true,
+          "timeCorrectedByUser": true
+        },
+        {
+          "kind": "user-restart",
+          "t": 42.837,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-stall",
+          "t": 50.837,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-resume",
+          "t": 67.837,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-natural-end",
+          "t": 175.837,
+          "exactTimeReported": true
+        }
+      ],
+      "gameStartToEndSeconds": 170,
+      "modelRejections": 1,
+      "sourceBytes": 35300734,
+      "handoffs": [
+        {
+          "t": -0.43,
+          "first": 1,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 34.545,
+          "first": 2,
+          "last": 8,
+          "seconds": 2
+        },
+        {
+          "t": 34.545,
+          "first": 8,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 40.863,
+          "first": 1,
+          "last": 10,
+          "seconds": 2
+        },
+        {
+          "t": 40.863,
+          "first": 10,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 45.731,
+          "first": 2,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 66.035,
+          "first": 6,
+          "last": 7,
+          "seconds": 2
+        },
+        {
+          "t": 66.035,
+          "first": 7,
+          "last": 34,
+          "seconds": 10
+        }
+      ],
+      "unreportedAV": "User convention: unreported audio/video abnormalities treated as normal; missing exact event times remain unknown."
+    },
+    {
+      "id": "Blate4598r1",
+      "group": "B",
+      "song": 4598,
+      "role": "owner",
+      "otherPlayersPresent": true,
+      "mode": "paired-late-block",
+      "modelEnabled": true,
+      "marginSeconds": 0,
+      "roleGateBypassed": true,
+      "missingRange": [
+        25165824,
+        26214400
+      ],
+      "releaseSeconds": 180,
+      "sourceReleaseT": 180,
+      "binarySHA256": "e021d7be2b659a0680ab67821f5ffcd1c78db06718a2cde24b55d35d2687aeb8",
+      "requests": [
+        {
+          "id": 2,
+          "t": 0,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 25165824,
+          "endT": 51.943,
+          "firstSuccessfulWriteT": 0,
+          "lastSuccessfulWriteT": 17.793
+        },
+        {
+          "id": 3,
+          "t": 52.122,
+          "range": "bytes=25157632-35169661",
+          "status": 206,
+          "bytes": 8192,
+          "endT": 82.153,
+          "firstSuccessfulWriteT": 52.124,
+          "lastSuccessfulWriteT": 52.124
+        },
+        {
+          "id": 4,
+          "t": 92.997,
+          "range": "bytes=25165824-35169661",
+          "status": 504,
+          "bytes": 16,
+          "endT": 122.997,
+          "firstSuccessfulWriteT": 122.997,
+          "lastSuccessfulWriteT": 122.997
+        },
+        {
+          "id": 6,
+          "t": 129.252,
+          "range": "bytes=25165824-35169661",
+          "status": 504,
+          "bytes": 16,
+          "endT": 159.253,
+          "firstSuccessfulWriteT": 159.253,
+          "lastSuccessfulWriteT": 159.253
+        },
+        {
+          "id": 8,
+          "t": 159.198,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 35169662,
+          "endT": 184.46,
+          "firstSuccessfulWriteT": 159.2,
+          "lastSuccessfulWriteT": 184.454
+        },
+        {
+          "id": 9,
+          "t": 159.265,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 5013504,
+          "endT": 159.378,
+          "firstSuccessfulWriteT": 159.266,
+          "lastSuccessfulWriteT": 159.358
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "unassociated-request",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 52.122,
+          "reject": false,
+          "reason": "model-unavailable",
+          "start": 25157632,
+          "needByT": null
+        },
+        {
+          "t": 92.997,
+          "reject": false,
+          "reason": "model-unavailable",
+          "start": 25165824,
+          "needByT": null
+        },
+        {
+          "t": 129.252,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 25165824,
+          "needByT": null
+        },
+        {
+          "t": 159.198,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 159.265,
+          "reject": false,
+          "reason": "recovery-pass-through",
+          "start": 0,
+          "needByT": null
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 4.246,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 4.246,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 97.246,
+          "kind": "sync",
+          "targetSeconds": 93.05
+        },
+        {
+          "t": 100.246,
+          "kind": "sync",
+          "targetSeconds": 96.05
+        },
+        {
+          "t": 103.246,
+          "kind": "sync",
+          "targetSeconds": 99.05
+        },
+        {
+          "t": 106.246,
+          "kind": "sync",
+          "targetSeconds": 102.05
+        },
+        {
+          "t": 109.246,
+          "kind": "sync",
+          "targetSeconds": 105.05
+        },
+        {
+          "t": 112.246,
+          "kind": "sync",
+          "targetSeconds": 108.05
+        },
+        {
+          "t": 115.246,
+          "kind": "sync",
+          "targetSeconds": 111.06
+        },
+        {
+          "t": 118.246,
+          "kind": "sync",
+          "targetSeconds": 114.06
+        },
+        {
+          "t": 121.246,
+          "kind": "sync",
+          "targetSeconds": 117.06
+        },
+        {
+          "t": 122.246,
+          "kind": "error"
+        },
+        {
+          "t": 127.246,
+          "kind": "reload"
+        },
+        {
+          "t": 157.246,
+          "kind": "reload"
+        },
+        {
+          "t": 159.246,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 159.246,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 292.246,
+          "kind": "end"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 6.246,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-stall",
+          "t": 97.246,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-black",
+          "t": 124.246,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-restart-from-zero",
+          "t": 161.246,
+          "exactTimeReported": true
+        }
+      ],
+      "gameStartToEndSeconds": 288,
+      "modelRejections": 0,
+      "sourceBytes": 35562878,
+      "handoffs": [
+        {
+          "t": -0.391,
+          "first": 1,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 51.943,
+          "first": 24,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 82.153,
+          "first": 32,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 122.997,
+          "first": 32,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 128.814,
+          "first": 1,
+          "last": 32,
+          "seconds": 2
+        },
+        {
+          "t": 128.814,
+          "first": 32,
+          "last": 34,
+          "seconds": 10
+        },
+        {
+          "t": 158.818,
+          "first": 1,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 159.253,
+          "first": 32,
+          "last": 34,
+          "seconds": 2
+        },
+        {
+          "t": 159.378,
+          "first": 4,
+          "last": 34,
+          "seconds": 2
+        }
+      ],
+      "unreportedAV": "User convention: unreported audio/video abnormalities treated as normal; missing exact event times remain unknown."
+    },
+    {
+      "id": "Alate4598",
+      "group": "A",
+      "song": 4598,
+      "role": "owner",
+      "otherPlayersPresent": true,
+      "mode": "paired-late-block",
+      "modelEnabled": false,
+      "marginSeconds": 0,
+      "roleGateBypassed": false,
+      "missingRange": [
+        25165824,
+        26214400
+      ],
+      "releaseSeconds": 180,
+      "sourceReleaseT": 180,
+      "binarySHA256": "e021d7be2b659a0680ab67821f5ffcd1c78db06718a2cde24b55d35d2687aeb8",
+      "requests": [
+        {
+          "id": 2,
+          "t": 0,
+          "range": "",
+          "status": 200,
+          "bytes": 25165824,
+          "endT": 53.392,
+          "firstSuccessfulWriteT": 0,
+          "lastSuccessfulWriteT": 17.805
+        },
+        {
+          "id": 3,
+          "t": 53.481,
+          "range": "bytes=25157632-35169661",
+          "status": 206,
+          "bytes": 8192,
+          "endT": 83.512,
+          "firstSuccessfulWriteT": 53.482,
+          "lastSuccessfulWriteT": 53.482
+        },
+        {
+          "id": 4,
+          "t": 89.689,
+          "range": "bytes=25165824-35169661",
+          "status": 504,
+          "bytes": 16,
+          "endT": 119.689,
+          "firstSuccessfulWriteT": 119.689,
+          "lastSuccessfulWriteT": 119.689
+        },
+        {
+          "id": 6,
+          "t": 125.907,
+          "range": "bytes=25165824-35169661",
+          "status": 504,
+          "bytes": 16,
+          "endT": 155.908,
+          "firstSuccessfulWriteT": 155.908,
+          "lastSuccessfulWriteT": 155.908
+        },
+        {
+          "id": 8,
+          "t": 155.81,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 35169662,
+          "endT": 181.261,
+          "firstSuccessfulWriteT": 155.811,
+          "lastSuccessfulWriteT": 181.255
+        },
+        {
+          "id": 9,
+          "t": 155.92,
+          "range": "bytes=0-",
+          "status": 206,
+          "bytes": 4915200,
+          "endT": 156.025,
+          "firstSuccessfulWriteT": 155.921,
+          "lastSuccessfulWriteT": 156.003
+        }
+      ],
+      "decisions": [
+        {
+          "t": 0,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 53.481,
+          "reject": false,
+          "reason": "disabled",
+          "start": 25157632,
+          "needByT": null
+        },
+        {
+          "t": 89.689,
+          "reject": false,
+          "reason": "disabled",
+          "start": 25165824,
+          "needByT": null
+        },
+        {
+          "t": 125.907,
+          "reject": false,
+          "reason": "disabled",
+          "start": 25165824,
+          "needByT": null
+        },
+        {
+          "t": 155.81,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        },
+        {
+          "t": 155.92,
+          "reject": false,
+          "reason": "disabled",
+          "start": 0,
+          "needByT": null
+        }
+      ],
+      "gameEvents": [
+        {
+          "t": 0.687,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 0.687,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 93.687,
+          "kind": "sync",
+          "targetSeconds": 93.05
+        },
+        {
+          "t": 96.687,
+          "kind": "sync",
+          "targetSeconds": 96.06
+        },
+        {
+          "t": 99.687,
+          "kind": "sync",
+          "targetSeconds": 99.06
+        },
+        {
+          "t": 102.687,
+          "kind": "sync",
+          "targetSeconds": 102.06
+        },
+        {
+          "t": 105.687,
+          "kind": "sync",
+          "targetSeconds": 105.06
+        },
+        {
+          "t": 108.687,
+          "kind": "sync",
+          "targetSeconds": 108.06
+        },
+        {
+          "t": 111.687,
+          "kind": "sync",
+          "targetSeconds": 111.06
+        },
+        {
+          "t": 114.687,
+          "kind": "sync",
+          "targetSeconds": 114.06
+        },
+        {
+          "t": 117.687,
+          "kind": "sync",
+          "targetSeconds": 117.06
+        },
+        {
+          "t": 119.687,
+          "kind": "error"
+        },
+        {
+          "t": 124.687,
+          "kind": "reload"
+        },
+        {
+          "t": 154.687,
+          "kind": "reload"
+        },
+        {
+          "t": 155.687,
+          "kind": "sync",
+          "targetSeconds": 0
+        },
+        {
+          "t": 155.687,
+          "kind": "start",
+          "ownerStart": true
+        },
+        {
+          "t": 288.687,
+          "kind": "end"
+        }
+      ],
+      "userObservations": [
+        {
+          "kind": "user-start",
+          "t": 2.687,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-stall",
+          "t": 98.687,
+          "exactTimeReported": true,
+          "approximate": true
+        },
+        {
+          "kind": "user-black",
+          "t": 120.687,
+          "exactTimeReported": true
+        },
+        {
+          "kind": "user-restart",
+          "t": 158.687,
+          "exactTimeReported": true
+        }
+      ],
+      "gameStartToEndSeconds": 288,
+      "modelRejections": 0,
+      "sourceBytes": 35562878,
+      "handoffs": [],
+      "unreportedAV": "User convention: unreported audio/video abnormalities treated as normal; missing exact event times remain unknown."
+    }
+  ]
+}

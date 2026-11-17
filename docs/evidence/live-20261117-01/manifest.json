@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "batch": "LIVE-20261117-01",
+  "status": "completed-observation-five-interpretable-one-confounded",
+  "hashBasis": "git-blob (UTF-8 text normalized to LF)",
+  "rawEvidencePublished": false,
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261117-01.md",
+      "bytes": 8327,
+      "sha256": "cdc2644c2e97a9de7d21a828a7092cf18bfb3d117aa1930130c9949cae85d91f",
+      "source": "Recorded experiment or selected runtime provenance",
+      "sanitization": "Relative sample times, song IDs and selected facts only; no identities, personal paths, credentials, raw game logs or media"
+    },
+    {
+      "path": "docs/evidence/live-20261117-01/playback.json",
+      "bytes": 23129,
+      "sha256": "dcc18cdac167bfe6c4dc3bab1d082afb968ade1336bf03427e5894fea7dabed7",
+      "source": "Recorded experiment or selected runtime provenance",
+      "sanitization": "Relative sample times, song IDs and selected facts only; no identities, personal paths, credentials, raw game logs or media"
+    },
+    {
+      "path": "docs/evidence/live-20261117-01/provenance.json",
+      "bytes": 3180,
+      "sha256": "699968f92dbb2aee3236b6010e834eb1720800923bc19c5e97594d241ab19358",
+      "source": "Recorded experiment or selected runtime provenance",
+      "sanitization": "Relative sample times, song IDs and selected facts only; no identities, personal paths, credentials, raw game logs or media"
+    },
+    {
+      "path": "docs/evidence/live-20261117-01/model.go.txt",
+      "bytes": 6283,
+      "sha256": "f6380adc62380df104507981aeb02d36ca94d53b1c4dfbce8b245f7ffa8724b3",
+      "source": "Archived historical experiment source or matching model test snapshot",
+      "sanitization": "Source code only; no private paths, credentials, original game logs or media"
+    },
+    {
+      "path": "docs/evidence/live-20261117-01/model-test.go.txt",
+      "bytes": 5590,
+      "sha256": "4f748ac09ac322bbb0af4d4bfb580523d614d18ab92b22593e737f3b2c807e22",
+      "source": "Archived historical experiment source or matching model test snapshot",
+      "sanitization": "Source code only; no private paths, credentials, original game logs or media"
+    },
+    {
+      "path": "docs/evidence/live-20261117-01/parser.go.txt",
+      "bytes": 1784,
+      "sha256": "7975857cd4953f320d9cc752c24401b834ea8be41d0468d03e5404021f462222",
+      "source": "Archived historical experiment source or matching model test snapshot",
+      "sanitization": "Source code only; no private paths, credentials, original game logs or media"
+    }
+  ]
+}

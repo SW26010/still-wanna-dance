@@ -72,7 +72,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 [`check` 工作流](../.github/workflows/check.yml)按工具与仓库检查 → 产品/race 并行 → 一次正式交付 → 自动发布执行，各验证范围共用本机预检脚本。PR/main 按[日常分流规则](development.md#测试维护与-ci-修复)决定是否运行产品与 race 测试；需要运行时使用代表性浏览器与 race，手动运行和 tag 使用完整浏览器及全包 race。产品作业完成真实 Console 联调、Go test/vet/build 和 gofmt。`repository-artifacts` 在分支 push／PR 时独立执行，在手动或 tag 检查时由 `check` 调用并作为打包门禁；它通过 `-Scope repository` 执行产物策略及其 Node 测试和 Python 测试，工具作业不重复这些测试。Windows 真实 Console 联调使用 Edge，夹具浏览器使用锁定的 Chromium，race 使用固定版本、校验哈希的 w64devkit GCC。同一分支或 PR 的新提交取消过期检查，同一发布 tag 的运行串行且不自动取消。没有发行 tag 时只检查，不再生成重复候选包。
 
-自动发布可以直接从选定的非 main 分支运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.2.3`）。留空只检查；推送版本 tag 则直接使用该 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
+新正式版本优先从选定分支手动运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.2.3`）。此入口在完整检查与交付验证通过后，由 Actions 创建远端版本 tag 并发布；触发前不必推送正式 tag。当前工具无法触发手动入口时，应先解决触发方式，避免提前绑定版本后又因验证修正需要移动 tag。`release_tag` 留空只检查；工作流也支持直接检查已推送的版本 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
 
 版本更新与升级注意事项保存在 `docs/releases/<tag>.md`；存在对应文件时，打包作业将其附加到生成的 Release 正文。内容面向使用者，保留实际功能变化和升级影响。
 

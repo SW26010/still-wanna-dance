@@ -10,7 +10,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 ## 文件索引
 
-2026-11-17 [正常响应头与 owner 手动刷新](../acceptance/live-acceptance-20261117-03.md)及[重复观察／非 owner 三组对照](../acceptance/live-acceptance-20261117-04.md)：[03 清单](live-20261117-03/manifest.json)、[04 清单](live-20261117-04/manifest.json)。保留无 504 仍自动回零、三首 owner 延后刷新成功；非 owner 自动组总卡顿 24 秒，两策略下等 8 秒刷新分别 12／10 秒恢复。另列过早刷新仍落入坏块、缓存绕过、好友操作及旧请求重叠；观测限制分别记录，产品策略未改变。
+2026-11-17 [正常响应头与 owner 手动刷新](../acceptance/live-acceptance-20261117-03.md)及[重复观察／非 owner 三组对照](../acceptance/live-acceptance-20261117-04.md)：[03 清单](live-20261117-03/manifest.json)、[04 清单](live-20261117-04/manifest.json)。保留无 504 仍自动回零、三首 owner 延后刷新成功；非 owner 自动组总卡顿 24 秒，两策略下等 8 秒刷新分别 12／10 秒恢复。另列过早刷新仍落入坏块、缓存绕过、好友操作及旧请求重叠；事实、工程取舍与未来计划分别记录，产品策略未改变。
 
 2026-11-17 [owner 进度模型 A/B 与后半段缺块](../acceptance/live-acceptance-20261117-02.md)：[逐笔记录](live-20261117-02/playback.json)、[构建与清理](live-20261117-02/provenance.json)、[清单](live-20261117-02/manifest.json)。开头配对中 B 的一次提前 504 增加黑屏及回零，起播至结束由 133 秒增至 170 秒；后半段 A、B 均由正式等待超时触发回零，均为 288 秒，B 没有入口主动拒绝。角色独立开关只用于实验；其他错误码未测。
 
@@ -18,7 +18,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 2026-11-17 [可选播放模型实机与入口边界](../acceptance/live-acceptance-20261117-01.md)：[逐笔记录](live-20261117-01/playback.json)、[构建身份](live-20261117-01/provenance.json)、[清单](live-20261117-01/manifest.json)。两首在模型 504 后越过仍不可读块并恢复，两首正常预读按模型放行；临界样本在拒绝边界前约 2.4 秒获准，随后等待来源约 25.4 秒。另保留一笔提前自动加载干扰。2／10 秒交接分段实际生效，但未证明 10 秒的净收益；实验服务已清理。
 
-2026-11-16 [歌曲播放模型与 HTTP 特征复核](../research/issue-51-request-admission-proposal.md)：[请求特征](issue-51-playback-model-20261116/request-features.json)、[复算脚本](issue-51-playback-model-20261116/review.mjs)、[清单](issue-51-playback-model-20261116/manifest.json)。离线复核 30 组序列及一笔冷 Seek，取得 57 对相邻解析／播放器请求；46 对有完整相对时间，解析结束到播放器请求为 0.331–0.473 秒，5 组出现播放器请求重叠。可选日志模型完成[历史回放](issue-51-playback-model-20261116/log-model-replay.json)与[隔离引擎检查](issue-51-playback-model-20261116/model-engine-check.json)，记录入口拒绝不新增需求及 2／10 秒交接接入；本条只描述当时非游戏验证，新增实机结果见上条。
+2026-11-16 [歌曲播放模型候选与 HTTP 特征复核](../research/issue-51-request-admission-proposal.md)：[请求特征](issue-51-playback-model-20261116/request-features.json)、[复算脚本](issue-51-playback-model-20261116/review.mjs)、[清单](issue-51-playback-model-20261116/manifest.json)。离线复核 30 组序列及一笔冷 Seek；解析结束后的短间隔可用于关联，但完整范围请求、是否重叠及解析／播放器组合都不能独自区分新播放与重载。后续可选日志模型完成[历史回放](issue-51-playback-model-20261116/log-model-replay.json)与[隔离引擎检查](issue-51-playback-model-20261116/model-engine-check.json)，验证入口拒绝不新增需求及 2／10 秒交接接入；本条只描述当时非游戏验证，新增实机结果见上条。
 
 2026-11-16 [跨歌曲预读 504 重复观察](../acceptance/live-acceptance-20261116-03.md)：[清单](live-20261116-03/manifest.json)、[四笔记录](live-20261116-03/playback.json)。三首均在正常播放时收到 504，约 22–34 秒后黑屏、约 7 秒后恢复；关闭注入的另一首正常至自然结束。不同歌曲不是严格配对，未测播放器内部缓存；本批服务已清理。
 

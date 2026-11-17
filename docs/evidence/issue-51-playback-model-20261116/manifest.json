@@ -41,8 +41,8 @@
     },
     {
       "path": "docs/research/issue-51-request-admission-proposal.md",
-      "bytes": 16292,
-      "sha256": "1296ab71958bafc8f0096ba1a0e01c7546c60a87be907c432b8c3cd8a339b5f0",
+      "bytes": 23344,
+      "sha256": "b7ac916de74d418bc1577c5f5883cce07f9db6b7fda14941b16e6a64342898df",
       "source": "Experimental implementation, documentation or development check",
       "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
     },
@@ -76,8 +76,8 @@
     },
     {
       "path": "experiments/playback-model/README.md",
-      "bytes": 8616,
-      "sha256": "76df25021bedd875bde4b41279f3e6fd04e3345394ff4257490d594fe586d4bc",
+      "bytes": 8952,
+      "sha256": "44ad9f1f8abacfb7675dd35992a9f38524466beaac406a70d85515b503145fe8",
       "source": "Experimental implementation, documentation or development check",
       "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
     },

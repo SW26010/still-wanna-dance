@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "batch": "LIVE-20261117-04",
-  "status": "three-strategy-observations-with-failures-retained",
+  "status": "three-strategy-observations-with-failures-and-inferences-separated",
   "hashBasis": "git-blob (UTF-8 normalized to LF)",
   "sanitization": "Whitelisted event fields and relative times only; no raw game log, player/room identities, private filesystem paths or signed URLs.",
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261117-04.md",
-      "bytes": 6724,
-      "sha256": "3cf25e2a3a349e9340370147ca6a2d5ca60c2f3e84518397032c9dcf6e949a01"
+      "bytes": 9392,
+      "sha256": "235160d96fb46cdfcc68f43c428dc8521ab629764a58a5e23793ea8dd9a2e09b"
     },
     {
       "path": "docs/evidence/live-20261117-04/playback.json",

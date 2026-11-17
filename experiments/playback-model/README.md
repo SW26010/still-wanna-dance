@@ -6,6 +6,8 @@
 
 追加的 [owner A/B](../../docs/acceptance/live-acceptance-20261117-02.md)使用 `Options.AllowOwner=true`：该实验开关取消角色门槛，包括缺少多人角色记录的情况，不影响默认值。`owner-fixture.patch` 是该批当前 main 上的隔离夹具；B 使用 `LAB51_MODEL_ALLOW_OWNER=1`、`LAB51_MODEL_ENABLED=1` 和 `LAB51_MODEL_MARGIN_SECONDS=0`，A 只关闭模型。开头配对观察到 B 额外回零，后半段两组均由正式等待超时触发回零；不将实验开关自动推广到产品。
 
+下一阶段的取舍是线性映射、0 秒模型余量，暂不引入预制媒体索引，见[阶段决策](../../docs/research/issue-51-request-admission-proposal.md#阶段决策线性映射0-秒余量)。下述历史校准和首轮实机仍记录实际使用的 5 秒；本次文档决策不改变旧夹具或启用产品策略。
+
 - `internal/vrclog` 的可选解析复用既有日志读取器，只产出正式播放器事件。普通队列解析不变。
 - `Model.Observe` 接收事件及实际收到时间；失效时入口放行。同步目标用于时间线，不能用卡住的本地播放位置替代。
 - `Model.Admit` 接收匹配版本的明确媒体信息、前次实际视频交付快照及当前块就绪状态。调用方必须先确认是同一正式播放器，检查过程不能创建下载需求。前次请求可以仍在活动；错误正文不计入交付。

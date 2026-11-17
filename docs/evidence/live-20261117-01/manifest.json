@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261117-01.md",
-      "bytes": 8327,
-      "sha256": "cdc2644c2e97a9de7d21a828a7092cf18bfb3d117aa1930130c9949cae85d91f",
+      "bytes": 9031,
+      "sha256": "8886e7cdef220b63ffbce3c9af105237b24ed773ea3ca8e4f4bbf718f96e280a",
       "source": "Recorded experiment or selected runtime provenance",
       "sanitization": "Relative sample times, song IDs and selected facts only; no identities, personal paths, credentials, raw game logs or media"
     },

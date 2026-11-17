@@ -176,7 +176,8 @@ func TestExpiredGETKeepsFutureBlockExecution(t *testing.T) {
 				t.Fatal("handoff duplicated an execution or poisoned storage", calls.Load(), runs.Load(), s.StorageError())
 			}
 			resumed.Close()
-			if err := s.Close(); err != nil {
+			// The shared Store owns history collection beyond engine shutdown.
+			if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {
 				t.Fatal(err)
 			}
 			page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 10})

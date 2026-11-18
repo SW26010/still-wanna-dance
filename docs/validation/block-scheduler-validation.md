@@ -1134,7 +1134,7 @@ Go 1.27.3、Windows amd64；全部 Go 检查沿用临时目录及依赖补丁入
 
 随后把替换地址查询保持在阻塞状态，复现了旧下载退出后 GET 一直等到查询返回的问题。修复后，查询仍挂起时 GET 已返回 504，剩余范围进入交接，共享查询继续运行。虚拟时钟还验证了首块先变为可读时，等待会延续到下一个缺块的截止。[地址重试测试](../../internal/cacheproxy/address_sources_test.go) · [缺块时序测试](../../internal/cacheproxy/download_expiry_test.go)
 
-另一条回归让最后一次 Range 失败和 A 的截止在同一时刻可见。此前 A 丢失截止原因和交接，修复后 A 按截止退出，B 保留共享下载的上游错误。同一时序注入本地存储失败时，存储错误照常传递。[同时失败测试](../../internal/cacheproxy/download_expiry_test.go)
+在 `ce8ac59b` 的回归中，最后一次 Range 失败和 A 的截止同时可见时，下载收尾额外重评，A 按截止退出，B 保留共享下载的上游错误。本地存储失败照常传递。该优先规则已由[来源截止与共享失败规则](../download-resource-design.md#单次尝试超时与下载延续截止)替代。现行[同时失败测试](../../internal/cacheproxy/download_expiry_test.go)覆盖共享失败先被处理、两个来源仍有效的情形。
 
 跨会话换址回归让 B 在 A 的截止前发布同一文件，A 的地址查询在截止后才返回。修复前 A 依据旧会话的缺块记录返回 504。修复后 A 从正式缓存读到完整内容并返回 200，没有重复回源或交接。只写入首个临时块时，A 按下一个缺块的截止退出。[HTTP 换址回归](../../internal/cacheproxy/address_sources_test.go) · [临时块时序回归](../../internal/cacheproxy/download_expiry_test.go)
 

@@ -61,7 +61,7 @@ func TestDownloadExpirySelectsGETsByRemainingSpanAndOwnClock(t *testing.T) {
 	})
 }
 
-func TestGETDeadlineOnFinalRangeFailure(t *testing.T) {
+func TestFinalRangeFailurePreservesActiveSources(t *testing.T) {
 	for _, failure := range []error{errUpstreamDownload, ErrLocalStorage} {
 		t.Run(failure.Error(), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -90,9 +90,8 @@ func TestGETDeadlineOnFinalRangeFailure(t *testing.T) {
 				if got := w.close(err); got != failure || b.ctx.Err() != nil {
 					t.Fatal("shared failure or surviving source changed", got, context.Cause(b.ctx))
 				}
-				wantExpired := failure == errUpstreamDownload
-				if errors.Is(context.Cause(a.ctx), errSourceExpired) != wantExpired || (len(snapshotUseHandoffs(s)) == 1) != wantExpired {
-					t.Fatal("incorrect GET outcome at final range failure", failure, context.Cause(a.ctx), len(snapshotUseHandoffs(s)))
+				if a.ctx.Err() != nil || len(snapshotUseHandoffs(s)) != 0 {
+					t.Fatal("session cleanup withdrew an active GET", context.Cause(a.ctx), len(snapshotUseHandoffs(s)))
 				}
 			})
 		})

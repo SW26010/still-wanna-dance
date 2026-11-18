@@ -326,15 +326,6 @@ func (w *downloadSession) close(result error) error {
 			result = preferDownloadError(result, j.task.Err())
 		}
 	}
-	// A final upstream failure wakes every reader. Settle each source's own
-	// deadline before publishing that failure to the readers still waiting.
-	if errors.Is(result, errUpstreamDownload) && !isLocalStorageError(result) {
-		w.s.mu.Lock()
-		if !w.s.closed && w.ctx.Err() == nil {
-			w.s.refreshDownloadDeadlinesLocked(w.f, w.v.key, time.Now(), w.f.ranges.firstMissing)
-		}
-		w.s.mu.Unlock()
-	}
 	return result
 }
 

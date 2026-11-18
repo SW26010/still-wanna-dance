@@ -15,7 +15,7 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	need := func(ready, lease time.Duration) blocksched.Need {
 		return blocksched.Need{Owner: "shared", ReadyBy: now.Add(ready), LeaseUntil: now.Add(lease)}
 	}
-	handoff := need(2*time.Second, 20*time.Second)
+	handoff := need(15*time.Second-sourceGrace, 20*time.Second)
 	handoff.WindowClosed = true
 	sources := map[blockSource]plannedNeed{
 		get:                       {need: need(5*time.Second, 10*time.Second)},
@@ -30,7 +30,7 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	if !n.LeaseUntil.Equal(now.Add(30*time.Second)) || !summary.nextExpiry.Equal(now.Add(10*time.Second)) {
 		t.Fatal("winner overwrote another lease", n)
 	}
-	if summary.protectReady != now.Add(2*time.Second) {
+	if summary.protectReady != handoff.ReadyBy {
 		t.Fatal("download urgency filtering removed finite usage protection", summary)
 	}
 	if sources[blockSource{"handoff", 3}].need.LeaseUntil != now.Add(20*time.Second) {
@@ -54,7 +54,11 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	}
 	delete(sources, get)
 	delete(sources, queue)
-	if n := aggregateUse(sources, now.Add(11*time.Second)).need; !n.WindowClosed || n.Opportunistic || n.ReadyBy != handoff.ReadyBy || n.LeaseUntil != handoff.LeaseUntil {
+	summary = aggregateUse(sources, now.Add(11*time.Second))
+	if want := now.Add(15 * time.Second); summary.nextExpiry != want {
+		t.Fatalf("next recheck = %v, want source deadline %v", summary.nextExpiry, want)
+	}
+	if n := summary.need; !n.WindowClosed || n.Opportunistic || n.ReadyBy != handoff.ReadyBy || n.LeaseUntil != handoff.LeaseUntil {
 		t.Fatal("closed contribution lost its independent clock or gained admission", n)
 	}
 	sources[blockSource{"batch", 4}] = plannedNeed{need: blocksched.Need{Owner: "shared", LeaseUntil: now.Add(time.Minute)}}

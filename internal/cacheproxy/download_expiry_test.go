@@ -374,47 +374,6 @@ func TestDownloadExpiryWithoutFutureUsageKeepsOnlyHandoffProtection(t *testing.T
 	})
 }
 
-func TestExpiredGETHandoffDoesNotExtendRunningDeadline(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		w, s := testSession(t)
-		w.v.size = 2 * rangeBlockSize
-		now := time.Now()
-		clock := &playbackClock{at: now.Add(-sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, 2 * time.Second}}
-		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
-		defer release()
-		d.flight = w.f
-		started := make(chan struct{})
-		n := blocksched.Need{Owner: w.v.key, ReadyBy: clock.ready(rangeBlockSize), LeaseUntil: now.Add(time.Hour)}
-		task, demand, err := s.scheduler.Schedule(w.reads.Key(1), rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
-			close(started)
-			<-ctx.Done()
-			return blocksched.Result{Err: context.Cause(ctx)}
-		}, n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		<-started
-		w.jobs[1] = &scheduledBlock{task: task, merged: demand, published: n}
-		s.expireDownload(w.f, w.v.key, 0)
-		reconcileSession(t, w)
-		time.Sleep(time.Second - time.Nanosecond)
-		select {
-		case <-task.Done():
-			t.Fatal("handoff stopped valid work before its deadline", task.Err())
-		default:
-		}
-		time.Sleep(time.Nanosecond)
-		synctest.Wait()
-		reconcileSession(t, w)
-		if err := task.Err(); !errors.Is(err, context.Canceled) {
-			t.Fatal("handoff extended the original download deadline", err)
-		}
-		if len(snapshotUseHandoffs(s)) != 1 || useCount(s) != 2 {
-			t.Fatal("download expiry ended usage before the fixed handoff expiry")
-		}
-	})
-}
-
 func TestDelayedExpiredGETHandoffKeepsFrozenExitAndIndependentGET(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)

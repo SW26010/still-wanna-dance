@@ -9,6 +9,14 @@ import (
 	"still-wanna-dance/internal/blocksched"
 )
 
+func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
+	var result blockUse
+	for _, p := range plan {
+		result = mergeUse(result, p.use(now, blocksched.DefaultPrepareAhead))
+	}
+	return result
+}
+
 func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	now := time.Now()
 	get, queue := blockSource{"get", 1}, blockSource{"queue", 2}
@@ -30,7 +38,7 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	if !n.LeaseUntil.Equal(now.Add(30*time.Second)) || !summary.nextExpiry.Equal(now.Add(10*time.Second)) {
 		t.Fatal("winner overwrote another lease", n)
 	}
-	if summary.protectReady != handoff.ReadyBy {
+	if summary.protectAt != handoff.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
 		t.Fatal("download urgency filtering removed finite usage protection", summary)
 	}
 	if sources[blockSource{"handoff", 3}].need.LeaseUntil != now.Add(20*time.Second) {
@@ -70,8 +78,10 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
 	now := time.Now()
 	for _, source := range []string{"get", "batch", "queue"} {
-		closed := plannedNeed{protectionClosed: true,
-			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(125 * time.Second), LeaseUntil: now.Add(sourceLease), WindowClosed: true}}
+		closed := plannedNeed{need: blocksched.Need{
+			Owner: "shared", LeaseUntil: now.Add(sourceLease), WindowClosed: true,
+			Rolling: blocksched.RollingDeadline{Base: now.Add(-time.Hour), Offset: blocksched.DefaultPrepareAhead + 5*time.Second},
+		}}
 		independent := plannedNeed{
 			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(145 * time.Second), LeaseUntil: now.Add(20 * time.Second)}}
 		if source == "batch" {
@@ -79,7 +89,7 @@ func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
 		}
 		for range 20 { // Map iteration must not change which source qualifies.
 			use := aggregateUse(map[blockSource]plannedNeed{{"queue", 1}: closed, {"other", 2}: independent}, now)
-			if use.need.WindowClosed || use.need.ReadyBy != independent.need.ReadyBy || use.protectReady != independent.need.ReadyBy {
+			if use.need.WindowClosed || use.need.ReadyAt(now) != independent.need.ReadyBy || use.protectAt != independent.need.WindowAt(blocksched.DefaultPrepareAhead) {
 				t.Fatal("closed queue changed independent source timing", source, use)
 			}
 			if use.need.Opportunistic != (source == "batch") {

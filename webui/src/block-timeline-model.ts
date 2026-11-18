@@ -1,12 +1,14 @@
 export type BlockState = 'waiting' | 'downloading' | 'available' | 'protected' | 'stopping';
-export interface BlockView {
+interface RollingTime { rollingBase?: number; rollingOffset?: number }
+export interface BlockView extends RollingTime {
   id: string; resource: string; songID: string; colorKey?: string; block: number; byteOffset: number; totalBlocks: number; bytes: number; title: string;
   at: number; timeBasis: 'need-by' | 'last-need-by' | 'ended' | 'untimed';
   needBy: number; deadline: number; protectionStart: number; protectionUntil: number;
+  fixedNeedBy?: number;
   protected: boolean; inUse: boolean; sources: number; readers: number; state: BlockState;
   windowClosed: boolean; opportunistic: boolean; eligible: boolean;
 }
-export interface BlockSource {
+export interface BlockSource extends RollingTime {
   id: number; kind: 'get' | 'queue' | 'batch' | 'handoff'; songID: string; title: string;
   position: number; needBy: number; expiresAt: number; windowClosed: boolean;
 }
@@ -51,6 +53,13 @@ export function videoLabel(video: { title: string; songID: string; resource: str
 }
 export function blockNumber(block: BlockView) {
   return `${block.block + 1}/${block.totalBlocks > 0 ? block.totalBlocks : '?'}`;
+}
+export function rollingNeedBy(value: RollingTime, now: number) {
+  return value.rollingBase ? Math.max(value.rollingBase, now) + (value.rollingOffset ?? 0) : 0;
+}
+export function needByAt(value: RollingTime & { needBy: number; fixedNeedBy?: number }, now: number) {
+  const rolling = rollingNeedBy(value, now);
+  return rolling ? Math.min(value.fixedNeedBy || Infinity, rolling) : value.needBy;
 }
 export function demandLabel(demand: BlockDemand) {
   return demand.kind === 'get' ? `读取 #${demand.sourceID}` : demand.kind === 'queue' ? `队列 #${demand.position}` : demand.kind === 'batch' ? '手动下载' : '短期交接';

@@ -6,9 +6,9 @@ import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { Feedback, StatusBadge, useThemePreference } from './ui';
 import { useApp, useFocusRecovery, useRunToggle } from './hooks';
-import { absoluteTime, blockNumber, blockStateNames, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
+import { absoluteTime, blockNumber, blockStateNames, needByAt, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
-import { blockY, drawTimeline, hitBlocks, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
+import { blockY, drawTimeline, hitBlocks, indexTimed, timedBetween, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
 import { gib } from './types';
 
@@ -71,8 +71,9 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   const defaultSpan = Math.max(120000, data.prepareAheadMS * 2 || 1000000);
   const [view, setView] = useState<View>({ follow: true, center: data.at || Date.now(), span: defaultSpan, offset: 0 });
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [paintTime, setPaintTime] = useState(data.at);
   const [palette, setPalette] = useState<TimelinePalette>();
-  const timed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => b.at).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)) : [], [data.blocks, expanded]);
+  const timed = useMemo(() => indexTimed(expanded ? data.blocks.values() : []), [data.blocks, expanded]);
   const untimed = useMemo(() => expanded ? [...data.blocks.values()].filter(b => !b.at).sort((a, b) => a.resource.localeCompare(b.resource) || a.block - b.block) : [], [data.blocks, expanded]);
   const untimedBounds = untimedLayout(width, untimed.length, blockSize), visibleUntimedOffset = Math.min(untimedOffset, untimedBounds.maxOffset);
   const latest = useRef({ data, active, expanded, view, timed, untimed, untimedOffset: visibleUntimedOffset, selection, width, palette, reducedMotion, blockSize, layers });
@@ -104,6 +105,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   };
   const selectedID = selection?.ids[selection.index];
   const selectedBlock = selectedID ? data.blocks.get(selectedID) : undefined;
+  const selectedNeedBy = selectedBlock && needByAt(selectedBlock, reducedMotion ? paintTime : data.at + (active ? performance.now() - data.receivedAt : 0));
   useEffect(() => {
     // Folding the axis clears only selections made on that hidden canvas.
     if (!expanded && selectionTarget.current === canvas.current) closeSelection();
@@ -149,8 +151,11 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     if (!ctx || !palette) return;
     let disposed = false;
     const paint = (force = false) => {
-      if (disposed || !latest.current.expanded || !canvasInView && !force) return;
+      if (disposed) return;
       const c = latest.current, currentTime = now();
+      // Demand rows can open the same detail while the axis is folded.
+      if (c.reducedMotion && c.selection) setPaintTime(currentTime);
+      if (!c.expanded || !canvasInView && !force) return;
       const { height } = timelineLayout(c.layers, !!c.timed.length, !!c.untimed.length, c.blockSize), dpr = window.devicePixelRatio || 1;
       if (element.width !== Math.round(c.width * dpr) || element.height !== Math.round(height * dpr)) {
         element.width = Math.round(c.width * dpr); element.height = Math.round(height * dpr);
@@ -284,7 +289,8 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     if (timed.length && event.key === '-') { event.preventDefault(); controls.current.zoom(1 / 1.5); return; }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter'].includes(event.key)) return;
     event.preventDefault();
-    const blocks = [...timed, ...untimed]; if (!blocks.length) return;
+    const currentTime = now();
+    const blocks = [...timedBetween(timed, currentTime, -Infinity, Infinity).map(point => point.block), ...untimed]; if (!blocks.length) return;
     const index = blocks.findIndex(b => b.id === selectedID);
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? blocks.length - 1 : Math.max(0, Math.min(blocks.length - 1, index + (event.key === 'ArrowLeft' ? -1 : event.key === 'Enter' ? 0 : 1)));
     const block = blocks[next];
@@ -292,7 +298,8 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     let anchorX = plotCenter;
     if (block.at) {
       const visibleFrame = frame.current;
-      if (!visibleFrame || Math.abs(block.at - visibleFrame.center) > view.span * .4) controls.current.pan(block.at);
+      const at = block.timeBasis === 'need-by' ? needByAt(block, currentTime) : block.at;
+      if (!visibleFrame || Math.abs(at - visibleFrame.center) > view.span * .4) controls.current.pan(at);
     } else {
       const center = untimed.findIndex(b => b.id === block.id) * untimedBounds.pitch + blockSize / 2;
       const offset = Math.max(0, Math.min(untimedBounds.maxOffset, center - plotWidth / 2));
@@ -335,7 +342,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       if (pinned) { showBlocks(blocks, x, y, true); return; }
       hoverBlocks(blocks, x, y);
     }} />}
-    <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，need-by ${selectedBlock.needBy ? absoluteTime(selectedBlock.needBy) : '无期限'}。`}</span>
+    <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，need-by ${selectedNeedBy ? absoluteTime(selectedNeedBy) : '无期限'}。`}</span>
     <Popover open={!!selectedBlock && active} onOpenChange={(event, value) => {
       // A pinned selection survives toolbar clicks. Escape
       // and the close button still dismiss it explicitly.
@@ -346,22 +353,34 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
           {!selection.pinned && <Button size="small" appearance="subtle" icon={<Pin20Regular />} aria-label="固定块详情" onClick={() => setSelection({ ...selection, pinned: true })} />}
           <Button size="small" appearance="subtle" icon={<Dismiss20Regular />} aria-label="关闭块详情" onClick={() => { closeSelection(); (selectionTarget.current?.isConnected ? selectionTarget.current : expanded ? canvas.current : root.current)?.focus(); }} /></div></div>
           {selection.ids.length > 1 && <div className="timeline-overlap"><Button size="small" icon={<ChevronLeft20Regular />} aria-label="上一个重叠块" onClick={() => setSelection({ ...selection, index: (selection.index + selection.ids.length - 1) % selection.ids.length, pinned: true })} /><span>重叠 {selection.ids.length} 块 · {selection.index + 1} / {selection.ids.length}</span><Button size="small" icon={<ChevronRight20Regular />} aria-label="下一个重叠块" onClick={() => setSelection({ ...selection, index: (selection.index + 1) % selection.ids.length, pinned: true })} /></div>}
-          <BlockProperties key={selectedID} id={selectedID} block={selectedBlock} active={active && !!selectedBlock} />
+          <BlockProperties key={selectedID} id={selectedID} block={selectedBlock} active={active && !!selectedBlock} clock={data} paintTime={reducedMotion ? paintTime : undefined} />
         </>}
       </PopoverSurface>
     </Popover>
   </div>;
 });
 
-function BlockProperties({ id, block, active }: { id: string; block?: BlockView; active: boolean }) {
+function BlockProperties({ id, block, active, clock, paintTime }: { id: string; block?: BlockView; active: boolean; clock: Pick<TimelineData, 'at' | 'receivedAt'>; paintTime?: number }) {
   const { detail, error } = useBlockDetail(id, active);
   const b = detail?.block || block;
+  const rolling = !!b?.rollingBase || !!detail?.sources.some(source => source.rollingBase);
+  const tick = active && rolling && paintTime === undefined;
+  const [sample, sampleClock] = useState(() => performance.now());
+  useEffect(() => {
+    if (!tick) return;
+    const sampleNow = () => sampleClock(performance.now());
+    sampleNow();
+    const timer = setInterval(sampleNow, 1000);
+    return () => clearInterval(timer);
+  }, [tick]);
   if (!b) return <p>这个块已退出当前视图。</p>;
+  const now = paintTime ?? (clock.at + Math.max(0, sample - clock.receivedAt));
+  const needBy = needByAt(b, now);
   return <div className="timeline-properties">
     <p className="timeline-block-title"><span className={!b.title&&!b.songID?'resource-id':undefined}>{videoLabel(b)}</span> <Badge appearance="tint" color={b.state === 'available' ? 'success' : 'informative'}>{blockStateNames[b.state]}</Badge></p>
     <dl className="timeline-properties-grid">
       <dt>视频内编号</dt><dd>{blockNumber(b)}{b.totalBlocks <= 0 && '（总数未知）'}{b.songID && ` · 歌曲 ${b.songID}`}</dd>
-      <dt>need-by</dt><dd>{b.needBy ? absoluteTime(b.needBy) : '无有限期限'}</dd>
+      <dt>need-by</dt><dd>{needBy ? absoluteTime(needBy) : '无有限期限'}</dd>
       <dt>需求截止</dt><dd>{absoluteTime(b.deadline)}</dd>
       <dt>下载资格</dt><dd>{!b.inUse ? '使用需求已结束' : b.readers ? '读取急需' : b.windowClosed ? '来源尚未开放窗口' : b.eligible ? '可参与调度' : '等待窗口或有效需求'}</dd>
       <dt>读取等待</dt><dd>{b.readers ? `${b.readers} 个读取者` : '无'}</dd>
@@ -372,7 +391,7 @@ function BlockProperties({ id, block, active }: { id: string; block?: BlockView;
     {b.timeBasis === 'last-need-by' && <Caption1 as="p">沿用最后一次 need-by 的位置；当前已无需求。</Caption1>}
     {b.opportunistic && b.inUse && <Caption1 as="p">同时允许机会下载。</Caption1>}
     <Text weight="semibold" className="timeline-source-heading">需求来源 · {b.sources}</Text>
-    {error ? <Feedback error>来源连接中断，正在重连。</Feedback> : detail === undefined ? <Spinner size="tiny" label="读取来源" /> : detail === null ? <p>需求已结束。</p> : detail.sources.length ? <ul className="timeline-sources">{detail.sources.map(source => <li key={source.id}><strong>{sourceName(source)}</strong>{(source.title || source.songID) && <span>{source.title || `歌曲 ${source.songID}`}</span>}<span>need-by：{source.needBy ? absoluteTime(source.needBy) : '无期限'}{source.windowClosed ? ' · 尚未入窗' : ''}</span>{source.expiresAt > 0 && <span>交接截止：{absoluteTime(source.expiresAt)}</span>}</li>)}</ul> : <p className="hint">已无使用需求，本地数据仍在延续保护期。</p>}
+    {error ? <Feedback error>来源连接中断，正在重连。</Feedback> : detail === undefined ? <Spinner size="tiny" label="读取来源" /> : detail === null ? <p>需求已结束。</p> : detail.sources.length ? <ul className="timeline-sources">{detail.sources.map(source => <li key={source.id}><strong>{sourceName(source)}</strong>{(source.title || source.songID) && <span>{source.title || `歌曲 ${source.songID}`}</span>}<span>need-by：{source.needBy ? absoluteTime(needByAt(source, now)) : '无期限'}{source.windowClosed ? ' · 尚未入窗' : ''}</span>{source.expiresAt > 0 && <span>交接截止：{absoluteTime(source.expiresAt)}</span>}</li>)}</ul> : <p className="hint">已无使用需求，本地数据仍在延续保护期。</p>}
     <Caption1 as="p" className="timeline-resource">资源 <span className="resource-id">{b.resource}</span></Caption1>
   </div>;
 }

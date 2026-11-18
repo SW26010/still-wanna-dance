@@ -136,16 +136,10 @@ func (s *Server) armUseTimerLocked() {
 		s.useTimer.Stop()
 		s.useTimer = nil
 	}
-	if s.closed {
+	if s.closed || len(s.useHandoffs) == 0 {
 		return
 	}
-	next := s.nextQueueRetimeLocked()
-	if len(s.useHandoffs) > 0 {
-		next = earlier(next, s.useHandoffs[0].until)
-	}
-	if next.IsZero() {
-		return
-	}
+	next := s.useHandoffs[0].until
 	s.useTimer = time.AfterFunc(max(0, time.Until(next)), func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()

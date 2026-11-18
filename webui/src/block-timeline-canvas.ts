@@ -1,5 +1,5 @@
 import { scaleUtc } from 'd3-scale';
-import { blockNumber, timeLabel, type BlockView, type TimelineData } from './block-timeline-model';
+import { blockNumber, rollingNeedBy, timeLabel, type BlockView, type TimelineData } from './block-timeline-model';
 
 const laneNames = ['待下载', '下载中', '本地'];
 const readerDotOffset = 9, readerDotRadius = 2.5;
@@ -26,7 +26,7 @@ export interface TimelinePalette {
   videoEdges: string[];
 }
 export interface TimelineFrame {
-  data: TimelineData; timed: BlockView[]; untimed: BlockView[];
+  data: TimelineData; timed: TimedBlocks; untimed: BlockView[];
   center: number; now: number; span: number; width: number; untimedOffset: number;
   selected?: string; palette: TimelinePalette;
   blockSize: number; layers: boolean;
@@ -43,10 +43,49 @@ export function untimedLayout(width: number, count: number, size: number) {
 export function timeScale(frame: Pick<TimelineFrame, 'center' | 'span' | 'width' | 'layers'>) {
   return scaleUtc().domain([frame.center - frame.span / 2, frame.center + frame.span / 2]).range(timelineRange(frame.width, frame.layers));
 }
-function lowerBound(blocks: BlockView[], at: number) {
+interface TimedPoint { block: BlockView; at: number }
+interface TimedBlocks { length: number; fixed: TimedPoint[]; rolling: Map<number, TimedPoint[]> }
+const comparePoints = (a: TimedPoint, b: TimedPoint) => a.at - b.at || a.block.id.localeCompare(b.block.id);
+
+export function indexTimed(blocks: Iterable<BlockView>): TimedBlocks {
+  const index: TimedBlocks = { length: 0, fixed: [], rolling: new Map() };
+  for (const block of blocks) {
+    if (!block.at) continue;
+    index.length++;
+    const fixed = block.rollingBase ? block.fixedNeedBy : block.at;
+    if (fixed) index.fixed.push({ block, at: fixed });
+    if (block.rollingBase) {
+      let group = index.rolling.get(block.rollingBase);
+      if (!group) index.rolling.set(block.rollingBase, group = []);
+      group.push({ block, at: block.rollingOffset ?? 0 });
+    }
+  }
+  index.fixed.sort(comparePoints);
+  for (const group of index.rolling.values()) group.sort(comparePoints);
+  return index;
+}
+
+function lowerBound(blocks: TimedPoint[], at: number) {
   let low = 0, high = blocks.length;
   while (low < high) { const middle = (low + high) >>> 1; if (blocks[middle].at < at) low = middle + 1; else high = middle; }
   return low;
+}
+// Each rolling group moves by the same amount. Search its visible range using
+// the current origin, then compare with independent fixed deadlines.
+export function timedBetween(index: TimedBlocks, now: number, first: number, last: number) {
+  const points: TimedPoint[] = [];
+  for (let i = lowerBound(index.fixed, first); i < index.fixed.length && index.fixed[i].at <= last; i++) {
+    const point = index.fixed[i], rolling = rollingNeedBy(point.block, now);
+    if (!rolling || point.at <= rolling) points.push(point);
+  }
+  for (const [base, group] of index.rolling) {
+    const origin = Math.max(base, now);
+    for (let i = lowerBound(group, first - origin); i < group.length && group[i].at <= last - origin; i++) {
+      const { block, at: offset } = group[i], at = origin + offset;
+      if (!block.fixedNeedBy || at < block.fixedNeedBy) points.push({ block, at });
+    }
+  }
+  return index.rolling.size ? points.sort(comparePoints) : points;
 }
 export function hitBlocks(frame: TimelineFrame, x: number, y: number) {
   const { blockSize: size, layers } = frame, { untimedY } = timelineLayout(layers, !!frame.timed.length, !!frame.untimed.length, size);
@@ -61,8 +100,8 @@ export function hitBlocks(frame: TimelineFrame, x: number, y: number) {
   if (x < plotStart - 12 || x > plotEnd + 12) return [];
   const scale = timeScale(frame), first = +scale.invert(x - size / 2), last = +scale.invert(x + size / 2);
   const hits: BlockView[] = [];
-  for (let i = lowerBound(frame.timed, first); i < frame.timed.length && frame.timed[i].at <= last; i++) {
-    const block = frame.timed[i], top = blockY(block, layers, size);
+  for (const { block } of timedBetween(frame.timed, frame.now, first, last)) {
+    const top = blockY(block, layers, size);
     if (y >= top && y <= top + size) hits.push(block);
   }
   return hits; // Earlier times are painted on top; keep covered blocks reachable.
@@ -173,21 +212,20 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     }
     ctx.save(); ctx.beginPath(); ctx.rect(left, timedY - 13, right - left, axis - timedY + 9); ctx.clip();
     const min = +x.invert(left - size), max = +x.invert(right + size);
-    let selected: BlockView | undefined;
-    const first = lowerBound(timed, min);
-    let end = lowerBound(timed, max);
-    while (end < timed.length && timed[end].at === max) end++;
-    for (let i = end - 1; i >= first; i--) {
-      const b = timed[i];
-      if (b.id === frame.selected) selected = b;
-      drawBlock(ctx, b, x(b.at) - size / 2, blockY(b, layers, size), size, p, b.id === frame.selected);
+    let selected: TimedPoint | undefined;
+    const visible = timedBetween(timed, now, min, max);
+    for (let i = visible.length - 1; i >= 0; i--) {
+      const { block, at } = visible[i];
+      if (block.id === frame.selected) selected = visible[i];
+      drawBlock(ctx, block, x(at) - size / 2, blockY(block, layers, size), size, p, block.id === frame.selected);
     }
     ctx.restore();
     if (selected) {
-      const label = `块 ${blockNumber(selected)} · ${selected.timeBasis === 'ended' ? '需求结束' : selected.timeBasis === 'last-need-by' ? '原 need-by' : 'need-by'} ${timeLabel(selected.at)}`;
+      const { block, at } = selected;
+      const label = `块 ${blockNumber(block)} · ${block.timeBasis === 'ended' ? '需求结束' : block.timeBasis === 'last-need-by' ? '原 need-by' : 'need-by'} ${timeLabel(at)}`;
       ctx.fillStyle = p.foreground; ctx.textAlign = 'center'; ctx.font = font;
       const half = ctx.measureText(label).width / 2;
-      ctx.fillText(label, Math.max(12 + half, Math.min(width - 12 - half, x(selected.at))), 8, width - 24);
+      ctx.fillText(label, Math.max(12 + half, Math.min(width - 12 - half, x(at))), 8, width - 24);
     }
   }
   if (untimed.length) {

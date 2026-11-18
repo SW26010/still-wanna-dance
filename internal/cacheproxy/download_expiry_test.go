@@ -209,7 +209,7 @@ func TestExpiredGETAcrossFlightAttachment(t *testing.T) {
 		a, releaseA := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
 		defer releaseA()
 		plan, _, _ := w.plan(now)
-		if plan[0].need.Owner != "" || plan[1].need.Owner != "" || plan[0].protectReady != clock.at || a.ctx.Err() != nil {
+		if plan[0].need.Owner != "" || plan[1].need.Owner != "" || plan[0].protectAt != clock.at.Add(-s.cfg.prepareAhead()) || a.ctx.Err() != nil {
 			t.Fatal("unattached GET funded a download or lost its usage", plan[0])
 		}
 
@@ -355,7 +355,7 @@ func TestDownloadExpiryWithoutFutureUsageKeepsOnlyHandoffProtection(t *testing.T
 		}
 		plan, _, _ := w.plan(now)
 		for block, use := range plan {
-			if use.need.Owner != "" || use.protectReady.IsZero() {
+			if use.need.Owner != "" || use.protectAt.IsZero() {
 				t.Fatal("expired handoff gained download qualification or lost protection", block, use)
 			}
 		}
@@ -425,7 +425,7 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 		get.flight = w.f
 		s.expireDownload(w.f, w.v.key, 0)
 		plan, _, _ := w.plan(time.Now())
-		if queue.ctx.Err() != nil || plan[0].need.ReadyBy != queue.queueSource.readyBy(0, rangeBlockSize) || !plan[0].need.Opportunistic || len(s.useHandoffs) != 1 {
+		if queue.ctx.Err() != nil || plan[0].need.ReadyAt(time.Now()) != time.Now() || !plan[0].need.Opportunistic || len(s.useHandoffs) != 1 {
 			t.Fatal("old GET failure erased or bypassed remaining source timing", plan[0])
 		}
 	})
@@ -487,12 +487,12 @@ func TestExpiredHandoffKeepsUsageWithoutDownloadQualification(t *testing.T) {
 	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace), WindowClosed: true}
 	plan := map[blockSource]plannedNeed{{"handoff", 1}: {need: old}}
 	use := aggregateUse(plan, now)
-	if use.need.Owner != "" || use.protectReady != old.ReadyBy {
+	if use.need.Owner != "" || use.protectAt != old.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
 		t.Fatal("expired handoff retained execution or lost usage protection", use)
 	}
 	plan[blockSource{"batch", 1}] = plannedNeed{need: blocksched.Need{Owner: "video", LeaseUntil: now.Add(sourceLease)}}
 	use = aggregateUse(plan, now)
-	if !use.need.ReadyBy.IsZero() || !use.need.Opportunistic || use.protectReady != old.ReadyBy {
+	if !use.need.ReadyBy.IsZero() || !use.need.Opportunistic || use.protectAt != old.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
 		t.Fatal("expired handoff poisoned independent untimed qualification", use)
 	}
 }

@@ -168,7 +168,7 @@ func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
 		}
 		// Keep the published snapshot across the old absolute t=65 entry.
 		plan, _, _ := w.plan(time.Now())
-		if !plan[1].refetchAt(s.cfg.prepareAhead()).IsZero() {
+		if !plan[1].refetchAt().IsZero() {
 			t.Fatal("out-of-window resource retained an absolute refetch timer")
 		}
 		time.Sleep(6 * time.Second)

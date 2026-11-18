@@ -105,13 +105,13 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		now := time.Now()
 		plan, _, _ := w.plan(now)
 		before, ok := plan[0]
-		if !ok || before.need.ReadyBy.IsZero() {
+		if !ok || before.need.ReadyAt(now).IsZero() {
 			t.Fatal("ordinary queue source missing")
 		}
 		s.UpdatePrefetchQueue([]int64{2, 1}, false)
 		plan, _, _ = w.plan(now)
 		after, ok := plan[0]
-		if !ok || !after.need.ReadyBy.Equal(before.need.ReadyBy.Add(-typicalDuration)) {
+		if !ok || !after.need.ReadyAt(now).Equal(before.need.ReadyAt(now).Add(-typicalDuration)) {
 			t.Fatal("queue reorder did not update deadline")
 		}
 		job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
@@ -131,7 +131,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		w.jobs[0].task.Watch(w.wake)
 		// Handoff preserves the original queue clock without new admission.
 		// (The plan was obtained at the same now for both queue orders.)
-		if ready := w.jobs[0].published.ReadyBy; !w.jobs[0].published.WindowClosed || !ready.Equal(after.need.ReadyBy) {
+		if ready := w.jobs[0].published.ReadyBy; !w.jobs[0].published.WindowClosed || !ready.Equal(after.need.ReadyAt(now)) {
 			t.Fatal("handoff changed the original queue clock", ready)
 		}
 		if handoff := w.jobs[0].published.LeaseUntil; !handoff.Equal(now.Add(handoffGrace)) {

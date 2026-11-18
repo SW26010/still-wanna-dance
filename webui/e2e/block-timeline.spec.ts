@@ -66,6 +66,87 @@ test('block details use engine byte offsets for custom sizes and tails', async (
   await expect(popup.getByText('fixture-resource',{exact:true})).toHaveCSS('font-family',/Consolas|monospace/);
 });
 
+test('rolling queue times advance and reorder without receiving another snapshot', async ({ page }) => {
+  await page.clock.install();
+  const f = await setup(page, 2);
+  const base = f.at + 3000;
+  const head = block(0, base, { rollingBase: base, deadline: 0, totalBlocks: 2 });
+  const fixed = block(1, f.at + 6500, { totalBlocks: 2 });
+  await f.detail(head, [{ id: 1, kind: 'queue', songID: '42', title: '星河', position: 1, needBy: base, rollingBase: base, expiresAt: 0, windowClosed: false }]);
+  await f.emit({ reset: true, blocks: [head, fixed], used: 2 });
+  await f.open();
+  await f.canvas.focus();
+  await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup).toContainText('块 1/2');
+  const needBy = popup.locator('dd').nth(1), deadline = popup.locator('dd').nth(2), original = await needBy.innerText();
+  await expect(deadline).toHaveText('—');
+  await page.clock.runFor(8500);
+  await expect(needBy).not.toHaveText(original);
+  await expect(deadline).toHaveText('—');
+  await f.canvas.press('Home');
+  await expect(popup).toContainText('块 2/2');
+});
+
+test('reduced motion samples rolling details with the canvas on redraw', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.install();
+  await page.addInitScript(() => {
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (label, ...args) {
+      const selected = /^块 .+ · need-by (.+)$/.exec(label);
+      if (selected) this.canvas.dataset.selectedTime = selected[1];
+      fillText.call(this, label, ...args);
+    };
+  });
+  const f = await setup(page, 1);
+  const head = block(0, f.at, { rollingBase: f.at, deadline: 0, sources: 1, totalBlocks: 1 });
+  await f.detail(head, [{ id: 1, kind: 'queue', songID: '42', title: '星河', position: 1, needBy: f.at, rollingBase: f.at, expiresAt: 0, windowClosed: false }]);
+  await f.emit({ reset: true, blocks: [head], used: 1 });
+  await f.open();
+  await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  const needBy = popup.locator('dd').nth(1), source = popup.locator('.timeline-sources');
+  const checkSample = async () => {
+    const stamp = await needBy.innerText();
+    await expect(f.canvas).toHaveAttribute('data-selected-time', stamp.split(' ').pop()!.padStart(8, '0'));
+    await expect(source).toContainText(stamp);
+    await expect(f.panel.locator('.timeline-selection-status')).toContainText(stamp);
+    return stamp;
+  };
+  const original = await checkSample();
+  await page.clock.runFor(3000);
+  expect(await needBy.innerText()).toBe(original);
+  await checkSample();
+  await f.canvas.press('=');
+  await expect(needBy).not.toHaveText(original);
+  await checkSample();
+});
+
+test('block details keep the fixed source deadline while need-by rolls', async ({ page }) => {
+  await page.clock.install();
+  const f = await setup(page, 1);
+  const fixed = f.at + 60000, deadline = fixed + 30000;
+  const shared = block(0, f.at, { rollingBase: f.at, fixedNeedBy: fixed, deadline, totalBlocks: 1 });
+  const common = { songID: '42', title: '星河', expiresAt: 0, windowClosed: false };
+  await f.detail(shared, [
+    { ...common, id: 1, kind: 'queue', position: 1, needBy: f.at, rollingBase: f.at },
+    { ...common, id: 2, kind: 'get', position: 0, needBy: fixed },
+  ]);
+  await f.emit({ reset: true, blocks: [shared], used: 1 });
+  await f.open();
+  await f.canvas.focus();
+  await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  const needBy = popup.locator('dd').nth(1), cutoff = popup.locator('dd').nth(2);
+  const expected = await page.evaluate(at => new Date(at).toLocaleString('zh-CN', { hour12: false }), deadline);
+  await expect(cutoff).toHaveText(expected);
+  const original = await needBy.innerText();
+  await page.clock.runFor(3000);
+  await expect(needBy).not.toHaveText(original);
+  await expect(cutoff).toHaveText(expected);
+});
+
 test('timeline subscribes only while visible and restores a fresh snapshot', async ({ page }) => {
   const f = await setup(page);
   await expect.poll(f.totalStreams).toBe(1);

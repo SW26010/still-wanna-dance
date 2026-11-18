@@ -97,13 +97,14 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 		return context.Canceled
 	}
 	defer s.wg.Done()
-	now := time.Now()
 	timings, err := s.queueTimings(context.Background(), ids)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := time.Now()
+	s.refreshUseSourcesLocked(now)
 	previous := s.prefetchSources
 	var changedKeys []string
 	next := make(map[string]*queueSource, len(ids))
@@ -145,7 +146,9 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			if source.position == 0 {
 				grace = handoffGrace
 			}
-			s.endUseLocked(source.use, now, grace, playbackClock{at: source.startAt, media: source.timing}, source.origin(), withdrawalSourceGone)
+			clock := s.queueClockLocked(source, now)
+			source.startAt = clock.at
+			s.endUseLocked(source.use, now, grace, clock, source.origin(), withdrawalSourceGone)
 			source.use = useSpan{}
 			changed = true
 		}

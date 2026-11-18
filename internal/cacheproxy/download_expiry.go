@@ -129,6 +129,9 @@ func (s *Server) refreshGETDeadlinesLocked(key string, now time.Time, deadline f
 }
 
 func (s *Server) refreshQueueDeadlinesLocked(key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
+	if s.queueRolling {
+		return time.Time{} // Every rolling need-by is at or after now.
+	}
 	var next time.Time
 	for _, q := range s.prefetchSources {
 		if q.use.key != key {

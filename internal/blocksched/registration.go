@@ -36,6 +36,7 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			return
 		}
 		p := st.withReads(key, n)
+		p.ReadyBy = p.ReadyAt(now)
 		if p.Owner == "" {
 			err = ErrCapacity
 			return
@@ -51,10 +52,10 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 				if st.demandCount >= st.cfg.MaxDemands && len(candidate.needs) == 0 {
 					continue
 				}
-				if candidate == j || candidate.cancel != nil || candidate.retiring || !st.registrationBefore(p, candidate.need, now) {
+				if candidate == j || candidate.cancel != nil || candidate.retiring || !st.registrationBefore(p, candidate.priorityAt(now), now) {
 					continue
 				}
-				if victim == nil || st.registrationBefore(victim.need, candidate.need, now) {
+				if victim == nil || st.registrationBefore(victim.priorityAt(now), candidate.priorityAt(now), now) {
 					victim = candidate
 				}
 			}

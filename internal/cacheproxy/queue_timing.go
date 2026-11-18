@@ -100,9 +100,6 @@ func (s *Server) rearmQueueSourceLocked(q *queueSource) {
 	}
 }
 
-// Reuse the source lease renewal cadence, comfortably before download expiry.
-const queueRetimeInterval = sourceRenewInterval
-
 func (s *Server) queuePlaybackEndLocked() time.Time {
 	var earliest time.Time
 	for d := range s.demands {
@@ -117,16 +114,16 @@ func (s *Server) queuePlaybackEndLocked() time.Time {
 	return earliest
 }
 
-// Call under Server.mu. A queued head has not started merely because time has
-// passed. Without a live GET, retain a future playback estimate but roll a past
-// one forward. Request completion alone still does not mean playback completion.
-// This refresh maintains finite deadlines; visitUseLocked separately gates
-// windows by distance from the head, including between these refreshes.
+// Update the common anchor on source events. Idle queue projections apply
+// max(anchor, now) when used, so passing time alone never rewrites the anchor.
 func (s *Server) retimeQueueLocked(now time.Time) []string {
 	earliest := s.queuePlaybackEndLocked()
+	rolling := earliest.IsZero()
+	modeChanged := s.queueRolling != rolling
+	s.queueRolling = rolling
 	if !earliest.IsZero() {
 		s.queueStart = earliest
-	} else if len(s.prefetchOrder) > 0 && s.queueStart.Before(now) {
+	} else if len(s.prefetchOrder) > 0 && s.queueStart.IsZero() {
 		s.queueStart = now
 	}
 	var changed []string
@@ -134,20 +131,19 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 	for i, id := range s.prefetchOrder {
 		duration := typicalDuration
 		if q := s.prefetchSources[strconv.FormatInt(id, 10)]; q != nil {
-			// Eligibility also depends on whether a GET exists, even when its
-			// estimated end equals the previous queue clock.
 			if q.use.key != "" {
 				changed = append(changed, q.use.key)
 			}
 			duration = q.timing.duration
 			if q.position == i {
-				if q.startAt != start {
+				clockChanged := modeChanged || q.startAt != start
+				if clockChanged {
 					s.rearmQueueSourceLocked(q)
 				}
-				if q.startAt != start && s.cfg.Logger != nil {
-					s.cfg.Logger.Debug("队列播放时间推算", "event_name", "queue_playback_timing", "song_id", q.song, "position", i, "starts_at", start, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
-				}
 				q.startAt = start
+				if clockChanged && s.cfg.Logger != nil {
+					s.cfg.Logger.Debug("队列播放时间推算", "event_name", "queue_playback_timing", "song_id", q.song, "position", i, "starts_at", s.queueClockLocked(q, now).at, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
+				}
 			}
 		}
 		start = start.Add(duration)
@@ -155,13 +151,13 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 	return changed
 }
 
-// The shared source timer also runs when no download or queue update is active.
-// Its absolute due time cannot be postponed by unrelated source notifications.
-func (s *Server) nextQueueRetimeLocked() time.Time {
-	if len(s.prefetchSources) == 0 || !s.queuePlaybackEndLocked().IsZero() {
-		return time.Time{}
+// Materialize the current song clock for a point-in-time event or snapshot.
+func (s *Server) queueClockLocked(q *queueSource, now time.Time) playbackClock {
+	at := q.startAt
+	if s.queueRolling && now.After(s.queueStart) {
+		at = now.Add(q.startAt.Sub(s.queueStart))
 	}
-	return s.queueStart.Add(queueRetimeInterval)
+	return playbackClock{at: at, media: q.timing}
 }
 
 // URL resolution can fill a previously unknown size before the next log

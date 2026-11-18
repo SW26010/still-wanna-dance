@@ -56,14 +56,11 @@ func TestUnifiedHandoffKeepsRunningWorkWithoutStartingRemainder(t *testing.T) {
 				exit := time.Now()
 				release()
 				if kind == "head" {
-					// An idle queue's rolling clock can legitimately move while
-					// the source still exists. Freeze its last source clock.
-					plan, _, _ = w.plan(time.Now())
 					s.UpdatePrefetchQueue(nil, false)
 				}
 				reconcileSession(t, w)
 				for block, job := range w.jobs {
-					if !job.published.WindowClosed || job.published.ReadyBy != plan[block].need.ReadyBy || job.published.LeaseUntil != exit.Add(handoffGrace) {
+					if !job.published.WindowClosed || job.published.ReadyBy != plan[block].need.ReadyAt(exit) || job.published.LeaseUntil != exit.Add(handoffGrace) {
 						t.Fatal("handoff changed original clock or supplied ordinary start permission", block, job.published)
 					}
 				}

@@ -40,18 +40,18 @@ func (r withdrawalReason) String() string {
 // use. Closed contributions retain their own clock without changing open
 // sources' admission or deadline. Actual reads are outside this contract.
 type blockUse struct {
-	need         blocksched.Need
-	nextExpiry   time.Time
-	protectReady time.Time
+	need       blocksched.Need
+	nextExpiry time.Time
+	protectAt  time.Time
 }
 
 // Completed work becomes eligible for automatic refetch only with a current
 // finite download need entering protection. Local grace alone is insufficient.
-func (u blockUse) refetchAt(ahead time.Duration) time.Time {
-	if u.need.WindowClosed || u.need.ReadyBy.IsZero() || u.protectReady.IsZero() {
+func (u blockUse) refetchAt() time.Time {
+	if u.need.WindowClosed || u.need.EarliestReady().IsZero() {
 		return time.Time{}
 	}
-	return u.protectReady.Add(-ahead)
+	return u.protectAt
 }
 
 type blockSource struct {
@@ -59,8 +59,7 @@ type blockSource struct {
 	id   any
 }
 type plannedNeed struct {
-	need             blocksched.Need
-	protectionClosed bool
+	need blocksched.Need
 }
 
 func earlier(a, b time.Time) time.Time {
@@ -84,49 +83,37 @@ func mergeUse(a, b blockUse) blockUse {
 		// time. Keep its finite clock only when no open source contributes.
 		if a.need.Owner == "" || a.need.WindowClosed && !b.need.WindowClosed {
 			a.need.ReadyBy = b.need.ReadyBy
+			a.need.Rolling = b.need.Rolling
 		} else if a.need.WindowClosed == b.need.WindowClosed {
 			a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
+			// Queue contributions share the same origin within this plan.
+			if d := b.need.Rolling; !d.Base.IsZero() && (a.need.Rolling.Base.IsZero() || d.Offset < a.need.Rolling.Offset) {
+				a.need.Rolling = d
+			}
 		}
 		a.need.WindowClosed = (a.need.Owner == "" || a.need.WindowClosed) && b.need.WindowClosed
 		a.need.Owner = b.need.Owner
 	}
 	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
 	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)
-	a.protectReady = earlier(a.protectReady, b.protectReady)
+	a.protectAt = earlier(a.protectAt, b.protectAt)
 	return a
 }
 
-// aggregateUse belongs to demand collection. Original identities never cross
-// this boundary, and no download task holds or expires source contributions.
-func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
-	var result blockUse
-	for _, p := range plan {
-		result = mergeUse(result, p.use(now))
-	}
-	return result
-}
-
-func (p plannedNeed) use(now time.Time) blockUse {
-	result := blockUse{protectReady: p.protectionReady()}
+func (p plannedNeed) use(now time.Time, ahead time.Duration) blockUse {
+	// The registry retains local protection until it processes withdrawal,
+	// including a fixed handoff whose ordinary download window is closed.
+	result := blockUse{protectAt: p.need.WindowAt(ahead)}
 	if !p.need.LeaseUntil.After(now) || sourceExpired(p.need.ReadyBy, now) {
 		return result // Registered usage can still protect local data.
 	}
 	result.need = p.need
-	result.need.Opportunistic = !p.need.WindowClosed && (p.need.Opportunistic || p.need.ReadyBy.IsZero())
+	result.need.Opportunistic = !p.need.WindowClosed && (p.need.Opportunistic || p.need.EarliestReady().IsZero())
 	result.nextExpiry = p.need.LeaseUntil
 	if p.need.WindowClosed {
 		result.nextExpiry = earlier(result.nextExpiry, sourceDeadline(p.need.ReadyBy))
 	}
 	return result
-}
-
-func (p plannedNeed) protectionReady() time.Time {
-	// The registry still owns a handoff until its fixed expiry is processed.
-	// Preserve its protection clock even when delivery of that event is late.
-	if !p.protectionClosed {
-		return p.need.ReadyBy
-	}
-	return time.Time{}
 }
 
 func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
@@ -135,7 +122,7 @@ func (w *downloadSession) logDemand(block int64, j *scheduledBlock) {
 	}
 	w.f.log.Debug("块需求已更新", "event_name", "block_demand", "block", block,
 		"opportunistic", j.published.Opportunistic, "opportunistic_order", j.published.OpportunisticOrder,
-		"window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyBy,
+		"window_closed", j.published.WindowClosed, "ready_by", j.published.ReadyAt(time.Now()),
 		"lease_until", j.published.LeaseUntil, "next_expiry", j.nextExpiry)
 }
 

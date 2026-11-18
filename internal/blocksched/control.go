@@ -27,11 +27,29 @@ func earlier(a, b time.Time) time.Time {
 // The timed heap contains Blocking and finite deadlines. Untimed background
 // work can use capacity while its head is outside the activation window.
 func (s *state) nextReady(now time.Time) *job {
+	var best *job
+	var deadline time.Time
 	if s.ready.Len() > 0 {
 		j := s.ready.first()
-		if j.need.Blocking || !s.windowAt(j).After(now) {
+		if j.need.Blocking {
 			return j
 		}
+		if !s.windowAt(j).After(now) {
+			best, deadline = j, j.need.ReadyBy
+		}
+	}
+	for _, group := range s.rolling {
+		entry := (*group)[0]
+		if entry.WindowAt(s.cfg.PrepareAhead).After(now) {
+			continue
+		}
+		at := entry.At(now)
+		if best == nil || at.Before(deadline) || at.Equal(deadline) && fairBefore(entry.job, best) {
+			best, deadline = entry.job, at
+		}
+	}
+	if best != nil {
+		return best
 	}
 	if s.untimed.Len() > 0 {
 		return s.untimed.first()
@@ -40,7 +58,7 @@ func (s *state) nextReady(now time.Time) *job {
 }
 
 func (s *state) windowAt(j *job) time.Time {
-	return j.need.ReadyBy.Add(-s.cfg.PrepareAhead)
+	return j.need.WindowAt(s.cfg.PrepareAhead)
 }
 
 // Dispatch has already reused available slots. Grow only while eligible work
@@ -79,6 +97,12 @@ func (s *state) nextControlEvent(now time.Time) time.Time {
 	next := s.control.nextGrow
 	if s.ready.Len() > 0 && !s.ready.first().need.Blocking {
 		if at := s.windowAt(s.ready.first()); at.After(now) {
+			next = earlier(next, at)
+		}
+	}
+	for _, group := range s.rolling {
+		entry := (*group)[0]
+		if at := entry.WindowAt(s.cfg.PrepareAhead); at.After(now) {
 			next = earlier(next, at)
 		}
 	}

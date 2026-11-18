@@ -252,7 +252,7 @@ func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
 					defer closeQueue()
 				}
 				plan, _, _ := w.plan(time.Now())
-				if use, ok := plan[0]; !ok || use.need.ReadyBy.IsZero() {
+				if use, ok := plan[0]; !ok || use.need.ReadyAt(time.Now()).IsZero() {
 					t.Fatal("old completion suppressed the new finite usage", plan)
 				}
 				if _, ok := plan[1]; ok || len(w.reads.Requested()) != 0 {

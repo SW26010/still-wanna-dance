@@ -15,18 +15,20 @@ import (
 // BlockView contains observation data only. No URLs, file paths, source
 // pointers, proxy configuration or task handles cross this boundary.
 type BlockView struct {
-	ID              string `json:"id"`
-	Resource        string `json:"resource"`
-	Block           int64  `json:"block"`
-	ByteOffset      int64  `json:"byteOffset"`
-	TotalBlocks     int64  `json:"totalBlocks"` // complete video; zero if its size is unknown
-	Bytes           int64  `json:"bytes"`
-	Title           string `json:"title"`
-	SongID          string `json:"songID"`
-	At              int64  `json:"at"` // display anchor, explicitly qualified by TimeBasis
-	TimeBasis       string `json:"timeBasis"`
-	NeedBy          int64  `json:"needBy"`
-	Deadline        int64  `json:"deadline"`
+	ID          string `json:"id"`
+	Resource    string `json:"resource"`
+	Block       int64  `json:"block"`
+	ByteOffset  int64  `json:"byteOffset"`
+	TotalBlocks int64  `json:"totalBlocks"` // complete video; zero if its size is unknown
+	Bytes       int64  `json:"bytes"`
+	Title       string `json:"title"`
+	SongID      string `json:"songID"`
+	At          int64  `json:"at"` // display anchor, explicitly qualified by TimeBasis
+	TimeBasis   string `json:"timeBasis"`
+	NeedBy      int64  `json:"needBy"`
+	BlockRollingTime
+	FixedNeedBy     int64  `json:"fixedNeedBy,omitempty"`
+	Deadline        int64  `json:"deadline"` // fixed source download cutoff, zero if absent
 	ProtectionStart int64  `json:"protectionStart"`
 	ProtectionUntil int64  `json:"protectionUntil"`
 	Protected       bool   `json:"protected"`
@@ -40,14 +42,38 @@ type BlockView struct {
 }
 
 type BlockSourceView struct {
-	ID           uint64 `json:"id"`
-	Kind         string `json:"kind"`
-	SongID       string `json:"songID"`
-	Title        string `json:"title"`
-	Position     int    `json:"position"`
-	NeedBy       int64  `json:"needBy"`
-	ExpiresAt    int64  `json:"expiresAt"` // fixed handoff expiry only, not a synthetic lease renewal
-	WindowClosed bool   `json:"windowClosed"`
+	ID       uint64 `json:"id"`
+	Kind     string `json:"kind"`
+	SongID   string `json:"songID"`
+	Title    string `json:"title"`
+	Position int    `json:"position"`
+	NeedBy   int64  `json:"needBy"`
+	BlockRollingTime
+	ExpiresAt    int64 `json:"expiresAt"` // fixed handoff expiry only, not a synthetic lease renewal
+	WindowClosed bool  `json:"windowClosed"`
+}
+
+// NeedBy and At carry the lower bound when a rolling time is present.
+// Consumers evaluate max(RollingBase, now) + RollingOffset and take the
+// earlier of that result and any independent fixed need-by.
+type BlockRollingTime struct {
+	RollingBase   int64 `json:"rollingBase,omitempty"`
+	RollingOffset int64 `json:"rollingOffset,omitempty"`
+}
+
+func blockRollingTime(d blocksched.RollingDeadline) BlockRollingTime {
+	return BlockRollingTime{timeMS(d.Base), d.Offset.Milliseconds()}
+}
+
+func (b BlockView) atTime(now time.Time) int64 {
+	if b.RollingBase == 0 {
+		return b.At
+	}
+	at := max(b.RollingBase, now.UnixMilli()) + b.RollingOffset
+	if b.FixedNeedBy != 0 {
+		at = min(at, b.FixedNeedBy)
+	}
+	return at
 }
 
 type BlockDetail struct {
@@ -90,6 +116,7 @@ type BlockSnapshot struct {
 type blockDetailNeed struct {
 	source       int
 	needBy       int64
+	rolling      BlockRollingTime
 	windowClosed bool
 }
 
@@ -107,6 +134,7 @@ func (s *BlockSnapshot) Detail(id string) (BlockDetail, bool) {
 	for _, need := range s.needs[r.first:r.last] {
 		v := blockSourceLabel(s.sources[need.source], b)
 		v.NeedBy, v.WindowClosed = need.needBy, need.windowClosed
+		v.BlockRollingTime = need.rolling
 		d.Sources = append(d.Sources, v)
 	}
 	slices.SortFunc(d.Sources, func(a, b BlockSourceView) int {
@@ -380,9 +408,10 @@ type observedSource struct {
 	need     blocksched.Need
 }
 type observedNeed struct {
-	block, source                  int
-	ready                          time.Time
-	windowClosed, protectionClosed bool
+	block, source int
+	ready         time.Time
+	rolling       blocksched.RollingDeadline
+	windowClosed  bool
 }
 type observedBlock struct {
 	id               useBlockID
@@ -454,7 +483,7 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 			}
 			input.sources = append(input.sources, observedSource{source, v, p.need})
 		}
-		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.WindowClosed, p.protectionClosed})
+		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.Rolling, p.need.WindowClosed})
 	})
 	s.retentionMu.Lock()
 	for key, blocks := range s.protection {
@@ -556,7 +585,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 						b.SongID = raw.song
 					}
 					if old.At != 0 && old.TimeBasis != "ended" {
-						b.At, b.TimeBasis = old.At, "last-need-by"
+						b.At, b.TimeBasis = old.atTime(p.until.Add(-s.cfg.LocalProtectionGrace)), "last-need-by"
 					}
 				}
 			}
@@ -578,31 +607,38 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		if raw.name != "" {
 			b := result.Blocks[raw.name]
 			var use blockUse
-			var readableNeedBy time.Time
+			var readable blockUse
 			var video blockVideo
 			for i := first; i < last; i++ {
 				need := input.needs[i]
 				source := input.sources[need.source]
-				p := plannedNeed{need: source.need, protectionClosed: need.protectionClosed}
+				p := plannedNeed{need: source.need}
 				p.need.Owner, p.need.ReadyBy, p.need.WindowClosed = raw.id.key, need.ready, need.windowClosed
-				use = mergeUse(use, p.use(now))
+				p.need.Rolling = need.rolling
+				use = mergeUse(use, p.use(now, ahead))
 				if raw.available && !need.windowClosed {
-					readableNeedBy = earlier(readableNeedBy, need.ready)
+					readable = mergeUse(readable, blockUse{need: p.need})
 				}
 				video = chooseBlockVideo(video, blockVideo{SongID: source.view.SongID, Title: source.view.Title}, o.videos[b.Resource].SongID)
-				result.needs[i] = blockDetailNeed{need.source, timeMS(need.ready), need.windowClosed}
+				result.needs[i] = blockDetailNeed{need.source, timeMS(p.need.EarliestReady()), blockRollingTime(need.rolling), need.windowClosed}
 			}
 			// A readable block still has a position in the GET's remaining range.
-			readyBy := earlier(readableNeedBy, use.need.ReadyBy)
-			b.NeedBy, b.Deadline = timeMS(readyBy), timeMS(sourceDeadline(readyBy))
+			display := mergeUse(use, readable).need
+			b.NeedBy = timeMS(display.EarliestReady())
+			b.Deadline = timeMS(sourceDeadline(display.ReadyBy))
+			b.BlockRollingTime = blockRollingTime(display.Rolling)
+			if b.RollingBase != 0 {
+				b.FixedNeedBy = timeMS(display.ReadyBy)
+			}
 			b.WindowClosed, b.Opportunistic = use.need.WindowClosed, use.need.Opportunistic
 			b.At, b.TimeBasis = b.NeedBy, "need-by"
 			if b.At == 0 {
 				b.TimeBasis = "untimed"
 			}
-			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !use.need.ReadyBy.IsZero() && !use.need.ReadyBy.Add(-ahead).After(now))
+			entry := use.need.WindowAt(ahead)
+			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !entry.IsZero() && !entry.After(now))
 			if !use.need.WindowClosed {
-				advance(use.need.ReadyBy.Add(-ahead))
+				advance(entry)
 			}
 			advance(sourceDeadline(use.need.ReadyBy))
 			b.Sources = last - first

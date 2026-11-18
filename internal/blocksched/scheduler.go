@@ -16,11 +16,12 @@ var (
 	ErrDeferred = errors.New("queued block deferred for more urgent work")
 )
 
-// ReadyBy is the dynamic source need-by used to schedule eligible work.
+// ReadyBy and Rolling independently contribute to the earliest source need-by.
 // Owner is opaque and must be shared by duplicate/overlapping requests.
 type Need struct {
 	Owner               string
 	ReadyBy, LeaseUntil time.Time
+	Rolling             RollingDeadline
 	// Opportunistic preserves an independent ordinary demand that can use
 	// capacity before ReadyBy. It bypasses only the window, never the quota.
 	Opportunistic bool
@@ -108,7 +109,7 @@ func (s *Scheduler) TaskNeedBy(key string) time.Time {
 	var readyBy time.Time
 	s.call(func(st *state) {
 		if j := st.jobs[key]; j != nil {
-			readyBy = j.need.ReadyBy
+			readyBy = j.priorityAt(time.Now()).ReadyBy
 		}
 	})
 	return readyBy
@@ -208,6 +209,7 @@ type job struct {
 	needs          map[uint64]*lease
 	need           priority
 	index          [2]int // one membership per deadline/opportunistic heap
+	rolling        map[time.Time]*rollingJob
 	sequence, fair uint64
 	cancel         context.CancelCauseFunc
 	progress       *Progress
@@ -231,6 +233,7 @@ type state struct {
 	reads               map[string]map[*readWait]bool
 	ready               readyHeap
 	untimed             readyHeap
+	rolling             map[time.Time]*rollingHeap
 	expiry              leaseHeap
 	owners              map[string]uint64
 	groups              map[string]map[*job]bool
@@ -328,30 +331,45 @@ func (s *state) removeLease(v *lease) {
 }
 func (s *state) refresh(j *job) {
 	previous := j.need
+	previousFair := j.fair
 	n := Need{}
 	var earliest time.Time
+	var rolling map[time.Time]time.Duration
 	opportunistic := false
 	var order uint64
+	now := time.Now()
 	for _, v := range j.needs {
-		if !v.need.LeaseUntil.After(time.Now()) {
+		if !v.need.LeaseUntil.After(now) {
 			continue
 		}
-		if !v.need.WindowClosed && (v.need.Opportunistic || v.need.ReadyBy.IsZero()) {
+		if !v.need.WindowClosed && (v.need.Opportunistic || v.need.EarliestReady().IsZero()) {
 			if !opportunistic || v.need.OpportunisticOrder < order {
 				order = v.need.OpportunisticOrder
 			}
 			opportunistic = true
 		}
 		if n.Owner == "" || n.WindowClosed && !v.need.WindowClosed {
-			earliest = v.need.ReadyBy
-		} else if n.WindowClosed == v.need.WindowClosed {
-			earliest = earlier(earliest, v.need.ReadyBy)
+			earliest, rolling = time.Time{}, nil
 		}
-		if n.Owner == "" || needBefore(priority{Need: v.need}, priority{Need: n}) || !needBefore(priority{Need: n}, priority{Need: v.need}) && v.need.Owner < n.Owner {
+		if n.Owner == "" || n.WindowClosed || !v.need.WindowClosed {
+			earliest = earlier(earliest, v.need.ReadyBy)
+			if d := v.need.Rolling; !d.Base.IsZero() {
+				if rolling == nil {
+					rolling = make(map[time.Time]time.Duration)
+				}
+				if offset, ok := rolling[d.Base]; !ok || d.Offset < offset {
+					rolling[d.Base] = d.Offset
+				}
+			}
+		}
+		a, b := priority{Need: v.need}, priority{Need: n}
+		a.ReadyBy, b.ReadyBy = a.ReadyAt(now), b.ReadyAt(now)
+		if n.Owner == "" || needBefore(a, b) || !needBefore(b, a) && v.need.Owner < n.Owner {
 			n = v.need
 		}
 	}
 	n.ReadyBy, n.Opportunistic, n.OpportunisticOrder = earliest, opportunistic, order
+	n.Rolling = RollingDeadline{} // Retain all qualifying origins on the job.
 	p := priority{Need: n}
 	if !j.retiring {
 		p = s.withReads(j.task.key, n)
@@ -360,7 +378,10 @@ func (s *state) refresh(j *job) {
 		s.ungroup(j)
 	}
 	j.need = p
-	if previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic || previous.WindowClosed != p.WindowClosed {
+	j.fair = s.owners[p.Owner]
+	wasQueued := j.index[0] >= 0 || j.index[1] >= 0 || len(j.rolling) > 0
+	rollingChanged := s.updateRolling(j, rolling, j.fair != previousFair)
+	if rollingChanged || previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic || previous.WindowClosed != p.WindowClosed {
 		s.capacityAvailable()
 	}
 	if p.Owner != "" {
@@ -369,7 +390,6 @@ func (s *state) refresh(j *job) {
 		}
 		s.groups[p.Owner][j] = true
 	}
-	j.fair = s.owners[p.Owner]
 	if j.retiring {
 		s.unqueue(j)
 		if j.cancel != nil {
@@ -385,7 +405,6 @@ func (s *state) refresh(j *job) {
 	if j.cancel != nil {
 		return
 	}
-	wasQueued := j.index[0] >= 0 || j.index[1] >= 0
 	s.ready.set(j, p.Blocking || !p.WindowClosed && !p.ReadyBy.IsZero())
 	s.untimed.set(j, !p.Blocking && p.Opportunistic)
 	if !wasQueued {
@@ -406,6 +425,9 @@ func (s *state) ungroup(j *job) {
 func (s *state) unqueue(j *job) {
 	s.ready.set(j, false)
 	s.untimed.set(j, false)
+	for _, entry := range j.rolling {
+		s.dequeueRolling(entry)
+	}
 }
 func needBefore(a, b priority) bool {
 	if a.Blocking != b.Blocking {
@@ -458,12 +480,12 @@ func (s *state) emit(kind, reason string, j *job) {
 	}
 	e := Event{Kind: kind, Reason: reason, Active: s.active, Open: s.control.open, PrepareAhead: s.cfg.PrepareAhead}
 	if j != nil {
-		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.need.ReadyBy, j.remaining
+		now := time.Now()
+		e.Key, e.Blocking, e.ReadyBy, e.WorkBytes = j.task.key, j.need.Blocking, j.priorityAt(now).ReadyBy, j.remaining
 		e.WaitSince = j.need.WaitSince
 		e.Opportunistic = j.need.Opportunistic
-		if kind == "started" && !j.need.ReadyBy.IsZero() {
-			now := time.Now()
-			e.Overdue = j.need.ReadyBy.Before(now)
+		if kind == "started" && !e.ReadyBy.IsZero() {
+			e.Overdue = e.ReadyBy.Before(now)
 		}
 		if kind == "sample" {
 			e.BlockTime = j.progress.ready.Sub(j.progress.admitted)
@@ -495,6 +517,11 @@ func (s *state) dispatch(now time.Time) {
 			other.fair = s.sequence
 			if index := other.index[s.ready.slot]; index >= 0 {
 				heap.Fix(&s.ready, index)
+			}
+			for _, entry := range other.rolling {
+				if entry.index >= 0 {
+					heap.Fix(s.rolling[entry.Base], entry.index)
+				}
 			}
 		}
 		ctx, cancel := context.WithCancelCause(context.Background())
@@ -601,6 +628,10 @@ func (h readyHeap) Less(i, j int) bool {
 	if needBefore(b.need, a.need) {
 		return false
 	}
+	return fairBefore(a, b)
+}
+
+func fairBefore(a, b *job) bool {
 	if a.fair != b.fair {
 		return a.fair < b.fair
 	}

@@ -2194,6 +2194,13 @@
       "bytes": 1323233,
       "sha256": "f458788f1383083294a1c863e1b7d4314f81c96e166aaaacf9bf1367bf5d4e9d",
       "reason": "Reviewed generated Fluent WebUI bundle: download speed test status appears beside the card title and exposes technical details through a hover/focus tooltip; last-test time remains below the results, and the separate 2 Mbps reference caption is removed without changing gauge thresholds (2026-11-17). Rebuilt with unchanged locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1324690,
+      "sha256": "17d469fb770c54ff3245a8f00f4c6b7cc0606e3e916a1022802d33cb5570948e",
+      "reason": "Reviewed generated Fluent WebUI bundle for rolling need-by on the block timeline, shared clock sampling under reduced motion, and independent fixed download cutoffs in block details. Rebuilt with the locked dependencies and matched against webui/build-manifest.json."
     }
   ]
 }

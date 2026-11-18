@@ -21,44 +21,53 @@ func holdQueuePlaybackUntil(t *testing.T, s *Server, end time.Time) func() {
 	return release
 }
 
-func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
+func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		s.UpdatePrefetchQueue([]int64{1, 2}, false)
 		registerQueueResource(t, s, "1", w.v.key)
 		q := s.prefetchSources["1"]
 		base := time.Now()
-		_, changed, _ := w.plan(time.Now())
+		before, changed, _ := w.plan(base)
 		preparationChanged := s.QueuePreparationChanged()
-		time.Sleep(75 * time.Second)
-		synctest.Wait()
-		want := base.Add(70 * time.Second)
-		s.mu.Lock()
-		valid := q == s.prefetchSources["1"] && !q.expired && q.readyBy(0, rangeBlockSize) == want && s.prefetchSources["2"].startAt == want.Add(typicalDuration)
-		s.mu.Unlock()
-		if !valid {
-			t.Fatal("idle queue did not keep its source and roll the shared clock")
+		for _, delay := range []time.Duration{3 * time.Second, 5 * time.Second, 65 * time.Second} {
+			time.Sleep(delay)
+			synctest.Wait()
+			now := time.Now()
+			plan, _, _ := w.plan(now)
+			s.mu.Lock()
+			second := s.queueClockLocked(s.prefetchSources["2"], now).at
+			valid := q == s.prefetchSources["1"] && !q.expired && s.useTimer == nil
+			s.mu.Unlock()
+			if !valid || plan[0].need.Rolling != before[0].need.Rolling ||
+				plan[0].need.ReadyAt(now) != now || second != now.Add(typicalDuration) {
+				t.Fatal("idle queue time did not advance as a shared, stable clock")
+			}
 		}
 		select {
 		case <-changed:
+			t.Fatal("wall clock alone rebuilt queue demand")
 		default:
-			t.Fatal("clock change did not notify downstream consumers")
 		}
 		select {
 		case <-preparationChanged:
 			t.Fatal("ordinary clock renewal woke queue preparation")
 		default:
 		}
-		if p := protectionFor(s, w.v.key, 0); p.start != want.Add(-s.cfg.prepareAhead()) || !p.until.IsZero() {
-			t.Fatal("download and protection clocks diverged or created a grace tail", p)
+		if p := protectionFor(s, w.v.key, 0); p.start != base.Add(-s.cfg.prepareAhead()) || !p.until.IsZero() {
+			t.Fatal("continuous use moved protection entry or created a grace tail", p)
 		}
 		// Removal freezes handoff timing, even while the next head keeps rolling.
+		removed := time.Now()
 		s.UpdatePrefetchQueue([]int64{2}, false)
-		removed := q.startAt
+		handoffs := snapshotUseHandoffs(s)
+		if q.startAt != removed || len(handoffs) != 1 || handoffs[0].clock.at != removed || handoffs[0].until != removed.Add(handoffGrace) {
+			t.Fatal("departure did not freeze the rolling clock at the exit time", handoffs)
+		}
 		time.Sleep(25 * time.Second)
 		synctest.Wait()
 		s.mu.Lock()
-		valid = q.startAt == removed && len(s.useHandoffs) == 0 && len(s.useBlocks) == 0
+		valid := q.startAt == removed && len(s.useHandoffs) == 0 && len(s.useBlocks) == 0
 		s.mu.Unlock()
 		if !valid {
 			t.Fatal("idle clock renewed a removed source or its fixed handoff")
@@ -79,12 +88,12 @@ func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)
 		base := time.Now()
-		check := func(want time.Time, stopped bool) {
+		check := func(want time.Time) {
 			t.Helper()
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			if got := s.prefetchSources["1"].startAt; got != want || (s.useTimer == nil) != stopped {
-				t.Fatalf("queue start=%v want=%v, timer stopped=%v want=%v", got, want, s.useTimer == nil, stopped)
+			if got := s.queueClockLocked(s.prefetchSources["1"], time.Now()).at; got != want || s.useTimer != nil {
+				t.Fatalf("queue start=%v want=%v, timer stopped=%v", got, want, s.useTimer == nil)
 			}
 		}
 		release := holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
@@ -92,15 +101,15 @@ func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
 		release() // Transmission ended; buffered playback can still be running.
 		time.Sleep(50 * time.Second)
 		synctest.Wait()
-		check(base.Add(time.Minute), false)
+		check(base.Add(time.Minute))
 		time.Sleep(25 * time.Second)
 		synctest.Wait()
-		check(base.Add(70*time.Second), false)
+		check(base.Add(75 * time.Second))
 		// A live GET remains authoritative even when its estimated end is past.
 		holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
 		time.Sleep(time.Minute)
 		synctest.Wait()
-		check(base.Add(time.Minute), true)
+		check(base.Add(time.Minute))
 	})
 }
 

@@ -18,16 +18,17 @@ func (p blockProtection) active(now time.Time) bool {
 	return !p.start.IsZero() && !now.Before(p.start) || p.until.After(now)
 }
 
-// Called with mu after a source mutation. Only the earliest finite usage time
+// Called with mu after a source mutation. Only the earliest protection start
 // crosses into local protection; local state does not retain source identities.
 // Cancellation/expiry is transferred or removed before its notification, so
 // pending callbacks must not independently remove protection here.
 func (s *Server) refreshUseProtectionLocked(scope useSpan) {
-	ready := make(map[int64]time.Time)
+	starts := make(map[int64]time.Time)
+	ahead := s.cfg.prepareAhead()
 	s.visitUseLocked(scope, time.Now(), func(id useBlockID, _ blockSource, p plannedNeed) {
 		if s.useBlocks[id] > 0 {
-			if at := p.protectionReady(); !at.IsZero() {
-				ready[id.block] = earlier(ready[id.block], at)
+			if at := p.need.WindowAt(ahead); !at.IsZero() {
+				starts[id.block] = earlier(starts[id.block], at)
 			}
 		}
 	})
@@ -47,7 +48,7 @@ func (s *Server) refreshUseProtectionLocked(scope useSpan) {
 			p.start = time.Time{}
 			blocks[b] = p
 			s.protectionExpiry = earlier(s.protectionExpiry, p.until)
-			if _, ok := ready[b]; !ok && p.until.IsZero() {
+			if _, ok := starts[b]; !ok && p.until.IsZero() {
 				delete(blocks, b)
 			}
 		}
@@ -68,13 +69,12 @@ func (s *Server) refreshUseProtectionLocked(scope useSpan) {
 			delete(s.protection, key)
 		}
 	}
-	ahead := s.cfg.prepareAhead()
-	for b, at := range ready {
+	for b, at := range starts {
 		if s.protection[key] == nil {
 			s.protection[key] = make(map[int64]blockProtection)
 		}
 		p := s.protection[key][b]
-		p.start = at.Add(-ahead)
+		p.start = at
 		s.protection[key][b] = p
 	}
 	s.requestResourceRetentionLocked(key)

@@ -21,7 +21,7 @@
 | 先下载什么 | 按整个视频分级，再在视频内部选择块 | 所有来源转成块需求；普通块比较最早期望完成时间，实际读取缺块单独标记 Blocking |
 | 共享与撤销 | 围绕共享视频任务安排席位、优先级和重连宽限 | 保留每份来源需求，按块汇总；撤销一份不会抹掉其他需求，交接也有独立租约 |
 | 何时增加并发 | 视频席位、每视频 3+1 worker、总请求 6/后台 4 的多层约束 | 一个全局块调度器控制网络执行；普通额度按所设节奏和软上限开放，默认从 1 路按需缓增至 16 路，Blocking 可立即超限 |
-| 如何提前准备 | 视频等级和近端读取窗口表达紧迫程度 | 从自己的 HTTP 请求、媒体大小和时长推导绝对 ReadyBy，再用固定 M 窗口准入 |
+| 如何提前准备 | 视频等级和近端读取窗口表达紧迫程度 | 按来源时间与媒体数据推导 need-by，再用固定 M 窗口准入 |
 
 这次变化的重点是**需求、时间和执行的统一建模**。既有的分块传输、文件一致性、本地视频校验和发布继续由资源层负责。
 
@@ -47,7 +47,7 @@ flowchart TD
 
 | 属性 | 回答的问题 | 不能混用的语义 |
 | --- | --- | --- |
-| `ReadyBy` | 希望这个块最晚何时完整可读？ | 期限已过仍可能急需，不能据此取消任务，也不是下载超时 |
+| `ReadyBy` / `Rolling` | 希望这个块最晚何时完整可读？ | 固定时间与滚动时间独立贡献，调度时取其中最早的有限时刻 |
 | `LeaseUntil` | 这份需求有效到何时？ | 决定需求存亡，不代表本地视频文件保留期，也不延长执行超时 |
 | `Blocking`（调度器内部） | 这一刻是否确实有 Read 等待这个缺块？ | 由本地读取等待独立派生，不在普通 Need、需求集合、交接或块使用接口中传递 |
 | `Opportunistic` | 是否另有有效的无期限普通需求，允许提前使用空额度？ | 只绕过启动窗口，不绕过普通额度和缓增，不等于 Blocking |
@@ -91,7 +91,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 上述 GET 期限只用于与实际请求字节区间相交的块。起点位于块内时，该相交块的负偏移截为 0；起点之前的整块和结束位置之后的整块不产生该 GET 的需求，完整补齐必须有独立来源。`ReadyBy` 表达需要数据的时刻，提前策略统一放在后面的 `M`，不在这里再减一次提前量。读取推进和下载进度不重置 `t₀`；有限 Range 的结束字节限制下载需求，但不当成整部媒体的播放终点。无 Range 对应整文件，合法单 Range 支持后缀形式；If-Range 不匹配而返回整文件时，需求范围和估算起点一并恢复为整文件。HEAD、无效和多段 Range 不提供播放时钟。
 
-无有效 GET 时的起点规则见 [canonical 队列预计使用时间](download-resource-design.md#队列预计使用时间)：保留尚在未来的估算，已落后的起点取当前时间。来源层复用使用需求计时器按 10 秒节奏维护有限期限并统一通知，无下载或新快照时也生效；滚动阶段的下载和保护资格按块距队首的相对时间判断，不在刷新间隙随墙钟自动入窗。有效 GET 继续按固定播放时钟推导。重复快照本身不重置基准；重排及元数据变化重算受影响的期限，退出成员及交接保持冻结时间，迟到的地址解析不能复活旧成员。
+无有效 GET 时，队列的 need-by 按 `max(估算起点, now) + 距队首偏移` 求值。调度器用绝对时间排序固定期限，用偏移排序同一起点的滚动期限，准入时用同一个时刻比较候选的实际 need-by。滚动来源提前按相对距离限制下载和保护窗口。有效 GET 继续按固定播放时钟推导。重复快照保留估算基准，重排及元数据变化重算受影响的期限，退出时冻结交接时钟。完整规则见 [canonical 队列预计使用时间](download-resource-design.md#队列预计使用时间)。
 
 缺失值使用一致的补全规则：大小和时长都有时直接计算；只缺一项时按 2 Mbps 推导缺项；两者都缺时使用 45 MiB、210 秒，派生码率约 1.8 Mbps。未知队列占位仍计入典型时长。估计值只用于调度，不写回媒体事实，不用于 HTTP 长度、Range 边界或完整性检查。
 
@@ -99,7 +99,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 ## 用固定 M 窗口决定启动
 
-`M` 是完整下载提前量：普通有限期限块在 `ReadyBy ≤ now + M` 时入窗，入窗时刻为 `ReadyBy - M`。等号可启动，仍需执行额度；未入窗候选等待堆首定时事件。已经执行的块不重复申请额度。所有块共用 M，期限排序不变，不保存逐块预计启动时间。
+`M` 是完整下载提前量。固定与滚动期限共用[准备窗口的入窗规则](download-resource-design.md#准备窗口的入窗规则)。到点后仍需执行额度。调度器按堆首推导下一次入窗事件，已经执行的块继续使用已有额度。
 
 普通下载与本地保护共用提前量 M，默认为 500 秒，建议 200～2000 秒；WebUI「提前准备时间（秒）」及引擎配置范围为 100～16000 秒，0 使用默认值，保存并重启后生效。约 67 秒是 1 MiB 块在 0.125 Mbps 下的纯传输基准，100 秒下限不保证慢网或排队下及时完成。范围外的非零值直接拒绝，不作迁移。
 
@@ -132,7 +132,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 核心一个事件循环持有任务和索引堆，等待需求变化、执行完成或最近的入窗/增路/租约时刻。已入窗但满额度的任务等待完成或缓增事件，不把过去的入窗时间反复装成立即触发的定时器。没有每 500 ms 全任务汇总、排序和目标并发反推，也没有每块独立的轮询协程。
 
-定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查堆首是否入窗为 O(1)。更新同一 Owner 的公平次序时遍历该组，只调整在读取等待与有限期限索引中的堆项。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
+定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查一个堆首是否入窗为 O(1)。选择下一个候选、计算下一次入窗唤醒，各自最多检查固定期限堆首和每个非空滚动基准组的堆首。若有 k 个这样的组，每次调用的最坏时间复杂度为 O(1 + k)。更新同一 Owner 的公平次序时遍历该组，只调整在读取等待与有限期限索引中的堆项。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
 
 事件驱动不等于系统没有定时工作：资源协调器仍每 10 秒确认来源并续 30 秒活跃租约；VRC 日志按[队列文档](queue-prefetch.md#日志检测与频率)增量读取。缓冲只在实际执行时取得，全局任务与使用需求数量有界，完整块由引擎本地资源注册表保留，已移除暂停检查点上限，具体上限见[运行规则](download-concurrency.md)。
 
@@ -148,7 +148,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 | 手动来源顺序、提前执行排序与完整文件发布 | [preparation.go](../internal/cacheproxy/preparation.go)、[order_test.go](../internal/blocksched/order_test.go)、[preparation_order_test.go](../internal/cacheproxy/preparation_order_test.go) |
 | 本地读取等待、独立撤销与任务登记前接入 | [reads.go](../internal/blocksched/reads.go)、[stream.go](../internal/cacheproxy/stream.go)、[reads_test.go](../internal/blocksched/reads_test.go)、[stream_wait_test.go](../internal/cacheproxy/stream_wait_test.go) |
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |
-| GET / 队列绝对期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |
+| GET 固定期限、队列滚动期限与缺失值规则 | [media_timing.go](../internal/cacheproxy/media_timing.go)、[playback_timing.go](../internal/cacheproxy/playback_timing.go)、[queue_timing.go](../internal/cacheproxy/queue_timing.go) 及同名 `_test.go` |
 | 窗口、缓增、采样与准入例外 | [control.go](../internal/blocksched/control.go)、[duration.go](../internal/blocksched/duration.go)、[window_test.go](../internal/blocksched/window_test.go)、[opportunistic_test.go](../internal/blocksched/opportunistic_test.go) |
 | 下载执行、真实 Range、可读采样、超时及混合需求 | [scheduled_download.go](../internal/cacheproxy/scheduled_download.go)、[download_range.go](../internal/cacheproxy/download_range.go)、[block_duration_test.go](../internal/cacheproxy/block_duration_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[opportunistic_demand_test.go](../internal/cacheproxy/opportunistic_demand_test.go) |
 
@@ -164,7 +164,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 最后一个订阅关闭时移除调度通知、取消并等待观测任务退出，释放快照、来源标识及视频展示资料缓存。没有订阅时，观测通知只有空指针／空订阅集合检查，不生成快照、事件历史、额外定时器或后台任务；文件路径仍维护下述块缓存字节总量。快照在业务锁内通过 `visitUseLocked` 复制紧凑来源关联、每来源一份身份／名称／固定属性及本地可用性／保护状态；不建立逐块来源 map。每块需求继续用现有 `plannedNeed.use`／`mergeUse` 整合；分组、排序、展示字段、来源身份分配及需求列表在锁外直接从记录组装，来源指针只作为观察者内部身份键、不在锁外解引用。
 
-发布后的 `BlockSnapshot` 保持不可变，持有块摘要、需求列表及私有的紧凑来源关联；`Detail(id)` 只展开所选块，按来源 ID 排序并返回独立的来源切片，缺失块返回不存在。本地保护尾部返回空来源；标题、位置、need-by 和截止均来自同一份快照，不为详情重新查询当前运行状态。Console 只调用该读取入口，来源解释仍留在观察 module。`ObserveBlocks`、订阅 `Snapshot`／`Close` 和事件内容保持不变；折叠时间轴仍为下面的需求列表订阅。JSON 编码、客户端差分及网络发送也在锁外，慢客户端不积压事件队列。该实现的矩阵、持锁测量和真实首页验证见[快照优化记录](validation/block-observation-20261115.md)。
+发布后的 `BlockSnapshot` 保持不可变，持有块摘要、需求列表及私有的紧凑来源关联；`Detail(id)` 只展开所选块，按来源 ID 排序并返回独立的来源切片，缺失块返回不存在。本地保护尾部返回空来源；标题、位置、need-by 和截止均来自同一份快照，不为详情重新查询当前运行状态。Console 只调用该读取入口，来源解释仍留在观察 module。折叠时间轴仍为下面的需求列表订阅。JSON 编码、客户端差分及网络发送也在锁外，慢客户端不积压事件队列。该实现的矩阵、持锁测量和真实首页验证见[快照优化记录](validation/block-observation-20261115.md)。
 
 下载任务标识的构造与解析统一由 `cacheproxy/download_task_key.go` 维护，沿用 `resource/size/block`；调度器将它视为不透明字符串，使用需求和展示仍按资源及块号定位。Range 成功写入完整块后，共同调用 `notifyBlockStored`，分别通知观测和请求回收；`requestBlockReclamation` 只按现有策略请求回收，关闭回收策略仍会发送写入观测通知。
 
@@ -173,6 +173,8 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 多个歌曲 ID 共用资源时，若本帧块仍包含缓存的展示 ID，则继续沿用；否则按 ID 字符串顺序选择当前已知标识，没有已知标识时沿用缓存。同一块有多个来源时，先按此规则成对选择歌曲 ID 和标题，再以相同规则汇总到资源，避免先取一个来源的 ID、再借用另一个来源的标题。先使用所选 ID 的当前非空标题，同一 ID 的多个当前标题按字符串顺序确定；缺少当前标题时保留相同 ID 的缓存标题。选择不依赖来源顺序或 map 遍历顺序，其他歌曲的标题不能覆盖所选 ID 的标题。来源详情和需求行保留各自明确的歌曲 ID，仅在身份一致时借用资源展示标题。
 
 后台接口 `/api/block-demands/events` 由 WebUI 通过 WebSocket 订阅，原 SSE 保留给既有观测工具；准入与传输释放遵循[实时订阅](webui-design.md#实时订阅)。首次连接发送完整状态，后续只发送修改和移除项，重连重新发送完整状态。运行中 `blocks` 事件的顶层 `at` 使用发送时的服务器时刻，供前端作为“现在”的时钟锚点；多个窗口复用较旧的共享快照时也遵守此规则，不修改快照或块自身的定位、need-by、截止及保护时间。时间流逝本身不产生块事件。`?block=<资源标识/块号>` 只推送所选块的属性与来源。页面订阅不得创建引擎；引擎尚未创建时沿原连接等待启动事件，取消后释放等待者，不靠定期重连探测。关闭引擎会结束事件流。推送有写入超时，来源详情不包含签名 URL、代理配置、文件路径或内部指针。
+
+块或详情来源带 `rollingBase` 时，`needBy` 记录时间下界，块的 `at` 同样记录该下界。订阅端用 `max(rollingBase, 当前时间) + rollingOffset` 求滚动 need-by，省略的 `rollingOffset` 按 `0` 处理。块同时带 `fixedNeedBy` 时，实际 need-by 取固定值与滚动值中较早的一个。以上时间戳使用 Unix 毫秒，偏移使用毫秒。块的 `deadline` 独立记录固定来源的下载截止，纯滚动时为 `0`。
 
 主订阅还通过独立的 `download-speed` 事件发送总下载速度，使用共享下载实际网络读取的字节增量除以约一秒的实际采样时长。观察期间的短任务退出、重试与多块并发不会丢失或重复计算字节；本地复用不计入。时钟未推进时保留字节，等下一次有效采样，不发布无效速率。字节到达唤醒独立采样计时，一次空采样发布零后停止，无订阅时无测速观察任务。速度通知不重建块快照，HTTP 层在快照指针未变时也不重算块差分；详情订阅不发送速度事件。
 

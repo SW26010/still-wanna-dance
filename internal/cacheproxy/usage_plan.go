@@ -16,6 +16,7 @@ func allUseBlocks(key string) useSpan {
 // Called with Server.mu; handoff identity/expiry belongs here, never to a task.
 func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBlockID, blockSource, plannedNeed)) bool {
 	active := false
+	ahead := s.cfg.prepareAhead()
 	add := func(span useSpan, source blockSource, clock *playbackClock, until time.Time, closed bool, idleBase time.Time, order uint64) {
 		if scope.key != "" && span.key != scope.key {
 			return
@@ -29,13 +30,10 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 			}
 			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until, WindowClosed: closed, OpportunisticOrder: order}}
 			if !idleBase.IsZero() {
-				// No GET consumes this queue. A future estimate still supplies
-				// absolute entry times, but once reached, only distance from the
-				// head determines eligibility. Gate both snapshots now so they
-				// cannot enter by wall time between source refreshes.
-				outside := ready.Sub(idleBase) > s.cfg.prepareAhead()
-				p.need.WindowClosed = outside
-				p.protectionClosed = outside
+				offset := ready.Sub(idleBase)
+				p.need.ReadyBy = time.Time{}
+				p.need.Rolling = blocksched.RollingDeadline{Base: idleBase, Offset: offset}
+				p.need.WindowClosed = p.need.Rolling.WindowAt(ahead).IsZero()
 			}
 			visit(id, source, p)
 		}
@@ -59,7 +57,7 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 		add(d.useSpan(), blockSource{kind, d}, d.clock, until, false, time.Time{}, d.preparationOrder)
 	}
 	var idleBase time.Time
-	if s.queuePlaybackEndLocked().IsZero() {
+	if s.queueRolling {
 		idleBase = s.queueStart
 	}
 	for _, q := range s.prefetchSources {
@@ -83,16 +81,13 @@ func (s *Server) refreshUseSourcesLocked(now time.Time) {
 			s.removeDemandLocked(d)
 		}
 	}
-	// A delayed timer must not leave snapshots using an obsolete idle clock.
-	if next := s.nextQueueRetimeLocked(); !next.IsZero() && !next.After(now) {
-		s.notifyUseChangedLocked(s.retimeQueueLocked(now)...)
-	}
 }
 
 func (s *Server) collectUsePlanLocked(key string, now time.Time) (map[int64]blockUse, bool) {
 	plan := make(map[int64]blockUse)
+	ahead := s.cfg.prepareAhead()
 	active := s.visitUseLocked(allUseBlocks(key), now, func(id useBlockID, _ blockSource, p plannedNeed) {
-		plan[id.block] = mergeUse(plan[id.block], p.use(now))
+		plan[id.block] = mergeUse(plan[id.block], p.use(now, ahead))
 	})
 	return plan, active
 }

@@ -33,6 +33,53 @@ func observedDetail(t *testing.T, snapshot *BlockSnapshot, id string) BlockDetai
 	return detail
 }
 
+func TestBlockObservationKeepsRollingClockInSnapshot(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		base := time.Now()
+		s.UpdatePrefetchQueue([]int64{42}, false)
+		registerQueueResource(t, s, "42", w.v.key)
+		o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+		id := blockViewID(useBlockID{w.v.key, 0})
+		before, due := o.capture(nil)
+		first := observedDetail(t, before, id)
+		if !due.IsZero() || first.Block.RollingBase != base.UnixMilli() || first.Block.FixedNeedBy != 0 || first.Block.Deadline != 0 ||
+			len(first.Sources) != 1 || first.Sources[0].RollingBase != base.UnixMilli() {
+			t.Fatal("snapshot did not carry the rolling clock without scheduling a false expiry", first, due)
+		}
+		time.Sleep(37 * time.Second)
+		after, due := o.capture(before)
+		current := observedDetail(t, after, id)
+		if !due.IsZero() || current.Block != first.Block || current.Sources[0] != first.Sources[0] ||
+			current.Block.atTime(time.Now()) != time.Now().UnixMilli() {
+			t.Fatal("elapsed time changed stable snapshot data or failed to advance the projected time", current, due)
+		}
+	})
+}
+
+func TestBlockObservationShowsFixedDeadlineAlongsideRollingNeedBy(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		base := time.Now()
+		s.UpdatePrefetchQueue([]int64{42}, false)
+		registerQueueResource(t, s, "42", w.v.key)
+		fixed := base.Add(time.Minute)
+		ctx := context.WithValue(t.Context(), playbackOriginKey{}, originPreview)
+		clock := &playbackClock{at: fixed, limit: rangeBlockSize, media: estimateMediaTiming(w.v.size, 0)}
+		_, release := addTestDemand(t, s, context.WithValue(ctx, playbackClockKey{}, clock), w.v, true)
+		defer release()
+
+		o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+		id := blockViewID(useBlockID{w.v.key, 0})
+		view, _ := o.capture(nil)
+		b := observedDetail(t, view, id).Block
+		if b.RollingBase != timeMS(base) || b.NeedBy != timeMS(base) ||
+			b.FixedNeedBy != timeMS(fixed) || b.Deadline != timeMS(sourceDeadline(fixed)) {
+			t.Fatal("snapshot did not preserve the fixed deadline independently of the rolling need-by", b)
+		}
+	})
+}
+
 func TestBlockObservationLazyDetailSnapshotAndIndependentReaders(t *testing.T) {
 	_, s := testSession(t)
 	s.ctx = context.Background()

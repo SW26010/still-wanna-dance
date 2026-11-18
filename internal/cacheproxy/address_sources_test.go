@@ -106,6 +106,104 @@ func TestPlaybackCheckSharesSongAndSurvivesWaiterCancellation(t *testing.T) {
 	}
 }
 
+func TestExpiredGETAddressRetryReturnsSourceFailure(t *testing.T) {
+	testGETAddressRetryDeadline(t, false)
+}
+
+func TestGETAddressRetryUsesPublishedResource(t *testing.T) {
+	testGETAddressRetryDeadline(t, true)
+}
+
+func testGETAddressRetryDeadline(t *testing.T, publishDuringLookup bool) {
+	t.Helper()
+	oldRequest := make(chan struct{})
+	deny := make(chan struct{})
+	failOld := sync.OnceFunc(func() { close(deny) })
+	defer failOld()
+	freshRequests := atomic.Int32{}
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("address") == "old" {
+			close(oldRequest)
+			<-deny
+			http.Error(w, "denied", http.StatusForbidden)
+			return
+		}
+		freshRequests.Add(1)
+		serveFixtureContent(w, r, payload)
+	})
+	lookup := make(chan struct{})
+	resolving := make(chan context.Context, 1)
+	finishLookup := sync.OnceFunc(func() { close(lookup) })
+	defer finishLookup()
+	s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
+		resolving <- ctx
+		select {
+		case <-lookup:
+			return videoURL(payload) + "&address=fresh", nil
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload) + "&address=old"}); err != nil {
+		t.Fatal(err)
+	}
+	response := make(chan *responseRecorder, 1)
+	go func() { response <- request(s, http.MethodGet, "http://api.udon.dance/Api/Songs/play?id=42", nil) }()
+	receiveDemandEvent(t, oldRequest)
+	var old *downloadDemand
+	s.mu.Lock()
+	deadline := time.Now().Add(2 * time.Second)
+	for d := range s.demands {
+		if d.playback {
+			old = d
+			old.clock.at = deadline.Add(-sourceGrace)
+		}
+	}
+	s.mu.Unlock()
+	if old == nil {
+		t.Fatal("GET did not retain its source while replacing the address")
+	}
+	failOld()
+	receiveDemandEvent(t, old.flight.done)
+	queryCtx := receiveDemandEvent(t, resolving)
+	if old.ctx.Err() != nil {
+		t.Fatal("GET expired before the replacement address wait")
+	}
+	if publishDuringLookup {
+		b := request(s, http.MethodGet, videoURL(payload)+"&address=fresh", nil)
+		assertResponse(t, b, http.StatusOK, payload)
+		// The response can finish before the file is published.
+		s.mu.Lock()
+		current := s.flights[old.key]
+		s.mu.Unlock()
+		if current != nil {
+			receiveDemandEvent(t, current.done)
+		}
+		s.retentionMu.Lock()
+		_, published := s.retained[old.key]
+		s.retentionMu.Unlock()
+		if !published || !time.Now().Before(deadline) {
+			t.Fatal("second GET did not publish before the first GET's deadline")
+		}
+		time.Sleep(time.Until(deadline))
+		finishLookup()
+		assertResponse(t, receiveDemandEvent(t, response), http.StatusOK, payload)
+		if freshRequests.Load() != 1 || len(snapshotUseHandoffs(s)) != 0 {
+			t.Fatal("cache hit repeated the upstream GET or created a handoff")
+		}
+		return
+	}
+	if r := receiveDemandEvent(t, response); r.Code != http.StatusGatewayTimeout || !errors.Is(context.Cause(old.ctx), errSourceExpired) || freshRequests.Load() != 0 {
+		t.Fatalf("replacement revived expired GET: status=%d cause=%v requests=%d", r.Code, context.Cause(old.ctx), freshRequests.Load())
+	}
+	if handoffs := snapshotUseHandoffs(s); len(handoffs) != 1 || handoffs[0].span != old.useSpan() {
+		t.Fatal("source deadline did not hand off the waiting GET's remaining range", handoffs)
+	}
+	if queryCtx.Err() != nil {
+		t.Fatal("expiring one GET canceled its shared address query", queryCtx.Err())
+	}
+}
+
 func TestResourceAddressEligibilityPrecedesCandidateLimit(t *testing.T) {
 	var queries atomic.Int32
 	s, _ := setup(t, nil, func(cfg *Config) {

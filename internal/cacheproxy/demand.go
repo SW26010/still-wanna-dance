@@ -7,8 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
 // All handoffs share a fixed lifetime, retain the source clock and use the same
@@ -199,7 +197,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	if queue {
 		if s.validQueueSourceLocked(d) && token.expired {
 			s.mu.Unlock()
-			return nil, nil, blocksched.ErrExpired
+			return nil, nil, errSourceExpired
 		}
 		if s.validQueueSourceLocked(d) && token.use != d.useSpan() {
 			if err := s.replaceUseLocked(token.use, d.useSpan(), false); err != nil {

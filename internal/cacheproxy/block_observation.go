@@ -503,7 +503,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 	input := o.captureInput(now)
 	result := &BlockSnapshot{
 		At: now.UnixMilli(), Capacity: maxUseBlocks, Used: input.used,
-		PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: blocksched.DownloadGrace.Milliseconds(),
+		PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: sourceGrace.Milliseconds(),
 		Blocks: make(map[string]BlockView, len(input.blocks)), Demands: make(map[string]BlockDemandView),
 		sources: make([]BlockSourceView, len(input.sources)), needs: make([]blockDetailNeed, len(input.needs)),
 		sourceRanges: make(map[string]blockSourceRange, len(input.blocks)),
@@ -581,6 +581,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		if raw.name != "" {
 			b := result.Blocks[raw.name]
 			var use blockUse
+			var readableNeedBy time.Time
 			var video blockVideo
 			for i := first; i < last; i++ {
 				need := input.needs[i]
@@ -588,20 +589,25 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 				p := plannedNeed{need: source.need, protectionClosed: need.protectionClosed}
 				p.need.Owner, p.need.ReadyBy, p.need.WindowClosed = raw.id.key, need.ready, need.windowClosed
 				use = mergeUse(use, p.use(now))
+				if raw.available && !need.windowClosed {
+					readableNeedBy = earlier(readableNeedBy, need.ready)
+				}
 				video = chooseBlockVideo(video, blockVideo{SongID: source.view.SongID, Title: source.view.Title}, o.videos[b.Resource].SongID)
 				result.needs[i] = blockDetailNeed{need.source, timeMS(need.ready), need.windowClosed}
 			}
-			b.NeedBy, b.Deadline = timeMS(use.need.ReadyBy), timeMS(blocksched.Deadline(use.need.ReadyBy))
+			// A readable block still has a position in the GET's remaining range.
+			readyBy := earlier(readableNeedBy, use.need.ReadyBy)
+			b.NeedBy, b.Deadline = timeMS(readyBy), timeMS(sourceDeadline(readyBy))
 			b.WindowClosed, b.Opportunistic = use.need.WindowClosed, use.need.Opportunistic
 			b.At, b.TimeBasis = b.NeedBy, "need-by"
 			if b.At == 0 {
 				b.TimeBasis = "untimed"
 			}
-			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !use.need.ReadyBy.IsZero() && !use.need.ReadyBy.Add(-ahead).After(now) && !blocksched.Expired(use.need.ReadyBy, now))
+			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !use.need.ReadyBy.IsZero() && !use.need.ReadyBy.Add(-ahead).After(now))
 			if !use.need.WindowClosed {
 				advance(use.need.ReadyBy.Add(-ahead))
 			}
-			advance(blocksched.Deadline(use.need.ReadyBy))
+			advance(sourceDeadline(use.need.ReadyBy))
 			b.Sources = last - first
 			if video.SongID != "" {
 				b.SongID, b.Title = video.SongID, video.Title
@@ -636,7 +642,6 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 				b.State = "stopping"
 			}
 		}
-		b.Deadline = timeMS(task.Deadline)
 		result.Blocks[name] = b
 	}
 	o.labelVideos(result)

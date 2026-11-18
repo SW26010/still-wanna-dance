@@ -36,7 +36,7 @@ func TestObservationTracksExecutionAndIndependentReads(t *testing.T) {
 		two := reads.Wait(context.Background(), 0)
 		synctest.Wait()
 		view := s.Observation()
-		if !view.Tasks["key"].Running || view.Tasks["key"].Readers != 2 || view.Active != 1 || view.Tasks["key"].WaitSince != firstWait || view.Tasks["key"].Deadline != firstWait.Add(time.Hour+DownloadGrace) {
+		if !view.Tasks["key"].Running || view.Tasks["key"].Readers != 2 || view.Active != 1 || view.Tasks["key"].WaitSince != firstWait {
 			t.Fatal(view)
 		}
 		one()

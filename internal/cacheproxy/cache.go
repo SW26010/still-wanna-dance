@@ -136,6 +136,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		transferred = true
 	}
 	demand.flight = f
+	s.notifyResourceChangedLocked(v.key)
 	s.mu.Unlock()
 	log.Debug("操作已关联共享资源任务", "event_name", "cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
 	completed := func() (*flight, *spoolReader, error) {

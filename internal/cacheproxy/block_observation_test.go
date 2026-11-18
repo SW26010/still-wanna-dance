@@ -196,6 +196,27 @@ func TestBlockObservationBatchesTimeBoundariesAndChangesTogether(t *testing.T) {
 	})
 }
 
+func TestBlockObservationDeadlineUsesSourceSnapshot(t *testing.T) {
+	w, s := testSession(t)
+	clock := &playbackClock{at: time.Now().Add(time.Hour), limit: rangeBlockSize, media: estimateMediaTiming(w.v.size, 0)}
+	_, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+	defer release()
+	// The scheduler still holds the previous published plan for this block.
+	_, _, err := s.scheduler.Schedule(w.reads.Key(0), 1, nil, blocksched.Need{
+		Owner: w.v.key, ReadyBy: clock.at.Add(time.Hour), LeaseUntil: clock.at,
+		WindowClosed: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+	snapshot, _ := o.capture(nil)
+	b := snapshot.Blocks[blockViewID(useBlockID{w.v.key, 0})]
+	if b.NeedBy != timeMS(clock.at) || b.Deadline != timeMS(sourceDeadline(clock.at)) {
+		t.Fatal("displayed need-by and deadline came from different snapshots", b)
+	}
+}
+
 func TestBlockObservationReopensWithoutInventingHistory(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)

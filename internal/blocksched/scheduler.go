@@ -6,7 +6,6 @@ import (
 	"container/heap"
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -15,12 +14,9 @@ var (
 	ErrClosed   = errors.New("block scheduler closed")
 	ErrCapacity = errors.New("block scheduler metadata capacity reached")
 	ErrDeferred = errors.New("queued block deferred for more urgent work")
-	ErrExpired  = fmt.Errorf("download need-by window expired: %w", context.DeadlineExceeded)
 )
 
-// Need separates expected use time from source validity. ReadyBy comes from
-// sources, never actual read waits. Finite work must end at ReadyBy +
-// DownloadGrace even while its source lease remains valid.
+// ReadyBy is the dynamic source need-by used to schedule eligible work.
 // Owner is opaque and must be shared by duplicate/overlapping requests.
 type Need struct {
 	Owner               string
@@ -35,7 +31,7 @@ type Need struct {
 	// WindowClosed keeps a valid source without admitting new work from it.
 	// Only a source update can reopen it; elapsed time cannot. Independent
 	// open contributions and actual reads still qualify, and running work
-	// keeps its normal lease/deadline lifecycle.
+	// keeps its normal lease lifecycle.
 	WindowClosed bool
 }
 
@@ -106,6 +102,17 @@ type Task struct {
 	done chan struct{}
 	err  error // read only after Done
 	wake chan<- struct{}
+}
+
+// TaskNeedBy returns the earliest current source need-by, or zero for untimed work.
+func (s *Scheduler) TaskNeedBy(key string) time.Time {
+	var readyBy time.Time
+	s.call(func(st *state) {
+		if j := st.jobs[key]; j != nil {
+			readyBy = j.need.ReadyBy
+		}
+	})
+	return readyBy
 }
 
 // Watch coalesces completion notifications for a resource coordinator. It does
@@ -207,7 +214,6 @@ type job struct {
 	progress       *Progress
 	retiring       bool
 	terminal       error
-	deadlineIndex  int
 }
 type lease struct {
 	id    uint64
@@ -227,7 +233,6 @@ type state struct {
 	ready               readyHeap
 	untimed             readyHeap
 	expiry              leaseHeap
-	deadlines           deadlineHeap
 	owners              map[string]uint64
 	groups              map[string]map[*job]bool
 	sequence            uint64
@@ -356,7 +361,6 @@ func (s *state) refresh(j *job) {
 		s.ungroup(j)
 	}
 	j.need = p
-	s.updateDeadline(j)
 	if previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic || previous.WindowClosed != p.WindowClosed {
 		s.capacityAvailable()
 	}
@@ -435,7 +439,6 @@ func (s *state) retire(j *job, err error) {
 }
 func (s *state) finish(j *job, err error) {
 	s.unqueue(j)
-	s.removeDeadline(j)
 	for _, v := range j.needs {
 		s.removeLease(v)
 	}
@@ -525,7 +528,6 @@ func (s *state) loop() {
 	defer timer.Stop()
 	for {
 		now := time.Now()
-		s.expireDeadlines(now)
 		s.expireLeases(now)
 		s.dispatch(now)
 		s.regulate(now)
@@ -547,13 +549,9 @@ func (s *state) loop() {
 			// A command may win selection against a due timer. Apply actual
 			// expiry first so a new demand cannot revive the expired task.
 			now := time.Now()
-			s.expireDeadlines(now)
 			s.expireLeases(now)
 			fn(s)
 		case c := <-s.s.finished:
-			// Deadline wins when completion and its timer are both observable.
-			// Readable bytes alone do not extend response/write cleanup time.
-			s.expireDeadlines(time.Now())
 			j := c.job
 			if c.result.Err == nil && j.progress.comparable(s.cfg.SampleBytes) {
 				s.emit("sample", "readable_block", j)

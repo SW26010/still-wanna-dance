@@ -159,6 +159,28 @@ type attemptTransport func(*http.Request) (*http.Response, error)
 
 func (f attemptTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+func TestAttemptsRefreshSourceEstimateOnlyWithFallback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		start := time.Now()
+		estimate := start.Add(30 * time.Second)
+		lookups := 0
+		current := func() time.Time { lookups++; return estimate }
+		for i, want := range []time.Duration{10 * time.Second, 40 * time.Second, time.Minute} {
+			at := time.Now()
+			ctx, _, cancel := NewAttempt(t.Context(), &http.Client{}, time.Minute, 3-i, current)
+			<-ctx.Done() // No headers on this route.
+			cancel()
+			if got := time.Since(at); got != want {
+				t.Fatalf("route %d waited %v, want %v", i, got, want)
+			}
+			estimate = start.Add(90 * time.Second) // A withdrew, B now sets need-by.
+		}
+		if lookups != 2 {
+			t.Fatalf("source estimate consulted %d times for three routes", lookups)
+		}
+	})
+}
+
 func TestFetchKeepsCandidateOrderAndSharedBudget(t *testing.T) {
 	for _, winner := range []int{1, -1} {
 		var calls []string

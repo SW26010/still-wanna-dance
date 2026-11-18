@@ -1115,3 +1115,27 @@ GET 因块截止退出后的交接由 E+15 秒缩短为 E+2 秒，与客户端�
 Go 1.27.3、Windows amd64；全部 Go 检查沿用临时目录及依赖补丁入口。缓存／调度定向回归通过（6.792／0.173 秒，`directed.log`），完整两包回归通过（199.007／0.173 秒，`packages.log`），两包 vet 通过（`vet.log`）。GCC 16.2.0 下，截止、交接、读取取消及本地保护的定向 Windows race 通过（60.347／1.124 秒，`race.log`）。文件相关整包及 race 使用普通用户环境，沿用已确认的 Windows 沙箱限制处理方式；修改文件 gofmt 与 `git diff --check` 通过。
 
 本轮不测量性能或实际播放器重连收益，未启动游戏、修改 hosts 或替换运行实例；无需新增游戏专属验收项。
+
+## 2026-11-18 来源截止与共享块执行
+
+先前记录中由调度器在最早 N+30 秒终止整块执行的规则，已由[按来源判断截止](../download-resource-design.md#单次尝试超时与下载延续截止)取代。需求集合按各来源剩余范围内的首个缺块安排下次检查，多个 GET 同时到期时先撤销整批，再按更新后的队列时钟计算。调度器发布动态 need-by，下载执行层管理线路、响应头预算和正文重试。
+
+- [共享 Range 回归](../../internal/cacheproxy/download_expiry_test.go)让上游先返回一个字节，在 B 已登记后触发 A 自己的截止。A 收到过期结果，B 从同一响应读到完整内容，上游请求总数为一。另覆盖已可读前缀、全部剩余块可读、交接只剩保护以及最后一份执行依据到期。
+- [线路时序](../../internal/cacheproxy/attempt_timeout_test.go)覆盖最后一条线路在最早来源截止后收到响应头。另用[三条线路](../../internal/upstreamrequest/attempts_test.go)验证每次有备用线路时读取最新估算，最后一次可用完整的单次请求时间。
+- Windows 原生环境通过 cacheproxy、blocksched、upstreamrequest 三个包的完整测试，截止与共享执行的定向竞态检查、upstreamrequest 整包竞态检查及 cmd、internal 的 vet 均通过。早期沙箱运行碰到文件链接权限及 ThreadSanitizer 地址恢复限制，原生日志与早期尝试保留在工作区忽略目录的 `artifacts/source-deadline-*`。
+
+这些检查使用受控上游和本地存储。真实播放器在 A 收到超时后的重连、播放进度和卡顿仍由现有 LA-040 覆盖，本轮没有实机结论或性能测量。
+
+收尾回归覆盖了 GET 登记到挂接之间、旧地址失败后等待新地址、来源截止时排队块恰好取得额度三个时序。未挂接 GET 的过期缺块无法为后续块开工；旧 GET 保留超时结果，新 GET 使用自己的预计时间；计划尚待重算时，上游请求数为零。受控 HTTP 地址替换用例同时核对 504 和替换地址的请求数。[来源与准入测试](../../internal/cacheproxy/download_expiry_test.go) · [地址重试测试](../../internal/cacheproxy/address_sources_test.go)
+
+时间轴的 need-by 和“需求截止”从同一来源快照取得。后端回归保留一份时间不同的调度器计划，用于检查详情的两个时间仍然匹配。[快照测试](../../internal/cacheproxy/block_observation_test.go)
+
+整包复验曾在 `TestPlaybackDeadlinesStayAtRequestArrival` 发现旧夹具跨过首个缺块截止后仍要求后续块入计划。夹具现让首块在截止前可读，继续核对后续块按原请求到达时刻定位。首块持续缺失的分支由跨块准入用例覆盖。该次失败与复验日志均保存在工作区忽略目录 `artifacts/source-finish-*`。
+
+随后把替换地址查询保持在阻塞状态，复现了旧下载退出后 GET 一直等到查询返回的问题。修复后，查询仍挂起时 GET 已返回 504，剩余范围进入交接，共享查询继续运行。虚拟时钟还验证了首块先变为可读时，等待会延续到下一个缺块的截止。[地址重试测试](../../internal/cacheproxy/address_sources_test.go) · [缺块时序测试](../../internal/cacheproxy/download_expiry_test.go)
+
+另一条回归让最后一次 Range 失败和 A 的截止在同一时刻可见。此前 A 丢失截止原因和交接，修复后 A 按截止退出，B 保留共享下载的上游错误。同一时序注入本地存储失败时，存储错误照常传递。[同时失败测试](../../internal/cacheproxy/download_expiry_test.go)
+
+跨会话换址回归让 B 在 A 的截止前发布同一文件，A 的地址查询在截止后才返回。修复前 A 依据旧会话的缺块记录返回 504。修复后 A 从正式缓存读到完整内容并返回 200，没有重复回源或交接。只写入首个临时块时，A 按下一个缺块的截止退出。[HTTP 换址回归](../../internal/cacheproxy/address_sources_test.go) · [临时块时序回归](../../internal/cacheproxy/download_expiry_test.go)
+
+截止重评回归在需求集合等锁期间让截止到达，确认首块仍缺失，再放行上游正文。完整块写入后才允许重评，原 GET 随后读到完整正文，交接数为零。持续缺块时按期退出，以及 A 退出后 B 继续原下载，沿用既有用例。[重评与共享下载回归](../../internal/cacheproxy/download_expiry_test.go) · [持续缺块的换址回归](../../internal/cacheproxy/address_sources_test.go)

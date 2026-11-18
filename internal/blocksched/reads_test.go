@@ -232,11 +232,11 @@ func TestReadWaitKeepsSourceDeadline(t *testing.T) {
 		if key := <-started; key != "block" || time.Since(base) != 5*time.Second {
 			t.Fatal("actual read did not bypass the occupied ordinary slot", key)
 		}
-		if deadline := s.TaskDeadline("block"); !deadline.Equal(base.Add(90 * time.Second)) {
-			t.Error("actual read changed the source deadline", deadline.Sub(base))
+		if needBy := s.TaskNeedBy("block"); !needBy.Equal(base.Add(time.Minute)) {
+			t.Error("actual read changed the source need-by", needBy.Sub(base))
 		}
-		if view := s.Observation().Tasks["block"]; !view.WaitSince.Equal(base.Add(5*time.Second)) || !view.Deadline.Equal(base.Add(90*time.Second)) {
-			t.Error("observation conflated expected use and actual wait", view)
+		if view := s.Observation().Tasks["block"]; !view.WaitSince.Equal(base.Add(5 * time.Second)) {
+			t.Error("observation lost the actual read wait", view)
 		}
 		s.call(func(*state) {
 			seen := false
@@ -260,8 +260,10 @@ func TestReadWaitKeepsSourceDeadline(t *testing.T) {
 		default:
 		}
 		time.Sleep(55 * time.Second)
-		if err := task.Err(); !errors.Is(err, ErrExpired) || time.Since(base) != 90*time.Second {
-			t.Fatal("source need-by + grace did not end the task", err)
+		select {
+		case <-task.Done():
+			t.Fatal("source time interrupted a qualified read")
+		default:
 		}
 	})
 }
@@ -273,7 +275,7 @@ func TestPendingReadDoesNotCreateNeedByDeadline(t *testing.T) {
 		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
 		defer r.Close()
 		end := r.Wait(context.Background(), 0)
-		time.Sleep(DownloadGrace)
+		time.Sleep(30 * time.Second)
 		task, ordinary, err := s.Schedule("block", 1, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: ctx.Err()}
@@ -281,8 +283,8 @@ func TestPendingReadDoesNotCreateNeedByDeadline(t *testing.T) {
 		if err != nil || ordinary != nil {
 			t.Fatal("read-only registration invented an expired source", err)
 		}
-		time.Sleep(DownloadGrace)
-		if deadline := s.TaskDeadline("block"); !deadline.IsZero() {
+		time.Sleep(30 * time.Second)
+		if deadline := s.TaskNeedBy("block"); !deadline.IsZero() {
 			t.Fatal("read-only work acquired a finite need-by", deadline)
 		}
 		end()

@@ -108,12 +108,15 @@ func aggregateUse(plan map[blockSource]plannedNeed, now time.Time) blockUse {
 
 func (p plannedNeed) use(now time.Time) blockUse {
 	result := blockUse{protectReady: p.protectionReady()}
-	if !p.need.LeaseUntil.After(now) || p.need.WindowClosed && blocksched.Expired(p.need.ReadyBy, now) {
-		return result // Closed usage still protects data after its download deadline.
+	if !p.need.LeaseUntil.After(now) || sourceExpired(p.need.ReadyBy, now) {
+		return result // Registered usage can still protect local data.
 	}
 	result.need = p.need
 	result.need.Opportunistic = !p.need.WindowClosed && (p.need.Opportunistic || p.need.ReadyBy.IsZero())
 	result.nextExpiry = p.need.LeaseUntil
+	if p.need.WindowClosed {
+		result.nextExpiry = earlier(result.nextExpiry, sourceDeadline(p.need.ReadyBy))
+	}
 	return result
 }
 

@@ -8,8 +8,6 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
 type firstBodyRecorder struct {
@@ -84,7 +82,7 @@ func TestStreamResponsePreservesCancellationDuringSeek(t *testing.T) {
 					defer cancel(nil)
 					reader := spool.reader(ctx, blocks.size)
 					defer reader.Close()
-					cancel(blocksched.ErrExpired)
+					cancel(errSourceExpired)
 					synctest.Wait() // Ensure the local reader has closed before Seek.
 
 					request := httptest.NewRequest(method, "/video.mp4", nil)
@@ -95,7 +93,7 @@ func TestStreamResponsePreservesCancellationDuringSeek(t *testing.T) {
 						t.Fatalf("ServeContent committed a response before stream error handling: status=%d body=%q", response.Code, response.Body.String())
 					}
 					if method == http.MethodGet {
-						if !errors.Is(reader.err, blocksched.ErrExpired) || cacheErrorStatus(reader.err) != http.StatusGatewayTimeout {
+						if !errors.Is(reader.err, errSourceExpired) || cacheErrorStatus(reader.err) != http.StatusGatewayTimeout {
 							t.Fatal("GET lost its expiry cause", reader.err)
 						}
 					} else {

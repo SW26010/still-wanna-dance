@@ -42,7 +42,7 @@ type Config struct {
 	ResolvePlayback func(context.Context, string) (string, error)
 	// DownloadTimeout bounds each upstream attempt (headers and body) and each
 	// local validation/publication phase. Header waits also reserve time for
-	// remaining candidates when the caller or scheduler has a deadline.
+	// remaining candidates using the caller deadline and current source need-by.
 	// Scheduling waits are governed by demand leases and caller cancellation.
 	DownloadTimeout time.Duration
 	// BlockSize is the download/storage block size in bytes; zero uses

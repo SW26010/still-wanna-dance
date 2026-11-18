@@ -54,15 +54,16 @@ func AttemptError(ctx context.Context, err error) error {
 }
 
 // NewAttempt gives headers a share of the remaining deadline while preserving
-// the full timeout for the request and body. headerDeadline optionally supplies
-// an earlier scheduling deadline that is not enforced by ctx; its owner still
-// controls cancellation. remaining includes the current candidate and must be
-// positive. The caller owns cancellation through response body close.
-func NewAttempt(ctx context.Context, source *http.Client, timeout time.Duration, remaining int, headerDeadline time.Time) (context.Context, *http.Client, context.CancelFunc) {
+// the full timeout for the request and body. When another route is available,
+// fallbackDeadline can supply the latest source estimate for reserving its turn.
+// remaining includes this candidate. The caller owns cancellation through close.
+func NewAttempt(ctx context.Context, source *http.Client, timeout time.Duration, remaining int, fallbackDeadline func() time.Time) (context.Context, *http.Client, context.CancelFunc) {
 	budget := timeout
 	deadline, _ := ctx.Deadline()
-	if !headerDeadline.IsZero() && (deadline.IsZero() || headerDeadline.Before(deadline)) {
-		deadline = headerDeadline
+	if remaining > 1 && fallbackDeadline != nil {
+		if estimate := fallbackDeadline(); !estimate.IsZero() && (deadline.IsZero() || estimate.Before(deadline)) {
+			deadline = estimate
+		}
 	}
 	if !deadline.IsZero() {
 		budget = min(budget, time.Until(deadline)/time.Duration(remaining))
@@ -94,7 +95,7 @@ func Fetch[T any](ctx context.Context, target string, clients []*http.Client, ti
 		if ctx.Err() != nil {
 			return zero, context.Cause(ctx)
 		}
-		child, client, cancel := NewAttempt(ctx, source, timeout, len(clients)-index, time.Time{})
+		child, client, cancel := NewAttempt(ctx, source, timeout, len(clients)-index, nil)
 		value, err := read(child, client, target)
 		err = AttemptError(child, err)
 		cancel()

@@ -122,9 +122,9 @@ func TestExpiredGETKeepsValidBlockExecution(t *testing.T) {
 			}()
 			receiveDemandEvent(t, prefix)
 			// Pre-age only the source input, after both real HTTP bodies start.
-			// The real scheduler timer, GET exit and persisted history remain in
+			// The real source timer, GET exit and persisted history remain in
 			// the loop without adding 30 seconds to every fixture invocation.
-			clock := &playbackClock{at: time.Now().Add(time.Second - blocksched.DownloadGrace), limit: v.size, media: mediaTiming{v.size, tc.duration}}
+			clock := &playbackClock{at: time.Now().Add(time.Second - sourceGrace), limit: v.size, media: mediaTiming{v.size, tc.duration}}
 			s.mu.Lock()
 			var old *downloadDemand
 			for d := range s.demands {
@@ -138,7 +138,7 @@ func TestExpiredGETKeepsValidBlockExecution(t *testing.T) {
 			if old == nil {
 				t.Fatal("HTTP request did not register its GET source")
 			}
-			if crash := receiveDemandEvent(t, getResult); crash != nil || response.Code != http.StatusGatewayTimeout || !errors.Is(context.Cause(old.ctx), blocksched.ErrExpired) || ctx.Err() != nil {
+			if crash := receiveDemandEvent(t, getResult); crash != nil || response.Code != http.StatusGatewayTimeout || !errors.Is(context.Cause(old.ctx), errSourceExpired) || ctx.Err() != nil {
 				t.Fatal("GET lost its service expiry response", crash, response.Code, context.Cause(old.ctx))
 			}
 			f := old.flight
@@ -187,7 +187,7 @@ func TestExpiredGETKeepsValidBlockExecution(t *testing.T) {
 				t.Fatal(err)
 			}
 			page, err := ReadRequestHistory(t.Context(), cfg.Store.path, RequestQuery{Limit: 10})
-			if err != nil || len(page.Requests) != 1 || page.Requests[0].Outcome != "expired" || errors.Is(f.err, blocksched.ErrExpired) {
+			if err != nil || len(page.Requests) != 1 || page.Requests[0].Outcome != "expired" || errors.Is(f.err, errSourceExpired) {
 				t.Fatal("GET history inherited the independent resource result", page.Requests, err, f.err)
 			}
 		})

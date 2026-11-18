@@ -12,8 +12,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
 func completedQueueFixture(t *testing.T, body string, before func(*http.Request) error) (*Server, video, *queueSource, *atomic.Int32) {
@@ -260,7 +258,7 @@ func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
 		t.Fatal("completed preparation still has valid queue usage")
 	}
 	moveCompletedQueueOut(t, s, v)
-	releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-blocksched.DownloadGrace-time.Second))
+	releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-sourceGrace-time.Second))
 	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 		t.Fatal(err)
 	}

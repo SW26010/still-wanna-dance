@@ -110,6 +110,12 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	for {
+		s := r.spool
+		s.mu.Lock()
+		complete, failure, changed := s.complete, s.err, s.changed
+		demand := s.demand
+		s.mu.Unlock()
+		// A source may already have expired when its flight publishes failure.
 		if err := context.Cause(r.ctx); err != nil {
 			r.err = err
 			return 0, err
@@ -117,11 +123,6 @@ func (r *spoolReader) Read(p []byte) (int, error) {
 		if r.offset >= r.size {
 			return 0, io.EOF
 		}
-		s := r.spool
-		s.mu.Lock()
-		complete, failure, changed := s.complete, s.err, s.changed
-		demand := s.demand
-		s.mu.Unlock()
 		next := min(int64(len(p)), r.size-r.offset)
 		n, err := r.local.ReadAt(p[:next], r.offset)
 		r.offset += int64(n)

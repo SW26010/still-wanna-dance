@@ -41,8 +41,8 @@ func TestClosedWindowNeedsSourceUpdateAndKeepsRunningLifecycle(t *testing.T) {
 			t.Fatal("closing admission canceled an existing execution", task.Err())
 		default:
 		}
-		if err := task.Err(); err != ErrExpired || time.Now() != Deadline(closed.ReadyBy) {
-			t.Fatal("closed window lost the finite execution deadline", err, time.Now())
+		if err := task.Err(); err != context.Canceled || time.Now() != closed.LeaseUntil {
+			t.Fatal("closed window lost its lease expiry", err, time.Now())
 		}
 	})
 }
@@ -114,8 +114,8 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 				}
 				synctest.Wait()
 				s.call(func(st *state) {
-					if st.control.open != 1 || st.nextControlEvent(time.Now()) != Deadline(now.Add(tc.ready)) {
-						t.Error("running task lost its deadline or requested capacity")
+					if st.control.open != 1 || !st.nextControlEvent(time.Now()).IsZero() {
+						t.Error("running task requested a spurious control event")
 					}
 				})
 				for _, e := range events {
@@ -201,7 +201,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			if st.active != 1 || st.ready.Len() != 1 || time.Until(st.nextControlEvent(time.Now())) != 29*time.Second {
+			if st.active != 1 || st.ready.Len() != 1 || !st.nextControlEvent(time.Now()).IsZero() {
 				t.Error("full quota installed an already elapsed timer")
 			}
 		})
@@ -355,9 +355,7 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 		}
 		synctest.Wait()
 		s.call(func(st *state) {
-			// The oldest ordinary source, not the later read wait, owns the
-			// next finite deadline (T+450+30).
-			if st.active != 5 || st.control.open != 4 || st.nextControlEvent(time.Now()) != now.Add(450*time.Second+DownloadGrace) {
+			if st.active != 5 || st.control.open != 4 || !st.nextControlEvent(time.Now()).IsZero() {
 				t.Error("large window altered active accounting or left a past-time wakeup")
 			}
 		})

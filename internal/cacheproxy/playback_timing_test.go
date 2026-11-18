@@ -117,8 +117,9 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 		at := time.Now()
 		clock := &playbackClock{at: at, offset: 8 * rangeBlockSize, limit: 20 * rangeBlockSize, media: mediaTiming{20 * rangeBlockSize, 200 * time.Second}}
 		ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
-		_, release := addTestDemand(t, s, ctx, w.v, true)
+		demand, release := addTestDemand(t, s, ctx, w.v, true)
 		defer release()
+		demand.flight = w.f
 		time.Sleep(10 * time.Second) // Resolution/download delays do not move the clock.
 		check := func(block int64, want time.Time) {
 			t.Helper()
@@ -136,6 +137,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 		}
 		check(8, at)
 		check(12, at.Add(40*time.Second))
+		w.f.ranges.done[8] = true // This GET can continue when its first deadline arrives.
 		time.Sleep(20 * time.Second)
 		check(13, at.Add(50*time.Second))
 		if clock.end() != at.Add(120*time.Second) {

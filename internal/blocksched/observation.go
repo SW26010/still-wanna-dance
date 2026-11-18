@@ -14,7 +14,6 @@ type Observation struct {
 type TaskObservation struct {
 	Running, Retiring bool
 	Readers           int
-	Deadline          time.Time
 	WaitSince         time.Time
 }
 
@@ -49,7 +48,7 @@ func (s *Scheduler) Observation() Observation {
 	s.call(func(st *state) {
 		result.Active, result.Open = st.active, st.control.open
 		for key, j := range st.jobs {
-			result.Tasks[key] = TaskObservation{Running: j.cancel != nil, Retiring: j.retiring, Deadline: Deadline(j.need.ReadyBy)}
+			result.Tasks[key] = TaskObservation{Running: j.cancel != nil, Retiring: j.retiring}
 		}
 		for key, readers := range st.reads {
 			task, exists := result.Tasks[key]

@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/blocksched"
 )
 
-func (s *Server) readRange(ctx context.Context, flight *flight, block int64, progress *blocksched.Progress) error {
+func (s *Server) readRange(ctx context.Context, flight *flight, block int64, ready func(), needBy func() time.Time) error {
 	download := flight.ranges
 	s.retentionMu.Lock()
 	v := download.video
@@ -32,9 +31,7 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, pro
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
 	blockVideo := v
-	attempts := &resourceAttempts{deadline: func() time.Time {
-		return s.scheduler.TaskDeadline(downloadTaskKey(v.key, v.size, block))
-	}}
+	attempts := &resourceAttempts{fallbackDeadline: func() time.Time { return sourceDeadline(needBy()) }}
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {
@@ -158,7 +155,7 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, pro
 			s.notifyBlockStored(v.key)
 		}
 		download.finish(block)
-		progress.Ready()
+		ready()
 		return nil
 	}
 	return fmt.Errorf("%w: range %d-%d: %w", errUpstreamDownload, start, end-1, last)

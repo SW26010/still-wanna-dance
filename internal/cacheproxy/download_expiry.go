@@ -1,24 +1,122 @@
 package cacheproxy
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
-// The source collection handles block deadline feedback. It ends only GETs
-// whose remaining span and own clock have expired, then independently applies
-// queue expiry policy. Resource execution follows the resulting usage plan.
-func (s *Server) expireDownload(f *flight, key string, block int64) {
+const sourceGrace = 30 * time.Second
+
+var errSourceExpired = fmt.Errorf("download need-by window expired: %w", context.DeadlineExceeded)
+
+func sourceDeadline(readyBy time.Time) time.Time {
+	if readyBy.IsZero() {
+		return time.Time{}
+	}
+	return readyBy.Add(sourceGrace)
+}
+
+func sourceExpired(readyBy, now time.Time) bool {
+	return !readyBy.IsZero() && !sourceDeadline(readyBy).After(now)
+}
+
+func (s *Server) missingDeadline(span useSpan, clock playbackClock, firstMissing func(useSpan) (int64, bool)) time.Time {
+	if block, ok := firstMissing(span); ok {
+		return sourceDeadline(clock.ready(block * s.cfg.BlockSize))
+	}
+	return time.Time{}
+}
+
+// A failed flight identifies a GET waiting for a replacement address.
+// Another flight may since have stored blocks or published the whole resource.
+func (s *Server) failedGETDeadlineLocked(d *downloadDemand) time.Time {
+	if d.flight != nil && d.clock != nil {
+		select {
+		case <-d.flight.done:
+			if errors.Is(d.flight.err, errUpstreamDownload) {
+				return s.missingDeadline(d.useSpan(), *d.clock, s.firstMissingLocal)
+			}
+		default:
+		}
+	}
+	return time.Time{}
+}
+
+func (d *downloadDemand) expireGET() {
+	d.exit.recordReason(withdrawalDownloadExpired)
+	d.cancel(errSourceExpired)
+}
+
+// While the old flight is gone, the address lookup can outlive the GET. Wake
+// this source at its first missing block's deadline, even without a new flight.
+// The returned function settles the same deadline when the lookup finishes.
+func (s *Server) watchRetryDeadline(d *downloadDemand) func() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	now := time.Now()
+	check := func() time.Time {
+		if !s.demands[d] || d.flight == nil || d.ctx.Err() != nil || s.closed {
+			return time.Time{}
+		}
+		next := s.refreshGETDeadlinesLocked(d.key, time.Now(), s.failedGETDeadlineLocked)
+		if d.ctx.Err() != nil {
+			return time.Time{}
+		}
+		return next
+	}
+	var timer *time.Timer
+	if at := check(); !at.IsZero() {
+		timer = time.AfterFunc(time.Until(at), func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if timer != nil {
+				if next := check(); !next.IsZero() {
+					timer.Reset(time.Until(next))
+				}
+			}
+		})
+	}
+	return func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if timer != nil {
+			timer.Stop()
+			timer = nil
+		}
+		check()
+		return context.Cause(d.ctx)
+	}
+}
+
+func (s *Server) refreshDownloadDeadlinesLocked(f *flight, key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
+	next := s.refreshGETDeadlinesLocked(key, now, func(d *downloadDemand) time.Time {
+		switch d.flight {
+		case nil:
+			return s.missingDeadline(d.useSpan(), *d.clock, s.firstMissingLocal)
+		case f:
+			return s.missingDeadline(d.useSpan(), *d.clock, firstMissing)
+		default:
+			return s.failedGETDeadlineLocked(d)
+		}
+	})
+	// GET withdrawal can change the queue clock before its own deadline check.
+	return earlier(next, s.refreshQueueDeadlinesLocked(key, now, firstMissing))
+}
+
+func (s *Server) refreshGETDeadlinesLocked(key string, now time.Time, deadline func(*downloadDemand) time.Time) time.Time {
 	s.refreshUseSourcesLocked(now)
+	var next time.Time
 	var ended []*downloadDemand
 	for d := range s.demands {
-		if d.playback && d.flight == f && d.useSpan().contains(key, block) && d.clock != nil && blocksched.Expired(d.clock.ready(block*s.cfg.BlockSize), now) {
-			d.exit.recordReason(withdrawalDownloadExpired)
-			d.cancel(blocksched.ErrExpired)
+		if !d.playback || d.key != key || d.clock == nil {
+			continue
+		}
+		at := deadline(d)
+		if at.After(now) {
+			next = earlier(next, at)
+		} else if !at.IsZero() && d.flight != nil { // Attachment determines the GET outcome.
+			d.expireGET()
 			ended = append(ended, d)
 		}
 	}
@@ -27,11 +125,18 @@ func (s *Server) expireDownload(f *flight, key string, block int64) {
 	for _, d := range ended {
 		s.removeDemandLocked(d)
 	}
-	// GET withdrawal can genuinely change queue timing. Judge the remaining
-	// queue against that updated clock before ending its own preparation.
-	now = time.Now()
+	return next
+}
+
+func (s *Server) refreshQueueDeadlinesLocked(key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
+	var next time.Time
 	for _, q := range s.prefetchSources {
-		if !q.use.contains(key, block) || !blocksched.Expired(q.readyBy(block, s.cfg.BlockSize), now) {
+		if q.use.key != key {
+			continue
+		}
+		at := s.missingDeadline(q.use, playbackClock{at: q.startAt, media: q.timing}, firstMissing)
+		if at.IsZero() || at.After(now) {
+			next = earlier(next, at)
 			continue
 		}
 		q.expired = true
@@ -40,10 +145,11 @@ func (s *Server) expireDownload(f *flight, key string, block int64) {
 		for d := range s.demands {
 			if d.queueSource == q {
 				d.exit.recordReason(withdrawalNeedEnded)
-				d.cancel(blocksched.ErrExpired)
+				d.cancel(errSourceExpired)
 				s.removeDemandLocked(d)
 			}
 		}
 		s.notifyUseChangedLocked(key)
 	}
+	return next
 }

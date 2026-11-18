@@ -3,10 +3,8 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +14,12 @@ import (
 
 	"still-wanna-dance/internal/blocksched"
 )
+
+func (s *Server) expireDownload(f *flight, key string, block int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.refreshDownloadDeadlinesLocked(f, key, time.Now(), func(span useSpan) (int64, bool) { return block, span.contains(key, block) })
+}
 
 func snapshotUseHandoffs(s *Server) []*useHandoff {
 	s.mu.Lock()
@@ -35,10 +39,11 @@ func TestDownloadExpirySelectsGETsByRemainingSpanAndOwnClock(t *testing.T) {
 			affixed bool
 			expired bool
 		}{
-			{"expired", now.Add(-blocksched.DownloadGrace), 0, true, true},
-			{"later-clock", now.Add(time.Second - blocksched.DownloadGrace), 0, true, false},
-			{"other-range", now.Add(-blocksched.DownloadGrace), rangeBlockSize, true, false},
-			{"other-flight", now.Add(-blocksched.DownloadGrace), 0, false, false},
+			{"expired", now.Add(-sourceGrace), 0, true, true},
+			{"no-deadline", time.Time{}, 0, true, false},
+			{"later-clock", now.Add(time.Second - sourceGrace), 0, true, false},
+			{"other-range", now.Add(-sourceGrace), rangeBlockSize, true, false},
+			{"other-flight", now.Add(-sourceGrace), 0, false, false},
 		} {
 			clock := &playbackClock{at: tc.at, offset: tc.offset, limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
 			d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
@@ -47,12 +52,224 @@ func TestDownloadExpirySelectsGETsByRemainingSpanAndOwnClock(t *testing.T) {
 				d.flight = w.f
 			}
 			defer func() {
-				if got := errors.Is(context.Cause(d.ctx), blocksched.ErrExpired); got != tc.expired {
+				if got := errors.Is(context.Cause(d.ctx), errSourceExpired); got != tc.expired {
 					t.Error("GET expiry ignored its own remaining span or clock", tc.name, context.Cause(d.ctx))
 				}
 			}()
 		}
 		s.expireDownload(w.f, w.v.key, 0)
+	})
+}
+
+func TestGETDeadlineOnFinalRangeFailure(t *testing.T) {
+	for _, failure := range []error{errUpstreamDownload, ErrLocalStorage} {
+		t.Run(failure.Error(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				w.v.size = rangeBlockSize
+				addGET := func(at time.Time) *downloadDemand {
+					clock := &playbackClock{at: at, limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+					d, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+					t.Cleanup(release)
+					d.flight = w.f
+					return d
+				}
+				now := time.Now()
+				a, b := addGET(now.Add(time.Second-sourceGrace)), addGET(now)
+				plan, _, _ := w.plan(now)
+				task, demand, err := s.scheduler.Schedule(w.reads.Key(0), rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
+					time.Sleep(time.Second)
+					return blocksched.Result{Err: failure}
+				}, plan[0].need)
+				if err != nil {
+					t.Fatal(err)
+				}
+				w.jobs[0] = &scheduledBlock{task: task, merged: demand}
+				<-task.Done() // A's deadline and the final range error are both observable.
+				_, err = w.nextPlan()
+				if got := w.close(err); got != failure || b.ctx.Err() != nil {
+					t.Fatal("shared failure or surviving source changed", got, context.Cause(b.ctx))
+				}
+				wantExpired := failure == errUpstreamDownload
+				if errors.Is(context.Cause(a.ctx), errSourceExpired) != wantExpired || (len(snapshotUseHandoffs(s)) == 1) != wantExpired {
+					t.Fatal("incorrect GET outcome at final range failure", failure, context.Cause(a.ctx), len(snapshotUseHandoffs(s)))
+				}
+			})
+		})
+	}
+}
+
+func TestReadableBlockDoesNotExpireGET(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		now := time.Now()
+		clock := &playbackClock{at: now.Add(-sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+		d, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		d.flight = w.f
+		w.f.ranges.done[0] = true
+		w.plan(now)
+		if d.ctx.Err() != nil || !w.sourceAt.Equal(sourceDeadline(clock.ready(rangeBlockSize))) {
+			t.Fatalf("readable first block affected GET: err=%v next=%v", d.ctx.Err(), w.sourceAt)
+		}
+		w.f.ranges.done[1] = true
+		w.plan(w.sourceAt)
+		if d.ctx.Err() != nil || !w.sourceAt.IsZero() {
+			t.Fatalf("all blocks readable: err=%v next=%v", d.ctx.Err(), w.sourceAt)
+		}
+	})
+}
+
+func TestGETDeliversBlockStoredBetweenDeadlineAndReevaluation(t *testing.T) {
+	s, _ := setup(t, nil)
+	ready, closed := make(chan int64, 1), make(chan int64, 1)
+	gate := make(chan struct{})
+	releaseBody := sync.OnceFunc(func() { close(gate) })
+	defer releaseBody()
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(req *http.Request) (*http.Response, error) {
+			resp := fixtureRangeResponse(req, payload)
+			resp.Body = &continuingRangeBody{ctx: req.Context(), remainder: resp.Body, ready: ready, closed: closed, gate: gate}
+			return resp, nil
+		})}
+	}
+	v := parsedVideo(t, s, payload)
+	deadline := time.Now().Add(2 * time.Second)
+	clock := &playbackClock{at: deadline.Add(-sourceGrace), limit: v.size, media: estimateMediaTiming(v.size, 0)}
+	f, reader, err := s.obtain(context.WithValue(t.Context(), playbackClockKey{}, clock), v)
+	if err != nil || reader == nil {
+		t.Fatal("GET did not open its stream", err)
+	}
+	defer reader.Close()
+	receiveDemandEvent(t, ready)
+
+	// Hold off source reevaluation until the complete block is visible. The
+	// body stays gated through the deadline, so it cannot have arrived early.
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if !time.Now().Before(deadline) {
+			t.Fatal("source deadline already passed before delaying reevaluation")
+		}
+		time.Sleep(time.Until(deadline))
+		if f.ranges.has(0) {
+			t.Fatal("block was already readable at the deadline")
+		}
+		f.spool.mu.Lock()
+		changed := f.spool.changed
+		f.spool.mu.Unlock()
+		releaseBody()
+		receiveDemandEvent(t, changed)
+		if !f.ranges.has(0) {
+			t.Fatal("block did not become readable before reevaluation")
+		}
+	}()
+	receiveDemandEvent(t, f.done)
+	got, err := io.ReadAll(reader)
+	if err != nil || string(got) != payload || len(snapshotUseHandoffs(s)) != 0 {
+		t.Fatalf("GET should deliver the complete block without handoff: body=%q err=%v", got, err)
+	}
+}
+
+func TestAddressRetryDeadlineFollowsFirstMissingBlock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		clock := &playbackClock{at: time.Now().Add(time.Second - sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+		a, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		a.flight = &flight{err: errUpstreamDownload, done: make(chan struct{})}
+		close(a.flight.done)
+		finishWait := s.watchRetryDeadline(a)
+		defer finishWait()
+		// A later flight makes only the first block locally readable.
+		s.retentionMu.Lock()
+		s.localResources = map[string]*localResource{w.v.key: w.f.ranges}
+		s.retentionMu.Unlock()
+		w.f.ranges.finish(0)
+		time.Sleep(time.Until(sourceDeadline(clock.ready(0))))
+		synctest.Wait()
+		if a.ctx.Err() != nil {
+			t.Fatal("readable first block expired the GET", context.Cause(a.ctx))
+		}
+		time.Sleep(time.Until(sourceDeadline(clock.ready(rangeBlockSize))))
+		synctest.Wait()
+		if !errors.Is(context.Cause(a.ctx), errSourceExpired) {
+			t.Fatal("waiting GET missed the next missing block's deadline", context.Cause(a.ctx))
+		}
+	})
+}
+
+func TestExpiredGETAcrossFlightAttachment(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		now := time.Now()
+		clock := &playbackClock{at: now.Add(-sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, 2 * time.Minute}}
+		a, releaseA := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+		defer releaseA()
+		plan, _, _ := w.plan(now)
+		if plan[0].need.Owner != "" || plan[1].need.Owner != "" || plan[0].protectReady != clock.at || a.ctx.Err() != nil {
+			t.Fatal("unattached GET funded a download or lost its usage", plan[0])
+		}
+
+		// A is waiting for a replacement address for the failed flight while
+		// B attaches to a new flight for the same missing data.
+		a.flight = &flight{err: errUpstreamDownload, done: make(chan struct{})}
+		close(a.flight.done)
+		bClock := &playbackClock{at: now, limit: rangeBlockSize, media: clock.media}
+		b, releaseB := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, bClock), w.v, true)
+		defer releaseB()
+		b.flight = w.f
+		plan, _, _ = w.plan(now)
+		if !errors.Is(context.Cause(a.ctx), errSourceExpired) || b.ctx.Err() != nil || plan[0].need.ReadyBy != now {
+			t.Fatal("failed GET changed the new flight's clock or lost its retry cause", plan[0], context.Cause(a.ctx))
+		}
+	})
+}
+
+func TestQueuedRangeRechecksSourceBeforeFirstRequest(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		w.v.size = 2 * rangeBlockSize
+		s.cfg.DownloadTimeout = time.Minute
+		w.f.ranges.video = w.v
+		started := 0
+		s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+			started++
+			return []http.RoundTripper{resourceTransportFunc(func(*http.Request) (*http.Response, error) {
+				return nil, io.ErrUnexpectedEOF
+			})}
+		}
+		now := time.Now()
+		held, stop, err := s.scheduler.Schedule("occupied", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
+			<-ctx.Done()
+			return blocksched.Result{}
+		}, blocksched.Need{Owner: "other", LeaseUntil: now.Add(time.Hour)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		clock := &playbackClock{at: now.Add(time.Second - sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, 2 * time.Minute}}
+		a, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		a.flight = w.f
+		reconcileSession(t, w)
+		time.Sleep(time.Second)
+		stop.Close() // Capacity returns before the source coordinator replans.
+		<-held.Done()
+		for block, job := range w.jobs {
+			if err := job.task.Err(); !errors.Is(err, blocksched.ErrDeferred) {
+				t.Fatal("stale admission reached the upstream", block, err)
+			}
+		}
+		if started != 0 {
+			t.Fatal("sent requests after the GET missed its first block", started)
+		}
+		if _, err := w.nextPlan(); err != nil || !errors.Is(context.Cause(a.ctx), errSourceExpired) {
+			t.Fatal("deferred admission failed the flight or lost its source outcome", err, context.Cause(a.ctx))
+		}
 	})
 }
 
@@ -84,7 +301,7 @@ func TestExpiredGETHandoffUsesEntireUnconsumedRangeAndFixedExpiry(t *testing.T) 
 		w.jobs[3] = &scheduledBlock{task: task, merged: demand, published: n}
 		s.expireDownload(w.f, w.v.key, 1)
 		handoffs := snapshotUseHandoffs(s)
-		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || len(s.demands) != 0 || len(handoffs) != 1 || useCount(s) != 7 {
+		if !errors.Is(context.Cause(d.ctx), errSourceExpired) || len(s.demands) != 0 || len(handoffs) != 1 || useCount(s) != 7 {
 			t.Fatal("sole expired GET failed to transfer its eligible usage", context.Cause(d.ctx), len(handoffs), useCount(s))
 		}
 		h := handoffs[0]
@@ -134,7 +351,7 @@ func TestDownloadExpiryWithoutFutureUsageKeepsOnlyHandoffProtection(t *testing.T
 		defer release()
 		d.flight = w.f
 		s.expireDownload(w.f, w.v.key, 0)
-		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || ctx.Err() != nil || useCount(s) != 20 || len(s.useHandoffs) != 1 {
+		if !errors.Is(context.Cause(d.ctx), errSourceExpired) || ctx.Err() != nil || useCount(s) != 20 || len(s.useHandoffs) != 1 {
 			t.Fatal("service expiry lost its cause, canceled the client context or lost remaining usage")
 		}
 		plan, _, _ := w.plan(now)
@@ -162,7 +379,7 @@ func TestExpiredGETHandoffDoesNotExtendRunningDeadline(t *testing.T) {
 		w, s := testSession(t)
 		w.v.size = 2 * rangeBlockSize
 		now := time.Now()
-		clock := &playbackClock{at: now.Add(-blocksched.DownloadGrace), limit: w.v.size, media: mediaTiming{w.v.size, 2 * time.Second}}
+		clock := &playbackClock{at: now.Add(-sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, 2 * time.Second}}
 		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
 		defer release()
 		d.flight = w.f
@@ -188,7 +405,8 @@ func TestExpiredGETHandoffDoesNotExtendRunningDeadline(t *testing.T) {
 		}
 		time.Sleep(time.Nanosecond)
 		synctest.Wait()
-		if err := task.Err(); !errors.Is(err, blocksched.ErrExpired) {
+		reconcileSession(t, w)
+		if err := task.Err(); !errors.Is(err, context.Canceled) {
 			t.Fatal("handoff extended the original download deadline", err)
 		}
 		if len(snapshotUseHandoffs(s)) != 1 || useCount(s) != 2 {
@@ -202,13 +420,13 @@ func TestDelayedExpiredGETHandoffKeepsFrozenExitAndIndependentGET(t *testing.T) 
 		w, s := testSession(t)
 		w.v.size = 2 * rangeBlockSize
 		exit := time.Now()
-		clock := &playbackClock{at: exit.Add(-blocksched.DownloadGrace), limit: w.v.size, media: mediaTiming{w.v.size, 61 * time.Second}}
+		clock := &playbackClock{at: exit.Add(-sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, 61 * time.Second}}
 		d, release := addTestDemand(t, s, context.WithValue(context.Background(), playbackClockKey{}, clock), w.v, true)
 		defer release()
 		// Delayed collection must preserve the whole remaining span and the
 		// original exit time, even when a block's need-by passes in the meantime.
 		d.exit.recordReason(withdrawalDownloadExpired)
-		d.cancel(blocksched.ErrExpired)
+		d.cancel(errSourceExpired)
 		time.Sleep(time.Second)
 		w.plan(time.Now())
 		handoffs := snapshotUseHandoffs(s)
@@ -286,11 +504,11 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 		d, release := addTestDemand(t, s, ctx, v, false)
 		defer release()
 		s.expireDownload(w.f, v.key, 0)
-		if !errors.Is(context.Cause(d.ctx), blocksched.ErrExpired) || useCount(s) != 1 || !d.queueSource.expired {
+		if !errors.Is(context.Cause(d.ctx), errSourceExpired) || useCount(s) != 1 || !d.queueSource.expired {
 			t.Fatal("expired predictive preparation retained usage")
 		}
 		s.UpdatePrefetchQueue([]int64{1}, false)
-		if _, _, err := s.addDemand(ctx, v, false); !errors.Is(err, blocksched.ErrExpired) {
+		if _, _, err := s.addDemand(ctx, v, false); !errors.Is(err, errSourceExpired) {
 			t.Fatal("repeated snapshot/retry revived an expired queue preparation", err)
 		}
 		// A genuine new playback changes the queue's remaining clock. Its next
@@ -336,7 +554,7 @@ func TestExpiredGETBeforeHeadersFailsWithoutUpstream(t *testing.T) {
 		_, err = io.ReadAll(reader)
 		reader.Close()
 	}
-	if !errors.Is(err, blocksched.ErrExpired) || cacheErrorStatus(err) != http.StatusGatewayTimeout || ctx.Err() != nil || calls.Load() != 0 {
+	if !errors.Is(err, errSourceExpired) || cacheErrorStatus(err) != http.StatusGatewayTimeout || ctx.Err() != nil || calls.Load() != 0 {
 		t.Fatal("expired registration did not fail explicitly before HTTP work", err, calls.Load())
 	}
 	s.mu.Lock()
@@ -348,73 +566,65 @@ func TestExpiredGETBeforeHeadersFailsWithoutUpstream(t *testing.T) {
 	}
 }
 
-func TestExpiredGETAllowsManualPreparationAfterCleanup(t *testing.T) {
-	for _, status := range []int{http.StatusPartialContent} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
-			s, cfg := setup(t, nil)
-			cleanup, gate := make(chan struct{}), make(chan struct{})
-			unblock := sync.OnceFunc(func() { close(gate) })
-			defer unblock()
-			var loads, calls atomic.Int32
-			s.cfg.BeginResourceLoad = func() func() {
-				if loads.Add(1) == 1 {
-					return func() { close(cleanup); <-gate }
+func TestExpiredGETPreservesSharedPartialRange(t *testing.T) {
+	s, _ := setup(t, nil)
+	var calls atomic.Int32
+	prefix, release := make(chan struct{}), make(chan struct{})
+	finish := sync.OnceFunc(func() { close(release) })
+	defer finish()
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(req *http.Request) (*http.Response, error) {
+			response := fixtureRangeResponse(req, payload)
+			if calls.Add(1) != 1 {
+				return response, nil
+			}
+			body := strings.NewReader(payload)
+			response.Body = io.NopCloser(publishReaderFunc(func(data []byte) (int, error) {
+				if body.Len() == len(payload) {
+					n, err := body.Read(data[:1])
+					return n, err
 				}
-				return func() {}
-			}
-			s.cfg.ResourceTransports = func(string) []http.RoundTripper {
-				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
-					var body io.ReadCloser = io.NopCloser(strings.NewReader(payload))
-					if calls.Add(1) == 1 {
-						body = io.NopCloser(publishReaderFunc(func([]byte) (int, error) {
-							<-r.Context().Done()
-							<-gate
-							return 0, r.Context().Err()
-						}))
-					}
-					header := make(http.Header)
-					if status == http.StatusPartialContent {
-						header.Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(payload)-1, len(payload)))
-					}
-					return &http.Response{StatusCode: status, ContentLength: int64(len(payload)), Header: header, Body: body, Request: r}, nil
-				})}
-			}
-			r, _ := http.NewRequest("GET", videoURL(payload), nil)
-			v, _ := s.parseResolved(r)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			getCtx := context.WithValue(ctx, playbackClockKey{}, &playbackClock{at: time.Now().Add(time.Second - blocksched.DownloadGrace), limit: v.size, media: estimateMediaTiming(v.size, 0)})
-			old, reader, err := s.obtain(getCtx, v)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer reader.Close()
-			getResult := make(chan error, 1)
-			go func() { _, err := io.ReadAll(reader); getResult <- err }()
-			manualCtx, admitted := WithPreparationAdmission(ctx)
-			manualResult := make(chan error, 1)
-			go func() { _, err := s.prefetchVideo(manualCtx, v); manualResult <- err }()
-			receiveDemandEvent(t, admitted)
-			receiveDemandEvent(t, cleanup)
-			if calls.Load() != 1 {
-				t.Fatal("new execution overlapped expired response cleanup", calls.Load())
-			}
-			unblock()
-			if err := receiveDemandEvent(t, getResult); !errors.Is(err, blocksched.ErrExpired) || getCtx.Err() != nil {
-				t.Fatal("GET did not receive an explicit service deadline failure", err)
-			}
-			if err := receiveDemandEvent(t, manualResult); err != nil {
-				t.Fatal("independent manual demand could not finish after cleanup", err)
-			}
-			if calls.Load() != 2 || old.err != nil {
-				t.Fatal("expired task was reused or retried more than once", calls.Load(), old.err)
-			}
-			if got, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(got) != payload {
-				t.Fatal("manual retry was not verified and published", err)
-			}
-			if s.StorageError() != nil {
-				t.Fatal("service deadline poisoned storage")
-			}
-		})
+				if body.Len() == len(payload)-1 {
+					close(prefix)
+				}
+				select {
+				case <-req.Context().Done():
+					return 0, req.Context().Err()
+				case <-release:
+					return body.Read(data)
+				}
+			}))
+			return response, nil
+		})}
+	}
+	req, _ := http.NewRequest("GET", videoURL(payload), nil)
+	video, _ := s.parseResolved(req)
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
+	defer cancel()
+	clock := &playbackClock{at: time.Now(), limit: video.size, media: estimateMediaTiming(video.size, 0)}
+	_, first, err := s.obtain(context.WithValue(ctx, playbackClockKey{}, clock), video)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	result := make(chan error, 1)
+	go func() { _, err := io.ReadAll(first); result <- err }()
+	receiveDemandEvent(t, prefix)
+	_, second, err := s.obtain(ctx, video)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	s.mu.Lock()
+	clock.at = time.Now().Add(-sourceGrace)
+	s.notifyUseChangedLocked(video.key)
+	s.mu.Unlock()
+	if err := receiveDemandEvent(t, result); !errors.Is(err, errSourceExpired) {
+		t.Fatalf("first GET: %v", err)
+	}
+	finish()
+	got, err := io.ReadAll(second)
+	if err != nil || string(got) != payload || calls.Load() != 1 {
+		t.Fatalf("second GET: body=%q calls=%d err=%v", got, calls.Load(), err)
 	}
 }

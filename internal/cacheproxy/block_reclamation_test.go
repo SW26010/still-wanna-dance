@@ -222,6 +222,7 @@ func TestReclaimedBlockReentersPlanForCurrentUsage(t *testing.T) {
 		t.Run(source, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				w, s := testSession(t)
+				s.cfg.LocalProtectionGrace = time.Second
 				w.v.size = 2 * rangeBlockSize
 				local := reclamationResource(t, s, w.v)
 				w.f.ranges = local

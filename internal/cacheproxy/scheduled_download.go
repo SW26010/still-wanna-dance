@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
@@ -31,18 +32,20 @@ type sessionPlan struct {
 }
 
 type downloadSession struct {
-	s          *Server
-	ctx        context.Context
-	v          video
-	f          *flight
-	wake       chan struct{}
-	reads      *blocksched.ReadRequests
-	jobs       map[int64]*scheduledBlock // resource coordinator only
-	finished   map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
-	capacity   <-chan struct{}
-	refetchAt  time.Time // Earliest protection entry of missing completed work; recomputed by plan.
-	changes    *resourceChange
-	leaseUntil time.Time // Stable between confirmations; unrelated events cannot renew it.
+	s              *Server
+	ctx            context.Context
+	v              video
+	f              *flight
+	wake           chan struct{}
+	reads          *blocksched.ReadRequests
+	jobs           map[int64]*scheduledBlock // resource coordinator only
+	finished       map[int64]bool            // Completed work in this session; independent of later aggressive reclamation.
+	capacity       <-chan struct{}
+	sourceAt       time.Time
+	admissionCheck atomic.Pointer[time.Time] // Next source check for the published plan. Read by starting workers.
+	refetchAt      time.Time                 // Earliest protection entry of missing completed work; recomputed by plan.
+	changes        *resourceChange
+	leaseUntil     time.Time // Stable between confirmations; unrelated events cannot renew it.
 }
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
@@ -79,13 +82,22 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	return blocksched.Result{Err: w.s.readRange(ctx, w.f, block, p)}
+	return blocksched.Result{Err: w.s.readRange(ctx, w.f, block, p.Ready, func() time.Time {
+		return w.s.scheduler.TaskNeedBy(w.reads.Key(block))
+	})}
 }
 
 func (w *downloadSession) submit(block int64, j *scheduledBlock, n blocksched.Need) error {
 	key := w.reads.Key(block)
 	remaining := blockBytes(w.v.size, block, w.s.cfg.BlockSize)
-	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result { return w.run(ctx, p, block) }, n)
+	t, d, err := w.s.scheduler.Schedule(key, remaining, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
+		// Capacity can open after a missing prefix expired, even while this
+		// block has a later need-by. Replan before spending an upstream request.
+		if at := w.admissionCheck.Load(); at != nil && !at.IsZero() && !time.Now().Before(*at) {
+			return blocksched.Result{Err: blocksched.ErrDeferred}
+		}
+		return w.run(ctx, p, block)
+	}, n)
 	if err != nil {
 		return err
 	}
@@ -103,7 +115,8 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 	}
 	blocks := blockCount(w.v.size, w.s.cfg.BlockSize)
 	w.s.mu.Lock()
-	plan, active := w.s.usePlanLocked(w.v.key, now)
+	w.sourceAt = w.s.refreshDownloadDeadlinesLocked(w.f, w.v.key, now, w.f.ranges.firstMissing)
+	plan, active := w.s.collectUsePlanLocked(w.v.key, now)
 	// Projection still checks actual source exits/expiry at now. Cap live
 	// leases to this confirmation's fixed horizon; shorter handoffs retain
 	// their original deadlines and continue to contribute nextExpiry.
@@ -146,7 +159,7 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 			// summary; its tail alone cannot create download qualification.
 			if at := use.refetchAt(w.s.protectionAhead()); !at.IsZero() {
 				if !at.After(now) {
-					continue // Normal scheduler window, deadline and quota still apply.
+					continue // Normal scheduler window and quota still apply.
 				}
 				w.refetchAt = earlier(w.refetchAt, at)
 			}
@@ -160,6 +173,13 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 // update. The scheduler never observes the intermediate GET/handoff ordering.
 func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, changed <-chan struct{}, active bool) (time.Time, bool, error) {
 	var until time.Time
+	// A tighter cutoff applies before admission. Extend it only after every
+	// task has received the new plan, including withdrawals.
+	next := w.sourceAt
+	previous := w.admissionCheck.Load()
+	if previous == nil || (!next.IsZero() && (previous.IsZero() || next.Before(*previous))) {
+		w.admissionCheck.Store(&next)
+	}
 	capacity := w.s.scheduler.CapacityChanged()
 	w.capacity = nil
 	order := make([]int64, 0, len(plan))
@@ -178,10 +198,6 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 				if errors.Is(err, blocksched.ErrCapacity) {
 					w.capacity = capacity
 					continue
-				}
-				if errors.Is(err, blocksched.ErrExpired) {
-					w.s.expireDownload(w.f, w.v.key, block)
-					return until, true, nil // Replan after source exits; keep unrelated executions.
 				}
 				return until, false, err
 			}
@@ -249,6 +265,9 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 		j.published = n
 		w.logDemand(block, j)
 	}
+	if previous != nil && !next.Equal(*previous) {
+		w.admissionCheck.Store(&next)
+	}
 	return until, false, nil
 }
 
@@ -267,11 +286,6 @@ func (w *downloadSession) reapCompleted() error {
 		}
 		select {
 		case <-j.task.Done():
-			if err := j.task.Err(); errors.Is(err, blocksched.ErrExpired) && !errors.Is(err, errUpstreamDownload) {
-				w.s.expireDownload(w.f, w.v.key, block)
-				delete(w.jobs, block)
-				continue
-			}
 			if errors.Is(j.task.Err(), blocksched.ErrDeferred) {
 				j.task, j.merged = nil, nil
 				continue
@@ -312,6 +326,15 @@ func (w *downloadSession) close(result error) error {
 			result = preferDownloadError(result, j.task.Err())
 		}
 	}
+	// A final upstream failure wakes every reader. Settle each source's own
+	// deadline before publishing that failure to the readers still waiting.
+	if errors.Is(result, errUpstreamDownload) && !isLocalStorageError(result) {
+		w.s.mu.Lock()
+		if !w.s.closed && w.ctx.Err() == nil {
+			w.s.refreshDownloadDeadlinesLocked(w.f, w.v.key, time.Now(), w.f.ranges.firstMissing)
+		}
+		w.s.mu.Unlock()
+	}
 	return result
 }
 
@@ -337,19 +360,19 @@ func (w *downloadSession) nextPlan() (sessionPlan, error) {
 }
 
 func (w *downloadSession) waitForChanges(timer *time.Timer, plan sessionPlan, until time.Time) {
-	wait := w.nextRenewal().Sub(plan.at)
+	next := earlier(w.nextRenewal(), w.sourceAt)
 	if w.refetchAt.After(plan.at) {
-		wait = min(wait, w.refetchAt.Sub(plan.at))
+		next = earlier(next, w.refetchAt)
 	}
 	if !plan.active && len(plan.blocks) == 0 {
-		wait = min(wait, until.Sub(plan.at))
+		next = earlier(next, until)
 	}
 	for _, j := range w.jobs {
 		if j.nextExpiry.After(plan.at) {
-			wait = min(wait, j.nextExpiry.Sub(plan.at))
+			next = earlier(next, j.nextExpiry)
 		}
 	}
-	timer.Reset(max(time.Millisecond, wait))
+	timer.Reset(time.Until(next))
 	select {
 	case <-w.ctx.Done():
 	case <-w.wake:

@@ -62,7 +62,7 @@ func TestRangePublicationOutlivesDownloadDeadline(t *testing.T) {
 	r, _ := http.NewRequest("GET", videoURL(payload), nil)
 	v, _ := s.parseResolved(r)
 	deadline := time.Now().Add(time.Second)
-	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: deadline.Add(-blocksched.DownloadGrace), limit: v.size, media: estimateMediaTiming(v.size, 0)})
+	ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: deadline.Add(-sourceGrace), limit: v.size, media: estimateMediaTiming(v.size, 0)})
 	f, reader, err := s.obtain(ctx, v)
 	if err != nil {
 		t.Fatal(err)

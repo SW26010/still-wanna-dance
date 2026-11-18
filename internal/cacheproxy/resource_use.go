@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/blocksched"
 )
 
 // Keep only execution metadata, not a source, storage reference or download
@@ -17,7 +16,7 @@ type resourceUse struct {
 }
 
 func (s *Server) continueResourceUseLocked(v video, f *flight) {
-	refetch := f.err == nil || (errors.Is(f.err, ErrNotRetained) || errors.Is(f.err, errPreempted) || errors.Is(f.err, blocksched.ErrExpired))
+	refetch := f.err == nil || errors.Is(f.err, ErrNotRetained) || errors.Is(f.err, errPreempted)
 	if use := s.resourceUses[v.key]; use != nil {
 		use.refetch = refetch
 		return
@@ -75,13 +74,18 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 	}()
 	for !s.closed && s.storageFailure == nil && s.Store.Error() == nil {
 		now := time.Now()
-		plan, _ := s.usePlanLocked(u.video.key, now)
+		s.refreshUseSourcesLocked(now)
+		f := s.flights[u.video.key]
+		if f == nil && u.refetch {
+			s.refreshQueueDeadlinesLocked(u.video.key, now, s.firstMissingLocal)
+		}
+		plan, _ := s.collectUsePlanLocked(u.video.key, now)
 		if len(plan) == 0 {
 			return
 		}
 		var done <-chan struct{}
 		var next time.Time
-		if f := s.flights[u.video.key]; f != nil {
+		if f != nil {
 			done = f.done // Existing owners and reentries always share one flight.
 		} else {
 			// A failed attempt has already exhausted normal retry/fallback.

@@ -88,6 +88,7 @@ func TestScheduledHeaderTimeoutLeavesTimeForFallback(t *testing.T) {
 		parent, moveAt, headers, body, ready, readAt, completed time.Duration
 	}{
 		{name: "task", completed: 15 * time.Second},
+		{name: "last-route-outlives-earliest-source", headers: 20 * time.Second, completed: 35 * time.Second},
 		{name: "earlier-parent", parent: 10 * time.Second, completed: 5 * time.Second},
 		{name: "move-before-fallback", moveAt: 5 * time.Second, headers: 20 * time.Second, completed: 35 * time.Second},
 		{name: "move-during-body", moveAt: 20 * time.Second, body: 20 * time.Second, completed: 35 * time.Second},

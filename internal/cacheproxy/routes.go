@@ -84,9 +84,9 @@ type resourceCandidates struct {
 	done       bool
 }
 type resourceAttempts struct {
-	targets   map[string]*resourceCandidates
-	redirects int              // Shared across all retries of this block execution.
-	deadline  func() time.Time // Current scheduler deadline; does not freeze demand changes.
+	targets          map[string]*resourceCandidates
+	redirects        int // Shared across all retries of this block execution.
+	fallbackDeadline func() time.Time
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {
@@ -175,11 +175,7 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		}
 		client := *s.client
 		client.Transport = transport
-		var deadline time.Time
-		if attempts.deadline != nil {
-			deadline = attempts.deadline()
-		}
-		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, s.cfg.DownloadTimeout, len(transports)-index, deadline)
+		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, s.cfg.DownloadTimeout, len(transports)-index, attempts.fallbackDeadline)
 		if s.cfg.BeginResourceLoad != nil {
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })

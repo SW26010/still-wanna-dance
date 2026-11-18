@@ -45,14 +45,22 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 		}
 	}
 	for d := range s.demands {
-		if d.queue {
+		if d.queue || (scope.key != "" && d.key != scope.key) {
 			continue // Queue ownership outlives its preparation waiter.
 		}
 		kind := "batch"
+		until := now.Add(sourceLease)
 		if d.playback {
 			kind = "get"
+			// Until attachment, an expired missing prefix disqualifies this
+			// GET's whole span from downloads, while local delivery stays live.
+			if d.flight == nil && d.clock != nil && sourceExpired(d.clock.ready(d.firstBlock*s.cfg.BlockSize), now) {
+				if at := s.missingDeadline(d.useSpan(), *d.clock, s.firstMissingLocal); !at.IsZero() && !at.After(now) {
+					until = time.Time{}
+				}
+			}
 		}
-		add(d.useSpan(), blockSource{kind, d}, d.clock, now.Add(sourceLease), false, time.Time{}, d.preparationOrder)
+		add(d.useSpan(), blockSource{kind, d}, d.clock, until, false, time.Time{}, d.preparationOrder)
 	}
 	var idleBase time.Time
 	if s.queuePlaybackEndLocked().IsZero() {
@@ -85,8 +93,7 @@ func (s *Server) refreshUseSourcesLocked(now time.Time) {
 	}
 }
 
-func (s *Server) usePlanLocked(key string, now time.Time) (map[int64]blockUse, bool) {
-	s.refreshUseSourcesLocked(now)
+func (s *Server) collectUsePlanLocked(key string, now time.Time) (map[int64]blockUse, bool) {
 	plan := make(map[int64]blockUse)
 	active := s.visitUseLocked(allUseBlocks(key), now, func(id useBlockID, _ blockSource, p plannedNeed) {
 		plan[id.block] = mergeUse(plan[id.block], p.use(now))

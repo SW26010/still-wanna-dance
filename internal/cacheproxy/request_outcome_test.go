@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/blocksched"
 )
 
 // Exercise the HTTP exit, persisted result and read-only schema validation,
@@ -43,7 +41,7 @@ func TestRequestTerminalFailureHistory(t *testing.T) {
 						}
 						switch reason {
 						case "expired":
-							return nil, blocksched.ErrExpired
+							return nil, errSourceExpired
 						case "timeout":
 							return nil, context.DeadlineExceeded
 						default:
@@ -264,7 +262,7 @@ func TestRequestCancellationAndKnownFailureOrder(t *testing.T) {
 	if got := w.outcome(ctx, http.ErrAbortHandler); got != "canceled" {
 		t.Fatal(got)
 	}
-	for _, err := range []error{blocksched.ErrExpired, context.DeadlineExceeded, ErrSongBlocked, errPlaybackUpstream, ErrLocalStorage} {
+	for _, err := range []error{errSourceExpired, context.DeadlineExceeded, ErrSongBlocked, errPlaybackUpstream, ErrLocalStorage} {
 		w := &responseWriter{}
 		w.recordFailure(context.Background(), err)
 		before := w.outcome(context.Background(), http.ErrAbortHandler)

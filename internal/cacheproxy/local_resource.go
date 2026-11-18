@@ -60,6 +60,25 @@ func (d *localResource) has(block int64) bool {
 	defer d.mu.Unlock()
 	return d.done[block]
 }
+
+func (d *localResource) firstMissing(span useSpan) (int64, bool) {
+	for b := span.first; b < span.last; b++ {
+		if d == nil || !d.has(b) {
+			return b, true
+		}
+	}
+	return 0, false
+}
+
+func (s *Server) firstMissingLocal(span useSpan) (int64, bool) {
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
+	if _, retained := s.retained[span.key]; retained {
+		return 0, false
+	}
+	return s.localResources[span.key].firstMissing(span)
+}
+
 func (d *localResource) complete() bool {
 	if d.storage != nil {
 		return d.storage.complete()

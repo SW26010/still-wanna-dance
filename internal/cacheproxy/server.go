@@ -522,11 +522,9 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	}
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
-	releaseDemand := func() {}
+	var get *downloadDemand
+	var releaseDemand func()
 	attachGET := func(resource video) error {
-		if r.Method != http.MethodGet {
-			return nil
-		}
 		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
 		// A replacement URL receives a fresh source, even for the same content.
 		ctx = context.WithValue(ctx, sourceDemandKey{}, (*downloadDemand)(nil))
@@ -534,7 +532,7 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		if err != nil {
 			return err
 		}
-		releaseDemand = release
+		get, releaseDemand = demand, release
 		r = r.WithContext(context.WithValue(ctx, sourceDemandKey{}, demand))
 		response.consumption = &getConsumption{s: s, demand: demand, size: resource.size}
 		return nil
@@ -550,12 +548,19 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	}
 	// Transfer the request pin and event identity together on every pre-body retry.
 	retry := func(cause error) error {
+		finishWait := s.watchRetryDeadline(get)
 		var replacement video
 		var fallbackErr error
-		if preview != nil {
-			replacement, fallbackErr = preview.nextAddress(r.Context(), s, v)
-		} else {
-			replacement, fallbackErr = s.retrySongURL(r.Context(), v)
+		switch {
+		case get.ctx.Err() != nil:
+			return finishWait()
+		case preview != nil:
+			replacement, fallbackErr = preview.nextAddress(get.ctx, s, v)
+		default:
+			replacement, fallbackErr = s.retrySongURL(get.ctx, v)
+		}
+		if err := finishWait(); err != nil {
+			return err
 		}
 		if fallbackErr != nil {
 			return errors.Join(cause, fmt.Errorf("saved URL refresh: %w", fallbackErr))
@@ -567,8 +572,11 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 			}
 			r = r.WithContext(ctx)
 		}
-		s.pinVideo(replacement)
 		releaseDemand()
+		if errors.Is(context.Cause(get.ctx), errSourceExpired) {
+			return errSourceExpired
+		}
+		s.pinVideo(replacement)
 		if err := attachGET(replacement); err != nil {
 			s.releaseVideo(replacement)
 			return err
@@ -835,7 +843,7 @@ func (w *responseWriter) recordFailure(client context.Context, err error) {
 	switch {
 	case errors.Is(err, ErrSongBlocked):
 		w.failureOutcome = "blocked"
-	case errors.Is(err, blocksched.ErrExpired):
+	case errors.Is(err, errSourceExpired):
 		w.failureOutcome = "expired"
 	case errors.Is(client.Err(), context.Canceled):
 		return

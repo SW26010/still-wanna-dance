@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/applog"
-	"still-wanna-dance/internal/blocksched"
 )
 
 // Prefetch uses exactly the same validation, shared downloads and publication as playback.
@@ -179,7 +178,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 			outcome = "not_retained"
 			message = "预加载任务结束，未保留完整视频"
 		}
-		if ctx.Err() != nil && !errors.Is(context.Cause(ctx), blocksched.ErrExpired) {
+		if ctx.Err() != nil && !errors.Is(context.Cause(ctx), errSourceExpired) {
 			outcome = "canceled"
 			message = "预加载任务已取消"
 		}
@@ -191,7 +190,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 	}()
 retryDownload:
 	f, _, err := s.obtainMode(ctx, v, true)
-	if errors.Is(err, errPreempted) || errors.Is(err, blocksched.ErrExpired) && ctx.Err() == nil {
+	if errors.Is(err, errPreempted) {
 		goto retryDownload
 	}
 	if errors.Is(err, ErrNotRetained) && demand.queue {
@@ -204,7 +203,7 @@ retryDownload:
 	case <-ctx.Done():
 		return "", context.Cause(ctx)
 	case <-f.done:
-		if errors.Is(f.err, errPreempted) || errors.Is(f.err, blocksched.ErrExpired) && ctx.Err() == nil {
+		if errors.Is(f.err, errPreempted) {
 			goto retryDownload
 		}
 		if errors.Is(f.err, ErrNotRetained) && demand.queue {

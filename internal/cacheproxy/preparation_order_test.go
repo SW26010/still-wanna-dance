@@ -27,7 +27,7 @@ func TestPreparationOrderSurvivesRetriesAndAppendsAfterIdle(t *testing.T) {
 		}
 		defer release()
 		s.mu.Lock()
-		plan, _ := s.usePlanLocked(key, time.Now())
+		plan, _ := s.collectUsePlanLocked(key, time.Now())
 		s.mu.Unlock()
 		if d.preparationOrder != want || len(plan) != 2 {
 			t.Fatal("incorrect preparation identity", d.preparationOrder, want, len(plan))

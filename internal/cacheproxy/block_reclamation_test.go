@@ -271,7 +271,7 @@ func TestReclaimedBlockFollowsProtectionWindowAndWithdrawal(t *testing.T) {
 		defer releaseManual()
 		ctx := context.WithValue(context.Background(), httpGETKey{}, true)
 		ctx = context.WithValue(ctx, playbackClockKey{}, &playbackClock{
-			at: time.Now().Add(s.protectionAhead() + time.Second), limit: rangeBlockSize,
+			at: time.Now().Add(s.cfg.prepareAhead() + time.Second), limit: rangeBlockSize,
 			media: estimateMediaTiming(w.v.size, 0),
 		})
 		_, releaseGET := addTestDemand(t, s, ctx, w.v, true)

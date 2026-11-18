@@ -19,7 +19,7 @@ try {
   for(const [label,description] of [
     ['同时下载数量','普通下载的并发上限；播放正在等待的数据可突破此限制。'],
     ['并发增长间隔','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
-    ['提前准备时间','提前为预计即将使用的视频数据安排下载。'],
+    ['提前准备时间','提前保护预计即将使用的视频数据，并安排下载缺失的部分。'],
     ['延续保护时间','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
   ]) {
     await page.getByText(label,{exact:true}).hover();await expect(page.getByRole('tooltip')).toHaveText(description);

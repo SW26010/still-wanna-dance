@@ -19,7 +19,7 @@ func completedQueueFixture(t *testing.T, body string, before func(*http.Request)
 	cfg := fixtureConfig()
 	prepareFixtureResources(t, &cfg, t.TempDir(), true)
 	cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, 0
-	cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
+	cfg.PrepareAhead = 120 * time.Second
 	cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL(body), nil }
 	calls := new(atomic.Int32)
 	cfg.ResourceTransports = func(string) []http.RoundTripper {
@@ -143,7 +143,7 @@ func TestCompletedQueueRefetchWindowAndWithdrawal(t *testing.T) {
 		t.Run(action, func(t *testing.T) {
 			s, v, _, calls := completedQueueFixture(t, payload, nil)
 			entry := time.Now().Add(300 * time.Millisecond)
-			holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
+			holdQueuePlaybackUntil(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
 			moveCompletedQueueOut(t, s, v)
 			if action == "enter by time" {
 				waitQueueRefetch(t, s, v, calls, 2)

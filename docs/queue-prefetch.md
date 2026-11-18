@@ -46,7 +46,7 @@
 
 文件保留层不再维护队列专属保护；完整文件回收与手动删除均检查统一的块保护。关闭引擎立即取消所有执行和租约，等待正文/写盘清理；不提供跨重启断点续传。旧等级日志按原版本解释，新调度可通过 block_schedule 事件检查块身份、Blocking、ReadyBy、放行/结束原因、active/open、block_time_ms/prepare_ahead_ms，以及 started 的 overdue（start_urgent 已移除）；不再输出 target/supply。通过 block_demand 与 block_demand_handoff 检查来源汇总和交接转换；常规任务日志继续区分完成、失败与取消。
 
-本地保护提前量由独立的引擎配置 LocalProtectAhead 控制，程序接受 0～24 小时，0 跟随有效下载 PrepareAhead（默认 500 秒）。正常配置与验收约定有效保护提前量不小于下载提前量，运行时不校验两者大小关系，也不自动抬高较短的值；暂不新增 WebUI 设置。完整使用范围、配置延续、块文件存储与回收均已接入，现行规则和验证边界见[下载需求与资源管理设计](download-resource-design.md)。
+队列使用同一个「提前准备时间」确定本地保护和普通下载的入窗边界。完整使用范围、配置延续、块文件存储与回收均已接入，现行规则和验证边界见[下载需求与资源管理设计](download-resource-design.md)。
 
 开发验证见[块调度记录](validation/block-scheduler-validation.md)。旧实机报告继续保留；新规则待 LA-040，关联 LA-037/038/039。
 

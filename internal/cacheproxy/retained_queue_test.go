@@ -100,7 +100,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			cfg := fixtureConfig()
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, int64(len(body))
-			cfg.PrepareAhead, cfg.LocalProtectAhead = 120*time.Second, 120*time.Second
+			cfg.PrepareAhead = 120 * time.Second
 			var changed atomic.Bool
 			cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 				if changed.Load() {
@@ -203,7 +203,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 				// Move the playback clock while retaining the queue source, then
 				// let time alone bring the already-evicted resource into range.
 				entry = time.Now().Add(500 * time.Millisecond)
-				nextClock := holdQueuePlaybackUntil(t, s, entry.Add(s.protectionAhead()-typicalDuration))
+				nextClock := holdQueuePlaybackUntil(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
 				releaseClock()
 				releaseClock = nextClock
 			}

@@ -33,13 +33,9 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 				// absolute entry times, but once reached, only distance from the
 				// head determines eligibility. Gate both snapshots now so they
 				// cannot enter by wall time between source refreshes.
-				distance := ready.Sub(idleBase)
-				ahead := s.cfg.PrepareAhead
-				if ahead <= 0 {
-					ahead = blocksched.DefaultPrepareAhead
-				}
-				p.need.WindowClosed = distance > ahead
-				p.protectionClosed = distance > s.protectionAhead()
+				outside := ready.Sub(idleBase) > s.cfg.prepareAhead()
+				p.need.WindowClosed = outside
+				p.protectionClosed = outside
 			}
 			visit(id, source, p)
 		}

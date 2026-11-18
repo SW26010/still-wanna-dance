@@ -173,7 +173,7 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
       <Divider /><fieldset disabled={disabled} aria-label="缓存"><legend className="inline">缓存<Text size={200} weight="regular" className="secondary" aria-live="polite">{cacheEstimate}</Text></legend>
       <StorageLocationFields section="cache" editor={editor} />
       <div className="settings-columns">
-      {numberField('prepareAheadSeconds','提前准备时间',100,16000,'提前为预计即将使用的视频数据安排下载。','秒')}
+      {numberField('prepareAheadSeconds','提前准备时间',100,16000,'提前保护预计即将使用的视频数据，并安排下载缺失的部分。','秒')}
       {numberField('localProtectionGraceSeconds','延续保护时间',0,10000,'需求结束后继续保护缓存的时间；设为 0 时不延续保护。','秒')}
       </div>
       <Text size={200} className="secondary">通常无需调整，修改前请了解其影响。</Text></fieldset></>}

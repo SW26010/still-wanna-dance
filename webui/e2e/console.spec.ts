@@ -6,7 +6,7 @@ test('drafts survive polling and navigation; save preserves active config and bl
   const api=await mockAPI(page); await page.goto('/#prepareAheadSeconds');
   const m=page.getByRole('spinbutton',{name:/提前准备时间/});
   const estimate=page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary');
-  await expect(m).toHaveAccessibleDescription('提前为预计即将使用的视频数据安排下载。');
+  await expect(m).toHaveAccessibleDescription('提前保护预计即将使用的视频数据，并安排下载缺失的部分。');
   await expect(estimate).toHaveText('预计 190.73 MiB');
   await m.fill(''); await expect(estimate).toHaveText('预计 190.73 MiB');
   await m.fill('100'); await expect(estimate).toHaveText('预计 95.37 MiB');

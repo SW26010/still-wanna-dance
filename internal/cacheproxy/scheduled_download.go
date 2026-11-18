@@ -157,7 +157,7 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 			// Completion prevents an unprotected refill/evict loop, not a new
 			// finite use of missing data. Protection comes from the same usage
 			// summary; its tail alone cannot create download qualification.
-			if at := use.refetchAt(w.s.protectionAhead()); !at.IsZero() {
+			if at := use.refetchAt(w.s.cfg.prepareAhead()); !at.IsZero() {
 				if !at.After(now) {
 					continue // Normal scheduler window and quota still apply.
 				}

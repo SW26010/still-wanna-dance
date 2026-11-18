@@ -1,10 +1,6 @@
 package cacheproxy
 
-import (
-	"time"
-
-	"still-wanna-dance/internal/blocksched"
-)
+import "time"
 
 const (
 	DefaultLocalProtectionGrace = 300 * time.Second
@@ -20,16 +16,6 @@ type blockProtection struct {
 
 func (p blockProtection) active(now time.Time) bool {
 	return !p.start.IsZero() && !now.Before(p.start) || p.until.After(now)
-}
-
-func (s *Server) protectionAhead() time.Duration {
-	if s.cfg.LocalProtectAhead > 0 {
-		return s.cfg.LocalProtectAhead
-	}
-	if s.cfg.PrepareAhead > 0 {
-		return s.cfg.PrepareAhead
-	}
-	return blocksched.DefaultPrepareAhead
 }
 
 // Called with mu after a source mutation. Only the earliest finite usage time
@@ -82,7 +68,7 @@ func (s *Server) refreshUseProtectionLocked(scope useSpan) {
 			delete(s.protection, key)
 		}
 	}
-	ahead := s.protectionAhead()
+	ahead := s.cfg.prepareAhead()
 	for b, at := range ready {
 		if s.protection[key] == nil {
 			s.protection[key] = make(map[int64]blockProtection)

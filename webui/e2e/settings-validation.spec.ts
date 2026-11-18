@@ -91,7 +91,7 @@ test('download numeric hints and errors have independent triggers for every fiel
   await page.goto('/#download-settings');
   for(const [name,label,invalid,valid,range,description] of [
     ['并发增长间隔（毫秒）','并发增长间隔','2001','250','0～2000','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
-    ['提前准备时间（秒）','提前准备时间','99','500','100～16000','提前为预计即将使用的视频数据安排下载。'],
+    ['提前准备时间（秒）','提前准备时间','99','500','100～16000','提前保护预计即将使用的视频数据，并安排下载缺失的部分。'],
     ['延续保护时间（秒）','延续保护时间','10001','60','0～10000','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
   ]) {
     const input=page.getByRole('spinbutton',{name,exact:true});

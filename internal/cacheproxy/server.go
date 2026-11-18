@@ -253,7 +253,7 @@ func newDownloadScheduler(cfg Config) *blocksched.Scheduler {
 	return blocksched.New(blocksched.Config{SoftLimit: cfg.DownloadConcurrencySoftLimit,
 		SampleBytes:  cfg.BlockSize,
 		GrowInterval: cfg.DownloadGrowInterval,
-		PrepareAhead: cfg.PrepareAhead,
+		PrepareAhead: cfg.prepareAhead(),
 		Observe: func(e blocksched.Event) {
 			if cfg.ObserveBlockSchedule != nil {
 				cfg.ObserveBlockSchedule(e)

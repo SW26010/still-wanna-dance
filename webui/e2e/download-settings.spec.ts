@@ -18,7 +18,7 @@ test('download settings validate bounds, preserve zero without recommendation hi
   for(const [label,name,description] of [
     ['同时下载数量','同时下载数量','普通下载的并发上限；播放正在等待的数据可突破此限制。'],
     ['并发增长间隔','并发增长间隔（毫秒）','有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。'],
-    ['提前准备时间','提前准备时间（秒）','提前为预计即将使用的视频数据安排下载。'],
+    ['提前准备时间','提前准备时间（秒）','提前保护预计即将使用的视频数据，并安排下载缺失的部分。'],
     ['延续保护时间','延续保护时间（秒）','需求结束后继续保护缓存的时间；设为 0 时不延续保护。'],
   ]){
     const input=page.getByRole('spinbutton',{name,exact:true});
@@ -115,7 +115,7 @@ test('cleared download numbers show defaults and save defaults while preserving 
   }
   await navigateSettings(page,'常规');await navigateSettings(page,'下载与缓存');
   for(const [name] of fields)await expect(page.getByRole('spinbutton',{name,exact:true})).toHaveValue('');
-  await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveAccessibleDescription('提前为预计即将使用的视频数据安排下载。');
+  await expect(page.getByRole('spinbutton',{name:'提前准备时间（秒）',exact:true})).toHaveAccessibleDescription('提前保护预计即将使用的视频数据，并安排下载缺失的部分。');
   await expect(page.getByRole('group',{name:'缓存',exact:true}).locator('legend .secondary')).toHaveText('预计 190.73 MiB');
   await page.setViewportSize({width:390,height:1000});
   await page.locator('#download-settings').screenshot({path:info.outputPath('empty-defaults.png'),animations:'disabled'});

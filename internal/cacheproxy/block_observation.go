@@ -496,10 +496,7 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.Time) {
 	s := o.s
 	now := time.Now()
-	ahead := s.cfg.PrepareAhead
-	if ahead <= 0 {
-		ahead = blocksched.DefaultPrepareAhead
-	}
+	ahead := s.cfg.prepareAhead()
 	input := o.captureInput(now)
 	result := &BlockSnapshot{
 		At: now.UnixMilli(), Capacity: maxUseBlocks, Used: input.used,

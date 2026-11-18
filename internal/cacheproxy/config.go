@@ -49,17 +49,12 @@ type Config struct {
 	// DefaultBlockSize. It is fixed at construction, including for old readers.
 	// The caller owns buffer sizing; user-facing tuning limits are not defined here.
 	BlockSize int64
-	// PrepareAhead is the full lead M for scheduled downloads; zero uses the default.
+	// PrepareAhead is the shared lead M for finite download needs and local protection; zero uses the default.
 	PrepareAhead time.Duration
 	// DownloadConcurrencySoftLimit bounds ordinary block execution; blocked reads may exceed it.
 	DownloadConcurrencySoftLimit int
 	// DownloadGrowInterval paces ordinary capacity growth; zero disables pacing.
 	DownloadGrowInterval time.Duration
-	// LocalProtectAhead independently controls protection of finite usage.
-	// Zero follows PrepareAhead; it does not grant untimed demands protection.
-	// Normal configurations should cover the effective PrepareAhead; this design
-	// convention is not enforced by validation.
-	LocalProtectAhead time.Duration
 	// LocalProtectionGrace retains already protected blocks after their final
 	// usage ends; zero disables this tail without changing live protection.
 	LocalProtectionGrace time.Duration
@@ -108,6 +103,13 @@ func DefaultConfig() Config {
 	}
 }
 
+func (c Config) prepareAhead() time.Duration {
+	if c.PrepareAhead == 0 {
+		return blocksched.DefaultPrepareAhead
+	}
+	return c.PrepareAhead
+}
+
 func (c Config) validate() error {
 	// Each executing Range may allocate BlockSize+1 bytes (the extra byte
 	// detects oversized responses). Reject sizes that cannot fit a Go buffer.
@@ -119,9 +121,6 @@ func (c Config) validate() error {
 	}
 	if c.DownloadGrowInterval < 0 || c.DownloadGrowInterval > MaxDownloadGrowInterval {
 		return errors.New("download growth interval must be between 0 and 2000 milliseconds")
-	}
-	if c.LocalProtectAhead < 0 || c.LocalProtectAhead > 24*time.Hour {
-		return errors.New("local protection lead must be between 0 and 86400 seconds")
 	}
 	if c.LocalProtectionGrace < 0 || c.LocalProtectionGrace > MaxLocalProtectionGrace {
 		return errors.New("local protection grace must be between 0 and 10000 seconds")

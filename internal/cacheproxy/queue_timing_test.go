@@ -49,7 +49,7 @@ func TestIdleQueueRetimesWithoutUpdatesOrDownloads(t *testing.T) {
 			t.Fatal("ordinary clock renewal woke queue preparation")
 		default:
 		}
-		if p := protectionFor(s, w.v.key, 0); p.start != want.Add(-s.protectionAhead()) || !p.until.IsZero() {
+		if p := protectionFor(s, w.v.key, 0); p.start != want.Add(-s.cfg.prepareAhead()) || !p.until.IsZero() {
 			t.Fatal("download and protection clocks diverged or created a grace tail", p)
 		}
 		// Removal freezes handoff timing, even while the next head keeps rolling.

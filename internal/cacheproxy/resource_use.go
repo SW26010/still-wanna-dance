@@ -138,7 +138,7 @@ func (s *Server) nextResourceRefetchLocked(v video, plan map[int64]blockUse) tim
 		if b < 0 || b >= blockCount(v.size, s.cfg.BlockSize) || local != nil && local.has(b) {
 			continue
 		}
-		next = earlier(next, use.refetchAt(s.protectionAhead()))
+		next = earlier(next, use.refetchAt(s.cfg.prepareAhead()))
 	}
 	return next
 }

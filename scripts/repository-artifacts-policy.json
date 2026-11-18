@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1323275,
+      "sha256": "2975fcb7064580b219d66e28f6d1f72aee1d41f4405fee862239f3da864b0fcf",
+      "reason": "Embedded WebUI rebuilt with the shared preparation window tooltip for local protection and ordinary downloads. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1323227,
       "sha256": "546e44b97c04b8143aa4587d05f90020b9a9ca315e25276ca4dc263cf58c78e9",
       "reason": "Embedded WebUI rebuilt for the demand deadline label in the block timeline legend and details. Verified against webui/build-manifest.json."

@@ -71,7 +71,7 @@ func TestOpportunisticOrderPreservesFinitePriorityAndMixedSources(t *testing.T) 
 		}
 		_, _, _ = s.Schedule("hold", 1, run("hold"), need("hold", 0, time.Hour))
 		<-started
-		for _, key := range []string{"second", "first", "default", "due"} {
+		for _, key := range []string{"second", "first", "due"} {
 			n := need(key, 0, time.Hour)
 			switch key {
 			case "first":
@@ -95,7 +95,7 @@ func TestOpportunisticOrderPreservesFinitePriorityAndMixedSources(t *testing.T) 
 				j.Add(need(key, future, time.Hour))
 			}
 		}
-		for _, want := range []string{"due", "default", "first", "second"} {
+		for _, want := range []string{"due", "first", "second"} {
 			gate <- struct{}{}
 			if got := <-started; got != want {
 				t.Fatalf("started %s, want %s", got, want)
@@ -143,9 +143,6 @@ func TestOpportunisticOrderFollowsLiveContributions(t *testing.T) {
 				check(0, false)
 				b.WindowClosed = false
 				second.Update(b)
-				unordered := j.Add(need("v", 0, time.Hour))
-				check(0, true)
-				unordered.Close()
 				check(2, true)
 				second.Close()
 				check(0, false)

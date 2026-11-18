@@ -82,7 +82,7 @@ func TestPreparationOrderAssignedOnlyOnAdmissionAndNeverWraps(t *testing.T) {
 	}
 	release()
 	if _, _, err := s.addPreparation(context.Background(), video{key: "overflow", size: 1}); err == nil {
-		t.Fatal("order wrapped into the default class")
+		t.Fatal("preparation order wrapped")
 	}
 	if len(s.useBlocks) != 0 || len(s.demands) != 0 {
 		t.Fatal("order exhaustion leaked usage")
@@ -116,9 +116,6 @@ func TestAggregatePreparationOrderUsesOnlyLiveEarlySources(t *testing.T) {
 	first.need.WindowClosed = true
 	plan[blockSource{"batch", 1}] = first
 	check(now, 2)
-	plan[blockSource{"unordered", 0}] = manual(0)
-	check(now, 0)
-	delete(plan, blockSource{"unordered", 0})
 	delete(plan, blockSource{"batch", 1})
 	check(now, 2)
 	delete(plan, blockSource{"batch", 2})
@@ -225,8 +222,7 @@ func TestManualPreparationConcentratesRangesAndPublishesFirstResource(t *testing
 			}
 		}
 	}
-	// Before initialization only one block is schedulable. Wait for the
-	// complete first-resource plan so later sources cannot fill that gap.
+	// Put the first resource's blocks in contention before adding the others.
 	waitTasks(blocks)
 	for i := 1; i < len(bodies); i++ {
 		operation, admitted := WithPreparationAdmission(ctx)

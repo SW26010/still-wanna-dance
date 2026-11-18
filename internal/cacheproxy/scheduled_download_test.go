@@ -117,7 +117,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
 			return blocksched.Result{Err: context.Canceled}
-		}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+		}, blocksched.Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 		w.jobs[0] = &scheduledBlock{task: job, merged: registered}
 		if _, _, err := w.reconcile(plan, now, nil, false); err != nil {
 			t.Fatal(err)
@@ -147,17 +147,17 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 	})
 }
 
-func TestBlockLeaseRemovalDoesNotDropOtherOwner(t *testing.T) {
+func TestRemovingGETPreservesQueueDemand(t *testing.T) {
 	w, s := testSession(t)
 	job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
-	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+	}, blocksched.Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 	w.jobs[0] = &scheduledBlock{task: job, merged: registered}
 	now := time.Now()
 	read := blockSource{"get", "a"}
 	queue := blockSource{"queue", "b"}
-	need := blocksched.Need{Owner: "shared", ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
+	need := blocksched.Need{ReadyBy: now, LeaseUntil: now.Add(sourceLease)}
 	sources := map[blockSource]plannedNeed{read: {need: need}, queue: {need: need}}
 	plan := map[int64]blockUse{0: aggregateUse(sources, now)}
 	w.reconcile(plan, now, nil, false)
@@ -176,7 +176,7 @@ func TestCompletedRangeLeavesOtherBlocksPlanned(t *testing.T) {
 	task, _, err := s.scheduler.Schedule("first", rangeBlockSize, func(context.Context, *blocksched.Progress) blocksched.Result {
 		w.f.ranges.done[0] = true
 		return blocksched.Result{}
-	}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+	}, blocksched.Need{LeaseUntil: time.Now().Add(time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestCompletedRangeLeavesOtherBlocksPlanned(t *testing.T) {
 	_, release := addTestDemand(t, s, context.Background(), w.v, false)
 	defer release()
 	plan, _, _ := w.plan(time.Now())
-	if len(plan) != 19 || plan[1].need.Owner == "" {
+	if len(plan) != 19 || plan[1].need.LeaseUntil.IsZero() {
 		t.Fatal("completion of one range hid other missing blocks", len(plan))
 	}
 }

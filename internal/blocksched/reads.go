@@ -12,7 +12,6 @@ import (
 // Close ends this execution session; an old reader cannot affect its successor.
 type ReadRequests struct {
 	s      *Scheduler
-	owner  string
 	key    func(int64) string
 	wake   chan<- struct{}
 	waits  map[*readWait]bool
@@ -27,8 +26,8 @@ type readWait struct {
 }
 
 // key must be a pure mapping to the opaque keys passed to Schedule.
-func (s *Scheduler) NewReadRequests(owner string, key func(int64) string, wake chan<- struct{}) *ReadRequests {
-	return &ReadRequests{s: s, owner: owner, key: key, wake: wake, waits: make(map[*readWait]bool)}
+func (s *Scheduler) NewReadRequests(key func(int64) string, wake chan<- struct{}) *ReadRequests {
+	return &ReadRequests{s: s, key: key, wake: wake, waits: make(map[*readWait]bool)}
 }
 
 func (r *ReadRequests) Key(block int64) string { return r.key(block) }
@@ -117,9 +116,6 @@ func (s *state) withReads(key string, n Need) priority {
 	for w := range s.reads[key] {
 		if w.ctx.Err() != nil {
 			continue
-		}
-		if p.Owner == "" {
-			p.Owner = w.requests.owner
 		}
 		p.Blocking = true
 		p.WaitSince = earlier(p.WaitSince, w.at)

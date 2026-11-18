@@ -30,7 +30,7 @@ func TestConfiguredPrepareAheadControlsEngineWindow(t *testing.T) {
 			defer s.Close()
 			started := make(chan struct{}, 1)
 			now := time.Now()
-			n := blocksched.Need{Owner: "window", ReadyBy: now.Add(200 * time.Second), LeaseUntil: now.Add(time.Hour)}
+			n := blocksched.Need{ReadyBy: now.Add(200 * time.Second), LeaseUntil: now.Add(time.Hour)}
 			_, demand, err := s.scheduler.Schedule("window", 1, func(context.Context, *blocksched.Progress) blocksched.Result {
 				started <- struct{}{}
 				return blocksched.Result{}

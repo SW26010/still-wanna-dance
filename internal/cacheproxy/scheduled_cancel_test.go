@@ -20,7 +20,7 @@ func TestLeaseStopCompletesBeforeCoordinatorRetirement(t *testing.T) {
 		task, _, err := s.scheduler.Schedule("old", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
 			return blocksched.Result{Err: ctx.Err()}
-		}, blocksched.Need{Owner: "owner", LeaseUntil: time.Now().Add(time.Second)})
+		}, blocksched.Need{LeaseUntil: time.Now().Add(time.Second)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +85,7 @@ func TestCanceledSessionCannotRestartTask(t *testing.T) {
 			task, _, err := s.scheduler.Schedule("cancel-test", rangeBlockSize, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {
 				runs.Add(1)
 				return w.run(ctx, p, 0)
-			}, blocksched.Need{Owner: "video", LeaseUntil: time.Now().Add(time.Minute)})
+			}, blocksched.Need{LeaseUntil: time.Now().Add(time.Minute)})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -50,7 +50,7 @@ type downloadSession struct {
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), jobs: make(map[int64]*scheduledBlock)}
-	w.reads = s.scheduler.NewReadRequests(v.key, func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
+	w.reads = s.scheduler.NewReadRequests(func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
 	s.mu.Lock()
 	w.changes = s.watchResourceLocked(v.key)
 	s.mu.Unlock()
@@ -232,7 +232,7 @@ func (w *downloadSession) reconcile(plan map[int64]blockUse, now time.Time, chan
 			continue
 		}
 		j := w.jobs[block]
-		if n.Owner == "" || !n.LeaseUntil.After(now) {
+		if !n.LeaseUntil.After(now) {
 			if j.merged != nil {
 				j.merged.Close()
 				j.merged = nil

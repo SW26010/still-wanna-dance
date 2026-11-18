@@ -31,13 +31,14 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			return
 		}
 		now := time.Now()
-		if n.Owner != "" && !n.LeaseUntil.After(now) {
+		hasLease := n != (Need{})
+		if hasLease && !n.LeaseUntil.After(now) {
 			err = ErrCapacity
 			return
 		}
 		p := st.withReads(key, n)
 		p.ReadyBy = p.ReadyAt(now)
-		if p.Owner == "" {
+		if !hasLease && !p.Blocking {
 			err = ErrCapacity
 			return
 		}
@@ -46,7 +47,7 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 			err = ErrCapacity
 			return
 		}
-		if j == nil && len(st.jobs) >= st.cfg.MaxTasks || n.Owner != "" && st.demandCount >= st.cfg.MaxDemands {
+		if j == nil && len(st.jobs) >= st.cfg.MaxTasks || hasLease && st.demandCount >= st.cfg.MaxDemands {
 			var victim *job
 			for _, candidate := range st.jobs {
 				if st.demandCount >= st.cfg.MaxDemands && len(candidate.needs) == 0 {
@@ -73,7 +74,7 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 		}
 		task = j.task
 		// Reuse the ordinary lease path while still in the scheduler command.
-		if n.Owner != "" {
+		if hasLease {
 			demand = st.add(task, n)
 		} else {
 			st.refresh(j)
@@ -85,9 +86,6 @@ func (s *Scheduler) Schedule(key string, remaining int64, run Run, n Need) (*Tas
 }
 
 func (s *state) registrationBefore(a, b priority, now time.Time) bool {
-	if b.Owner == "" {
-		return a.Owner != ""
-	}
 	if a.Blocking != b.Blocking {
 		return a.Blocking
 	}

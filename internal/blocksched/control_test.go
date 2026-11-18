@@ -22,7 +22,7 @@ func TestRampReuseAndNoIdleCredit(t *testing.T) {
 				case <-ctx.Done():
 				}
 				return Result{}
-			}, need("same", time.Second, time.Hour))
+			}, need(time.Second, time.Hour))
 
 		}
 		first := <-started
@@ -69,11 +69,11 @@ func TestIdleStopsControlTimersWhenAllLeasesExpire(t *testing.T) {
 			<-ctx.Done()
 			return Result{}
 		}
-		_, _, _ = s.Schedule("background", 1<<20, run, need("background", time.Second, 100*time.Millisecond))
+		_, _, _ = s.Schedule("background", 1<<20, run, need(time.Second, 100*time.Millisecond))
 
 		<-started
 		endRead := waitForKey(t, s, "blocking")
-		_, _, _ = s.Schedule("blocking", 1<<20, run, need("blocking", 0, 100*time.Millisecond))
+		_, _, _ = s.Schedule("blocking", 1<<20, run, need(0, 100*time.Millisecond))
 
 		<-started
 		synctest.Wait()

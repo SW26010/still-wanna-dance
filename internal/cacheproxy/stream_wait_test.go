@@ -17,7 +17,7 @@ func TestLocalReadWithdrawsOnlyItsOwnWait(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				s := blocksched.New(blocksched.Config{SoftLimit: 1})
 				defer s.Close()
-				reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+				reads := s.NewReadRequests(func(int64) string { return "block" }, nil)
 				defer reads.Close()
 				registered := make(chan struct{}, 2)
 				sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
@@ -83,7 +83,7 @@ func TestReadCancellationDuringWaitRegistration(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := blocksched.New(blocksched.Config{SoftLimit: 1})
 		defer s.Close()
-		reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		reads := s.NewReadRequests(func(int64) string { return "block" }, nil)
 		defer reads.Close()
 		enter, proceed := make(chan struct{}), make(chan struct{})
 		sp := &spool{blocks: newBlockFiles(t.TempDir(), 1, rangeBlockSize, nil), changed: make(chan struct{}), refs: 1,
@@ -111,7 +111,7 @@ func TestCanceledReadCannotQualifyBeforeWaitCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := blocksched.New(blocksched.Config{SoftLimit: 1})
 		defer s.Close()
-		reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		reads := s.NewReadRequests(func(int64) string { return "block" }, nil)
 		defer reads.Close()
 		registered, cleanup := make(chan struct{}), make(chan struct{})
 		resume := sync.OnceFunc(func() { close(cleanup) })
@@ -177,7 +177,7 @@ func TestOrdinaryDemandCapacityDoesNotCancelReadExecution(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := testSessionServer(t, blocksched.Config{SoftLimit: 1, MaxDemands: 1})
 		now := time.Now()
-		n := blocksched.Need{Owner: "video", ReadyBy: now.Add(time.Hour), LeaseUntil: now.Add(2 * time.Hour)}
+		n := blocksched.Need{ReadyBy: now.Add(time.Hour), LeaseUntil: now.Add(2 * time.Hour)}
 		_, occupied, err := s.scheduler.Schedule("other", 1, nil, n)
 		if err != nil {
 			t.Fatal(err)

@@ -14,9 +14,9 @@ func TestObservationTracksExecutionAndIndependentReads(t *testing.T) {
 		wake := make(chan struct{}, 1)
 		stop := s.WatchChanges(wake)
 		defer stop()
-		reads := s.NewReadRequests("owner", func(int64) string { return "key" }, nil)
+		reads := s.NewReadRequests(func(int64) string { return "key" }, nil)
 		defer reads.Close()
-		task, _, err := s.Schedule("key", 1, func(ctx context.Context, p *Progress) Result { <-ctx.Done(); return Result{Err: ctx.Err()} }, Need{Owner: "owner", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+		task, _, err := s.Schedule("key", 1, func(ctx context.Context, p *Progress) Result { <-ctx.Done(); return Result{Err: ctx.Err()} }, Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,7 +68,7 @@ func TestObservationReportsReadBeforeTaskExists(t *testing.T) {
 	wake := make(chan struct{}, 1)
 	stop := s.WatchChanges(wake)
 	defer stop()
-	reads := s.NewReadRequests("owner", func(int64) string { return "key" }, nil)
+	reads := s.NewReadRequests(func(int64) string { return "key" }, nil)
 	defer reads.Close()
 	end := reads.Wait(context.Background(), 0)
 	if got := s.Observation().Tasks["key"]; got.Readers != 1 || got.Running {

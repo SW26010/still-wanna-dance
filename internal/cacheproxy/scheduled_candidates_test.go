@@ -32,7 +32,7 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 				defer release()
 			}
 			plan, _, _ := w.plan(now)
-			if len(plan) != 64 || plan[0].need.Owner == "" {
+			if len(plan) != 64 || plan[0].need.LeaseUntil.IsZero() {
 				t.Fatal("cold resource did not expose all missing blocks", len(plan))
 			}
 			w.f.ranges.done = map[int64]bool{0: true, 2: true, 63: true}
@@ -43,12 +43,12 @@ func TestResourceDemandsExposeAllMissingBlocks(t *testing.T) {
 			for block := int64(0); block < 64; block++ {
 				needs := plan[block]
 				if w.f.ranges.done[block] {
-					if needs.need.Owner != "" {
+					if !needs.need.LeaseUntil.IsZero() {
 						t.Fatal("completed block retained", block)
 					}
 					continue
 				}
-				if needs.need.Owner == "" {
+				if needs.need.LeaseUntil.IsZero() {
 					t.Fatal("missing or duplicated source", block, needs)
 				}
 				if need := needs.need; need.ReadyBy.IsZero() != (kind == "batch") {
@@ -76,7 +76,7 @@ func TestResourceDeadlinesRemainVisibleBeyondEightBlocks(t *testing.T) {
 		}
 		now := time.Now()
 		// Hold admission until both resources have submitted their real plans.
-		_, _, err := s.scheduler.Schedule("gate", 1, run("gate"), blocksched.Need{Owner: "gate", LeaseUntil: now.Add(time.Hour)})
+		_, _, err := s.scheduler.Schedule("gate", 1, run("gate"), blocksched.Need{LeaseUntil: now.Add(time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -208,7 +208,7 @@ func TestExpandedResourceRetainsGlobalMetadataCapacity(t *testing.T) {
 	}
 	w.close(err)
 	for block := range 16 {
-		if _, _, err := s.scheduler.Schedule(fmt.Sprint(block), 1, nil, blocksched.Need{Owner: "future", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)}); err != nil {
+		if _, _, err := s.scheduler.Schedule(fmt.Sprint(block), 1, nil, blocksched.Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)}); err != nil {
 			t.Fatal("failed resource leaked task capacity", block, err)
 		}
 	}
@@ -247,7 +247,7 @@ func TestTwoLargeFutureVideosFillUsageCapacity(t *testing.T) {
 	task, _, err := s.scheduler.Schedule(foreground.reads.Key(0), 1, func(context.Context, *blocksched.Progress) blocksched.Result {
 		close(started)
 		return blocksched.Result{}
-	}, blocksched.Need{Owner: "foreground", LeaseUntil: time.Now().Add(time.Minute)})
+	}, blocksched.Need{LeaseUntil: time.Now().Add(time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,9 +17,7 @@ var (
 )
 
 // ReadyBy and Rolling independently contribute to the earliest source need-by.
-// Owner is opaque and must be shared by duplicate/overlapping requests.
 type Need struct {
-	Owner               string
 	ReadyBy, LeaseUntil time.Time
 	Rolling             RollingDeadline
 	// Opportunistic preserves an independent ordinary demand that can use
@@ -162,7 +160,7 @@ func (t *Task) Add(n Need) *Demand {
 func (s *state) add(t *Task, n Need) *Demand {
 	d := &Demand{task: t}
 	j := s.jobs[t.key]
-	if j == nil || j.task != t || j.retiring || n.Owner == "" || s.demandCount >= s.cfg.MaxDemands || !n.LeaseUntil.After(time.Now()) {
+	if j == nil || j.task != t || j.retiring || s.demandCount >= s.cfg.MaxDemands || !n.LeaseUntil.After(time.Now()) {
 		return d
 	}
 	s.sequence++
@@ -179,7 +177,7 @@ func (s *state) add(t *Task, n Need) *Demand {
 func (d *Demand) Update(n Need) bool {
 	ok := false
 	d.task.s.call(func(s *state) {
-		if v := s.lookup(d); v != nil && n.Owner != "" && n.LeaseUntil.After(time.Now()) {
+		if v := s.lookup(d); v != nil && n.LeaseUntil.After(time.Now()) {
 			v.need = n
 			heap.Fix(&s.expiry, v.index)
 			s.refresh(v.job)
@@ -203,18 +201,18 @@ func (d *Demand) Close() {
 }
 
 type job struct {
-	task           *Task
-	run            Run
-	remaining      int64
-	needs          map[uint64]*lease
-	need           priority
-	index          [2]int // one membership per deadline/opportunistic heap
-	rolling        map[time.Time]*rollingJob
-	sequence, fair uint64
-	cancel         context.CancelCauseFunc
-	progress       *Progress
-	retiring       bool
-	terminal       error
+	task      *Task
+	run       Run
+	remaining int64
+	needs     map[uint64]*lease
+	need      priority
+	index     [2]int // one membership per deadline/opportunistic heap
+	rolling   map[time.Time]*rollingJob
+	sequence  uint64
+	cancel    context.CancelCauseFunc
+	progress  *Progress
+	retiring  bool
+	terminal  error
 }
 type lease struct {
 	id    uint64
@@ -235,8 +233,6 @@ type state struct {
 	untimed             readyHeap
 	rolling             map[time.Time]*rollingHeap
 	expiry              leaseHeap
-	owners              map[string]uint64
-	groups              map[string]map[*job]bool
 	sequence            uint64
 	active, demandCount int
 	closing             bool
@@ -257,7 +253,7 @@ func New(cfg Config) *Scheduler {
 		cfg.MaxDemands = 32768
 	}
 	s := &Scheduler{commands: make(chan func(*state), 64), finished: make(chan completion, cfg.SoftLimit), done: make(chan struct{})}
-	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), reads: make(map[string]map[*readWait]bool), owners: make(map[string]uint64), groups: make(map[string]map[*job]bool), capacityChanged: make(chan struct{})}
+	st := &state{s: s, cfg: cfg, jobs: make(map[string]*job), reads: make(map[string]map[*readWait]bool), capacityChanged: make(chan struct{})}
 	st.untimed.slot = 1
 	st.control.open = cfg.SoftLimit
 	if cfg.GrowInterval > 0 {
@@ -331,64 +327,47 @@ func (s *state) removeLease(v *lease) {
 }
 func (s *state) refresh(j *job) {
 	previous := j.need
-	previousFair := j.fair
 	n := Need{}
-	var earliest time.Time
+	hasLease := false
 	var rolling map[time.Time]time.Duration
-	opportunistic := false
-	var order uint64
 	now := time.Now()
 	for _, v := range j.needs {
 		if !v.need.LeaseUntil.After(now) {
 			continue
 		}
+		if hasLease && !n.WindowClosed && v.need.WindowClosed {
+			continue
+		}
+		if n.WindowClosed && !v.need.WindowClosed {
+			n.ReadyBy, rolling = time.Time{}, nil
+		}
+		hasLease = true
+		n.WindowClosed = v.need.WindowClosed
 		if !v.need.WindowClosed && (v.need.Opportunistic || v.need.EarliestReady().IsZero()) {
-			if !opportunistic || v.need.OpportunisticOrder < order {
-				order = v.need.OpportunisticOrder
+			if !n.Opportunistic || v.need.OpportunisticOrder < n.OpportunisticOrder {
+				n.OpportunisticOrder = v.need.OpportunisticOrder
 			}
-			opportunistic = true
+			n.Opportunistic = true
 		}
-		if n.Owner == "" || n.WindowClosed && !v.need.WindowClosed {
-			earliest, rolling = time.Time{}, nil
-		}
-		if n.Owner == "" || n.WindowClosed || !v.need.WindowClosed {
-			earliest = earlier(earliest, v.need.ReadyBy)
-			if d := v.need.Rolling; !d.Base.IsZero() {
-				if rolling == nil {
-					rolling = make(map[time.Time]time.Duration)
-				}
-				if offset, ok := rolling[d.Base]; !ok || d.Offset < offset {
-					rolling[d.Base] = d.Offset
-				}
+		n.ReadyBy = earlier(n.ReadyBy, v.need.ReadyBy)
+		if d := v.need.Rolling; !d.Base.IsZero() {
+			if rolling == nil {
+				rolling = make(map[time.Time]time.Duration)
 			}
-		}
-		a, b := priority{Need: v.need}, priority{Need: n}
-		a.ReadyBy, b.ReadyBy = a.ReadyAt(now), b.ReadyAt(now)
-		if n.Owner == "" || needBefore(a, b) || !needBefore(b, a) && v.need.Owner < n.Owner {
-			n = v.need
+			if offset, ok := rolling[d.Base]; !ok || d.Offset < offset {
+				rolling[d.Base] = d.Offset
+			}
 		}
 	}
-	n.ReadyBy, n.Opportunistic, n.OpportunisticOrder = earliest, opportunistic, order
-	n.Rolling = RollingDeadline{} // Retain all qualifying origins on the job.
 	p := priority{Need: n}
 	if !j.retiring {
 		p = s.withReads(j.task.key, n)
 	}
-	if j.need.Owner != p.Owner {
-		s.ungroup(j)
-	}
 	j.need = p
-	j.fair = s.owners[p.Owner]
 	wasQueued := j.index[0] >= 0 || j.index[1] >= 0 || len(j.rolling) > 0
-	rollingChanged := s.updateRolling(j, rolling, j.fair != previousFair)
+	rollingChanged := s.updateRolling(j, rolling)
 	if rollingChanged || previous.Blocking != p.Blocking || previous.ReadyBy != p.ReadyBy || previous.Opportunistic != p.Opportunistic || previous.WindowClosed != p.WindowClosed {
 		s.capacityAvailable()
-	}
-	if p.Owner != "" {
-		if s.groups[p.Owner] == nil {
-			s.groups[p.Owner] = make(map[*job]bool)
-		}
-		s.groups[p.Owner][j] = true
 	}
 	if j.retiring {
 		s.unqueue(j)
@@ -397,7 +376,7 @@ func (s *state) refresh(j *job) {
 		}
 		return
 	}
-	if p.Owner == "" {
+	if !hasLease && !p.Blocking {
 		s.emit("retired", "no_demand", j)
 		s.retire(j, context.Canceled)
 		return
@@ -409,17 +388,6 @@ func (s *state) refresh(j *job) {
 	s.untimed.set(j, !p.Blocking && p.Opportunistic)
 	if !wasQueued {
 		s.emit("queued", "demand", j)
-	}
-}
-func (s *state) ungroup(j *job) {
-	owner := j.need.Owner
-	if !s.groups[owner][j] {
-		return
-	}
-	delete(s.groups[owner], j)
-	if len(s.groups[owner]) == 0 {
-		delete(s.groups, owner)
-		delete(s.owners, owner)
 	}
 }
 func (s *state) unqueue(j *job) {
@@ -465,10 +433,6 @@ func (s *state) finish(j *job, err error) {
 	}
 	delete(s.jobs, j.task.key)
 	s.capacityAvailable()
-	s.ungroup(j)
-	if len(s.groups[j.need.Owner]) == 0 {
-		delete(s.owners, j.need.Owner)
-	}
 	j.task.err = err
 	close(j.task.done)
 	notify(j.task.wake)
@@ -510,20 +474,6 @@ func (s *state) dispatch(now time.Time) {
 			return
 		}
 		s.unqueue(j)
-		s.sequence++
-		s.owners[j.need.Owner] = s.sequence
-		// Only this fairness group changes; deadlines in other groups do not.
-		for other := range s.groups[j.need.Owner] {
-			other.fair = s.sequence
-			if index := other.index[s.ready.slot]; index >= 0 {
-				heap.Fix(&s.ready, index)
-			}
-			for _, entry := range other.rolling {
-				if entry.index >= 0 {
-					heap.Fix(s.rolling[entry.Base], entry.index)
-				}
-			}
-		}
 		ctx, cancel := context.WithCancelCause(context.Background())
 		j.cancel, j.progress = cancel, new(Progress)
 		j.progress.admitted, j.progress.work = time.Now(), j.remaining
@@ -627,13 +577,6 @@ func (h readyHeap) Less(i, j int) bool {
 	}
 	if needBefore(b.need, a.need) {
 		return false
-	}
-	return fairBefore(a, b)
-}
-
-func fairBefore(a, b *job) bool {
-	if a.fair != b.fair {
-		return a.fair < b.fair
 	}
 	return a.sequence < b.sequence
 }

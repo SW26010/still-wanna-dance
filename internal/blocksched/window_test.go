@@ -13,7 +13,7 @@ func TestClosedWindowNeedsSourceUpdateAndKeepsRunningLifecycle(t *testing.T) {
 		defer s.Close()
 		base := time.Now()
 		started := make(chan time.Time, 1)
-		closed := Need{Owner: "queue", ReadyBy: base.Add(125 * time.Second), LeaseUntil: base.Add(time.Hour), WindowClosed: true}
+		closed := Need{ReadyBy: base.Add(125 * time.Second), LeaseUntil: base.Add(time.Hour), WindowClosed: true}
 		task, _, err := s.Schedule("shared", 1, func(ctx context.Context, _ *Progress) Result {
 			started <- time.Now()
 			<-ctx.Done()
@@ -29,7 +29,7 @@ func TestClosedWindowNeedsSourceUpdateAndKeepsRunningLifecycle(t *testing.T) {
 		}
 		// An independent source retains its own entry time, even though the
 		// closed contribution has an earlier ReadyBy.
-		open := task.Add(Need{Owner: "independent", ReadyBy: base.Add(145 * time.Second), LeaseUntil: base.Add(time.Hour)})
+		open := task.Add(Need{ReadyBy: base.Add(145 * time.Second), LeaseUntil: base.Add(time.Hour)})
 		if at := <-started; at != base.Add(25*time.Second) {
 			t.Fatal("closed contribution altered independent admission", at.Sub(base))
 		}
@@ -56,14 +56,14 @@ func TestClosedWindowAllowsIndependentUntimedUseAndReads(t *testing.T) {
 			task, _, err := s.Schedule("shared", 1, func(context.Context, *Progress) Result {
 				started <- struct{}{}
 				return Result{}
-			}, Need{Owner: "queue", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(time.Hour), WindowClosed: true})
+			}, Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(time.Hour), WindowClosed: true})
 			if err != nil {
 				t.Fatal(err)
 			}
 			if read {
 				waitForKey(t, s, "shared")
 			} else {
-				task.Add(Need{Owner: "manual", LeaseUntil: time.Now().Add(time.Hour)})
+				task.Add(Need{LeaseUntil: time.Now().Add(time.Hour)})
 			}
 			<-started
 			if err := task.Err(); err != nil {
@@ -96,7 +96,7 @@ func TestWindowBoundaryAndDeadlineDiagnostics(t *testing.T) {
 					started <- time.Now()
 					<-ctx.Done()
 					return Result{}
-				}, Need{Owner: "one", ReadyBy: now.Add(tc.ready), LeaseUntil: now.Add(time.Hour)})
+				}, Need{ReadyBy: now.Add(tc.ready), LeaseUntil: now.Add(time.Hour)})
 
 				synctest.Wait()
 				if tc.wait > 0 {
@@ -143,7 +143,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 				case <-ctx.Done():
 				}
 				return Result{}
-			}, need(key, time.Second, time.Hour))
+			}, need(time.Second, time.Hour))
 			demands = append(demands, demand)
 		}
 		time.Sleep(time.Second)
@@ -152,7 +152,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 			t.Fatal("initial ramp", len(started))
 		}
 		for _, d := range demands {
-			d.Update(need("later", 15*time.Minute, time.Hour))
+			d.Update(need(15*time.Minute, time.Hour))
 		}
 		time.Sleep(5 * time.Second)
 		synctest.Wait()
@@ -166,7 +166,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 		})
 		// Moving waiting work back into the window starts a fresh growth delay.
 		for _, d := range demands[2:] {
-			d.Update(need("due", time.Second, time.Hour))
+			d.Update(need(time.Second, time.Hour))
 		}
 		time.Sleep(time.Second - time.Nanosecond)
 		synctest.Wait()
@@ -179,7 +179,7 @@ func TestWindowBacklogDrivesGrowthAndIdleResetsIt(t *testing.T) {
 			t.Fatal("window backlog failed to grow")
 		}
 		for _, d := range demands {
-			d.Update(need("future", 15*time.Minute, time.Hour))
+			d.Update(need(15*time.Minute, time.Hour))
 		}
 		close(release)
 		synctest.Wait()
@@ -196,7 +196,7 @@ func TestSoftLimitWaitHasNoPastWindowWakeup(t *testing.T) {
 		s := New(Config{SoftLimit: 1, GrowInterval: time.Second})
 		defer s.Close()
 		for _, key := range []string{"running", "waiting"} {
-			_, _, _ = s.Schedule(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} }, need(key, -time.Second, time.Hour))
+			_, _, _ = s.Schedule(key, standardBlockSize, func(ctx context.Context, _ *Progress) Result { <-ctx.Done(); return Result{} }, need(-time.Second, time.Hour))
 
 		}
 		synctest.Wait()
@@ -220,14 +220,14 @@ func TestCompletedSlowSampleDoesNotMoveWindowOrReorder(t *testing.T) {
 			time.Sleep(5 * time.Second)
 			p.Ready()
 			return Result{}
-		}, need("probe", 0, time.Hour))
+		}, need(0, time.Hour))
 
 		for _, key := range []string{"later", "earlier"} {
 			ready := now.Add(510 * time.Second)
 			if key == "earlier" {
 				ready = now.Add(509 * time.Second)
 			}
-			_, _, _ = s.Schedule(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} }, Need{Owner: key, ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
+			_, _, _ = s.Schedule(key, standardBlockSize, func(context.Context, *Progress) Result { started <- key; return Result{} }, Need{ReadyBy: ready, LeaseUntil: now.Add(time.Hour)})
 
 		}
 		<-probe.Done()
@@ -254,7 +254,7 @@ func TestUntimedWorkUsesSpareCapacityAndDeadlineUpdatesMoveHeaps(t *testing.T) {
 				case <-ctx.Done():
 				}
 				return Result{}
-			}, need(key, ready, time.Hour))
+			}, need(ready, time.Hour))
 			return demand
 		}
 		submit("future", time.Hour/2)
@@ -263,9 +263,9 @@ func TestUntimedWorkUsesSpareCapacityAndDeadlineUpdatesMoveHeaps(t *testing.T) {
 			t.Fatal("future head blocked untimed work", got)
 		}
 		changed := submit("changed", 0)
-		changed.Update(need("changed", time.Second, time.Hour))
-		changed.Update(need("changed", 0, time.Hour))
-		changed.Update(need("changed", time.Second, time.Hour))
+		changed.Update(need(time.Second, time.Hour))
+		changed.Update(need(0, time.Hour))
+		changed.Update(need(time.Second, time.Hour))
 		submit("last", 0)
 		gate <- struct{}{}
 		if got := <-started; got != "changed" {
@@ -277,7 +277,7 @@ func TestUntimedWorkUsesSpareCapacityAndDeadlineUpdatesMoveHeaps(t *testing.T) {
 		}
 		promoted := submit("promoted", 0)
 		waitForKey(t, s, "promoted")
-		promoted.Update(need("promoted", 0, time.Hour))
+		promoted.Update(need(0, time.Hour))
 		if got := <-started; got != "promoted" {
 			t.Fatal("untimed promotion did not bypass capacity", got)
 		}
@@ -296,10 +296,10 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 				return Result{}
 			}
 		}
-		_, a, _ := s.Schedule("first", standardBlockSize, run("first"), need("first", 10*time.Second, time.Hour))
-		_, _, _ = s.Schedule("second", standardBlockSize, run("second"), need("second", 20*time.Second, time.Hour))
+		_, a, _ := s.Schedule("first", standardBlockSize, run("first"), need(10*time.Second, time.Hour))
+		_, _, _ = s.Schedule("second", standardBlockSize, run("second"), need(20*time.Second, time.Hour))
 
-		a.Update(need("first", 30*time.Second, time.Hour))
+		a.Update(need(30*time.Second, time.Hour))
 		synctest.Wait()
 		s.call(func(st *state) {
 			if time.Until(st.nextControlEvent(time.Now())) != 19*time.Second {
@@ -317,7 +317,7 @@ func TestDeadlineUpdatesRearmWindowWithoutTouchingRunningWork(t *testing.T) {
 				t.Error("running work requested another slot")
 			}
 		})
-		a.Update(need("first", time.Second, time.Hour))
+		a.Update(need(time.Second, time.Hour))
 		now := time.Now()
 		if got := <-started; got != "first" || time.Since(now) != time.Second {
 			t.Fatal("earlier deadline failed to enter paced admission", got)
@@ -334,7 +334,7 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 		now := time.Now()
 		for i := range 10 {
 			key := string(rune('a' + i))
-			_, _, _ = s.Schedule(key, standardBlockSize, run, need(key, 450*time.Second, time.Hour))
+			_, _, _ = s.Schedule(key, standardBlockSize, run, need(450*time.Second, time.Hour))
 
 		}
 		time.Sleep(time.Second)
@@ -348,7 +348,7 @@ func TestLargePrepareAheadStillRampsAndCapsOrdinaryWork(t *testing.T) {
 			}
 		}
 		waitForKey(t, s, "blocking")
-		_, _, _ = s.Schedule("blocking", standardBlockSize, run, need("reader", 900*time.Second, time.Hour))
+		_, _, _ = s.Schedule("blocking", standardBlockSize, run, need(900*time.Second, time.Hour))
 
 		if at := <-started; at != time.Now() {
 			t.Fatal("Blocking waited for window or quota")

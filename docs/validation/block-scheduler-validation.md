@@ -2,7 +2,7 @@
 
 本页按实现先后保留开发与自动检查记录，各节只描述当时的实现、结果和限制。
 
-**现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段；各次检查不外推为后续实现的结果。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。
+**现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段。早期同期限任务的 Owner 轮转已由任务登记顺序取代。各次检查只覆盖当时的实现。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。
 
 第 38 节修正 GET 的覆盖范围并删除固定读取窗口，替代第 27/37 节中“越过起点的块立即到期”“GET 覆盖全部缺块”“当前块及后面两块独立登记”的历史规则。游戏剩余场景及状态以现行[台账](../live-acceptance-backlog.md)为准。
 

@@ -21,7 +21,7 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	now := time.Now()
 	get, queue := blockSource{"get", 1}, blockSource{"queue", 2}
 	need := func(ready, lease time.Duration) blocksched.Need {
-		return blocksched.Need{Owner: "shared", ReadyBy: now.Add(ready), LeaseUntil: now.Add(lease)}
+		return blocksched.Need{ReadyBy: now.Add(ready), LeaseUntil: now.Add(lease)}
 	}
 	handoff := need(15*time.Second-sourceGrace, 20*time.Second)
 	handoff.WindowClosed = true
@@ -69,7 +69,7 @@ func TestClosedContributionsKeepIndependentClocksAndLeases(t *testing.T) {
 	if n := summary.need; !n.WindowClosed || n.Opportunistic || n.ReadyBy != handoff.ReadyBy || n.LeaseUntil != handoff.LeaseUntil {
 		t.Fatal("closed contribution lost its independent clock or gained admission", n)
 	}
-	sources[blockSource{"batch", 4}] = plannedNeed{need: blocksched.Need{Owner: "shared", LeaseUntil: now.Add(time.Minute)}}
+	sources[blockSource{"batch", 4}] = plannedNeed{need: blocksched.Need{LeaseUntil: now.Add(time.Minute)}}
 	if n := aggregateUse(sources, now).need; n.WindowClosed || !n.Opportunistic || !n.ReadyBy.IsZero() {
 		t.Fatal("closed contribution poisoned independent untimed work", n)
 	}
@@ -79,11 +79,11 @@ func TestClosedQueueWindowDoesNotOverrideIndependentSources(t *testing.T) {
 	now := time.Now()
 	for _, source := range []string{"get", "batch", "queue"} {
 		closed := plannedNeed{need: blocksched.Need{
-			Owner: "shared", LeaseUntil: now.Add(sourceLease), WindowClosed: true,
+			LeaseUntil: now.Add(sourceLease), WindowClosed: true,
 			Rolling: blocksched.RollingDeadline{Base: now.Add(-time.Hour), Offset: blocksched.DefaultPrepareAhead + 5*time.Second},
 		}}
 		independent := plannedNeed{
-			need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(145 * time.Second), LeaseUntil: now.Add(20 * time.Second)}}
+			need: blocksched.Need{ReadyBy: now.Add(145 * time.Second), LeaseUntil: now.Add(20 * time.Second)}}
 		if source == "batch" {
 			independent.need.ReadyBy = time.Time{}
 		}
@@ -104,12 +104,12 @@ func TestQueuePromotionDemotionDoesNotCreateHandoff(t *testing.T) {
 	task, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
-	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+	}, blocksched.Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 	w.jobs[0] = &scheduledBlock{task: task, merged: registered}
 	now := time.Now()
 	key := blockSource{"queue", "song"}
 	for i := range 3 {
-		p := plannedNeed{need: blocksched.Need{Owner: "shared", ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
+		p := plannedNeed{need: blocksched.Need{ReadyBy: now.Add(time.Duration(i+1) * time.Second), LeaseUntil: now.Add(sourceLease)}}
 		if _, _, err := w.reconcile(map[int64]blockUse{0: aggregateUse(map[blockSource]plannedNeed{key: p}, now)}, now, nil, false); err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +169,7 @@ func TestManySharedSourcesUseOneDownloadSummary(t *testing.T) {
 		t.Fatal("shared identities multiplied block quota", len(plan), useCount(s))
 	}
 	for _, p := range plan {
-		if !p.need.Opportunistic || p.need.Owner != w.v.key {
+		if !p.need.Opportunistic || p.need.LeaseUntil.IsZero() {
 			t.Fatal("invalid source-free summary", p)
 		}
 	}

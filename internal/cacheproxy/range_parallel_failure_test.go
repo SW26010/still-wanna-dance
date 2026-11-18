@@ -208,7 +208,7 @@ func TestParallelRangeCleanupPreservesBlockWriteFailure(t *testing.T) {
 				return blocksched.Result{Err: upstream}
 			}
 			return blocksched.Result{Err: f.ranges.storage.store(0, bytes.Repeat([]byte("x"), int(rangeBlockSize)))}
-		}, blocksched.Need{Owner: "background", LeaseUntil: time.Now().Add(time.Minute)})
+		}, blocksched.Need{LeaseUntil: time.Now().Add(time.Minute)})
 		if err != nil {
 			t.Fatal(err)
 		}

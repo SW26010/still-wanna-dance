@@ -44,7 +44,7 @@ func (s *state) nextReady(now time.Time) *job {
 			continue
 		}
 		at := entry.At(now)
-		if best == nil || at.Before(deadline) || at.Equal(deadline) && fairBefore(entry.job, best) {
+		if best == nil || at.Before(deadline) || at.Equal(deadline) && entry.job.sequence < best.sequence {
 			best, deadline = entry.job, at
 		}
 	}

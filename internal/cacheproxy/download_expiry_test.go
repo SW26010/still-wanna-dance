@@ -209,7 +209,7 @@ func TestExpiredGETAcrossFlightAttachment(t *testing.T) {
 		a, releaseA := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
 		defer releaseA()
 		plan, _, _ := w.plan(now)
-		if plan[0].need.Owner != "" || plan[1].need.Owner != "" || plan[0].protectAt != clock.at.Add(-s.cfg.prepareAhead()) || a.ctx.Err() != nil {
+		if !plan[0].need.LeaseUntil.IsZero() || !plan[1].need.LeaseUntil.IsZero() || plan[0].protectAt != clock.at.Add(-s.cfg.prepareAhead()) || a.ctx.Err() != nil {
 			t.Fatal("unattached GET funded a download or lost its usage", plan[0])
 		}
 
@@ -245,7 +245,7 @@ func TestQueuedRangeRechecksSourceBeforeFirstRequest(t *testing.T) {
 		held, stop, err := s.scheduler.Schedule("occupied", 1, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 			<-ctx.Done()
 			return blocksched.Result{}
-		}, blocksched.Need{Owner: "other", LeaseUntil: now.Add(time.Hour)})
+		}, blocksched.Need{LeaseUntil: now.Add(time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -287,7 +287,7 @@ func TestExpiredGETHandoffUsesEntireUnconsumedRangeAndFixedExpiry(t *testing.T) 
 		w.f.ranges.done[6] = true                   // Readability does not change usage eligibility.
 		started := make(chan struct{})
 		// Block 3 is already past need-by, but its download deadline is still valid.
-		n := blocksched.Need{Owner: w.v.key, ReadyBy: clock.ready(3 * rangeBlockSize), LeaseUntil: now.Add(time.Hour)}
+		n := blocksched.Need{ReadyBy: clock.ready(3 * rangeBlockSize), LeaseUntil: now.Add(time.Hour)}
 		task, demand, err := s.scheduler.Schedule(w.reads.Key(3), rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 			close(started)
 			<-ctx.Done()
@@ -308,7 +308,7 @@ func TestExpiredGETHandoffUsesEntireUnconsumedRangeAndFixedExpiry(t *testing.T) 
 			t.Fatal("handoff lost remaining usage, changed N or refreshed its fixed expiry", h)
 		}
 		plan, _, _ := w.plan(now)
-		if plan[1].need.Owner != "" || plan[6].need.Owner != "" {
+		if !plan[1].need.LeaseUntil.IsZero() || !plan[6].need.LeaseUntil.IsZero() {
 			t.Fatal("handoff scheduled expired or readable data", plan)
 		}
 		for _, block := range []int64{2, 3, 4, 5, 7} {
@@ -355,7 +355,7 @@ func TestDownloadExpiryWithoutFutureUsageKeepsOnlyHandoffProtection(t *testing.T
 		}
 		plan, _, _ := w.plan(now)
 		for block, use := range plan {
-			if use.need.Owner != "" || use.protectAt.IsZero() {
+			if !use.need.LeaseUntil.IsZero() || use.protectAt.IsZero() {
 				t.Fatal("expired handoff gained download qualification or lost protection", block, use)
 			}
 		}
@@ -484,13 +484,13 @@ func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
 
 func TestExpiredHandoffKeepsUsageWithoutDownloadQualification(t *testing.T) {
 	now := time.Now()
-	old := blocksched.Need{Owner: "video", ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace), WindowClosed: true}
+	old := blocksched.Need{ReadyBy: now.Add(-time.Minute), LeaseUntil: now.Add(handoffGrace), WindowClosed: true}
 	plan := map[blockSource]plannedNeed{{"handoff", 1}: {need: old}}
 	use := aggregateUse(plan, now)
-	if use.need.Owner != "" || use.protectAt != old.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
+	if !use.need.LeaseUntil.IsZero() || use.protectAt != old.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
 		t.Fatal("expired handoff retained execution or lost usage protection", use)
 	}
-	plan[blockSource{"batch", 1}] = plannedNeed{need: blocksched.Need{Owner: "video", LeaseUntil: now.Add(sourceLease)}}
+	plan[blockSource{"batch", 1}] = plannedNeed{need: blocksched.Need{LeaseUntil: now.Add(sourceLease)}}
 	use = aggregateUse(plan, now)
 	if !use.need.ReadyBy.IsZero() || !use.need.Opportunistic || use.protectAt != old.ReadyBy.Add(-blocksched.DefaultPrepareAhead) {
 		t.Fatal("expired handoff poisoned independent untimed qualification", use)

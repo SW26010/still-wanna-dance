@@ -60,7 +60,7 @@ func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 		if _, retry, err := w.reconcile(plan, now, changed, active); err != nil || retry {
 			t.Fatal("fresh GET plan was not applied", retry, err)
 		}
-		if w.jobs[0].published.Owner == "" || w.f.preempted {
+		if w.jobs[0].published.LeaseUntil.IsZero() || w.f.preempted {
 			t.Fatal("GET could not continue the existing flight")
 		}
 	})

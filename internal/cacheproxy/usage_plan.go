@@ -28,7 +28,7 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 			if clock != nil {
 				ready = clock.ready(block * s.cfg.BlockSize)
 			}
-			p := plannedNeed{need: blocksched.Need{Owner: span.key, ReadyBy: ready, LeaseUntil: until, WindowClosed: closed, OpportunisticOrder: order}}
+			p := plannedNeed{need: blocksched.Need{ReadyBy: ready, LeaseUntil: until, WindowClosed: closed, OpportunisticOrder: order}}
 			if !idleBase.IsZero() {
 				offset := ready.Sub(idleBase)
 				p.need.ReadyBy = time.Time{}

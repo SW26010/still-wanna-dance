@@ -31,7 +31,7 @@
 flowchart TD
     A["需求证据：HTTP GET / 队列 ID 顺序 / 本地媒体资料 / 补齐请求"]
     B["需求管理：管理各来源截止、保留独立来源、撤销与交接、按块汇总"]
-    C["全局块调度：租约、need-by 排序、固定 M 窗口、公平分配、并发缓增"]
+    C["全局块调度：租约、need-by 排序、固定 M 窗口、并发缓增"]
     D["执行与存储：Range、重试、完整块、响应检查、完整文件校验与发布"]
     A --> B --> C
     C -->|"启停块执行、动态 need-by"| D
@@ -39,7 +39,7 @@ flowchart TD
     D -->|"本地读取等待开始／结束"| C
 ```
 
-需求管理层认识 GET、队首、普通队列、补齐和交接，负责将来源语义转换成通用属性。调度器不识别歌曲、视频等级或“继任者”；有限期限同等紧急的任务通过不透明 `Owner` 公平分配，无期限／提前执行候选优先比较来源提供的通用顺序号。资源层提供兼容的内容身份和执行器，继续管理实体版本、选路、临时文件、强 ETag 及最终 MD5 校验。
+需求管理层认识 GET、队首、普通队列、补齐和交接，负责将来源语义转换成通用属性。调度器按预计使用时刻选择已入窗的有限期限任务，时刻相同则按任务登记次序启动。无期限／提前执行候选优先比较来源提供的准备顺序号。资源层提供兼容的内容身份和执行器，继续管理实体版本、选路、临时文件、强 ETag 及最终 MD5 校验。
 
 产品以 MD5、大小和块号标识内容块，并由资源会话约束实体及选路一致性。URL 本身不作为共享身份。文件级生命周期仍然存在，网络执行额度统一交给块调度器；`MaxLocalValidations` 限制整文件合并、校验与发布，不限制普通文件打开和属性检查，也不决定网络并发数，见[本地资源契约](download-resource-design.md#6-本地资源管理的存储与外部契约)。
 
@@ -132,7 +132,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 核心一个事件循环持有任务和索引堆，等待需求变化、执行完成或最近的入窗/增路/租约时刻。已入窗但满额度的任务等待完成或缓增事件，不把过去的入窗时间反复装成立即触发的定时器。没有每 500 ms 全任务汇总、排序和目标并发反推，也没有每块独立的轮询协程。
 
-定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查一个堆首是否入窗为 O(1)。选择下一个候选、计算下一次入窗唤醒，各自最多检查固定期限堆首和每个非空滚动基准组的堆首。若有 k 个这样的组，每次调用的最坏时间复杂度为 O(1 + k)。更新同一 Owner 的公平次序时遍历该组，只调整在读取等待与有限期限索引中的堆项。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
+定位共享块、汇总该块的有限来源、调整相关索引即可响应变化。单个堆项调整为 O(log N)，检查一个堆首是否入窗为 O(1)。选择下一个候选、计算下一次入窗唤醒，各自最多检查固定期限堆首和每个非空滚动基准组的堆首。若有 k 个这样的组，每次调用的最坏时间复杂度为 O(1 + k)。网络、磁盘和正文关闭在执行器中完成，调度事件循环不等待这些操作。
 
 事件驱动不等于系统没有定时工作：资源协调器仍每 10 秒确认来源并续 30 秒活跃租约；VRC 日志按[队列文档](queue-prefetch.md#日志检测与频率)增量读取。缓冲只在实际执行时取得，全局任务与使用需求数量有界，完整块由引擎本地资源注册表保留，已移除暂停检查点上限，具体上限见[运行规则](download-concurrency.md)。
 
@@ -144,7 +144,7 @@ GET 块 ReadyBy(b)  = t₀ + max(0, D × (b − a) / S)
 
 | 设计约定 | 实现与回归入口 |
 | --- | --- |
-| 独立需求、共享任务、租约与公平分配 | [scheduler.go](../internal/blocksched/scheduler.go)、[scheduler_test.go](../internal/blocksched/scheduler_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
+| 独立需求、共享任务、租约与同期限排序 | [scheduler.go](../internal/blocksched/scheduler.go)、[scheduler_test.go](../internal/blocksched/scheduler_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
 | 手动来源顺序、提前执行排序与完整文件发布 | [preparation.go](../internal/cacheproxy/preparation.go)、[order_test.go](../internal/blocksched/order_test.go)、[preparation_order_test.go](../internal/cacheproxy/preparation_order_test.go) |
 | 本地读取等待、独立撤销与任务登记前接入 | [reads.go](../internal/blocksched/reads.go)、[stream.go](../internal/cacheproxy/stream.go)、[reads_test.go](../internal/blocksched/reads_test.go)、[stream_wait_test.go](../internal/cacheproxy/stream_wait_test.go) |
 | 来源过滤、有限交接、不识别继任者 | [block_demands.go](../internal/cacheproxy/block_demands.go)、[demand.go](../internal/cacheproxy/demand.go)、[block_demands_test.go](../internal/cacheproxy/block_demands_test.go) |

@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-func need(owner string, ready, lease time.Duration) Need {
-	n := Need{Owner: owner, LeaseUntil: time.Now().Add(lease)}
+func need(ready, lease time.Duration) Need {
+	n := Need{LeaseUntil: time.Now().Add(lease)}
 	if ready != 0 {
 		n.ReadyBy = time.Now().Add(ready)
 	}
@@ -25,21 +25,22 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 			started <- struct{}{}
 			<-ctx.Done()
 			return Result{Err: context.Canceled}
-		}, need("a", -time.Second, time.Second))
+		}, need(-time.Second, time.Second))
 
-		b := j.Add(need("b", time.Minute, 3*time.Second))
+		later := need(time.Minute, 3*time.Second)
+		b := j.Add(later)
 		<-started
 		time.Sleep(2 * time.Second)
-		if a.Update(need("a", 0, time.Hour)) {
+		if a.Update(need(0, time.Hour)) {
 			t.Fatal("expired demand revived")
 		}
 		var summary priority
 		s.call(func(s *state) { summary = s.jobs["shared"].need })
-		if summary.Blocking || summary.Owner != "b" {
+		if summary.Blocking || summary.ReadyBy != later.ReadyBy {
 			t.Fatalf("stale urgency: %+v", summary)
 		}
 		b.Close()
-		if b.Update(need("b", 0, time.Hour)) {
+		if b.Update(need(0, time.Hour)) {
 			t.Fatal("closed handle revived demand")
 		}
 		time.Sleep(2 * time.Second)
@@ -53,7 +54,7 @@ func TestIndependentLeasesAndLateUpdates(t *testing.T) {
 	})
 }
 
-func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
+func TestSharedExecutionEqualDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
@@ -65,17 +66,14 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 			<-ctx.Done()
 			<-cleanup
 			return Result{Err: context.Canceled}
-		}, need("held", 0, time.Hour))
+		}, need(0, time.Hour))
 
 		<-started
-		for _, key := range []string{"a1", "a2", "b"} {
-			owner := "a"
-			if key == "b" {
-				owner = "b"
-			}
-			j, _, _ := s.Schedule(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} }, need(owner, time.Minute, time.Hour))
+		keys := []string{"a1", "a2", "b1"}
+		for _, key := range keys {
+			j, _, _ := s.Schedule(key, 1, func(ctx context.Context, p *Progress) Result { started <- key; <-gate; return Result{} }, need(time.Minute, time.Hour))
 
-			dup, _, _ := s.Schedule(key, 1, nil, need(owner, time.Minute, time.Hour))
+			dup, _, _ := s.Schedule(key, 1, nil, need(time.Minute, time.Hour))
 			if dup != j {
 				t.Fatal("duplicate execution")
 			}
@@ -88,18 +86,13 @@ func TestSharedExecutionFairDeadlinesAndReleaseAfterCleanup(t *testing.T) {
 		default:
 		}
 		close(cleanup)
-		if got := <-started; got != "a1" {
-			t.Fatal(got)
+		defer close(gate)
+		for _, want := range keys {
+			if got := <-started; got != want {
+				t.Fatalf("started %s, want %s", got, want)
+			}
+			gate <- struct{}{}
 		}
-		gate <- struct{}{}
-		if got := <-started; got != "b" {
-			t.Fatalf("unfair group: %s", got)
-		}
-		gate <- struct{}{}
-		if got := <-started; got != "a2" {
-			t.Fatal(got)
-		}
-		close(gate)
 	})
 }
 
@@ -109,7 +102,7 @@ func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 		j, _, _ := s.Schedule("a", 100, func(ctx context.Context, p *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: context.Canceled}
-		}, need("a", time.Second, time.Minute))
+		}, need(time.Second, time.Minute))
 
 		time.Sleep(2 * time.Second)
 		select {
@@ -117,14 +110,14 @@ func TestDeadlineDoesNotCancelAndCloseDrains(t *testing.T) {
 			t.Fatal("ReadyBy canceled task")
 		default:
 		}
-		if _, _, err := s.Schedule("b", 1, nil, need("b", time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
+		if _, _, err := s.Schedule("b", 1, nil, need(time.Hour, 2*time.Hour)); !errors.Is(err, ErrCapacity) {
 			t.Fatal(err)
 		}
 		s.Close()
 		if !errors.Is(j.Err(), ErrClosed) {
 			t.Fatal(j.Err())
 		}
-		if _, _, err := s.Schedule("c", 1, nil, need("c", time.Hour, 2*time.Hour)); !errors.Is(err, ErrClosed) {
+		if _, _, err := s.Schedule("c", 1, nil, need(time.Hour, 2*time.Hour)); !errors.Is(err, ErrClosed) {
 			t.Fatal(err)
 		}
 	})

@@ -53,7 +53,7 @@ func TestConfiguredDownloadSchedulerAdmission(t *testing.T) {
 						case <-ctx.Done():
 						}
 						return blocksched.Result{}
-					}, blocksched.Need{Owner: "background", LeaseUntil: now.Add(time.Hour)})
+					}, blocksched.Need{LeaseUntil: now.Add(time.Hour)})
 					if err != nil {
 						t.Fatal(err)
 					}

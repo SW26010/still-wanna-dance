@@ -613,7 +613,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 				need := input.needs[i]
 				source := input.sources[need.source]
 				p := plannedNeed{need: source.need}
-				p.need.Owner, p.need.ReadyBy, p.need.WindowClosed = raw.id.key, need.ready, need.windowClosed
+				p.need.ReadyBy, p.need.WindowClosed = need.ready, need.windowClosed
 				p.need.Rolling = need.rolling
 				use = mergeUse(use, p.use(now, ahead))
 				if raw.available && !need.windowClosed {

@@ -70,20 +70,12 @@ func earlier(a, b time.Time) time.Time {
 }
 
 func mergeUse(a, b blockUse) blockUse {
-	// Early admission and its order are independent of the finite deadline.
-	// Inactive/timed-only sources must not contribute the default zero order.
-	if b.need.Opportunistic && !b.need.WindowClosed {
-		if !a.need.Opportunistic || b.need.OpportunisticOrder < a.need.OpportunisticOrder {
-			a.need.OpportunisticOrder = b.need.OpportunisticOrder
-		}
-		a.need.Opportunistic = true
-	}
-	if b.need.Owner != "" {
-		// A closed contribution cannot move an independent source's admission
-		// time. Keep its finite clock only when no open source contributes.
-		if a.need.Owner == "" || a.need.WindowClosed && !b.need.WindowClosed {
+	if b.need != (blocksched.Need{}) {
+		// Closed sources contribute their clock only until an open source exists.
+		if a.need == (blocksched.Need{}) || a.need.WindowClosed && !b.need.WindowClosed {
 			a.need.ReadyBy = b.need.ReadyBy
 			a.need.Rolling = b.need.Rolling
+			a.need.WindowClosed = b.need.WindowClosed
 		} else if a.need.WindowClosed == b.need.WindowClosed {
 			a.need.ReadyBy = earlier(a.need.ReadyBy, b.need.ReadyBy)
 			// Queue contributions share the same origin within this plan.
@@ -91,8 +83,14 @@ func mergeUse(a, b blockUse) blockUse {
 				a.need.Rolling = d
 			}
 		}
-		a.need.WindowClosed = (a.need.Owner == "" || a.need.WindowClosed) && b.need.WindowClosed
-		a.need.Owner = b.need.Owner
+	}
+	// Early admission and its order are independent of the finite deadline.
+	// Inactive/timed-only sources must not contribute the default zero order.
+	if b.need.Opportunistic && !b.need.WindowClosed {
+		if !a.need.Opportunistic || b.need.OpportunisticOrder < a.need.OpportunisticOrder {
+			a.need.OpportunisticOrder = b.need.OpportunisticOrder
+		}
+		a.need.Opportunistic = true
 	}
 	a.need.LeaseUntil = maxTime(a.need.LeaseUntil, b.need.LeaseUntil)
 	a.nextExpiry = earlier(a.nextExpiry, b.nextExpiry)

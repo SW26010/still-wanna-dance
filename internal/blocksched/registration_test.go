@@ -12,8 +12,8 @@ import (
 func TestRegistrationUsesFixedWindowBoundary(t *testing.T) {
 	now := time.Now()
 	s := state{cfg: Config{PrepareAhead: 500 * time.Second}}
-	background := Need{Owner: "background"}
-	finite := Need{Owner: "finite", ReadyBy: now.Add(500*time.Second + time.Nanosecond)}
+	background := Need{LeaseUntil: now.Add(time.Hour)}
+	finite := Need{ReadyBy: now.Add(500*time.Second + time.Nanosecond)}
 	if s.registrationBefore(priority{Need: finite}, priority{Need: background}, now) {
 		t.Fatal("future deadline displaced eligible background work")
 	}
@@ -27,7 +27,7 @@ func TestScheduleCapacityDefersFutureBlocksForUrgentWork(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 2, MaxDemands: 2})
 		defer s.Close()
-		future := Need{Owner: "future", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)}
+		future := Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)}
 		var pending []*Task
 		for i := range 2 {
 			task, _, err := s.Schedule(fmt.Sprint(i), 1, nil, future)
@@ -46,7 +46,7 @@ func TestScheduleCapacityDefersFutureBlocksForUrgentWork(t *testing.T) {
 			close(started)
 			<-ctx.Done()
 			return Result{Err: ctx.Err()}
-		}, Need{Owner: "get", LeaseUntil: future.LeaseUntil})
+		}, Need{LeaseUntil: future.LeaseUntil})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestScheduleWaitsWhenAllMetadataIsExecuting(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 1})
 		defer s.Close()
 		started := make(chan struct{})
-		n := Need{Owner: "get", LeaseUntil: time.Now().Add(time.Hour)}
+		n := Need{LeaseUntil: time.Now().Add(time.Hour)}
 		task, _, err := s.Schedule("active", 1, func(ctx context.Context, _ *Progress) Result {
 			close(started)
 			<-ctx.Done()

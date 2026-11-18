@@ -124,7 +124,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 		check := func(block int64, want time.Time) {
 			t.Helper()
 			plan, _, _ := w.plan(time.Now())
-			if plan[block].need.Owner == "" {
+			if plan[block].need.LeaseUntil.IsZero() {
 				t.Fatal("missing block", block)
 			}
 			if p := plan[block]; p.need.ReadyBy != want {
@@ -132,7 +132,7 @@ func TestPlaybackDeadlinesStayAtRequestArrival(t *testing.T) {
 			}
 		}
 		plan, _, _ := w.plan(time.Now())
-		if plan[0].need.Owner != "" {
+		if !plan[0].need.LeaseUntil.IsZero() {
 			t.Fatal("GET created a deadline before its range")
 		}
 		check(8, at)

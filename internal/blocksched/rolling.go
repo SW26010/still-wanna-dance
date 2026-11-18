@@ -21,7 +21,7 @@ func (h rollingHeap) Less(i, j int) bool {
 	if a.Offset != b.Offset {
 		return a.Offset < b.Offset
 	}
-	return fairBefore(a.job, b.job)
+	return a.job.sequence < b.job.sequence
 }
 func (h rollingHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
@@ -59,7 +59,7 @@ func (s *state) dequeueRolling(entry *rollingJob) {
 	}
 }
 
-func (s *state) updateRolling(j *job, offsets map[time.Time]time.Duration, fairChanged bool) bool {
+func (s *state) updateRolling(j *job, offsets map[time.Time]time.Duration) bool {
 	changed := false
 	for base, entry := range j.rolling {
 		if _, ok := offsets[base]; !ok {
@@ -86,7 +86,7 @@ func (s *state) updateRolling(j *job, offsets map[time.Time]time.Duration, fairC
 			continue
 		}
 		if entry.index >= 0 {
-			if offsetChanged || fairChanged {
+			if offsetChanged {
 				heap.Fix(s.rolling[base], entry.index)
 			}
 			continue

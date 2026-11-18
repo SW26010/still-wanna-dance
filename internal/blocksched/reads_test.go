@@ -12,7 +12,7 @@ import (
 
 func waitForKey(t *testing.T, s *Scheduler, key string) func() {
 	t.Helper()
-	r := s.NewReadRequests(key, func(int64) string { return key }, nil)
+	r := s.NewReadRequests(func(int64) string { return key }, nil)
 	end := r.Wait(context.Background(), 0)
 	t.Cleanup(r.Close)
 	return end
@@ -36,12 +36,12 @@ func TestCanceledReadBeforeAdmissionDoesNotStartClosedTask(t *testing.T) {
 					}
 				}})
 				defer s.Close()
-				reads := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+				reads := s.NewReadRequests(func(int64) string { return "block" }, nil)
 				defer reads.Close()
 				if !taskFirst {
 					defer reads.Wait(ctx, 0)()
 				}
-				n := Need{Owner: "video", ReadyBy: time.Now().Add(time.Minute), LeaseUntil: time.Now().Add(15 * time.Second), WindowClosed: true}
+				n := Need{ReadyBy: time.Now().Add(time.Minute), LeaseUntil: time.Now().Add(15 * time.Second), WindowClosed: true}
 				task, handoff, err := s.Schedule("block", 1, func(context.Context, *Progress) Result {
 					runs.Add(1)
 					return Result{}
@@ -59,7 +59,7 @@ func TestCanceledReadBeforeAdmissionDoesNotStartClosedTask(t *testing.T) {
 				}
 				// The handoff remains valid, and an independent source can still
 				// start this task before the canceled read's cleanup arrives.
-				ordinary := task.Add(need("new-get", 0, time.Minute))
+				ordinary := task.Add(need(0, time.Minute))
 				defer ordinary.Close()
 				if !ordinary.Accepted() {
 					t.Fatal("canceled read retired a task with a valid handoff")
@@ -84,15 +84,15 @@ func TestReadWaitsBeforeRegistrationAndIndependentWithdrawal(t *testing.T) {
 				return Result{Err: ctx.Err()}
 			}
 		}
-		s.Schedule("held", 1, run("held"), need("held", 0, time.Hour))
+		s.Schedule("held", 1, run("held"), need(0, time.Hour))
 		<-started
-		r := s.NewReadRequests("video", func(int64) string { return "shared" }, nil)
+		r := s.NewReadRequests(func(int64) string { return "shared" }, nil)
 		defer r.Close()
 		one, two := r.Wait(context.Background(), 7), r.Wait(context.Background(), 7)
 		if len(r.Requested()) != 1 || !r.Requested()[7] {
 			t.Fatal("read before task registration was lost")
 		}
-		task, ordinary, err := s.Schedule("shared", 1, run("shared"), need("video", time.Hour, 2*time.Hour))
+		task, ordinary, err := s.Schedule("shared", 1, run("shared"), need(time.Hour, 2*time.Hour))
 		if err != nil || <-started != "shared" {
 			t.Fatal("missing read did not bypass capacity/window", err)
 		}
@@ -131,12 +131,12 @@ func TestReadOnlyTaskSurvivesUsageWithdrawalAndStopsWithLastRead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
-		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		r := s.NewReadRequests(func(int64) string { return "block" }, nil)
 		end := r.Wait(context.Background(), 0)
 		task, ordinary, err := s.Schedule("block", 1, func(ctx context.Context, _ *Progress) Result {
 			<-ctx.Done()
 			return Result{Err: ctx.Err()}
-		}, need("video", time.Minute, time.Hour))
+		}, need(time.Minute, time.Hour))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -175,17 +175,17 @@ func TestReadWaitDuringRetirementUsesFreshTaskAfterCleanup(t *testing.T) {
 			<-ctx.Done()
 			<-cleanup
 			return Result{Err: ctx.Err()}
-		}, need("video", 0, time.Hour))
+		}, need(0, time.Hour))
 		if err != nil {
 			t.Fatal(err)
 		}
 		<-started
 		demand.Close()
-		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		r := s.NewReadRequests(func(int64) string { return "block" }, nil)
 		defer r.Close()
 		end := r.Wait(context.Background(), 0)
 		defer end()
-		if demand.Update(need("video", 0, time.Hour)) {
+		if demand.Update(need(0, time.Hour)) {
 			t.Fatal("read revived a retired ordinary demand")
 		}
 		if _, _, err := s.Schedule("block", 1, nil, Need{}); !errors.Is(err, ErrCapacity) {
@@ -220,10 +220,10 @@ func TestReadWaitKeepsSourceDeadline(t *testing.T) {
 				return Result{Err: ctx.Err()}
 			}
 		}
-		s.Schedule("held", 1, run("held"), need("held", 0, time.Hour))
+		s.Schedule("held", 1, run("held"), need(0, time.Hour))
 		<-started
 		base := time.Now()
-		task, _, err := s.Schedule("block", 1, run("block"), need("video", time.Minute, time.Hour))
+		task, _, err := s.Schedule("block", 1, run("block"), need(time.Minute, time.Hour))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -272,7 +272,7 @@ func TestPendingReadDoesNotCreateNeedByDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1})
 		defer s.Close()
-		r := s.NewReadRequests("video", func(int64) string { return "block" }, nil)
+		r := s.NewReadRequests(func(int64) string { return "block" }, nil)
 		defer r.Close()
 		end := r.Wait(context.Background(), 0)
 		time.Sleep(30 * time.Second)
@@ -298,7 +298,7 @@ func TestReadRegistersBeforeOrdinaryWorkFillsTaskCapacity(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := New(Config{SoftLimit: 1, MaxTasks: 1})
 		defer s.Close()
-		r := s.NewReadRequests("video", func(block int64) string { return fmt.Sprint(block) }, nil)
+		r := s.NewReadRequests(func(block int64) string { return fmt.Sprint(block) }, nil)
 		defer r.Close()
 		defer r.Wait(context.Background(), 1)()
 		blocks := []int64{0, 1}
@@ -309,7 +309,7 @@ func TestReadRegistersBeforeOrdinaryWorkFillsTaskCapacity(t *testing.T) {
 				started <- block
 				<-ctx.Done()
 				return Result{Err: ctx.Err()}
-			}, need("video", 0, time.Hour))
+			}, need(0, time.Hour))
 			if block == 1 && err != nil || block == 0 && !errors.Is(err, ErrCapacity) {
 				t.Fatal("ordinary registration took the waiting read's task slot", block, err)
 			}

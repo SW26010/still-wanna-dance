@@ -47,7 +47,7 @@ func TestDurationUsesAdmissionToReadableAndHoldsSlotThroughCleanup(t *testing.T)
 			<-gate
 			p.Ready() // a late duplicate cannot extend the readable timestamp
 			return Result{}
-		}, need("reader", 510*time.Second, time.Hour))
+		}, need(510*time.Second, time.Hour))
 		time.Sleep(10 * time.Second) // queued outside the preparation window: excluded
 
 		time.Sleep(20 * time.Second)
@@ -81,7 +81,7 @@ func TestFailedAndCanceledExecutionsDoNotSample(t *testing.T) {
 				p.Ready()
 				<-ctx.Done()
 				return Result{Err: err}
-			}, need("reader", 0, time.Hour))
+			}, need(0, time.Hour))
 
 			time.Sleep(2 * time.Second)
 			d.Close()

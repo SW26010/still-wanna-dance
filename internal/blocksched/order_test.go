@@ -26,7 +26,7 @@ func TestOpportunisticOrderConcentratesInterleavedWork(t *testing.T) {
 			return Result{}
 		}
 		for i := range 2 {
-			_, _, err := s.Schedule(fmt.Sprint("hold", i), 1, run, need("hold", 0, time.Hour))
+			_, _, err := s.Schedule(fmt.Sprint("hold", i), 1, run, need(0, time.Hour))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -35,7 +35,7 @@ func TestOpportunisticOrderConcentratesInterleavedWork(t *testing.T) {
 		// Resource coordinators register independently, interleaving their blocks.
 		for block := range 4 {
 			for order := uint64(1); order <= 3; order++ {
-				n := need(fmt.Sprint(order), 0, time.Hour)
+				n := need(0, time.Hour)
 				n.OpportunisticOrder = order
 				if _, _, err := s.Schedule(fmt.Sprintf("%d/%d", order, block), 1, run, n); err != nil {
 					t.Fatal(err)
@@ -69,10 +69,10 @@ func TestOpportunisticOrderPreservesFinitePriorityAndMixedSources(t *testing.T) 
 				return Result{}
 			}
 		}
-		_, _, _ = s.Schedule("hold", 1, run("hold"), need("hold", 0, time.Hour))
+		_, _, _ = s.Schedule("hold", 1, run("hold"), need(0, time.Hour))
 		<-started
 		for _, key := range []string{"second", "first", "due"} {
-			n := need(key, 0, time.Hour)
+			n := need(0, time.Hour)
 			switch key {
 			case "first":
 				n.OpportunisticOrder = 1
@@ -92,7 +92,7 @@ func TestOpportunisticOrderPreservesFinitePriorityAndMixedSources(t *testing.T) 
 				if key == "first" {
 					future = 20 * time.Minute
 				}
-				j.Add(need(key, future, time.Hour))
+				j.Add(need(future, time.Hour))
 			}
 		}
 		for _, want := range []string{"due", "first", "second"} {
@@ -114,12 +114,12 @@ func TestOpportunisticOrderFollowsLiveContributions(t *testing.T) {
 				_, _, _ = s.Schedule("hold", 1, func(ctx context.Context, _ *Progress) Result {
 					<-ctx.Done()
 					return Result{}
-				}, need("hold", 0, time.Hour))
-				j, _, _ := s.Schedule("shared", 1, nil, need("v", 20*time.Minute, time.Hour))
-				a := need("v", 0, time.Second)
+				}, need(0, time.Hour))
+				j, _, _ := s.Schedule("shared", 1, nil, need(20*time.Minute, time.Hour))
+				a := need(0, time.Second)
 				a.OpportunisticOrder = 1
 				first := j.Add(a)
-				b := need("v", 0, time.Hour)
+				b := need(0, time.Hour)
 				b.OpportunisticOrder = 2
 				second := j.Add(b)
 				check := func(order uint64, early bool) {
@@ -160,13 +160,13 @@ func TestOpportunisticOrderDoesNotDelayBlockedRead(t *testing.T) {
 			close(started)
 			<-ctx.Done()
 			return Result{}
-		}, need("hold", 0, time.Hour))
+		}, need(0, time.Hour))
 		<-started
-		reads := s.NewReadRequests("late", func(int64) string { return "late" }, nil)
+		reads := s.NewReadRequests(func(int64) string { return "late" }, nil)
 		defer reads.Close()
 		end := reads.Wait(context.Background(), 0)
 		defer end()
-		n := need("late", 0, time.Hour)
+		n := need(0, time.Hour)
 		n.OpportunisticOrder = 99
 		j, _, err := s.Schedule("late", 1, func(context.Context, *Progress) Result { return Result{} }, n)
 		if err != nil {
@@ -187,7 +187,7 @@ func TestOpportunisticOrderingIsTransitive(t *testing.T) {
 		for deadline := range 3 {
 			jobs = append(jobs, &job{need: priority{Need: Need{
 				OpportunisticOrder: order, ReadyBy: time.Unix(int64(deadline), 0),
-			}}, fair: uint64(3 - deadline), sequence: uint64(len(jobs))})
+			}}, sequence: uint64(len(jobs))})
 		}
 	}
 	h := readyHeap{jobs: jobs, slot: 1}

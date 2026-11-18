@@ -21,19 +21,19 @@ func TestRollingDeadlinesReorderAgainstFixedWorkWithoutUpdates(t *testing.T) {
 			case <-ctx.Done():
 			}
 			return Result{}
-		}, Need{Owner: "occupied", LeaseUntil: lease})
+		}, Need{LeaseUntil: lease})
 		if err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()
 
-		started := make(chan string, 4)
+		started := make(chan string, 7)
 		submit := func(key string, fixed time.Time, rolling RollingDeadline) *Task {
 			t.Helper()
 			task, _, err := s.Schedule(key, 1, func(context.Context, *Progress) Result {
 				started <- key
 				return Result{}
-			}, Need{Owner: key, ReadyBy: fixed, Rolling: rolling, LeaseUntil: lease})
+			}, Need{ReadyBy: fixed, Rolling: rolling, LeaseUntil: lease})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -46,7 +46,11 @@ func TestRollingDeadlinesReorderAgainstFixedWorkWithoutUpdates(t *testing.T) {
 		submit("fixed", fixed, RollingDeadline{})
 		mixed := submit("mixed", time.Time{}, RollingDeadline{Base: base, Offset: 6 * time.Second})
 		cap := base.Add(11 * time.Second)
-		mixed.Add(Need{Owner: "mixed", ReadyBy: cap, LeaseUntil: lease})
+		mixed.Add(Need{ReadyBy: cap, LeaseUntil: lease})
+		// At release these three and head all have the same need-by.
+		submit("fixed-tie", base.Add(12*time.Second), RollingDeadline{})
+		submit("other-origin", time.Time{}, RollingDeadline{Base: base})
+		submit("same-origin", time.Time{}, RollingDeadline{Base: future})
 
 		time.Sleep(3 * time.Second)
 		if got := s.TaskNeedBy("head"); got != future {
@@ -66,8 +70,12 @@ func TestRollingDeadlinesReorderAgainstFixedWorkWithoutUpdates(t *testing.T) {
 			t.Fatal("rolling source hid the earlier fixed source", got)
 		}
 		close(release)
-		got := []string{<-started, <-started, <-started, <-started}
-		if want := []string{"fixed", "mixed", "head", "later"}; !slices.Equal(got, want) {
+		want := []string{"fixed", "mixed", "head", "fixed-tie", "other-origin", "same-origin", "later"}
+		var got []string
+		for range want {
+			got = append(got, <-started)
+		}
+		if !slices.Equal(got, want) {
 			t.Fatalf("execution order %v, want %v", got, want)
 		}
 	})
@@ -82,7 +90,7 @@ func TestRollingDeadlineUsesFutureEstimateForWindowEntry(t *testing.T) {
 		task, _, err := s.Schedule("future", 1, func(context.Context, *Progress) Result {
 			started <- time.Now()
 			return Result{}
-		}, Need{Owner: "queue", Rolling: RollingDeadline{Base: origin, Offset: 90 * time.Second}, LeaseUntil: origin.Add(time.Hour)})
+		}, Need{Rolling: RollingDeadline{Base: origin, Offset: 90 * time.Second}, LeaseUntil: origin.Add(time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}

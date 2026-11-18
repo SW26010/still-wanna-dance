@@ -33,7 +33,7 @@ func demandLifecycleSession(t *testing.T) (*downloadSession, *Server) {
 	task, registered, err := s.scheduler.Schedule("queue", rangeBlockSize, func(ctx context.Context, _ *blocksched.Progress) blocksched.Result {
 		<-ctx.Done()
 		return blocksched.Result{Err: context.Canceled}
-	}, blocksched.Need{Owner: "fixture", ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
+	}, blocksched.Need{ReadyBy: time.Now().Add(time.Hour), LeaseUntil: time.Now().Add(2 * time.Hour)})
 	if err != nil {
 		t.Fatal(err)
 	}

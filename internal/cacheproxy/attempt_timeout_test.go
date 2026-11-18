@@ -137,7 +137,7 @@ func TestScheduledHeaderTimeoutLeavesTimeForFallback(t *testing.T) {
 				w.f.progress = &downloadProgress{log: w.f.log, start: time.Now()}
 				start := time.Now()
 				j := new(scheduledBlock)
-				need := blocksched.Need{Owner: v.key, ReadyBy: start.Add(tc.ready), LeaseUntil: start.Add(time.Hour)}
+				need := blocksched.Need{ReadyBy: start.Add(tc.ready), LeaseUntil: start.Add(time.Hour)}
 				if err := w.submit(0, j, need); err != nil {
 					t.Fatal(err)
 				}

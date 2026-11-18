@@ -35,14 +35,14 @@ func TestGETPlanOnlyIncludesRequestedBlocks(t *testing.T) {
 			_, release := addTestDemand(t, s, ctx, w.v, true)
 			defer release()
 			plan, _, active := w.plan(time.Now())
-			if !active || len(plan) != len(tc.want) || plan[tc.want[0]].need.Owner == "" {
+			if !active || len(plan) != len(tc.want) || plan[tc.want[0]].need.LeaseUntil.IsZero() {
 				t.Fatal("initial request did not start at the requested block", plan)
 			}
 			plan, _, _ = w.plan(time.Now())
 			var got []int64
 			for block, needs := range plan {
 				got = append(got, block)
-				if needs.need.Owner == "" {
+				if needs.need.LeaseUntil.IsZero() {
 					t.Fatal("GET created an extra source or synthetic Blocking", block, needs)
 				}
 			}
@@ -116,7 +116,7 @@ func TestConcurrentGETsExposeIndependentRangesBeforeHeaders(t *testing.T) {
 	add(2)
 	plan, _, _ := w.plan(time.Now())
 
-	if len(plan) != 2 || plan[2].need.Owner == "" || plan[14].need.Owner == "" {
+	if len(plan) != 2 || plan[2].need.LeaseUntil.IsZero() || plan[14].need.LeaseUntil.IsZero() {
 		t.Fatal("concurrent GETs lost their own ranges", plan)
 	}
 

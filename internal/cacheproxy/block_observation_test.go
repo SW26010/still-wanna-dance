@@ -250,7 +250,7 @@ func TestBlockObservationDeadlineUsesSourceSnapshot(t *testing.T) {
 	defer release()
 	// The scheduler still holds the previous published plan for this block.
 	_, _, err := s.scheduler.Schedule(w.reads.Key(0), 1, nil, blocksched.Need{
-		Owner: w.v.key, ReadyBy: clock.at.Add(time.Hour), LeaseUntil: clock.at,
+		ReadyBy: clock.at.Add(time.Hour), LeaseUntil: clock.at,
 		WindowClosed: true,
 	})
 	if err != nil {

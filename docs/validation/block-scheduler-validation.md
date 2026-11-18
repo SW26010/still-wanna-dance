@@ -1128,7 +1128,7 @@ Go 1.27.3、Windows amd64；全部 Go 检查沿用临时目录及依赖补丁入
 
 收尾回归覆盖了 GET 登记到挂接之间、旧地址失败后等待新地址、来源截止时排队块恰好取得额度三个时序。未挂接 GET 的过期缺块无法为后续块开工；旧 GET 保留超时结果，新 GET 使用自己的预计时间；计划尚待重算时，上游请求数为零。受控 HTTP 地址替换用例同时核对 504 和替换地址的请求数。[来源与准入测试](../../internal/cacheproxy/download_expiry_test.go) · [地址重试测试](../../internal/cacheproxy/address_sources_test.go)
 
-时间轴的 need-by 和“需求截止”从同一来源快照取得。后端回归保留一份时间不同的调度器计划，用于检查详情的两个时间仍然匹配。[快照测试](../../internal/cacheproxy/block_observation_test.go)
+时间轴的 need-by 和“需求截止”从同一来源快照取得。后端回归保留一份时间不同的调度器计划，用于检查详情的两个时间仍然匹配。34 项 Chromium 时间轴用例通过，包含图例和块详情的文案断言。[快照测试](../../internal/cacheproxy/block_observation_test.go) · [浏览器测试](../../webui/e2e/block-timeline.spec.ts)
 
 整包复验曾在 `TestPlaybackDeadlinesStayAtRequestArrival` 发现旧夹具跨过首个缺块截止后仍要求后续块入计划。夹具现让首块在截止前可读，继续核对后续块按原请求到达时刻定位。首块持续缺失的分支由跨块准入用例覆盖。该次失败与复验日志均保存在工作区忽略目录 `artifacts/source-finish-*`。
 

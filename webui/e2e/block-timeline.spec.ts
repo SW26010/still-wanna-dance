@@ -59,6 +59,8 @@ test('block details use engine byte offsets for custom sizes and tails', async (
   await f.detail(tail);
   await f.open(); await f.canvas.focus(); await f.canvas.press('Home');
   const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup.getByText('需求截止', { exact: true })).toBeVisible();
+  await expect(f.panel.locator('.timeline-window-key.grace')).toHaveText('需求截止');
   await expect(popup).toContainText('1,048,576 – 1,048,698');
   await expect(popup).toContainText('块 3/3');
   await expect(popup.getByText('fixture-resource',{exact:true})).toHaveCSS('font-family',/Consolas|monospace/);

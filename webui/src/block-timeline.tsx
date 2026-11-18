@@ -318,7 +318,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     <div className="block-demand-controls" hidden={!expanded || !data.blocks.size}><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
     </div>
     <div id="block-timeline-content" hidden={!expanded}>
-    <div className="timeline-toolbar" hidden={!timed.length}><div className="timeline-window-keys"><Text weight="semibold" size={300}>时间轴视图</Text><span className="timeline-window-key grace">下载截止期</span><span className="timeline-window-key ahead">提前准备 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
+    <div className="timeline-toolbar" hidden={!timed.length}><div className="timeline-window-keys"><Text weight="semibold" size={300}>时间轴视图</Text><span className="timeline-window-key grace">需求截止</span><span className="timeline-window-key ahead">提前准备 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
       <Switch size="small" label={{ children: '分层显示', size: 'small' }} checked={layers} onChange={(_, value) => setLayers(value.checked)} />
       <Button size="small" icon={<Subtract16Regular />} aria-label="缩小时间轴" disabled={!active || view.span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
       <Button size="small" icon={<Add16Regular />} aria-label="放大时间轴" disabled={!active || view.span <= minimumSpan} onClick={() => controls.current.zoom(1.5)} />
@@ -362,7 +362,7 @@ function BlockProperties({ id, block, active }: { id: string; block?: BlockView;
     <dl className="timeline-properties-grid">
       <dt>视频内编号</dt><dd>{blockNumber(b)}{b.totalBlocks <= 0 && '（总数未知）'}{b.songID && ` · 歌曲 ${b.songID}`}</dd>
       <dt>need-by</dt><dd>{b.needBy ? absoluteTime(b.needBy) : '无有限期限'}</dd>
-      <dt>下载截止</dt><dd>{absoluteTime(b.deadline)}</dd>
+      <dt>需求截止</dt><dd>{absoluteTime(b.deadline)}</dd>
       <dt>下载资格</dt><dd>{!b.inUse ? '使用需求已结束' : b.readers ? '读取急需' : b.windowClosed ? '来源尚未开放窗口' : b.eligible ? '可参与调度' : '等待窗口或有效需求'}</dd>
       <dt>读取等待</dt><dd>{b.readers ? `${b.readers} 个读取者` : '无'}</dd>
       <dt>本地保护</dt><dd>{b.protected ? b.protectionUntil && !b.inUse ? `保护至 ${absoluteTime(b.protectionUntil)}` : '保护中' : b.protectionStart ? `开始于 ${absoluteTime(b.protectionStart)}` : '未保护'}</dd>

@@ -63,7 +63,7 @@
     "webui/src/block-timeline-canvas.ts": "b0eefb283b78c52776193334859dac1cb94e3ebe0c20834bc96d92156dc9eadd",
     "webui/src/block-timeline-model.ts": "d97bde38931469da0e4048755b1d22fede01cd0fae9c1fb5f1efe656ac613195",
     "webui/src/block-timeline-stream.ts": "e49ab0ed46d9de8ca212067bfa4e4c3a263752df52156ae07138599adc040641",
-    "webui/src/block-timeline.tsx": "d07218d865ddc306a9e9d69cacc7f393fbc904eeef7b3d0b60dc0ac0d7ed5fc7",
+    "webui/src/block-timeline.tsx": "b0260016a146154dcf3b2115226961c95a74b68ce4acbfcfb080b78b1e0b066f",
     "webui/src/bootstrap.ts": "fa27204c9328191b3ac4eb01d63f716490cdc8ed2b3e982e9ef773ef87b72656",
     "webui/src/cache-capacity.tsx": "c671457e13cc86780621d6663f20ec687e60051ce5cc993cc635067906f0aff3",
     "webui/src/cache.tsx": "4942d166778923dfcc02756329afd9abf62eea54af259e4a39aaba6e1b55521f",
@@ -116,7 +116,7 @@
   "outputs": {
     "docs/licenses/WEBUI-NOTICES.txt": "02ccdc2a52c8ebd3aca00458cb1de197e062763536344016c7434c26cb9c0149",
     "internal/console/assets/webui/app.css": "f820248b8dbebfc946ca4dbb07242d51db025efd30bad3889b802e1aa81bf823",
-    "internal/console/assets/webui/app.js": "f458788f1383083294a1c863e1b7d4314f81c96e166aaaacf9bf1367bf5d4e9d",
+    "internal/console/assets/webui/app.js": "546e44b97c04b8143aa4587d05f90020b9a9ca315e25276ca4dc263cf58c78e9",
     "internal/console/assets/webui/software-license.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
     "internal/console/assets/webui/third-party-notices.txt": "ba1050147aef83abae480818ffb965919a9d2ec56a7c3a6be15f1a83dcb56bf8",
     "internal/console/assets/webui/webui-notices.txt": "02ccdc2a52c8ebd3aca00458cb1de197e062763536344016c7434c26cb9c0149",

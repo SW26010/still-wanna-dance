@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1323227,
+      "sha256": "546e44b97c04b8143aa4587d05f90020b9a9ca315e25276ca4dc263cf58c78e9",
+      "reason": "Embedded WebUI rebuilt for the demand deadline label in the block timeline legend and details. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1322238,
       "sha256": "88983ef5bb8f61f2b73abe344e0ed1edb0193c820f5fdcc04f9539757ac978f0",
       "reason": "Production WebUI rebuilt with stacked CDN and close-browser hints beside the acceleration title, including an accessible SHA limitation tooltip. Embedded in offline Go builds and verified against webui/build-manifest.json; locked dependencies are unchanged."

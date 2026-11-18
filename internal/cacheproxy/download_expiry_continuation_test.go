@@ -38,13 +38,19 @@ func (c *handoffLogCapture) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func TestExpiredGETKeepsFutureBlockExecution(t *testing.T) {
-	for _, retry := range []bool{false, true} {
-		name := "share-partial-block"
-		if retry {
-			name = "retry-within-running-block"
-		}
-		t.Run(name, func(t *testing.T) {
+func TestExpiredGETKeepsValidBlockExecution(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		duration time.Duration
+		retry    bool
+	}{
+		{"future/share-partial-block", 2 * time.Minute, false},
+		{"future/retry-within-running-block", 2 * time.Minute, true},
+		{"past/share-partial-block", 40 * time.Second, false},
+		{"past/retry-within-running-block", 40 * time.Second, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			retry := tc.retry
 			const body = "0123456789abcdef"
 			logs := &handoffLogCapture{closed: make(chan struct{})}
 			s, cfg := setup(t, nil, func(cfg *Config) {
@@ -118,7 +124,7 @@ func TestExpiredGETKeepsFutureBlockExecution(t *testing.T) {
 			// Pre-age only the source input, after both real HTTP bodies start.
 			// The real scheduler timer, GET exit and persisted history remain in
 			// the loop without adding 30 seconds to every fixture invocation.
-			clock := &playbackClock{at: time.Now().Add(time.Second - blocksched.DownloadGrace), limit: v.size, media: mediaTiming{v.size, 2 * time.Minute}}
+			clock := &playbackClock{at: time.Now().Add(time.Second - blocksched.DownloadGrace), limit: v.size, media: mediaTiming{v.size, tc.duration}}
 			s.mu.Lock()
 			var old *downloadDemand
 			for d := range s.demands {
@@ -140,7 +146,7 @@ func TestExpiredGETKeepsFutureBlockExecution(t *testing.T) {
 			shared, handoffs := s.flights[v.key] == f && !f.preempted, len(s.useHandoffs)
 			s.mu.Unlock()
 			if !shared || handoffs != 1 || calls.Load() != 1 || runs.Load() != 1 {
-				t.Fatal("expired GET retired the shared flight or future block", shared, handoffs, calls.Load(), runs.Load())
+				t.Fatal("expired GET retired the shared flight or valid block", shared, handoffs, calls.Load(), runs.Load())
 			}
 			receiveDemandEvent(t, logs.closed)
 			if retry {

@@ -259,17 +259,8 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		if d.playback && d.clock != nil {
 			clock = *d.clock
 			switch exit.reason {
-			case withdrawalSourceGone:
+			case withdrawalSourceGone, withdrawalDownloadExpired:
 				grace = handoffGrace
-			case withdrawalDownloadExpired:
-				grace = handoffGrace
-				// Playback time is monotone across the remaining span. Release
-				// N<=E and transfer the future suffix under the same registry lock.
-				first := span.first
-				for span.first < span.last && !clock.ready(span.first*s.cfg.BlockSize).After(exit.at) {
-					span.first++
-				}
-				s.releaseUseLocked(useSpan{span.key, first, span.first}, exit.at)
 			}
 		}
 		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason)

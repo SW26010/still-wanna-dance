@@ -1,6 +1,6 @@
 # 下载需求与资源管理设计
 
-更新日期：2026-11-15。
+更新日期：2026-11-18。
 
 本文是下载需求与资源管理的唯一权威设计文档（canonical）。第一部分维护现行规则及理由，第二部分记录实现接口、已落实的决策和验证边界。后续规则变化在这里更新，不另建并行的现行方案。
 
@@ -232,7 +232,7 @@ WebUI 临时缓存粗估的展示、换算及输入处理统一以[内容约定]
 
 **交接统一表达为对既有需求的有界承接，由需求集合管理维护并整合，块资源使用管理不识别交接来源。** 范围取创建事件选中的既有使用范围，包含已下载但尚未消费的块；已交付并撤销的块不重新加入，部分交付块仍在剩余范围。资格不依赖其他 GET、队列或手动来源，也不查询瞬时在途或可读状态。运行对象只有范围、原时钟和固定到期，创建原因不进入后续整合或执行分支。
 
-**创建事件决定承接范围，交接统一有效到 E+2 秒。** 客户端关闭 GET 承接其全部未交付范围，队首退出承接仍持有的使用范围，不另加 N>E 筛选；GET 因块截止被服务端打回时，从未交付范围中仅承接原 N>E 的块。正常完成、其他服务端错误、引擎关闭、普通队列或手动来源退出不生成交接；交接本身不再生成交接。
+**交接承接来源剩余使用范围，统一有效到 E+2 秒。** 客户端关闭 GET 或 GET 因块截止被服务端打回时，均承接其全部未交付范围；队首退出承接仍持有的使用范围。不按 need-by 与退出时刻的先后关系筛选范围，下载资格仍由原截止和闭准入规则判断。正常完成、其他服务端错误、引擎关闭、普通队列或手动来源退出不生成交接；交接本身不再生成交接。
 
 原来源撤销与交接承接应在同一次整合结果更新中表达，避免中间出现虚假的无需求状态。交接到期以原来源真实退出时刻为基准，不因通知延迟、重复事件或新 GET 到来续长，也不由交接再次生成交接。新 GET 独立登记自己的范围，与交接及其他来源共享同一块；交接结束只撤销自己的贡献。沿用既定的唯一块计数，同一块的原来源、交接及新来源不分别占用槽位。
 
@@ -240,11 +240,12 @@ WebUI 临时缓存粗估的展示、换算及输入处理统一以[内容约定]
 
 | 交接来源 | 交接需求结束时刻 | 交接块的 need-by |
 | --- | --- | --- |
-| 客户端关闭 GET | `E + 2 秒` | 原 `N` |
+| 客户端关闭 GET 或 GET 因块截止退出，承接全部未交付范围 | `E + 2 秒` | 原 `N` |
 | 队首从队列消失 | `E + 2 秒` | 原 `N` |
-| GET 因块截止退出，仅限未交付且 `N > E` | `E + 2 秒` | 原 `N` |
 
-2026-11-13 取消原有交接的 need-by 平移，统一关闭普通启动资格，并加入 GET 截止后的有限未来范围承接；2026-11-16 将 GET 截止交接从 15 秒缩短为统一的 2 秒，其余规则不变。此前 GET 截止的 `E + 15 秒`、`N + 2 秒` 及更早队首 `E + 20 秒 / N + 5 秒` 只属于历史策略；历史游戏报告不证明当前交接时长的播放表现。2 秒不保证播放器在此期间重连，也不保证原失败区段可读。
+2026-11-13 取消原有交接的 need-by 平移，统一关闭普通启动资格，并加入 GET 截止后的有限未来范围承接；2026-11-16 将 GET 截止交接从 15 秒缩短为统一的 2 秒；2026-11-18 取消截止退出的 `N > E` 筛选，与客户端关闭共用完整剩余范围交接，减少退出原因之间的范围特判。此前的范围筛选、GET 截止的 `E + 15 秒`、`N + 2 秒` 及更早队首 `E + 20 秒 / N + 5 秒` 只属于历史策略；历史游戏报告不证明当前规则的播放表现。2 秒不保证播放器在此期间重连，也不保证原失败区段可读。
+
+统一范围后，need-by 已过但下载截止尚未到的在途块也可继续到原截止或交接到期，以先到者为准；已过下载截止的块不恢复执行。剩余范围的使用引用保留至固定交接到期，最后引用结束后才按原规则建立本地延续保护，不再因截止退出先释放过去时刻的前缀。
 
 交接继承原 N，不因退出、通知延迟或后续检查改写。所有交接用既有 `WindowClosed` 表达不提供普通启动资格：仅凭交接不能开始尚未启动的块，也不能重建已经结束的执行；合法在途块可继续。启动单位是一次块 Run，既有候选切换和正文重试仍受任务截止、交接有效期和单次尝试时限约束。独立 GET、队列、手动或真实读取仍可取得启动资格，关闭交接不封锁整个块。范围包含已下载未消费块，不查询瞬时在途集合；运行对象只有范围、原时钟及固定到期，不保留来源类型或退出原因。
 
@@ -488,7 +489,7 @@ GET、队列预加载和手动补齐在每次新建歌曲需求前检查屏蔽�
 
 [getConsumption](../internal/cacheproxy/get_consumption.go) 根据实际 200/206 响应范围和 Write 接受字节推进 GET 区间，Reader/Seek 不推进交付。HTTP 和 obtain 共用来源，完整本地视频命中也登记使用。来源身份持续至请求结束，消费完成逐块撤销；响应字节交付完即可结束，不等待持久化结果。
 
-[demand.go](../internal/cacheproxy/demand.go) 与 [demand_capacity.go](../internal/cacheproxy/demand_capacity.go) 持有来源退出原因、真实 E 和连续成员身份。客户端关闭／队首退出和 GET 块截止均交接至 E+2 秒；GET 块截止仍仅承接未交付且 N>E 的范围。筛选与引用转移在 Server.mu 下原子完成，固定 E 不因通知延迟、重复退出或新 GET 续期；运行时 useHandoff 不保存退出原因或源类型。交接延续原有唯一块引用，不重复占容量，也无计数豁免；使用引用和网络 active 名额分别记账。
+[demand.go](../internal/cacheproxy/demand.go) 与 [demand_capacity.go](../internal/cacheproxy/demand_capacity.go) 持有来源退出原因、真实 E 和连续成员身份。客户端关闭 GET 与 GET 块截止共用同一分支，承接全部未交付范围至 E+2 秒；队首退出承接仍持有范围。引用转移在 Server.mu 下原子完成，固定 E 不因通知延迟、重复退出或新 GET 续期；运行时 useHandoff 不保存退出原因或源类型。交接延续原有唯一块引用，不重复占容量，也无计数豁免；使用引用和网络 active 名额分别记账。
 
 [download_expiry.go](../internal/cacheproxy/download_expiry.go) 按剩余范围和各 GET 自身时钟选择退出者，先冻结受影响来源，再批量撤销，独立处理队列自身的截止。GET 自有上下文保留 ErrExpired，客户端原上下文不被服务端取消；资源完成与来源失败同时可见时，仍返回该 GET 的真实原因。协调器在登记拒绝及完成反馈处重算计划，不把块截止返回为整资源失败；响应和写入清理结束前不重建该块。其他真实终止错误继续走原共享错误路径。
 
@@ -581,7 +582,7 @@ GET、队列预加载和手动补齐在每次新建歌曲需求前检查屏蔽�
 | 完整块复用、停止不恢复半块、读取与清理并发 | [local_blocks_test.go](../internal/cacheproxy/local_blocks_test.go)、[stopped_resource_test.go](../internal/cacheproxy/stopped_resource_test.go)、[stop_test.go](../internal/blocksched/stop_test.go) |
 | 持久化预留/替换、锁外文件准备及提交复核、零预算不校验、合并及结果区分 | [publication_admission_test.go](../internal/cacheproxy/publication_admission_test.go)、[publication_preparation_test.go](../internal/cacheproxy/publication_preparation_test.go)、[execution_timeout_test.go](../internal/cacheproxy/execution_timeout_test.go)、[storage_test.go](../internal/cacheproxy/storage_test.go) |
 | 队列/手动有序放行、容量等待和取消 | [queue_test.go](../internal/console/queue_test.go)、[batch_budget_test.go](../internal/console/batch_budget_test.go)、[queue_cancellation_test.go](../internal/console/queue_cancellation_test.go) |
-| 截止只结束自身过期 GET、唯一 GET 的未来范围及 E+2 秒、N=E 边界、在途复用与 Run 内重试、请求历史原因独立 | [download_expiry_test.go](../internal/cacheproxy/download_expiry_test.go)、[download_expiry_continuation_test.go](../internal/cacheproxy/download_expiry_continuation_test.go)、[request_outcome_test.go](../internal/cacheproxy/request_outcome_test.go) |
+| 截止只结束自身过期 GET、完整未交付范围及固定 E+2 秒、原下载截止与保护尾期、在途复用与 Run 内重试、请求历史原因独立 | [download_expiry_test.go](../internal/cacheproxy/download_expiry_test.go)、[download_expiry_continuation_test.go](../internal/cacheproxy/download_expiry_continuation_test.go)、[request_outcome_test.go](../internal/cacheproxy/request_outcome_test.go) |
 
 各阶段已执行相关单元/集成、Windows 真实文件及竞态检查，UI 变化有既有浏览器记录；最终结果与日志定位见开发记录的本轮收尾条目。夹具验证只覆盖其条件，不证明真实公网吞吐或游戏体验。
 

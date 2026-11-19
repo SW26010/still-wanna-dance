@@ -1,6 +1,6 @@
-import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { Caption1, Text } from '@fluentui/react-components';
-import { compareDemands, demandLabel, videoLabel, type BlockDemand, type BlockView, type TimelineData } from './block-timeline-model';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { Caption1, ProgressBar, Text } from '@fluentui/react-components';
+import { demandLabel, videoLabel, type BlockDemand, type BlockView, type PlaybackClock, type TimelineData } from './block-timeline-model';
 import { drawBlock, videoColor, type TimelinePalette } from './block-timeline-canvas';
 import { useFocusRecovery } from './hooks';
 
@@ -11,17 +11,37 @@ type Props = {
 };
 export function BlockDemandView({ showHeading, ...props }: Props & { showHeading: boolean }) {
   const focus = useFocusRecovery();
-  const demands = useMemo(() => {
-    const all = [...props.data.demands.values()];
-    const readingSongs = new Set(all.filter(demand => demand.kind === 'get' && demand.songID).map(demand => demand.songID));
-    return all.filter(demand => demand.kind !== 'handoff' && !(demand.kind === 'queue' && demand.position === 1 && readingSongs.has(demand.songID))).sort(compareDemands);
-  }, [props.data.demands]);
+  const demands = props.data.demandRows;
   return <section {...focus} tabIndex={-1} className="block-demand-view" aria-label="视频需求视图">
     <div className="demand-view-heading" hidden={!showHeading}><Text weight="semibold" size={300}>需求视图</Text><Caption1>{demands.length} 项需求</Caption1></div>
     {demands.length ? <div className="demand-list" role="list" aria-label="视频需求列表">
       {demands.map((demand, index) => <DemandRow key={demand.id} {...props} demand={demand} position={index + 1} total={demands.length} />)}
     </div> : <p className="demand-empty">当前没有使用需求。</p>}
   </section>;
+}
+
+function playbackTime(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function DemandPlayback({ playback, clock, active, title }: { playback: PlaybackClock; clock: Pick<TimelineData, 'at' | 'receivedAt'>; active: boolean; title: string }) {
+  const [sample, setSample] = useState(() => performance.now());
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => setSample(performance.now());
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+  const duration = playback.endAt - playback.zeroAt;
+  const elapsed = Math.max(0, Math.min(duration, clock.at + Math.max(0, sample - clock.receivedAt) - playback.zeroAt));
+  const position = Math.floor(elapsed / 1000) * 1000;
+  const time = `${playbackTime(position)} / ${playbackTime(duration)}`;
+  return <>
+    <div className="demand-playback-track"><ProgressBar max={duration} value={position} aria-label={`${title}，房间播放进度`} aria-valuetext={time} bar={{ className: 'demand-playback-fill' }} /></div>
+    <Caption1 className="demand-progress" aria-hidden="true">{time}</Caption1>
+  </>;
 }
 
 function DemandRow({ demand, position, total, ...props }: Props & { demand: BlockDemand; position: number; total: number }) {
@@ -85,9 +105,16 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
   };
   return <div className="demand-row-slot" role="listitem" aria-posinset={position} aria-setsize={total}>
     <div className="demand-row" data-demand-id={demand.id} style={{ borderColor: videoColor(demand, props.palette) }}>
-      <div className="demand-row-heading"><Caption1 className="demand-source">{demandLabel(demand)}</Caption1><div className="demand-video-heading"><Text size={300} className={'demand-video-title'+(!demand.title&&!demand.songID?' resource-id':'')} title={title}>{title}</Text><Caption1 className="demand-progress" title={`当前需求中 ${available} / ${blocks.length} 块本地可用`} aria-label={`${demandLabel(demand)}，${title}，需求就绪进度 ${percent}%`}>{percent}%</Caption1></div><Caption1 title={demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '视频总块数尚未知'}>{blocks.length} 块</Caption1></div>
+      <div className="demand-row-heading">
+        <Caption1 className="demand-source">{demandLabel(demand)}</Caption1>
+        <div className="demand-video-heading">
+          <Text size={300} className={'demand-video-title'+(!demand.title&&!demand.songID?' resource-id':'')} title={title}>{title}</Text>
+          {!demand.playback && <Caption1 className="demand-progress" title={`当前需求中 ${available} / ${blocks.length} 块本地可用`} aria-label={`${demandLabel(demand)}，${title}，需求就绪进度 ${percent}%`}>{percent}%</Caption1>}
+        </div>
+        {demand.playback ? <DemandPlayback playback={demand.playback} clock={props.data} active={props.active} title={title} /> : <Caption1 title={demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '视频总块数尚未知'}>{blocks.length} 块</Caption1>}
+      </div>
       <div ref={strip} className="demand-block-strip">
-        <canvas ref={canvas} width={0} height={0} className="demand-block-canvas" style={{ width, height }} tabIndex={0} role="group" aria-label={`${demandLabel(demand)}，${title}，需要 ${blocks.length} 个块，${demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '总块数尚未知'}。左右键选择，Home 和 End 跳到首尾。`}
+        <canvas ref={canvas} width={0} height={0} className="demand-block-canvas" style={{ width, height }} tabIndex={blocks.length ? 0 : -1} role="group" aria-label={`${demandLabel(demand)}，${title}，${demand.playback ? '游戏读取与交接' : '需要'} ${blocks.length} 个块，${demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '总块数尚未知'}。${blocks.length ? '左右键选择，Home 和 End 跳到首尾。' : ''}`}
           onPointerMove={event => pointer(event, false)} onPointerLeave={props.onLeave} onClick={event => pointer(event, true)}
           onKeyDown={event => {
             if (event.key === 'Escape') { props.onPick([], 0, 0, true, event.currentTarget); return; }

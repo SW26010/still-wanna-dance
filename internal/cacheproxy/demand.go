@@ -65,6 +65,13 @@ type downloadDemand struct {
 	firstBlock, lastBlock int64 // Remaining GET span, protected by Server.mu.
 }
 
+func (d *downloadDemand) gameSongID() string {
+	if d.playback && d.origin != originPreview {
+		return d.song
+	}
+	return ""
+}
+
 // sourceExit freezes withdrawal before registry locks or coalesced coordinator
 // wakeups can delay it. It belongs to the original source, never to a handoff.
 type sourceWithdrawal struct {
@@ -148,7 +155,7 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			}
 			clock := s.queueClockLocked(source, now)
 			source.startAt = clock.at
-			s.endUseLocked(source.use, now, grace, clock, source.origin(), withdrawalSourceGone)
+			s.endUseLocked(source.use, now, grace, clock, source.origin(), withdrawalSourceGone, "")
 			source.use = useSpan{}
 			changed = true
 		}
@@ -264,7 +271,7 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 				grace = handoffGrace
 			}
 		}
-		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason)
+		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason, d.gameSongID())
 	}
 	delete(s.demands, d)
 	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)

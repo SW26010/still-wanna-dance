@@ -28,9 +28,10 @@ type useSpan struct {
 // clock. Every handoff is closed to ordinary admission; creation policy stays
 // at the source exit, never in execution or aggregation.
 type useHandoff struct {
-	span  useSpan
-	until time.Time
-	clock playbackClock
+	span       useSpan
+	until      time.Time
+	clock      playbackClock
+	gameSongID string
 }
 
 type useHandoffHeap []*useHandoff
@@ -118,14 +119,14 @@ func (s *Server) releaseUseLocked(span useSpan, at time.Time) {
 	}
 }
 
-func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, clock playbackClock, origin demandSource, reason withdrawalReason) {
+func (s *Server) endUseLocked(span useSpan, at time.Time, grace time.Duration, clock playbackClock, origin demandSource, reason withdrawalReason, gameSongID string) {
 	if span.first >= span.last {
 		return
 	}
 	if grace > 0 && !s.closed {
 		// Transfer the existing reference. Handoff never expands the source's
 		// remaining range, even when some blocks are already locally readable.
-		heap.Push(&s.useHandoffs, &useHandoff{span, at.Add(grace), clock})
+		heap.Push(&s.useHandoffs, &useHandoff{span: span, until: at.Add(grace), clock: clock, gameSongID: gameSongID})
 		if s.cfg.Logger != nil {
 			s.cfg.Logger.Debug("块需求已交接", "event_name", "block_demand_handoff", "resource_key", span.key, "first_block", span.first, "last_block", span.last,
 				"from", origin.String(), "reason", reason.String(), "withdrawn_at", at,

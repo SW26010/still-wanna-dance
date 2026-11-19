@@ -19,7 +19,7 @@ function block(index: number, at: number, patch: Partial<BlockView> = {}): Block
   return { id: `resource/${index}`, resource: 'fixture-resource', songID: '42', block: index, byteOffset: index * 1048576, totalBlocks: 0, bytes: 1048576, title: '星河 · 测试歌曲', at, timeBasis: at ? 'need-by' : 'untimed', needBy: at, deadline: at ? at + 30000 : 0, protectionStart: 0, protectionUntil: 0, protected: false, inUse: true, sources: 2, readers: 0, state: 'waiting', windowClosed: false, opportunistic: false, eligible: true, ...patch };
 }
 function demand(id: number, blocks: BlockView[], patch: Partial<BlockDemand> = {}): BlockDemand {
-  return { id: `${id}/fixture-resource`, sourceID: id, kind: 'get', songID: '42', title: '星河 · 测试歌曲', position: 0, resource: 'fixture-resource', totalBlocks: Math.max(0, ...blocks.map(b => b.block + 1)), blocks: blocks.map(b => b.id), ...patch };
+  return { id: `${id}/fixture-resource`, sourceID: id, kind: 'get', songID: '42', title: '星河 · 测试歌曲', position: 0, resource: 'fixture-resource', totalBlocks: Math.max(0, ...blocks.map(b => b.block + 1)), blocks: blocks.map(b => b.id), gameSongID: !patch.kind || patch.kind === 'get' ? '42' : undefined, ...patch };
 }
 async function setup(page: Page, count = 48) {
   const api = await mockAPI(page), at = Date.now();
@@ -287,9 +287,9 @@ test('demand rows hide handoffs and only suppress the same song at the queue hea
   await f.emit({ removedDemands: [secondGet.id] });
   await expect(headings).toHaveText([/队列 #1/, /队列 #2/, /手动下载/]);
   // Shared resources alone do not establish song identity; unknown songs stay separate too.
-  await f.emit({ demands: [{ ...get, songID: '84' }] });
+  await f.emit({ demands: [{ ...get, songID: '84', gameSongID: '84' }] });
   await expect(headings).toHaveText([/读取 #4/, /队列 #1/, /队列 #2/, /手动下载/]);
-  await f.emit({ demands: [{ ...get, songID: '' }, { ...queue, songID: '' }] });
+  await f.emit({ demands: [{ ...get, gameSongID: undefined }] });
   await expect(headings).toHaveText([/读取 #4/, /队列 #1/, /队列 #2/, /手动下载/]);
   await f.emit({ reset: true, blocks: f.blocks, demands: [handoff] });
   await f.detail(f.blocks[0], [{ id: 3, kind: 'handoff', songID: '42', title: '星河', position: 0, needBy: f.at, expiresAt: f.at + 30000, windowClosed: false }]);
@@ -298,8 +298,86 @@ test('demand rows hide handoffs and only suppress the same song at the queue hea
   await expect(f.panel).toContainText('当前没有使用需求');
   await f.canvas.focus(); await f.canvas.press('Home');
   await expect(page.getByRole('group', { name: '块需求详情' })).toContainText('短期交接');
-  await f.emit({ demands: [demand(7, f.blocks.slice(1), { kind: 'formal' })] });
+  await f.emit({ demands: [demand(7, f.blocks.slice(1), { kind: 'formal', playback: { zeroAt: f.at, endAt: f.at + 60000 } })] });
   await expect(headings).toHaveText([/正式播放/]);
+});
+
+test('formal playback embeds the room clock and shows the union of game reads and their handoffs', async ({ page }, info) => {
+  const f = await setup(page, 6);
+  await page.clock.install();
+  const blocks = f.blocks.map(b => ({ ...b, totalBlocks: 6, inUse: true, readers: b.block === 1 ? 1 : 0, state: 'waiting' as const }));
+  const formal = demand(1, [blocks[0], blocks[1], blocks[5]], {
+    kind: 'formal', totalBlocks: 6, playback: { zeroAt: f.at - 60000, endAt: f.at + 120000 },
+  });
+  const firstRead = demand(2, [blocks[1], blocks[3]], { totalBlocks: 6 });
+  const secondRead = demand(3, [blocks[1]], { totalBlocks: 6 });
+  const handoff = demand(4, [blocks[2]], { kind: 'handoff', gameSongID: '42', totalBlocks: 6 });
+  const preview = demand(5, [blocks[4]], { gameSongID: undefined, totalBlocks: 6 });
+  const queue = demand(6, [blocks[4]], { kind: 'queue', position: 1, totalBlocks: 6 });
+  const manual = demand(7, [blocks[5]], { kind: 'batch', totalBlocks: 6 });
+  const previewHandoff = demand(8, [blocks[4]], { kind: 'handoff', totalBlocks: 6 });
+  const otherSongHandoff = demand(9, [blocks[4]], { kind: 'handoff', gameSongID: '84', totalBlocks: 6 });
+  const directRead = demand(10, [blocks[4]], { gameSongID: undefined, totalBlocks: 6 });
+  await f.detail(blocks[1], [formal, firstRead, secondRead].map(d => ({
+    id: d.sourceID, kind: d.kind, songID: d.songID, title: d.title, position: 0, needBy: f.at, expiresAt: 0, windowClosed: false,
+  })));
+  await f.emit({ blocks, demands: [formal, firstRead, secondRead, handoff, preview, queue, manual, previewHandoff, otherSongHandoff, directRead], used: blocks.length });
+  const headings = f.panel.locator('.demand-row-heading');
+  await expect(headings).toHaveText([/正式播放.*01:0\d \/ 03:00/, /读取 #5/, /读取 #10/, /队列 #1/, /手动下载/]);
+  const row = f.panel.locator('.demand-row').first(), strip = row.locator('canvas');
+  const progress = row.getByRole('progressbar', { name: /房间播放进度/ });
+  await expect(strip).toHaveAccessibleName(/游戏读取与交接 3 个块，视频共 6 块/);
+  const heights = await f.panel.locator('.demand-row').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  expect(new Set(heights).size).toBe(1);
+  const titleBounds = (await row.locator('.demand-video-title').boundingBox())!;
+  const progressBounds = (await progress.boundingBox())!;
+  const stripBounds = (await strip.boundingBox())!;
+  expect(progressBounds.y).toBeGreaterThanOrEqual(titleBounds.y + titleBounds.height);
+  expect(progressBounds.y + progressBounds.height).toBeLessThanOrEqual(stripBounds.y);
+  const before = Number(await progress.getAttribute('aria-valuenow'));
+  await page.clock.runFor(2100);
+  await expect.poll(async () => Number(await progress.getAttribute('aria-valuenow'))).toBeGreaterThan(before + 1000);
+  await f.panel.screenshot({ path: info.outputPath('formal-playback-and-demands.png') });
+
+  await strip.focus(); await strip.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup).toContainText('块 2/6');
+  await expect(popup).toContainText('正式播放');
+  await expect(popup).toContainText('播放请求 #2');
+  await expect(popup).toContainText('播放请求 #3');
+  await strip.press('ArrowRight'); await expect(popup).toContainText('块 3/6');
+  await strip.press('End'); await expect(popup).toContainText('块 4/6');
+  await strip.press('Escape');
+
+  await f.emit({ removedDemands: [firstRead.id, secondRead.id, handoff.id], demands: [{ ...formal, blocks: [], playback: { zeroAt: f.at - 30000, endAt: f.at + 150000 } }] });
+  await expect(strip).toHaveAccessibleName(/游戏读取与交接 0 个块/);
+  await expect(strip).toHaveAttribute('tabindex', '-1');
+  await expect(progress).toHaveAttribute('aria-valuetext', /^00:3\d \/ 03:00$/);
+  await f.emit({ removedDemands: [formal.id] });
+  await expect(headings).toHaveText([/读取 #5/, /读取 #10/, /队列 #1/, /手动下载/]);
+});
+
+test('playback progress holds its whole-second value across block events and applies clock corrections immediately', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const f = await setup(page, 1);
+  await page.clock.install({ time: new Date(f.at) });
+  await page.clock.pauseAt(new Date(f.at + 5000));
+  const formal = demand(1, [], { kind: 'formal', playback: { zeroAt: f.at - 60000, endAt: f.at + 120000 } });
+  await f.emit({ demands: [formal] });
+  const progress = f.panel.getByRole('progressbar', { name: /房间播放进度/ });
+  await expect(progress).toHaveAttribute('aria-valuenow', '60000');
+
+  for (const [offset, active] of [[200, 2], [700, 1]]) {
+    await f.emit({ at: f.at + offset, active });
+    await expect(f.panel.locator('.block-demand-capacity')).toContainText(`下载 ${active} /`);
+    await expect(progress).toHaveAttribute('aria-valuenow', '60000', { timeout: 1000 });
+  }
+
+  await f.emit({ at: f.at + 1000, active: 0 });
+  await expect(progress).toHaveAttribute('aria-valuenow', '61000');
+  await f.emit({ at: f.at + 1200, demands: [{ ...formal, playback: { zeroAt: f.at - 30000, endAt: f.at + 150000 } }] });
+  await expect(progress).toHaveAttribute('aria-valuenow', '31000');
+  await expect(progress).toHaveAttribute('aria-valuetext', '00:31 / 03:00');
 });
 
 test('event deltas, overlap selection, source changes and untimed demands stay inspectable', async ({ page }) => {
@@ -829,6 +907,12 @@ test('event updates preserve unchanged collections and immutable previous snapsh
   expect(downloaded.blocks.size).toBe(1); expect(downloaded.demands.size).toBe(1);
   const reset = applyBlockEvent(downloaded, { ...delta, reset: true });
   expect(reset.blocks.size).toBe(0); expect(reset.demands.size).toBe(0);
+
+  const formal = demand(2, [], { kind: 'formal', playback: { zeroAt: 1000, endAt: 61000 } });
+  const room = applyBlockEvent(undefined, { ...event, blocks: [], demands: [formal] });
+  const shared = applyBlockEvent(room, { ...delta, blocks: [{ ...first, songID: '84' }], demands: [formal] });
+  expect(shared.blocks.get(first.id)?.colorKey).toBe('42');
+  expect(shared.demands.get(formal.id)?.colorKey).toBe('42');
 });
 
 test('offscreen timeline stops painting while demand events continue and unchanged rows do not repaint', async ({ page }) => {
@@ -872,6 +956,39 @@ test('offscreen timeline stops painting while demand events continue and unchang
   await expect.poll(async () => (await paints()).timeline).toBeGreaterThan(hidden.timeline);
   await expect(f.canvas).toHaveAccessibleName(/47 个块/);
   await expect.poll(f.totalStreams).toBe(1);
+});
+
+test('formal playback redraws its canvas only when merged block membership changes', async ({ page }) => {
+  await page.addInitScript(() => {
+    const clear = CanvasRenderingContext2D.prototype.clearRect;
+    let paints = 0;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+      if (this.canvas.closest('[data-demand-id="1/fixture-resource"]')) document.body.dataset.formalPaints = String(++paints);
+      return clear.apply(this, args);
+    };
+  });
+  const f = await setup(page, 256);
+  const formal = demand(1, [], {
+    kind: 'formal', totalBlocks: 256, playback: { zeroAt: f.at - 20000, endAt: f.at + 160000 },
+  });
+  const read = demand(2, f.blocks);
+  const queueBlock = block(0, f.at, { id: 'queue/0', resource: 'queue', songID: '91', totalBlocks: 1 });
+  const queue = demand(3, [queueBlock], { kind: 'queue', position: 2, resource: 'queue', songID: '91' });
+  await f.emit({ blocks: [queueBlock], demands: [formal, read, queue] });
+  const paints = async () => Number(await page.locator('body').getAttribute('data-formal-paints'));
+  await expect.poll(paints).toBeGreaterThan(0);
+  const before = await paints();
+  const queueRow = f.panel.locator(`[data-demand-id="${queue.id}"]`);
+  for (let i = 0; i < 10; i++) {
+    const position = i % 2 ? 2 : 3;
+    await f.emit({ demands: [{ ...queue, position }] });
+    await expect(queueRow).toContainText(`队列 #${position}`);
+  }
+  expect(await paints()).toBe(before);
+
+  await f.emit({ demands: [{ ...read, blocks: read.blocks.slice(1) }] });
+  await expect(f.panel.getByRole('group', { name: /正式播放.*游戏读取与交接 255 个块/ })).toBeVisible();
+  expect(await paints()).toBeGreaterThan(before);
 });
 
 test('fixed blocks fit timeline lanes and labels follow Fluent caption typography without overlapping', async ({ page }, info) => {

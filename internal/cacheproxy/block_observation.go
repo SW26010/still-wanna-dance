@@ -84,15 +84,22 @@ type BlockDetail struct {
 // One source can refer to multiple resources during a transition. Group by both
 // identities, and send block references rather than repeating block properties.
 type BlockDemandView struct {
-	ID          string   `json:"id"`
-	SourceID    uint64   `json:"sourceID"`
-	Kind        string   `json:"kind"`
-	SongID      string   `json:"songID"`
-	Title       string   `json:"title"`
-	Position    int      `json:"position"`
-	Resource    string   `json:"resource"`
-	TotalBlocks int64    `json:"totalBlocks"` // complete video, not the remaining demand span; zero if unknown
-	Blocks      []string `json:"blocks"`
+	ID          string             `json:"id"`
+	SourceID    uint64             `json:"sourceID"`
+	Kind        string             `json:"kind"`
+	SongID      string             `json:"songID"`
+	Title       string             `json:"title"`
+	Position    int                `json:"position"`
+	Resource    string             `json:"resource"`
+	TotalBlocks int64              `json:"totalBlocks"` // complete video, not the remaining demand span; zero if unknown
+	Blocks      []string           `json:"blocks"`
+	GameSongID  string             `json:"gameSongID,omitempty"` // original game GET identity, including its handoff
+	Playback    *BlockPlaybackView `json:"playback,omitempty"`
+}
+
+type BlockPlaybackView struct {
+	ZeroAt int64 `json:"zeroAt"` // wall time at media position zero
+	EndAt  int64 `json:"endAt"`
 }
 
 // Immutable once published. Compact source associations stay server-side;
@@ -403,9 +410,10 @@ func blockViewID(id useBlockID) string { return id.key + "/" + strconv.FormatInt
 // The locked capture keeps one metadata record per source and flat associations.
 // It copies values only; identities remain worker-local and never enter a snapshot.
 type observedSource struct {
-	identity blockSource
-	view     BlockSourceView
-	plan     plannedNeed
+	identity   blockSource
+	view       BlockSourceView
+	plan       plannedNeed
+	gameSongID string
 }
 type observedNeed struct {
 	block, source int
@@ -427,6 +435,14 @@ type blockObservationInput struct {
 	blocks  []observedBlock
 	sources []observedSource
 	needs   []observedNeed
+	formal  *observedPlayback
+}
+
+type observedPlayback struct {
+	source      int
+	resource    string
+	totalBlocks int64
+	clock       BlockPlaybackView
 }
 
 func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
@@ -465,9 +481,11 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 			index = len(input.sources)
 			sourceIndexes[source] = index
 			v := BlockSourceView{Kind: source.kind}
+			var gameSongID string
 			switch origin := source.id.(type) {
 			case *downloadDemand:
 				v.SongID = origin.song
+				gameSongID = origin.gameSongID()
 				if origin.clock != nil {
 					sizes[id.key] = origin.clock.media.size
 				}
@@ -481,12 +499,23 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 				v.SongID, sizes[id.key] = origin.song, origin.clock.media.size
 			case *useHandoff:
 				v.ExpiresAt = timeMS(origin.until)
+				gameSongID = origin.gameSongID
 				sizes[id.key] = origin.clock.media.size
 			}
-			input.sources = append(input.sources, observedSource{source, v, p})
+			input.sources = append(input.sources, observedSource{source, v, p, gameSongID})
 		}
 		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.LeaseUntil, p.need.Rolling.Offset, p.need.WindowClosed})
 	})
+	// A room clock can outlive its last block or start with no reserved blocks.
+	if p := s.formal; p != nil && now.Before(p.clock.end()) {
+		identity := blockSource{"formal", p}
+		index, exists := sourceIndexes[identity]
+		if !exists {
+			index = len(input.sources)
+			input.sources = append(input.sources, observedSource{identity: identity, view: BlockSourceView{Kind: "formal", SongID: p.song}})
+		}
+		input.formal = &observedPlayback{index, p.key, blockCount(p.clock.media.size, s.cfg.BlockSize), BlockPlaybackView{timeMS(p.clock.at), timeMS(p.clock.end())}}
+	}
 	s.retentionMu.Lock()
 	for key, blocks := range s.protection {
 		for block, p := range blocks {
@@ -686,7 +715,11 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		}
 		result.Blocks[name] = b
 	}
-	o.labelVideos(result)
+	var formalLabel *resourceLabelLookup
+	if f := input.formal; f != nil {
+		formalLabel = &resourceLabelLookup{f.resource, result.sources[f.source].SongID}
+	}
+	o.labelVideos(result, formalLabel)
 	// Build demand membership directly from compact associations, without
 	// materializing or reverse-projecting every block's detail/source array.
 	type demandKey struct {
@@ -694,6 +727,19 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		resource string
 	}
 	demands := make(map[demandKey]*BlockDemandView)
+	newDemand := func(key demandKey, source BlockSourceView, total int64) *BlockDemandView {
+		id := strconv.FormatUint(source.ID, 10) + "/" + key.resource
+		demand := &BlockDemandView{ID: id, SourceID: source.ID, Kind: source.Kind, SongID: source.SongID, Title: source.Title, Position: source.Position, Resource: key.resource, TotalBlocks: total, Blocks: []string{}, GameSongID: input.sources[key.source].gameSongID}
+		demands[key] = demand
+		return demand
+	}
+	if f := input.formal; f != nil {
+		source := result.sources[f.source]
+		if label := o.videos[f.resource]; label.SongID == source.SongID {
+			source.Title = label.Title
+		}
+		newDemand(demandKey{f.source, f.resource}, source, f.totalBlocks).Playback = &f.clock
+	}
 	for _, need := range input.needs {
 		raw := input.blocks[need.block]
 		if raw.name == "" {
@@ -703,10 +749,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		key := demandKey{need.source, b.Resource}
 		demand := demands[key]
 		if demand == nil {
-			source := blockSourceLabel(result.sources[need.source], b)
-			id := strconv.FormatUint(source.ID, 10) + "/" + b.Resource
-			demand = &BlockDemandView{ID: id, SourceID: source.ID, Kind: source.Kind, SongID: source.SongID, Title: source.Title, Position: source.Position, Resource: b.Resource, TotalBlocks: b.TotalBlocks}
-			demands[key] = demand
+			demand = newDemand(key, blockSourceLabel(result.sources[need.source], b), b.TotalBlocks)
 		}
 		demand.Blocks = append(demand.Blocks, raw.name)
 	}
@@ -732,14 +775,18 @@ func chooseBlockVideo(current, candidate blockVideo, preferred string) blockVide
 	return current
 }
 
-// Handoffs intentionally carry scheduling data only. Recover their display
-// identity from existing resource metadata and the catalog, outside business
+// Recover missing display labels from resource metadata and the catalog, outside business
 // locks and only while someone observes. Cache misses too: events do not cause
 // repeated catalog reads for the same visible video.
-func (o *blockObserver) labelVideos(snapshot *BlockSnapshot) {
+func (o *blockObserver) labelVideos(snapshot *BlockSnapshot, formal *resourceLabelLookup) {
 	videos := make(map[string]blockVideo)
 	for _, b := range snapshot.Blocks {
 		videos[b.Resource] = chooseBlockVideo(videos[b.Resource], blockVideo{SongID: b.SongID, Title: b.Title}, o.videos[b.Resource].SongID)
+	}
+	if formal != nil {
+		if _, exists := videos[formal.Resource]; !exists {
+			videos[formal.Resource] = blockVideo{SongID: formal.SongID}
+		}
 	}
 	var missing []resourceLabelLookup
 	for key, v := range videos {

@@ -155,6 +155,18 @@ func TestBlockDeltaDemandMembershipAndOrdering(t *testing.T) {
 	}
 }
 
+func TestBlockDeltaPublishesRoomClockCorrectionWithoutBlocks(t *testing.T) {
+	demand := cacheproxy.BlockDemandView{ID: "1/a", Kind: "formal", Playback: &cacheproxy.BlockPlaybackView{ZeroAt: 1000, EndAt: 61000}}
+	initial := &cacheproxy.BlockSnapshot{Demands: map[string]cacheproxy.BlockDemandView{demand.ID: demand}}
+	corrected := demand
+	corrected.Playback = &cacheproxy.BlockPlaybackView{ZeroAt: 2000, EndAt: 62000}
+	next := &cacheproxy.BlockSnapshot{Demands: map[string]cacheproxy.BlockDemandView{corrected.ID: corrected}}
+	event, changed := blockDelta(initial, next)
+	if !changed || len(event.Blocks) != 0 || len(event.Demands) != 1 || event.Demands[0].Playback.ZeroAt != 2000 {
+		t.Fatal("room clock correction did not reach the demand stream", event)
+	}
+}
+
 func TestBlockEventsOriginAndOffline(t *testing.T) {
 	c := testConsole(t)
 	for _, tc := range []struct {

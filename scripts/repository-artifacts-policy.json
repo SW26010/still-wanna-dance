@@ -2208,6 +2208,13 @@
       "bytes": 1324790,
       "sha256": "320372b5a16e9fedd974a4dd00f44c7f280acbdfe150de688c1fcf269d8e33a3",
       "reason": "离线 WebUI 展示正式播放需求及其块范围。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1326251,
+      "sha256": "d4abf2a30f23ea140f4249334d60d3124cc0103916137b714a001580c066c1d3",
+      "reason": "离线 WebUI 在首页正式播放行按整秒显示房间播放进度，并合并同曲同资源的游戏读取与交接块。"
     }
   ]
 }

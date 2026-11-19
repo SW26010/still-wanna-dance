@@ -411,6 +411,59 @@ func TestBlockObservationDisabledNotificationsAllocateNothing(t *testing.T) {
 	}
 }
 
+func TestBlockObservationPublishesRoomClockAndGameSongIdentity(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		v := w.v
+		v.songID = "42"
+		base := time.Now()
+		clock := &playbackClock{at: base, limit: s.cfg.BlockSize, media: estimateMediaTiming(v.size, 60)}
+		p := &formalPlayback{song: v.songID, key: v.key, clock: *clock}
+		s.mu.Lock()
+		s.updateFormalLocked(p, base, false)
+		s.mu.Unlock()
+		o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+		initial, _ := o.capture(nil)
+		formal := initial.Demands["1/"+v.key]
+		if formal.Kind != "formal" || formal.Playback == nil || *formal.Playback != (BlockPlaybackView{timeMS(base), timeMS(base.Add(time.Minute))}) ||
+			formal.TotalBlocks != blockCount(v.size, s.cfg.BlockSize) || formal.Blocks == nil || len(formal.Blocks) != 0 || len(initial.Blocks) != 0 {
+			t.Fatal("room clock without reserved blocks was not observable", formal, initial.Blocks)
+		}
+		ctx := context.WithValue(t.Context(), playbackClockKey{}, clock)
+		_, releaseGame := addTestDemand(t, s, ctx, v, true)
+		_, releasePreview := addTestDemand(t, s, context.WithValue(ctx, playbackOriginKey{}, originPreview), v, true)
+		otherSong := v
+		otherSong.songID = "84"
+		_, releaseOtherSong := addTestDemand(t, s, ctx, otherSong, true)
+		anonymous := v
+		anonymous.songID = ""
+		_, releaseAnonymous := addTestDemand(t, s, ctx, anonymous, true)
+		reads, _ := o.capture(initial)
+		releaseGame()
+		releasePreview()
+		releaseOtherSong()
+		releaseAnonymous()
+		handoffs, _ := o.capture(reads)
+		for i, snapshot := range []*BlockSnapshot{reads, handoffs} {
+			kind := []string{"get", "handoff"}[i]
+			counts := make(map[string]int)
+			for _, demand := range snapshot.Demands {
+				if demand.Kind == kind {
+					counts[demand.GameSongID]++
+				}
+			}
+			if counts["42"] != 1 || counts["84"] != 1 || counts[""] != 2 || len(observedDetail(t, snapshot, v.key+"/0").Sources) != 4 {
+				t.Fatal("original song identity changed while labeling shared blocks", kind, snapshot.Demands)
+			}
+		}
+		time.Sleep(time.Minute)
+		ended, _ := o.capture(handoffs)
+		if _, exists := ended.Demands[formal.ID]; exists {
+			t.Fatal("ended room clock remained in the demand list")
+		}
+	})
+}
+
 func TestBlockObservationHandoffKeepsVideoName(t *testing.T) {
 	_, s := testSession(t)
 	s.ctx = context.Background()
@@ -508,7 +561,7 @@ func TestBlockObservationStableSharedVideoLabels(t *testing.T) {
 					id := blockViewID(useBlockID{"shared", int64(index)})
 					snapshot.Blocks[id] = BlockView{ID: id, Resource: "shared", Block: int64(index), SongID: v.SongID, Title: v.Title}
 				}
-				o.labelVideos(snapshot)
+				o.labelVideos(snapshot, nil)
 				if got := o.videos["shared"]; got != tc.want {
 					t.Fatalf("reverse=%v: cached label = %+v, want %+v", reverse, got, tc.want)
 				}

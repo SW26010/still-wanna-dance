@@ -13,9 +13,11 @@ export interface BlockSource extends RollingTime {
   position: number; needBy: number; expiresAt: number; windowClosed: boolean;
 }
 export interface BlockDetail { block: BlockView; sources: BlockSource[] }
+export interface PlaybackClock { zeroAt: number; endAt: number }
 export interface BlockDemand {
   id: string; sourceID: number; kind: BlockSource['kind']; songID: string; title: string;
   position: number; resource: string; colorKey?: string; totalBlocks: number; blocks: string[];
+  gameSongID?: string; playback?: PlaybackClock;
 }
 export interface BlockEvent {
   at: number; running: boolean; reset: boolean; capacity: number; used: number;
@@ -24,7 +26,7 @@ export interface BlockEvent {
   demands: BlockDemand[]; removedDemands: string[];
 }
 export interface TimelineData extends Omit<BlockEvent, 'blocks' | 'removed' | 'reset' | 'demands' | 'removedDemands'> {
-  blocks: Map<string, BlockView>; demands: Map<string, BlockDemand>; receivedAt: number;
+  blocks: Map<string, BlockView>; demands: Map<string, BlockDemand>; demandRows: BlockDemand[]; receivedAt: number;
 }
 export function applyBlockEvent(previous: TimelineData | undefined, event: BlockEvent): TimelineData {
   // Keep the first assigned color for each visible video, including reconnects
@@ -33,6 +35,7 @@ export function applyBlockEvent(previous: TimelineData | undefined, event: Block
   const colorKey = (video: { resource: string; songID: string }) => {
     if (!colors) {
       colors = new Map();
+      for (const demand of previous?.demands.values() || []) colors.set(demand.resource, demand.colorKey || demand.songID || demand.resource);
       for (const block of previous?.blocks.values() || []) colors.set(block.resource, block.colorKey || block.songID || block.resource);
     }
     if (!colors.has(video.resource)) colors.set(video.resource, video.songID || video.resource);
@@ -46,7 +49,32 @@ export function applyBlockEvent(previous: TimelineData | undefined, event: Block
     ? new Map<string, BlockDemand>(event.reset ? undefined : previous?.demands) : previous.demands;
   for (const id of event.removedDemands || []) demands.delete(id);
   for (const demand of event.demands || []) demands.set(demand.id, { ...demand, colorKey: colorKey(demand) });
-  return { ...event, blocks, demands, receivedAt: performance.now() };
+  const demandRows = previous && previous.demands === demands
+    ? previous.demandRows : projectDemandRows(demands, previous?.demandRows);
+  return { ...event, blocks, demands, demandRows, receivedAt: performance.now() };
+}
+
+function projectDemandRows(demands: Map<string, BlockDemand>, previous: BlockDemand[] | undefined) {
+  const all = [...demands.values()];
+  const formal = all.find(demand => demand.playback);
+  const gameBlocks = new Set<string>();
+  const standalone = all.filter(demand => {
+    if (formal && demand.gameSongID === formal.songID && demand.resource === formal.resource) {
+      for (const id of demand.blocks) gameBlocks.add(id);
+      return false;
+    }
+    return demand.kind !== 'formal' && demand.kind !== 'handoff';
+  });
+  const readingSongs = new Set(standalone.filter(demand => demand.kind === 'get' && demand.gameSongID).map(demand => demand.gameSongID));
+  const rows = standalone.filter(demand => !(demand.kind === 'queue' && demand.position === 1 && readingSongs.has(demand.songID)));
+  if (formal) {
+    const previousBlocks = previous?.find(row => row.id === formal.id)?.blocks;
+    // The canvas sorts by block number. Changes to source order preserve membership.
+    const blocks = previousBlocks?.length === gameBlocks.size && previousBlocks.every(id => gameBlocks.has(id))
+      ? previousBlocks : [...gameBlocks];
+    rows.push({ ...formal, blocks });
+  }
+  return rows.sort(compareDemands);
 }
 export function videoLabel(video: { title: string; songID: string; resource: string }) {
   return video.title || (video.songID ? `歌曲 ${video.songID}` : `视频 ${video.resource.slice(0, 12)}`);

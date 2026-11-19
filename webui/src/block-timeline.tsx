@@ -42,6 +42,8 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
   const { data, connection, speed, cacheBytes } = useBlockStream(enabled, app.revision);
   const active = enabled && connection === 'live';
   const taskCounts = data?.running && connection !== 'offline' && !app.stopped ? data : undefined;
+  const queue = app.status.data?.queue;
+  const prefetchFailures = queue?.running && !app.stopped && !app.status.error ? queue.failures?.length ?? 0 : 0;
   const speedText = `${(speedInBits ? speed * 8 / 1e6 : speed / 1048576).toFixed(2)} ${speedInBits ? 'Mbps' : 'MiB/s'}`;
   const toggleLabel = expanded ? '收起时间轴视图' : '展开时间轴视图';
   return <div ref={container}><Card size="medium" className="panel block-demand-panel" id="block-demands" tabIndex={-1}>
@@ -50,6 +52,7 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
       {!data&&enabled&&connection==='connecting'?<Spinner size="tiny" label="状态展示：读取中"/>:<StatusBadge color={!enabled ? 'informative' : connection === 'error' ? 'danger' : active ? 'success' : 'informative'}>{!enabled ? '状态展示：已暂停' : connection === 'error' ? '状态展示：重连中' : connection === 'live' ? '状态展示：更新中' : connection === 'offline' ? '状态展示：待启动' : '状态展示：读取中'}</StatusBadge>}
       <Tooltip content={`切换为 ${speedInBits ? 'MiB/s' : 'Mbps'}`} relationship="description"><Button className="block-demand-speed" size="small" appearance="transparent" aria-label={`总下载速度：${speedText}`} onClick={toggleSpeedUnit}><Text size={400} weight="semibold">{speedText}</Text></Button></Tooltip>
       <Text className="block-demand-cache">缓存 {app.stopped || cacheBytes == null ? '—' : cacheBytes < 1073741824 ? `${(cacheBytes / 1048576).toFixed(1)} MiB` : gib(cacheBytes)}</Text>
+      {prefetchFailures > 0 && <Caption1 role="status">队列预加载：{prefetchFailures} 首失败，自动重试</Caption1>}
       <Caption1 className="block-demand-capacity">块任务 {taskCounts ? taskCounts.used.toLocaleString() : '—'} / {data?.capacity || 4096} | 下载 {taskCounts ? taskCounts.active : '—'} / {app.status.data?.activeSettings.downloadConcurrencySoftLimit ?? '—'}</Caption1>
     </div>} action={<Tooltip content={toggleLabel} relationship="label"><Button size="small" appearance="subtle" icon={expanded ? <ChevronDown20Regular /> : <ChevronRight20Regular />} aria-label={toggleLabel} aria-expanded={expanded} aria-controls="block-timeline-content" onClick={() => setExpanded(value => !value)} /></Tooltip>} />
     {data && <CardPreview><TimelineViewport data={data} active={active} expanded={expanded} /></CardPreview>}

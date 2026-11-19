@@ -28,7 +28,7 @@ export function Home({visible}: {visible:boolean}) {
   const serviceError=s.cdnError||portError;
   const serviceReason=[s.cdnError,`HTTP 80 端口${s.running?'：正在监听':portState(s.portOK,s.portOwner)}`,`HTTPS 443 端口${s.running?'：正在转发':portState(s.httpsPortOK,s.httpsPortOwner)}`].filter(Boolean).join('；');
   const queueFailed=!!q.desired&&!q.running&&!!s.actionErrors?.queue;
-  const queueError=q.running?[q.logError,q.error].filter(Boolean).join('；'):queueFailed?s.actionErrors?.queue:'';
+  const queueError=q.running?q.logError:queueFailed?s.actionErrors?.queue:'';
   const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'');
   const queuePhase=uncertain?'待确认':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';

@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1329564,
+      "sha256": "cbe2e23e86411105bf070b204447992cf956fd08fc26775058aead5d8865861b",
+      "reason": "Embedded WebUI rebuilt to report queue prefetch retries in video demand status. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1329375,
       "sha256": "0b72f9760b92444ad9745b7ee7c4fe35aed2fa1382c8f9107080e8612835af9c",
       "reason": "Embedded WebUI rebuilt to reuse rasterized timeline block bodies across equivalent palette reads. Verified against webui/build-manifest.json."

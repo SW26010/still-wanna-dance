@@ -177,11 +177,34 @@ test('queue monitoring stays healthy while waiting and explains its current log 
   await healthy(page);expect(await background(target)).toBe(green);
   api.state.queue.songs=[{songId:1},{songId:2}];await page.clock.fastForward(5100);
   await expect(tip).toContainText('当前房间队列 2 首');
-  api.state.queue.logError='日志读取失败：访问被拒绝';await page.clock.fastForward(5100);
+  const healthyQueue={...api.state.queue,failures:null};
+  const error='upstream download failed: range 13631488-14680063: net/http: timeout awaiting response headers';
+  const queueWithFailedPrefetch={...healthyQueue,error,failures:[{id:1,error}]};
+  api.state.queue=queueWithFailedPrefetch;await page.clock.fastForward(5100);
+  await healthy(page);expect(await background(target)).toBe(green);
+  await expect(tip).toContainText('当前房间队列 2 首');
+  const retry=page.locator('#block-demands').getByText('队列预加载：1 首失败，自动重试',{exact:true});
+  await expect(retry).toBeVisible();
+  await expect(page.getByText(error,{exact:false})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('queue-prefetch-retry.png'),animations:'disabled'});
+  await page.setViewportSize({width:1280,height:850});
+  const retryBox=(await retry.boundingBox())!;
+  const capacityBox=(await page.locator('#block-demands').getByText(/^块任务 /).boundingBox())!;
+  expect(retryBox.x+retryBox.width).toBeLessThan(capacityBox.x);
+  expect(retryBox.y).toBeLessThan(capacityBox.y+capacityBox.height);
+  expect(capacityBox.y).toBeLessThan(retryBox.y+retryBox.height);
+  api.state.queue=healthyQueue;await page.clock.fastForward(5100);
+  await expect(retry).toHaveCount(0);
+  api.state.queue=queueWithFailedPrefetch;await page.clock.fastForward(5100);
+  await expect(retry).toBeVisible();
+  const emptyQueue={...healthyQueue,songs:[]};
+  api.state.queue={...emptyQueue,logError:'日志读取失败：访问被拒绝'};await page.clock.fastForward(5100);
   await expect(target).toHaveText('播放队列：需检查');expect(await background(target)).not.toBe(green);
-  await expect(tip).toContainText('日志读取失败：访问被拒绝');
-  api.state.queue.logError='';await page.clock.fastForward(5100);
-  await healthy(page);expect(await background(target)).toBe(green);await expect(tip).toContainText('当前房间队列 2 首');
+  await expect(tip).toHaveText('日志读取失败：访问被拒绝');
+  await expect(retry).toHaveCount(0);
+  api.state.queue=emptyQueue;await page.clock.fastForward(5100);
+  await healthy(page);expect(await background(target)).toBe(green);await expect(tip).toContainText('等待新的房间队列同步');
 });
 
 test('connection retry clears its reason and unknown status does not expose stale causes',async({page})=>{

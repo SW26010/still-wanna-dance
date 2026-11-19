@@ -1,6 +1,6 @@
 # Issue #51 可选播放模型实验
 
-此目录保留历史实验模型与离线复算工具。桌面程序默认使用[正式播放需求与 GET 入口](../../docs/download-resource-design.md#正式播放需求与-get-入口)。
+此目录保留历史实验模型与离线复算工具。桌面程序默认使用[正式播放需求与 GET 入口](../../docs/download-resource-design.md#正式播放需求与-get-入口)。旧构建的 2／10 秒交接、单次接续拒绝及构建身份见[历史 canary 验证](../../docs/validation/issue-51-canary.md)。
 
 ## 模块边界
 

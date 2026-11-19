@@ -102,19 +102,31 @@ type BlockPlaybackView struct {
 	EndAt  int64 `json:"endAt"`
 }
 
+type BlockAvailabilityView struct {
+	TotalBytes      int64            `json:"totalBytes"`
+	AvailableBytes  int64            `json:"availableBytes"`
+	AvailableRanges []BlockByteRange `json:"availableRanges,omitempty"` // current formal playback only
+}
+
+type BlockByteRange struct {
+	Start int64 `json:"start"`
+	End   int64 `json:"end"` // exclusive
+}
+
 // Immutable once published. Compact source associations stay server-side;
 // Detail expands only a hovered/selected block. All observation state dies
 // with the last subscriber.
 type BlockSnapshot struct {
-	At              int64                      `json:"at"`
-	Capacity        int                        `json:"capacity"`
-	Used            int                        `json:"used"`
-	Active          int                        `json:"active"`
-	Open            int                        `json:"open"`
-	PrepareAheadMS  int64                      `json:"prepareAheadMS"`
-	DownloadGraceMS int64                      `json:"downloadGraceMS"`
-	Blocks          map[string]BlockView       `json:"-"`
-	Demands         map[string]BlockDemandView `json:"-"`
+	At              int64                            `json:"at"`
+	Capacity        int                              `json:"capacity"`
+	Used            int                              `json:"used"`
+	Active          int                              `json:"active"`
+	Open            int                              `json:"open"`
+	PrepareAheadMS  int64                            `json:"prepareAheadMS"`
+	DownloadGraceMS int64                            `json:"downloadGraceMS"`
+	Blocks          map[string]BlockView             `json:"-"`
+	Demands         map[string]BlockDemandView       `json:"-"`
+	Availability    map[string]BlockAvailabilityView `json:"-"`
 	sources         []BlockSourceView
 	needs           []blockDetailNeed
 	sourceRanges    map[string]blockSourceRange
@@ -431,11 +443,12 @@ type observedBlock struct {
 	retainedSong     int64
 }
 type blockObservationInput struct {
-	used    int
-	blocks  []observedBlock
-	sources []observedSource
-	needs   []observedNeed
-	formal  *observedPlayback
+	used         int
+	blocks       []observedBlock
+	sources      []observedSource
+	needs        []observedNeed
+	formal       *observedPlayback
+	availability map[string]BlockAvailabilityView
 }
 
 type observedPlayback struct {
@@ -443,6 +456,22 @@ type observedPlayback struct {
 	resource    string
 	totalBlocks int64
 	clock       BlockPlaybackView
+	localBlocks []int64
+}
+
+func localPlaybackRanges(blocks []int64, size, blockSize int64) []BlockByteRange {
+	slices.Sort(blocks)
+	var ranges []BlockByteRange
+	for _, block := range blocks {
+		start := block * blockSize
+		end := start + blockBytes(size, block, blockSize)
+		if n := len(ranges); n > 0 && ranges[n-1].End == start {
+			ranges[n-1].End = end
+		} else {
+			ranges = append(ranges, BlockByteRange{Start: start, End: end})
+		}
+	}
+	return ranges
 }
 
 func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
@@ -453,9 +482,10 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 		associations += refs
 	}
 	input := blockObservationInput{
-		used:   len(s.useBlocks),
-		blocks: make([]observedBlock, 0, len(s.useBlocks)),
-		needs:  make([]observedNeed, 0, associations),
+		used:         len(s.useBlocks),
+		blocks:       make([]observedBlock, 0, len(s.useBlocks)),
+		needs:        make([]observedNeed, 0, associations),
+		availability: make(map[string]BlockAvailabilityView),
 	}
 	indexes := make(map[useBlockID]int, len(s.useBlocks))
 	sourceIndexes := make(map[blockSource]int)
@@ -472,7 +502,11 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 		}
 		index := len(input.blocks)
 		indexes[id] = index
-		input.blocks = append(input.blocks, observedBlock{id: id, inUse: s.useBlocks[id] > 0})
+		inUse := s.useBlocks[id] > 0
+		input.blocks = append(input.blocks, observedBlock{id: id, inUse: inUse})
+		if inUse {
+			input.availability[id.key] = BlockAvailabilityView{}
+		}
 		return index
 	}
 	s.visitUseLocked(allUseBlocks(""), now, func(id useBlockID, source blockSource, p plannedNeed) {
@@ -514,9 +548,43 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 			index = len(input.sources)
 			input.sources = append(input.sources, observedSource{identity: identity, view: BlockSourceView{Kind: "formal", SongID: p.song}})
 		}
-		input.formal = &observedPlayback{index, p.key, blockCount(p.clock.media.size, s.cfg.BlockSize), BlockPlaybackView{timeMS(p.clock.at), timeMS(p.clock.end())}}
+		input.formal = &observedPlayback{
+			source: index, resource: p.key, totalBlocks: blockCount(p.clock.media.size, s.cfg.BlockSize),
+			clock: BlockPlaybackView{ZeroAt: timeMS(p.clock.at), EndAt: timeMS(p.clock.end())},
+		}
+		input.availability[p.key] = BlockAvailabilityView{TotalBytes: p.clock.media.size}
 	}
 	s.retentionMu.Lock()
+	for key, view := range input.availability {
+		retained, local := s.retained[key], s.localResources[key]
+		if view.TotalBytes == 0 {
+			view.TotalBytes = sizes[key]
+		}
+		if view.TotalBytes <= 0 {
+			view.TotalBytes = retained.size
+			if local != nil {
+				view.TotalBytes = local.video.size
+			}
+		}
+		if view.TotalBytes <= 0 {
+			delete(input.availability, key)
+			continue
+		}
+		formal := input.formal != nil && input.formal.resource == key
+		if retained.size == view.TotalBytes {
+			view.AvailableBytes = view.TotalBytes
+			if formal {
+				view.AvailableRanges = []BlockByteRange{{Start: 0, End: view.TotalBytes}}
+			}
+		} else if local != nil && local.video.size == view.TotalBytes && local.storage != nil {
+			if formal {
+				input.formal.localBlocks = local.storage.availableBlocks()
+			} else {
+				view.AvailableBytes = local.storage.bytes()
+			}
+		}
+		input.availability[key] = view
+	}
 	for key, blocks := range s.protection {
 		for block, p := range blocks {
 			if p.until.After(now) {
@@ -562,7 +630,8 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		At: now.UnixMilli(), Capacity: maxUseBlocks, Used: input.used,
 		PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: sourceGrace.Milliseconds(),
 		Blocks: make(map[string]BlockView, len(input.blocks)), Demands: make(map[string]BlockDemandView),
-		sources: make([]BlockSourceView, len(input.sources)), needs: make([]blockDetailNeed, len(input.needs)),
+		Availability: input.availability,
+		sources:      make([]BlockSourceView, len(input.sources)), needs: make([]blockDetailNeed, len(input.needs)),
 		sourceRanges: make(map[string]blockSourceRange, len(input.blocks)),
 	}
 	var next time.Time
@@ -639,7 +708,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			b := result.Blocks[raw.name]
 			var use blockUse
 			var readable blockUse
-			var formalDeadline time.Time
+			var formalDeadline, handoffNeedBy time.Time
 			var video blockVideo
 			for i := first; i < last; i++ {
 				need := input.needs[i]
@@ -656,6 +725,9 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 				if source.view.Kind == "formal" {
 					formalDeadline = contribution.need.ReadyBy
 				}
+				if source.view.Kind == "handoff" && p.need.LeaseUntil.After(now) {
+					handoffNeedBy = earlier(handoffNeedBy, p.need.ReadyBy)
+				}
 				video = chooseBlockVideo(video, blockVideo{SongID: source.view.SongID, Title: source.view.Title}, o.videos[b.Resource].SongID)
 				result.needs[i] = blockDetailNeed{need.source, timeMS(p.need.EarliestReady()), blockRollingTime(p.need.Rolling), p.need.WindowClosed}
 			}
@@ -671,7 +743,12 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			b.WindowClosed, b.Opportunistic = use.need.WindowClosed, use.need.Opportunistic
 			b.At, b.TimeBasis = b.NeedBy, "need-by"
 			if b.At == 0 {
-				b.TimeBasis = "untimed"
+				if handoffNeedBy.IsZero() {
+					b.TimeBasis = "untimed"
+				} else {
+					// A live handoff can retain its position after its download deadline.
+					b.At, b.TimeBasis = timeMS(handoffNeedBy), "last-need-by"
+				}
 			}
 			entry := use.need.WindowAt(ahead)
 			b.Eligible = !use.need.WindowClosed && (use.need.Opportunistic || !entry.IsZero() && !entry.After(now))
@@ -737,6 +814,14 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		source := result.sources[f.source]
 		if label := o.videos[f.resource]; label.SongID == source.SongID {
 			source.Title = label.Title
+		}
+		if len(f.localBlocks) > 0 {
+			view := result.Availability[f.resource]
+			view.AvailableRanges = localPlaybackRanges(f.localBlocks, view.TotalBytes, s.cfg.BlockSize)
+			for _, span := range view.AvailableRanges {
+				view.AvailableBytes += span.End - span.Start
+			}
+			result.Availability[f.resource] = view
 		}
 		newDemand(demandKey{f.source, f.resource}, source, f.totalBlocks).Playback = &f.clock
 	}

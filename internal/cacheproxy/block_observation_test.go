@@ -2,9 +2,11 @@ package cacheproxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -425,7 +427,10 @@ func TestBlockObservationPublishesRoomClockAndGameSongIdentity(t *testing.T) {
 		o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
 		initial, _ := o.capture(nil)
 		formal := initial.Demands["1/"+v.key]
-		if formal.Kind != "formal" || formal.Playback == nil || *formal.Playback != (BlockPlaybackView{timeMS(base), timeMS(base.Add(time.Minute))}) ||
+		playback := formal.Playback
+		availability := initial.Availability[v.key]
+		if formal.Kind != "formal" || playback == nil || playback.ZeroAt != timeMS(base) ||
+			playback.EndAt != timeMS(base.Add(time.Minute)) || availability.TotalBytes != v.size || availability.AvailableBytes != 0 ||
 			formal.TotalBlocks != blockCount(v.size, s.cfg.BlockSize) || formal.Blocks == nil || len(formal.Blocks) != 0 || len(initial.Blocks) != 0 {
 			t.Fatal("room clock without reserved blocks was not observable", formal, initial.Blocks)
 		}
@@ -460,6 +465,144 @@ func TestBlockObservationPublishesRoomClockAndGameSongIdentity(t *testing.T) {
 		ended, _ := o.capture(handoffs)
 		if _, exists := ended.Demands[formal.ID]; exists {
 			t.Fatal("ended room clock remained in the demand list")
+		}
+	})
+}
+
+func TestBlockObservationPublishesLocalPlaybackAvailabilityWithoutDemands(t *testing.T) {
+	dir := t.TempDir()
+	synctest.Test(t, func(t *testing.T) {
+		s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
+		s.ctx = t.Context()
+		s.cfg.BlockSize = 8
+		v := video{key: "playing", songID: "42", size: 29}
+		files := newBlockFiles(dir, v.size, s.cfg.BlockSize, nil)
+		s.localResources = map[string]*localResource{v.key: {storage: files, video: v}}
+		defer s.closeLocalResources()
+		now := time.Now()
+		s.mu.Lock()
+		s.updateFormalLocked(&formalPlayback{song: v.songID, key: v.key, clock: playbackClock{at: now, media: estimateMediaTiming(v.size, 60)}}, now, false)
+		s.mu.Unlock()
+		sub, err := s.ObserveBlocks()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer sub.Close()
+
+		check := func(want ...BlockByteRange) *BlockSnapshot {
+			t.Helper()
+			snapshot := observedSnapshot(t, sub)
+			formal := snapshot.Demands["1/"+v.key]
+			availability := snapshot.Availability[v.key]
+			var wantBytes int64
+			for _, span := range want {
+				wantBytes += span.End - span.Start
+			}
+			if len(snapshot.Blocks) != 0 || len(formal.Blocks) != 0 || formal.Playback == nil || availability.TotalBytes != v.size ||
+				availability.AvailableBytes != wantBytes || !slices.Equal(availability.AvailableRanges, want) {
+				t.Fatalf("local availability = %+v, want %d bytes in %v with no block demands", availability, wantBytes, want)
+			}
+			return snapshot
+		}
+		check()
+		for _, index := range []int64{3, 1, 0} {
+			if err := files.store(index, make([]byte, blockBytes(v.size, index, s.cfg.BlockSize))); err != nil {
+				t.Fatal(err)
+			}
+			s.notifyBlockStored(v.key)
+		}
+		time.Sleep(51 * time.Millisecond)
+		fragmented := []BlockByteRange{{Start: 0, End: 16}, {Start: 24, End: 29}}
+		partial := check(fragmented...)
+		s.retentionMu.Lock()
+		s.retainVideoLocked(v.key, &retainedVideo{key: v.key, size: v.size})
+		s.retentionMu.Unlock()
+		time.Sleep(51 * time.Millisecond)
+		check(BlockByteRange{Start: 0, End: v.size})
+		s.retentionMu.Lock()
+		s.retainVideoLocked(v.key, nil)
+		s.retentionMu.Unlock()
+		time.Sleep(51 * time.Millisecond)
+		check(fragmented...)
+		s.reclaimLocalBlocks()
+		time.Sleep(51 * time.Millisecond)
+		check()
+		if got := partial.Availability[v.key].AvailableRanges; !slices.Equal(got, fragmented) {
+			t.Fatal("previous snapshot lost its ranges", got)
+		}
+	})
+}
+
+func TestBlockObservationSharesWholeVideoAvailabilityAcrossSources(t *testing.T) {
+	s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
+	s.ctx = t.Context()
+	s.cfg.BlockSize = 8
+	v := video{key: "shared", size: 29}
+	files := newBlockFiles(t.TempDir(), v.size, s.cfg.BlockSize, nil)
+	s.localResources = map[string]*localResource{v.key: {storage: files, video: v}}
+	defer s.closeLocalResources()
+	if err := files.store(3, make([]byte, 5)); err != nil {
+		t.Fatal(err)
+	}
+	for _, offset := range []int64{0, s.cfg.BlockSize} {
+		clock := &playbackClock{at: time.Now(), offset: offset, limit: offset + s.cfg.BlockSize, media: mediaTiming{v.size, time.Minute}}
+		_, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), v, true)
+		defer release()
+	}
+	o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+	snapshot, _ := o.capture(nil)
+	availability := snapshot.Availability[v.key]
+	if len(snapshot.Demands) != 2 || len(snapshot.Blocks) != 2 || len(snapshot.Availability) != 1 ||
+		availability.TotalBytes != 29 || availability.AvailableBytes != 5 || len(availability.AvailableRanges) != 0 {
+		t.Fatal("shared availability must include the short cached tail outside both requests", snapshot.Availability)
+	}
+}
+
+func TestBlockObservationKeepsExpiredGETBlockAtOriginalNeedByUntilHandoffEnds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.ctx = t.Context()
+		const block = 15
+		w.v.size = (block + 1) * s.cfg.BlockSize
+		original := time.Now()
+		clock := &playbackClock{at: original, offset: block * s.cfg.BlockSize, limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
+		get, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
+		defer release()
+		get.flight = w.f
+		sub, err := s.ObserveBlocks()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer sub.Close()
+
+		id := blockViewID(useBlockID{w.v.key, block})
+		before := observedDetail(t, observedSnapshot(t, sub), id)
+		if before.Block.At != timeMS(original) || before.Block.TimeBasis != "need-by" || !before.Block.Eligible {
+			t.Fatal("GET block did not start with an eligible need-by", before)
+		}
+		deadline := sourceDeadline(original)
+		time.Sleep(time.Until(deadline))
+		s.expireDownload(w.f, w.v.key, block)
+		if !errors.Is(context.Cause(get.ctx), errSourceExpired) {
+			t.Fatal("GET did not exit at its download deadline", context.Cause(get.ctx))
+		}
+
+		time.Sleep(51 * time.Millisecond)
+		handoff := observedDetail(t, observedSnapshot(t, sub), id)
+		if len(handoff.Sources) != 1 || handoff.Sources[0].Kind != "handoff" || handoff.Sources[0].NeedBy != before.Block.At ||
+			handoff.Sources[0].ExpiresAt != timeMS(deadline.Add(handoffGrace)) {
+			t.Fatal("handoff lost its frozen need-by or fixed expiry", handoff.Sources)
+		}
+		if handoff.Block.At != before.Block.At || handoff.Block.TimeBasis != "last-need-by" {
+			t.Errorf("block moved during handoff: at=%d basis=%s, want at=%d last-need-by", handoff.Block.At, handoff.Block.TimeBasis, before.Block.At)
+		}
+		if handoff.Block.Eligible || handoff.Block.NeedBy != 0 || handoff.Block.Deadline != 0 || handoff.Block.State != "waiting" {
+			t.Fatal("displaying the handoff revived the expired download need", handoff.Block)
+		}
+
+		time.Sleep(time.Until(deadline.Add(handoffGrace + 51*time.Millisecond)))
+		if expired := observedSnapshot(t, sub); len(expired.Blocks) != 0 || len(expired.Demands) != 0 {
+			t.Fatal("missing block survived its handoff", expired.Blocks, expired.Demands)
 		}
 	})
 }

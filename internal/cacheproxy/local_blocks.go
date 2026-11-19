@@ -129,6 +129,16 @@ func (f *blockFiles) has(block int64) bool {
 	return f.files[block] != nil
 }
 
+func (f *blockFiles) availableBlocks() []int64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	blocks := make([]int64, 0, len(f.files))
+	for block := range f.files {
+		blocks = append(blocks, block)
+	}
+	return blocks
+}
+
 func (f *blockFiles) complete() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -138,11 +148,12 @@ func (f *blockFiles) complete() bool {
 func (f *blockFiles) bytes() int64 {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	var size int64
-	for _, b := range f.files {
-		size += b.size
+	count := int64(len(f.files))
+	// Every committed block has a full block length except a possible short tail.
+	if tail := f.files[blockCount(f.size, f.blockSize)-1]; tail != nil {
+		return (count-1)*f.blockSize + tail.size
 	}
-	return size
+	return count * f.blockSize
 }
 
 func (f *blockFiles) available(offset int64) int64 {

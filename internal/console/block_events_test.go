@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -155,7 +156,7 @@ func TestBlockDeltaDemandMembershipAndOrdering(t *testing.T) {
 	}
 }
 
-func TestBlockDeltaPublishesRoomClockCorrectionWithoutBlocks(t *testing.T) {
+func TestBlockDeltaPublishesRoomPlaybackChangesWithoutBlocks(t *testing.T) {
 	demand := cacheproxy.BlockDemandView{ID: "1/a", Kind: "formal", Playback: &cacheproxy.BlockPlaybackView{ZeroAt: 1000, EndAt: 61000}}
 	initial := &cacheproxy.BlockSnapshot{Demands: map[string]cacheproxy.BlockDemandView{demand.ID: demand}}
 	corrected := demand
@@ -164,6 +165,25 @@ func TestBlockDeltaPublishesRoomClockCorrectionWithoutBlocks(t *testing.T) {
 	event, changed := blockDelta(initial, next)
 	if !changed || len(event.Blocks) != 0 || len(event.Demands) != 1 || event.Demands[0].Playback.ZeroAt != 2000 {
 		t.Fatal("room clock correction did not reach the demand stream", event)
+	}
+}
+
+func TestBlockDeltaPublishesAvailabilityWithoutSendingUnchangedDemands(t *testing.T) {
+	previous := &cacheproxy.BlockSnapshot{Demands: map[string]cacheproxy.BlockDemandView{"1/a": {ID: "1/a", Resource: "a"}}}
+	current := *previous
+	current.Availability = map[string]cacheproxy.BlockAvailabilityView{
+		"a": {TotalBytes: 16, AvailableBytes: 8, AvailableRanges: []cacheproxy.BlockByteRange{{Start: 8, End: 16}}},
+	}
+	event, changed := blockDelta(previous, &current)
+	if !changed || len(event.Blocks) != 0 || len(event.Demands) != 0 || !reflect.DeepEqual(event.Availability, current.Availability) {
+		t.Fatal("local availability change should reach the stream on its own", event)
+	}
+	if _, changed := blockDelta(&current, &current); changed {
+		t.Fatal("unchanged availability was reported as an update")
+	}
+	event, changed = blockDelta(&current, previous)
+	if !changed || len(event.RemovedAvailability) != 1 || event.RemovedAvailability[0] != "a" {
+		t.Fatal("removed availability did not reach the stream", event)
 	}
 }
 

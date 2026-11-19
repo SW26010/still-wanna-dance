@@ -190,6 +190,7 @@ func (s *Server) forgetLocalResource(key string, expected *localResource) {
 	}
 	s.retentionMu.Unlock()
 	if matched {
+		s.notifyBlockObservation()
 		expected.storage.release()
 	}
 }

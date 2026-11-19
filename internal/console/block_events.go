@@ -10,19 +10,21 @@ import (
 )
 
 type blockEvent struct {
-	At              int64                        `json:"at"`
-	Running         bool                         `json:"running"`
-	Reset           bool                         `json:"reset"`
-	Capacity        int                          `json:"capacity"`
-	Used            int                          `json:"used"`
-	Active          int                          `json:"active"`
-	Open            int                          `json:"open"`
-	PrepareAheadMS  int64                        `json:"prepareAheadMS"`
-	DownloadGraceMS int64                        `json:"downloadGraceMS"`
-	Blocks          []cacheproxy.BlockView       `json:"blocks"`
-	Removed         []string                     `json:"removed"`
-	Demands         []cacheproxy.BlockDemandView `json:"demands"`
-	RemovedDemands  []string                     `json:"removedDemands"`
+	At                  int64                                       `json:"at"`
+	Running             bool                                        `json:"running"`
+	Reset               bool                                        `json:"reset"`
+	Capacity            int                                         `json:"capacity"`
+	Used                int                                         `json:"used"`
+	Active              int                                         `json:"active"`
+	Open                int                                         `json:"open"`
+	PrepareAheadMS      int64                                       `json:"prepareAheadMS"`
+	DownloadGraceMS     int64                                       `json:"downloadGraceMS"`
+	Blocks              []cacheproxy.BlockView                      `json:"blocks"`
+	Removed             []string                                    `json:"removed"`
+	Demands             []cacheproxy.BlockDemandView                `json:"demands"`
+	RemovedDemands      []string                                    `json:"removedDemands"`
+	Availability        map[string]cacheproxy.BlockAvailabilityView `json:"availability,omitempty"`
+	RemovedAvailability []string                                    `json:"removedAvailability,omitempty"`
 }
 
 func blockDelta(previous, current *cacheproxy.BlockSnapshot) (blockEvent, bool) {
@@ -40,6 +42,14 @@ func blockDelta(previous, current *cacheproxy.BlockSnapshot) (blockEvent, bool) 
 			e.Blocks = append(e.Blocks, b)
 		}
 	}
+	for resource, availability := range current.Availability {
+		if previous == nil || !reflect.DeepEqual(previous.Availability[resource], availability) {
+			if e.Availability == nil {
+				e.Availability = make(map[string]cacheproxy.BlockAvailabilityView)
+			}
+			e.Availability[resource] = availability
+		}
+	}
 	if previous != nil {
 		for id := range previous.Demands {
 			if _, ok := current.Demands[id]; !ok {
@@ -51,12 +61,19 @@ func blockDelta(previous, current *cacheproxy.BlockSnapshot) (blockEvent, bool) 
 				e.Removed = append(e.Removed, id)
 			}
 		}
+		for resource := range previous.Availability {
+			if _, ok := current.Availability[resource]; !ok {
+				e.RemovedAvailability = append(e.RemovedAvailability, resource)
+			}
+		}
 	}
 	sort.Slice(e.Blocks, func(i, j int) bool { return e.Blocks[i].ID < e.Blocks[j].ID })
 	sort.Strings(e.Removed)
 	sort.Slice(e.Demands, func(i, j int) bool { return e.Demands[i].ID < e.Demands[j].ID })
 	sort.Strings(e.RemovedDemands)
-	changed := previous == nil || len(e.Blocks) > 0 || len(e.Removed) > 0 || len(e.Demands) > 0 || len(e.RemovedDemands) > 0 || previous.Used != current.Used || previous.Active != current.Active || previous.Open != current.Open || previous.PrepareAheadMS != current.PrepareAheadMS
+	sort.Strings(e.RemovedAvailability)
+	changed := previous == nil || len(e.Blocks) > 0 || len(e.Removed) > 0 || len(e.Demands) > 0 || len(e.RemovedDemands) > 0 ||
+		len(e.Availability) > 0 || len(e.RemovedAvailability) > 0 || previous.Used != current.Used || previous.Active != current.Active || previous.Open != current.Open || previous.PrepareAheadMS != current.PrepareAheadMS
 	return e, changed
 }
 

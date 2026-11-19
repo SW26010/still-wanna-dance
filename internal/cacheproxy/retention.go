@@ -283,13 +283,19 @@ func (s *Server) reconcileRetentionContext(ctx context.Context) error {
 				foundBytes += item.size
 			}
 		}
-		for key := range s.retained {
-			if _, exists := found[key]; !exists {
+		inventoryChanged := len(found) != len(s.retained)
+		for key, old := range s.retained {
+			if item, exists := found[key]; !exists {
 				changed = append(changed, key)
+			} else if item.size != old.size {
+				inventoryChanged = true
 			}
 		}
 		s.retained = found
 		s.retainedBytes = foundBytes
+		if inventoryChanged && len(changed) == 0 {
+			s.notifyBlockObservation()
+		}
 		return nil
 	})
 }

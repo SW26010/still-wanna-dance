@@ -82,12 +82,10 @@ func (s *Server) notifyQueuePreparationLocked() {
 	}
 }
 
-// Keep a past base stable for window entry and observation. When formal playback
+// Use the published base for window entry and observation. When formal playback
 // ends naturally, max(base, now) already advances without republishing the plan.
 func (s *Server) retimeQueueLocked(now time.Time) []string {
-	if s.formal != nil {
-		s.queueStart = s.formal.clock.end()
-	} else if s.queueStart.IsZero() || s.queueStart.After(now) {
+	if s.queueStart.IsZero() {
 		s.queueStart = now
 	}
 	var changed []string

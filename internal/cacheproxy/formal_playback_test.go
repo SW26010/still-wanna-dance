@@ -382,6 +382,49 @@ func TestFormalSameSecondStopAndRestart(t *testing.T) {
 	}
 }
 
+func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
+	s, logs := loggingServer(t, nil)
+	formalCatalog(t, s, video{key: videoKey(payload), size: 3 * s.cfg.BlockSize})
+	if err := s.UpdatePrefetchQueue([]int64{2}, false); err != nil {
+		t.Fatal(err)
+	}
+
+	var timeline vrclog.PlayerTimeline
+	owner := true
+	start := func(at time.Time) {
+		s.ObservePlaybackLog(&timeline, []vrclog.Event{
+			{Playback: &vrclog.PlaybackEvent{Kind: "route", At: at, SongID: 1}},
+			{Playback: &vrclog.PlaybackEvent{Kind: "start", At: at, SongID: 1, Owner: &owner}},
+		}, at)
+	}
+	at := time.Now().Truncate(time.Second)
+	start(at.Add(-20 * time.Second))
+	before := len(logs.records(t))
+	start(at)
+
+	var starts []any
+	for _, entry := range logs.records(t)[before:] {
+		if entry["event_name"] == "queue_playback_timing" {
+			starts = append(starts, entry["starts_at"])
+		}
+	}
+	want := at.Add(100 * time.Second).Format(time.RFC3339Nano)
+	if len(starts) != 1 || starts[0] != want {
+		t.Fatalf("published queue starts %v, want only %s", starts, want)
+	}
+
+	if err := s.Store.SetSongPolicy(t.Context(), 1, SongBlocked); err != nil {
+		t.Fatal(err)
+	}
+	start(at.Add(time.Second))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	if s.formal != nil || !s.queueClockLocked(s.prefetchSources["2"], now).at.Equal(now) {
+		t.Fatal("rejected replacement did not restore the idle queue clock")
+	}
+}
+
 func TestFormalCapacityExpansionRequiresAllowedSync(t *testing.T) {
 	for _, held := range []int64{0, 2} {
 		t.Run(fmt.Sprintf("held_%d", held), func(t *testing.T) {

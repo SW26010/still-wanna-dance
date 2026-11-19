@@ -78,17 +78,23 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 	song := strconv.FormatInt(a.SongID, 10)
 	p := s.formal
 	if p == nil || p.song != song || p.started != a.Started {
-		s.clearFormalLocked(now)
+		// Retire old playback for GET admission while the queue keeps its
+		// last published base until the new clock has been resolved.
+		if p != nil {
+			s.dropFormalLocked(now)
+			s.notifyUseChangedLocked(p.key)
+		}
 		s.mu.Unlock()
 		meta, err := s.Store.formalMedia(s.ctx, a.SongID)
 		if err != nil && s.ctx.Err() == nil {
 			s.cfg.Logger.Warn("正式播放元数据不可用", "song_id", a.SongID, "error", err)
 		}
 		s.mu.Lock()
-		if s.closed || err != nil {
+		if s.closed {
 			return
 		}
-		if meta.key == "" || meta.size <= 0 || meta.size > s.cfg.MaxFileBytes || !validMediaDuration(meta.end) {
+		if err != nil || meta.key == "" || meta.size <= 0 || meta.size > s.cfg.MaxFileBytes || !validMediaDuration(meta.end) {
+			s.clearFormalLocked(time.Now())
 			return
 		}
 		p = &formalPlayback{song: song, key: meta.key, started: a.Started, clock: playbackClock{media: estimateMediaTiming(meta.size, meta.end)}}
@@ -114,6 +120,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 		}
 		allowed = err == nil
 		if !allowed && s.formal != p {
+			s.clearFormalLocked(time.Now())
 			return
 		}
 	}
@@ -135,6 +142,7 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 	s.formal = p
 	keys := []string{p.key}
 	if !end.Equal(s.queueStart) {
+		s.queueStart = end
 		keys = append(keys, s.retimeQueueLocked(now)...)
 	}
 	s.notifyUseChangedLocked(keys...)
@@ -142,14 +150,19 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 
 func (s *Server) clearFormalLocked(now time.Time) {
 	p := s.formal
-	s.dropFormalLocked(now)
-	if p != nil {
-		keys := []string{p.key}
-		if s.queueStart.After(now) {
-			keys = append(keys, s.retimeQueueLocked(now)...)
-		}
-		s.notifyUseChangedLocked(keys...)
+	if p == nil && !s.queueStart.After(now) {
+		return
 	}
+	s.dropFormalLocked(now)
+	var keys []string
+	if p != nil {
+		keys = append(keys, p.key)
+	}
+	if s.queueStart.After(now) {
+		s.queueStart = now
+		keys = append(keys, s.retimeQueueLocked(now)...)
+	}
+	s.notifyUseChangedLocked(keys...)
 }
 
 func (s *Server) dropFormalLocked(at time.Time) {

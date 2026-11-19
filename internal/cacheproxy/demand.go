@@ -160,8 +160,8 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	}
 	s.prefetchSources = next
 	s.prefetchOrder = append([]int64(nil), ids...)
-	if reset {
-		s.queueStart = time.Time{}
+	if reset && !s.queueStart.After(now) {
+		s.queueStart = now
 	}
 	changedKeys = append(changedKeys, s.retimeQueueLocked(now)...)
 	s.notifyUseChangedLocked(changedKeys...)

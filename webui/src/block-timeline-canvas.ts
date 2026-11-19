@@ -109,7 +109,9 @@ export function hitBlocks(frame: TimelineFrame, x: number, y: number) {
   }
   return hits; // Earlier times are painted on top; keep covered blocks reachable.
 }
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+type BlockPaintContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+function roundRect(ctx: BlockPaintContext, x: number, y: number, width: number, height: number, radius: number) {
   ctx.beginPath(); ctx.roundRect(x, y, width, height, radius);
 }
 function videoColorIndex(video: { songID: string; resource: string; colorKey?: string }, palette: TimelinePalette) {
@@ -120,23 +122,28 @@ function videoColorIndex(video: { songID: string; resource: string; colorKey?: s
 export function videoColor(video: { songID: string; resource: string; colorKey?: string }, palette: TimelinePalette) {
   return palette.videos[videoColorIndex(video, palette)].fill;
 }
-export function drawBlock(ctx: CanvasRenderingContext2D, block: BlockView, x: number, y: number, size: number, palette: TimelinePalette, selected: boolean) {
-  const video = palette.videos[videoColorIndex(block, palette)];
-  const protectionOnly = block.state === 'protected' && !block.inUse;
+function blockStyle(block: BlockView, palette: TimelinePalette) {
+  return { videoIndex: videoColorIndex(block, palette), state: block.state, protectionOnly: block.state === 'protected' && !block.inUse };
+}
+function drawBlockBody(ctx: BlockPaintContext, { videoIndex, state, protectionOnly }: ReturnType<typeof blockStyle>, x: number, y: number, size: number, palette: TimelinePalette) {
+  const video = palette.videos[videoIndex];
   const color = protectionOnly ? video.protectedFill : video.fill;
   ctx.save();
-  if (block.state === 'protected') ctx.globalAlpha = protectionOnly ? .25 : .35;
+  if (state === 'protected') ctx.globalAlpha = protectionOnly ? .25 : .35;
   roundRect(ctx, x, y, size, size, Math.min(3, size / 6));
-  ctx.fillStyle = block.state === 'waiting' ? palette.background : color;
+  ctx.fillStyle = state === 'waiting' ? palette.background : color;
   ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
   // A thin outer edge separates same-color blocks when their squares overlap.
   // Keep the original path for hatching; avoid blur/shadow work per frame.
   ctx.strokeStyle = protectionOnly ? video.protectedEdge : video.edge; ctx.lineWidth = .75; ctx.stroke();
   ctx.restore(); // Selection and reader markers remain fully visible.
-  if (block.state === 'downloading' || block.state === 'stopping') {
+  if (state === 'downloading' || state === 'stopping') {
     ctx.save(); ctx.clip(); ctx.strokeStyle = palette.background; ctx.globalAlpha = .55; ctx.lineWidth = 2;
     ctx.beginPath(); for (let offset = -size; offset < size; offset += 7) { ctx.moveTo(x + offset, y + size); ctx.lineTo(x + offset + size, y); } ctx.stroke(); ctx.restore();
   }
+}
+export function drawBlock(ctx: CanvasRenderingContext2D, block: BlockView, x: number, y: number, size: number, palette: TimelinePalette, selected: boolean) {
+  drawBlockBody(ctx, blockStyle(block, palette), x, y, size, palette);
   if (block.state === 'stopping') {
     ctx.strokeStyle = palette.foreground; ctx.setLineDash([2, 2]);
     ctx.strokeRect(x - 2, y - 2, size + 4, size + 4); ctx.setLineDash([]);
@@ -152,8 +159,54 @@ export function drawBlock(ctx: CanvasRenderingContext2D, block: BlockView, x: nu
   }
 }
 
+type DrawTimelineBlock = (block: BlockView, x: number, y: number, selected: boolean) => void;
+const timelineBlockPainters = new WeakMap<CanvasRenderingContext2D, { palette: TimelinePalette; size: number; scale: number; draw: DrawTimelineBlock }>();
+
+function timelineBlockPainter(ctx: CanvasRenderingContext2D, size: number, palette: TimelinePalette): DrawTimelineBlock {
+  const scale = ctx.getTransform().a;
+  const previous = timelineBlockPainters.get(ctx);
+  if (previous?.palette === palette && previous.size === size && previous.scale === scale) return previous.draw;
+
+  const direct: DrawTimelineBlock = (block, x, y, selected) => drawBlock(ctx, block, x, y, size, palette, selected);
+  // Keep system colors tied to the visible canvas in forced-colors mode.
+  if (typeof OffscreenCanvas === 'undefined' || matchMedia('(forced-colors: active)').matches) {
+    timelineBlockPainters.set(ctx, { palette, size, scale, draw: direct });
+    return direct;
+  }
+
+  // Allow for the 1.5px outline and its antialiasing on each edge of the block body.
+  const paddingPixels = Math.ceil(2 * scale);
+  const padding = paddingPixels / scale;
+  const pixels = Math.ceil(size * scale) + 2 * paddingPixels;
+  const extent = pixels / scale;
+  const styles = new Map<string, OffscreenCanvas>();
+  const blocks = new WeakMap<BlockView, OffscreenCanvas>();
+  const draw: DrawTimelineBlock = (block, x, y, selected) => {
+    if (selected || block.readers > 0 || block.state === 'stopping') return direct(block, x, y, selected);
+    let image = blocks.get(block);
+    if (!image) {
+      const style = blockStyle(block, palette);
+      const key = `${style.videoIndex}:${style.state}:${style.protectionOnly}`;
+      image = styles.get(key);
+      if (!image) {
+        image = new OffscreenCanvas(pixels, pixels);
+        const brush = image.getContext('2d');
+        if (!brush) return direct(block, x, y, selected);
+        brush.scale(scale, scale);
+        drawBlockBody(brush, style, padding, padding, size, palette);
+        styles.set(key, image);
+      }
+      blocks.set(block, image);
+    }
+    ctx.drawImage(image, x - padding, y - padding, extent, extent);
+  };
+  timelineBlockPainters.set(ctx, { palette, size, scale, draw });
+  return draw;
+}
+
 export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame) {
   const { width, data, palette: p, now, span, timed, untimed, blockSize: size, layers } = frame;
+  const draw = timelineBlockPainter(ctx, size, p);
   const { plotTop, timedY, lanePitch, axis, untimedY, height } = timelineLayout(layers, !!timed.length, !!untimed.length, size);
   const textStyle = getComputedStyle(ctx.canvas), textSizeFamily = `${textStyle.fontSize} ${textStyle.fontFamily}`;
   const captionSizeFamily = `${textStyle.getPropertyValue('--fontSizeBase200').trim()} ${textStyle.fontFamily}`;
@@ -214,7 +267,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     for (let i = visible.length - 1; i >= 0; i--) {
       const { block, at } = visible[i];
       if (block.id === frame.selected) selected = visible[i];
-      drawBlock(ctx, block, x(at) - size / 2, blockY(block, layers, size), size, p, block.id === frame.selected);
+      draw(block, x(at) - size / 2, blockY(block, layers, size), block.id === frame.selected);
     }
     ctx.restore();
     if (layers) {
@@ -238,7 +291,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     const first = Math.max(0, Math.floor((frame.untimedOffset - size - 12) / pitch)), last = Math.min(untimed.length - 1, Math.ceil((end - start + frame.untimedOffset + 12) / pitch));
     for (let i = last; i >= first; i--) {
       const px = start + i * pitch - frame.untimedOffset;
-      drawBlock(ctx, untimed[i], px, untimedY, size, p, untimed[i].id === frame.selected);
+      draw(untimed[i], px, untimedY, untimed[i].id === frame.selected);
     }
     ctx.restore();
   }

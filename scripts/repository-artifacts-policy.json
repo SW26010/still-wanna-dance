@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1329375,
+      "sha256": "0b72f9760b92444ad9745b7ee7c4fe35aed2fa1382c8f9107080e8612835af9c",
+      "reason": "Embedded WebUI rebuilt to reuse rasterized timeline block bodies across equivalent palette reads. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1328288,
       "sha256": "f217bed56d936e1830ec10ee8c44357f341219e30e985acbd83ea7ad6bc23fa8",
       "reason": "Embedded WebUI rebuilt with synchronized transform animations for the playback fill and unclipped marker. Verified against webui/build-manifest.json."

@@ -656,24 +656,56 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await f.panel.screenshot({ path: info.outputPath('transparent-lane-labels.png') });
 });
 
+type PaintedBlock = { x: number; y: number; width: number; height: number; color: string; imageID?: number };
+
+async function observeTimelineBlocks(page: Page) {
+  await page.addInitScript(() => {
+    type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+    const painted: PaintedBlock[] = [], bitmaps = new WeakMap<OffscreenCanvas, PaintedBlock>();
+    Object.assign(window, { timelineBlockPaint: painted });
+    const paths = new WeakMap<Context, Omit<PaintedBlock, 'color' | 'imageID'>>();
+    let nextID = 0;
+    const isTimeline = (canvas: HTMLCanvasElement | OffscreenCanvas) => canvas instanceof HTMLCanvasElement && canvas.classList.contains('timeline-canvas');
+    const trackStrokes = (prototype: Context) => {
+      const { beginPath, roundRect, stroke } = prototype;
+      prototype.beginPath = function (this: Context) { paths.delete(this); beginPath.call(this); };
+      prototype.roundRect = function (this: Context, x, y, width, height, radii) {
+        if (width <= 36 && width === height) paths.set(this, { x, y, width, height });
+        roundRect.call(this, x, y, width, height, radii);
+      };
+      prototype.stroke = function (this: Context, ...args: [] | [Path2D]) {
+        const path = paths.get(this);
+        if (path) {
+          const block = { ...path, color: String(this.strokeStyle) };
+          if (this.canvas instanceof OffscreenCanvas) bitmaps.set(this.canvas, { ...block, imageID: ++nextID });
+          else if (isTimeline(this.canvas)) painted.push(block);
+          paths.delete(this);
+        }
+        Reflect.apply(stroke, this, args);
+      };
+    };
+    trackStrokes(CanvasRenderingContext2D.prototype);
+    trackStrokes(OffscreenCanvasRenderingContext2D.prototype);
+    const { clearRect, drawImage } = CanvasRenderingContext2D.prototype;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+      if (isTimeline(this.canvas)) painted.length = 0;
+      return clearRect.apply(this, args);
+    };
+    CanvasRenderingContext2D.prototype.drawImage = function (image: CanvasImageSource, ...args: number[]) {
+      if (isTimeline(this.canvas) && image instanceof OffscreenCanvas) {
+        const block = bitmaps.get(image);
+        if (block) painted.push({ ...block, x: args[0] + block.x, y: args[1] + block.y });
+      }
+      Reflect.apply(drawImage, this, [image, ...args]);
+    };
+  });
+  return () => page.evaluate(() => (window as unknown as { timelineBlockPaint: PaintedBlock[] }).timelineBlockPaint);
+}
+
 test('fixed squares, three state layers and demand memberships share selection and one stream', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.addInitScript(() => {
-    const strokes: { x: number; width: number; height: number; color: string }[] = [];
-    Object.assign(window, { blockStrokes: strokes });
-    const paths = new WeakMap<CanvasRenderingContext2D, { x: number; width: number; height: number }>();
-    const roundRect = CanvasRenderingContext2D.prototype.roundRect, stroke = CanvasRenderingContext2D.prototype.stroke, clear = CanvasRenderingContext2D.prototype.clearRect;
-    const beginPath = CanvasRenderingContext2D.prototype.beginPath;
-    CanvasRenderingContext2D.prototype.beginPath = function () { paths.delete(this); return beginPath.call(this); };
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) { paths.set(this, { x, width, height }); return roundRect.call(this, x, y, width, height, radii); };
-    CanvasRenderingContext2D.prototype.clearRect = function (...args) { paths.delete(this); if (this.canvas.classList.contains('timeline-canvas')) strokes.length = 0; return clear.apply(this, args); };
-    CanvasRenderingContext2D.prototype.stroke = function (...args: [] | [Path2D]) {
-      const path = paths.get(this);
-      if (path && this.canvas.classList.contains('timeline-canvas') && path.width <= 36) { strokes.push({ ...path, color: String(this.strokeStyle) }); paths.delete(this); }
-      return args.length ? stroke.call(this, args[0]) : stroke.call(this);
-    };
-  });
+  const readStrokes = await observeTimelineBlocks(page);
   const f = await setup(page);
   const blocks = [
     block(0, f.at, { state: 'waiting' }), block(1, f.at, { state: 'downloading' }), block(2, f.at, { state: 'available' }),
@@ -704,7 +736,6 @@ test('fixed squares, three state layers and demand memberships share selection a
   // The same source color survives state changes. Every painted block is square.
   await expect(f.panel.getByRole('slider')).toHaveCount(0);
   await expect(f.viewport).toHaveAttribute('data-block-size', '16');
-  const readStrokes = () => page.evaluate(() => (window as unknown as { blockStrokes: { x: number; width: number; height: number; color: string }[] }).blockStrokes);
   await expect.poll(async () => { const values = await readStrokes(); return values.length >= 3 && values.every(s => s.width === 16 && s.height === 16); }).toBe(true);
   const strokes = await readStrokes();
   expect(new Set(strokes.slice(-3).map(s => s.color)).size).toBe(1);
@@ -1471,18 +1502,9 @@ for (const layers of [false, true]) test(`untimed blocks stay in one row with ho
 test('untimed spacing adapts to width and count, caps overlap and releases overflow without reserving slider height', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.addInitScript(() => {
-    const blocks: { x: number; y: number }[] = [];
-    Object.assign(window, { untimedPaint: blocks });
-    const clear = CanvasRenderingContext2D.prototype.clearRect, rounded = CanvasRenderingContext2D.prototype.roundRect;
-    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.classList.contains('timeline-canvas')) blocks.length = 0; return clear.apply(this, args); };
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) {
-      if (this.canvas.classList.contains('timeline-canvas') && width === 16 && height === 16) blocks.push({ x, y });
-      return rounded.call(this, x, y, width, height, radii);
-    };
-  });
+  const readBlocks = await observeTimelineBlocks(page);
   const f = await setup(page, 0);
-  const readPaint = () => page.evaluate(() => [...(window as unknown as { untimedPaint: { x: number; y: number }[] }).untimedPaint].sort((a, b) => a.x - b.x));
+  const readPaint = async () => (await readBlocks()).filter(block => block.width === 16 && block.height === 16).sort((a, b) => a.x - b.x);
   const emit = async (count: number) => {
     const blocks = Array.from({ length: count }, (_, i) => block(i, 0, { state: 'available', totalBlocks: count }));
     await f.emit({ reset: true, blocks, used: count });
@@ -1537,6 +1559,44 @@ test('untimed spacing adapts to width and count, caps overlap and releases overf
   });
   expect(gap).toBe(0);
   await expect(f.panel.getByRole('slider')).toHaveCount(0);
+});
+
+test('timeline shares cached block images and refreshes them for state and theme changes', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
+  const readPaint = await observeTimelineBlocks(page);
+  const f = await setup(page, 0);
+  const first = block(0, f.at + 10000, { state: 'available' });
+  const second = block(1, f.at + 100000, { state: 'available' });
+  const images = async () => (await readPaint()).flatMap(block => block.imageID ? [block.imageID] : []);
+  await f.emit({ blocks: [first, second] });
+  await f.open();
+  await expect.poll(async () => {
+    const drawn = await images();
+    return drawn.length === 2 && drawn[0] === drawn[1];
+  }).toBe(true);
+
+  await f.emit({ blocks: [{ ...second, state: 'downloading' }] });
+  await expect.poll(async () => new Set(await images()).size).toBe(2);
+  const light = await images();
+
+  const rows = f.panel.locator('.demand-row');
+  const height = () => f.viewport.evaluate(el => el.clientHeight);
+  const originalHeight = await height();
+  const reading = demand(1, [first, second]);
+  await f.emit({ demands: [reading] });
+  await expect(rows).toHaveCount(1);
+  await expect.poll(height).toBeGreaterThan(originalHeight);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  expect(await images()).toEqual(light);
+
+  await f.emit({ removedDemands: [reading.id] });
+  await expect(rows).toHaveCount(0);
+  await expect.poll(height).toBe(originalHeight);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  expect(await images()).toEqual(light);
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(async () => (await images()).filter(id => !light.includes(id)).length).toBe(2);
 });
 
 test('4096 blocks render with viewport canvases and no animation after collapse', async ({ page }, info) => {

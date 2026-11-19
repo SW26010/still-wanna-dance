@@ -56,12 +56,20 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
   </Card></div>;
 }
 
-function readPalette(element: HTMLElement): TimelinePalette {
+function readPalette(element: HTMLElement, previous?: TimelinePalette): TimelinePalette {
   const css = getComputedStyle(element);
   const color = (name: string) => css.getPropertyValue('--timeline-' + name).trim();
+  const colors = {
+    background: color('background'), foreground: color('foreground'), muted: color('muted'), grid: color('grid'),
+    blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'),
+    selected: color('selected'), onAccent: color('on-accent'),
+  };
+  const fills = Array.from({ length: 8 }, (_, i) => color('video-' + i));
+  if (previous && (Object.keys(colors) as (keyof typeof colors)[]).every(key => colors[key] === previous[key]) &&
+      fills.every((fill, i) => fill === previous.videos[i].fill)) return previous;
+
   const rgb = (channels: number[], brightness: number) => `rgb(${channels.map(channel => Math.round(channel * brightness)).join(', ')})`;
-  const videos = Array.from({ length: 8 }, (_, i) => {
-    const fill = color('video-' + i);
+  const videos = fills.map(fill => {
     // System colors retain their contrast in forced-colors mode.
     if (!/^#[\da-f]{6}$/i.test(fill)) return { fill, edge: fill, protectedFill: fill, protectedEdge: fill };
     const channels = fill.slice(1).match(/../g)!.map(channel => parseInt(channel, 16));
@@ -69,7 +77,7 @@ function readPalette(element: HTMLElement): TimelinePalette {
     const muted = channels.map(channel => gray + (channel - gray) * .3);
     return { fill, edge: rgb(channels, .78), protectedFill: rgb(muted, 1), protectedEdge: rgb(muted, .78) };
   });
-  return { background: color('background'), foreground: color('foreground'), muted: color('muted'), grid: color('grid'), blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'), selected: color('selected'), onAccent: color('on-accent'), videos };
+  return { ...colors, videos };
 }
 
 const TimelineViewport = memo(function TimelineViewport({ data, active, expanded }: { data: TimelineData; active: boolean; expanded: boolean }) {
@@ -135,12 +143,20 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
 
   useEffect(() => {
     const element = root.current!;
-    const measure = () => { setWidth(Math.max(160, element.clientWidth)); setPalette(readPalette(element)); };
+    const measure = () => {
+      setWidth(Math.max(160, element.clientWidth));
+      const previous = latest.current.palette;
+      const next = readPalette(element, previous);
+      setPalette(next);
+      return next === previous;
+    };
     const observer = new ResizeObserver(measure); observer.observe(element); measure();
     const dark = matchMedia('(prefers-color-scheme: dark)'), contrast = matchMedia('(forced-colors: active)'), motion = matchMedia('(prefers-reduced-motion: reduce)');
     const changeMotion = () => setReducedMotion(motion.matches);
-    dark.addEventListener('change', measure); contrast.addEventListener('change', measure); motion.addEventListener('change', changeMotion);
-    return () => { observer.disconnect(); dark.removeEventListener('change', measure); contrast.removeEventListener('change', measure); motion.removeEventListener('change', changeMotion); clearHoverTimers(); };
+    // System colors can change their resolved colors while keeping the same keyword.
+    const changeTheme = () => { if (measure()) repaint.current(); };
+    dark.addEventListener('change', changeTheme); contrast.addEventListener('change', changeTheme); motion.addEventListener('change', changeMotion);
+    return () => { observer.disconnect(); dark.removeEventListener('change', changeTheme); contrast.removeEventListener('change', changeTheme); motion.removeEventListener('change', changeMotion); clearHoverTimers(); };
   }, [preference]);
 
   useEffect(() => {

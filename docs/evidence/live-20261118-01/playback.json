@@ -1,0 +1,564 @@
+{
+  "clock": "Seconds from the start of the VRC log, shared across the selected records. VRC timestamps have one-second resolution. The operator-reported start is approximate to the minute.",
+  "swd": {
+    "from": 8022.476,
+    "to": 9985.667,
+    "records": 40082,
+    "segments": 20,
+    "timeline": [
+      {
+        "at": 8033.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 8042.423,
+        "song": 11495,
+        "role": "non-owner",
+        "targetSeconds": 0.18,
+        "vrcEventAt": 8042
+      },
+      {
+        "at": 8234.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 8246.423,
+        "song": 11519,
+        "role": "non-owner",
+        "targetSeconds": 0.19,
+        "vrcEventAt": 8244
+      },
+      {
+        "at": 8408.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 8420.423,
+        "song": 11521,
+        "role": "non-owner",
+        "targetSeconds": 0.17,
+        "vrcEventAt": 8418
+      },
+      {
+        "at": 8663.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 8666.423,
+        "song": 11522,
+        "role": "non-owner",
+        "targetSeconds": 205.3,
+        "vrcEventAt": 8664
+      },
+      {
+        "at": 8669.423,
+        "song": 11522,
+        "role": "non-owner",
+        "targetSeconds": 0.16,
+        "vrcEventAt": 8668
+      },
+      {
+        "at": 8675.424,
+        "song": 11522,
+        "role": "non-owner",
+        "targetSeconds": 0.17,
+        "vrcEventAt": 8672
+      },
+      {
+        "at": 8879.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 8882.423,
+        "song": 11523,
+        "role": "non-owner",
+        "targetSeconds": 315.27,
+        "vrcEventAt": 8880
+      },
+      {
+        "at": 8885.423,
+        "song": 11523,
+        "role": "non-owner",
+        "targetSeconds": 0.16,
+        "vrcEventAt": 8884
+      },
+      {
+        "at": 8888.423,
+        "song": 11523,
+        "role": "non-owner",
+        "targetSeconds": 0.21,
+        "vrcEventAt": 8888
+      },
+      {
+        "at": 9206.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 9215.423,
+        "song": 11524,
+        "role": "non-owner",
+        "targetSeconds": 0.16,
+        "vrcEventAt": 9213
+      },
+      {
+        "at": 9389.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 9398.423,
+        "song": 11533,
+        "role": "non-owner",
+        "targetSeconds": 0.16,
+        "vrcEventAt": 9398
+      },
+      {
+        "at": 9599.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 9608.423,
+        "song": 1981,
+        "role": "non-owner",
+        "targetSeconds": 0.21,
+        "vrcEventAt": 9607
+      },
+      {
+        "at": 9839.423,
+        "song": 0,
+        "role": "non-owner",
+        "targetSeconds": 0
+      },
+      {
+        "at": 9851.423,
+        "song": 1981,
+        "role": "non-owner",
+        "targetSeconds": 0.17,
+        "vrcEventAt": 9849
+      },
+      {
+        "at": 9980.423,
+        "song": 0,
+        "role": "unknown",
+        "targetSeconds": 0
+      }
+    ],
+    "requests": [
+      {
+        "id": 81,
+        "at": 8033.383,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 1.6983
+      },
+      {
+        "id": 82,
+        "at": 8033.787,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 103598149,
+        "firstBodyMs": 1.5735,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 83,
+        "at": 8235.145,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 262144,
+        "firstBodyMs": 1.8383
+      },
+      {
+        "id": 84,
+        "at": 8235.545,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 62516239,
+        "firstBodyMs": 2.0067,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 85,
+        "at": 8409.556,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 229376,
+        "firstBodyMs": 1.6938
+      },
+      {
+        "id": 86,
+        "at": 8409.955,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 131325392,
+        "firstBodyMs": 1.0493,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 87,
+        "at": 8664.058,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 196608,
+        "firstBodyMs": 1.5403
+      },
+      {
+        "id": 88,
+        "at": 8664.463,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "canceled",
+        "bytes": 1835008,
+        "firstBodyMs": 1.4819,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 89,
+        "at": 8664.935,
+        "agent": "NSPlayer",
+        "range": "bytes=109199360-110835061",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 1635702,
+        "firstBodyMs": 13.5576,
+        "role": "non-owner",
+        "reason": "http-precondition",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 90,
+        "at": 8673.723,
+        "agent": "NSPlayer",
+        "range": "bytes=1204224-109199359",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 107995136,
+        "firstBodyMs": 1.5518,
+        "role": "non-owner",
+        "reason": "http-precondition",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 91,
+        "at": 8879.354,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 1.1055
+      },
+      {
+        "id": 92,
+        "at": 8879.766,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "canceled",
+        "bytes": 4456448,
+        "firstBodyMs": 1.7061,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 93,
+        "at": 8880.342,
+        "agent": "NSPlayer",
+        "range": "bytes=112508928-112906186",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 397259,
+        "firstBodyMs": 12.553,
+        "role": "non-owner",
+        "reason": "http-precondition",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 94,
+        "at": 8900.375,
+        "agent": "NSPlayer",
+        "range": "bytes=3866624-112508927",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 108642304,
+        "firstBodyMs": 1.1028,
+        "role": "non-owner",
+        "reason": "http-precondition",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 95,
+        "at": 9204.679,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 2.5185
+      },
+      {
+        "id": 96,
+        "at": 9205.093,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 52361645,
+        "firstBodyMs": 1.1451,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 97,
+        "at": 9389.306,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 1.5053
+      },
+      {
+        "id": 98,
+        "at": 9389.721,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 103484320,
+        "firstBodyMs": 1.1427,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 99,
+        "at": 9598.241,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 1.0128
+      },
+      {
+        "id": 100,
+        "at": 9598.654,
+        "agent": "NSPlayer",
+        "range": "bytes=0-",
+        "status": 206,
+        "outcome": "completed",
+        "bytes": 33424954,
+        "firstBodyMs": 1.5051,
+        "role": "non-owner",
+        "reason": "",
+        "reject": false,
+        "earlyHeaders": false
+      },
+      {
+        "id": 101,
+        "at": 9840.534,
+        "agent": "Mozilla",
+        "range": "",
+        "status": 200,
+        "outcome": "canceled",
+        "bytes": 393216,
+        "firstBodyMs": 1.0083
+      },
+      {
+        "id": 102,
+        "at": 9840.986,
+        "agent": "NSPlayer",
+        "range": "",
+        "status": 304,
+        "outcome": "completed",
+        "bytes": 0,
+        "firstBodyMs": null,
+        "role": "non-owner",
+        "reason": "no-single-range",
+        "reject": false,
+        "earlyHeaders": false
+      }
+    ],
+    "handoffs": {
+      "GET_ms_2000": 11,
+      "queue_head_ms_2000": 10
+    },
+    "upstreamResponses": {
+      "206": 912
+    },
+    "catalogWarnings": {
+      "EOF": 5,
+      "timeout": 1
+    },
+    "quit": 9985.667
+  },
+  "vrc": {
+    "overlapPlayerSync": [
+      {
+        "at": 8042,
+        "target": 0.18
+      },
+      {
+        "at": 8244,
+        "target": 0.19
+      },
+      {
+        "at": 8418,
+        "target": 0.17
+      },
+      {
+        "at": 8664,
+        "target": 205.3,
+        "current": 0
+      },
+      {
+        "at": 8668,
+        "target": 0.16,
+        "current": 205.23
+      },
+      {
+        "at": 8672,
+        "target": 0.17
+      },
+      {
+        "at": 8880,
+        "target": 315.27,
+        "current": 0
+      },
+      {
+        "at": 8884,
+        "target": 0.16,
+        "current": 315.23
+      },
+      {
+        "at": 8888,
+        "target": 0.21
+      },
+      {
+        "at": 9213,
+        "target": 0.16
+      },
+      {
+        "at": 9398,
+        "target": 0.16
+      },
+      {
+        "at": 9607,
+        "target": 0.21
+      },
+      {
+        "at": 9849,
+        "target": 0.17
+      }
+    ],
+    "earlierRoomJoinSync": [
+      {
+        "at": 5633,
+        "target": 168.65,
+        "current": 0
+      },
+      {
+        "at": 5633,
+        "target": 168.66,
+        "current": 0
+      },
+      {
+        "at": 5636,
+        "target": 171.28,
+        "current": 0
+      },
+      {
+        "at": 5639,
+        "target": 174.29,
+        "current": 0
+      },
+      {
+        "at": 5642,
+        "target": 177.29,
+        "current": 0
+      },
+      {
+        "at": 5645,
+        "target": 180.29,
+        "current": 178.92
+      },
+      {
+        "at": 5654,
+        "target": 189.37,
+        "current": 188.64
+      }
+    ],
+    "quit": 9978,
+    "overlapImage404": 39,
+    "beforeSWDWindow": {
+      "operatorReportedSessionStart": 202,
+      "firstStart": 219,
+      "startCallbacks": 58,
+      "startGroupsBySecondAndSong": 35,
+      "syncCallbacks": 47,
+      "errorCallbacks": 0,
+      "retryCallbacks": 0
+    }
+  },
+  "build": {
+    "portableFileSHA256": "5bc8372eea56b5173659dba62f73576e98672bab7deba562b95d3c6877496eab",
+    "referenceFileSHA256": "1db9e1eccb2afbed1c13176977161d7304c05aafcfdcd2c18e09f3d2e9540f02",
+    "revision": "850cf200eda12c074b48bdc8738d2205427a400d",
+    "modified": true,
+    "tag": "no_easytier",
+    "startupRecordRetained": false
+  }
+}

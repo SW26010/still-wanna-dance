@@ -1,0 +1,18 @@
+{
+  "batch": "LIVE-20261118-01",
+  "hashBasis": "git-blob (UTF-8 normalized to LF)",
+  "source": "SWD rolling service logs, VRC player log and executable file metadata",
+  "sanitization": "Selected relative times, song and request numbers, numeric sync positions, HTTP fields and aggregate counts. Player and room identities, private paths and raw URLs omitted.",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261118-01.md",
+      "bytes": 3912,
+      "sha256": "92bc1225d4f1a25755956fd21c0d3ae5d79b11af61c9597e525a3c3045547dfd"
+    },
+    {
+      "path": "docs/evidence/live-20261118-01/playback.json",
+      "bytes": 12341,
+      "sha256": "57b4e64ce0d68873b555d0fe42e7e1091cea30b3d0f8a697f65fb144dab96617"
+    }
+  ]
+}

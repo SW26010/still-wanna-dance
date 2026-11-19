@@ -35,44 +35,43 @@ func TestPlaybackParserSelectsFormalFacts(t *testing.T) {
 	}
 }
 
-func TestPlaybackTailOptInAndRotation(t *testing.T) {
+func TestTailReadsQueueAndPlaybackInFileOrder(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "output_log_2000-01-01_00-00-00.txt")
 	if err := os.WriteFile(file, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
-	ordinary, enabled := &Tail{Dir: dir}, &Tail{Dir: dir, Playback: true}
+	tail := &Tail{Dir: dir}
 	now := time.Now()
-	ordinary.Poll(now)
-	enabled.Poll(now)
+	if _, err := tail.Poll(now); err != nil {
+		t.Fatal(err)
+	}
 	line := "2000.01.01 00:00:01 Debug - [USharpVideo (WannaDance)] OnVideoStart: Started video: http://api.udon.dance/Api/Songs/play?id=3214, since owner is playing\n"
 	if err := os.WriteFile(file, []byte(line[:40]), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if e, err := enabled.Poll(now); err != nil || len(e) != 0 {
+	if e, err := tail.Poll(now); err != nil || len(e) != 0 {
 		t.Fatalf("partial line: %v %v", e, err)
 	}
-	if err := os.WriteFile(file, []byte(line), 0600); err != nil {
+	queue := "[VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [{\"songId\":42}]\n"
+	if err := os.WriteFile(file, []byte(line+queue), 0600); err != nil {
 		t.Fatal(err)
 	}
-	e, err := enabled.Poll(now)
-	if err != nil || len(e) != 1 || e[0].Playback.SongID != 3214 {
-		t.Fatalf("%v %v", e, err)
-	}
-	if e, err := ordinary.Poll(now); err != nil || len(e) != 0 {
-		t.Fatalf("default changed: %v %v", e, err)
+	e, err := tail.Poll(now)
+	if err != nil || len(e) != 2 || e[0].Playback == nil || e[0].Playback.SongID != 3214 || len(e[1].Songs) != 1 || e[1].Songs[0].ID != 42 {
+		t.Fatalf("mixed playback and queue events lost file order: %v %v", e, err)
 	}
 	// Resume after the observed start, even if the file temporarily disappears.
 	if err := os.Rename(file, file+".offline"); err != nil {
 		t.Fatal(err)
 	}
-	if events, err := enabled.Poll(now); !os.IsNotExist(err) || len(events) != 0 {
+	if events, err := tail.Poll(now); !os.IsNotExist(err) || len(events) != 0 {
 		t.Fatal("missing file should report a read error without a reset", events, err)
 	}
 	if err := os.Rename(file+".offline", file); err != nil {
 		t.Fatal(err)
 	}
-	badQueue := "[VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [bad]\n"
+	badQueue := "[VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [bad [Behaviour] OnLeftRoom]\n"
 	syncLine := "2000.01.01 00:00:02 Debug - [USharpVideo (WannaDance)] Syncing video to 45.5, current time = 0\n"
 	f, err := os.OpenFile(file, os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
@@ -85,39 +84,37 @@ func TestPlaybackTailOptInAndRotation(t *testing.T) {
 	}
 	var timeline PlayerTimeline
 	timeline.Observe(e[0], e[0].Playback.At)
-	e, err = enabled.Poll(now)
-	if err != nil || len(e) != 1 || e[0].Playback == nil {
-		t.Fatal("queue error disrupted playback", e, err)
+	e, err = tail.Poll(now)
+	if err != nil || len(e) != 2 || !e[0].QueueReset || e[0].Reset || e[1].Playback == nil {
+		t.Fatal("malformed snapshot must clear only the queue", e, err)
 	}
-	timeline.Observe(e[0], e[0].Playback.At)
+	timeline.Observe(e[0], e[1].Playback.At)
+	timeline.Observe(e[1], e[1].Playback.At)
 	if timeline.Anchor.SongID != 3214 || timeline.Anchor.Position != 45.5 || timeline.Role != Follower {
 		t.Fatal("anonymous sync lost its routed song or role", timeline)
-	}
-	if e, err := ordinary.Poll(now); err != nil || len(e) != 1 || !e[0].Reset {
-		t.Fatal("malformed snapshot did not reset the queue", e, err)
 	}
 	// Once the snapshot exceeds the line limit, its suffix arrives in a
 	// later poll. Neither half is evidence that playback ended.
 	longQueue := "[VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = " + strings.Repeat("x", maxLine)
-	contents := line + badQueue + syncLine + longQueue
+	contents := line + queue + badQueue + syncLine + longQueue
 	if err := os.WriteFile(file, []byte(contents), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if e, err := enabled.Poll(now); err != nil || len(e) != 0 {
+	if e, err := tail.Poll(now); err != nil || len(e) != 1 || !e[0].QueueReset || e[0].Reset {
 		t.Fatal("oversized queue snapshot changed playback", e, err)
 	}
 	longOther := "[OtherComponent] " + strings.Repeat("x", maxLine)
 	if err := os.WriteFile(file, []byte(contents+"\n"+longOther+"\nVRCApplication: HandleApplicationQuit\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if e, err := enabled.Poll(now); err != nil || len(e) != 1 || !e[0].Reset {
+	if e, err := tail.Poll(now); err != nil || len(e) != 3 || !e[0].QueueReset || !e[1].QueueReset || !e[2].Reset {
 		t.Fatal("only the actual exit should reset playback", e, err)
 	}
 	newFile := filepath.Join(dir, "output_log_2000-01-02_00-00-00.txt")
 	if err := os.WriteFile(newFile, []byte(line), 0600); err != nil {
 		t.Fatal(err)
 	}
-	e, err = enabled.Poll(now.Add(DiscoverInterval))
+	e, err = tail.Poll(now.Add(DiscoverInterval))
 	if err != nil || len(e) != 2 || !e[0].Reset || e[1].Playback == nil {
 		t.Fatalf("rotation order: %v %v", e, err)
 	}

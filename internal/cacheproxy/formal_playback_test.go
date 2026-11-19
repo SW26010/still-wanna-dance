@@ -144,10 +144,18 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	if err := s.UpdatePrefetchQueue([]int64{2}, false); err != nil {
 		t.Fatal(err)
 	}
-	tail := vrclog.Tail{Dir: dir, Playback: true}
+	tail := vrclog.Tail{Dir: dir}
 	var timeline vrclog.PlayerTimeline
+	poll := func(at time.Time) {
+		t.Helper()
+		events, err := tail.Poll(at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.ObservePlaybackLog(&timeline, events, time.Now())
+	}
 	at := time.Now().Truncate(time.Second)
-	s.pollFormalPlayback(&tail, &timeline, at.Add(-vrclog.PollInterval))
+	poll(at.Add(-vrclog.PollInterval))
 	now := at.Format("2006.01.02 15:04:05")
 	lines := now + " Debug - [VideoQueueManager] [LogOtherPlayerAndDeviceType] isLocal = True, isOwner = False,\n" +
 		now + " Debug - [VideoQueueManager] [LogOtherPlayerAndDeviceType] isLocal = True, isOwner = True,\n" +
@@ -163,7 +171,7 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The poll starts just before the second stamped on the appended lines.
-	s.pollFormalPlayback(&tail, &timeline, at.Add(-time.Millisecond))
+	poll(at.Add(-time.Millisecond))
 	s.mu.Lock()
 	active := s.formal != nil && s.formal.song == "1" && s.playerRole == vrclog.Owner
 	queueStart := s.queueClockLocked(s.prefetchSources["2"], time.Now()).at
@@ -177,7 +185,7 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	if err := os.Truncate(file, 0); err != nil {
 		t.Fatal(err)
 	}
-	s.pollFormalPlayback(&tail, &timeline, at.Add(2*time.Second))
+	poll(at.Add(2 * time.Second))
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.formal != nil || s.playerRole != vrclog.UnknownRole {
@@ -271,12 +279,7 @@ func TestFormalRejectedStartRechecksVersionAtNextSync(t *testing.T) {
 	}
 }
 
-func TestFormalGatewayStopReleasesOnlyItsSource(t *testing.T) {
-	dir := t.TempDir()
-	logFile := filepath.Join(dir, "output_log_2026-11-18_00-00-00.txt")
-	if err := os.WriteFile(logFile, nil, 0600); err != nil {
-		t.Fatal(err)
-	}
+func TestClearPlaybackLogReleasesOnlyItsSource(t *testing.T) {
 	s, _ := setup(t, nil)
 	v := video{key: videoKey(payload), size: 3 * s.cfg.BlockSize}
 	formalCatalog(t, s, v)
@@ -285,8 +288,6 @@ func TestFormalGatewayStopReleasesOnlyItsSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer release()
-	stop := s.WatchFormalPlayback(dir)
-	defer stop()
 	now := time.Now()
 	s.applyPlaybackTimeline(vrclog.PlayerTimeline{Role: vrclog.Owner, Anchor: vrclog.PlaybackAnchor{SongID: 1, Started: now, At: now, Position: 10}}, true)
 	s.mu.Lock()
@@ -295,18 +296,12 @@ func TestFormalGatewayStopReleasesOnlyItsSource(t *testing.T) {
 	if !shared {
 		t.Fatal("expected a manual and a formal reference")
 	}
-	stop()
-	stamp := time.Now().Format("2006.01.02 15:04:05")
-	if err := os.WriteFile(logFile, []byte(stamp+" Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	restartStop := s.WatchFormalPlayback(dir)
-	defer restartStop()
+	s.ClearPlaybackLog()
 	s.mu.Lock()
 	clean := s.formal == nil && s.playerRole == vrclog.UnknownRole && s.useBlocks[useBlockID{v.key, 1}] == 1
 	s.mu.Unlock()
 	if !clean {
-		t.Fatal("gateway restart replayed stopped-period events or disturbed the manual source")
+		t.Fatal("playback cleanup left room state or disturbed the manual source")
 	}
 }
 
@@ -323,7 +318,7 @@ func TestFormalFollowerConfirmationBeforeSync(t *testing.T) {
 	timeline := vrclog.PlayerTimeline{Role: vrclog.Owner}
 	observe := func(e vrclog.PlaybackEvent) {
 		e.At = at
-		s.observePlaybackBatch(&timeline, []vrclog.Event{{Playback: &e}}, at)
+		s.ObservePlaybackLog(&timeline, []vrclog.Event{{Playback: &e}}, at)
 	}
 	r := httptest.NewRequest("GET", "/", nil)
 	r.Header.Set("Range", "bytes=0-")
@@ -366,20 +361,20 @@ func TestFormalSameSecondStopAndRestart(t *testing.T) {
 	start := vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "start", At: at, SongID: 1, Owner: &owner}}
 	stop := vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "stop", At: at, SongID: 1}}
 	var timeline vrclog.PlayerTimeline
-	s.observePlaybackBatch(&timeline, []vrclog.Event{start}, at)
+	s.ObservePlaybackLog(&timeline, []vrclog.Event{start}, at)
 	first := timeline.Anchor
 	body := strings.Repeat("b", int(a.size))
 	if err := s.Store.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, Node: "cf", URL: videoURL(body)}); err != nil {
 		t.Fatal(err)
 	}
-	s.observePlaybackBatch(&timeline, []vrclog.Event{start}, at)
+	s.ObservePlaybackLog(&timeline, []vrclog.Event{start}, at)
 	s.mu.Lock()
 	same := s.formal != nil && s.formal.key == a.key
 	s.mu.Unlock()
 	if !same {
 		t.Fatal("duplicate callback replaced the bound version")
 	}
-	s.observePlaybackBatch(&timeline, []vrclog.Event{stop, start}, at)
+	s.ObservePlaybackLog(&timeline, []vrclog.Event{stop, start}, at)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if timeline.Anchor != first || s.formal == nil || s.formal.key != videoKey(body) || s.useBlocks[useBlockID{a.key, 1}] != 0 {
@@ -465,22 +460,22 @@ func TestFormalSyncAtEndRechecksVersionOnCorrection(t *testing.T) {
 				return vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "sync", At: at, Position: position}}
 			}
 			route := vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "route", SongID: 1, At: at}}
-			s.observePlaybackBatch(&timeline, []vrclog.Event{route, syncTo(10)}, at)
+			s.ObservePlaybackLog(&timeline, []vrclog.Event{route, syncTo(10)}, at)
 			body := strings.Repeat("b", int(old.size))
 			if err := s.Store.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, Node: "cf", URL: videoURL(body)}); err != nil {
 				t.Fatal(err)
 			}
 			if samePoll {
-				s.observePlaybackBatch(&timeline, []vrclog.Event{syncTo(100.3), syncTo(0.16)}, at)
+				s.ObservePlaybackLog(&timeline, []vrclog.Event{syncTo(100.3), syncTo(0.16)}, at)
 			} else {
-				s.observePlaybackBatch(&timeline, []vrclog.Event{syncTo(100)}, at)
+				s.ObservePlaybackLog(&timeline, []vrclog.Event{syncTo(100)}, at)
 				s.mu.Lock()
 				ended := s.formal == nil && len(s.useBlocks) == 0
 				s.mu.Unlock()
 				if !ended {
 					t.Fatal("sync at the end retained playback")
 				}
-				s.observePlaybackBatch(&timeline, []vrclog.Event{syncTo(0.16)}, at)
+				s.ObservePlaybackLog(&timeline, []vrclog.Event{syncTo(0.16)}, at)
 			}
 			key := videoKey(body)
 			s.mu.Lock()

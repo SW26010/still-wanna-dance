@@ -25,22 +25,11 @@ var syncPosition = regexp.MustCompile(`Syncing video to ([0-9]+(?:\.[0-9]+)?)(?:
 var localRole = regexp.MustCompile(`isLocal = True, isOwner = (True|False),`)
 var ownerPlaying = regexp.MustCompile(`ownerPlaying = (True|False),`)
 
-// ParseWithPlayback adds observed WannaDance formal-player events to the
-// existing queue/lifecycle parser. Unknown worlds and previews are ignored.
-// This is opt-in: Parse and ordinary Tail users retain queue-only behavior.
+// ParseWithPlayback recognizes queue, room lifecycle and formal-player events.
+// Unknown worlds and previews are ignored.
 func ParseWithPlayback(line string) (Event, bool, error) {
 	if event, ok, err := Parse(line); ok || err != nil {
 		return event, ok, err
-	}
-	return parsePlayerFact(line)
-}
-
-func parsePlayer(line string) (Event, bool, error) {
-	if _, queue := queueSnapshotPayload(line); queue {
-		return Event{}, false, nil
-	}
-	if roomReset(line) {
-		return Event{Reset: true}, true, nil
 	}
 	return parsePlayerFact(line)
 }

@@ -1,7 +1,6 @@
 package cacheproxy
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -28,53 +27,17 @@ func (p *formalPlayback) remaining(now time.Time, size int64) useSpan {
 	return useSpan{p.key, int64(first), n}
 }
 
-// WatchFormalPlayback belongs to one running gateway. Its owner stops and
-// joins the reader before opening the next gateway on this shared engine.
-func (s *Server) WatchFormalPlayback(dir string) func() {
-	if dir == "" || !s.beginRequest() {
-		return func() {}
-	}
-	ctx, cancel := context.WithCancel(s.ctx)
-	done := make(chan struct{})
-	tail := vrclog.Tail{Dir: dir, Playback: true}
-	var timeline vrclog.PlayerTimeline
-	s.pollFormalPlayback(&tail, &timeline, time.Now())
-	go func() {
-		defer s.wg.Done()
-		defer close(done)
-		defer func() {
-			s.mu.Lock()
-			s.playerRole = vrclog.UnknownRole
-			s.clearFormalLocked(time.Now())
-			s.mu.Unlock()
-		}()
-		tick := time.NewTicker(vrclog.PollInterval)
-		defer tick.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-tick.C:
-				s.pollFormalPlayback(&tail, &timeline, time.Now())
-			}
-		}
-	}()
-	return func() {
-		cancel()
-		<-done
-	}
+// ClearPlaybackLog withdraws the gateway's room state when its consumer stops.
+func (s *Server) ClearPlaybackLog() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.playerRole = vrclog.UnknownRole
+	s.clearFormalLocked(time.Now())
 }
 
-func (s *Server) pollFormalPlayback(tail *vrclog.Tail, timeline *vrclog.PlayerTimeline, pollStart time.Time) {
-	events, err := tail.Poll(pollStart)
-	received := time.Now()
-	if err != nil {
-		s.cfg.Logger.Debug("正式播放日志读取失败", "error", err)
-	}
-	s.observePlaybackBatch(timeline, events, received)
-}
-
-func (s *Server) observePlaybackBatch(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {
+// ObservePlaybackLog applies the supplied events in file order. The caller owns
+// the timeline and serializes delivery and shutdown for this gateway run.
+func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {
 	for _, e := range events {
 		role, anchor := t.Role, t.Anchor
 		t.Observe(e, now)

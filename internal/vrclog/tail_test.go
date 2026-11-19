@@ -213,7 +213,7 @@ func TestTailPartialStartupAndMalformedLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	events, err := tail.Poll(now.Add(PollInterval))
-	if err != nil || len(events) != 2 || !events[0].Reset || len(events[1].Songs) != 1 {
+	if err != nil || len(events) != 2 || !events[0].QueueReset || len(events[1].Songs) != 1 {
 		t.Fatal(events, err)
 	}
 	f, err = os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0600)
@@ -226,7 +226,7 @@ func TestTailPartialStartupAndMalformedLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	events, err = tail.Poll(now.Add(2 * PollInterval))
-	if err != nil || len(events) != 1 || !events[0].Reset {
+	if err != nil || len(events) != 1 || !events[0].QueueReset {
 		t.Fatal("malformed snapshot must invalidate old queue", events, err)
 	}
 	if err = os.Rename(p, p+".old"); err != nil {

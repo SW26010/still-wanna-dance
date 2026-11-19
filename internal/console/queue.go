@@ -285,10 +285,10 @@ func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
 	done := q.done
 	q.mu.Unlock()
 	slog.Info("房间队列监控已开始", "event_name", "queue_started", "file", logName(tail.Path))
-	go q.runQueue(ctx, tail, engine, done)
+	go q.runRoomLog(ctx, tail, engine, done)
 }
 
-func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
+func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
 	defer close(done)
 	defer q.observeLogFault(nil)
 	wake := make(chan struct{}, 1)
@@ -296,6 +296,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 	go func() { defer close(workerDone); q.queueWorker(ctx, engine, wake) }()
 	defer func() {
 		<-workerDone
+		engine.ClearPlaybackLog()
 		// Clear the old queue before advertising it as stopped. The lifecycle
 		// waits for done before allowing a restart to replace this queue.
 		q.setQueueSongs(nil, true)
@@ -309,6 +310,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 	}()
 	ticker := time.NewTicker(vrclog.PollInterval)
 	defer ticker.Stop()
+	var timeline vrclog.PlayerTimeline
 	lastActivity := time.Now()
 	stale := false
 	lastReadError := ""
@@ -319,6 +321,7 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 		case now := <-ticker.C:
 			previousPath, previousOffset := tail.Path, tail.Offset
 			events, err := tail.Poll(now)
+			received := time.Now()
 			readError := ""
 			if err != nil {
 				readError = err.Error()
@@ -354,8 +357,8 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 			if now.Sub(lastActivity) >= 5*time.Minute && !stale {
 				updates = append(updates, vrclog.Event{Reset: true})
 			}
-			// Keep one update lock across the whole batch so the worker cannot
-			// admit an intermediate queue between successive log snapshots.
+			// Apply playback and queue events in file order before the worker
+			// can admit any preparation from this batch.
 			q.updateMu.Lock()
 			q.mu.Lock()
 			q.File = logName(tail.Path)
@@ -364,18 +367,30 @@ func (q *queueTask) runQueue(ctx context.Context, tail *vrclog.Tail, engine *cac
 				q.LogError = "日志读取失败：" + err.Error()
 			}
 			for i, e := range updates {
+				fromLog := i >= firstEvent && i < eventEnd
+				if e.Playback != nil {
+					q.mu.Unlock()
+					engine.ObservePlaybackLog(&timeline, updates[i:i+1], received)
+					q.mu.Lock()
+					continue
+				}
 				if i == eventEnd {
 					slog.Warn("VRChat 日志暂无新内容", "event_name", "vrchat_log_stale")
 					stale = true
 				}
-				q.setSongs(e.Songs, e.Reset)
+				reset := e.Reset || e.QueueReset
+				q.setSongs(e.Songs, reset)
 				updateSources := q.updateSources
 				q.mu.Unlock()
-				updateQueueSources(updateSources, e.Songs, e.Reset)
+				updateQueueSources(updateSources, e.Songs, reset)
+				// Freeze any departing queue head on the old room clock.
+				if fromLog && e.Reset {
+					engine.ObservePlaybackLog(&timeline, updates[i:i+1], received)
+				}
 				q.mu.Lock()
-				if i >= firstEvent && i < eventEnd {
+				if fromLog {
 					q.Updated = now
-					slog.Info("房间播放队列已更新", "event_name", "queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", e.Reset, "generation", q.generation)
+					slog.Info("房间播放队列已更新", "event_name", "queue_updated", "song_count", len(e.Songs), "song_ids", queueSongIDs(e.Songs), "reset", reset, "generation", q.generation)
 				}
 			}
 			q.mu.Unlock()

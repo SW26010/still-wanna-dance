@@ -37,7 +37,6 @@ func LatestPath(dir string) (string, error) {
 // Partial UTF-8 lines are retained until the next newline, with bounded memory.
 type Tail struct {
 	Dir         string
-	Playback    bool // Follow formal player facts instead of queue snapshots.
 	Path        string
 	Offset      int64
 	info        os.FileInfo
@@ -89,9 +88,6 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 	}
 	f, err := os.Open(t.Path)
 	if err != nil {
-		if !t.Playback {
-			events = append(events, Event{Reset: true})
-		}
 		return events, err
 	}
 	defer f.Close()
@@ -125,29 +121,20 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 		line := t.pending[:i]
 		t.pending = t.pending[i+1:]
 		if t.discard || len(line) > maxLine {
-			if !t.Playback {
-				events = append(events, Event{Reset: true})
-			}
+			events = append(events, Event{QueueReset: true})
 			t.discard = false
 			continue
 		}
-		parse := Parse
-		if t.Playback {
-			parse = parsePlayer
-		}
-		e, ok, parseErr := parse(string(line))
+		e, ok, parseErr := ParseWithPlayback(string(line))
 		if parseErr != nil {
-			events = append(events, Event{Reset: true})
-			continue
+			e, ok = Event{QueueReset: true}, true
 		}
 		if ok {
 			events = append(events, e)
 		}
 	}
 	if len(t.pending) > maxLine {
-		if !t.Playback {
-			events = append(events, Event{Reset: true})
-		}
+		events = append(events, Event{QueueReset: true})
 		t.pending = nil
 		t.discard = true
 	}

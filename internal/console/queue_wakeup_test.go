@@ -2,7 +2,11 @@ package console
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -78,16 +82,21 @@ func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 	t.Helper()
 	calls := new(atomic.Int32)
 	cfg := fixtureCacheConfig()
+	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
+		calls.Add(1)
+		return "", errors.New("fixture unavailable")
+	}
+	return newQueueTestEngine(t, cfg), calls
+}
+
+func newQueueTestEngine(t *testing.T, cfg cacheproxy.Config) *cacheproxy.Server {
+	t.Helper()
 	store, err := cacheproxy.CreateStore(filepath.Join(t.TempDir(), "library.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
 	cfg.Store, cfg.Work, cfg.VideoDir = store, testWorkDirectory(t), t.TempDir()
-	cfg.ResolvePlayback = func(context.Context, string) (string, error) {
-		calls.Add(1)
-		return "", errors.New("fixture unavailable")
-	}
 	engine, err := cacheproxy.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +106,7 @@ func failingQueueEngine(t *testing.T) (*cacheproxy.Server, *atomic.Int32) {
 			t.Error(err)
 		}
 	})
-	return engine, calls
+	return engine
 }
 
 // The worker has no log reader or external wake producer. Fake time exercises
@@ -158,6 +167,190 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		synctest.Wait()
 		if calls.Load() != before {
 			t.Fatal("stale queue kept retrying", calls.Load())
+		}
+	})
+}
+
+func TestRoomLogAppliesPlaybackAndQueueAndClearsBothOnStop(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		engine, _ := failingQueueEngine(t)
+		end := 100.0
+		const md5 = "00000000000000000000000000000001"
+		if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{
+			Revision: "20261119000000", Source: cacheproxy.UdonCatalogURL,
+			Songs: []cacheproxy.CatalogSong{{ID: 1, MD5: md5, End: &end}},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := engine.Store.ObserveSongURL(t.Context(), cacheproxy.PlaybackObservation{
+			SongID: 1, Node: "cf", URL: "http://play.udon.dance/files/1/1-video.mp4?e=" + md5 + "&s=1234",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		sub, err := engine.ObserveBlocks()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(sub.Close)
+		playbackEnd := func() int64 {
+			t.Helper()
+			synctest.Wait()
+			// Block observation batches notifications before publishing a snapshot.
+			time.Sleep(100 * time.Millisecond)
+			synctest.Wait()
+			view, _, closed := sub.Snapshot()
+			if closed || view == nil {
+				t.Fatal("missing engine snapshot")
+			}
+			for _, demand := range view.Demands {
+				if demand.Playback != nil {
+					return demand.Playback.EndAt
+				}
+			}
+			return 0
+		}
+		dir := t.TempDir()
+		path := filepath.Join(dir, "output_log_2026-11-19.txt")
+		if err := os.WriteFile(path, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		q := &queueTask{}
+		t.Cleanup(q.stop)
+		start := func() {
+			t.Helper()
+			tail := &vrclog.Tail{Dir: dir}
+			if _, err := tail.Poll(time.Now()); err != nil {
+				t.Fatal(err)
+			}
+			q.start(tail, engine)
+			synctest.Wait()
+		}
+		start()
+		at := time.Now().In(time.Local).Truncate(time.Second)
+		stamp := at.Format("2006.01.02 15:04:05")
+		lines := stamp + " Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n" +
+			"[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":42}]\n" +
+			stamp + " Debug - [USharpVideo (WannaDance)] Syncing video to 15.00, current time = 0\n"
+		if err := os.WriteFile(path, []byte(lines), 0600); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(vrclog.PollInterval)
+		want := at.Add(85 * time.Second).UnixMilli()
+		got := playbackEnd()
+		status := q.snapshot()
+		if got != want || len(status.Songs) != 1 || status.Songs[0].ID != 42 {
+			t.Fatal("one log batch did not deliver playback and queue state", got, want, status)
+		}
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.WriteString("[VideoQueueManager] OnPreSerialization: queue info serialized: broken\n")
+		f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(vrclog.PollInterval)
+		if got := playbackEnd(); got != want || len(q.snapshot().Songs) != 0 {
+			t.Fatal("malformed queue update did not clear only the queue", got, q.snapshot())
+		}
+		q.stop()
+		if got := playbackEnd(); got != 0 || q.snapshot().Running {
+			t.Fatal("stopping the reader retained playback or queue state", got, q.snapshot())
+		}
+		start()
+		time.Sleep(vrclog.PollInterval)
+		if got := playbackEnd(); got != 0 || len(q.snapshot().Songs) != 0 {
+			t.Fatal("restarting the reader replayed history", got, q.snapshot())
+		}
+	})
+}
+
+func TestRoomLogLeaveFreezesQueueHeadBeforeClearingPlayback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const body = "queue handoff fixture"
+		const playingKey = "00000000000000000000000000000001"
+		queueKey := fmt.Sprintf("%x", md5.Sum([]byte(body)))
+		cfg := fixtureCacheConfig()
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
+			return fmt.Sprintf("http://play.udon.dance/files/1/42-video.mp4?e=%s&s=%d", queueKey, len(body)), nil
+		}
+		cfg.ResourceTransports = func(string) []http.RoundTripper {
+			return []http.RoundTripper{catalogTransport(func(r *http.Request) (*http.Response, error) {
+				w := httptest.NewRecorder()
+				serveTestVideo(w, r, body)
+				return w.Result(), nil
+			})}
+		}
+		engine := newQueueTestEngine(t, cfg)
+		end := 300.0
+		if err := engine.Store.SyncCatalog(t.Context(), cacheproxy.Catalog{
+			Revision: "20261119000000", Source: cacheproxy.UdonCatalogURL,
+			Songs: []cacheproxy.CatalogSong{{ID: 1, MD5: playingKey, End: &end}, {ID: 42, MD5: queueKey}},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := engine.Store.ObserveSongURL(t.Context(), cacheproxy.PlaybackObservation{
+			SongID: 1, Node: "cf", URL: "http://play.udon.dance/files/1/1-video.mp4?e=" + playingKey + "&s=1234",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		sub, err := engine.ObserveBlocks()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(sub.Close)
+		dir := t.TempDir()
+		f, err := os.Create(filepath.Join(dir, "output_log_2026-11-19.txt"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		tail := &vrclog.Tail{Dir: dir}
+		if _, err := tail.Poll(time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		q := &queueTask{}
+		q.start(tail, engine)
+		t.Cleanup(q.stop)
+		synctest.Wait()
+		appendLog := func(lines string) *cacheproxy.BlockSnapshot {
+			t.Helper()
+			if _, err := f.WriteString(lines); err != nil {
+				t.Fatal(err)
+			}
+			time.Sleep(vrclog.PollInterval)
+			synctest.Wait()
+			time.Sleep(100 * time.Millisecond) // Allow the observer to publish the batch.
+			synctest.Wait()
+			view, _, closed := sub.Snapshot()
+			if view == nil || closed {
+				t.Fatal("missing block snapshot")
+			}
+			return view
+		}
+		at := time.Now().In(time.Local).Truncate(time.Second)
+		want := at.Add(5 * time.Minute).UnixMilli()
+		before := appendLog(at.Format("2006.01.02 15:04:05") + " Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n" +
+			"[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":42}]\n")
+		id := queueKey + "/0"
+		if detail, ok := before.Detail(id); !ok || len(detail.Sources) != 1 || detail.Sources[0].Kind != "queue" || detail.Sources[0].NeedBy != want {
+			t.Fatalf("queue head did not acquire the room clock: %+v", detail)
+		}
+		after := appendLog("[Behaviour] OnLeftRoom\n")
+		detail, ok := after.Detail(id)
+		if !ok || len(detail.Sources) != 1 || detail.Sources[0].Kind != "handoff" {
+			t.Fatalf("leaving the room did not hand off the queue head: %+v", detail)
+		}
+		handoff := detail.Sources[0]
+		status := q.snapshot()
+		if handoff.NeedBy != want || handoff.ExpiresAt != status.Updated.Add(2*time.Second).UnixMilli() {
+			t.Fatalf("handoff NeedBy=%d, want %d, expires=%d, left=%d", handoff.NeedBy, want, handoff.ExpiresAt, status.Updated.UnixMilli())
+		}
+		for _, demand := range after.Demands {
+			if demand.Playback != nil {
+				t.Fatal("leaving the room retained its playback clock")
+			}
 		}
 	})
 }

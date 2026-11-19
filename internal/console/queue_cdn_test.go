@@ -15,12 +15,12 @@ func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
 	if err := c.start(); err != nil {
 		t.Fatal(err)
 	}
-	if c.queue.snapshot().Running || c.queueDesired || c.httpServer == nil || c.stopFormalPlayback == nil {
-		t.Fatal("gateway playback did not start independently of the disabled queue")
+	if c.queue.snapshot().Running || c.queueDesired || c.httpServer == nil || queueDoneForTest(&c.queue) != nil {
+		t.Fatal("disabled setting started the room log reader or prevented the gateway from starting")
 	}
 	engine := c.service
 	c.failCDN(c.httpServer, errors.New("listener failed"))
-	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil || c.stopFormalPlayback != nil || c.service != engine {
+	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil || c.service != engine {
 		t.Fatal("failed gateway left work running")
 	}
 }
@@ -111,8 +111,8 @@ func TestQueueFollowsGatewayStopFailureAndActivationRollback(t *testing.T) {
 					c.failCDN(c.httpServer, errors.New("fixture listener failed"))
 				}
 			}
-			if c.httpServer != nil || c.stopFormalPlayback != nil || c.queue.snapshot().Running || c.queueDesired || len(c.queue.snapshot().Songs) != 0 || queueHasCancelForTest(&c.queue) {
-				t.Fatal("gateway left queue sources alive")
+			if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired || len(c.queue.snapshot().Songs) != 0 || queueHasCancelForTest(&c.queue) {
+				t.Fatal("gateway left room log work alive")
 			}
 			select {
 			case <-queueDoneForTest(&c.queue):

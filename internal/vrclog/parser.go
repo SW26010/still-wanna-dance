@@ -1,4 +1,4 @@
-// Package vrclog reads selected queue/lifecycle evidence and opt-in playback facts,
+// Package vrclog reads selected queue, lifecycle and playback facts,
 // never retaining player identities.
 package vrclog
 
@@ -13,9 +13,10 @@ type Song struct {
 }
 
 type Event struct {
-	Reset    bool
-	Songs    []Song
-	Playback *PlaybackEvent // Only populated by the opt-in playback parser.
+	Reset      bool
+	QueueReset bool // Invalid input clears the queue while retaining the playback timeline.
+	Songs      []Song
+	Playback   *PlaybackEvent
 }
 
 func roomReset(line string) bool {
@@ -29,9 +30,6 @@ func roomReset(line string) bool {
 
 // Parse accepts complete queue snapshots, not current-video userData or previews.
 func Parse(line string) (Event, bool, error) {
-	if roomReset(line) {
-		return Event{Reset: true}, true, nil
-	}
 	if raw, found := queueSnapshotPayload(line); found {
 		payload := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(raw), "</color>"))
 		if !strings.HasPrefix(payload, "[") {
@@ -52,6 +50,9 @@ func Parse(line string) (Event, bool, error) {
 			}
 		}
 		return Event{Songs: songs}, true, nil
+	}
+	if roomReset(line) {
+		return Event{Reset: true}, true, nil
 	}
 	return Event{}, false, nil
 }

@@ -8,7 +8,7 @@ async function setPageHidden(page: Page, hidden: boolean) {
 import { navigate } from './navigation';
 import type { BlockView, BlockEvent, BlockSource, BlockDemand } from '../src/block-timeline-model';
 import { applyBlockEvent } from '../src/block-timeline-model';
-import { timelineLayout, timelineRange } from '../src/block-timeline-canvas';
+import { timeScale, timelineLayout, timelineRange, untimedLayout } from '../src/block-timeline-canvas';
 const singleY = timelineLayout(false, true, false, 16).timedY + 8;
 const laneCenter = (row: number, size: number) => {
   const layout = timelineLayout(true, true, false, size);
@@ -42,6 +42,11 @@ async function setup(page: Page, count = 48) {
   const totalStreams = async () => Object.values(await streams()).reduce((sum, n) => sum + n, 0);
   await page.goto('/#/home');
   const panel = page.locator('#block-demands'), canvas = panel.locator('.timeline-canvas'), viewport = panel.locator('.block-timeline');
+  const axis = () => viewport.evaluate((el: HTMLElement) => ({
+    center: Number(el.dataset.center), span: Number(el.dataset.span),
+    width: el.querySelector('.timeline-canvas')!.clientWidth,
+  }));
+  const xAt = async (time: number) => timeScale(await axis())(time);
   const open = async () => { await panel.getByRole('button', { name: '展开时间轴视图' }).click(); await expect(panel.getByText('状态展示：更新中', { exact: true })).toBeVisible(); await expect(canvas).toBeVisible(); await canvas.scrollIntoViewIfNeeded(); await expect(canvas).toBeInViewport(); };
   const hidePanel = async () => {
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -49,7 +54,7 @@ async function setup(page: Page, count = 48) {
     await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.floor(top) - 1 });
     await expect(panel).not.toBeInViewport();
   };
-  return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, open, hidePanel };
+  return { ...api, at, blocks, emit, detail, streams, totalStreams, panel, canvas, viewport, axis, xAt, open, hidePanel };
 }
 
 test('block details use engine byte offsets for custom sizes and tails', async ({ page }) => {
@@ -302,13 +307,45 @@ test('demand rows hide handoffs and only suppress the same song at the queue hea
   await expect(headings).toHaveText([/正式播放/]);
 });
 
+test('an expired download keeps its original time on the timeline until the handoff ends', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const f = await setup(page, 0);
+  const deadline = f.at + 30000, expiresAt = deadline + 2000;
+  const missing = block(15, f.at, { deadline, totalBlocks: 20, state: 'downloading' });
+  const get = demand(1, [missing], { totalBlocks: 20 });
+  await f.emit({ reset: true, blocks: [missing], demands: [get], used: 1 });
+  await f.open();
+  await expect(f.panel.locator('.demand-row')).toHaveCount(1);
+
+  const handedOff = { ...missing, timeBasis: 'last-need-by' as const, needBy: 0, deadline: 0, eligible: false, state: 'waiting' as const };
+  const handoff = demand(2, [handedOff], { kind: 'handoff', totalBlocks: 20 });
+  await f.detail(handedOff, [{ id: 2, kind: 'handoff', songID: '42', title: missing.title, position: 0, needBy: f.at, expiresAt, windowClosed: true }]);
+  await f.emit({ at: deadline, blocks: [handedOff], demands: [handoff], removedDemands: [get.id] });
+  await expect(f.panel.locator('.demand-row')).toHaveCount(0);
+  await expect(f.canvas).toHaveAccessibleName(/块需求时间轴，1 个块/);
+  await f.canvas.click({ position: { x: await f.xAt(missing.at), y: singleY } });
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  const original = await page.evaluate(at => new Date(at).toLocaleString('zh-CN', { hour12: false }), f.at);
+  await expect(popup.locator('dt:text-is("原 need-by") + dd')).toHaveText(original);
+  await expect(popup).toContainText('短期交接期间沿用原 need-by 的位置');
+  await expect(f.panel.locator('.timeline-selection-status')).toContainText(`原 need-by ${original}`);
+
+  await f.emit({ at: expiresAt, removed: [missing.id], removedDemands: [handoff.id], used: 0 });
+  await expect(f.canvas).toBeHidden();
+  await expect(popup).toHaveCount(0);
+});
+
 test('formal playback embeds the room clock and shows the union of game reads and their handoffs', async ({ page }, info) => {
   const f = await setup(page, 6);
   await page.clock.install();
-  const blocks = f.blocks.map(b => ({ ...b, totalBlocks: 6, inUse: true, readers: b.block === 1 ? 1 : 0, state: 'waiting' as const }));
-  const formal = demand(1, [blocks[0], blocks[1], blocks[5]], {
-    kind: 'formal', totalBlocks: 6, playback: { zeroAt: f.at - 60000, endAt: f.at + 120000 },
-  });
+  const totalBytes = 55;
+  const blocks = f.blocks.map(b => ({
+    ...b, totalBlocks: 6, byteOffset: b.block * 10, bytes: b.block === 5 ? 5 : 10,
+    inUse: true, readers: b.block === 1 ? 1 : 0, state: b.block === 2 ? 'protected' as const : 'waiting' as const,
+  }));
+  const playback = { zeroAt: f.at - 60000, endAt: f.at + 120000 };
+  const formal = demand(1, [blocks[0], blocks[1], blocks[5]], { kind: 'formal', totalBlocks: 6, playback });
+  const local = { totalBytes, availableBytes: 10, availableRanges: [{ start: 20, end: 30 }] };
   const firstRead = demand(2, [blocks[1], blocks[3]], { totalBlocks: 6 });
   const secondRead = demand(3, [blocks[1]], { totalBlocks: 6 });
   const handoff = demand(4, [blocks[2]], { kind: 'handoff', gameSongID: '42', totalBlocks: 6 });
@@ -321,12 +358,25 @@ test('formal playback embeds the room clock and shows the union of game reads an
   await f.detail(blocks[1], [formal, firstRead, secondRead].map(d => ({
     id: d.sourceID, kind: d.kind, songID: d.songID, title: d.title, position: 0, needBy: f.at, expiresAt: 0, windowClosed: false,
   })));
-  await f.emit({ blocks, demands: [formal, firstRead, secondRead, handoff, preview, queue, manual, previewHandoff, otherSongHandoff, directRead], used: blocks.length });
+  await f.emit({ blocks, demands: [formal, firstRead, secondRead, handoff, preview, queue, manual, previewHandoff, otherSongHandoff, directRead], availability: { [formal.resource]: local }, used: blocks.length });
   const headings = f.panel.locator('.demand-row-heading');
   await expect(headings).toHaveText([/正式播放.*01:0\d \/ 03:00/, /读取 #5/, /读取 #10/, /队列 #1/, /手动下载/]);
   const row = f.panel.locator('.demand-row').first(), strip = row.locator('canvas');
   const progress = row.getByRole('progressbar', { name: /房间播放进度/ });
+  const availability = row.locator('.demand-video-heading .demand-progress');
+  const availableStops = () => progress.evaluate((el, bytes) => [...getComputedStyle(el).backgroundImage.matchAll(/([\d.]+)%/g)]
+    .map(([, percent]) => Math.round(Number(percent) * bytes / 100)), totalBytes);
   await expect(strip).toHaveAccessibleName(/游戏读取与交接 3 个块，视频共 6 块/);
+  await expect(f.panel.locator('.demand-video-heading .demand-progress')).toHaveText(Array(5).fill('18%'));
+  await expect(availability).toHaveAttribute('aria-label', /视频本地可用比例 18%/);
+  await expect(availability).toHaveAttribute('title', '整首视频中 10 / 55 字节本地可用');
+  await expect.poll(availableStops).toEqual([20, 20, 30, 30]);
+  await f.emit({
+    blocks: [{ ...blocks[3], state: 'available' }],
+    availability: { [formal.resource]: { ...local, availableBytes: 20, availableRanges: [{ start: 20, end: 40 }] } },
+  });
+  await expect(availability).toHaveText('36%');
+  await expect.poll(availableStops).toEqual([20, 20, 40, 40]);
   const heights = await f.panel.locator('.demand-row').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
   expect(new Set(heights).size).toBe(1);
   const titleBounds = (await row.locator('.demand-video-title').boundingBox())!;
@@ -337,7 +387,6 @@ test('formal playback embeds the room clock and shows the union of game reads an
   const before = Number(await progress.getAttribute('aria-valuenow'));
   await page.clock.runFor(2100);
   await expect.poll(async () => Number(await progress.getAttribute('aria-valuenow'))).toBeGreaterThan(before + 1000);
-  await f.panel.screenshot({ path: info.outputPath('formal-playback-and-demands.png') });
 
   await strip.focus(); await strip.press('Home');
   const popup = page.getByRole('group', { name: '块需求详情' });
@@ -349,12 +398,90 @@ test('formal playback embeds the room clock and shows the union of game reads an
   await strip.press('End'); await expect(popup).toContainText('块 4/6');
   await strip.press('Escape');
 
-  await f.emit({ removedDemands: [firstRead.id, secondRead.id, handoff.id], demands: [{ ...formal, blocks: [], playback: { zeroAt: f.at - 30000, endAt: f.at + 150000 } }] });
+  const availableRanges = [{ start: 20, end: 40 }, { start: 50, end: 55 }];
+  await f.emit({ availability: { [formal.resource]: { ...local, availableBytes: 25, availableRanges } } });
+  await expect.poll(availableStops).toEqual([20, 20, 40, 40, 50, 50, 55, 55]);
+  await expect(availability).toHaveText('45%');
+  await f.panel.screenshot({ path: info.outputPath('formal-playback-and-demands.png') });
+
+  const corrected = { zeroAt: f.at - 30000, endAt: f.at + 150000 };
+  await f.emit({ removedDemands: [firstRead.id, secondRead.id, handoff.id], demands: [{ ...formal, playback: corrected }] });
   await expect(strip).toHaveAccessibleName(/游戏读取与交接 0 个块/);
+  await expect(availability).toHaveText('45%');
+  await expect.poll(availableStops).toEqual([20, 20, 40, 40, 50, 50, 55, 55]);
   await expect(strip).toHaveAttribute('tabindex', '-1');
   await expect(progress).toHaveAttribute('aria-valuetext', /^00:3\d \/ 03:00$/);
+  await f.emit({ availability: { [formal.resource]: { totalBytes, availableBytes: totalBytes, availableRanges: [{ start: 0, end: totalBytes }] } } });
+  await expect.poll(availableStops).toEqual([0, 0, 55, 55]);
+  await expect(availability).toHaveText('100%');
+  await f.emit({ availability: { [formal.resource]: { totalBytes, availableBytes: 0 } } });
+  await expect(progress).toHaveCSS('background-image', 'none');
+  await expect(availability).toHaveText('0%');
+  await f.emit({ removedAvailability: [formal.resource] });
+  await expect(availability).toHaveCount(0);
   await f.emit({ removedDemands: [formal.id] });
   await expect(headings).toHaveText([/读取 #5/, /读取 #10/, /队列 #1/, /手动下载/]);
+});
+
+test('forced colors show the playback track before any blocks are ready', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  const f = await setup(page, 1);
+  await page.clock.install({ time: new Date(f.at) });
+  await page.clock.pauseAt(new Date(f.at + 5000));
+  const waiting = { ...f.blocks[0], state: 'waiting' as const };
+  const playback = { zeroAt: f.at, endAt: f.at + 60000 };
+  const totalBytes = waiting.bytes;
+  const formal = demand(1, [], { kind: 'formal', playback });
+  await f.emit({ blocks: [waiting], demands: [formal, demand(2, [waiting])], availability: { [formal.resource]: { totalBytes, availableBytes: 0 } } });
+
+  const progress = f.panel.getByRole('progressbar', { name: /房间播放进度/ });
+  const time = f.panel.getByText('00:00 / 01:00', { exact: true });
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  await expect(progress).toHaveCSS('background-image', 'none');
+  const track = await progress.evaluate(el => {
+    const { outlineColor, outlineStyle, outlineWidth } = getComputedStyle(el);
+    const rowBackground = getComputedStyle(el.closest('.demand-row')!).backgroundColor;
+    return { outlineStyle, outlineWidth, contrastsWithRow: outlineColor !== rowBackground };
+  });
+  expect(track).toEqual({ outlineStyle: 'solid', outlineWidth: '1px', contrastsWithRow: true });
+  await expect(time).toBeVisible();
+
+  await f.emit({
+    blocks: [{ ...waiting, state: 'available' }],
+    availability: { [formal.resource]: { totalBytes, availableBytes: totalBytes, availableRanges: [{ start: 0, end: totalBytes }] } },
+  });
+  await expect(progress).toHaveCSS('background-image', /linear-gradient/);
+  await expect(time).toBeVisible();
+});
+
+test('playback advances between seconds and only realigns for room clock corrections', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const f = await setup(page, 0);
+  await page.clock.install({ time: new Date(f.at) });
+  await page.clock.pauseAt(new Date(f.at + 5000));
+  const formal = demand(1, [], { kind: 'formal', playback: { zeroAt: f.at - 60500, endAt: f.at + 119500 } });
+  await f.emit({ demands: [formal] });
+
+  const progress = f.panel.getByRole('progressbar', { name: /房间播放进度/ });
+  const fill = progress.locator('.demand-playback-fill');
+  const width = () => fill.evaluate(el => el.getBoundingClientRect().width);
+  await expect(progress).toHaveAttribute('aria-valuetext', '01:00 / 03:00');
+  const initialWidth = await width();
+  await expect.poll(width).toBeGreaterThan(initialWidth);
+  await expect(progress).toHaveAttribute('aria-valuetext', '01:00 / 03:00');
+
+  const animation = await fill.evaluateHandle(el => el.getAnimations()[0]);
+  await f.emit({ at: f.at + 200, active: 2 });
+  await expect(f.panel.locator('.block-demand-capacity')).toContainText('下载 2 /');
+  expect(await fill.evaluate((el, current) => el.getAnimations()[0] === current, animation)).toBe(true);
+
+  await f.emit({ at: f.at + 200, demands: [{ ...formal, playback: { zeroAt: f.at - 30000, endAt: f.at + 150000 } }] });
+  await expect(progress).toHaveAttribute('aria-valuetext', '00:30 / 03:00');
+  await expect.poll(width).toBeLessThan(initialWidth * 0.6);
+  await animation.dispose();
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => fill.evaluate(el => el.getAnimations().length)).toBe(0);
 });
 
 test('playback progress holds its whole-second value across block events and applies clock corrections immediately', async ({ page }) => {
@@ -386,7 +513,7 @@ test('event deltas, overlap selection, source changes and untimed demands stay i
   await f.detail(first); await f.detail(second); await f.detail(untimed);
   await f.emit({ reset: true, blocks: [first, second, untimed], used: 3 }); await f.open();
   const rect = (await f.canvas.boundingBox())!;
-  await page.mouse.move(rect.x + rect.width / 2, rect.y + singleY);
+  await page.mouse.move(rect.x + await f.xAt(first.at), rect.y + singleY);
   const popup = page.getByRole('group', { name: '块需求详情' });
   await expect(popup).toContainText('重叠 2 块');
   await expect(popup).toContainText('块 101/?');
@@ -405,20 +532,28 @@ test('event deltas, overlap selection, source changes and untimed demands stay i
   await f.emit({ removed: [first.id, untimed.id], used: 0 }); await expect(f.canvas).toHaveAttribute('aria-label', /0 个块/);
 });
 
-test('zoom preserves follow or fixed center, dragging fixes the view and click pins details', async ({ page }, info) => {
+test('zoom preserves the follow cutoff or fixed center, dragging fixes the view and click pins details', async ({ page }, info) => {
   const f = await setup(page); await f.open();
   await f.panel.screenshot({ path: info.outputPath('timeline-overview.png') });
   await f.canvas.scrollIntoViewIfNeeded();
   await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
   const before = Number(await f.viewport.getAttribute('data-span')), rect = (await f.canvas.boundingBox())!;
   const center = () => f.viewport.getAttribute('data-center').then(Number);
-  const initialCenter = await center();
+  const expectCutoff = async (at: number) => {
+    const { center, span } = await f.axis();
+    expect(Math.abs(center - span / 2 - (at - 30000))).toBeLessThanOrEqual(1);
+  };
+  await expectCutoff(f.at);
+  expect(await f.xAt(f.at + 750000)).toBeLessThan(rect.width - 24);
   await page.mouse.move(rect.x + rect.width * .75, rect.y + 80); await page.mouse.wheel(0, -240);
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
   await expect.poll(async () => Number(await f.viewport.getAttribute('data-span'))).toBeLessThan(before);
-  expect(Math.abs(await center() - initialCenter)).toBeLessThanOrEqual(1000);
+  await expectCutoff(f.at);
   await f.panel.getByRole('button', { name: '放大时间轴' }).click();
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
+  await expectCutoff(f.at);
+  await f.canvas.press('+');
+  await expectCutoff(f.at);
   await f.canvas.click({ position: { x: rect.width / 2, y: 80 } });
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 80); await page.mouse.down(); await page.mouse.move(rect.x + rect.width / 2 + 100, rect.y + 80, { steps: 5 }); await page.mouse.up();
@@ -432,11 +567,24 @@ test('zoom preserves follow or fixed center, dragging fixes the view and click p
   await expect(f.viewport).toHaveAttribute('data-follow', 'false');
   expect(Math.abs(await center() - fixedCenter)).toBeLessThanOrEqual(1000);
   await f.panel.getByRole('button', { name: '回到现在' }).click();
-  const centerBlock = block(100, Date.now()); await f.detail(centerBlock); await f.emit({ at: Date.now(), reset: true, blocks: [centerBlock], used: 1 });
-  await f.canvas.click({ position: { x: rect.width / 2, y: singleY } });
-  await expect(page.getByRole('group', { name: '块需求详情' })).toContainText('块 101/?');
+  const current = Date.now(), currentBlock = block(100, current);
+  await f.detail(currentBlock); await f.emit({ at: current, reset: true, blocks: [currentBlock], used: 1 });
+  await expect(f.canvas).toHaveAccessibleName(/1 个块/);
+  await expectCutoff(current);
+  await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup).toContainText('块 101/?');
+  await expect(f.viewport).toHaveAttribute('data-follow', 'true');
+  await f.canvas.press('Escape');
+  await f.canvas.click({ position: { x: await f.xAt(current), y: singleY } });
+  await expect(popup).toContainText('块 101/?');
   await page.mouse.move(1, 1); await expect(page.getByRole('button', { name: '固定块详情' })).toHaveCount(0);
-  await expect(page.getByRole('group', { name: '块需求详情' })).toBeVisible();
+  await expect(popup).toBeVisible();
+  await f.canvas.press('Escape');
+  await f.canvas.dispatchEvent('wheel', { deltaY: -4000 });
+  await expect(f.viewport).toHaveAttribute('data-span', '31000');
+  await expectCutoff(current);
+  await expect(f.panel.getByRole('button', { name: '放大时间轴' })).toBeDisabled();
 });
 
 test('horizontal wheel pans without zooming or changing mode and releases its listener when paused', async ({ page }, info) => {
@@ -456,11 +604,12 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await expect.poll(center).toBeLessThan(shiftedCenter + 10000);
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
   await f.panel.getByRole('button', { name: '回到现在' }).click();
-  expect(Math.abs(await center() - f.at - 10000)).toBeLessThanOrEqual(1000);
+  const restoredCenter = f.at + 10000 - 30000 + Number(span) / 2;
+  expect(Math.abs(await center() - restoredCenter)).toBeLessThanOrEqual(1);
   // Shift+wheel uses the same horizontal gesture on mice without a tilt wheel.
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 80);
   await page.keyboard.down('Shift'); await page.mouse.wheel(0, 120); await page.keyboard.up('Shift');
-  await expect.poll(center).toBeGreaterThan(f.at + 10000);
+  await expect.poll(center).toBeGreaterThan(restoredCenter);
   await expect(f.viewport).toHaveAttribute('data-span', span!);
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
   await page.mouse.down(); await page.mouse.move(rect.x + rect.width / 2 + 80, rect.y + 80, { steps: 5 }); await page.mouse.up();
@@ -494,6 +643,8 @@ test('fixed squares, three state layers and demand memberships share selection a
     Object.assign(window, { blockStrokes: strokes });
     const paths = new WeakMap<CanvasRenderingContext2D, { x: number; width: number; height: number }>();
     const roundRect = CanvasRenderingContext2D.prototype.roundRect, stroke = CanvasRenderingContext2D.prototype.stroke, clear = CanvasRenderingContext2D.prototype.clearRect;
+    const beginPath = CanvasRenderingContext2D.prototype.beginPath;
+    CanvasRenderingContext2D.prototype.beginPath = function () { paths.delete(this); return beginPath.call(this); };
     CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) { paths.set(this, { x, width, height }); return roundRect.call(this, x, y, width, height, radii); };
     CanvasRenderingContext2D.prototype.clearRect = function (...args) { paths.delete(this); if (this.canvas.classList.contains('timeline-canvas')) strokes.length = 0; return clear.apply(this, args); };
     CanvasRenderingContext2D.prototype.stroke = function (...args: [] | [Path2D]) {
@@ -523,8 +674,7 @@ test('fixed squares, three state layers and demand memberships share selection a
   const popup = page.getByRole('group', { name: '块需求详情' });
   const rect = (await f.canvas.boundingBox())!;
   for (const [i, y] of [0, 1, 2].map(row => laneCenter(row, 16)).entries()) {
-    const range = timelineRange(rect.width, true);
-    await f.canvas.click({ position: { x: (range[0] + range[1]) / 2, y } });
+    await f.canvas.click({ position: { x: await f.xAt(f.at), y } });
     await expect(popup).toContainText(`块 ${i + 1}/`);
     await expect(popup).toContainText('星河 · 测试歌曲');
     await expect(popup).not.toContainText('重叠');
@@ -554,8 +704,9 @@ test('fixed squares, three state layers and demand memberships share selection a
   for (const b of untimed) await f.detail(b);
   await f.emit({ reset: true, blocks: untimed, demands: [demand(1, untimed, { kind: 'batch' })], used: 3 });
   await expect(f.canvas).toHaveAccessibleName(/3 个块，单层/);
+  const untimedRow = untimedLayout(rect.width, untimed.length, 16);
   for (let i = 0; i < untimed.length; i++) {
-    await f.canvas.click({ position: { x: timelineRange(rect.width, false)[0] + i * 22 + 8, y: timelineLayout(true, false, true, 16).untimedY + 8 } });
+    await f.canvas.click({ position: { x: untimedRow.start + i * untimedRow.pitch + 8, y: timelineLayout(true, false, true, 16).untimedY + 8 } });
     await expect(popup).toContainText(`块 ${i + 1}/`);
     await expect(popup).toContainText('无有限期限');
     await popup.getByRole('button', { name: '关闭块详情' }).click();
@@ -638,23 +789,30 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand l
   await expect.poll(f.totalStreams).toBe(1);
 });
 
-test('protection is translucent and sparse demands keep their positions within the full video', async ({ page }, info) => {
+test('protection-only blocks are muted and translucent, and sparse demands keep their positions', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await setup(page);
-  const protectedBlock = block(0, f.at - 150000, { state: 'protected', inUse: false, protected: true, sources: 0, needBy: 0, timeBasis: 'last-need-by', protectionUntil: f.at + 45000 });
+  const protectedBlock = block(0, f.at - 18000, { state: 'protected', inUse: false, protected: true, sources: 0, needBy: 0, timeBasis: 'last-need-by', protectionUntil: f.at + 45000 });
   const middle = block(9, f.at + 150000, { state: 'available' }), later = block(15, f.at + 300000, { state: 'waiting' });
   const first = demand(1, [middle, later], { totalBlocks: 20 }), second = demand(2, [later], { kind: 'queue', position: 2, totalBlocks: 20 });
   for (const b of [protectedBlock, middle, later]) await f.detail(b, b.inUse ? undefined : []);
   await f.emit({ reset: true, blocks: [protectedBlock, middle, later], demands: [first, second], used: 2, active: 0 });
   await f.open();
-  const pixels = await f.canvas.evaluate((c, y) => {
+  const pixels = await f.canvas.evaluate((c, { y, backgroundY, protectedX, availableX }) => {
     const canvas = c as HTMLCanvasElement, ctx = canvas.getContext('2d')!;
     const sample = (x: number, y: number) => [...ctx.getImageData(Math.round(x * devicePixelRatio), Math.round(y * devicePixelRatio), 1, 1).data];
-    const delta = (c.clientWidth - 48) * .15;
-    return { protected: sample(c.clientWidth / 2 - delta, y), background: sample(c.clientWidth / 2 - delta, y + 17), available: sample(c.clientWidth / 2 + delta, y) };
-  }, singleY);
-  for (let channel = 0; channel < 3; channel++) expect(Math.abs(pixels.protected[channel] - (.35 * pixels.available[channel] + .65 * pixels.background[channel]))).toBeLessThanOrEqual(2);
+    return { protected: sample(protectedX, y), background: sample(protectedX, backgroundY), available: sample(availableX, y) };
+  }, {
+    y: singleY, backgroundY: timelineLayout(false, true, false, 16).plotTop + 4,
+    protectedX: await f.xAt(protectedBlock.at), availableX: await f.xAt(middle.at),
+  });
+  const [red, green, blue] = pixels.available;
+  const gray = .2126 * red + .7152 * green + .0722 * blue;
+  for (let channel = 0; channel < 3; channel++) {
+    const muted = gray + (pixels.available[channel] - gray) * .3;
+    expect(Math.abs(pixels.protected[channel] - (.25 * muted + .75 * pixels.background[channel]))).toBeLessThanOrEqual(2);
+  }
   const strips = f.panel.locator('.demand-block-canvas'), popup = page.getByRole('group', { name: '块需求详情' });
   await expect(strips.first()).toHaveAccessibleName(/需要 2 个块，视频共 20 块/);
   const width = await strips.first().evaluate(c => c.clientWidth), x = (index: number) => 20 + index * (width - 40) / 19;
@@ -690,14 +848,13 @@ test('video colors survive hidden handoff and reconnect with full video numberin
   await f.emit({ reset: true, blocks: [first, second], demands: [queue], used: 2 }); await f.open();
   const row = f.panel.locator('.demand-row').first(), strip = row.locator('canvas');
   const border = await row.evaluate(el => getComputedStyle(el).borderLeftColor);
-  const sample = () => f.canvas.evaluate((c, y) => {
+  const sample = async () => f.canvas.evaluate((c, { x, y }) => {
     const canvas = c as HTMLCanvasElement, ctx = canvas.getContext('2d')!;
-    const x = c.clientWidth / 2 + (c.clientWidth - 48) * .12;
     const pixel = (at: number) => [...ctx.getImageData(Math.round(at * devicePixelRatio), y * devicePixelRatio, 1, 1).data];
     // The subpixel edge can straddle two columns as the clock advances.
     const edge = [7, 8, 9].map(offset => pixel(x + offset)).sort((a, b) => a[0] + a[1] + a[2] - b[0] - b[1] - b[2])[0];
     return { fill: pixel(x - 2), edge };
-  }, singleY);
+  }, { x: await f.xAt(first.at), y: singleY });
   const original = await sample();
   // The overlapping front square has a darker edge than its same-hue fill.
   expect(original.edge.slice(0, 3).every((value, i) => value <= original.fill[i])).toBe(true);
@@ -746,14 +903,12 @@ test('fitted demand blocks keep earlier positions on top in both views', async (
   await f.open();
   await expect(f.panel.locator('.demand-row-heading')).toHaveText([/读取 #4/, /手动下载/]);
   const popup = page.getByRole('group', { name: '块需求详情' });
-  const timelinePixels = () => f.canvas.evaluate((c, y) => {
+  const timelinePixels = async () => f.canvas.evaluate((c, { y, firstX, secondX }) => {
     const ctx = (c as HTMLCanvasElement).getContext('2d')!;
-    const firstX = c.clientWidth / 2 + (c.clientWidth - 48) * .12;
-    const secondX = c.clientWidth / 2 + (c.clientWidth - 48) * .128;
     const overlapX = (firstX + secondX) / 2;
     const at = (x: number) => [...ctx.getImageData(Math.round(x * devicePixelRatio), y * devicePixelRatio, 1, 1).data];
     return { early: at(firstX - 3), overlap: at(overlapX), late: at(secondX + 6), x: overlapX };
-  }, singleY);
+  }, { y: singleY, firstX: await f.xAt(first.at), secondX: await f.xAt(second.at) });
   const timeline = await timelinePixels();
   const scrollBeforeDetails=await page.evaluate(()=>scrollY);
   expect(timeline.overlap).toEqual(timeline.early); expect(timeline.overlap).not.toEqual(timeline.late);
@@ -811,8 +966,8 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
   const target = view === 'timeline' ? f.canvas : f.panel.locator('.demand-block-canvas');
   await target.scrollIntoViewIfNeeded();
   const rect = (await target.boundingBox())!;
-  const firstCenter = rect.width / 2 + (rect.width - 48) * .12;
-  const secondCenter = rect.width / 2 + (rect.width - 48) * .128;
+  const firstCenter = await f.xAt(first.at);
+  const secondCenter = await f.xAt(second.at);
   const pitch = (rect.width - 40) / 63;
   const firstOnly = view === 'timeline' ? firstCenter - 6 : 16;
   const secondOnly = view === 'timeline' ? secondCenter + 6 : 12 + pitch + 15;
@@ -875,6 +1030,8 @@ for (const theme of ['light', 'dark', 'contrast'] as const) test(`timeline is re
   await page.emulateMedia({ colorScheme: theme === 'dark' ? 'dark' : 'light', forcedColors: theme === 'contrast' ? 'active' : 'none', reducedMotion: 'reduce' });
   const f = await setup(page); await f.open();
   await f.emit({ demands: [demand(1, f.blocks.filter(b => b.inUse)), demand(2, f.blocks.filter(b => b.inUse), { kind: 'queue', position: 1 })] });
+  await f.panel.getByRole('switch', { name: '分层显示' }).check();
+  await expect(f.canvas).toHaveAccessibleName(/三层/);
   await expect(f.panel.locator('.timeline-help')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await f.panel.screenshot({ path: info.outputPath(`timeline-${theme}.png`) });
@@ -994,11 +1151,27 @@ test('formal playback redraws its canvas only when merged block membership chang
 test('fixed blocks fit timeline lanes and labels follow Fluent caption typography without overlapping', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  type AxisPaint = {
+    labels: { text: string; x: number; y: number; width: number; font: string; ink: { left: number; right: number; top: number; bottom: number } }[];
+    blocks: { y: number; height: number }[];
+    pills: { x: number; y: number; width: number; height: number; opacity: number }[];
+    dots: { y: number; radius: number }[];
+    outlines: { y: number; height: number; stroke: number }[];
+    bandStarts: number[];
+  };
   await page.addInitScript(() => {
-    const paint = { labels: [] as { text: string; x: number; y: number; width: number; font: string; ink: { left: number; right: number; top: number; bottom: number } }[], blocks: [] as { y: number; height: number }[], pills: [] as { x: number; y: number; width: number; height: number }[], dots: [] as { y: number; radius: number }[], outlines: [] as { y: number; height: number; stroke: number }[] };
+    const paint: AxisPaint = { labels: [], blocks: [], pills: [], dots: [], outlines: [], bandStarts: [] };
     Object.assign(window, { axisPaint: paint });
     const clear = CanvasRenderingContext2D.prototype.clearRect, text = CanvasRenderingContext2D.prototype.fillText, rounded = CanvasRenderingContext2D.prototype.roundRect, arc = CanvasRenderingContext2D.prototype.arc;
-    CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.classList.contains('timeline-canvas')) { paint.labels.length = 0; paint.blocks.length = 0; paint.pills.length = 0; paint.dots.length = 0; paint.outlines.length = 0; } return clear.apply(this, args); };
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+      if (this.canvas.classList.contains('timeline-canvas')) for (const entries of Object.values(paint)) entries.length = 0;
+      return clear.apply(this, args);
+    };
+    const fillRect = CanvasRenderingContext2D.prototype.fillRect;
+    CanvasRenderingContext2D.prototype.fillRect = function (x, y, width, height) {
+      if (y !== 0 && this.canvas.classList.contains('timeline-canvas')) paint.bandStarts.push(x);
+      return fillRect.call(this, x, y, width, height);
+    };
     CanvasRenderingContext2D.prototype.arc = function (x, y, radius, start, end, counterclockwise) {
       if (this.canvas.classList.contains('timeline-canvas')) paint.dots.push({ y, radius });
       return arc.call(this, x, y, radius, start, end, counterclockwise);
@@ -1014,11 +1187,14 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
       if (this.canvas.classList.contains('timeline-canvas')) {
         if (width === 16 && height === 16) paint.blocks.push({ y, height });
         if (width === height && width > 16) paint.outlines.push({ y, height, stroke: this.lineWidth });
-        if (width > height) paint.pills.push({ x, y, width, height });
+        if (width > height) paint.pills.push({ x, y, width, height, opacity: this.globalAlpha });
       }
       return rounded.call(this, x, y, width, height, radii);
     };
   });
+  const readPaint = () => page.evaluate(() => (window as unknown as { axisPaint: AxisPaint }).axisPaint);
+  const lanePills = (paint: AxisPaint) => paint.pills.filter(pill => pill.opacity < 1);
+  const readLaneLabels = (paint: AxisPaint) => paint.labels.filter(label => ['待下载', '下载中', '本地'].includes(label.text));
   const f = await setup(page, 0);
   // Use different Fluent body/caption fonts to catch hard-coded Canvas typography.
   await page.addStyleTag({ content: '.app-provider { --fontSizeBase300: 16px; --lineHeightBase300: 22px; --fontSizeBase200: 13px; --lineHeightBase200: 18px; --fontFamilyBase: Arial, sans-serif; }' });
@@ -1043,14 +1219,24 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
   expect(switchBounds!.y + switchBounds!.height).toBeGreaterThan(windowBounds!.y);
   for (const untimed of [false, true]) {
     await f.emit({ reset: true, blocks: untimed ? [...timed, ...timed.map((b, i) => ({ ...b, id: `untimed/${i}`, at: 0, needBy: 0, timeBasis: 'untimed' as const }))] : timed, used: untimed ? 6 : 3 });
+    if (untimed) await f.panel.getByRole('button', { name: '放大时间轴' }).click();
+    let singleBands: number[] = [];
     for (const layers of [false, true]) {
       await layered.setChecked(layers);
       await f.canvas.scrollIntoViewIfNeeded();
       if (layers) {
         await f.canvas.press('Home');
-        await expect.poll(() => page.evaluate(() => (window as unknown as { axisPaint: { outlines: { height: number }[] } }).axisPaint.outlines.some(outline => outline.height === 22))).toBe(true);
+        await expect.poll(async () => (await readPaint()).outlines.some(outline => outline.height === 22)).toBe(true);
       }
-      const paint = await page.evaluate(() => (window as unknown as { axisPaint: { labels: { text: string; x: number; y: number; width: number; font: string; ink: { left: number; right: number; top: number; bottom: number } }[]; blocks: { y: number; height: number }[]; pills: { x: number; y: number; width: number; height: number }[]; dots: { y: number; radius: number }[]; outlines: { y: number; height: number; stroke: number }[] } }).axisPaint);
+      const paint = await readPaint();
+      const plotStart = timelineRange(await f.canvas.evaluate(canvas => canvas.clientWidth))[0];
+      expect(paint.bandStarts[0]).toBeCloseTo(plotStart);
+      if (layers) {
+        for (const [index, start] of paint.bandStarts.entries()) expect(start).toBeCloseTo(singleBands[index]);
+      } else {
+        singleBands = paint.bandStarts;
+        expect(lanePills(paint)).toHaveLength(0);
+      }
       const height = await f.canvas.evaluate(c => c.clientHeight), now = paint.labels.find(label => label.text.startsWith('现在 '))!;
       expect(now).toBeTruthy(); expect(now.y).toBeLessThan(height - 6);
       const pill = paint.pills[0], gaps = { left: now.ink.left - pill.x, right: pill.x + pill.width - now.ink.right, top: now.ink.top - pill.y, bottom: pill.y + pill.height - now.ink.bottom };
@@ -1067,14 +1253,19 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
       expect(now.y).toBeGreaterThan(Math.max(...timedBlocks.map(b => b.y + b.height)));
       if (layers) {
         const laneBlocks = [...timedBlocks].sort((a, b) => a.y - b.y);
-        const laneLabels = paint.labels.filter(label => ['待下载', '下载中', '本地'].includes(label.text)).sort((a, b) => a.ink.top - b.ink.top);
+        const laneLabels = readLaneLabels(paint).sort((a, b) => a.ink.top - b.ink.top);
         const dots = paint.dots.filter(dot => dot.y < timelineLayout(true, true, false, 16).axis).sort((a, b) => a.y - b.y);
         expect(dots).toHaveLength(laneBlocks.length);
         expect(laneLabels).toHaveLength(3);
-        const plotStart = timelineRange(await f.canvas.evaluate(canvas => canvas.clientWidth), true)[0];
+        const overlays = lanePills(paint);
+        expect(overlays).toHaveLength(3);
         for (const [index, block] of laneBlocks.entries()) {
           const label = laneLabels[index];
-          expect(label.ink.right).toBeLessThan(plotStart - 12);
+          const overlay = overlays[index];
+          expect(overlay.x + overlay.width).toBeLessThan(paint.bandStarts[0]);
+          expect(overlay.x + overlay.width).toBeGreaterThan(label.ink.right);
+          expect(overlay.opacity).toBeGreaterThan(0);
+          expect(label.x).toBe(12);
           expect((label.ink.top + label.ink.bottom) / 2).toBeCloseTo(block.y + 8);
           if (index > 0) {
             const previous = laneBlocks[index - 1];
@@ -1105,6 +1296,32 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
       await f.panel.screenshot({ path: info.outputPath(`axis-${layers ? 'layered' : 'single'}-${untimed ? 'mixed' : 'timed'}.png`) });
     }
   }
+  await f.canvas.dispatchEvent('wheel', { deltaX: 20 });
+  await expect.poll(async () => (await readPaint()).bandStarts[0]).toBeCloseTo(40, 0);
+  const crossing = await readPaint();
+  expect(readLaneLabels(crossing).map(label => [label.text, label.x])).toEqual([['待下载', 12], ['下载中', 12], ['本地', 12]]);
+  expect(lanePills(crossing)).toHaveLength(3);
+  for (const pill of lanePills(crossing)) expect(pill.x + pill.width).toBeLessThan(crossing.bandStarts[0]);
+
+  await f.canvas.dispatchEvent('wheel', { deltaX: 35 });
+  await expect.poll(async () => lanePills(await readPaint())).toHaveLength(0);
+  expect(readLaneLabels(await readPaint()).map(label => [label.text, label.x])).toEqual([['待下载', 12], ['下载中', 12], ['本地', 12]]);
+  await f.panel.getByRole('button', { name: '回到现在' }).click();
+  await expect.poll(async () => lanePills(await readPaint())).toHaveLength(3);
+
+  await layered.uncheck();
+  const older = block(9, f.at - 45000, { state: 'available' });
+  await f.detail(older);
+  await f.emit({ reset: true, blocks: [older, ...timed], used: 4 });
+  await expect(f.canvas).toHaveAccessibleName(/4 个块/);
+  const olderX = await f.xAt(older.at);
+  expect(olderX).toBeLessThan((await readPaint()).bandStarts[0]);
+  await f.canvas.click({ position: { x: olderX, y: singleY } });
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  await expect(popup).toContainText('块 10/');
+  await f.canvas.press('Escape'); await f.canvas.press('Home');
+  await expect(popup).toContainText('块 10/');
+  await expect(f.viewport).toHaveAttribute('data-follow', 'true');
 });
 
 test('empty and untimed-only states stay compact and restore timed controls with focus intact', async ({ page }, info) => {

@@ -6,9 +6,9 @@ import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { Feedback, StatusBadge, useThemePreference } from './ui';
 import { useApp, useFocusRecovery, useRunToggle } from './hooks';
-import { absoluteTime, blockNumber, blockStateNames, needByAt, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
+import { absoluteTime, blockNeedByDisplay, blockNumber, blockStateNames, needByAt, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
-import { blockY, drawTimeline, hitBlocks, indexTimed, timedBetween, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
+import { blockY, drawTimeline, hitBlocks, indexTimed, timedBetween, timeScale, timelineClipRange, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
 import { gib } from './types';
 
@@ -16,6 +16,14 @@ type View = { follow: boolean; center: number; span: number; offset: number };
 type Selection = { ids: string[]; index: number; x: number; y: number; pinned: boolean };
 const minimumSpan = 1000, maximumSpan = 7 * 86400000;
 const blockSize = 16; // CSS px, chosen to match the current card title's font size.
+
+function minimumViewSpan(follow: boolean, grace: number) { return minimumSpan + (follow ? grace : 0); }
+
+function viewAt(view: View, now: number, grace: number): View {
+  if (!view.follow) return view;
+  const span = Math.max(view.span, minimumViewSpan(true, grace));
+  return { ...view, span, center: now - grace + view.offset + span / 2 };
+}
 
 export function BlockTimeline({ visible }: { visible: boolean }) {
   const app = useApp(), documentVisible = useDocumentVisible();
@@ -51,11 +59,17 @@ export function BlockTimeline({ visible }: { visible: boolean }) {
 function readPalette(element: HTMLElement): TimelinePalette {
   const css = getComputedStyle(element);
   const color = (name: string) => css.getPropertyValue('--timeline-' + name).trim();
-  const videos = Array.from({ length: 8 }, (_, i) => color('video-' + i));
-  const videoEdges = videos.map(value => /^#[\da-f]{6}$/i.test(value)
-    ? '#' + value.slice(1).match(/../g)!.map(channel => Math.round(parseInt(channel, 16) * .78).toString(16).padStart(2, '0')).join('')
-    : value); // System colors retain their contrast in forced-colors mode.
-  return { background: color('background'), foreground: color('foreground'), muted: color('muted'), grid: color('grid'), blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'), selected: color('selected'), onAccent: color('on-accent'), videos, videoEdges };
+  const rgb = (channels: number[], brightness: number) => `rgb(${channels.map(channel => Math.round(channel * brightness)).join(', ')})`;
+  const videos = Array.from({ length: 8 }, (_, i) => {
+    const fill = color('video-' + i);
+    // System colors retain their contrast in forced-colors mode.
+    if (!/^#[\da-f]{6}$/i.test(fill)) return { fill, edge: fill, protectedFill: fill, protectedEdge: fill };
+    const channels = fill.slice(1).match(/../g)!.map(channel => parseInt(channel, 16));
+    const gray = .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+    const muted = channels.map(channel => gray + (channel - gray) * .3);
+    return { fill, edge: rgb(channels, .78), protectedFill: rgb(muted, 1), protectedEdge: rgb(muted, .78) };
+  });
+  return { background: color('background'), foreground: color('foreground'), muted: color('muted'), grid: color('grid'), blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'), selected: color('selected'), onAccent: color('on-accent'), videos };
 }
 
 const TimelineViewport = memo(function TimelineViewport({ data, active, expanded }: { data: TimelineData; active: boolean; expanded: boolean }) {
@@ -105,7 +119,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   };
   const selectedID = selection?.ids[selection.index];
   const selectedBlock = selectedID ? data.blocks.get(selectedID) : undefined;
-  const selectedNeedBy = selectedBlock && needByAt(selectedBlock, reducedMotion ? paintTime : data.at + (active ? performance.now() - data.receivedAt : 0));
+  const selectedNeedBy = selectedBlock && blockNeedByDisplay(selectedBlock, reducedMotion ? paintTime : data.at + (active ? performance.now() - data.receivedAt : 0));
   useEffect(() => {
     // Folding the axis clears only selections made on that hidden canvas.
     if (!expanded && selectionTarget.current === canvas.current) closeSelection();
@@ -161,7 +175,8 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
         element.width = Math.round(c.width * dpr); element.height = Math.round(height * dpr);
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const currentFrame: TimelineFrame = { data: c.data, timed: c.timed, untimed: c.untimed, center: c.view.follow ? currentTime + c.view.offset : c.view.center, now: currentTime, span: c.view.span, width: c.width, untimedOffset: c.untimedOffset, selected: c.selection?.ids[c.selection.index], palette: c.palette!, blockSize: c.blockSize, layers: c.layers };
+      const { center, span } = viewAt(c.view, currentTime, c.data.downloadGraceMS);
+      const currentFrame: TimelineFrame = { data: c.data, timed: c.timed, untimed: c.untimed, center, now: currentTime, span, width: c.width, untimedOffset: c.untimedOffset, selected: c.selection?.ids[c.selection.index], palette: c.palette!, blockSize: c.blockSize, layers: c.layers };
       frame.current = currentFrame;
       drawTimeline(ctx, currentFrame);
     };
@@ -175,7 +190,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   useEffect(() => {
     if (!active || !expanded) return;
     const element = canvas.current!, target = select(element);
-    const range = timelineRange(width, layers), plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
+    const range = timelineRange(width), plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
     const base = scaleLinear().domain([-defaultSpan / 2, defaultSpan / 2]).range(range);
     let anchor = now(), quiet = true;
     let untimedDrag: { offset: number; transform: ReturnType<typeof zoomTransform> } | undefined;
@@ -190,7 +205,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
         if (quiet) return;
         const c = latest.current, pointer = event.sourceEvent?.touches?.[0] || event.sourceEvent;
         if (pointer && overUntimed(pointer.clientY)) untimedDrag = { offset: c.untimedOffset, transform: zoomTransform(element) };
-        else anchor = (c.view.follow ? now() + c.view.offset : c.view.center) - centerOffset(zoomTransform(element));
+        else anchor = viewAt(c.view, now(), c.data.downloadGraceMS).center - centerOffset(zoomTransform(element));
         interacting.current = true; clearHoverTimers();
         if (!latest.current.selection?.pinned) setSelection(undefined);
       })
@@ -212,7 +227,8 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
         }
         interacting.current = false;
       });
-    const synchronize = (next: View) => {
+    const synchronize = (requested: View) => {
+      const next = viewAt(requested, now(), latest.current.data.downloadGraceMS);
       quiet = true; anchor = next.center;
       const k = defaultSpan / next.span;
       target.call(behavior.transform, zoomIdentity.translate(plotCenter * (1 - k), 0).scale(k));
@@ -220,10 +236,10 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     };
     const zoomBy = (factor: number) => {
       const current = latest.current.view;
-      synchronize({ ...current, center: current.follow ? now() + current.offset : current.center, span: Math.max(minimumSpan, Math.min(maximumSpan, current.span / factor)) });
+      synchronize({ ...current, span: Math.max(minimumSpan, Math.min(maximumSpan, current.span / factor)) });
     };
     target.call(behavior); target.on('dblclick.zoom', null).on('wheel.zoom', null);
-    // Wheel gestures preserve the view mode and scale around its center.
+    // Zoom keeps the follow window's left anchor or the fixed window's center.
     // Horizontal scrolling in follow mode moves the offset, not the clock.
     target.on('wheel.timeline', (event: WheelEvent) => {
       if (event.ctrlKey || !(event.deltaX || event.deltaY)) return;
@@ -232,28 +248,27 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       event.preventDefault(); clearHoverTimers();
       if (!latest.current.selection?.pinned) setSelection(undefined);
       if (horizontal) {
-        const current = c.view, inUntimed = overUntimed(event.clientY);
-        const scrollRange = inUntimed ? timelineRange(c.width, false) : range, scrollWidth = scrollRange[1] - scrollRange[0];
+        const current = c.view, untimed = overUntimed(event.clientY) ? untimedLayout(c.width, c.untimed.length, c.blockSize) : undefined;
+        const scrollWidth = untimed ? untimed.end - untimed.start : plotWidth;
         const pixels = (event.deltaX || event.deltaY) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scrollWidth : 1);
-        if (inUntimed) {
-          const { maxOffset } = untimedLayout(c.width, c.untimed.length, c.blockSize);
-          setUntimedOffset(value => Math.max(0, Math.min(maxOffset, value + pixels)));
+        if (untimed) {
+          setUntimedOffset(value => Math.max(0, Math.min(untimed.maxOffset, value + pixels)));
           return;
         }
         const shift = pixels * current.span / plotWidth;
-        synchronize({ ...current, center: (current.follow ? now() + current.offset : current.center) + shift, offset: current.follow ? current.offset + shift : 0 });
+        synchronize({ ...current, center: current.center + shift, offset: current.follow ? current.offset + shift : 0 });
       } else {
         zoomBy(2 ** behavior.wheelDelta().call(element, event, 0, [element]));
       }
     }, { passive: false });
-    synchronize({ ...latest.current.view, center: latest.current.view.follow ? now() + latest.current.view.offset : latest.current.view.center });
+    synchronize(latest.current.view);
     controls.current = {
       zoom: zoomBy,
-      home: () => synchronize({ follow: true, center: now(), span: latest.current.view.span, offset: 0 }),
+      home: () => synchronize({ ...latest.current.view, follow: true, offset: 0 }),
       pan: center => synchronize({ ...latest.current.view, follow: false, center, offset: 0 }),
     };
     return () => { target.on('.zoom', null).on('.timeline', null); interacting.current = false; controls.current = { zoom: () => {}, home: () => {}, pan: () => {} }; };
-  }, [active, expanded, width, defaultSpan, layers]);
+  }, [active, expanded, width, defaultSpan, data.downloadGraceMS]);
 
   const showBlocks = (blocks: BlockView[], x: number, y: number, pinned: boolean) => {
     if (!blocks.length) { if (!selection?.pinned) closeSelection(); return; }
@@ -294,12 +309,18 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     const index = blocks.findIndex(b => b.id === selectedID);
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? blocks.length - 1 : Math.max(0, Math.min(blocks.length - 1, index + (event.key === 'ArrowLeft' ? -1 : event.key === 'Enter' ? 0 : 1)));
     const block = blocks[next];
-    const range = timelineRange(width, !!block.at && layers), plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
+    const range = block.at ? timelineRange(width) : [untimedBounds.start, untimedBounds.end];
+    const plotWidth = range[1] - range[0], plotCenter = (range[0] + range[1]) / 2;
     let anchorX = plotCenter;
     if (block.at) {
       const visibleFrame = frame.current;
       const at = block.timeBasis === 'need-by' ? needByAt(block, currentTime) : block.at;
-      if (!visibleFrame || Math.abs(at - visibleFrame.center) > view.span * .4) controls.current.pan(at);
+      const blockX = visibleFrame && timeScale(visibleFrame)(at);
+      const [left, right] = timelineClipRange(width);
+      const visible = view.follow ? blockX !== undefined && blockX >= left && blockX <= right
+        : visibleFrame && Math.abs(at - visibleFrame.center) <= visibleFrame.span * .4;
+      if (visible && blockX !== undefined) anchorX = blockX;
+      else controls.current.pan(at);
     } else {
       const center = untimed.findIndex(b => b.id === block.id) * untimedBounds.pitch + blockSize / 2;
       const offset = Math.max(0, Math.min(untimedBounds.maxOffset, center - plotWidth / 2));
@@ -321,19 +342,20 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   }, [data.blocks]);
 
   const empty = !data.blocks.size && !data.demands.size;
-  return <div {...focus} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(view.span)} data-center={Math.round(view.follow ? data.at + view.offset : view.center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
+  const { center, span } = viewAt(view, data.at, data.downloadGraceMS);
+  return <div {...focus} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(span)} data-center={Math.round(center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
     <div className="block-demand-controls" hidden={!expanded || !data.blocks.size}><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
     </div>
     <div id="block-timeline-content" hidden={!expanded}>
     <div className="timeline-toolbar" hidden={!timed.length}><div className="timeline-window-keys"><Text weight="semibold" size={300}>时间轴视图</Text><span className="timeline-window-key grace">需求截止</span><span className="timeline-window-key ahead">提前准备 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
       <Switch size="small" label={{ children: '分层显示', size: 'small' }} checked={layers} onChange={(_, value) => setLayers(value.checked)} />
-      <Button size="small" icon={<Subtract16Regular />} aria-label="缩小时间轴" disabled={!active || view.span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
-      <Button size="small" icon={<Add16Regular />} aria-label="放大时间轴" disabled={!active || view.span <= minimumSpan} onClick={() => controls.current.zoom(1.5)} />
+      <Button size="small" icon={<Subtract16Regular />} aria-label="缩小时间轴" disabled={!active || span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
+      <Button size="small" icon={<Add16Regular />} aria-label="放大时间轴" disabled={!active || span <= minimumViewSpan(view.follow, data.downloadGraceMS)} onClick={() => controls.current.zoom(1.5)} />
       <Button size="small" icon={<ArrowSync16Regular />} appearance={view.follow && !view.offset ? 'subtle' : 'primary'} disabled={!active} onClick={() => controls.current.home()}>{view.follow && !view.offset ? '跟随现在' : '回到现在'}</Button>
     </div></div>
     <canvas ref={canvas} hidden={!data.blocks.size} className="timeline-canvas" style={{ height: timelineLayout(layers, !!timed.length, !!untimed.length, blockSize).height }} tabIndex={0} role="group" aria-label={`块需求${timed.length ? '时间轴' : '列表'}，${data.blocks.size} 个块，${timed.length && layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，${timed.length ? '加减号缩放，' : ''}Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
     </div>
-    {palette && <BlockDemandView showHeading={expanded && !empty} data={data} size={blockSize} palette={palette} active={active} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {
+    {palette && <BlockDemandView showHeading={expanded && !empty} data={data} size={blockSize} palette={palette} active={active} reducedMotion={reducedMotion} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {
       demandHover.current = { ids: blocks.map(b => b.id), target };
       if (!active || selection?.pinned && !pinned) return;
       clearHoverTimers();
@@ -342,7 +364,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       if (pinned) { showBlocks(blocks, x, y, true); return; }
       hoverBlocks(blocks, x, y);
     }} />}
-    <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，need-by ${selectedNeedBy ? absoluteTime(selectedNeedBy) : '无期限'}。`}</span>
+    <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && selectedNeedBy && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，${selectedNeedBy.label} ${selectedNeedBy.time ? absoluteTime(selectedNeedBy.time) : '无期限'}。`}</span>
     <Popover open={!!selectedBlock && active} onOpenChange={(event, value) => {
       // A pinned selection survives toolbar clicks. Escape
       // and the close button still dismiss it explicitly.
@@ -375,12 +397,12 @@ function BlockProperties({ id, block, active, clock, paintTime }: { id: string; 
   }, [tick]);
   if (!b) return <p>这个块已退出当前视图。</p>;
   const now = paintTime ?? (clock.at + Math.max(0, sample - clock.receivedAt));
-  const needBy = needByAt(b, now);
+  const needBy = blockNeedByDisplay(b, now);
   return <div className="timeline-properties">
     <p className="timeline-block-title"><span className={!b.title&&!b.songID?'resource-id':undefined}>{videoLabel(b)}</span> <Badge appearance="tint" color={b.state === 'available' ? 'success' : 'informative'}>{blockStateNames[b.state]}</Badge></p>
     <dl className="timeline-properties-grid">
       <dt>视频内编号</dt><dd>{blockNumber(b)}{b.totalBlocks <= 0 && '（总数未知）'}{b.songID && ` · 歌曲 ${b.songID}`}</dd>
-      <dt>need-by</dt><dd>{needBy ? absoluteTime(needBy) : '无有限期限'}</dd>
+      <dt>{needBy.label}</dt><dd>{needBy.time ? absoluteTime(needBy.time) : '无有限期限'}</dd>
       <dt>需求截止</dt><dd>{absoluteTime(b.deadline)}</dd>
       <dt>下载资格</dt><dd>{!b.inUse ? '使用需求已结束' : b.readers ? '读取急需' : b.windowClosed ? '来源尚未开放窗口' : b.eligible ? '可参与调度' : '等待窗口或有效需求'}</dd>
       <dt>读取等待</dt><dd>{b.readers ? `${b.readers} 个读取者` : '无'}</dd>
@@ -388,7 +410,7 @@ function BlockProperties({ id, block, active, clock, paintTime }: { id: string; 
       <dt>字节范围</dt><dd>{b.byteOffset.toLocaleString()} – {b.bytes ? (b.byteOffset + b.bytes - 1).toLocaleString() : '末端待定'}</dd>
     </dl>
     {b.timeBasis === 'ended' && <Caption1 as="p">按需求结束时间定位；此前的 need-by 未记录。</Caption1>}
-    {b.timeBasis === 'last-need-by' && <Caption1 as="p">沿用最后一次 need-by 的位置；当前已无需求。</Caption1>}
+    {b.timeBasis === 'last-need-by' && <Caption1 as="p">{b.inUse ? '短期交接期间沿用原 need-by 的位置。' : '沿用最后一次 need-by 的位置；当前已无需求。'}</Caption1>}
     {b.opportunistic && b.inUse && <Caption1 as="p">同时允许机会下载。</Caption1>}
     <Text weight="semibold" className="timeline-source-heading">需求来源 · {b.sources}</Text>
     {error ? <Feedback error>来源连接中断，正在重连。</Feedback> : detail === undefined ? <Spinner size="tiny" label="读取来源" /> : detail === null ? <p>需求已结束。</p> : detail.sources.length ? <ul className="timeline-sources">{detail.sources.map(source => <li key={source.id}><strong>{sourceName(source)}</strong>{(source.title || source.songID) && <span>{source.title || `歌曲 ${source.songID}`}</span>}<span>need-by：{source.needBy ? absoluteTime(needByAt(source, now)) : '无期限'}{source.windowClosed ? ' · 尚未入窗' : ''}</span>{source.expiresAt > 0 && <span>交接截止：{absoluteTime(source.expiresAt)}</span>}</li>)}</ul> : <p className="hint">已无使用需求，本地数据仍在延续保护期。</p>}

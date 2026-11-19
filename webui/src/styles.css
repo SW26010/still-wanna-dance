@@ -159,9 +159,9 @@ form.actions { align-items: flex-end; }
 .demand-source, .demand-row-heading > :last-child { white-space: nowrap; color: var(--timeline-muted); }
 .demand-block-strip { min-width: 0; }
 .demand-progress { flex-shrink: 0; color: var(--timeline-muted); font-variant-numeric: tabular-nums; }
-.demand-playback-track { position: absolute; inset: auto var(--spacingHorizontalM) 1px; }
+.demand-playback-track { --demand-playback-cached: var(--colorNeutralForeground4); position: absolute; inset: auto var(--spacingHorizontalM) 1px; }
 .demand-playback-track > [role="progressbar"] { overflow: visible; }
-.demand-playback-fill { position: relative; }
+.demand-playback-track .demand-playback-fill { position: relative; transition: none; }
 .demand-playback-fill::after {
   content: "";
   position: absolute;
@@ -173,8 +173,16 @@ form.actions { align-items: flex-end; }
   border-radius: var(--borderRadiusCircular);
   background-color: var(--colorPaletteLightGreenBorderActive);
 }
-@media (forced-colors: active) { .demand-playback-fill::after { background-color: CanvasText; } }
-@media (prefers-reduced-motion: reduce) { .demand-playback-track .demand-playback-fill { transition: none; } }
+@media (forced-colors: active) {
+  .demand-playback-track { --demand-playback-cached: GrayText; }
+  .demand-playback-track > [role="progressbar"] {
+    forced-color-adjust: none;
+    background-color: Canvas;
+    outline: 1px solid CanvasText;
+  }
+  .demand-playback-track .demand-playback-fill { background-color: Highlight; }
+  .demand-playback-fill::after { background-color: CanvasText; }
+}
 .demand-block-canvas { display: block; cursor: crosshair; transition-property: none; }
 .demand-block-canvas:focus-visible { outline: 2px solid var(--timeline-selected); outline-offset: -2px; border-radius: 4px; }
 .demand-empty { color: var(--timeline-muted); font-size: var(--fontSizeBase200); margin: var(--spacingVerticalS) 0; }

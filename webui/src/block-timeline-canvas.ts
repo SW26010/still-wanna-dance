@@ -2,6 +2,7 @@ import { scaleUtc } from 'd3-scale';
 import { blockNumber, rollingNeedBy, timeLabel, type BlockView, type TimelineData } from './block-timeline-model';
 
 const laneNames = ['待下载', '下载中', '本地'];
+const canvasInset = 12;
 const readerDotOffset = 9, readerDotRadius = 2.5;
 const selectionPadding = 3, selectionStroke = 2;
 const selectionOutset = selectionPadding + selectionStroke / 2;
@@ -22,8 +23,7 @@ export interface TimelinePalette {
   background: string; foreground: string; muted: string; grid: string;
   blue: string; blueWash: string; green: string; amber: string; amberWash: string;
   selected: string; onAccent: string;
-  videos: string[];
-  videoEdges: string[];
+  videos: { fill: string; edge: string; protectedFill: string; protectedEdge: string }[];
 }
 export interface TimelineFrame {
   data: TimelineData; timed: TimedBlocks; untimed: BlockView[];
@@ -31,17 +31,20 @@ export interface TimelineFrame {
   selected?: string; palette: TimelinePalette;
   blockSize: number; layers: boolean;
 }
-export function timelineRange(width: number, layers: boolean): [number, number] {
-  return [layers ? 120 : 24, width - 24];
+export function timelineRange(width: number): [number, number] {
+  return [60, width - 2 * canvasInset];
+}
+export function timelineClipRange(width: number): [number, number] {
+  return [canvasInset, width - canvasInset];
 }
 export function untimedLayout(width: number, count: number, size: number) {
-  const [start, end] = timelineRange(width, false), available = end - start, minimumPitch = size / 2;
+  const start = 2 * canvasInset, end = width - start, available = end - start, minimumPitch = size / 2;
   const pitch = Math.max(minimumPitch, Math.min(size + 6, (available - size) / Math.max(1, count - 1)));
   const maxOffset = Math.max(0, (count ? (count - 1) * minimumPitch + size : 0) - available);
   return { start, end, pitch, maxOffset };
 }
-export function timeScale(frame: Pick<TimelineFrame, 'center' | 'span' | 'width' | 'layers'>) {
-  return scaleUtc().domain([frame.center - frame.span / 2, frame.center + frame.span / 2]).range(timelineRange(frame.width, frame.layers));
+export function timeScale(frame: Pick<TimelineFrame, 'center' | 'span' | 'width'>) {
+  return scaleUtc().domain([frame.center - frame.span / 2, frame.center + frame.span / 2]).range(timelineRange(frame.width));
 }
 interface TimedPoint { block: BlockView; at: number }
 interface TimedBlocks { length: number; fixed: TimedPoint[]; rolling: Map<number, TimedPoint[]> }
@@ -96,8 +99,8 @@ export function hitBlocks(frame: TimelineFrame, x: number, y: number) {
     if (last < first) return [];
     return frame.untimed.slice(first, last + 1);
   }
-  const [plotStart, plotEnd] = timelineRange(frame.width, layers);
-  if (x < plotStart - 12 || x > plotEnd + 12) return [];
+  const [left, right] = timelineClipRange(frame.width);
+  if (x < left || x > right) return [];
   const scale = timeScale(frame), first = +scale.invert(x - size / 2), last = +scale.invert(x + size / 2);
   const hits: BlockView[] = [];
   for (const { block } of timedBetween(frame.timed, frame.now, first, last)) {
@@ -115,18 +118,20 @@ function videoColorIndex(video: { songID: string; resource: string; colorKey?: s
   return (hash >>> 0) % palette.videos.length;
 }
 export function videoColor(video: { songID: string; resource: string; colorKey?: string }, palette: TimelinePalette) {
-  return palette.videos[videoColorIndex(video, palette)];
+  return palette.videos[videoColorIndex(video, palette)].fill;
 }
 export function drawBlock(ctx: CanvasRenderingContext2D, block: BlockView, x: number, y: number, size: number, palette: TimelinePalette, selected: boolean) {
-  const index = videoColorIndex(block, palette), color = palette.videos[index];
+  const video = palette.videos[videoColorIndex(block, palette)];
+  const protectionOnly = block.state === 'protected' && !block.inUse;
+  const color = protectionOnly ? video.protectedFill : video.fill;
   ctx.save();
-  if (block.state === 'protected') ctx.globalAlpha = .35;
+  if (block.state === 'protected') ctx.globalAlpha = protectionOnly ? .25 : .35;
   roundRect(ctx, x, y, size, size, Math.min(3, size / 6));
   ctx.fillStyle = block.state === 'waiting' ? palette.background : color;
   ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
   // A thin outer edge separates same-color blocks when their squares overlap.
   // Keep the original path for hatching; avoid blur/shadow work per frame.
-  ctx.strokeStyle = palette.videoEdges[index]; ctx.lineWidth = .75; ctx.stroke();
+  ctx.strokeStyle = protectionOnly ? video.protectedEdge : video.edge; ctx.lineWidth = .75; ctx.stroke();
   ctx.restore(); // Selection and reader markers remain fully visible.
   if (block.state === 'downloading' || block.state === 'stopping') {
     ctx.save(); ctx.clip(); ctx.strokeStyle = palette.background; ctx.globalAlpha = .55; ctx.lineWidth = 2;
@@ -159,19 +164,17 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
   ctx.font = captionFont;
   ctx.textBaseline = 'middle';
   if (timed.length) {
-    const [plotStart, plotEnd] = timelineRange(width, layers), plotWidth = plotEnd - plotStart;
-    const x = timeScale(frame), left = plotStart - 12, right = plotEnd + 12;
+    const [plotStart, plotEnd] = timelineRange(width), plotWidth = plotEnd - plotStart;
+    const x = timeScale(frame), [left, right] = timelineClipRange(width);
+    const cutoffX = x(now - data.downloadGraceMS), nowX = x(now), aheadX = x(now + data.prepareAheadMS);
     ctx.save(); ctx.beginPath(); ctx.rect(left, plotTop, right - left, axis - plotTop - 8); ctx.clip();
-    const band = (start: number, end: number, fill: string, stroke: string) => {
-      const a = x(start), b = x(end);
-      ctx.fillStyle = fill; ctx.fillRect(a, plotTop, b - a, axis - plotTop - 8);
-      ctx.strokeStyle = stroke; ctx.globalAlpha = .35; ctx.setLineDash([3, 5]);
-      ctx.beginPath(); ctx.moveTo(a, plotTop); ctx.lineTo(a, axis - 8); ctx.moveTo(b, plotTop); ctx.lineTo(b, axis - 8); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    };
-    band(now - data.downloadGraceMS, now, p.amberWash, p.amber);
-    band(now, now + data.prepareAheadMS, p.blueWash, p.blue);
+    ctx.fillStyle = p.amberWash; ctx.fillRect(cutoffX, plotTop, nowX - cutoffX, axis - plotTop - 8);
+    ctx.fillStyle = p.blueWash; ctx.fillRect(nowX, plotTop, aheadX - nowX, axis - plotTop - 8);
+    drawWindowEdge(nowX, p.amber);
+    drawWindowEdge(nowX, p.blue);
+    drawWindowEdge(aheadX, p.blue);
     ctx.restore();
-    const nowX = x(now), showNow = nowX >= left && nowX <= right;
+    const showNow = nowX >= left && nowX <= right;
     const nowLabel = '现在 ' + timeLabel(now);
     ctx.font = strongCaptionFont; ctx.textAlign = 'center';
     const nowText = ctx.measureText(nowLabel);
@@ -197,12 +200,6 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
       }
     }
     ctx.strokeStyle = p.grid; ctx.beginPath(); ctx.moveTo(left, axis); ctx.lineTo(right, axis); ctx.stroke();
-    if (layers) {
-      ctx.textAlign = 'left';
-      laneNames.forEach((label, row) => {
-        ctx.fillStyle = p.muted; drawLaneLabel(label, timedY + row * lanePitch + size / 2);
-      });
-    }
     if (showNow) {
       ctx.strokeStyle = p.blue; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(nowX, plotTop); ctx.lineTo(nowX, axis); ctx.stroke();
       ctx.fillStyle = p.blue; ctx.beginPath(); ctx.moveTo(nowX - 5, axis + 4); ctx.lineTo(nowX + 5, axis + 4); ctx.lineTo(nowX, axis - 3); ctx.fill();
@@ -220,6 +217,11 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
       drawBlock(ctx, block, x(at) - size / 2, blockY(block, layers, size), size, p, block.id === frame.selected);
     }
     ctx.restore();
+    if (layers) {
+      ctx.font = captionFont; ctx.textAlign = 'left';
+      laneNames.forEach((label, row) => drawLaneLabel(label, timedY + row * lanePitch + size / 2, cutoffX));
+    }
+    if (cutoffX >= left && cutoffX <= right) drawWindowEdge(cutoffX, p.amber);
     if (selected) {
       const { block, at } = selected;
       const label = `块 ${blockNumber(block)} · ${block.timeBasis === 'ended' ? '需求结束' : block.timeBasis === 'last-need-by' ? '原 need-by' : 'need-by'} ${timeLabel(at)}`;
@@ -240,8 +242,29 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     }
     ctx.restore();
   }
-  function drawLaneLabel(label: string, centerY: number) {
-    const metrics = ctx.measureText(label);
-    ctx.fillText(label, 12, centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2);
+  function drawWindowEdge(x: number, color: string) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = .35; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(x, plotTop); ctx.lineTo(x, axis - 8); ctx.stroke();
+    ctx.restore();
+  }
+  function drawLaneLabel(label: string, centerY: number, cutoffX: number) {
+    const { actualBoundingBoxLeft, actualBoundingBoxRight, actualBoundingBoxAscent, actualBoundingBoxDescent } = ctx.measureText(label);
+    const inkRight = canvasInset + actualBoundingBoxRight;
+    const left = canvasInset - actualBoundingBoxLeft - 4, right = Math.min(inkRight + 4, cutoffX - 1);
+    const height = actualBoundingBoxAscent + actualBoundingBoxDescent + 4;
+    const y = centerY + (actualBoundingBoxAscent - actualBoundingBoxDescent) / 2;
+    ctx.save();
+    if (right > canvasInset) {
+      ctx.globalAlpha = .85; ctx.fillStyle = p.background;
+      roundRect(ctx, left, centerY - height / 2, right - left, height, 4); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (inkRight + 1 > cutoffX) {
+      ctx.strokeStyle = p.background; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      ctx.strokeText(label, canvasInset, y);
+    }
+    ctx.fillStyle = p.muted; ctx.fillText(label, canvasInset, y);
+    ctx.restore();
   }
 }

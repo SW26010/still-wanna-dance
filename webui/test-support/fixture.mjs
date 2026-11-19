@@ -25,7 +25,9 @@ const server = createServer(async (req, res) => {
         const demands=new Map((state.reset?[]:states.get(key)?.demands||[]).map(d=>[d.id,d]));
         for(const demand of state.demands||[])demands.set(demand.id,demand);
         for(const removed of state.removedDemands||[])demands.delete(removed);
-        states.set(key,{...state,reset:true,blocks:[...blocks.values()],removed:[],demands:[...demands.values()],removedDemands:[]});
+        const availability={...(state.reset?{}:states.get(key)?.availability),...state.availability};
+        for(const resource of state.removedAvailability||[])delete availability[resource];
+        states.set(key,{...state,reset:true,blocks:[...blocks.values()],removed:[],demands:[...demands.values()],removedDemands:[],availability,removedAvailability:[]});
       }else states.set(key,state);
       const eventName=kind.startsWith('block-detail:')?'block-detail':kind;
       for(const stream of streams.get(['download-speed','block-cache','closed'].includes(kind)?id+':blocks':key)||[])stream.send(JSON.stringify({event:eventName,data:state}));

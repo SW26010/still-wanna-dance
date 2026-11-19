@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Caption1, ProgressBar, Text } from '@fluentui/react-components';
-import { demandLabel, videoLabel, type BlockDemand, type BlockView, type PlaybackClock, type TimelineData } from './block-timeline-model';
+import { demandLabel, videoLabel, type BlockAvailability, type BlockDemand, type BlockView, type PlaybackClock, type TimelineData } from './block-timeline-model';
 import { drawBlock, videoColor, type TimelinePalette } from './block-timeline-canvas';
 import { useFocusRecovery } from './hooks';
 
 type Props = {
-  data: TimelineData; size: number; palette: TimelinePalette; active: boolean; selected?: string;
+  data: TimelineData; size: number; palette: TimelinePalette; active: boolean; reducedMotion: boolean; selected?: string;
   onPick: (blocks: BlockView[], x: number, y: number, pinned: boolean, target: HTMLCanvasElement) => void;
   onLeave: (event: MouseEvent<HTMLElement>) => void;
 };
@@ -25,8 +25,31 @@ function playbackTime(ms: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function DemandPlayback({ playback, clock, active, title }: { playback: PlaybackClock; clock: Pick<TimelineData, 'at' | 'receivedAt'>; active: boolean; title: string }) {
+function playbackAvailabilityGradient({ totalBytes, availableRanges }: BlockAvailability) {
+  if (!availableRanges?.length) return undefined;
+  const stops = availableRanges.map(({ start, end }) => {
+    const left = `${100 * start / totalBytes}%`, right = `${100 * end / totalBytes}%`;
+    return `transparent ${left}, var(--demand-playback-cached) ${left} ${right}, transparent ${right}`;
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+function DemandPlayback({ playback, availability, clock, active, reducedMotion, title }: { playback: PlaybackClock; availability?: BlockAvailability; clock: Pick<TimelineData, 'at' | 'receivedAt'>; active: boolean; reducedMotion: boolean; title: string }) {
+  const fill = useRef<HTMLDivElement>(null);
   const [sample, setSample] = useState(() => performance.now());
+  const duration = playback.endAt - playback.zeroAt;
+  const elapsedAt = (sample: number) => Math.max(0, Math.min(duration, clock.at + Math.max(0, sample - clock.receivedAt) - playback.zeroAt));
+  const animatePlayback = useEffectEvent(() => {
+    const bar = fill.current;
+    if (!bar || duration <= 0) return;
+    const animation = bar.animate([{ width: '0%' }, { width: '100%' }], { duration, fill: 'forwards' });
+    animation.currentTime = elapsedAt(performance.now());
+    return () => animation.cancel();
+  });
+  useLayoutEffect(() => {
+    // Download updates can rebase the event clock without changing the room anchor.
+    if (active && !reducedMotion) return animatePlayback();
+  }, [active, reducedMotion, playback.zeroAt, playback.endAt]);
   useEffect(() => {
     if (!active) return;
     const tick = () => setSample(performance.now());
@@ -34,12 +57,11 @@ function DemandPlayback({ playback, clock, active, title }: { playback: Playback
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [active]);
-  const duration = playback.endAt - playback.zeroAt;
-  const elapsed = Math.max(0, Math.min(duration, clock.at + Math.max(0, sample - clock.receivedAt) - playback.zeroAt));
-  const position = Math.floor(elapsed / 1000) * 1000;
+  const position = Math.floor(elapsedAt(sample) / 1000) * 1000;
   const time = `${playbackTime(position)} / ${playbackTime(duration)}`;
+  const backgroundImage = useMemo(() => availability && playbackAvailabilityGradient(availability), [availability]);
   return <>
-    <div className="demand-playback-track"><ProgressBar max={duration} value={position} aria-label={`${title}，房间播放进度`} aria-valuetext={time} bar={{ className: 'demand-playback-fill' }} /></div>
+    <div className="demand-playback-track"><ProgressBar max={duration} value={position} aria-label={`${title}，房间播放进度`} aria-valuetext={time} style={{ backgroundImage }} bar={{ ref: fill, className: 'demand-playback-fill' }} /></div>
     <Caption1 className="demand-progress" aria-hidden="true">{time}</Caption1>
   </>;
 }
@@ -56,8 +78,9 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
   const inset = videoBlocks > 1 ? 12 : (width - props.size) / 2;
   const height = props.size + 18; // 12 px above for the reader dot, 6 px below for selection.
   const title = videoLabel(demand);
-  const available = useMemo(() => blocks.filter(block => block.state === 'available' || block.state === 'protected').length, [blocks]);
-  const percent = Math.floor(100 * available / (blocks.length || 1));
+  const playback = demand.playback;
+  const availability = props.data.availability.get(demand.resource);
+  const percent = availability && Math.floor(100 * availability.availableBytes / availability.totalBytes);
   // Keep every row in normal page flow, but only allocate and paint visible
   // canvases. Measure new rows before paint so live replacements appear together.
   useLayoutEffect(() => {
@@ -109,9 +132,9 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
         <Caption1 className="demand-source">{demandLabel(demand)}</Caption1>
         <div className="demand-video-heading">
           <Text size={300} className={'demand-video-title'+(!demand.title&&!demand.songID?' resource-id':'')} title={title}>{title}</Text>
-          {!demand.playback && <Caption1 className="demand-progress" title={`当前需求中 ${available} / ${blocks.length} 块本地可用`} aria-label={`${demandLabel(demand)}，${title}，需求就绪进度 ${percent}%`}>{percent}%</Caption1>}
+          {availability && <Caption1 className="demand-progress" title={`整首视频中 ${availability.availableBytes.toLocaleString('zh-CN')} / ${availability.totalBytes.toLocaleString('zh-CN')} 字节本地可用`} aria-label={`${demandLabel(demand)}，${title}，视频本地可用比例 ${percent}%`}>{percent}%</Caption1>}
         </div>
-        {demand.playback ? <DemandPlayback playback={demand.playback} clock={props.data} active={props.active} title={title} /> : <Caption1 title={demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '视频总块数尚未知'}>{blocks.length} 块</Caption1>}
+        {playback ? <DemandPlayback playback={playback} availability={availability} clock={props.data} active={props.active} reducedMotion={props.reducedMotion} title={title} /> : <Caption1 title={demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '视频总块数尚未知'}>{blocks.length} 块</Caption1>}
       </div>
       <div ref={strip} className="demand-block-strip">
         <canvas ref={canvas} width={0} height={0} className="demand-block-canvas" style={{ width, height }} tabIndex={blocks.length ? 0 : -1} role="group" aria-label={`${demandLabel(demand)}，${title}，${demand.playback ? '游戏读取与交接' : '需要'} ${blocks.length} 个块，${demand.totalBlocks > 0 ? `视频共 ${demand.totalBlocks} 块` : '总块数尚未知'}。${blocks.length ? '左右键选择，Home 和 End 跳到首尾。' : ''}`}

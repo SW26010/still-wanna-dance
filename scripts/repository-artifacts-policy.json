@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1327844,
+      "sha256": "d092747e7ba12dfbb83bfe116c1177eef80e2c00b5793d594eb9b1a4138694bc",
+      "reason": "Embedded WebUI rebuilt with shared whole-video availability across demand rows, a shared time scale with persistent lane labels, cutoff-anchored timeline following, original need-by labels for handoffs, smooth playback progress, and muted protection-only blocks. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1323275,
       "sha256": "2975fcb7064580b219d66e28f6d1f72aee1d41f4405fee862239f3da864b0fcf",
       "reason": "Embedded WebUI rebuilt with the shared preparation window tooltip for local protection and ordinary downloads. Verified against webui/build-manifest.json."

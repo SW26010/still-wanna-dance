@@ -19,7 +19,8 @@ async function setup(page: Page) {
     { id: '2/video', sourceID: 2, kind: 'queue', songID: '42', title: '夏日的风', position: 2, resource: 'video', totalBlocks: 4, blocks: ['video/1', 'video/2'] },
   ];
   const emit = async (kind: string, state: unknown) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind, state } });
-  await emit('blocks', { at, running: true, reset: true, capacity: 4096, used: 3, active: 1, open: 1, prepareAheadMS: 500000, downloadGraceMS: 30000, blocks, demands, removed: [], removedDemands: [] });
+  const blockStats = { at, running: true, capacity: 4096, used: 3, active: 1, open: 1, prepareAheadMS: 500000, downloadGraceMS: 30000 };
+  await emit('blocks', { ...blockStats, reset: true, blocks, demands, removed: [], removedDemands: [], availability: { video: { totalBytes: 4 * 1048576, availableBytes: 2 * 1048576 } } });
   await page.addInitScript(() => {
     const paints = { axis: 0, rows: 0 }; Object.assign(window, { demandPaints: paints });
     const clear = CanvasRenderingContext2D.prototype.clearRect;
@@ -33,7 +34,7 @@ async function setup(page: Page) {
   const panel = page.locator('#block-demands'), speed = page.getByRole('button', { name: /^总下载速度：/ });
   await expect(panel.locator('.demand-row')).toHaveCount(2);
   const streams = async () => (await (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json()).blocks || 0;
-  return { ...api, panel, speed, cache: panel.locator('.block-demand-cache'), emit, streams };
+  return { ...api, panel, speed, cache: panel.locator('.block-demand-cache'), emit, streams, blockStats };
 }
 
 test('home uses live demands and unique block counts without download polling or axis animation', async ({ page }) => {
@@ -47,13 +48,15 @@ test('home uses live demands and unique block counts without download polling or
   await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
   await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   for (const label of ['等待下载', '正在下载', '本地可用', '延续保护']) await expect(f.panel.locator('.timeline-legend')).toContainText(label + ' 1');
-  await expect(f.panel.locator('.demand-progress').first()).toHaveText('50%');
-  await expect(f.panel.locator('.demand-progress').nth(1)).toHaveText('0%');
+  const percentages = f.panel.locator('.demand-progress');
+  await expect(percentages).toHaveText(['50%', '50%']);
   await expect(f.panel.getByRole('progressbar')).toHaveCount(0);
   await expect.poll(f.streams).toBe(1);
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const paints = () => page.evaluate(() => ({ ...(window as unknown as { demandPaints: { axis: number; rows: number } }).demandPaints }));
   const before = await paints(); expect(before.axis).toBe(0); expect(before.rows).toBeGreaterThan(0);
+  await f.emit('blocks', { ...f.blockStats, reset: false, blocks: [], removed: [], availability: { video: { totalBytes: 4 * 1048576, availableBytes: 3 * 1048576 } } });
+  await expect(percentages).toHaveText(['75%', '75%']);
   await expect(f.cache).toHaveText('缓存 —');
   await f.emit('block-cache', { bytes: 486 * 1048576 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
   await expect(f.cache).toHaveAccessibleDescription('');
@@ -69,6 +72,7 @@ test('home uses live demands and unique block counts without download polling or
   await f.emit('block-cache', { bytes: 2 * 1073741824 }); await expect(f.cache).toHaveText('缓存 486.0 MiB');
   await f.emit('download-speed', { bytesPerSecond: 9000000 }); await expect(f.speed).toHaveText('0.00 MiB/s');
   await setPageHidden(page, false); await expect.poll(f.streams).toBe(1); await expect(f.speed).toHaveText('8.58 MiB/s');
+  await expect(percentages).toHaveText(['75%', '75%']);
   await expect(f.cache).toHaveText('缓存 2.000 GiB');
   await f.emit('download-speed', { bytesPerSecond: 0 }); await expect(f.speed).toHaveText('0.00 MiB/s');
   await f.speed.press('Space'); await expect(f.speed).toHaveText('0.00 Mbps');

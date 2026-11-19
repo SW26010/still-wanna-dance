@@ -14,6 +14,10 @@ export interface BlockSource extends RollingTime {
 }
 export interface BlockDetail { block: BlockView; sources: BlockSource[] }
 export interface PlaybackClock { zeroAt: number; endAt: number }
+export interface BlockAvailability {
+  totalBytes: number; availableBytes: number;
+  availableRanges?: { start: number; end: number }[];
+}
 export interface BlockDemand {
   id: string; sourceID: number; kind: BlockSource['kind']; songID: string; title: string;
   position: number; resource: string; colorKey?: string; totalBlocks: number; blocks: string[];
@@ -24,9 +28,11 @@ export interface BlockEvent {
   active: number; open: number; prepareAheadMS: number; downloadGraceMS: number;
   blocks: BlockView[]; removed: string[];
   demands: BlockDemand[]; removedDemands: string[];
+  availability?: Record<string, BlockAvailability>; removedAvailability?: string[];
 }
-export interface TimelineData extends Omit<BlockEvent, 'blocks' | 'removed' | 'reset' | 'demands' | 'removedDemands'> {
+export interface TimelineData extends Omit<BlockEvent, 'blocks' | 'removed' | 'reset' | 'demands' | 'removedDemands' | 'availability' | 'removedAvailability'> {
   blocks: Map<string, BlockView>; demands: Map<string, BlockDemand>; demandRows: BlockDemand[]; receivedAt: number;
+  availability: Map<string, BlockAvailability>;
 }
 export function applyBlockEvent(previous: TimelineData | undefined, event: BlockEvent): TimelineData {
   // Keep the first assigned color for each visible video, including reconnects
@@ -51,7 +57,12 @@ export function applyBlockEvent(previous: TimelineData | undefined, event: Block
   for (const demand of event.demands || []) demands.set(demand.id, { ...demand, colorKey: colorKey(demand) });
   const demandRows = previous && previous.demands === demands
     ? previous.demandRows : projectDemandRows(demands, previous?.demandRows);
-  return { ...event, blocks, demands, demandRows, receivedAt: performance.now() };
+  const availabilityUpdates = Object.entries(event.availability ?? {});
+  const availability = event.reset || !previous || availabilityUpdates.length || event.removedAvailability?.length
+    ? new Map(event.reset ? undefined : previous?.availability) : previous.availability;
+  for (const resource of event.removedAvailability ?? []) availability.delete(resource);
+  for (const [resource, view] of availabilityUpdates) availability.set(resource, view);
+  return { ...event, blocks, demands, demandRows, availability, receivedAt: performance.now() };
 }
 
 function projectDemandRows(demands: Map<string, BlockDemand>, previous: BlockDemand[] | undefined) {
@@ -88,6 +99,10 @@ export function rollingNeedBy(value: RollingTime, now: number) {
 export function needByAt(value: RollingTime & { needBy: number; fixedNeedBy?: number }, now: number) {
   const rolling = rollingNeedBy(value, now);
   return rolling ? Math.min(value.fixedNeedBy || Infinity, rolling) : value.needBy;
+}
+export function blockNeedByDisplay(block: BlockView, now: number) {
+  if (block.timeBasis === 'last-need-by') return { label: '原 need-by', time: block.at };
+  return { label: 'need-by', time: needByAt(block, now) };
 }
 export function demandLabel(demand: BlockDemand) {
   if (demand.kind === 'formal') return '正式播放';

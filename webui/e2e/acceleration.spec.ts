@@ -22,8 +22,8 @@ test('failed acceleration reports rollback failure and the resulting real state'
   await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
 });
 
-test('acceleration status distinguishes connection from service without enabling the queue',async({page})=>{
-  const api=await mockAPI(page);api.state.hosts.ready=true;api.state.activeSettings.queueWithGateway=false;api.state.queue={desired:false,running:false};
+test('starting the video service also starts the playback queue',async({page})=>{
+  const api=await mockAPI(page);api.state.hosts.ready=true;api.state.queue={desired:false,running:false};
   await page.goto('/');
   await expect(page.getByText('加速未运行',{exact:true})).toBeVisible();
   await expect(page.getByText('游戏连接：已接入',{exact:true})).toBeVisible();
@@ -31,7 +31,7 @@ test('acceleration status distinguishes connection from service without enabling
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
   await expect(page.locator('#activation').getByRole('button',{name:'停止加速',exact:true})).toHaveCount(1);
-  expect(api.state.queue.desired).toBe(false);
+  await expect(page.getByText('播放队列：监控中',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>/^(activation\/|hosts\/|queue\/|start$|stop$|exit$)/.test(c.path)).map(c=>c.path)).toEqual(['activation/enable']);
 });
 
@@ -130,10 +130,10 @@ for(const error of ['hosts 助手连接已中断，请重新打开应用后修�
   await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
 });
 
-for(const restore of [true,false])for(const queue of [true,false])test(`stop and resume follow active policies (${restore}, ${queue})`,async({page},info)=>{
+for(const restore of [true,false])test(`stop and resume follow the active restore policy (${restore})`,async({page},info)=>{
   const api=await mockAPI(page);
-  Object.assign(api.state.activeSettings,{restoreHostsOnStopOrExit:restore,queueWithGateway:queue});
-  Object.assign(api.state.settings,{restoreHostsOnStopOrExit:!restore,queueWithGateway:!queue});
+  api.state.activeSettings.restoreHostsOnStopOrExit=restore;
+  api.state.settings.restoreHostsOnStopOrExit=!restore;
   // The hint follows its card's 30rem container threshold, not viewport width.
   await page.setViewportSize({width:restore?1440:320,height:900});await page.goto('/');
   const browserHint=page.getByText('可关闭浏览器，减少资源占用',{exact:true});
@@ -186,13 +186,13 @@ for(const restore of [true,false])for(const queue of [true,false])test(`stop and
   await expect(browserHint).toHaveCount(0);
   await expect(cdnHint).toHaveCount(0);
   await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
-  await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
+  await expect(page.getByText('播放队列：已关闭',{exact:true})).toBeVisible();
   await expect(page.getByText(`游戏连接：${restore?'未接入':'已接入'}`,{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath('stopped.png'),animations:'disabled'});
   await page.getByRole('button',{name:'开始加速',exact:true}).click();
   await expect(stop).toBeEnabled();
-  await expect(page.getByText(`房间队列：${queue?'监控中':'已关闭'}`,{exact:true})).toBeVisible();
+  await expect(page.getByText('播放队列：监控中',{exact:true})).toBeVisible();
   expect(api.calls.filter(c=>c.path.startsWith('activation/')).map(c=>c.path)).toEqual(['activation/enable','activation/disable','activation/enable']);
   expect(api.calls.some(c=>c.path==='exit')).toBe(false);
 });

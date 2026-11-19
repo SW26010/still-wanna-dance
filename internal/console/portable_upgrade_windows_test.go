@@ -69,7 +69,7 @@ func TestPortableExecutableUpgrade(t *testing.T) {
 			t.Cleanup(func() { c.Close() })
 			s := c.settings
 			s.DatabasePath, s.VideoDir = c.editor.defaultDatabasePath(), c.editor.defaultVideoDir()
-			s.AutoAccelerate, s.QueueWithGateway, s.VideoStorageMode = false, false, "unlimited"
+			s.AutoAccelerate, s.VideoStorageMode = false, "unlimited"
 			s.UpstreamMode, s.SOCKS5Address = "proxy", "127.0.0.1:1"
 			s.SOCKS5Username, s.SOCKS5Password = "upgrade-test", "synthetic-upgrade-secret"
 			if layout == "external" {
@@ -290,7 +290,7 @@ func probePortableUpgrade(t *testing.T, exe, config, cwd, storage, version, key 
 	if err := json.Unmarshal(get("/api/status", token), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.Running || status.ActiveSettings.AutoAccelerate || status.ActiveSettings.QueueWithGateway || testStorageRoot(status.ActiveSettings) != storage || !status.SOCKS5PasswordSet || status.SOCKS5CredentialError != "" || status.LastBatch.Hits != 7 {
+	if status.Running || status.ActiveSettings.AutoAccelerate || testStorageRoot(status.ActiveSettings) != storage || !status.SOCKS5PasswordSet || status.SOCKS5CredentialError != "" || status.LastBatch.Hits != 7 {
 		t.Fatal("runtime did not retain settings, decrypted credentials or task snapshot")
 	}
 	if !bytes.Contains(get("/api/library?view=resources&filter=saved", token), []byte(key)) {

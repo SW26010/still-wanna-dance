@@ -158,15 +158,13 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
       <Divider /><fieldset><legend>停止与退出</legend><Checkbox label="随 VRChat 退出" checked={d.exitWithVRChat} disabled={disabled} onChange={(_,v)=>update({exitWithVRChat:!!v.checked})}/>
       <Tooltip content={restorePermissionHint} relationship="description">{({onPointerEnter,onPointerLeave,ref,...trigger})=><Checkbox {...trigger} ref={ref as Ref<HTMLInputElement>} root={{onPointerEnter,onPointerLeave}} id="restoreHostsOnStopOrExit" label="停止加速或退出时恢复游戏直连" checked={d.restoreHostsOnStopOrExit} disabled={disabled} onChange={(_,v)=>update({restoreHostsOnStopOrExit:!!v.checked})}/>}</Tooltip></fieldset>
       <Divider /><RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
+      <Divider /><DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
+        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={editor.pathPending}/>
       <Divider /><ValidationField name="logLevel" label="程序日志级别"><Select name="logLevel" disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as typeof s.settings.logLevel})}>{!['off','error','warn','info','debug'].includes(d.logLevel)&&<option value={d.logLevel}>无效值：{d.logLevel||'空'}</option>}<option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></ValidationField></>}
       {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields editor={editor} />
       </fieldset>
 </>}
-      {section==='downloads'&&<><fieldset disabled={disabled}><legend>队列预加载</legend>
-      <Checkbox label="随视频服务启用队列预加载" checked={d.queueWithGateway} disabled={disabled} onChange={(_,v)=>update({queueWithGateway:!!v.checked})}/>
-      <DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
-        onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={editor.pathPending}/></fieldset>
-      <Divider /><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
+      {section==='downloads'&&<><fieldset disabled={disabled}><legend>下载</legend><div className="settings-columns">
       {numberField('downloadConcurrencySoftLimit','同时下载数量',1,64,'普通下载的并发上限；播放正在等待的数据可突破此限制。')}
       {numberField('downloadGrowIntervalMS','并发增长间隔',0,2000,'有下载积压时，每隔此时间最多增加一路并发；设为 0 时按需直接使用并发上限。','毫秒')}
       </div><Text size={200} className="secondary">通常无需调整，修改前请了解其影响。</Text></fieldset>

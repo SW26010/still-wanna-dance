@@ -14,62 +14,60 @@ import (
 
 func TestAccelerationStopResumePolicies(t *testing.T) {
 	for _, restore := range []bool{false, true} {
-		for _, queue := range []bool{false, true} {
-			t.Run(fmt.Sprintf("restore=%v/queue=%v", restore, queue), func(t *testing.T) {
-				c := testConsole(t)
-				h, launches := fixtureHostsController(t, hostsBaseline)
-				c.editor.hosts = h
-				c.settings.RestoreHostsOnStopOrExit, c.settings.QueueWithGateway = restore, queue
-				// Pending restart settings must not change stop/resume behavior.
-				c.editor.savedSettings.RestoreHostsOnStopOrExit, c.editor.savedSettings.QueueWithGateway = !restore, !queue
-				if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
+		t.Run(fmt.Sprintf("restore=%v", restore), func(t *testing.T) {
+			c := testConsole(t)
+			h, launches := fixtureHostsController(t, hostsBaseline)
+			c.editor.hosts = h
+			c.settings.RestoreHostsOnStopOrExit = restore
+			// Pending restart settings must not change stop/resume behavior.
+			c.editor.savedSettings.RestoreHostsOnStopOrExit = !restore
+			if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			for cycle := range 2 {
+				if err := c.DesktopCommand(desktop.StartAcceleration); err != nil {
 					t.Fatal(err)
 				}
-				for cycle := range 2 {
-					if err := c.DesktopCommand(desktop.StartAcceleration); err != nil {
+				if !h.status().Ready || c.httpServer == nil || !c.queue.snapshot().Running || !c.queueDesired {
+					t.Fatal("resume did not follow active policy")
+				}
+				engine, helper := c.service, h.session
+				addresses := []string{c.videoListener.Addr().String(), c.https.listener.Addr().String()}
+				late := c.beginVideoRequest(time.Now())
+				c.batch = Batch{Running: true}
+				if cycle == 0 {
+					if err := c.DesktopCommand(desktop.StopAcceleration); err != nil {
 						t.Fatal(err)
 					}
-					if !h.status().Ready || c.httpServer == nil || c.queue.snapshot().Running != queue || c.queueDesired != queue {
-						t.Fatal("resume did not follow active policy")
+				} else {
+					r := httptest.NewRequest("POST", "http://"+c.address+"/api/activation/disable", nil)
+					r.Header.Set("X-SWD-Token", c.token)
+					w := httptest.NewRecorder()
+					c.ServeHTTP(w, r)
+					if w.Code != 200 {
+						t.Fatal(w.Code, w.Body.String())
 					}
-					engine, helper := c.service, h.session
-					addresses := []string{c.videoListener.Addr().String(), c.https.listener.Addr().String()}
-					late := c.beginVideoRequest(time.Now())
-					c.batch = Batch{Running: true}
-					if cycle == 0 {
-						if err := c.DesktopCommand(desktop.StopAcceleration); err != nil {
-							t.Fatal(err)
-						}
-					} else {
-						r := httptest.NewRequest("POST", "http://"+c.address+"/api/activation/disable", nil)
-						r.Header.Set("X-SWD-Token", c.token)
-						w := httptest.NewRecorder()
-						c.ServeHTTP(w, r)
-						if w.Code != 200 {
-							t.Fatal(w.Code, w.Body.String())
-						}
-					}
-					late()
-					if c.httpServer != nil || c.https != nil || c.videoListener != nil || c.queue.snapshot().Running || c.queueDesired || c.activation.Phase != "stopped" || !c.activation.FirstRequest.IsZero() {
-						t.Fatal("stop left gateway, queue or request observation running")
-					}
-					for _, address := range addresses {
-						listener, err := net.Listen("tcp4", address)
-						if err != nil {
-							t.Fatal("stop did not release listener", err)
-						}
-						listener.Close()
-					}
-					if (readHostsFixture(t, h.path) == hostsBaseline) != restore || *launches != 1 || h.session != helper || h.closed || c.service != engine || !c.batch.Running {
-						t.Fatal("wrong hosts policy, helper replaced, or independent work stopped")
-					}
-					if err := c.disableAcceleration(); err != nil || *launches != 1 {
-						t.Fatal("repeated stop changed authorization", err)
-					}
-					c.batch = Batch{}
 				}
-			})
-		}
+				late()
+				if c.httpServer != nil || c.https != nil || c.videoListener != nil || c.queue.snapshot().Running || c.queueDesired || c.activation.Phase != "stopped" || !c.activation.FirstRequest.IsZero() {
+					t.Fatal("stop left gateway, queue or request observation running")
+				}
+				for _, address := range addresses {
+					listener, err := net.Listen("tcp4", address)
+					if err != nil {
+						t.Fatal("stop did not release listener", err)
+					}
+					listener.Close()
+				}
+				if (readHostsFixture(t, h.path) == hostsBaseline) != restore || *launches != 1 || h.session != helper || h.closed || c.service != engine || !c.batch.Running {
+					t.Fatal("wrong hosts policy, helper replaced, or independent work stopped")
+				}
+				if err := c.disableAcceleration(); err != nil || *launches != 1 {
+					t.Fatal("repeated stop changed authorization", err)
+				}
+				c.batch = Batch{}
+			}
+		})
 	}
 }
 

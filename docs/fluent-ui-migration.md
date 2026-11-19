@@ -39,7 +39,7 @@ SWD 自有 WebUI 使用 React、TypeScript 和 Fluent UI React v9；Go 通过 em
 
 后台状态与退出按钮按内容宽度排列，间距使用 Fluent spacing token，空间不足时自然换行；不为状态预留固定宽度。
 
-后台程序、游戏连接、视频服务、房间队列统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
+后台程序、游戏连接、视频服务、播放队列统一使用 `Badge appearance="tint" size="large"`，由组件提供主题浅色底、描边与语义色文字，通过同一个轻量展示组件保持颜色、Fluent 图标及“名称：状态”格式一致。颜色直接使用 `success / danger / warning / brand / informative`，不定义自有色板；`informative` 在这里使用其中性色表达未启用／待确认。以 `role="status" aria-atomic="true"` 播报完整状态，装饰图标隐藏于辅助技术。MessageBar 保留给需要处理的消息；组件依据见[官方资料核对](research/fluent-v9-ui-patterns.md#四项运行状态2026-10-25)，业务语义见[内容约定](webui-content.md#程序与界面术语)。
 
 容器只负责布局，控件使用 Fluent 的尺寸、主题、焦点和交互。曲库、设置及关于分类使用 TabList/Tab；网络页直接展示全部适用模块，无页内入口栏或第二层标签。设置字段直接显示，卡片不重复显示分类标题；当前页的状态、保存、放弃更改和重启操作与顶部页签同行右对齐，空间不足时自然换行，整行随页面滚动保持可达。短说明使用 Tooltip，记录补充信息及包含“修复”操作的游戏连接说明使用非模态 Popover；修复浮层支持悬停、点击和键盘，使用蓝色 Link 按钮，授权处理中禁用但保留焦点。不把常用功能藏进折叠。2026-10-21 的高级字段折叠规则已由本次简洁重构替代。
 
@@ -84,4 +84,4 @@ Canvas 绘制文字读取 Fluent 的字体族、字号和字重，不另写固�
 
 2026-11-12 曲库搜索使用标准 `SearchBox`，通过 `contentAfter` 将共用 `FieldIssueIcon` 放在框内、清空按钮左侧；尾部区域保持固定高度并居中；无错误时不渲染错误图标及占位，让文字区延伸到清空按钮左侧。有错误时才占用图标宽度，输入框外框、清空按钮和外部布局保持位置。继续由 Field 保留视觉隐藏的错误描述与无效状态，错误原因通过图标 Tooltip 查看，不增加文字行。`ValidationField` 同样复用该图标组件，设置字段仍保留框外槽位；具体查询语义见[查询与视图切换](webui-design.md#查询与视图切换)。
 
-按本项目交互约定，设置页使用共用 `ValidationField`：保留 Field 的 `validationState=error`、`aria-invalid`、描述关联及错误播报，`validationMessage` 仅作视觉隐藏的无障碍说明；控件旁固定 24px 图标槽位，使用 Fluent `ErrorCircleRegular` 与 Tooltip。错误原因只在 hover／键盘聚焦图标时可见，不增加文字行；这是项目要求的组合方式，不宣称为 Fluent 官方默认校验模式。原生 file input 通过 Field 的 render props 接收标签与错误关联；只读路径框同样可高亮。下载与缓存设置中的 VRChat 日志目录与临时缓存目录共用该字段布局和图标预留位，使路径框及恢复默认按钮的右侧保持对齐。设置表单使用 `noValidate` 关闭原生气泡，必填等原生约束继续使用 ValidityState。六处数值输入共用 NumberInput，保留原始文本草稿，由 inputError 检查数值范围及整数／小数精度；预算允许两位小数，其余为整数，所有箭头按 1 步进。下载字段的清空默认值与显式 0 规则不变。共用步进按钮在捕获 mousedown 时先同步提交输入框 blur，避免 Fluent 9.74.9 在同一鼠标事件内提交文本并步进时使用旧值；方向键仍用组件默认逻辑。历史的时间筛选保留原有字段下方错误，未纳入本次设置页修改。
+按本项目交互约定，设置页使用共用 `ValidationField`：保留 Field 的 `validationState=error`、`aria-invalid`、描述关联及错误播报，`validationMessage` 仅作视觉隐藏的无障碍说明；控件旁固定 24px 图标槽位，使用 Fluent `ErrorCircleRegular` 与 Tooltip。错误原因只在 hover／键盘聚焦图标时可见，不增加文字行；这是项目要求的组合方式，不宣称为 Fluent 官方默认校验模式。原生 file input 通过 Field 的 render props 接收标签与错误关联；只读路径框同样可高亮。「常规」的 VRChat 日志目录与「下载与缓存」的临时缓存目录共用该字段布局和图标预留位，使路径框及恢复默认按钮的右侧保持对齐。设置表单使用 `noValidate` 关闭原生气泡，必填等原生约束继续使用 ValidityState。六处数值输入共用 NumberInput，保留原始文本草稿，由 inputError 检查数值范围及整数／小数精度；预算允许两位小数，其余为整数，所有箭头按 1 步进。下载字段的清空默认值与显式 0 规则不变。共用步进按钮在捕获 mousedown 时先同步提交输入框 blur，避免 Fluent 9.74.9 在同一鼠标事件内提交文本并步进时使用旧值；方向键仍用组件默认逻辑。历史的时间筛选保留原有字段下方错误，未纳入本次设置页修改。

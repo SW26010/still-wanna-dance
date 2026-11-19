@@ -39,6 +39,7 @@ type Tail struct {
 	Dir         string
 	Path        string
 	Offset      int64
+	lastPath    string // Retain the cursor when a tracked file temporarily disappears.
 	info        os.FileInfo
 	nextScan    time.Time
 	initialized bool
@@ -47,59 +48,55 @@ type Tail struct {
 }
 
 func (t *Tail) Poll(now time.Time) ([]Event, error) {
-	var events []Event
+	path := t.Path
+	starting := !t.initialized
 	if !now.Before(t.nextScan) {
-		t.nextScan = now.Add(DiscoverInterval)
-		path, err := LatestPath(t.Dir)
+		latest, err := LatestPath(t.Dir)
 		if err != nil {
 			return nil, err
 		}
-		if path != "" && (t.Path == "" || filepath.Base(path) > filepath.Base(t.Path)) {
-			info, err := os.Stat(path)
-			if err != nil {
-				return nil, err
-			}
-			var offset int64
-			var discard bool
-			if !t.initialized {
-				offset = info.Size()
-				// Do not interpret the suffix of an in-progress line as a new event.
-				if offset > 0 {
-					f, err := os.Open(path)
-					if err != nil {
-						return events, err
-					}
-					var last [1]byte
-					_, err = f.ReadAt(last[:], offset-1)
-					f.Close()
-					if err != nil {
-						return events, err
-					}
-					discard = last[0] != '\n'
-				}
-			}
-			t.Path, t.info, t.Offset, t.pending, t.discard = path, info, offset, nil, discard
-			events = append(events, Event{Reset: true})
+		t.nextScan = now.Add(DiscoverInterval)
+		if latest != "" && (t.lastPath == "" || filepath.Base(latest) >= filepath.Base(t.lastPath)) {
+			path = latest
 		}
 		t.initialized = true
 	}
-	if t.Path == "" {
-		return events, nil
+	if path == "" {
+		return nil, nil
 	}
-	f, err := os.Open(t.Path)
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		if path == t.Path {
+			t.Path = ""
+		}
+		return nil, nil
+	}
+	t.Path = path
 	if err != nil {
-		return events, err
+		return nil, err
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		return events, err
+		return nil, err
 	}
-	if !os.SameFile(t.info, info) || info.Size() < t.Offset {
-		t.Offset, t.pending, t.discard = 0, nil, false
+	var events []Event
+	if path != t.lastPath || !os.SameFile(t.info, info) || info.Size() < t.Offset {
+		var offset int64
+		var discard bool
+		if starting && info.Size() > 0 {
+			offset = info.Size()
+			// Do not interpret the suffix of an in-progress line as a new event.
+			var last [1]byte
+			if _, err := f.ReadAt(last[:], offset-1); err != nil {
+				return nil, err
+			}
+			discard = last[0] != '\n'
+		}
+		t.Offset, t.pending, t.discard = offset, nil, discard
 		events = append(events, Event{Reset: true})
 	}
-	t.info = info
+	t.lastPath, t.info = path, info
 	if info.Size() == t.Offset {
 		return events, nil
 	}

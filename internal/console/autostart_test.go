@@ -41,35 +41,33 @@ func TestAutoStartSetting(t *testing.T) {
 	if w.Code != 200 || c.DesktopState().CDN || c.queue.snapshot().Running || c.queueDesired {
 		t.Fatal("opening the web console restarted manually stopped services")
 	}
-	if !c.settings.AutoAccelerate || !c.settings.QueueWithGateway || !c.editor.savedSettings.AutoAccelerate || !c.editor.savedSettings.QueueWithGateway {
+	if !c.settings.AutoAccelerate || !c.editor.savedSettings.AutoAccelerate {
 		t.Fatal("manual stop changed startup preferences")
 	}
 }
 
-func TestAutoStartHonorsAccelerationAndQueueSettings(t *testing.T) {
+func TestAutoStartRoomLogFollowsGateway(t *testing.T) {
 	for _, gateway := range []bool{false, true} {
-		for _, queue := range []bool{false, true} {
-			t.Run(fmt.Sprintf("gateway=%v/queue=%v", gateway, queue), func(t *testing.T) {
-				c := testConsole(t)
-				if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
-					t.Fatal(err)
-				}
-				s := c.settings
-				s.AutoAccelerate, s.QueueWithGateway = gateway, queue
-				if err := c.editor.save(s); err != nil {
-					t.Fatal(err)
-				}
-				if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired {
-					t.Fatal("saving startup preferences started services immediately")
-				}
-				c = restartTestConsole(t, c)
+		t.Run(fmt.Sprintf("gateway=%v", gateway), func(t *testing.T) {
+			c := testConsole(t)
+			if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			s := c.settings
+			s.AutoAccelerate = gateway
+			if err := c.editor.save(s); err != nil {
+				t.Fatal(err)
+			}
+			if c.httpServer != nil || c.queue.snapshot().Running || c.queueDesired {
+				t.Fatal("saving startup preferences started services immediately")
+			}
+			c = restartTestConsole(t, c)
 
-				c.AutoStart()
-				if c.settings.AutoAccelerate != gateway || c.DesktopState().CDN != gateway || c.settings.QueueWithGateway != queue || c.queue.snapshot().Running != (gateway && queue) || c.queueDesired != (gateway && queue) {
-					t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.snapshot().Running, c.queueDesired)
-				}
-			})
-		}
+			c.AutoStart()
+			if c.settings.AutoAccelerate != gateway || c.DesktopState().CDN != gateway || c.queue.snapshot().Running != gateway || c.queueDesired != gateway {
+				t.Fatalf("saved preferences not honored: gateway=%v queue=%v desired=%v", c.DesktopState().CDN, c.queue.snapshot().Running, c.queueDesired)
+			}
+		})
 	}
 }
 
@@ -123,7 +121,7 @@ func TestAutoStartFailureKeepsConsoleAvailable(t *testing.T) {
 	}
 }
 
-func TestQueueWithGatewayFailureStillStartsGateway(t *testing.T) {
+func TestRoomLogFailureStillStartsGateway(t *testing.T) {
 	c := testConsole(t) // The isolated log directory does not exist.
 	c.settings.AutoAccelerate = true
 

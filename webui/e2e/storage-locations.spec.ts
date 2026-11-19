@@ -149,7 +149,7 @@ test('canceling a new database never creates it or changes the draft',async({pag
 for(const target of [
   {anchor:'storage-settings',label:'本地视频目录',purpose:'video-directory'},
   {anchor:'download-settings',label:'临时视频缓存目录',purpose:'block-cache-directory'},
-  {anchor:'download-settings',label:'VRChat 日志目录',purpose:'log-directory'},
+  {anchor:'preferences',label:'VRChat 日志目录',purpose:'log-directory'},
   {anchor:'video-import',label:'外部目录',purpose:'import-directory'},
 ])test(`${target.label} uses a native directory picker and preserves the draft on cancel or failure`,async({page})=>{
   const api=await mockAPI(page);
@@ -628,7 +628,7 @@ for (const theme of ['light','dark'] as const) test(`path fields are read-only p
 
 test('log selection enables manual mode and reset returns to automatic detection',async({page})=>{
   const api=await mockAPI(page);
-  await page.goto('/#download-settings');
+  await page.goto('/#preferences');
   const path=page.getByRole('textbox',{name:'VRChat 日志目录',exact:true});
   const reset=page.getByRole('button',{name:'VRChat 日志目录：恢复默认',exact:true});
   await expect(reset).toBeDisabled();

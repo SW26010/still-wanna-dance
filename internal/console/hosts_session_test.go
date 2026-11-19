@@ -339,7 +339,9 @@ func TestAccelerationReusesExistingConnectionWithoutPreparingRestore(t *testing.
 		c.editor.hosts = h
 		c.settings.RestoreHostsOnStopOrExit = restore
 		c.settings.AutoAccelerate = true
-		c.settings.QueueWithGateway = false
+		if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
+			t.Fatal(err)
+		}
 		c.editor.initializeSettings(c.settings)
 
 		c.AutoStart()

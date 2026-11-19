@@ -233,9 +233,6 @@ func (c *Console) stopQueueLocked() {
 // Follow the gateway without making log-directory failures acceleration failures.
 // Caller holds lifecycleMu, not mu. Repeated acceleration can retry a failed queue.
 func (c *Console) startGatewayQueueLocked() {
-	if !c.settings.QueueWithGateway {
-		return
-	}
 	c.mu.Lock()
 	c.queueDesired = true
 	c.mu.Unlock()
@@ -322,6 +319,7 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 			previousPath, previousOffset := tail.Path, tail.Offset
 			events, err := tail.Poll(now)
 			received := time.Now()
+			lostLog := previousPath != "" && lastReadError == "" && (tail.Path == "" || err != nil)
 			readError := ""
 			if err != nil {
 				readError = err.Error()
@@ -345,16 +343,16 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 			// the observed timestamp only for snapshots from the log.
 			updates := events
 			firstEvent := 0
-			if err != nil {
+			if lostLog {
 				updates = make([]vrclog.Event, 0, len(events)+2)
-				updates = append(updates, vrclog.Event{Reset: true})
+				updates = append(updates, vrclog.Event{QueueReset: true})
 				updates = append(updates, events...)
 				firstEvent = 1
 			}
 			eventEnd := len(updates)
 			// An idle log can simply mean VRChat is not running. Withdraw
 			// old work without turning inactivity into a read error.
-			if now.Sub(lastActivity) >= 5*time.Minute && !stale {
+			if tail.Path != "" && err == nil && now.Sub(lastActivity) >= 5*time.Minute && !stale {
 				updates = append(updates, vrclog.Event{Reset: true})
 			}
 			// Apply playback and queue events in file order before the worker
@@ -364,7 +362,7 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 			q.File = logName(tail.Path)
 			q.LogError = ""
 			if err != nil {
-				q.LogError = "日志读取失败：" + err.Error()
+				q.LogError = "日志读取失败：" + readError
 			}
 			for i, e := range updates {
 				fromLog := i >= firstEvent && i < eventEnd

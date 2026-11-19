@@ -48,7 +48,7 @@ try {
     await expect(success).toHaveCount(0);
     await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
     await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
-    await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
+    await expect(page.getByText('播放队列：已关闭',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'开始加速',exact:true}).click();
     await expect(page.getByRole('button',{name:'停止加速',exact:true})).toBeEnabled();
     await expect(page.getByText('可在退出后保留游戏接入',{exact:true})).toBeHidden();

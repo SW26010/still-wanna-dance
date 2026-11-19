@@ -6,25 +6,6 @@ import (
 	"testing"
 )
 
-func TestGatewayWithQueueFollowingDisabled(t *testing.T) {
-	c := testConsole(t)
-	c.settings.QueueWithGateway = false
-	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.start(); err != nil {
-		t.Fatal(err)
-	}
-	if c.queue.snapshot().Running || c.queueDesired || c.httpServer == nil || queueDoneForTest(&c.queue) != nil {
-		t.Fatal("disabled setting started the room log reader or prevented the gateway from starting")
-	}
-	engine := c.service
-	c.failCDN(c.httpServer, errors.New("listener failed"))
-	if c.queue.snapshot().Running || c.queueDesired || c.httpServer != nil || c.service != engine {
-		t.Fatal("failed gateway left work running")
-	}
-}
-
 func TestQueueStartsDuringBatch(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
@@ -55,12 +36,11 @@ func TestQueueFailureRetainsIntentAndCanRetry(t *testing.T) {
 	}
 }
 
-func TestQueueWithGatewayDoesNotStartWithoutCDN(t *testing.T) {
+func TestQueueDoesNotStartWithoutCDN(t *testing.T) {
 	c := testConsole(t)
 	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	c.settings.QueueWithGateway = true
 	c.settings.AutoAccelerate = false
 	c.editor.initializeSettings(c.settings)
 

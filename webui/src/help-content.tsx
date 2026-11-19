@@ -40,7 +40,7 @@ export function HelpContent({heading='h1'}:{heading?:'h1'|null}) {
         </li>
         <li><Subtitle2 as="h3">减少下次播放时的等待</Subtitle2>
           <p>开启<Link href={sectionHref('storage-settings')}>视频保留</Link>，让下载过的视频留在电脑里；常用歌曲也可以在<Link href={pageHref('library')}>曲库</Link>中提前下载、预览，或<Link href={sectionHref('batch')}>批量下载缺失视频</Link>。</p>
-          <p><Term description="根据当前房间的点歌队列，提前下载即将播放的视频。">房间队列预加载</Term>能提前准备后面的歌曲。在<Link href={sectionHref('download-settings')}>下载与缓存</Link>中开启；提示找不到日志时，选择 VRChat 日志目录。</p>
+          <p><Term description="根据当前房间的点歌队列，提前下载即将播放的视频。">房间队列预加载</Term>随视频服务启动。日志目录有问题时，到<Link href={sectionHref('preferences')}>常规</Link>选择 VRChat 日志目录。</p>
         </li>
       </ol>
     </Panel>

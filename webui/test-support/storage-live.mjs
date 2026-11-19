@@ -35,17 +35,20 @@ try {
   await page.screenshot({path:join(output,phase+'.png'),fullPage:true});
 
   await page.goto(base+'/#download-settings');
+  const limit=page.getByRole('spinbutton',{name:'同时下载数量',exact:true});
   if(phase==='configure') {
     await cache.click();
     await expect(cache).toHaveValue(cacheDir);
+    await limit.fill('32');
     await page.getByRole('button',{name:'保存设置',exact:true}).click();
     await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();
   }
+  await expect(limit).toHaveValue('32');
+  await page.getByRole('tab',{name:'常规',exact:true}).click();
   const logs=page.getByRole('textbox',{name:'VRChat 日志目录',exact:true});
   const reset=page.getByRole('button',{name:'VRChat 日志目录：恢复默认',exact:true});
   const save=page.getByRole('button',{name:'保存设置',exact:true});
   const restart=page.getByRole('button',{name:'重启并应用',exact:true});
-  const limit=page.getByRole('spinbutton',{name:'同时下载数量',exact:true});
   await expect(logs).toBeVisible();
   // First-run import suggestions and save receipts can cover the bottom field
   // on a narrow viewport. Dismiss them through their normal UI controls.
@@ -58,7 +61,6 @@ try {
     await expect(reset).toBeDisabled();
     await logs.click();
     await expect(logs).toHaveValue(logDir);
-    await limit.fill('32');
     await save.click();
     await expect(save).toBeDisabled();
     await expect(restart).toBeEnabled();
@@ -75,7 +77,6 @@ try {
     await expect(reset).toBeDisabled();
     await expect(restart).toBeDisabled();
   }
-  await expect(limit).toHaveValue('32');
   const token=await page.locator('meta[name="swd-token"]').getAttribute('content');
   const response=await page.request.get(base+'/api/status',{headers:{'X-SWD-Token':token}});
   expect(response.ok()).toBe(true);

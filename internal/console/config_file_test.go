@@ -17,7 +17,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := c.settings
-	if want.AutoAccelerate || !want.AutoOpenWebUI || !want.QueueWithGateway || want.PrepareAheadSeconds != 500 {
+	if want.AutoAccelerate || !want.AutoOpenWebUI || want.PrepareAheadSeconds != 500 {
 		t.Fatal("first launch should disable automatic acceleration and enable WebUI opening and queue following")
 	}
 	if want.VideoStorageMode != "none" || want.VideoBudgetBytes != 0 {
@@ -33,7 +33,7 @@ func TestFirstLaunchPersistsNormalizedConfiguration(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &stored) != nil {
 		t.Fatal("could not read initial settings", err)
 	}
-	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "8" || string(fields["autoAccelerate"]) != "false" || string(fields["queueWithGateway"]) != "true" {
+	if string(fields["prepareAheadSeconds"]) != "500" || stored.DatabasePath != filepath.Join("data", "database", "storage.sqlite") || stored.VideoDir != "videos" || fields["storageDir"] != nil || string(fields["schemaVersion"]) != "8" || string(fields["autoAccelerate"]) != "false" || fields["queueWithGateway"] != nil {
 		t.Fatal(fields)
 	}
 	if fields["aggressiveBlockReclamation"] != nil || string(fields["videoStorageMode"]) != `"none"` || string(fields["videoBudgetBytes"]) != "0" {
@@ -182,43 +182,49 @@ func TestConfigurationPreservesUnknownFieldsAndClearsPassword(t *testing.T) {
 	}
 }
 
-func TestStartupSettingsDefaultAndRemainIndependent(t *testing.T) {
+func TestStartupSettingsIgnoreRetiredQueueSetting(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		data      string
-		wantCDN   bool
-		wantQueue bool
+		name    string
+		data    string
+		wantCDN bool
 	}{
-		{"missing", `{"schemaVersion":8}`, false, true},
-		{"null", `{"schemaVersion":8,"autoAccelerate":null,"queueWithGateway":null}`, false, true},
-		{"missing queue with gateway on", `{"schemaVersion":8,"autoAccelerate":true}`, true, true},
-		{"missing queue with gateway off", `{"schemaVersion":8,"autoAccelerate":false}`, false, true},
-		{"missing gateway with queue off", `{"schemaVersion":8,"queueWithGateway":false}`, false, false},
-		{"both off", `{"schemaVersion":8,"autoAccelerate":false,"queueWithGateway":false}`, false, false},
-		{"gateway only", `{"schemaVersion":8,"autoAccelerate":true,"queueWithGateway":false}`, true, false},
-		{"queue only", `{"schemaVersion":8,"autoAccelerate":false,"queueWithGateway":true}`, false, true},
-		{"both on", `{"schemaVersion":8,"autoAccelerate":true,"queueWithGateway":true}`, true, true},
-		{"obsolete queue field", `{"schemaVersion":8,"autoAccelerate":false,"queuePrefetchEnabled":false}`, false, true},
+		{"missing", `"futurePreference":9007199254740993`, false},
+		{"null", `"autoAccelerate":null,"queueWithGateway":null`, false},
+		{"off", `"autoAccelerate":true,"queueWithGateway":false`, true},
+		{"on", `"autoAccelerate":false,"queueWithGateway":true`, false},
+		{"invalid legacy value", `"autoAccelerate":true,"QueueWithGateway":{"invalid":true}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.json")
-			if err := os.WriteFile(path, []byte(tc.data), 0600); err != nil {
+			data := `{"schemaVersion":8,` + tc.data + `}`
+			if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 				t.Fatal(err)
 			}
-			c, err := newConsoleWithWorkForTest(t, path, "127.0.0.1:18081")
+			loaded, err := loadConfigFile(path)
+			if err != nil || loaded.Settings.AutoAccelerate != tc.wantCDN {
+				t.Fatal("loaded startup setting", loaded.Settings.AutoAccelerate, err)
+			}
+			if got, err := os.ReadFile(path); err != nil || string(got) != data {
+				t.Fatal("loading changed configuration", err)
+			}
+			if err := saveConfigSettings(path, loaded.Settings); err != nil {
+				t.Fatal(err)
+			}
+			_, fields, err := readConfigFile(path)
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Cleanup(func() { c.Close() })
-			if c.settings.AutoAccelerate != tc.wantCDN || c.settings.QueueWithGateway != tc.wantQueue {
-				t.Fatalf("loaded startup settings: gateway=%v queue=%v", c.settings.AutoAccelerate, c.settings.QueueWithGateway)
+			for key := range fields {
+				if strings.EqualFold(key, "queueWithGateway") {
+					t.Fatal("save retained retired key", key)
+				}
 			}
-			if err := c.editor.save(c.settings); err != nil {
-				t.Fatal(err)
+			if tc.name == "missing" && string(fields["futurePreference"]) != "9007199254740993" {
+				t.Fatal("save changed unrelated preference")
 			}
-			c = restartTestConsole(t, c)
-			if c.settings.AutoAccelerate != tc.wantCDN || c.settings.QueueWithGateway != tc.wantQueue {
-				t.Fatal("save/restart changed startup settings")
+			loaded, err = loadConfigFile(path)
+			if err != nil || loaded.Settings.AutoAccelerate != tc.wantCDN {
+				t.Fatal("save changed startup setting", loaded.Settings.AutoAccelerate, err)
 			}
 		})
 	}

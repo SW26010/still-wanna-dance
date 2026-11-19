@@ -53,7 +53,7 @@ test('manual library download leaves the running queue alone',async({page})=>{
   await page.locator('#batch').getByRole('button',{name:'下载缺失视频',exact:true}).click();
   expect(api.calls.filter(c=>/^(batch\/|queue\/)/.test(c.path)).map(c=>c.path)).toEqual(['batch/start']);
   await navigate(page,'加速');
-  await expect(page.getByRole('status',{name:'房间队列',exact:true})).toHaveText('房间队列：监控中');
+  await expect(page.getByRole('status',{name:'播放队列',exact:true})).toHaveText('播放队列：监控中');
 });
 
 test('sample preparation points to library and connectivity without fetching a catalog',async({page},info)=>{

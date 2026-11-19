@@ -30,7 +30,7 @@ export function Home({visible}: {visible:boolean}) {
   const queueFailed=!!q.desired&&!q.running&&!!s.actionErrors?.queue;
   const queueError=q.running?[q.logError,q.error].filter(Boolean).join('；'):queueFailed?s.actionErrors?.queue:'';
   const queueReason=queueError||(q.running?(q.file?`正在监控日志：${q.file}。${q.songs?.length?`当前房间队列 ${q.songs.length} 首。`:'等待新的房间队列同步。'}`:'尚未发现 VRChat 日志，等待游戏生成日志。'):q.desired?'房间队列已启用，监控尚未就绪。':'');
-  const queuePhase=uncertain?'待确认':queueFailed?'启动失败':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
+  const queuePhase=uncertain?'待确认':queueError?'需检查':q.running?'监控中':q.desired?'未就绪':'已关闭';
   const stopping=a.phase==='stopping';
   const accelerationAction=s.running?'停止加速':'开始加速';
   return <div className="page-stack">
@@ -44,7 +44,7 @@ export function Home({visible}: {visible:boolean}) {
       <div className="toolbar condition-strip">
         <StatusBadge label="游戏连接" description={uncertain?unknownReason:connectionDescription} action={!uncertain&&s.hosts.ready&&needsExitPreparation?{label:'修复',onClick:()=>void app.action('hosts/prepare'),disabled:app.unavailable}:undefined} color={uncertain?'informative':s.hosts.conflict||connectionError&&!s.hosts.ready?'danger':connectionReason?'warning':s.hosts.ready?'success':a.phase==='hosts'?'brand':'informative'}>{connectionPhase}</StatusBadge>
         <StatusBadge label="视频服务" description={uncertain?unknownReason:serviceReason} color={uncertain?'informative':serviceError?'danger':s.running?'success':a.phase==='starting'?'brand':'informative'}>{uncertain?'待确认':serviceError?'异常':s.running?'运行中':a.phase==='starting'?'启动中':'未运行'}</StatusBadge>
-        <StatusBadge label="房间队列" description={uncertain?unknownReason:queueReason} color={uncertain?'informative':queueFailed?'danger':queueError?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge>
+        <StatusBadge label="播放队列" description={uncertain?unknownReason:queueReason} color={uncertain?'informative':queueError?'warning':q.running?'success':q.desired?'warning':'informative'}>{queuePhase}</StatusBadge>
       </div>
       <div className="toolbar home-result" role="status"><span className="secondary"><Link href="#recent">最近请求</Link>：{requests.error?'暂时无法读取':recent?`${requestOutcome(recent)} · HTTP ${recent.status||'未返回'} · ${date(recent.at)}`:'暂无记录'}</span>
       </div>

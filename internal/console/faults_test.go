@@ -22,7 +22,6 @@ func TestAutomaticAndTrayFailuresShareIncident(t *testing.T) {
 	c := testConsole(t)
 	c.settings.AutoOpenWebUI = false
 	c.settings.AutoAccelerate = true
-	c.settings.QueueWithGateway = false
 	center := faults.New()
 	c.SetFaultCenter(center)
 	occupied, err := net.Listen("tcp4", "127.0.0.1:0")

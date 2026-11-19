@@ -2,11 +2,11 @@ import {test,expect,type Page,type Locator} from '@playwright/test';
 import {mockAPI} from './api';
 import type {Status} from '../src/types';
 
-const labels=['后台程序','游戏连接','视频服务','房间队列'];
+const labels=['后台程序','游戏连接','视频服务','播放队列'];
 const badge=(page:Page,label:string)=>page.getByRole('status',{name:label,exact:true});
 const background=(element:Locator)=>element.evaluate(el=>getComputedStyle(el).backgroundColor);
 const healthy=async(page:Page)=>{
-  for(const [label,state] of [['后台程序','已连接'],['游戏连接','已接入'],['视频服务','运行中'],['房间队列','监控中']])await expect(badge(page,label)).toHaveText(label+'：'+state);
+  for(const [label,state] of [['后台程序','已连接'],['游戏连接','已接入'],['视频服务','运行中'],['播放队列','监控中']])await expect(badge(page,label)).toHaveText(label+'：'+state);
 };
 
 for(const [width,theme,cause] of [[1280,'light','polling'],[390,'dark','storage'],[320,'light','work']] as const)test(`backend details open from the badge without shifting controls at ${width}px`,async({page},info)=>{
@@ -44,7 +44,7 @@ for(const [width,theme,forced] of [[1280,'light',false],[390,'dark',false],[320,
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={running:true,desired:true};
   api.state.hosts.message='播放 API 已接入本地；资源域名由 API 返回。';
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme,forcedColors:forced?'active':'none'});await page.goto('/#/home');await healthy(page);
-  await expect(page.locator('.condition-strip [role="status"]')).toHaveText(['游戏连接：已接入','视频服务：运行中','房间队列：监控中']);
+  await expect(page.locator('.condition-strip [role="status"]')).toHaveText(['游戏连接：已接入','视频服务：运行中','播放队列：监控中']);
   const styles=[];
   for(const label of labels){
     const item=badge(page,label);await expect(item).toHaveAttribute('aria-atomic','true');await expect(item.locator('svg')).toHaveAttribute('aria-hidden','true');
@@ -109,7 +109,7 @@ test('conflicts, inactive services and startup have distinct semantic colors',as
   await badge(page,'视频服务').focus();
   await expect(page.getByRole('tooltip')).toContainText('HTTP 80 端口可用；HTTPS 443 端口可用');
   await page.keyboard.press('Escape');
-  await expect(badge(page,'房间队列')).toHaveText('房间队列：未就绪');
+  await expect(badge(page,'播放队列')).toHaveText('播放队列：未就绪');
   const colors=await Promise.all(labels.map(label=>background(badge(page,label))));expect(new Set(colors).size).toBe(4);
   await page.screenshot({path:info.outputPath('mixed-states.png'),fullPage:true,animations:'disabled'});
   api.state.activation={phase:'starting'};await page.clock.fastForward(5100);await expect(badge(page,'视频服务')).toHaveText('视频服务：启动中');
@@ -118,11 +118,11 @@ test('conflicts, inactive services and startup have distinct semantic colors',as
   await page.clock.fastForward(5100);await expect(badge(page,'视频服务')).toHaveText('视频服务：异常');
   expect(await background(badge(page,'视频服务'))).toBe(colors[1]);
   api.state.actionErrors={queue:'无法启动队列'};await page.clock.fastForward(5100);
-  await expect(badge(page,'房间队列')).toHaveText('房间队列：启动失败');expect(await background(badge(page,'房间队列'))).toBe(colors[1]);
+  await expect(badge(page,'播放队列')).toHaveText('播放队列：需检查');expect(await background(badge(page,'播放队列'))).toBe(colors[3]);
   api.state.actionErrors={};api.state.queue={desired:true,running:true,logError:'无法读取游戏日志'};await page.clock.fastForward(5100);
-  await expect(badge(page,'房间队列')).toHaveText('房间队列：需检查');expect(await background(badge(page,'房间队列'))).toBe(colors[3]);
+  await expect(badge(page,'播放队列')).toHaveText('播放队列：需检查');expect(await background(badge(page,'播放队列'))).toBe(colors[3]);
   api.state.queue={desired:false,running:false};await page.clock.fastForward(5100);
-  await expect(badge(page,'房间队列')).toHaveText('房间队列：已关闭');expect(await background(badge(page,'房间队列'))).toBe(colors[2]);
+  await expect(badge(page,'播放队列')).toHaveText('播放队列：已关闭');expect(await background(badge(page,'播放队列'))).toBe(colors[2]);
 });
 
 test('a rejected action does not misreport the backend connection',async({page})=>{
@@ -137,8 +137,8 @@ const failures:{name:string;state:Partial<Status>;label:string;text:string;reaso
   {name:'UAC refusal',state:{activation:{phase:'failed',error:'游戏接入失败：管理员授权已取消',connectionError:'游戏接入失败：管理员授权已取消'}},label:'游戏连接',text:'接入失败',reason:'管理员授权已取消'},
   {name:'occupied port',state:{portOK:false,portOwner:{name:'fixture-player',pid:1234}},label:'视频服务',text:'异常',reason:'HTTP 80 端口被 fixture-player（PID 1234）占用'},
   {name:'reserved HTTPS port',state:{httpsPortOK:false},label:'视频服务',text:'异常',reason:'HTTPS 443 端口不可用或被系统保留'},
-  {name:'queue startup failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:false},actionErrors:{queue:'无法读取 VRChat 日志目录：目录不存在'}},label:'房间队列',text:'启动失败',reason:'无法读取 VRChat 日志目录：目录不存在'},
-  {name:'log read failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:true,file:'output_log.txt',logError:'日志读取失败：访问被拒绝'}},label:'房间队列',text:'需检查',reason:'日志读取失败：访问被拒绝'},
+  {name:'queue startup failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:false},actionErrors:{queue:'无法读取 VRChat 日志目录：目录不存在'}},label:'播放队列',text:'需检查',reason:'无法读取 VRChat 日志目录：目录不存在'},
+  {name:'log read failure',state:{running:true,hosts:{ready:true,message:'已接入'},queue:{desired:true,running:true,file:'output_log.txt',logError:'日志读取失败：访问被拒绝'}},label:'播放队列',text:'需检查',reason:'日志读取失败：访问被拒绝'},
 ];
 
 for(const failure of failures)test(`component reason supports hover and keyboard: ${failure.name}`,async({page},info)=>{
@@ -155,7 +155,7 @@ for(const failure of failures)test(`component reason supports hover and keyboard
   await page.keyboard.press('Escape');await expect(tip).toBeHidden();
   await page.mouse.move(0,0);await target.focus();await expect(tip).toContainText(failure.reason);
   await page.keyboard.press('Escape');await expect(tip).toBeHidden();
-  if(failure.label==='房间队列'){
+  if(failure.label==='播放队列'){
     await expect(badge(page,'游戏连接')).toHaveText('游戏连接：已接入');
     await expect(badge(page,'视频服务')).toHaveText('视频服务：运行中');
   }
@@ -164,7 +164,7 @@ for(const failure of failures)test(`component reason supports hover and keyboard
 test('queue monitoring stays healthy while waiting and explains its current log on hover',async({page},info)=>{
   const api=await mockAPI(page);api.state.running=true;api.state.hosts.ready=true;api.state.queue={desired:true,running:true,file:''};
   await page.setViewportSize({width:390,height:850});await page.clock.install();await page.goto('/');
-  const target=badge(page,'房间队列'),tip=page.getByRole('tooltip');
+  const target=badge(page,'播放队列'),tip=page.getByRole('tooltip');
   await healthy(page);const green=await background(badge(page,'视频服务'));
   expect(await background(target)).toBe(green);
   await target.hover();await expect(tip).toContainText('尚未发现 VRChat 日志，等待游戏生成日志。');
@@ -178,7 +178,7 @@ test('queue monitoring stays healthy while waiting and explains its current log 
   api.state.queue.songs=[{songId:1},{songId:2}];await page.clock.fastForward(5100);
   await expect(tip).toContainText('当前房间队列 2 首');
   api.state.queue.logError='日志读取失败：访问被拒绝';await page.clock.fastForward(5100);
-  await expect(target).toHaveText('房间队列：需检查');expect(await background(target)).not.toBe(green);
+  await expect(target).toHaveText('播放队列：需检查');expect(await background(target)).not.toBe(green);
   await expect(tip).toContainText('日志读取失败：访问被拒绝');
   api.state.queue.logError='';await page.clock.fastForward(5100);
   await healthy(page);expect(await background(target)).toBe(green);await expect(tip).toContainText('当前房间队列 2 首');

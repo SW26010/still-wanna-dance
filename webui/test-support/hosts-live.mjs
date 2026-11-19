@@ -45,7 +45,7 @@ try {
     await page.getByRole('button',{name:'停止加速',exact:true}).click();
     await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeEnabled();
     await expect(page.getByText('视频服务：未运行',{exact:true})).toBeVisible();
-    await expect(page.getByText('房间队列：已关闭',{exact:true})).toBeVisible();
+    await expect(page.getByText('播放队列：已关闭',{exact:true})).toBeVisible();
     await expect(page.getByText(`游戏连接：${phase==='persistent'?'未接入':'已接入'}`,{exact:true})).toBeVisible();
     await page.screenshot({path:join(output,phase+`-stopped-${cycle}.png`),animations:'disabled'});
     await page.getByRole('button',{name:'开始加速',exact:true}).click();

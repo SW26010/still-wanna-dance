@@ -2215,6 +2215,13 @@
       "bytes": 1326251,
       "sha256": "d4abf2a30f23ea140f4249334d60d3124cc0103916137b714a001580c066c1d3",
       "reason": "离线 WebUI 在首页正式播放行按整秒显示房间播放进度，并合并同曲同资源的游戏读取与交接块。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1325849,
+      "sha256": "226760da73e469cd5ac9a26bcb1bc0983f92206bc2588b0ac952c60682f4376a",
+      "reason": "离线 WebUI 移除队列预加载开关，将 VRChat 日志目录移至常规设置，并使用播放队列徽章展示日志监听状态。"
     }
   ]
 }

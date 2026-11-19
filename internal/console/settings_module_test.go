@@ -29,7 +29,7 @@ func TestConfigLoadDoesNotPrepareResourcesOrRewrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := loaded.Settings
-	if !loaded.Exists || !loaded.VRCXImportDismissed || s.AutoOpenWebUI || s.DownloadGrowIntervalMS != 0 || s.LocalProtectionGraceSeconds != 300 || !s.QueueWithGateway {
+	if !loaded.Exists || !loaded.VRCXImportDismissed || s.AutoOpenWebUI || s.DownloadGrowIntervalMS != 0 || s.LocalProtectionGraceSeconds != 300 {
 		t.Fatal("load lost explicit values or defaults")
 	}
 	if s.DatabasePath != filepath.Join(root, "db", "library.sqlite") || s.VideoDir != filepath.Join(root, "videos") || s.VRChatLogDir != filepath.Join(root, "logs") {
@@ -88,7 +88,7 @@ func TestSettingsRequestOmissionSemantics(t *testing.T) {
 				want.DownloadConcurrencySoftLimit = 32
 				want.DownloadGrowIntervalMS, want.LocalProtectionGraceSeconds = 0, 0
 				want.RestoreHostsOnStopOrExit, want.RetainFavorites = false, false
-				want.AutoOpenWebUI, want.QueueWithGateway = true, true
+				want.AutoOpenWebUI = true
 				want.VRChatLogDir = "" // explicitly clearing the path selects automatic detection
 			}
 			active.RestoreHostsOnStopOrExit = want.RestoreHostsOnStopOrExit

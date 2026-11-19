@@ -34,13 +34,16 @@ func TestQueuePersistentLogFailureUsesFaultCenter(t *testing.T) {
 		if err := os.Remove(path); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.Remove(dir); err != nil {
+			t.Fatal(err)
+		}
 		center := faults.New()
 		q := &queueTask{}
 		q.setLogFaultObserver(func(err error) { center.Retry("queue:log", err) })
 		q.start(tail, engine)
 		t.Cleanup(q.stop)
 		synctest.Wait()
-		time.Sleep(2 * vrclog.PollInterval)
+		time.Sleep(vrclog.DiscoverInterval + vrclog.PollInterval)
 		synctest.Wait()
 		select {
 		case <-center.Wake():
@@ -57,6 +60,9 @@ func TestQueuePersistentLogFailureUsesFaultCenter(t *testing.T) {
 		default:
 			t.Fatal("persistent log failure was not reported")
 		}
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(path, nil, 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +71,10 @@ func TestQueuePersistentLogFailureUsesFaultCenter(t *testing.T) {
 		if err := os.Remove(path); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(3 * vrclog.PollInterval)
+		if err := os.Remove(dir); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(vrclog.DiscoverInterval + 2*vrclog.PollInterval)
 		synctest.Wait()
 		select {
 		case <-center.Wake():
@@ -429,15 +438,28 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 				if !discovered || calls.Load() != 1 {
 					t.Fatal("new log was not consumed after idle waiting")
 				}
+				q.mu.Lock()
+				generation := q.generation
+				q.mu.Unlock()
 				if err := os.Remove(path); err != nil {
 					t.Fatal(err)
+				}
+				time.Sleep(vrclog.PollInterval)
+				synctest.Wait()
+				if status := q.snapshot(); status.LogError != "" || status.File != "" || len(status.Songs) != 0 {
+					t.Fatalf("watcher did not withdraw the deleted log: %+v", status)
 				}
 				time.Sleep(6 * time.Minute)
 				synctest.Wait()
 				status = q.snapshot()
-				readFailed := status.LogError != "" && len(status.Songs) == 0
-				if !readFailed {
-					t.Fatal("actual read failure was hidden after the idle timeout")
+				if !status.Running || status.LogError != "" || status.File != "" || len(status.Songs) != 0 {
+					t.Fatalf("watcher did not return to healthy idle state: %+v", status)
+				}
+				q.mu.Lock()
+				resets := q.generation - generation
+				q.mu.Unlock()
+				if resets != 1 {
+					t.Fatalf("the missing log reset the queue %d times, want one", resets)
 				}
 			})
 		})

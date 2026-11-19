@@ -65,8 +65,8 @@ func TestTailReadsQueueAndPlaybackInFileOrder(t *testing.T) {
 	if err := os.Rename(file, file+".offline"); err != nil {
 		t.Fatal(err)
 	}
-	if events, err := tail.Poll(now); !os.IsNotExist(err) || len(events) != 0 {
-		t.Fatal("missing file should report a read error without a reset", events, err)
+	if events, err := tail.Poll(now.Add(PollInterval)); err != nil || len(events) != 0 || tail.Path != "" {
+		t.Fatal("missing file should leave the tail idle", events, err, tail.Path)
 	}
 	if err := os.Rename(file+".offline", file); err != nil {
 		t.Fatal(err)
@@ -82,8 +82,12 @@ func TestTailReadsQueueAndPlaybackInFileOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if events, err := tail.Poll(now.Add(2 * PollInterval)); err != nil || len(events) != 0 || tail.Path != "" {
+		t.Fatal("tail reopened the returned log before discovery", events, err, tail.Path)
+	}
 	var timeline PlayerTimeline
 	timeline.Observe(e[0], e[0].Playback.At)
+	now = now.Add(DiscoverInterval)
 	e, err = tail.Poll(now)
 	if err != nil || len(e) != 2 || !e[0].QueueReset || e[0].Reset || e[1].Playback == nil {
 		t.Fatal("malformed snapshot must clear only the queue", e, err)

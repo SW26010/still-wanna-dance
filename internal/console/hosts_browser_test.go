@@ -19,7 +19,9 @@ func TestHostsRestorePermissionBrowser(t *testing.T) {
 	owned, _ := transformHosts(hostsBaseline, "enable")
 	h, launches := fixtureHostsController(t, owned)
 	c.editor.hosts = h
-	c.settings.QueueWithGateway = false
+	if err := os.MkdirAll(c.settings.VRChatLogDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	c.editor.initializeSettings(c.settings)
 	launch, attempts := h.launch, 0
 	h.launch = func(ctx context.Context) (hostsConnection, error) {

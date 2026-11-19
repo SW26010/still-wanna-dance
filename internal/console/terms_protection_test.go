@@ -130,7 +130,7 @@ func TestTermsProtectedMoveAndInvalidReceipts(t *testing.T) {
 			if !loaded.OpenWebUIOnLaunch() || loaded.settings.AutoOpenWebUI {
 				t.Fatal("invalid receipt should open confirmation without changing the preference")
 			}
-			loaded.settings.AutoAccelerate, loaded.settings.QueueWithGateway = true, true
+			loaded.settings.AutoAccelerate = true
 			loaded.AutoStart()
 			if loaded.service != nil || loaded.httpServer != nil || queueHasCancelForTest(&loaded.queue) {
 				t.Fatal("invalid receipt started services")

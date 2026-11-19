@@ -143,7 +143,7 @@ func updateConfigFile(path string, update func(fields map[string]json.RawMessage
 	}
 	// Retired overrides are ignored on load and removed only on a successful write.
 	for key := range fields {
-		if strings.EqualFold(key, "aggressiveBlockReclamation") {
+		if strings.EqualFold(key, "aggressiveBlockReclamation") || strings.EqualFold(key, "queueWithGateway") {
 			delete(fields, key)
 		}
 	}

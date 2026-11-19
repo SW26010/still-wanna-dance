@@ -21,7 +21,6 @@ type Settings struct {
 	nodeImportID                 string // transient request only; cleared before publish
 	proxySecret                  string
 	proxySecretError             string
-	QueueWithGateway             bool   `json:"queueWithGateway"`
 	RequestRetentionDays         int    `json:"requestRetentionDays"`
 	RequestRetentionMode         string `json:"requestRetentionMode"`
 	AutoAccelerate               bool   `json:"autoAccelerate"`
@@ -53,7 +52,7 @@ type Settings struct {
 func defaultSettings() Settings {
 	return Settings{
 		RequestRetentionMode: "unlimited",
-		AutoAccelerate:       false, AutoOpenWebUI: true, QueueWithGateway: true, RestoreHostsOnStopOrExit: true,
+		AutoAccelerate:       false, AutoOpenWebUI: true, RestoreHostsOnStopOrExit: true,
 		VideoStorageMode: "none", VideoBudgetBytes: 0, RetainFavorites: true,
 		DownloadConcurrencySoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
 		LocalProtectionGraceSeconds: int(cacheproxy.DefaultLocalProtectionGrace / time.Second),

@@ -159,7 +159,8 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 }
 
 func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpansion bool) {
-	if !now.Before(p.clock.end()) {
+	end := p.clock.end()
+	if !now.Before(end) {
 		s.clearFormalLocked(now)
 		return
 	}
@@ -169,14 +170,22 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 		p.use = span
 	}
 	s.formal = p
-	s.notifyUseChangedLocked(p.key)
+	keys := []string{p.key}
+	if !end.Equal(s.queueStart) {
+		keys = append(keys, s.retimeQueueLocked(now)...)
+	}
+	s.notifyUseChangedLocked(keys...)
 }
 
 func (s *Server) clearFormalLocked(now time.Time) {
 	p := s.formal
 	s.dropFormalLocked(now)
 	if p != nil {
-		s.notifyUseChangedLocked(p.key)
+		keys := []string{p.key}
+		if s.queueStart.After(now) {
+			keys = append(keys, s.retimeQueueLocked(now)...)
+		}
+		s.notifyUseChangedLocked(keys...)
 	}
 }
 

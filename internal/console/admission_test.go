@@ -101,9 +101,9 @@ func TestOrderedPreparationStopsResolutionAtUsageCapacity(t *testing.T) {
 	}
 }
 
-func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
+func TestQueueKeepsSuccessfulPreparationAcrossRepeatedSnapshots(t *testing.T) {
 	c := testConsole(t)
-	const body = "rearmed queue fixture"
+	const body = "queue preparation fixture"
 	target := fmt.Sprintf("https://play.udon.dance/files/2403/42-abc.mp4?e=%x&s=%d", md5.Sum([]byte(body)), len(body))
 	cfg := fixtureCacheConfig()
 	cfg.Store, cfg.Work, cfg.VideoDir = c.store, c.work, libraryPaths(c.settings).VideoDir
@@ -123,10 +123,7 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer engine.Close()
-	// After completed usage expires and a real clock change rearms the member,
-	// the console still remembers success but the engine needs admission again.
 	c.queue.setQueueSongs([]vrclog.Song{{ID: 42}}, false)
-	c.queue.prepared = map[int64]bool{42: true}
 	ctx, cancel := context.WithCancel(t.Context())
 	done, wake := make(chan struct{}), make(chan struct{}, 1)
 	go func() { defer close(done); c.queue.queueWorker(ctx, engine, wake) }()
@@ -140,15 +137,16 @@ func TestQueueRepreparesRearmedMemberAfterPreviousSuccess(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("previous success blocked rearmed preparation", calls.Load())
+			t.Fatal("queue member did not prepare", calls.Load())
 		}
 		time.Sleep(time.Millisecond)
 	}
 	for range 3 {
+		c.queue.setQueueSongs([]vrclog.Song{{ID: 42}}, false)
 		wake <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if engine.QueueNeedsPreparation(42) || calls.Load() != 1 {
+	if calls.Load() != 1 {
 		t.Fatal("valid completed usage was prepared repeatedly", calls.Load())
 	}
 }

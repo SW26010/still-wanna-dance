@@ -90,7 +90,7 @@ func (s *Server) watchRetryDeadline(d *downloadDemand) func() error {
 }
 
 func (s *Server) refreshDownloadDeadlinesLocked(f *flight, key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
-	next := s.refreshGETDeadlinesLocked(key, now, func(d *downloadDemand) time.Time {
+	return s.refreshGETDeadlinesLocked(key, now, func(d *downloadDemand) time.Time {
 		switch d.flight {
 		case nil:
 			return s.missingDeadline(d.useSpan(), *d.clock, s.firstMissingLocal)
@@ -100,8 +100,6 @@ func (s *Server) refreshDownloadDeadlinesLocked(f *flight, key string, now time.
 			return s.failedGETDeadlineLocked(d)
 		}
 	})
-	// GET withdrawal can change the queue clock before its own deadline check.
-	return earlier(next, s.refreshQueueDeadlinesLocked(key, now, firstMissing))
 }
 
 func (s *Server) refreshGETDeadlinesLocked(key string, now time.Time, deadline func(*downloadDemand) time.Time) time.Time {
@@ -120,39 +118,9 @@ func (s *Server) refreshGETDeadlinesLocked(key string, now time.Time, deadline f
 			ended = append(ended, d)
 		}
 	}
-	// Freeze the whole failed cohort before any removal retimes the queue.
-	// Otherwise map order could preserve the end clock of the last failed GET.
+	// Freeze the whole failed cohort before publishing any of its withdrawals.
 	for _, d := range ended {
 		s.removeDemandLocked(d)
-	}
-	return next
-}
-
-func (s *Server) refreshQueueDeadlinesLocked(key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
-	if s.queueRolling {
-		return time.Time{} // Every rolling need-by is at or after now.
-	}
-	var next time.Time
-	for _, q := range s.prefetchSources {
-		if q.use.key != key {
-			continue
-		}
-		at := s.missingDeadline(q.use, playbackClock{at: q.startAt, media: q.timing}, firstMissing)
-		if at.IsZero() || at.After(now) {
-			next = earlier(next, at)
-			continue
-		}
-		q.expired = true
-		s.releaseUseLocked(q.use, now)
-		q.use = useSpan{}
-		for d := range s.demands {
-			if d.queueSource == q {
-				d.exit.recordReason(withdrawalNeedEnded)
-				d.cancel(errSourceExpired)
-				s.removeDemandLocked(d)
-			}
-		}
-		s.notifyUseChangedLocked(key)
 	}
 	return next
 }

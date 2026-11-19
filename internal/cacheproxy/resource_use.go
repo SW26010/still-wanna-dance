@@ -76,9 +76,6 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 		now := time.Now()
 		s.refreshUseSourcesLocked(now)
 		f := s.flights[u.video.key]
-		if f == nil && u.refetch {
-			s.refreshQueueDeadlinesLocked(u.video.key, now, s.firstMissingLocal)
-		}
 		plan, _ := s.collectUsePlanLocked(u.video.key, now)
 		if len(plan) == 0 {
 			return

@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-func holdQueuePlaybackUntil(t *testing.T, s *Server, end time.Time) func() {
+func setFormalPlaybackEnd(t *testing.T, s *Server, end time.Time) {
 	t.Helper()
-	clock := &playbackClock{at: end.Add(-time.Second), limit: 1, media: mediaTiming{1, time.Second}}
-	ctx := context.WithValue(context.Background(), playbackClockKey{}, clock)
-	_, release := addTestDemand(t, s, ctx, video{key: "queue-clock", size: 1}, true)
-	t.Cleanup(release)
-	return release
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.updateFormalLocked(&formalPlayback{
+		key: "formal-clock", clock: playbackClock{at: end.Add(-time.Second), media: mediaTiming{1, time.Second}},
+	}, time.Now(), false)
 }
 
 func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
@@ -37,7 +37,7 @@ func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 			plan, _, _ := w.plan(now)
 			s.mu.Lock()
 			second := s.queueClockLocked(s.prefetchSources["2"], now).at
-			valid := q == s.prefetchSources["1"] && !q.expired && s.useTimer == nil
+			valid := q == s.prefetchSources["1"] && s.useTimer == nil
 			s.mu.Unlock()
 			if !valid || plan[0].need.Rolling != before[0].need.Rolling ||
 				plan[0].need.ReadyAt(now) != now || second != now.Add(typicalDuration) {
@@ -84,7 +84,7 @@ func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	})
 }
 
-func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
+func TestQueueFollowsFormalEndAcrossGETAndNaturalExpiry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)
 		base := time.Now()
@@ -92,28 +92,28 @@ func TestIdleQueuePreservesFutureGETEstimateAndLiveGETClock(t *testing.T) {
 			t.Helper()
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			if got := s.queueClockLocked(s.prefetchSources["1"], time.Now()).at; got != want || s.useTimer != nil {
-				t.Fatalf("queue start=%v want=%v, timer stopped=%v", got, want, s.useTimer == nil)
+			if got := s.queueClockLocked(s.prefetchSources["1"], time.Now()).at; got != want {
+				t.Fatalf("queue start=%v want=%v", got, want)
 			}
 		}
-		release := holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
+		setFormalPlaybackEnd(t, s, base.Add(time.Minute))
 		s.UpdatePrefetchQueue([]int64{1}, false)
-		release() // Transmission ended; buffered playback can still be running.
+		check(base.Add(time.Minute))
+		clock := &playbackClock{at: base, limit: 1, media: mediaTiming{1, 3 * time.Minute}}
+		ctx := context.WithValue(t.Context(), playbackClockKey{}, clock)
+		_, release := addTestDemand(t, s, ctx, video{key: "get", size: 1}, true)
+		defer release()
 		time.Sleep(50 * time.Second)
-		synctest.Wait()
 		check(base.Add(time.Minute))
 		time.Sleep(25 * time.Second)
 		synctest.Wait()
-		check(base.Add(75 * time.Second))
-		// A live GET remains authoritative even when its estimated end is past.
-		holdQueuePlaybackUntil(t, s, base.Add(time.Minute))
-		time.Sleep(time.Minute)
-		synctest.Wait()
-		check(base.Add(time.Minute))
+		check(time.Now())
+		release()
+		check(time.Now())
 	})
 }
 
-func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
+func TestQueueDownloadSurvivesFormerDeadline(t *testing.T) {
 	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -153,10 +153,16 @@ func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
 						t.Error(err)
 					}
 				})
+				now := time.Now()
+				clock := &playbackClock{at: now.Add(-time.Second), limit: 1, media: mediaTiming{1, time.Second}}
+				getCtx := context.WithValue(t.Context(), playbackClockKey{}, clock)
+				_, release := addTestDemand(t, s, getCtx, video{key: "stale-get", size: 1}, true)
+				defer release()
+				setFormalPlaybackEnd(t, s, now.Add(10*time.Second))
 				s.UpdatePrefetchQueue([]int64{1}, false)
 				ctx := s.queueDemandContext(t.Context(), "1")
 				if _, err := s.PrefetchSong(ctx, "1", videoURL(payload)); err != nil {
-					t.Fatal("idle queue download expired instead of continuing", err)
+					t.Fatal("queue download expired instead of continuing", err)
 				}
 				if calls != 1 {
 					t.Fatal("clock refresh restarted the download", calls)
@@ -166,45 +172,36 @@ func TestIdleQueueDownloadSurvivesOriginalDeadline(t *testing.T) {
 	}
 }
 
-func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
+func TestQueueRecalculatesAfterFormalClockCorrectionAndStop(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		base := time.Now()
-		add := func(seconds time.Duration, offset int64) func() {
-			p := &playbackClock{at: time.Now(), offset: offset, limit: 100, media: mediaTiming{100, seconds}}
-			ctx := context.WithValue(context.Background(), playbackClockKey{}, p)
-			_, release := addTestDemand(t, s, ctx, w.v, true)
-			return release
-		}
-		first := add(300*time.Second, 0)
-		defer first()
-		time.Sleep(10 * time.Second)
-		second := add(200*time.Second, 75)
-		defer second()
+		setFormalPlaybackEnd(t, s, base.Add(300*time.Second))
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
+		registerQueueResource(t, s, "1", w.v.key)
 		check := func(want time.Time) {
 			t.Helper()
+			s.mu.Lock()
+			defer s.mu.Unlock()
 			for i, id := range []string{"1", "2", "3"} {
-				if got := s.prefetchSources[id].readyBy(0, rangeBlockSize); got != want.Add(time.Duration(i)*typicalDuration) {
+				if got := s.queueClockLocked(s.prefetchSources[id], time.Now()).at; got != want.Add(time.Duration(i)*typicalDuration) {
 					t.Fatal(id, got, want)
 				}
 			}
 		}
-		check(base.Add(60 * time.Second))
-		second()
 		check(base.Add(300 * time.Second))
-		first()
-		check(base.Add(300 * time.Second))
-		time.Sleep(20 * time.Second)
-		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
-		check(base.Add(300 * time.Second))
-		third := add(100*time.Second, 50)
-		defer third()
+		time.Sleep(10 * time.Second)
+		setFormalPlaybackEnd(t, s, base.Add(80*time.Second))
 		check(base.Add(80 * time.Second))
-		old := s.prefetchSources["1"]
+		s.mu.Lock()
+		s.clearFormalLocked(time.Now())
+		s.mu.Unlock()
+		check(time.Now())
+		setFormalPlaybackEnd(t, s, base.Add(90*time.Second))
 		s.UpdatePrefetchQueue([]int64{2, 3}, false)
-		third()
-		if old.readyBy(0, rangeBlockSize) != base.Add(80*time.Second) {
+		setFormalPlaybackEnd(t, s, base.Add(100*time.Second))
+		handoffs := snapshotUseHandoffs(s)
+		if len(handoffs) != 1 || handoffs[0].clock.at != base.Add(90*time.Second) {
 			t.Fatal("removed source's deadline changed")
 		}
 	})
@@ -212,7 +209,7 @@ func TestQueueUsesEarliestGETEndAndKeepsLastAnchor(t *testing.T) {
 
 func TestQueueUsesCatalogDurationAndRefreshesUnknownSize(t *testing.T) {
 	s, _ := setup(t, nil)
-	holdQueuePlaybackUntil(t, s, time.Now().Add(time.Hour))
+	setFormalPlaybackEnd(t, s, time.Now().Add(time.Hour))
 	ctx := context.Background()
 	key := "0123456789abcdef0123456789abcdef"
 	if _, err := s.Store.usage.db.Exec(`INSERT INTO media(md5) VALUES (?)`, key); err != nil {

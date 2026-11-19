@@ -123,7 +123,7 @@ func TestCompletedQueueReentryAfterReclamation(t *testing.T) {
 		}
 		waitQueueRefetch(t, s, v, calls, cycle+1)
 		s.mu.Lock()
-		valid := s.prefetchSources["42"] == q && q.use.contains(v.key, 0) && !q.expired && len(s.demands) == 0
+		valid := s.prefetchSources["42"] == q && q.use.contains(v.key, 0) && len(s.demands) == 0
 		s.mu.Unlock()
 		if !valid {
 			t.Fatal("refetch replaced the source or created synthetic usage")
@@ -142,9 +142,16 @@ func TestCompletedQueueRefetchWindowAndWithdrawal(t *testing.T) {
 	for _, action := range []string{"enter by time", "remove", "reset"} {
 		t.Run(action, func(t *testing.T) {
 			s, v, _, calls := completedQueueFixture(t, payload, nil)
-			entry := time.Now().Add(300 * time.Millisecond)
-			holdQueuePlaybackUntil(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
 			moveCompletedQueueOut(t, s, v)
+			const predecessor = 60 * time.Second
+			if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,?)", predecessor.Seconds()); err != nil {
+				t.Fatal(err)
+			}
+			entry := time.Now().Add(300 * time.Millisecond)
+			setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-predecessor))
+			if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
+				t.Fatal(err)
+			}
 			if action == "enter by time" {
 				waitQueueRefetch(t, s, v, calls, 2)
 				if time.Now().Before(entry) {
@@ -252,56 +259,21 @@ func TestCompletedQueueRefetchFailureDoesNotLoop(t *testing.T) {
 	}
 }
 
-func TestCompletedQueueRefetchExpiryRearmsPreparation(t *testing.T) {
+func TestCompletedQueueRefetchSurvivesFormerDeadline(t *testing.T) {
 	s, v, q, calls := completedQueueFixture(t, payload, nil)
-	if s.QueueNeedsPreparation(42) {
-		t.Fatal("completed preparation still has valid queue usage")
-	}
 	moveCompletedQueueOut(t, s, v)
-	releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-sourceGrace-time.Second))
-	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		s.mu.Lock()
-		expired := q.expired && q.use == (useSpan{}) && s.flights[v.key] == nil && s.resourceUses[v.key] == nil
-		s.mu.Unlock()
-		if expired {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("automatic refetch did not withdraw its expired queue usage")
-		}
-		time.Sleep(time.Millisecond)
-	}
-	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
-		t.Fatal(err)
-	}
-	if s.QueueNeedsPreparation(42) || calls.Load() != 1 {
-		t.Fatal("unchanged expired member was retried", calls.Load())
-	}
-	changed := s.QueuePreparationChanged()
-	// An actual GET changes the queue's playback anchor and rearms preparation.
-	releaseClock()
 	ctx := context.WithValue(t.Context(), playbackClockKey{}, &playbackClock{
-		at: time.Now(), limit: 1, media: estimateMediaTiming(1, 1),
+		at: time.Now().Add(-time.Minute), limit: 1, media: estimateMediaTiming(1, 1),
 	})
-	_, release := addTestDemand(t, s, ctx, video{key: "playing", size: 1}, true)
+	_, release := addTestDemand(t, s, ctx, video{key: "stale-get", size: 1}, true)
 	defer release()
-	if !s.QueueNeedsPreparation(42) {
-		t.Fatal("clock change did not expose the missing preparation")
-	}
-	select {
-	case <-changed:
-	default:
-		t.Fatal("rearmed preparation did not notify the queue coordinator")
-	}
-	if source, err := s.PrefetchQueuePlayback(t.Context(), 42); err != nil || source != "TEMP" {
-		t.Fatal("rearmed member could not prepare", source, err)
+	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
+		t.Fatal(err)
 	}
 	waitQueueRefetch(t, s, v, calls, 2)
-	if s.QueueNeedsPreparation(42) {
-		t.Fatal("restored usage requested another preparation")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.prefetchSources["42"] != q || !q.use.contains(v.key, 0) {
+		t.Fatal("refetch did not keep the same queue membership and use")
 	}
 }

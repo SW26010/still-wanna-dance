@@ -312,10 +312,10 @@ func TestPreviewClockDoesNotAnchorGameQueue(t *testing.T) {
 	}
 	defer release()
 	s.mu.Lock()
-	end, start := s.queuePlaybackEndLocked(), s.prefetchSources["1"].startAt
+	start := s.prefetchSources["1"].startAt
 	s.mu.Unlock()
-	if !end.IsZero() || start.Sub(before) > time.Second || d.clock != clock || d.firstBlock == d.lastBlock {
-		t.Fatal("preview changed queue or lost GET timing", end, before, start, d)
+	if start != before || d.clock != clock || d.firstBlock == d.lastBlock {
+		t.Fatal("preview changed queue or lost GET timing", before, start, d)
 	}
 }
 

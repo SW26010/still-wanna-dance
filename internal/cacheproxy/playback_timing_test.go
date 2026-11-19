@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
+func TestHTTPRangeDoesNotAnchorQueue(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, string(body)) })
 	r, _ := http.NewRequest("GET", videoURL(string(body)), nil)
@@ -26,17 +26,18 @@ func TestHTTPRangeUpdatesQueuePlaybackAnchor(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.UpdatePrefetchQueue([]int64{2}, false)
-	before := time.Now()
+	s.mu.Lock()
+	base := s.queueStart
+	s.mu.Unlock()
 	w := request(s, "GET", videoURL(string(body)), map[string]string{"Range": "bytes=1048576-1048583"})
 	if w.Code != http.StatusPartialContent || w.Body.String() != "xxxxxxxx" {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	after := time.Now()
 	s.mu.Lock()
 	start := s.prefetchSources["2"].startAt
 	s.mu.Unlock()
-	if start.Before(before.Add(time.Minute)) || start.After(after.Add(time.Minute)) {
-		t.Fatal("GET arrival/Range was not propagated to the queue", before, start, after)
+	if start != base {
+		t.Fatal("GET changed the idle queue base", base, start)
 	}
 }
 
@@ -61,7 +62,6 @@ func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 	if err := os.Chtimes(cfg.videoFile(v.key), date, date); err != nil {
 		t.Fatal(err)
 	}
-	s.UpdatePrefetchQueue([]int64{2}, false)
 	for _, valid := range []bool{true, false} {
 		validator, remaining, status := date, time.Minute, 206
 		if !valid {
@@ -69,17 +69,20 @@ func TestHTTPDateRangeUsesActualPlaybackOffset(t *testing.T) {
 			remaining = 2 * time.Minute
 			status = 200
 		}
-		before := time.Now()
-		w := request(s, "GET", target, map[string]string{"Range": "bytes=1048576-1048583", "If-Range": validator.Format(http.TimeFormat)})
-		after := time.Now()
+		r.Header.Set("Range", "bytes=1048576-1048583")
+		r.Header.Set("If-Range", validator.Format(http.TimeFormat))
+		at := time.Now()
+		ctx, err := s.playbackContext(r, v, at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		clock, _ := ctx.Value(playbackClockKey{}).(*playbackClock)
+		if clock == nil || clock.end() != at.Add(remaining) {
+			t.Fatal("incorrect playback clock for date validator", valid, clock)
+		}
+		w := request(s, "GET", target, map[string]string{"Range": r.Header.Get("Range"), "If-Range": r.Header.Get("If-Range")})
 		if w.Code != status {
 			t.Fatal(valid, w.Code)
-		}
-		s.mu.Lock()
-		start := s.queueStart
-		s.mu.Unlock()
-		if start.Before(before.Add(remaining)) || start.After(after.Add(remaining)) {
-			t.Fatal(valid, start, before, after)
 		}
 	}
 }

@@ -8,6 +8,8 @@
 
 第 72 节的 `E + 2 秒 / N + 2 秒` 是当时策略，已被文件末尾 2026-11-13 的统一交接取代：原 N 不变、关闭普通启动资格，创建事件选定范围与有效期。更早队首 20 秒／N+5 秒及各次游戏结果保留其历史适用范围。
 
+下文根据 GET 估算队首时刻以及队列准备按 `need-by + 30 秒` 到期的记录属于旧实现。现行队列使用[正式播放时钟和滚动准备窗口](../download-resource-design.md#队列预计使用时间)。
+
 ## 1. 独立调度核心
 
 `internal/blocksched` 不解释视频、GET、队列或交接来源。每个内容块共享执行任务，各需求独立保存 `Owner / ReadyBy / LeaseUntil / Blocking`；撤销和有限交接在一次事件中完成。过期或关闭句柄不能被迟到更新复活。完成期限只影响排序，租约才决定存亡。
@@ -1173,3 +1175,9 @@ Go 1.27.3、Windows amd64；全部 Go 检查沿用临时目录及依赖补丁入
 具名开播迟到 5 秒时，先撤销旧锚点，随后准时到达的匿名同步使用新歌 ID 和同步目标。另一项回归先提供版本 A 和缺失的目录时长，再换成资料完整的 B。普通 GET 可读取 B，空轮询后仍没有正式来源，下一次同步才按 B 建立时钟。两项均在调整前复现。[迟到开播](../../internal/vrclog/timeline_test.go) · [资料补齐与换版](../../internal/cacheproxy/formal_playback_test.go)
 
 曾以闸门阻止旧会话清理，对比 owner 的发头时机。试验分支能在闸门关闭时发出 `206`，放开后交付承诺的 32 字节。首次缓存竞态检查因 Windows 沙箱内 ThreadSanitizer 无法恢复地址而中止，普通用户环境连续两轮通过。该试验只验证了 HTTP 时序，未测出清理等待对 VRC 重载的影响。现行设计已收回这个分支，分别验证旧会话清理后 GET 能接续，以及 owner 已取得视频流时能在首块可读前收到响应头。[清理接续](../../internal/cacheproxy/flight_exit_test.go) · [首块等待](../../internal/cacheproxy/formal_playback_test.go)
+
+## 2026-11-19 队列采用正式播放时钟
+
+临时日志文件验证开播、同步校准和日志截断会更新队首时刻。虚拟时钟验证正式播放自然结束后队首随当前时间滚动，并在旧 GET 保持活跃时让同一次预下载等待正文 75 秒后完成。已准备歌曲的缺块重取沿用原队列成员和使用范围。定向测试及六项竞态检查通过，覆盖调度和保护通知、固定队首交接与退出。验证使用受控日志和 HTTP，未运行 VRC。[日志回归](../../internal/cacheproxy/formal_playback_test.go) · [队列计时回归](../../internal/cacheproxy/queue_timing_test.go) · [自动重取回归](../../internal/cacheproxy/queue_reentry_test.go)
+
+普通 Windows 用户环境下，cacheproxy、blocksched、Console 和 vrclog 整包通过。沙箱首轮的 junction 创建及配置文件重命名失败，在普通用户环境复跑通过。

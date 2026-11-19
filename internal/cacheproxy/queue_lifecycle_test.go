@@ -66,7 +66,7 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)
 		base := time.Now().Add(2 * time.Minute)
-		holdQueuePlaybackUntil(t, s, base)
+		setFormalPlaybackEnd(t, s, base)
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 		registerQueueResource(t, s, "2", w.v.key)
 		registerQueueResource(t, s, "3", w.v.key)
@@ -79,22 +79,22 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		s.UpdatePrefetchQueue([]int64{2, 1, 3}, false)
 		reconcileSession(t, w)
 		j := w.jobs[0]
-		if want := base; !j.published.ReadyBy.Equal(want) {
-			t.Fatalf("new head lost priority: earliest=%v want=%v", j.published.ReadyBy, want)
+		if got := j.published.ReadyAt(time.Now()); got != base {
+			t.Fatalf("new head lost priority: earliest=%v want=%v", got, base)
 		}
 		s.mu.Lock()
 		raw, _ := testSourcePlan(s, w.v.key, time.Now())
 		s.mu.Unlock()
 		for source, p := range raw[0] {
-			if source.id == s.prefetchSources["3"] && p.need.ReadyBy != base.Add(2*typicalDuration) {
-				t.Fatal("unchanged third position retained previous epoch", p.need.ReadyBy)
+			if source.id == s.prefetchSources["3"] && p.need.ReadyAt(time.Now()) != base.Add(2*typicalDuration) {
+				t.Fatal("unchanged third position retained previous epoch", p.need.Rolling)
 			}
 		}
-		ready := j.published.ReadyBy
+		ready := j.published.Rolling
 		time.Sleep(5 * time.Second)
 		s.UpdatePrefetchQueue([]int64{2, 1, 3}, false)
 		reconcileSession(t, w)
-		if !j.published.ReadyBy.Equal(ready) {
+		if j.published.Rolling != ready {
 			t.Fatal("identical queue snapshot slid the deadline")
 		}
 	})

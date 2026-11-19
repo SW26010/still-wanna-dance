@@ -178,7 +178,7 @@ func (s *Server) prefetchVideo(ctx context.Context, v video) (source string, res
 			outcome = "not_retained"
 			message = "预加载任务结束，未保留完整视频"
 		}
-		if ctx.Err() != nil && !errors.Is(context.Cause(ctx), errSourceExpired) {
+		if ctx.Err() != nil {
 			outcome = "canceled"
 			message = "预加载任务已取消"
 		}

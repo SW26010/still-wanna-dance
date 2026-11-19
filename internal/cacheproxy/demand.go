@@ -31,13 +31,12 @@ type playbackOriginKey struct{}
 // coalesced wakeups cannot lose the source at withdrawal. Only existing demand
 // references retain removed members; no transition history is accumulated.
 type queueSource struct {
-	song               string
-	position           int
-	startAt, removedAt time.Time
-	timing             mediaTiming
-	title              string
-	use                useSpan
-	expired            bool // Failed preparation; a real queue timing change may rearm it.
+	song     string
+	position int
+	startAt  time.Time
+	timing   mediaTiming
+	title    string
+	use      useSpan
 }
 
 func (q *queueSource) origin() demandSource {
@@ -137,9 +136,6 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 					metadata.timing = estimateMediaTiming(0, 0)
 				}
 				changed = changed || source.timing != metadata.timing || source.title != metadata.title
-				if source.timing != metadata.timing {
-					s.rearmQueueSourceLocked(source)
-				}
 				source.timing, source.title = metadata.timing, metadata.title
 				next[song] = source
 			}
@@ -148,7 +144,6 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	for song, source := range previous {
 		if next[song] != source {
 			changedKeys = append(changedKeys, source.use.key)
-			source.removedAt = now
 			grace := time.Duration(0)
 			if source.position == 0 {
 				grace = handoffGrace
@@ -205,10 +200,6 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	var previousKey string
 	if queue {
-		if s.validQueueSourceLocked(d) && token.expired {
-			s.mu.Unlock()
-			return nil, nil, errSourceExpired
-		}
 		if s.validQueueSourceLocked(d) && token.use != d.useSpan() {
 			if err := s.replaceUseLocked(token.use, d.useSpan(), false); err != nil {
 				s.mu.Unlock()
@@ -235,7 +226,7 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	d.ctx, d.cancel = context.WithCancelCause(ctx)
 	s.demands[d] = true
-	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), previousKey, d.key)...)
+	s.notifyUseChangedLocked(previousKey, d.key)
 	s.mu.Unlock()
 	release := sync.OnceFunc(func() {
 		reason := withdrawalSourceGone
@@ -274,7 +265,7 @@ func (s *Server) removeDemandLocked(d *downloadDemand) {
 		s.endUseLocked(span, exit.at, grace, clock, sourceGET, exit.reason, d.gameSongID())
 	}
 	delete(s.demands, d)
-	s.notifyUseChangedLocked(append(s.retimeQueueLocked(time.Now()), d.key)...)
+	s.notifyUseChangedLocked(d.key)
 }
 
 // Consumption changes only the delivered prefix. Keep reference release,

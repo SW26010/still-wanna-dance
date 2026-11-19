@@ -141,6 +141,9 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	}
 	s, _ := setup(t, nil)
 	formalCatalog(t, s, video{key: strings.Repeat("f", 32), size: 36})
+	if err := s.UpdatePrefetchQueue([]int64{2}, false); err != nil {
+		t.Fatal(err)
+	}
 	tail := vrclog.Tail{Dir: dir, Playback: true}
 	var timeline vrclog.PlayerTimeline
 	at := time.Now().Truncate(time.Second)
@@ -163,9 +166,13 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	s.pollFormalPlayback(&tail, &timeline, at.Add(-time.Millisecond))
 	s.mu.Lock()
 	active := s.formal != nil && s.formal.song == "1" && s.playerRole == vrclog.Owner
+	queueStart := s.queueClockLocked(s.prefetchSources["2"], time.Now()).at
 	s.mu.Unlock()
 	if !active {
 		t.Fatal("appended log not observed")
+	}
+	if want := at.Add(50 * time.Second); !queueStart.Equal(want) {
+		t.Fatalf("queue start=%v after sync, want %v", queueStart, want)
 	}
 	if err := os.Truncate(file, 0); err != nil {
 		t.Fatal(err)
@@ -175,6 +182,10 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	defer s.mu.Unlock()
 	if s.formal != nil || s.playerRole != vrclog.UnknownRole {
 		t.Fatal("truncation did not reset role/model")
+	}
+	current := time.Now()
+	if got := s.queueClockLocked(s.prefetchSources["2"], current).at; got != current {
+		t.Fatal("queue retained a future clock after log reset", got)
 	}
 }
 

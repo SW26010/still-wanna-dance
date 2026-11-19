@@ -101,6 +101,9 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			prepareFixtureResources(t, &cfg, t.TempDir(), true)
 			cfg.CacheUnlimited, cfg.VideoBudgetBytes = false, int64(len(body))
 			cfg.PrepareAhead = 120 * time.Second
+			if tc.timed {
+				cfg.PrepareAhead = 240 * time.Second
+			}
 			var changed atomic.Bool
 			cfg.ResolvePlayback = func(context.Context, string) (string, error) {
 				if changed.Load() {
@@ -171,11 +174,10 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			original := s.prefetchSources["42"]
 			var entry time.Time
 			s.mu.Unlock()
-			var releaseClock func()
 			if tc.timed {
 				// Keep the queued file outside the window until the replacement
 				// is published and eviction has actually completed.
-				releaseClock = holdQueuePlaybackUntil(t, s, time.Now().Add(time.Hour))
+				setFormalPlaybackEnd(t, s, time.Now().Add(time.Hour))
 			}
 			if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
 				t.Fatal(err)
@@ -203,9 +205,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 				// Move the playback clock while retaining the queue source, then
 				// let time alone bring the already-evicted resource into range.
 				entry = time.Now().Add(500 * time.Millisecond)
-				nextClock := holdQueuePlaybackUntil(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
-				releaseClock()
-				releaseClock = nextClock
+				setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
 			}
 			changed.Store(tc.changedAddress)
 			if !tc.timed {
@@ -236,11 +236,8 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 			if tc.timed && time.Now().Before(entry) {
 				t.Fatal("downloaded before protection entry")
 			}
-			if releaseClock != nil {
-				releaseClock()
-			}
 			s.mu.Lock()
-			valid := s.prefetchSources["42"] == original && original.use.contains(v.key, 0) && !original.expired && len(s.demands) == 0
+			valid := s.prefetchSources["42"] == original && original.use.contains(v.key, 0) && len(s.demands) == 0
 			s.mu.Unlock()
 			if !valid {
 				t.Fatal("refetch changed source identity or left synthetic usage")

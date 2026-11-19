@@ -113,16 +113,19 @@ func TestIdleQueueBoundaryDoesNotEnterBetweenRefreshes(t *testing.T) {
 
 func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s, calls, key := idleBoundaryServer(t, 250)
-		// A valid playback clock allows the second block to enter at t=5 s.
-		release := holdQueuePlaybackUntil(t, s, time.Now())
+		s, calls, key := idleBoundaryServer(t, 240)
 		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
 			t.Fatal(err)
 		}
 		if source, err := s.PrefetchQueuePlayback(t.Context(), 42); err != nil || source != "TEMP" {
 			t.Fatal(source, err)
 		}
-		release()
+		if _, err := s.Store.usage.db.Exec(`UPDATE songs SET end=250 WHERE id=42`); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
+			t.Fatal(err)
+		}
 		time.Sleep(45 * time.Second)
 		synctest.Wait()
 		s.retentionMu.Lock()
@@ -145,19 +148,18 @@ func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 	})
 }
 
-func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
+func TestQueueFutureFormalEndTransitionsWithoutWallClockEntryBeyondWindow(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		s.cfg.PrepareAhead = 120 * time.Second
 		base := time.Now()
-		release := holdQueuePlaybackUntil(t, s, base.Add(60*time.Second))
+		setFormalPlaybackEnd(t, s, base.Add(60*time.Second))
 		s.UpdatePrefetchQueue([]int64{1, 2}, false)
 		registerQueueResource(t, s, "1", w.v.key)
 		s.mu.Lock()
 		s.prefetchSources["1"].timing = mediaTiming{w.v.size, 2500 * time.Second} // block 1: 125 s
 		s.notifyUseChangedLocked(s.retimeQueueLocked(time.Now())...)
 		s.mu.Unlock()
-		release()
 		time.Sleep(59 * time.Second)
 		synctest.Wait()
 		s.mu.Lock()
@@ -176,11 +178,9 @@ func TestIdleQueueFutureEstimateTransitionsWithoutWallClockEntry(t *testing.T) {
 		if !plan[1].need.WindowClosed || protectionFor(s, w.v.key, 1).active(time.Now()) {
 			t.Fatal("old future estimate crossed the idle boundary before refresh")
 		}
-		// A new GET restores absolute timing.
-		holdQueuePlaybackUntil(t, s, base.Add(60*time.Second))
 		plan, _, _ = w.plan(time.Now())
-		if plan[1].need.WindowClosed || !protectionFor(s, w.v.key, 1).active(time.Now()) {
-			t.Fatal("new GET failed to restore the fixed playback clock")
+		if !plan[1].need.WindowClosed || plan[0].need.ReadyAt(time.Now()) != time.Now() {
+			t.Fatal("formal end changed the relative window or stalled the head clock")
 		}
 	})
 }

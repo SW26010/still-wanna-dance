@@ -189,7 +189,7 @@ func TestPreparationObservesSharingAndReleasesSubscription(t *testing.T) {
 	}
 }
 
-func TestGETClockChangeNotifiesDependentQueueResources(t *testing.T) {
+func TestFormalClockChangeNotifiesDependentQueueResources(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
 		if err := s.UpdatePrefetchQueue([]int64{1, 2}, false); err != nil {
@@ -206,19 +206,23 @@ func TestGETClockChangeNotifiesDependentQueueResources(t *testing.T) {
 			changes = append(changes, changed)
 		}
 		end := time.Now().Add(time.Hour)
-		release := holdQueuePlaybackUntil(t, s, end)
+		setFormalPlaybackEnd(t, s, end)
 		for i, changed := range changes {
 			assertNotification(t, changed, i < 2)
 		}
 		plan, _, _ := sessions[0].plan(time.Now())
-		if plan[0].need.ReadyBy != end || protectionFor(s, "queue-a", 0).start != end.Add(-s.cfg.prepareAhead()) {
-			t.Fatal("queue download and protection failed to follow GET clock")
+		if plan[0].need.ReadyAt(time.Now()) != end || protectionFor(s, "queue-a", 0).start != end.Add(-s.cfg.prepareAhead()) {
+			t.Fatal("queue download and protection failed to follow formal clock")
 		}
 		_, changed, _ := sessions[1].plan(time.Now())
-		release()
-		// Leaving live playback changes idle eligibility even when the
-		// future queue start remains exactly the same.
+		s.mu.Lock()
+		s.clearFormalLocked(time.Now())
+		s.mu.Unlock()
 		assertNotification(t, changed, true)
+		plan, _, _ = sessions[0].plan(time.Now())
+		if plan[0].need.ReadyAt(time.Now()) != time.Now() || !protectionFor(s, "queue-a", 0).active(time.Now()) {
+			t.Fatal("queue download and protection did not advance on stop")
+		}
 	})
 }
 

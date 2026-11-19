@@ -431,13 +431,13 @@ func TestDownloadExpiryRetainsManualAndLaterQueueSources(t *testing.T) {
 	})
 }
 
-func TestDownloadExpiryRetimesQueueAfterAllSharedGETsEnd(t *testing.T) {
-	// Exercise registry iteration orders; all failed sources belong to the
-	// same event, so none may become the queue's temporary surviving anchor.
-	for range 32 {
+func TestDownloadExpiryKeepsFormalQueueClock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
-		s.UpdatePrefetchQueue([]int64{1}, false)
 		now := time.Now()
+		end := now.Add(5 * time.Minute)
+		setFormalPlaybackEnd(t, s, end)
+		s.UpdatePrefetchQueue([]int64{1}, false)
 		for _, duration := range []time.Duration{2 * time.Minute, 3 * time.Minute} {
 			ctx := context.WithValue(context.Background(), playbackClockKey{}, &playbackClock{at: now.Add(-time.Minute), limit: w.v.size, media: mediaTiming{w.v.size, duration}})
 			d, release := addTestDemand(t, s, ctx, w.v, true)
@@ -445,39 +445,8 @@ func TestDownloadExpiryRetimesQueueAfterAllSharedGETsEnd(t *testing.T) {
 			d.flight = w.f
 		}
 		s.expireDownload(w.f, w.v.key, 0)
-		if got := s.prefetchSources["1"].startAt; got != now.Add(time.Minute) {
-			t.Fatal("batch expiry retained a temporary queue anchor", got, now.Add(time.Minute))
-		}
-	}
-}
-
-func TestExpiredQueuePreparationRequiresActualSourceChange(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		w, s := testSession(t)
-		releaseClock := holdQueuePlaybackUntil(t, s, time.Now().Add(-time.Minute))
-		s.UpdatePrefetchQueue([]int64{1}, false)
-		v := w.v
-		v.songID = "1"
-		ctx := s.queueDemandContext(context.Background(), "1")
-		d, release := addTestDemand(t, s, ctx, v, false)
-		defer release()
-		s.expireDownload(w.f, v.key, 0)
-		if !errors.Is(context.Cause(d.ctx), errSourceExpired) || useCount(s) != 1 || !d.queueSource.expired {
-			t.Fatal("expired predictive preparation retained usage")
-		}
-		s.UpdatePrefetchQueue([]int64{1}, false)
-		if _, _, err := s.addDemand(ctx, v, false); !errors.Is(err, errSourceExpired) {
-			t.Fatal("repeated snapshot/retry revived an expired queue preparation", err)
-		}
-		// A genuine new playback changes the queue's remaining clock. Its next
-		// preparation is allowed, still subject to the normal download window.
-		releaseClock()
-		_, releaseGET := addTestDemand(t, s, context.Background(), video{key: "playing", size: 1}, true)
-		defer releaseGET()
-		_, releaseNext := addTestDemand(t, s, ctx, v, false)
-		defer releaseNext()
-		if d.queueSource.expired || !d.queueSource.readyBy(0, rangeBlockSize).After(time.Now()) {
-			t.Fatal("real source change could not rearm preparation")
+		if got := s.prefetchSources["1"].startAt; got != end {
+			t.Fatal("GET expiry changed the formal queue clock", got, end)
 		}
 	})
 }

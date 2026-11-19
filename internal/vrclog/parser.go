@@ -18,24 +18,22 @@ type Event struct {
 	Playback *PlaybackEvent // Only populated by the opt-in playback parser.
 }
 
-// Parse accepts complete queue snapshots, not current-video userData or previews.
-func Parse(line string) (Event, bool, error) {
+func roomReset(line string) bool {
 	for _, marker := range []string{"[Behaviour] OnLeftRoom", "[Behaviour] Entering Room:", "[Behaviour] Joining wrld_", "VRCApplication: HandleApplicationQuit"} {
 		if strings.Contains(line, marker) {
-			return Event{Reset: true}, true, nil
+			return true
 		}
 	}
-	i := strings.Index(line, "[VideoQueueManager]")
-	if i < 0 {
-		return Event{}, false, nil
+	return false
+}
+
+// Parse accepts complete queue snapshots, not current-video userData or previews.
+func Parse(line string) (Event, bool, error) {
+	if roomReset(line) {
+		return Event{Reset: true}, true, nil
 	}
-	line = line[i:]
-	for _, marker := range []string{"OnPreSerialization: queue info serialized:", "OnDeserialization: syncedQueuedInfoJson ="} {
-		i = strings.Index(line, marker)
-		if i < 0 {
-			continue
-		}
-		payload := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(line[i+len(marker):]), "</color>"))
+	if raw, found := queueSnapshotPayload(line); found {
+		payload := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(raw), "</color>"))
 		if !strings.HasPrefix(payload, "[") {
 			return Event{}, true, errors.New("队列数据不是数组")
 		}
@@ -56,4 +54,16 @@ func Parse(line string) (Event, bool, error) {
 		return Event{Songs: songs}, true, nil
 	}
 	return Event{}, false, nil
+}
+
+func queueSnapshotPayload(line string) (string, bool) {
+	_, line, ok := strings.Cut(line, "[VideoQueueManager]")
+	if ok {
+		for _, marker := range []string{"OnPreSerialization: queue info serialized:", "OnDeserialization: syncedQueuedInfoJson ="} {
+			if _, payload, found := strings.Cut(line, marker); found {
+				return payload, true
+			}
+		}
+	}
+	return "", false
 }

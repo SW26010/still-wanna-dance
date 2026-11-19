@@ -15,6 +15,8 @@ func TestMediaTimingFallbacks(t *testing.T) {
 		want    mediaTiming
 	}{
 		{"known", 60_000_000, 240, mediaTiming{60_000_000, 240 * time.Second}},
+		{"full_day", 60_000_000, 86400, mediaTiming{60_000_000, 24 * time.Hour}},
+		{"unrepresentable", 60_000_000, math.MaxFloat64, mediaTiming{60_000_000, 240 * time.Second}},
 		{"duration_only", 0, 240, mediaTiming{60_000_000, 240 * time.Second}},
 		{"size_only", 60_000_000, 0, mediaTiming{60_000_000, 240 * time.Second}},
 		{"unknown", 0, 0, mediaTiming{typicalSize, typicalDuration}},

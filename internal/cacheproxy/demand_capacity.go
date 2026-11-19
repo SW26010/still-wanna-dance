@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"container/heap"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -60,8 +61,12 @@ func (s *Server) replaceUseLocked(old, span useSpan, playback bool) error {
 	// Timer delivery may lag behind a registration at the expiry boundary.
 	// Admission uses the actual deadline, never the callback's scheduling time.
 	if keys := s.expireUseLocked(time.Now()); len(keys) > 0 {
-		s.notifyUseChangedLocked(keys...)
+		s.publishUseChangedLocked(keys...)
 	}
+	return s.swapUseLocked(old, span, playback)
+}
+
+func (s *Server) swapUseLocked(old, span useSpan, playback bool) error {
 	added, removed := 0, 0
 	for b := span.first; b < span.last; b++ {
 		if !old.contains(span.key, b) && s.useBlocks[useBlockID{span.key, b}] == 0 {
@@ -136,10 +141,16 @@ func (s *Server) armUseTimerLocked() {
 		s.useTimer.Stop()
 		s.useTimer = nil
 	}
-	if s.closed || len(s.useHandoffs) == 0 {
+	if s.closed {
 		return
 	}
-	next := s.useHandoffs[0].until
+	next := s.nextFormalExpiryLocked()
+	if len(s.useHandoffs) > 0 {
+		next = earlier(next, s.useHandoffs[0].until)
+	}
+	if next.IsZero() {
+		return
+	}
 	s.useTimer = time.AfterFunc(max(0, time.Until(next)), func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -152,12 +163,38 @@ func (s *Server) armUseTimerLocked() {
 
 func (s *Server) expireUseLocked(now time.Time) []string {
 	var changed []string
+	formal := s.formal
+	var before useSpan
+	if formal != nil {
+		before = formal.use
+	}
 	for len(s.useHandoffs) > 0 && !s.useHandoffs[0].until.After(now) {
 		h := heap.Pop(&s.useHandoffs).(*useHandoff)
+		// The last reference starts the local protection tail at its actual end.
+		s.expireFormalLocked(h.until)
 		s.releaseUseLocked(h.span, h.until)
 		changed = append(changed, h.span.key)
 	}
-	return changed
+	s.expireFormalLocked(now)
+	changed = uniqueResourceKeys(changed)
+	for _, key := range changed {
+		s.refreshUseProtectionLocked(allUseBlocks(key))
+	}
+	if formal == nil || slices.Contains(changed, formal.key) {
+		return changed
+	}
+	end := before.last
+	if s.formal != nil {
+		end = s.formal.use.first
+		if end == before.first {
+			return changed
+		}
+	}
+	if before.first < end {
+		s.refreshUseProtectionLocked(useSpan{formal.key, before.first, end})
+	}
+	// Natural end is observable even after the last block has expired.
+	return append(changed, formal.key)
 }
 
 // DemandCapacityChanged is captured before a registration attempt, so callers

@@ -52,7 +52,7 @@
 | [research/](research/) | [视频保留收益研究](research/cache-priority.md)、[等权初始表半衰期回测](research/equal-requester-priority-20261026.md)、[媒体元数据研究](research/video-metadata-20261015.md)、[CF 候选收益与搜索成本](research/issue-21-cf-selection-20261022.md)、[HTTP/HTTPS、104 地址与 Speedtest 对照](research/issue-21-cf-triad-20261022.md)、[浏览器 HTTPS 升级与本地 HTTP 服务](research/browser-https-upgrades-20261022.md)及复算数据 |
 | 播放器重试与下载交接证据 | [等待与交接实测](acceptance/live-acceptance-20261116-01.md)、[提前 504 与手动刷新](acceptance/live-acceptance-20261116-02.md)、[跨歌曲预读 504 重复观察](acceptance/live-acceptance-20261116-03.md)；[证据复核](research/issue-51-retry-handoff-followup-20261116.md)汇总请求、交接与原始时间线的记录和复算 |
 | 正常响应头与刷新观察 | [owner 正常响应头](acceptance/live-acceptance-20261117-03.md)记录无 504 仍回零及手动跳过永久缺块；[重复与非 owner 三组对照](acceptance/live-acceptance-20261117-04.md)区分实测事实、工程推断和未来计划，包含三首 owner 成功样本、过早刷新失败及非 owner 自动／手动恢复比较 |
-| 接续请求入口判断设想 | [可选日志模型](research/issue-51-request-admission-proposal.md)：需求登记前判断及 2／10 秒交接；[首轮实机](acceptance/live-acceptance-20261117-01.md)记录受阻恢复、预读放行和临界放行限制；[owner A/B](acceptance/live-acceptance-20261117-02.md)记录提前 504 的回零代价及后半段正式截止对照；[文件位置与模型余量](research/issue-51-media-time-map-20261117.md)分析全库索引、线性误差及正负余量代价。尚未启用正式产品策略 |
+| 正式播放与请求入口 | [日志模型依据](research/issue-51-request-admission-proposal.md)、[默认播放契约](download-resource-design.md#正式播放需求与-get-入口)；[首轮实机](acceptance/live-acceptance-20261117-01.md)记录受阻恢复、预读放行和临界放行限制；[owner A/B](acceptance/live-acceptance-20261117-02.md)记录提前 504 的回零代价及后半段正式截止对照；[文件位置与模型余量](research/issue-51-media-time-map-20261117.md)分析线性误差和余量代价 |
 | 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
 | 子类别封面来源 | [类别图片与映射核对](research/category-cover-sources-20261112.md)记录 50 类映射、官方来源、原图／母版归档、4:3 受控导出与运行素材体积预算，并保留此前日志、缓存及旧套图调查的边界 |
 | 曲库改造决策 | [Udon 曲库与资源映射决策](research/udon-catalog-decision-draft-20261029.md)保存目标、实施边界及验证；现行规则回到[曲库设计](song-catalog-design.md)，预置维护见[资源快照](../data/media-seed/README.md) |
@@ -70,7 +70,7 @@
 | `scripts/` | 构建、发布、检查及维护入口；研究工具按主题放子目录 |
 | `patches/` | 已确认问题所需的最小依赖修改、来源和移除条件；经共用构建入口应用，随对应源码交付 |
 | `docs/images/` | 中英文 README 展示素材：品牌 Logo 的固定暗色副本与使用示例数据的 WebUI 截图；更新方法见[资源约定](evidence-storage.md#readme-展示素材) |
-| `experiments/` | 可复跑的独立实验及工具，不作为产品运行依赖 |
+| `experiments/` | 可复跑的独立实验及工具，不作为普通产品构建的运行依赖 |
 | `data/initial-priority/`、`data/media-seed/` | 产品内嵌的初始优先级及版本化资源/映射快照；其余运行数据不入库 |
 | `artifacts/`、`test-runs/`、`local/`、`bin/` | 忽略的验证输出、隔离会话、私人材料及构建产物；保留所需证据后再按具体用途清理 |
 

@@ -32,6 +32,20 @@ func ParseWithPlayback(line string) (Event, bool, error) {
 	if event, ok, err := Parse(line); ok || err != nil {
 		return event, ok, err
 	}
+	return parsePlayerFact(line)
+}
+
+func parsePlayer(line string) (Event, bool, error) {
+	if _, queue := queueSnapshotPayload(line); queue {
+		return Event{}, false, nil
+	}
+	if roomReset(line) {
+		return Event{Reset: true}, true, nil
+	}
+	return parsePlayerFact(line)
+}
+
+func parsePlayerFact(line string) (Event, bool, error) {
 	if len(line) < 19 {
 		return Event{}, false, nil
 	}
@@ -59,8 +73,17 @@ func ParseWithPlayback(line string) (Event, bool, error) {
 		e.Kind, e.Playing = "transport", &playing
 	case formal:
 		switch {
+		case strings.Contains(line, "LoadRoutedURL:") || strings.Contains(line, "Playing synced "):
+			e.Kind = "route"
 		case strings.Contains(line, "Started video:"):
 			e.Kind = "start"
+			if strings.Contains(line, "since I'm the owner") {
+				owner := true
+				e.Owner = &owner
+			} else if strings.Contains(line, "since owner is playing") {
+				owner := false
+				e.Owner = &owner
+			}
 		case strings.Contains(line, "Paused video:"):
 			e.Kind = "pause"
 		case strings.Contains(line, "OnVideoEnd:"):
@@ -83,9 +106,6 @@ func ParseWithPlayback(line string) (Event, bool, error) {
 			e.Kind, e.Position = "sync", position
 		}
 		e.SongID = playbackSong(line)
-		if e.Kind == "start" && e.SongID == 0 {
-			return Event{Reset: true}, true, nil
-		}
 	default:
 		return Event{}, false, nil
 	}

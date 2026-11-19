@@ -88,7 +88,7 @@ func TestStreamResponsePreservesCancellationDuringSeek(t *testing.T) {
 					request := httptest.NewRequest(method, "/video.mp4", nil)
 					request.Header.Set("Range", byteRange)
 					response := httptest.NewRecorder()
-					pending := serveStream(response, request, video{size: blocks.size}, reader)
+					pending := serveStream(&responseWriter{ResponseWriter: response}, request, video{size: blocks.size}, reader)
 					if pending.committed {
 						t.Fatalf("ServeContent committed a response before stream error handling: status=%d body=%q", response.Code, response.Body.String())
 					}

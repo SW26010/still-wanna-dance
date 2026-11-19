@@ -405,12 +405,12 @@ func blockViewID(id useBlockID) string { return id.key + "/" + strconv.FormatInt
 type observedSource struct {
 	identity blockSource
 	view     BlockSourceView
-	need     blocksched.Need
+	plan     plannedNeed
 }
 type observedNeed struct {
 	block, source int
-	ready         time.Time
-	rolling       blocksched.RollingDeadline
+	ready, lease  time.Time
+	rollingOffset time.Duration
 	windowClosed  bool
 }
 type observedBlock struct {
@@ -477,13 +477,15 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 			case *queueSource:
 				v.SongID, v.Title, v.Position = origin.song, origin.title, origin.position+1
 				sizes[id.key] = origin.timing.size
+			case *formalPlayback:
+				v.SongID, sizes[id.key] = origin.song, origin.clock.media.size
 			case *useHandoff:
 				v.ExpiresAt = timeMS(origin.until)
 				sizes[id.key] = origin.clock.media.size
 			}
-			input.sources = append(input.sources, observedSource{source, v, p.need})
+			input.sources = append(input.sources, observedSource{source, v, p})
 		}
-		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.Rolling, p.need.WindowClosed})
+		input.needs = append(input.needs, observedNeed{addBlock(id), index, p.need.ReadyBy, p.need.LeaseUntil, p.need.Rolling.Offset, p.need.WindowClosed})
 	})
 	s.retentionMu.Lock()
 	for key, blocks := range s.protection {
@@ -550,7 +552,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		source.view.ID = o.sourceIDs[source.identity]
 		result.sources[i] = source.view
 		if source.view.Kind == "handoff" {
-			advance(source.need.LeaseUntil)
+			advance(source.plan.need.LeaseUntil)
 		}
 	}
 	for source := range o.sourceIDs {
@@ -608,24 +610,31 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			b := result.Blocks[raw.name]
 			var use blockUse
 			var readable blockUse
+			var formalDeadline time.Time
 			var video blockVideo
 			for i := first; i < last; i++ {
 				need := input.needs[i]
-				source := input.sources[need.source]
-				p := plannedNeed{need: source.need}
-				p.need.ReadyBy, p.need.WindowClosed = need.ready, need.windowClosed
-				p.need.Rolling = need.rolling
-				use = mergeUse(use, p.use(now, ahead))
-				if raw.available && !need.windowClosed {
-					readable = mergeUse(readable, blockUse{need: p.need})
+				source := &input.sources[need.source]
+				p := source.plan
+				p.need.ReadyBy, p.need.LeaseUntil = need.ready, need.lease
+				p.need.Rolling.Offset, p.need.WindowClosed = need.rollingOffset, need.windowClosed
+				contribution := p.use(now, ahead)
+				use = mergeUse(use, contribution)
+				if raw.available && !p.need.WindowClosed {
+					contribution = blockUse{need: p.need}
+					readable = mergeUse(readable, contribution)
+				}
+				if source.view.Kind == "formal" {
+					formalDeadline = contribution.need.ReadyBy
 				}
 				video = chooseBlockVideo(video, blockVideo{SongID: source.view.SongID, Title: source.view.Title}, o.videos[b.Resource].SongID)
-				result.needs[i] = blockDetailNeed{need.source, timeMS(p.need.EarliestReady()), blockRollingTime(need.rolling), need.windowClosed}
+				result.needs[i] = blockDetailNeed{need.source, timeMS(p.need.EarliestReady()), blockRollingTime(p.need.Rolling), p.need.WindowClosed}
 			}
 			// A readable block still has a position in the GET's remaining range.
 			display := mergeUse(use, readable).need
 			b.NeedBy = timeMS(display.EarliestReady())
-			b.Deadline = timeMS(sourceDeadline(display.ReadyBy))
+			deadline := earlier(sourceDeadline(display.ReadyBy), formalDeadline)
+			b.Deadline = timeMS(deadline)
 			b.BlockRollingTime = blockRollingTime(display.Rolling)
 			if b.RollingBase != 0 {
 				b.FixedNeedBy = timeMS(display.ReadyBy)
@@ -640,7 +649,7 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 			if !use.need.WindowClosed {
 				advance(entry)
 			}
-			advance(sourceDeadline(use.need.ReadyBy))
+			advance(deadline)
 			b.Sources = last - first
 			if video.SongID != "" {
 				b.SongID, b.Title = video.SongID, video.Title

@@ -264,6 +264,32 @@ func TestBlockObservationDeadlineUsesSourceSnapshot(t *testing.T) {
 	}
 }
 
+func TestBlockObservationFormalDeadlineWithOtherSources(t *testing.T) {
+	w, s := testSession(t)
+	n := time.Now().Add(time.Minute)
+	s.formal = &formalPlayback{song: "1", key: w.v.key, use: useSpan{w.v.key, 0, 1},
+		clock: playbackClock{at: n, media: estimateMediaTiming(w.v.size, 0)}}
+	s.useBlocks = map[useBlockID]int{{w.v.key, 0}: 1}
+	_, manual := addTestDemand(t, s, t.Context(), w.v, false)
+	defer manual()
+	o := &blockObserver{s: s, sourceIDs: make(map[blockSource]uint64)}
+	check := func(need, deadline time.Time) {
+		t.Helper()
+		view, _ := o.capture(nil)
+		b := view.Blocks[blockViewID(useBlockID{w.v.key, 0})]
+		if b.NeedBy != timeMS(need) || b.Deadline != timeMS(deadline) {
+			t.Fatal(b, need, deadline)
+		}
+	}
+	check(n, n)
+	for _, lead := range []time.Duration{time.Second, sourceGrace + time.Second} {
+		get := &playbackClock{at: n.Add(-lead), limit: rangeBlockSize, media: s.formal.clock.media}
+		_, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, get), w.v, true)
+		check(get.at, earlier(sourceDeadline(get.at), n))
+		release()
+	}
+}
+
 func TestBlockObservationReopensWithoutInventingHistory(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)

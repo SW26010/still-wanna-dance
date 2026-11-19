@@ -298,12 +298,7 @@ func (s *Server) notifyUseChangedLocked(keys ...string) {
 func (s *Server) publishUseChangedLocked(keys ...string) {
 	// Even a delayed source exit first establishes its frozen handoff clock,
 	// then ends it at the original deadline. No callback delay extends grace.
-	expired := uniqueResourceKeys(s.expireUseLocked(time.Now()))
-	// Expiry may affect the same resource as the mutation. Rebuild it after
-	// establishing the handoff's frozen clock and ending its final references.
-	for _, key := range expired {
-		s.refreshUseProtectionLocked(allUseBlocks(key))
-	}
+	expired := s.expireUseLocked(time.Now())
 	// Source mutations publish their final clock/expiry and arm the shared timer
 	// together. Timer callbacks use this same path when they change sources.
 	s.armUseTimerLocked()

@@ -27,14 +27,19 @@ func (s *Server) serveVideoHEAD(w http.ResponseWriter, r *http.Request, v video)
 	} else if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, errInvalidCache) {
 		return err
 	}
+	serveVideoMetadata(w, r, v, size, modified, source)
+	return nil
+}
+
+func serveVideoMetadata(w http.ResponseWriter, r *http.Request, v video, size int64, modified time.Time, source string) {
 	setVideoHeaders(w, v.key)
 	w.Header().Set("X-SWD-Cache", source)
 	r = r.Clone(r.Context())
+	r.Method = http.MethodHead
 	r.Header.Del("Range")
 	r.Header.Del("If-Range")
 	// ServeContent handles validators and size through Seek without reading a
 	// HEAD body when Content-Type is known. No video bytes need allocating.
 	content := io.NewSectionReader(strings.NewReader(""), 0, size)
 	http.ServeContent(w, r, v.path, modified, content)
-	return nil
 }

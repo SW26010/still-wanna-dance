@@ -298,6 +298,8 @@ test('demand rows hide handoffs and only suppress the same song at the queue hea
   await expect(f.panel).toContainText('当前没有使用需求');
   await f.canvas.focus(); await f.canvas.press('Home');
   await expect(page.getByRole('group', { name: '块需求详情' })).toContainText('短期交接');
+  await f.emit({ demands: [demand(7, f.blocks.slice(1), { kind: 'formal' })] });
+  await expect(headings).toHaveText([/正式播放/]);
 });
 
 test('event deltas, overlap selection, source changes and untimed demands stay inspectable', async ({ page }) => {

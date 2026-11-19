@@ -28,7 +28,11 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 			if clock != nil {
 				ready = clock.ready(block * s.cfg.BlockSize)
 			}
-			p := plannedNeed{need: blocksched.Need{ReadyBy: ready, LeaseUntil: until, WindowClosed: closed, OpportunisticOrder: order}}
+			lease := until
+			if source.kind == "formal" {
+				lease = earlier(lease, ready.Add(time.Nanosecond))
+			}
+			p := plannedNeed{need: blocksched.Need{ReadyBy: ready, LeaseUntil: lease, WindowClosed: closed, OpportunisticOrder: order}}
 			if !idleBase.IsZero() {
 				offset := ready.Sub(idleBase)
 				p.need.ReadyBy = time.Time{}
@@ -56,6 +60,9 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 		}
 		add(d.useSpan(), blockSource{kind, d}, d.clock, until, false, time.Time{}, d.preparationOrder)
 	}
+	if p := s.formal; p != nil && p.use.first < p.use.last {
+		add(p.use, blockSource{"formal", p}, &p.clock, now.Add(sourceLease), false, time.Time{}, 0)
+	}
 	var idleBase time.Time
 	if s.queueRolling {
 		idleBase = s.queueStart
@@ -74,7 +81,7 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 // protection from the same projection without recursively delivering exits.
 func (s *Server) refreshUseSourcesLocked(now time.Time) {
 	if keys := s.expireUseLocked(now); len(keys) > 0 {
-		s.notifyUseChangedLocked(keys...)
+		s.publishUseChangedLocked(keys...)
 	}
 	for d := range s.demands {
 		if !d.exit.active(d.ctx) {

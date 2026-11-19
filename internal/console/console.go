@@ -86,6 +86,7 @@ type Console struct {
 	service             *cacheproxy.Server
 	blockEngineWaiters  map[chan struct{}]bool // lazy, only while a visible timeline awaits engine creation; mu
 	httpServer          *http.Server
+	stopFormalPlayback  func() // Owned by the gateway under lifecycleMu.
 	videoListener       net.Listener
 	cdnError            string
 	actionErrors        map[string]string
@@ -268,7 +269,7 @@ func (c *Console) startLocked() (err error) {
 		}
 	}()
 	c.mu.Lock()
-	closing, running := c.closing, c.httpServer != nil
+	closing, running, logDir := c.closing, c.httpServer != nil, c.settings.effectiveVRChatLogDir()
 	c.mu.Unlock()
 	if closing {
 		return errors.New("程序正在退出")
@@ -305,6 +306,7 @@ func (c *Console) startLocked() (err error) {
 		c.mu.Unlock()
 		return err
 	}
+	c.stopFormalPlayback = engine.WatchFormalPlayback(logDir)
 	h := &http.Server{Handler: engine, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	c.mu.Lock()
 	c.httpServer = h
@@ -357,6 +359,10 @@ func (c *Console) stop() error {
 // Caller holds lifecycleMu, not mu. Queue withdrawal and connection draining
 // may block, so this method owns the short state-lock sections itself.
 func (c *Console) stopLocked() {
+	if c.stopFormalPlayback != nil {
+		c.stopFormalPlayback()
+		c.stopFormalPlayback = nil
+	}
 	c.stopQueueLocked()
 	c.mu.Lock()
 	c.activation.FirstRequest = time.Time{}

@@ -19,6 +19,7 @@ import (
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/blocksched"
 	"still-wanna-dance/internal/videometa"
+	"still-wanna-dance/internal/vrclog"
 	"still-wanna-dance/internal/workfiles"
 )
 
@@ -54,6 +55,9 @@ type flight struct {
 }
 
 type Server struct {
+	formal     *formalPlayback // Protected by mu.
+	playerRole vrclog.PlayerRole
+
 	Store            *Store
 	binding          *retentionBinding
 	getMu            sync.Mutex // Current incoming GET observations; independent of worker locks.
@@ -73,7 +77,7 @@ type Server struct {
 	preparationSeq   uint64                   // protected by mu; never reused during this engine's lifetime
 	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap
-	useTimer         *time.Timer // Handoff expiry.
+	useTimer         *time.Timer // Earliest handoff or formal playback expiry.
 	prefetchSources  map[string]*queueSource
 	prefetchOrder    []int64
 	queueStart       time.Time
@@ -270,6 +274,7 @@ func (s *Server) Close() error {
 	s.once.Do(func() {
 		s.mu.Lock()
 		s.closed = true
+		s.dropFormalLocked(time.Now())
 		if s.useTimer != nil {
 			s.useTimer.Stop()
 		}
@@ -521,13 +526,16 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 			}
 		}
 	}
+	if s.admitPlayerGET(response, r, v, preview, log) {
+		return
+	}
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
 	var get *downloadDemand
 	var releaseDemand func()
 	attachGET := func(resource video) error {
 		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
-		// A replacement URL receives a fresh source, even for the same content.
+		// A new admission before headers must not reuse the previous source.
 		ctx = context.WithValue(ctx, sourceDemandKey{}, (*downloadDemand)(nil))
 		demand, release, err := s.addDemand(ctx, resource, true)
 		if err != nil {
@@ -565,6 +573,12 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 		}
 		if fallbackErr != nil {
 			return errors.Join(cause, fmt.Errorf("saved URL refresh: %w", fallbackErr))
+		}
+		if response.status != 0 {
+			// retrySongURL verified the same MD5 and size. The open response
+			// already owns its range, source deadline, consumption and pin.
+			v = replacement
+			return nil
 		}
 		if r.Method == http.MethodGet {
 			ctx, err := s.playbackContext(r, replacement, start)
@@ -623,6 +637,9 @@ loadVideo:
 serveVideo:
 	if err != nil {
 		response.recordFailure(clientContext, err)
+		if response.status != 0 {
+			panic(http.ErrAbortHandler)
+		}
 		if r.Context().Err() != nil {
 			log.Debug("客户端已断开连接", "event_name", "client_disconnected", "elapsed", time.Since(start))
 			return
@@ -639,10 +656,10 @@ serveVideo:
 				response.waitedForBlock = true
 			}
 		}
-		pending := serveStream(w, r, v, stream)
+		pending := serveStream(response, r, v, stream)
 		if stream.err != nil {
 			if (preview != nil || v.savedAddress) && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
-				if !pending.committed {
+				if response.bytes == 0 && response.writeErr == nil {
 					// finish wakes readers before the failed flight is removed.
 					// Wait for removal so a same-MD5 retry starts a new flight.
 					select {
@@ -677,6 +694,9 @@ serveVideo:
 	if err != nil {
 		response.recordFailure(clientContext, err)
 		log.Error("本地视频打开失败", "event_name", "open_failed", "error", applog.SafeError(err))
+		if response.status != 0 {
+			panic(http.ErrAbortHandler)
+		}
 		if errors.Is(err, errInvalidCache) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "file changed or validation interrupted; retry request", http.StatusServiceUnavailable)
 			return
@@ -684,10 +704,17 @@ serveVideo:
 		http.Error(w, "cache unavailable", 500)
 		return
 	}
-	setVideoHeaders(w, v.key)
-	w.Header().Set("X-SWD-Cache", f.source)
 	response.sources = &responseSourceCounter{reader: file.sources(s.cfg.BlockSize)}
-	http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
+	if response.status != 0 {
+		if err := response.copyPromisedBody(w, file.reader()); err != nil {
+			response.recordFailure(clientContext, err)
+			panic(http.ErrAbortHandler)
+		}
+	} else {
+		setVideoHeaders(w, v.key)
+		w.Header().Set("X-SWD-Cache", f.source)
+		http.ServeContent(w, r, v.path, file.info.ModTime(), file.reader())
+	}
 	if r.Context().Err() != nil {
 		log.Debug("客户端已断开连接", "event_name", "client_disconnected", "cache", f.source, "elapsed", time.Since(start))
 		return
@@ -707,6 +734,7 @@ type responseWriter struct {
 	videoBytes                        int64
 	expectedBytes                     *int64
 	waitedForBlock, firstBodyBlocking bool
+	earlyVideoHeaders                 bool
 	writeErr                          error
 	failureOutcome                    string
 	consumption                       *getConsumption
@@ -778,13 +806,26 @@ func (w *responseWriter) firstBodyMS() any {
 
 func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// ServeContent chooses the range and status, but headers stay private until
-// the first readable bytes. This leaves failed pre-body streams recoverable.
+// A pre-body address retry continues the range selected by ServeContent.
+// Re-evaluating request preconditions against a newly published file could
+// select a different status or byte range from the one already on the wire.
+func (w *responseWriter) copyPromisedBody(dst io.Writer, src io.ReadSeeker) error {
+	g := w.consumption
+	if _, err := src.Seek(g.position, io.SeekStart); err != nil {
+		return err
+	}
+	_, err := io.CopyN(dst, src, g.limit-g.position)
+	return err
+}
+
+// ServeContent chooses the range and status. Normally headers stay private until
+// readable bytes; the owner path commits normal video headers immediately.
 type streamResponseWriter struct {
 	http.ResponseWriter
-	header    http.Header
-	status    int
-	committed bool
+	header            http.Header
+	status            int
+	committed         bool
+	earlyVideoHeaders bool
 }
 
 func (w *streamResponseWriter) Header() http.Header { return w.header }
@@ -793,6 +834,12 @@ func (w *streamResponseWriter) WriteHeader(status int) {
 		return
 	}
 	w.status = status
+	if w.earlyVideoHeaders && (status == http.StatusOK || status == http.StatusPartialContent) {
+		w.commit()
+		if err := http.NewResponseController(w.ResponseWriter).Flush(); err != nil {
+			panic(http.ErrAbortHandler)
+		}
+	}
 }
 func (w *streamResponseWriter) commit() {
 	if w.committed {
@@ -817,9 +864,14 @@ func (w *streamResponseWriter) Write(p []byte) (int, error) {
 }
 
 // Closing here releases failed spools before waiting for a replacement URL.
-func serveStream(w http.ResponseWriter, r *http.Request, v video, stream *spoolReader) *streamResponseWriter {
+func serveStream(w *responseWriter, r *http.Request, v video, stream *spoolReader) *streamResponseWriter {
 	defer stream.Close()
-	pending := &streamResponseWriter{ResponseWriter: w, header: w.Header().Clone()}
+	pending := &streamResponseWriter{ResponseWriter: w, committed: w.status != 0, earlyVideoHeaders: w.earlyVideoHeaders}
+	if pending.committed {
+		stream.err = w.copyPromisedBody(pending, stream)
+		return pending
+	}
+	pending.header = w.Header().Clone()
 	setVideoHeaders(pending, v.key)
 	pending.Header().Set("X-SWD-Cache", "MISS")
 	http.ServeContent(pending, r, v.path, time.Time{}, stream)

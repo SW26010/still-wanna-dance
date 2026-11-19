@@ -37,7 +37,7 @@ func LatestPath(dir string) (string, error) {
 // Partial UTF-8 lines are retained until the next newline, with bounded memory.
 type Tail struct {
 	Dir         string
-	Playback    bool // Opt-in experiment; queue-only consumers remain unchanged.
+	Playback    bool // Follow formal player facts instead of queue snapshots.
 	Path        string
 	Offset      int64
 	info        os.FileInfo
@@ -60,24 +60,26 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 			if err != nil {
 				return nil, err
 			}
-			t.Path, t.info, t.Offset, t.pending, t.discard = path, info, 0, nil, false
+			var offset int64
+			var discard bool
 			if !t.initialized {
-				t.Offset = info.Size()
+				offset = info.Size()
 				// Do not interpret the suffix of an in-progress line as a new event.
-				if t.Offset > 0 {
+				if offset > 0 {
 					f, err := os.Open(path)
 					if err != nil {
 						return events, err
 					}
 					var last [1]byte
-					_, err = f.ReadAt(last[:], t.Offset-1)
+					_, err = f.ReadAt(last[:], offset-1)
 					f.Close()
 					if err != nil {
 						return events, err
 					}
-					t.discard = last[0] != '\n'
+					discard = last[0] != '\n'
 				}
 			}
+			t.Path, t.info, t.Offset, t.pending, t.discard = path, info, offset, nil, discard
 			events = append(events, Event{Reset: true})
 		}
 		t.initialized = true
@@ -87,7 +89,10 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 	}
 	f, err := os.Open(t.Path)
 	if err != nil {
-		return append(events, Event{Reset: true}), err
+		if !t.Playback {
+			events = append(events, Event{Reset: true})
+		}
+		return events, err
 	}
 	defer f.Close()
 	info, err := f.Stat()
@@ -120,13 +125,15 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 		line := t.pending[:i]
 		t.pending = t.pending[i+1:]
 		if t.discard || len(line) > maxLine {
+			if !t.Playback {
+				events = append(events, Event{Reset: true})
+			}
 			t.discard = false
-			events = append(events, Event{Reset: true})
 			continue
 		}
 		parse := Parse
 		if t.Playback {
-			parse = ParseWithPlayback
+			parse = parsePlayer
 		}
 		e, ok, parseErr := parse(string(line))
 		if parseErr != nil {
@@ -138,9 +145,11 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 		}
 	}
 	if len(t.pending) > maxLine {
+		if !t.Playback {
+			events = append(events, Event{Reset: true})
+		}
 		t.pending = nil
 		t.discard = true
-		events = append(events, Event{Reset: true})
 	}
 	if len(t.pending) < buffered {
 		// Keep only the unfinished line, not the consumed chunk, while idle.

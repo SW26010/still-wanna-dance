@@ -22,9 +22,13 @@ type mediaTiming struct {
 	duration time.Duration
 }
 
+func validMediaDuration(seconds float64) bool {
+	return seconds > 0 && seconds < float64(math.MaxInt64)/float64(time.Second)
+}
+
 func estimateMediaTiming(size int64, seconds float64) mediaTiming {
 	hasSize := size > 0
-	hasDuration := seconds > 0 && !math.IsNaN(seconds) && !math.IsInf(seconds, 0) && seconds < float64(math.MaxInt64)/float64(time.Second)
+	hasDuration := validMediaDuration(seconds)
 	switch {
 	case !hasSize && !hasDuration:
 		return mediaTiming{typicalSize, typicalDuration}

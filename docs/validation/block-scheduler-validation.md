@@ -1139,3 +1139,37 @@ Go 1.27.3、Windows amd64；全部 Go 检查沿用临时目录及依赖补丁入
 跨会话换址回归让 B 在 A 的截止前发布同一文件，A 的地址查询在截止后才返回。修复前 A 依据旧会话的缺块记录返回 504。修复后 A 从正式缓存读到完整内容并返回 200，没有重复回源或交接。只写入首个临时块时，A 按下一个缺块的截止退出。[HTTP 换址回归](../../internal/cacheproxy/address_sources_test.go) · [临时块时序回归](../../internal/cacheproxy/download_expiry_test.go)
 
 截止重评回归在需求集合等锁期间让截止到达，确认首块仍缺失，再放行上游正文。完整块写入后才允许重评，原 GET 随后读到完整正文，交接数为零。持续缺块时按期退出，以及 A 退出后 B 继续原下载，沿用既有用例。[重评与共享下载回归](../../internal/cacheproxy/download_expiry_test.go) · [持续缺块的换址回归](../../internal/cacheproxy/address_sources_test.go)
+
+## 2026-11-18 正式播放与 GET 入口
+
+受控 HTTP 回归验证非 owner 的过期缺块请求连续收到带 `no-store` 的 504，需求集合没有新增 GET。用例覆盖 8 KiB 回退边界、Range 是否跨块，以及 owner 首块持续缺失时客户端先收到 206。虚拟时钟覆盖逐块释放、自然结束和新播放替换旧播放。首次 GET 前，开播只留下未来块引用；携带可用地址的 owner GET 可取得请求字节。已有 GET 退出并跨过两秒交接期后，后续块仍能完成下载。[Range 与生命周期回归](../../internal/cacheproxy/formal_range_test.go) · [响应头与日志监听回归](../../internal/cacheproxy/formal_playback_test.go)
+
+用产品解析器和播放时间线回放 207 份历史日志，逐行模拟在事件发生两秒后送达。8,707 条开播、11,802 条同步中，有 11,623 条同步在该行处理后具有匹配时刻和目标进度的播放锚点。2,156 次重置后均已清空锚点和角色。真实播放器收到 504 后如何选取下一段，以及 owner 收到 206 后持续断流对房间的影响，留在 LA-040。[时间线回归](../../internal/vrclog/timeline_test.go) · [实机台账](../live-acceptance-backlog.md)
+
+普通 Windows 用户环境下 cacheproxy 整包通过，正式播放相关的 cacheproxy 和 vrclog 定向 race 通过。WebUI 类型与嵌入产物检查、Chromium 时间轴来源显示用例通过。早期沙箱运行遇到文件链接、重命名和 ThreadSanitizer 地址恢复限制，缓存复用用例也曾得到 502，原生整包复跑通过。首次定向 race 发现新测试读取定时器状态时缺锁，修正断言的持锁范围后复跑通过。[缓存复用既有记录](../validation-followups.md)
+
+### 审查后的补充验证
+
+同一过期缺块，带歌曲 ID 的 NSPlayer Range 在 If-Match 强匹配时收到 504，弱匹配时收到 412；If-None-Match 弱匹配时收到 304。三种结果都在登记 GET 前返回。无歌曲身份的共享媒体直链仍取得 206 和请求字节。旧地址短写时，owner 收到 206 后可在首字节前从同版本备用地址取得原范围的最后 16 字节。换址四轮通过，覆盖日期 If-Range、版本变化和已交付部分正文的情形。[准入回归](../../internal/cacheproxy/formal_range_test.go) · [换源回归](../../internal/cacheproxy/song_load_test.go)
+
+11 月 19 日收回按数据库提交或后续 GET 补建正式来源的行为。冷启动用例先在缺资料时开播，补齐目录后请求未缓存的首字节，收到 206；GET 结束及空轮询后仍没有正式来源。下一条有效同步才按新锚点取得未来块引用。容量不足期间的屏蔽复查、按校正时间到期、交接与正式引用延迟释放、各来源独立截止均有回归。[元数据与容量](../../internal/cacheproxy/formal_playback_test.go) · [到期与保护](../../internal/cacheproxy/formal_range_test.go) · [块快照](../../internal/cacheproxy/block_observation_test.go)
+
+补充回放使用 208 份历史日志，含 8,783 条开播和 11,862 条同步。其中 11,683 条同步在处理该行后得到匹配的时刻和进度，2,165 次重置均清空角色和锚点。回归保留曾导致串歌或误清角色的事件顺序，包含旧歌迟到结束及同秒角色确认。另用未来时间戳后紧接正常开播、日志文件暂时不可读后恢复并退出，覆盖读取异常。网关停止和启动回滚会撤销正式来源，手动来源仍有效。[时间线](../../internal/vrclog/timeline_test.go) · [读取与播放](../../internal/cacheproxy/formal_playback_test.go) · [网关启停](../../internal/console/queue_cdn_test.go)
+
+11 月 19 日收回 GET 补建后，Windows 缓存和日志整包、正式播放定向竞态检查、vet 与桌面构建均通过。此前一次整包合跑中缓存包失败，单独复跑通过，首次失败未归因。首轮编译漏引入 context，另一次竞态检查发现容量到期测试读取状态时缺锁，修复后均复验通过。Chromium 的来源展示与固定截止沿用此前通过的结果。真实缺块时的播放器重载和房间进度继续沿用 [LA-040](../live-acceptance-backlog.md)。
+
+收回日志主动回源后，首个 GET 前的块引用、跨两秒交接的下载和迟到匿名停播的角色回归连续两轮通过，相关竞态检查通过。缓存整包首轮在 512 KiB 块大小的发布测试中记录到零个调度样本；同一工作区单项连续六轮及缓存整包复跑通过，样本缺失原因未确认。
+
+独立角色日志确认跟随者后，用同一缺块 Range 检查两次准入。首次同步前撤销目录起点和正式引用，GET 放行；随后匿名同步关联到该曲，同一 Range 才命中过期判断。另两项回归覆盖满额时向后同步保留原有未来块，以及自然播完后下一条同曲同步重新绑定当前版本。三项均在修复前复现，修复后通过。[准入与版本绑定](../../internal/cacheproxy/formal_playback_test.go) · [容量与引用](../../internal/cacheproxy/formal_range_test.go)
+
+收窄后，容量回归分别从零个和两个已持有块出发。释放容量并空轮询，引用数保持原值；屏蔽后同步，房间时钟仍校正，已有块继续持有；解除屏蔽后再同步，才取得缺少的未来块。日志回归覆盖迟到开播的角色一致、缺省及冲突，以及同秒匿名同步在歌曲关联建立前后的差别。上文历史回放的总数未单独统计同秒回配。[容量回归](../../internal/cacheproxy/formal_playback_test.go) · [时间线回归](../../internal/vrclog/timeline_test.go)
+
+首次准入被屏蔽时，回归在同曲下更换媒体映射并解除屏蔽，下一次同步只给新版本登记块引用。目录时长恰好 24 小时可建立正式时钟，超出可表示范围的时长仍不能建立。两项均在修复前复现。另以独立换源用例验证 owner 已收到 200 后，同版本文件发布，日期型 If-Range 匹配新文件时仍交付先前承诺的整份正文。[版本与时长](../../internal/cacheproxy/formal_playback_test.go) · [换源与正文](../../internal/cacheproxy/song_load_test.go)
+
+片尾校正保留两种事件顺序，均先由路由确认歌曲，随后使用匿名同步。对 100 秒歌曲，第一次轮询同步到恰好 100 秒，当场检查旧来源和块引用均已释放，再在下一次轮询校正到 0.16 秒。另一种在同一批日志内先同步到 100.3 秒，再校正到 0.16 秒，并检查恢复的引用属于当前映射的新版本。只检查分批校正会漏掉一种回归：批处理若只采用最后的位置，就会跳过片尾释放，沿用旧版本。自然播完由虚拟时钟验证绑定和引用一并释放。[片尾校正](../../internal/cacheproxy/formal_playback_test.go) · [自然结束](../../internal/cacheproxy/formal_range_test.go)
+
+同步只使用路由或开播提供的歌曲关联后，按相同的两秒送达假设复跑 208 份日志，11,862 条同步中仍有 11,683 条得到匹配时刻和目标进度的锚点。读取器回归使用真实临时文件，验证文件暂时移走时只报告读错，恢复后从上次偏移读取新增的同步行。[日志读取回归](../../internal/vrclog/playback_test.go)
+
+具名开播迟到 5 秒时，先撤销旧锚点，随后准时到达的匿名同步使用新歌 ID 和同步目标。另一项回归先提供版本 A 和缺失的目录时长，再换成资料完整的 B。普通 GET 可读取 B，空轮询后仍没有正式来源，下一次同步才按 B 建立时钟。两项均在调整前复现。[迟到开播](../../internal/vrclog/timeline_test.go) · [资料补齐与换版](../../internal/cacheproxy/formal_playback_test.go)
+
+曾以闸门阻止旧会话清理，对比 owner 的发头时机。试验分支能在闸门关闭时发出 `206`，放开后交付承诺的 32 字节。首次缓存竞态检查因 Windows 沙箱内 ThreadSanitizer 无法恢复地址而中止，普通用户环境连续两轮通过。该试验只验证了 HTTP 时序，未测出清理等待对 VRC 重载的影响。现行设计已收回这个分支，分别验证旧会话清理后 GET 能接续，以及 owner 已取得视频流时能在首块可读前收到响应头。[清理接续](../../internal/cacheproxy/flight_exit_test.go) · [首块等待](../../internal/cacheproxy/formal_playback_test.go)

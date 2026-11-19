@@ -2,10 +2,28 @@ package cacheproxy
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
 )
+
+type formalMedia struct {
+	key        string
+	size       int64
+	start, end float64
+}
+
+func (s *Store) formalMedia(ctx context.Context, song int64) (formalMedia, error) {
+	var m formalMedia
+	err := s.playbackDB.QueryRowContext(ctx, `SELECT COALESCE(sm.md5,''),COALESCE(m.byte_size,0),COALESCE(s.start,0),COALESCE(s.end,0)
+ FROM songs s LEFT JOIN song_media sm ON sm.song_id=s.id LEFT JOIN media m ON m.md5=sm.md5
+ WHERE s.id=?`, song).Scan(&m.key, &m.size, &m.start, &m.end)
+	if errors.Is(err, sql.ErrNoRows) {
+		return m, nil
+	}
+	return m, s.storageError(err)
+}
 
 func (s *Store) songResource(ctx context.Context, id string) (string, error) {
 	var key string

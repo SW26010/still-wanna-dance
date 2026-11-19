@@ -8,33 +8,58 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/vrclog"
 )
 
+// The stale address supplies valid range headers, then only one byte.
+func writeShortCachedRange(w http.ResponseWriter, r *http.Request, body []byte, headers <-chan struct{}, failed chan<- struct{}) {
+	var start, end int64
+	fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
+	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
+	w.Header().Set("Content-Length", fmt.Sprint(end-start+1))
+	w.WriteHeader(http.StatusPartialContent)
+	w.(http.Flusher).Flush()
+	select {
+	case <-headers:
+	case <-r.Context().Done():
+		return
+	}
+	select {
+	case failed <- struct{}{}:
+	default:
+	}
+	w.Write(body[start : start+1])
+}
+
 func TestSongLoadingShortCachedRangeRecoversBeforeBody(t *testing.T) {
-	for _, requestedRange := range []string{"", "bytes=-16"} {
-		t.Run("range="+requestedRange, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, requestedRange  string
+		owner, changedVersion bool
+	}{
+		{name: "full"},
+		{name: "range", requestedRange: "bytes=-16"},
+		{name: "owner range", owner: true, requestedRange: "bytes=-16"},
+		{name: "owner changed version", owner: true, changedVersion: true, requestedRange: "bytes=-16"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			body := bytes.Repeat([]byte("range recovery"), int(rangeBlockSize/7))
 			failed := make(chan struct{}, 1)
+			headers := make(chan struct{})
+			flushed := sync.OnceFunc(func() { close(headers) })
+			if !tc.owner {
+				flushed() // Ordinary responses can hold headers until the body is ready.
+			}
 			var queries, freshDownloads atomic.Int32
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Query().Get("stale") == "1" {
-					var start, end int64
-					fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
-					w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
-					w.Header().Set("Content-Length", fmt.Sprint(end-start+1))
-					w.WriteHeader(http.StatusPartialContent)
-					w.(http.Flusher).Flush()
-					select {
-					case failed <- struct{}{}:
-					default:
-					}
-					w.Write(body[start : start+1]) // Legal headers, repeated short body.
+					writeShortCachedRange(w, r, body, headers, failed)
 					return
 				}
 				freshDownloads.Add(1)
@@ -51,23 +76,85 @@ func TestSongLoadingShortCachedRangeRecoversBeforeBody(t *testing.T) {
 				queries.Add(1)
 				select {
 				case <-failed:
+					if tc.changedVersion {
+						return videoURL("new version"), nil
+					}
 					return target, nil
 				case <-ctx.Done():
 					return "", ctx.Err()
 				}
 			}
 			r := httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx)
-			r.Header.Set("Range", requestedRange)
-			w := httptest.NewRecorder()
-			s.ServeHTTP(w, r)
-			status, want := http.StatusOK, body
-			if requestedRange != "" {
-				status, want = http.StatusPartialContent, body[len(body)-16:]
+			r.Header.Set("Range", tc.requestedRange)
+			if tc.owner {
+				s.playerRole = vrclog.Owner
+				r.Header.Set("User-Agent", "NSPlayer/12")
 			}
-			if w.Code != status || !bytes.Equal(w.Body.Bytes(), want) || queries.Load() != 1 || freshDownloads.Load() == 0 {
-				t.Fatalf("status=%d bytes=%d queries=%d fresh=%d", w.Code, w.Body.Len(), queries.Load(), freshDownloads.Load())
+			w := &playerHeaderWriter{httptest.NewRecorder(), flushed}
+			var aborted any
+			func() {
+				defer func() { aborted = recover() }()
+				s.ServeHTTP(w, r)
+			}()
+			if tc.changedVersion {
+				if aborted != http.ErrAbortHandler || w.Code != 206 || w.Body.Len() != 0 || freshDownloads.Load() != 0 {
+					t.Fatal("incompatible replacement", aborted, w.Code, w.Body.Len(), freshDownloads.Load())
+				}
+				return
+			}
+			status, want := http.StatusOK, body
+			if tc.requestedRange != "" {
+				status, want = http.StatusPartialContent, body[len(body)-16:]
+				if got := w.Result().Header.Get("Content-Range"); got != fmt.Sprintf("bytes %d-%d/%d", len(body)-16, len(body)-1, len(body)) {
+					t.Fatal(got)
+				}
+			}
+			if aborted != nil || w.Code != status || !bytes.Equal(w.Body.Bytes(), want) || queries.Load() != 1 || freshDownloads.Load() == 0 {
+				t.Fatalf("abort=%v status=%d bytes=%d queries=%d fresh=%d", aborted, w.Code, w.Body.Len(), queries.Load(), freshDownloads.Load())
 			}
 		})
+	}
+}
+
+func TestOwnerRetryServesPromisedFullBodyAfterPublication(t *testing.T) {
+	body := bytes.Repeat([]byte("p"), int(rangeBlockSize+16))
+	headers, failed := make(chan struct{}), make(chan struct{}, 1)
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("stale") != "1" {
+			t.Error("retry downloaded the published file")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writeShortCachedRange(w, r, body, headers, failed)
+	})
+	target := videoURL(string(body))
+	if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, URL: target + "&stale=1", Node: "cf"}); err != nil {
+		t.Fatal(err)
+	}
+	modified := time.Now().Truncate(time.Second)
+	s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
+		select {
+		case <-failed:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+		path := s.cfg.videoFile(fmt.Sprintf("%x", md5.Sum(body)))
+		if err := os.WriteFile(path, body, 0600); err != nil {
+			return "", err
+		}
+		return target, os.Chtimes(path, modified, modified)
+	}
+	s.playerRole = vrclog.Owner
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	r := httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx)
+	r.Header.Set("User-Agent", "NSPlayer/12")
+	r.Header.Set("Range", "bytes=-16")
+	r.Header.Set("If-Range", modified.UTC().Format(http.TimeFormat))
+	w := &playerHeaderWriter{httptest.NewRecorder(), sync.OnceFunc(func() { close(headers) })}
+	s.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || !bytes.Equal(w.Body.Bytes(), body) {
+		t.Fatalf("status=%d bytes=%d, want 200 and %d bytes", w.Code, w.Body.Len(), len(body))
 	}
 }
 

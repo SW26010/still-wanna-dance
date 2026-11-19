@@ -9,7 +9,7 @@ export interface BlockView extends RollingTime {
   windowClosed: boolean; opportunistic: boolean; eligible: boolean;
 }
 export interface BlockSource extends RollingTime {
-  id: number; kind: 'get' | 'queue' | 'batch' | 'handoff'; songID: string; title: string;
+  id: number; kind: 'get' | 'queue' | 'batch' | 'formal' | 'handoff'; songID: string; title: string;
   position: number; needBy: number; expiresAt: number; windowClosed: boolean;
 }
 export interface BlockDetail { block: BlockView; sources: BlockSource[] }
@@ -62,16 +62,18 @@ export function needByAt(value: RollingTime & { needBy: number; fixedNeedBy?: nu
   return rolling ? Math.min(value.fixedNeedBy || Infinity, rolling) : value.needBy;
 }
 export function demandLabel(demand: BlockDemand) {
+  if (demand.kind === 'formal') return '正式播放';
   return demand.kind === 'get' ? `读取 #${demand.sourceID}` : demand.kind === 'queue' ? `队列 #${demand.position}` : demand.kind === 'batch' ? '手动下载' : '短期交接';
 }
 export function compareDemands(a: BlockDemand, b: BlockDemand) {
-  const rank = { get: 0, handoff: 1, queue: 2, batch: 3 };
+  const rank = { formal: -1, get: 0, handoff: 1, queue: 2, batch: 3 };
   return rank[a.kind] - rank[b.kind] || (a.kind === 'queue' ? a.position - b.position : 0) || a.sourceID - b.sourceID || a.resource.localeCompare(b.resource);
 }
 export const blockStateNames: Record<BlockState, string> = {
   waiting: '等待下载', downloading: '正在下载', available: '本地可用', protected: '延续保护', stopping: '正在结束',
 };
 export function sourceName(source: BlockSource) {
+  if (source.kind === 'formal') return '正式播放';
   return source.kind === 'get' ? `播放请求 #${source.id}` : source.kind === 'queue' ? `房间队列 · 第 ${source.position} 首` : source.kind === 'batch' ? '手动下载' : '短期交接';
 }
 const clockFormat = new Intl.DateTimeFormat('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });

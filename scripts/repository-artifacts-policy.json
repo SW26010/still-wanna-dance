@@ -2201,6 +2201,13 @@
       "bytes": 1324690,
       "sha256": "17d469fb770c54ff3245a8f00f4c6b7cc0606e3e916a1022802d33cb5570948e",
       "reason": "Reviewed generated Fluent WebUI bundle for rolling need-by on the block timeline, shared clock sampling under reduced motion, and independent fixed download cutoffs in block details. Rebuilt with the locked dependencies and matched against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1324790,
+      "sha256": "320372b5a16e9fedd974a4dd00f44c7f280acbdfe150de688c1fcf269d8e33a3",
+      "reason": "离线 WebUI 展示正式播放需求及其块范围。"
     }
   ]
 }

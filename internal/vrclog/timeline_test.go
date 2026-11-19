@@ -325,3 +325,277 @@ func TestRoomClockSameSongRerouteBeforeDelayedStart(t *testing.T) {
 		}
 	}
 }
+
+func TestRoomClockIgnoresGamePreview(t *testing.T) {
+	const mainURL = "http://api.udon.dance/Api/Songs/play?id=139"
+	const previewURL = "http://api.udon.dance/Api/Songs/play?id=10980"
+	const player = "[USharpVideo (WannaDance)] "
+	at := time.Date(2026, 11, 19, 19, 55, 34, 0, time.Local)
+
+	for _, delay := range []time.Duration{0, 5 * time.Second} {
+		t.Run(delay.String(), func(t *testing.T) {
+			var timeline PlayerTimeline
+			observeTimelineLine(t, &timeline, at, 0, player+"LoadRoutedURL: "+mainURL)
+			observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+mainURL+", since owner is playing")
+			observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 0.16")
+			anchor := timeline.Anchor
+
+			preview := at.Add(144 * time.Second)
+			observeTimelineLine(t, &timeline, preview, delay, "[VideoListManager] PreviewVideo: 10980 "+previewURL+", time 30 - 193")
+			observeTimelineLine(t, &timeline, preview, delay, player+"LoadRoutedURL: "+previewURL+" routed to "+previewURL)
+			observeTimelineLine(t, &timeline, preview.Add(5*time.Second), delay, player+"OnVideoStart: Started video: "+previewURL+", since I'm the owner")
+			observeTimelineLine(t, &timeline, preview.Add(5*time.Second), 0, player+"Syncing video to 30.00, current time = 0.00")
+			observeTimelineLine(t, &timeline, preview.Add(9*time.Second), 0, player+"Syncing video to 33.37, current time = 30.43")
+			observeTimelineLine(t, &timeline, preview.Add(10*time.Second), 0, player+"StopVideo:")
+			observeTimelineLine(t, &timeline, preview.Add(11*time.Second), 0, player+"OnVideoEnd: Video "+previewURL+" ended")
+			if timeline.Anchor != anchor || timeline.Role != Follower {
+				t.Fatalf("preview changed room playback: anchor=%+v role=%v", timeline.Anchor, timeline.Role)
+			}
+
+			observeTimelineLine(t, &timeline, preview.Add(12*time.Second), 0, player+"Syncing video to 156.25")
+			if timeline.Anchor.SongID != 139 || timeline.Anchor.Position != 156.25 {
+				t.Fatal("ended preview suppressed a room sync", timeline.Anchor)
+			}
+
+			observeTimelineLine(t, &timeline, preview.Add(13*time.Second), 0, player+"OnVideoEnd: Video "+mainURL+" ended")
+			if timeline.Anchor.SongID != 0 || timeline.Role != Follower {
+				t.Fatal("preview hid the formal song's end", timeline)
+			}
+		})
+	}
+}
+
+func TestRoomClockAcceptsFormalPlayAfterSameSongPreview(t *testing.T) {
+	const songURL = "http://api.udon.dance/Api/Songs/play?id=10980"
+	const player = "[USharpVideo (WannaDance)] "
+	at := time.Date(2026, 11, 19, 19, 57, 58, 0, time.Local)
+
+	for _, signal := range []struct {
+		name   string
+		marker string
+		role   PlayerRole
+	}{
+		{"owner queue", "[VideoQueueManager] [19:57:59] : PlayQueueVideo: index = 0, userData = {\"songId\":10980}, videoDuration = 193", Owner},
+		{"owner random", "[VideoQueueManager] [19:57:59] : PlayRandomVideo: userData = {\"songId\":10980}, videoDuration = 193", Owner},
+		{"follower sync", player + "Playing synced " + songURL, Follower},
+	} {
+		t.Run(signal.name, func(t *testing.T) {
+			var timeline PlayerTimeline
+			observeTimelineLine(t, &timeline, at, 0, "[VideoListManager] PreviewVideo: 10980 "+songURL)
+			observeTimelineLine(t, &timeline, at, 0, `[VideoQueueManager] [19:57:58] : DeserializeVideoUserData: userData = {"songId":10980,"videoTitle":"PlayQueueVideo: title"}`)
+			observeTimelineLine(t, &timeline, at, 0, player+"LoadRoutedURL: "+songURL)
+			observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+songURL+", since I'm the owner")
+			if timeline.Anchor.SongID != 0 || timeline.Role != UnknownRole {
+				t.Fatal("preview established room playback", timeline)
+			}
+
+			start := at.Add(time.Second)
+			observeTimelineLine(t, &timeline, start, 0, signal.marker)
+			if signal.role == Owner {
+				observeTimelineLine(t, &timeline, start, 0, player+"LoadRoutedURL: "+songURL)
+				observeTimelineLine(t, &timeline, start, 0, player+"OnVideoStart: Started video: "+songURL+", since I'm the owner")
+				if !timeline.Anchor.CatalogStart {
+					t.Fatal("owner did not establish the catalog start", timeline)
+				}
+				observeTimelineLine(t, &timeline, start, 0, player+"Syncing video to 1.25, current time = 0.00")
+			} else {
+				observeTimelineLine(t, &timeline, start, 0, player+"Syncing video to 1.25, current time = 0.00")
+				observeTimelineLine(t, &timeline, start, 0, player+"OnVideoStart: Started video: "+songURL+", since owner is playing")
+			}
+			if timeline.Anchor.SongID != 10980 || timeline.Anchor.Position != 1.25 || timeline.Role != signal.role {
+				t.Fatal("formal playback did not take over after preview", timeline)
+			}
+		})
+	}
+}
+
+func observeTimelineLine(t *testing.T, timeline *PlayerTimeline, at time.Time, delay time.Duration, line string) {
+	t.Helper()
+	event, ok, err := ParseWithPlayback(at.Format("2006.01.02 15:04:05") + " Debug - " + line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		timeline.Observe(event, at.Add(delay))
+	}
+}
+
+func TestRoomClockIgnoresLatePreviewSeek(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const roomURL = "http://api.udon.dance/Api/Songs/play?id=3136"
+	const previewURL = "http://api.udon.dance/Api/Songs/play?id=4923"
+	at := time.Date(2026, 8, 31, 20, 27, 16, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, player+"Playing synced "+roomURL)
+	observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+roomURL+", since owner is playing")
+	observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 0.19")
+	anchor := timeline.Anchor
+	preview := at.Add(15 * time.Second)
+	observeTimelineLine(t, &timeline, preview, 0, "[VideoListManager] PreviewVideo: 4923 "+previewURL+", time 30 - 259")
+	observeTimelineLine(t, &timeline, preview, 0, player+"LoadRoutedURL: "+previewURL+" routed to "+previewURL)
+	observeTimelineLine(t, &timeline, preview.Add(2*time.Second), 0, player+"OnVideoStart: Started video: "+previewURL+", since I'm the owner")
+
+	late := preview.Add(101 * time.Second)
+	observeTimelineLine(t, &timeline, late, 0, player+"SeekTo: call SyncVideo() since newTargetTime is 193.5573")
+	observeTimelineLine(t, &timeline, late, 0, player+"Syncing video to 193.56, current time = 201.17, offset = -7.61, threshold = 0.85")
+	if timeline.Anchor != anchor || timeline.Role != Follower {
+		t.Fatal("late preview seek recalibrated the room clock", timeline.Anchor)
+	}
+
+	observeTimelineLine(t, &timeline, late, 0, player+"Syncing video to 116.19, current time = 115.00, offset = 1.19, threshold = 0.4999999")
+	if timeline.Anchor.SongID != 3136 || timeline.Anchor.Position != 116.19 {
+		t.Fatal("unpaired room sync did not recalibrate the clock", timeline.Anchor)
+	}
+
+	observeTimelineLine(t, &timeline, late, 0, player+"Playing synced "+roomURL)
+	observeTimelineLine(t, &timeline, late, 0, player+"SeekTo: call SyncVideo() since newTargetTime is 118")
+	observeTimelineLine(t, &timeline, late, 0, player+"Syncing video to 118.00, current time = 0.00")
+	if timeline.Anchor.SongID != 3136 || timeline.Anchor.Position != 118 {
+		t.Fatal("identified room playback lost its seek", timeline.Anchor)
+	}
+}
+
+func TestRoomClockEndsFormalPlaybackDuringSameSongPreview(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const song = "http://api.udon.dance/Api/Songs/play?id=10980"
+	const end = player + "OnVideoEnd: Video " + song + " ended"
+	at := time.Date(2026, 11, 19, 19, 55, 34, 0, time.Local)
+	for _, source := range []struct {
+		name string
+		line string
+	}{
+		{"queue manager", "[VideoQueueManager] [19:55:54] : OnUSharpVideoEnd: PlayNextVideo()"},
+		{"follower", end + ", but I am not the video owner, waiting for video owner [owner] to act"},
+	} {
+		t.Run(source.name, func(t *testing.T) {
+			var timeline PlayerTimeline
+			observeTimelineLine(t, &timeline, at, 0, player+"Playing synced "+song)
+			observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+song+", since owner is playing")
+			observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 1.25")
+			anchor := timeline.Anchor
+			preview := at.Add(5 * time.Second)
+			observeTimelineLine(t, &timeline, preview, 0, "[VideoListManager] PreviewVideo: 10980 "+song)
+			observeTimelineLine(t, &timeline, preview, 0, player+"LoadRoutedURL: "+song)
+			observeTimelineLine(t, &timeline, preview, 0, player+"OnVideoStart: Started video: "+song+", since I'm the owner")
+
+			stopped := at.Add(20 * time.Second)
+			observeTimelineLine(t, &timeline, stopped, 0, end)
+			observeTimelineLine(t, &timeline, stopped, 0, "[VideoQueueManager] [19:55:54] : OnUSharpVideoEndInCaseVideoOwnerFailure: waiting 5 seconds")
+			if timeline.Anchor != anchor || timeline.Role != Follower {
+				t.Fatal("ambiguous end changed room playback", timeline.Anchor)
+			}
+			observeTimelineLine(t, &timeline, stopped, 5*time.Second, source.line)
+			if timeline.Anchor.SongID != 0 || timeline.Role != Follower {
+				t.Fatal("formal end did not clear room playback", timeline.Anchor)
+			}
+
+			observeTimelineLine(t, &timeline, stopped.Add(time.Second), 0, player+"LoadRoutedURL: "+song)
+			observeTimelineLine(t, &timeline, stopped.Add(time.Second), 0, player+"Syncing video to 23.00")
+			if timeline.Anchor.SongID != 0 || timeline.Role != Follower {
+				t.Fatal("ended room playback was revived by the ongoing preview", timeline.Anchor)
+			}
+		})
+	}
+}
+
+func TestRoomClockPreviewEndOnlyReleasesItsOwnCallbacks(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const room = "http://api.udon.dance/Api/Songs/play?id=139"
+	const first = "http://api.udon.dance/Api/Songs/play?id=4923"
+	const second = "http://api.udon.dance/Api/Songs/play?id=10980"
+	at := time.Date(2026, 11, 19, 19, 55, 34, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, player+"Playing synced "+room)
+	observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+room+", since owner is playing")
+	observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 1.25")
+	anchor := timeline.Anchor
+	observeTimelineLine(t, &timeline, at.Add(time.Second), 0, "[VideoListManager] PreviewVideo: 10980 "+second)
+	observeTimelineLine(t, &timeline, at.Add(2*time.Second), 0, "[VideoListManager] PreviewVideo: 4923 "+first)
+	observeTimelineLine(t, &timeline, at.Add(4*time.Second), 0, "[VideoListManager] PreviewVideo: 10980 "+second)
+	observeTimelineLine(t, &timeline, at.Add(3*time.Second), time.Second, player+"OnVideoEnd: Video "+second+" ended")
+	observeTimelineLine(t, &timeline, at.Add(5*time.Second), 0, player+"OnVideoEnd: Video "+first+" ended")
+	observeTimelineLine(t, &timeline, at.Add(6*time.Second), 0, player+"Syncing video to 32.50")
+	if timeline.Anchor != anchor {
+		t.Fatal("an older preview end released the current preview's callbacks", timeline.Anchor)
+	}
+
+	observeTimelineLine(t, &timeline, at.Add(20*time.Second), 0, player+"OnVideoEnd: Video "+second+" ended")
+	observeTimelineLine(t, &timeline, at.Add(21*time.Second), 0, player+"LoadRoutedURL: "+second)
+	observeTimelineLine(t, &timeline, at.Add(22*time.Second), 0, player+"Syncing video to 23.00")
+	if timeline.Anchor.SongID != 139 || timeline.Anchor.Position != 23 {
+		t.Fatal("a callback from the ended preview suppressed room sync again", timeline.Anchor)
+	}
+}
+
+func TestRoomClockKeepsInterleavedPreviewSyncOutOfRoom(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const song = "http://api.udon.dance/Api/Songs/play?id=10938"
+	at := time.Date(2026, 10, 14, 16, 40, 15, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, player+"LoadRoutedURL: "+song)
+	observeTimelineLine(t, &timeline, at.Add(11*time.Second), 0, player+"OnVideoStart: Started video: "+song+", since I'm the owner")
+	preview := at.Add(68 * time.Second)
+	observeTimelineLine(t, &timeline, preview, 0, "[VideoListManager] PreviewVideo: 10938 "+song)
+	observeTimelineLine(t, &timeline, preview, 0, player+"LoadRoutedURL: "+song)
+
+	observeTimelineLine(t, &timeline, preview.Add(90*time.Second), 0, player+"Syncing video to 147.27, current time = 4.53, offset = 142.73, threshold = 0.4999999")
+	if timeline.Anchor.SongID != 10938 || timeline.Anchor.Position != 147.27 {
+		t.Error("preview suppressed the room calibration", timeline.Anchor)
+	}
+
+	interleaved := preview.Add(141 * time.Second)
+	observeTimelineLine(t, &timeline, interleaved, 0, player+"Syncing video to 188.07, current time = 4.53, offset = 183.53, threshold = 0.4999999")
+	formal := timeline.Anchor
+	if formal.Position != 188.07 || formal.At != interleaved {
+		t.Fatal("room sync did not reach 188.07", formal)
+	}
+	observeTimelineLine(t, &timeline, interleaved, 0, player+"Syncing video to 125.85, current time = 43.47, offset = 82.38, threshold = 0.85")
+	if timeline.Anchor != formal {
+		t.Fatal("preview rewound the room clock", timeline.Anchor)
+	}
+}
+
+func TestRoomClockKeepsPreviewIdentityAcrossLateReload(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const song = "http://api.udon.dance/Api/Songs/play?id=3214"
+	at := time.Date(2026, 10, 14, 16, 22, 26, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, "[VideoListManager] PreviewVideo: 3214 "+song)
+	observeTimelineLine(t, &timeline, at, 0, player+"LoadRoutedURL: "+song)
+	observeTimelineLine(t, &timeline, at.Add(21*time.Second), 0, player+"OnVideoStart: Started video: "+song+", since I'm the owner")
+	if timeline.Anchor.SongID != 0 || timeline.Role != UnknownRole {
+		t.Fatal("initial preview established room playback", timeline.Anchor)
+	}
+
+	observeTimelineLine(t, &timeline, at.Add(134*time.Second), 0, player+"OnVideoError: "+song)
+	retry := at.Add(139 * time.Second)
+	observeTimelineLine(t, &timeline, retry, 0, player+"Retrying load: "+song)
+	observeTimelineLine(t, &timeline, retry, 0, player+"LoadRoutedURL: "+song)
+	observeTimelineLine(t, &timeline, retry.Add(2*time.Second), 0, player+"OnVideoStart: Started video: "+song+", since I'm the owner")
+	if timeline.Anchor.SongID != 0 || timeline.Role != UnknownRole {
+		t.Fatal("late preview retry established room playback", timeline.Anchor, timeline.Role)
+	}
+
+	official := at.Add(150 * time.Second)
+	observeTimelineLine(t, &timeline, official, 0, player+"Playing synced "+song)
+	observeTimelineLine(t, &timeline, official, 0, player+"Syncing video to 1.25, current time = 0.00, offset = 1.25, threshold = 0.4999999")
+	if timeline.Anchor.SongID != 3214 || timeline.Anchor.Position != 1.25 {
+		t.Fatal("confirmed room route did not supersede the preview", timeline.Anchor)
+	}
+	formal := timeline.Anchor
+	observeTimelineLine(t, &timeline, official, 0, player+"Syncing video to 160.00, current time = 30.00, offset = 130.00, threshold = 0.85")
+	if timeline.Anchor != formal {
+		t.Fatal("a room route lost the overlapping preview context", timeline.Anchor)
+	}
+}
+
+func TestRoomClockAcceptsLocalThresholdWithoutPreview(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	at := time.Date(2026, 6, 19, 19, 16, 16, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, player+"Playing synced http://api.udon.dance/Api/Songs/play?id=1234")
+	observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 208.05, current time = 0.00, offset = 208.05, threshold = 0.85")
+	if timeline.Anchor.SongID != 1234 || timeline.Anchor.Position != 208.05 {
+		t.Fatal("a startup sync was lost outside a preview", timeline.Anchor)
+	}
+}

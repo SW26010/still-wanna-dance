@@ -1,6 +1,7 @@
 package vrclog
 
 import (
+	"encoding/json"
 	"math"
 	"net/url"
 	"regexp"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// PlaybackEvent contains selected formal-player facts, never raw lines,
+// PlaybackEvent contains selected player and room facts, never raw lines,
 // player names, world IDs or signed media URLs. At is the log event time,
 // not the time the tailer happened to read the line (second precision).
 type PlaybackEvent struct {
@@ -21,12 +22,16 @@ type PlaybackEvent struct {
 	Playing  *bool     `json:"playing,omitempty"`
 }
 
-var syncPosition = regexp.MustCompile(`Syncing video to ([0-9]+(?:\.[0-9]+)?)(?:,|\s|$)`)
+var roomEndAction = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?OnUSharpVideoEnd:\s+PlayNextVideo\(\)(?:\s|<|$)`)
+var roomSelectionData = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?(?:PlayQueueVideo|PlayRandomVideo):.*?\buserData\s*=`)
+var previewSong = regexp.MustCompile(`\[VideoListManager\]\s+PreviewVideo:\s+(\d+)(?:\s|$)`)
+var playerPosition = regexp.MustCompile(`(Syncing video to|SeekTo: call SyncVideo\(\) since newTargetTime is) ([0-9]+(?:\.[0-9]+)?)(?:,|\s|$)`)
+var syncThreshold = regexp.MustCompile(`\bthreshold\s*=\s*(0\.4999999|0\.5|0\.85)(?:\s|<|$)`)
 var localRole = regexp.MustCompile(`isLocal = True, isOwner = (True|False),`)
 var ownerPlaying = regexp.MustCompile(`ownerPlaying = (True|False),`)
 
 // ParseWithPlayback recognizes queue, room lifecycle and formal-player events.
-// Unknown worlds and previews are ignored.
+// Preview markers let the timeline exclude callbacks from the local preview player.
 func ParseWithPlayback(line string) (Event, bool, error) {
 	if event, ok, err := Parse(line); ok || err != nil {
 		return event, ok, err
@@ -60,9 +65,32 @@ func parsePlayerFact(line string) (Event, bool, error) {
 		}
 		playing := m[1] == "True"
 		e.Kind, e.Playing = "transport", &playing
+	case queue:
+		if roomEndAction.MatchString(line) {
+			e.Kind = "room-end"
+			break
+		}
+		match := roomSelectionData.FindStringIndex(line)
+		var song Song
+		if match == nil || json.NewDecoder(strings.NewReader(line[match[1]:])).Decode(&song) != nil || song.ID <= 0 {
+			return Event{}, false, nil
+		}
+		e.Kind, e.SongID = "room-selection", song.ID
+	case strings.Contains(line, "[VideoListManager]"):
+		m := previewSong.FindStringSubmatch(line)
+		if m == nil {
+			return Event{}, false, nil
+		}
+		id, err := strconv.ParseInt(m[1], 10, 64)
+		if err != nil || id <= 0 {
+			return Event{}, false, nil
+		}
+		e.Kind, e.SongID = "preview", id
 	case formal:
 		switch {
-		case strings.Contains(line, "LoadRoutedURL:") || strings.Contains(line, "Playing synced "):
+		case strings.Contains(line, "Playing synced "):
+			e.Kind = "room-route"
+		case strings.Contains(line, "LoadRoutedURL:"):
 			e.Kind = "route"
 		case strings.Contains(line, "Started video:"):
 			e.Kind = "start"
@@ -77,6 +105,9 @@ func parsePlayerFact(line string) (Event, bool, error) {
 			e.Kind = "pause"
 		case strings.Contains(line, "OnVideoEnd:"):
 			e.Kind = "end"
+			if strings.Contains(line, " ended, but I am not the video owner, waiting for video owner ") {
+				e.Kind = "room-end"
+			}
 		case strings.Contains(line, "StopVideo"):
 			e.Kind = "stop"
 		case strings.Contains(line, "OnVideoError:"):
@@ -84,15 +115,24 @@ func parsePlayerFact(line string) (Event, bool, error) {
 		case strings.Contains(line, "Retrying load:"):
 			e.Kind = "reload"
 		default:
-			m := syncPosition.FindStringSubmatch(line)
+			m := playerPosition.FindStringSubmatch(line)
 			if m == nil {
 				return Event{}, false, nil
 			}
-			position, err := strconv.ParseFloat(m[1], 64)
+			position, err := strconv.ParseFloat(m[2], 64)
 			if err != nil || math.IsNaN(position) || math.IsInf(position, 0) {
 				return Event{}, false, nil
 			}
 			e.Kind, e.Position = "sync", position
+			if m[1] != "Syncing video to" {
+				e.Kind = "seek"
+			} else if threshold := syncThreshold.FindStringSubmatch(line); threshold != nil {
+				if threshold[1] == "0.85" {
+					e.Kind = "local-sync"
+				} else {
+					e.Kind = "room-sync"
+				}
+			}
 		}
 		e.SongID = playbackSong(line)
 	default:

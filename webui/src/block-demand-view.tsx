@@ -36,15 +36,21 @@ function playbackAvailabilityGradient({ totalBytes, availableRanges }: BlockAvai
 
 function DemandPlayback({ playback, availability, clock, active, reducedMotion, title }: { playback: PlaybackClock; availability?: BlockAvailability; clock: Pick<TimelineData, 'at' | 'receivedAt'>; active: boolean; reducedMotion: boolean; title: string }) {
   const fill = useRef<HTMLDivElement>(null);
+  const marker = useRef<HTMLDivElement>(null);
   const [sample, setSample] = useState(() => performance.now());
   const duration = playback.endAt - playback.zeroAt;
   const elapsedAt = (sample: number) => Math.max(0, Math.min(duration, clock.at + Math.max(0, sample - clock.receivedAt) - playback.zeroAt));
   const animatePlayback = useEffectEvent(() => {
-    const bar = fill.current;
-    if (!bar || duration <= 0) return;
-    const animation = bar.animate([{ width: '0%' }, { width: '100%' }], { duration, fill: 'forwards' });
-    animation.currentTime = elapsedAt(performance.now());
-    return () => animation.cancel();
+    const timelineTime = document.timeline.currentTime;
+    if (!fill.current || !marker.current || duration <= 0 || typeof timelineTime !== 'number') return;
+    const startTime = timelineTime - elapsedAt(performance.now());
+    const keyframes = [{ transform: 'translateX(-100%)' }, { transform: 'translateX(0%)' }];
+    const animations = [fill.current, marker.current].map(element => {
+      const animation = element.animate(keyframes, { duration, fill: 'forwards' });
+      animation.startTime = startTime;
+      return animation;
+    });
+    return () => animations.forEach(animation => animation.cancel());
   });
   useLayoutEffect(() => {
     // Download updates can rebase the event clock without changing the room anchor.
@@ -57,11 +63,20 @@ function DemandPlayback({ playback, availability, clock, active, reducedMotion, 
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [active]);
-  const position = Math.floor(elapsedAt(sample) / 1000) * 1000;
+  const elapsed = elapsedAt(sample);
+  const position = elapsed === duration ? elapsed : Math.floor(elapsed / 1000) * 1000;
+  const offset = duration > 0 ? (position / duration - 1) * 100 : -100;
+  const transform = `translateX(${offset}%)`;
   const time = `${playbackTime(position)} / ${playbackTime(duration)}`;
   const backgroundImage = useMemo(() => availability && playbackAvailabilityGradient(availability), [availability]);
   return <>
-    <div className="demand-playback-track"><ProgressBar max={duration} value={position} aria-label={`${title}，房间播放进度`} aria-valuetext={time} style={{ backgroundImage }} bar={{ ref: fill, className: 'demand-playback-fill' }} /></div>
+    <div className="demand-playback-track">
+      <ProgressBar max={duration} value={position} aria-label={`${title}，房间播放进度`} aria-valuetext={time} style={{ backgroundImage }} bar={{
+        className: 'demand-playback-clip', style: { width: '100%' },
+        children: <div ref={fill} className="demand-playback-fill" style={{ transform }} />,
+      }} />
+      <div ref={marker} className="demand-playback-marker" style={{ transform }} aria-hidden="true" />
+    </div>
     <Caption1 className="demand-progress" aria-hidden="true">{time}</Caption1>
   </>;
 }

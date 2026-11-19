@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1328288,
+      "sha256": "f217bed56d936e1830ec10ee8c44357f341219e30e985acbd83ea7ad6bc23fa8",
+      "reason": "Embedded WebUI rebuilt with synchronized transform animations for the playback fill and unclipped marker. Verified against webui/build-manifest.json."
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1327844,
       "sha256": "d092747e7ba12dfbb83bfe116c1177eef80e2c00b5793d594eb9b1a4138694bc",
       "reason": "Embedded WebUI rebuilt with shared whole-video availability across demand rows, a shared time scale with persistent lane labels, cutoff-anchored timeline following, original need-by labels for handoffs, smooth playback progress, and muted protection-only blocks. Verified against webui/build-manifest.json."

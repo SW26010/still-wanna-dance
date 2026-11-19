@@ -161,8 +161,10 @@ form.actions { align-items: flex-end; }
 .demand-progress { flex-shrink: 0; color: var(--timeline-muted); font-variant-numeric: tabular-nums; }
 .demand-playback-track { --demand-playback-cached: var(--colorNeutralForeground4); position: absolute; inset: auto var(--spacingHorizontalM) 1px; }
 .demand-playback-track > [role="progressbar"] { overflow: visible; }
-.demand-playback-track .demand-playback-fill { position: relative; transition: none; }
-.demand-playback-fill::after {
+.demand-playback-track .demand-playback-clip { background-color: transparent; overflow: hidden; }
+.demand-playback-fill { height: 100%; border-radius: inherit; background-color: var(--colorCompoundBrandBackground); }
+.demand-playback-marker { position: absolute; inset: 0; pointer-events: none; }
+.demand-playback-marker::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -181,7 +183,8 @@ form.actions { align-items: flex-end; }
     outline: 1px solid CanvasText;
   }
   .demand-playback-track .demand-playback-fill { background-color: Highlight; }
-  .demand-playback-fill::after { background-color: CanvasText; }
+  .demand-playback-marker { forced-color-adjust: none; }
+  .demand-playback-marker::after { background-color: CanvasText; }
 }
 .demand-block-canvas { display: block; cursor: crosshair; transition-property: none; }
 .demand-block-canvas:focus-visible { outline: 2px solid var(--timeline-selected); outline-offset: -2px; border-radius: 4px; }

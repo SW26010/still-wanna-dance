@@ -441,9 +441,10 @@ test('forced colors show the playback track before any blocks are ready', async 
   const track = await progress.evaluate(el => {
     const { outlineColor, outlineStyle, outlineWidth } = getComputedStyle(el);
     const rowBackground = getComputedStyle(el.closest('.demand-row')!).backgroundColor;
-    return { outlineStyle, outlineWidth, contrastsWithRow: outlineColor !== rowBackground };
+    const marker = el.parentElement!.querySelector('.demand-playback-marker')!;
+    return { outlineStyle, outlineWidth, contrastsWithRow: outlineColor !== rowBackground, markerMatchesOutline: getComputedStyle(marker, '::after').backgroundColor === outlineColor };
   });
-  expect(track).toEqual({ outlineStyle: 'solid', outlineWidth: '1px', contrastsWithRow: true });
+  expect(track).toEqual({ outlineStyle: 'solid', outlineWidth: '1px', contrastsWithRow: true, markerMatchesOutline: true });
   await expect(time).toBeVisible();
 
   await f.emit({
@@ -463,11 +464,19 @@ test('playback advances between seconds and only realigns for room clock correct
   await f.emit({ demands: [formal] });
 
   const progress = f.panel.getByRole('progressbar', { name: /房间播放进度/ });
+  const track = f.panel.locator('.demand-playback-track');
   const fill = progress.locator('.demand-playback-fill');
-  const width = () => fill.evaluate(el => el.getBoundingClientRect().width);
+  const marker = track.locator('.demand-playback-marker');
+  const layerEnd = (layer = fill) => layer.evaluate(el => {
+    const trackLeft = el.closest('.demand-playback-track')!.getBoundingClientRect().left;
+    return el.getBoundingClientRect().right - trackLeft;
+  });
   await expect(progress).toHaveAttribute('aria-valuetext', '01:00 / 03:00');
-  const initialWidth = await width();
-  await expect.poll(width).toBeGreaterThan(initialWidth);
+  const trackWidth = (await progress.boundingBox())!.width;
+  expect((await fill.boundingBox())!.width).toBeCloseTo(trackWidth);
+  expect(await marker.evaluate(el => el.closest('.demand-playback-clip'))).toBeNull();
+  const initialEnd = await layerEnd();
+  await expect.poll(layerEnd).toBeGreaterThan(initialEnd);
   await expect(progress).toHaveAttribute('aria-valuetext', '01:00 / 03:00');
 
   const animation = await fill.evaluateHandle(el => el.getAnimations()[0]);
@@ -477,11 +486,23 @@ test('playback advances between seconds and only realigns for room clock correct
 
   await f.emit({ at: f.at + 200, demands: [{ ...formal, playback: { zeroAt: f.at - 30000, endAt: f.at + 150000 } }] });
   await expect(progress).toHaveAttribute('aria-valuetext', '00:30 / 03:00');
-  await expect.poll(width).toBeLessThan(initialWidth * 0.6);
+  await expect.poll(layerEnd).toBeLessThan(initialEnd * 0.6);
+  const starts = await track.evaluate(el => el.getAnimations({ subtree: true }).map(animation => animation.startTime));
+  expect(starts).toHaveLength(2);
+  expect(starts[0]).not.toBeNull();
+  expect(starts[0]).toBe(starts[1]);
   await animation.dispose();
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect.poll(() => fill.evaluate(el => el.getAnimations().length)).toBe(0);
+  await expect.poll(() => track.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
+  await f.emit({ at: f.at, demands: [{ ...formal, playback: { zeroAt: f.at, endAt: f.at + 60500 } }] });
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  await expect.poll(layerEnd).toBeCloseTo(0);
+  await expect.poll(() => layerEnd(marker)).toBeCloseTo(0);
+  await f.emit({ at: f.at + 60500 });
+  await expect(progress).toHaveAttribute('aria-valuenow', '60500');
+  await expect.poll(layerEnd).toBeCloseTo(trackWidth);
+  await expect.poll(() => layerEnd(marker)).toBeCloseTo(trackWidth);
 });
 
 test('playback progress holds its whole-second value across block events and applies clock corrections immediately', async ({ page }) => {

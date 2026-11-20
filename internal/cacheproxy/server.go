@@ -77,10 +77,11 @@ type Server struct {
 	preparationSeq   uint64                   // protected by mu; never reused during this engine's lifetime
 	useBlocks        map[useBlockID]int       // protected by mu; includes readable blocks
 	useHandoffs      useHandoffHeap
-	useTimer         *time.Timer // Earliest handoff or formal playback expiry.
+	useTimer         *time.Timer // Earliest source expiry.
 	prefetchSources  map[string]*queueSource
 	prefetchOrder    []int64
-	queueStart       time.Time                 // Rolling base: the formal end, or a time at or before now.
+	queueStart       time.Time // Rolling base: the formal end, or a time at or before now.
+	queueSchedule    queueSchedule
 	playbackChecks   map[string]*playbackCheck // protected by mu
 	localChecks      chan struct{}             // whole-file merge, checksum and publication capacity
 	requests         *requestActivity

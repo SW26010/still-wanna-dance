@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+type queueSchedule uint8
+
+const (
+	queueRolling queueSchedule = iota
+	queueFormal                // A valid playback clock supplied queueStart, even if playback has ended.
+	queueFixed                 // Keep absolute deadlines until the next valid room clock or stop.
+)
+
 type queueMetadata struct {
 	timing mediaTiming
 	title  string
@@ -82,9 +90,12 @@ func (s *Server) notifyQueuePreparationLocked() {
 	}
 }
 
-// Use the published base for window entry and observation. When formal playback
-// ends naturally, max(base, now) already advances without republishing the plan.
+// A known natural transition can hold absolute deadlines for surviving members.
+// Otherwise the published base rolls with max(base, now) without republishing.
 func (s *Server) retimeQueueLocked(now time.Time) []string {
+	if s.queueSchedule == queueFixed {
+		return s.extendHeldQueueLocked(now)
+	}
 	if s.queueStart.IsZero() {
 		s.queueStart = now
 	}
@@ -100,6 +111,7 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 			if q.position == i {
 				clockChanged := q.startAt != start
 				q.startAt = start
+				q.fixed = mediaTiming{}
 				if clockChanged && s.cfg.Logger != nil {
 					s.cfg.Logger.Debug("队列播放时间推算", "event_name", "queue_playback_timing", "song_id", q.song, "position", i, "starts_at", s.queueClockLocked(q, now).at, "media_bytes", q.timing.size, "duration_seconds", q.timing.duration.Seconds())
 				}
@@ -110,13 +122,129 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 	return changed
 }
 
+func (s *Server) holdQueueScheduleLocked() {
+	s.queueSchedule = queueFixed
+	for _, q := range s.prefetchSources {
+		q.fixed = q.timing
+	}
+}
+
+func (s *Server) resetQueueScheduleLocked(now time.Time) {
+	s.queueSchedule, s.queueStart = queueRolling, now
+	if p := s.formal; p != nil {
+		s.queueSchedule, s.queueStart = queueFormal, p.clock.end()
+	}
+}
+
+// Existing members keep their published slots through edits. Schedule new
+// members after the retained slots, in snapshot order.
+func (s *Server) extendHeldQueueLocked(now time.Time) []string {
+	tail := now
+	lastFixed := -1
+	for i, id := range s.prefetchOrder {
+		if q := s.prefetchSources[strconv.FormatInt(id, 10)]; q != nil && q.position == i && q.fixed.duration > 0 {
+			clock := q.clock()
+			tail = maxTime(tail, clock.end())
+			lastFixed = i
+		}
+	}
+	var keys []string
+	for i, id := range s.prefetchOrder {
+		q := s.prefetchSources[strconv.FormatInt(id, 10)]
+		if q == nil {
+			if i > lastFixed {
+				tail = tail.Add(typicalDuration)
+			}
+			continue
+		}
+		if q.position != i {
+			if i > lastFixed {
+				tail = tail.Add(q.clock().media.duration)
+			}
+			continue
+		}
+		if q.fixed.duration == 0 {
+			q.startAt, q.fixed = tail, q.timing
+			tail = tail.Add(q.fixed.duration)
+		}
+		keys = append(keys, q.use.key)
+	}
+	return keys
+}
+
+func (q *queueSource) clock() playbackClock {
+	media := q.timing
+	if q.fixed.duration > 0 {
+		media = q.fixed
+	}
+	return playbackClock{at: q.startAt, media: media}
+}
+
 // Materialize the current song clock for a point-in-time event or snapshot.
 func (s *Server) queueClockLocked(q *queueSource, now time.Time) playbackClock {
-	at := q.startAt
-	if now.After(s.queueStart) {
-		at = now.Add(q.startAt.Sub(s.queueStart))
+	clock := q.clock()
+	if s.queueSchedule != queueFixed && now.After(s.queueStart) {
+		clock.at = now.Add(q.startAt.Sub(s.queueStart))
 	}
-	return playbackClock{at: at, media: q.timing}
+	return clock
+}
+
+func (s *Server) firstQueueExpiryLocked() (*queueSource, time.Time) {
+	var source *queueSource
+	var next time.Time
+	for _, q := range s.prefetchSources {
+		if q.use.first < q.use.last {
+			at := sourceDeadline(q.readyBy(q.use.first, s.cfg.BlockSize))
+			if next.IsZero() || at.Before(next) {
+				source, next = q, at
+			}
+		}
+	}
+	return source, next
+}
+
+func (s *Server) nextQueueExpiryLocked() time.Time {
+	if s.queueSchedule != queueFixed {
+		return time.Time{}
+	}
+	_, at := s.firstQueueExpiryLocked()
+	return at
+}
+
+func (s *Server) expireQueueUseLocked(now time.Time) []string {
+	var keys []string
+	if s.queueSchedule == queueFixed {
+		for {
+			q, at := s.firstQueueExpiryLocked()
+			if q == nil || at.After(now) {
+				break
+			}
+			s.expireFormalLocked(at)
+			s.releaseUseLocked(useSpan{q.use.key, q.use.first, q.use.first + 1}, at)
+			q.use.first++
+			keys = append(keys, q.use.key)
+		}
+	}
+	return keys
+}
+
+// Restore the released prefix in queue order through normal capacity checks.
+// A failed restoration is retried on the next source release.
+func (s *Server) restoreQueueUseLocked() []string {
+	var keys []string
+	for _, id := range s.prefetchOrder {
+		q := s.prefetchSources[strconv.FormatInt(id, 10)]
+		if q == nil || q.use.first == 0 {
+			continue
+		}
+		full := useSpan{q.use.key, 0, q.use.last}
+		if err := s.swapUseLocked(q.use, full, false); err != nil {
+			break
+		}
+		q.use = full
+		keys = append(keys, full.key)
+	}
+	return keys
 }
 
 // URL resolution can fill a previously unknown size before the next log

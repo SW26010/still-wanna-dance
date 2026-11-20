@@ -145,7 +145,7 @@ func (s *Server) armUseTimerLocked() {
 	if s.closed {
 		return
 	}
-	next := s.nextFormalExpiryLocked()
+	next := earlier(s.nextFormalExpiryLocked(), s.nextQueueExpiryLocked())
 	if len(s.useHandoffs) > 0 {
 		next = earlier(next, s.useHandoffs[0].until)
 	}
@@ -172,11 +172,16 @@ func (s *Server) expireUseLocked(now time.Time) []string {
 	for len(s.useHandoffs) > 0 && !s.useHandoffs[0].until.After(now) {
 		h := heap.Pop(&s.useHandoffs).(*useHandoff)
 		// The last reference starts the local protection tail at its actual end.
+		changed = append(changed, s.expireQueueUseLocked(h.until)...)
 		s.expireFormalLocked(h.until)
 		s.releaseUseLocked(h.span, h.until)
 		changed = append(changed, h.span.key)
 	}
+	changed = append(changed, s.expireQueueUseLocked(now)...)
 	s.expireFormalLocked(now)
+	if !s.closed && s.queueSchedule != queueFixed {
+		changed = append(changed, s.restoreQueueUseLocked()...)
+	}
 	changed = uniqueResourceKeys(changed)
 	for _, key := range changed {
 		s.refreshUseProtectionLocked(allUseBlocks(key))

@@ -4,6 +4,10 @@ Still Wanna Dance 使用 Go，管理 UI 采用 React + TypeScript + Fluent UI Re
 
 下载架构以[下载需求与资源管理设计](download-resource-design.md)为 canonical 文档，维护现行规则、实现接口及验证边界。阅读当前实现时从[全局块调度设计](block-scheduler-design.md)开始：需求管理层解释 GET/队列与交接，`internal/blocksched` 统一处理块期限、租约、启动窗口和并发；资源层负责执行与文件一致性。[运行规则](download-concurrency.md)是当前参数依据，[开发记录](validation/block-scheduler-validation.md)按历史顺序保留实现和自动检查，不应将目标设计或早期策略当作现状。
 
+## 实现取舍
+
+优先保持主流程的规则易理解、各处职责清晰。遇到罕见的输入或时序，先判断沿用现有规则会产生什么结果，再结合发生频度、实际影响和可恢复性决定是否处理。影响可接受时，沿用主流程的结果，在对应设计文档记录触发条件、可能影响和恢复时机。确需处理时，从主流程和现有职责出发选择最小必要改动，优先复用已有机制。
+
 ## 功能完成与实机验收
 
 开发者（含 agent）先完成能由自动测试、隔离服务和浏览器判断的验证；只有必须依赖 VRC 播放器、真实游戏事件或游戏内体验的剩余风险才进入[待实机验收台账](live-acceptance-backlog.md)，说明不可替代的原因，并优先合并到已有操作。无需为每项行为改动登记，也不把已通过的代码断言重复交给游戏用户。托盘、跨用户等 Windows 条件单独记录环境缺口，见[非 VRC 分流](validation-followups.md)。按[实机验收机制](live-acceptance-process.md)积攒必要游戏场景；等待期间 agent 继续验证和准备，实际开测后承担采集、脱敏、报告及清理。

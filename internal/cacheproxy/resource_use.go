@@ -76,8 +76,9 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 		now := time.Now()
 		s.refreshUseSourcesLocked(now)
 		f := s.flights[u.video.key]
-		plan, _ := s.collectUsePlanLocked(u.video.key, now)
-		if len(plan) == 0 {
+		plan, active := s.collectUsePlanLocked(u.video.key, now)
+		// A queued resource can have an empty span until its clock is re-established.
+		if !active {
 			return
 		}
 		var done <-chan struct{}

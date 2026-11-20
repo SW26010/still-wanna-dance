@@ -10,6 +10,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/vrclog"
 )
 
 func setFormalPlaybackEnd(t *testing.T, s *Server, end time.Time) {
@@ -175,6 +177,7 @@ func TestQueueDownloadSurvivesFormerDeadline(t *testing.T) {
 func TestQueueRecalculatesAfterFormalClockCorrectionAndStop(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
+		s.cfg.Logger = slog.Default()
 		base := time.Now()
 		setFormalPlaybackEnd(t, s, base.Add(300*time.Second))
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
@@ -197,8 +200,24 @@ func TestQueueRecalculatesAfterFormalClockCorrectionAndStop(t *testing.T) {
 		s.clearFormalLocked(time.Now())
 		s.mu.Unlock()
 		check(time.Now())
-		setFormalPlaybackEnd(t, s, base.Add(90*time.Second))
+		end := base.Add(90 * time.Second)
+		setFormalPlaybackEnd(t, s, end)
 		s.UpdatePrefetchQueue([]int64{2, 3}, false)
+		at := time.Now()
+		s.mu.Lock()
+		start := s.queueClockLocked(s.prefetchSources["2"], at).at
+		s.mu.Unlock()
+		if start != end {
+			t.Fatal("departure before the expected end did not immediately update the schedule", start)
+		}
+		timeline := vrclog.PlayerTimeline{Anchor: vrclog.PlaybackAnchor{SongID: 9, At: at}}
+		s.ObservePlaybackLog(&timeline, []vrclog.Event{{Playback: &vrclog.PlaybackEvent{At: at, Kind: "end", SongID: 9}}}, at)
+		s.mu.Lock()
+		held := s.queueSchedule == queueFixed && s.prefetchSources["2"].startAt == start
+		s.mu.Unlock()
+		if !held {
+			t.Fatal("natural end did not hold the latest published schedule")
+		}
 		setFormalPlaybackEnd(t, s, base.Add(100*time.Second))
 		handoffs := snapshotUseHandoffs(s)
 		if len(handoffs) != 1 || handoffs[0].clock.at != base.Add(90*time.Second) {
@@ -276,6 +295,168 @@ func TestBatchCannotSetPlaybackQueueAnchor(t *testing.T) {
 		s.UpdatePrefetchQueue([]int64{1}, false)
 		if s.prefetchSources["1"].startAt != time.Now() {
 			t.Fatal("background demand became playback")
+		}
+	})
+}
+
+func TestQueueHeadDepartureRetainsSuccessorSchedule(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		endFirst     bool
+		timeToOldEnd time.Duration
+	}{
+		{name: "end log first", endFirst: true, timeToOldEnd: 10 * time.Second},
+		{name: "forecast reached before departure", timeToOldEnd: time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.Logger = slog.Default()
+				now := time.Now()
+				end := now.Add(tc.timeToOldEnd)
+				setFormalPlaybackEnd(t, s, end)
+				s.UpdatePrefetchQueue([]int64{1, 2, 3, 4}, false)
+				registerQueueResource(t, s, "1", "head")
+				registerQueueResource(t, s, "2", w.v.key)
+				registerQueueResource(t, s, "3", "removed")
+				timeline := vrclog.PlayerTimeline{Anchor: vrclog.PlaybackAnchor{SongID: 9, At: now}}
+				endLog := []vrclog.Event{{Playback: &vrclog.PlaybackEvent{At: now, Kind: "room-end"}}}
+				if tc.endFirst {
+					s.ObservePlaybackLog(&timeline, endLog, now)
+					time.Sleep(time.Second)
+					selectedAt := time.Now()
+					time.Sleep(time.Second)
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{
+						{Playback: &vrclog.PlaybackEvent{At: selectedAt, Kind: "room-selection", SongID: 1}},
+						{Playback: &vrclog.PlaybackEvent{At: time.Now(), Kind: "room-stop"}},
+					}, time.Now())
+				}
+				time.Sleep(4 * time.Second)
+				departed := time.Now()
+				s.UpdatePrefetchQueue([]int64{2, 3, 4}, false)
+				if !tc.endFirst {
+					endLog[0].Playback.At = departed
+					s.ObservePlaybackLog(&timeline, endLog, departed)
+				}
+				second := end.Add(typicalDuration)
+				plan, _, _ := w.plan(time.Now())
+				if n := plan[0].need; !n.ReadyBy.Equal(second) || !n.Rolling.Base.IsZero() {
+					t.Fatalf("successor changed deadline on departure: %+v, want %s", n, second)
+				}
+				wantHandoff := maxTime(departed, end)
+				if tc.endFirst {
+					wantHandoff = end
+				}
+				h := snapshotUseHandoffs(s)
+				if len(h) != 1 || h[0].span.key != "head" || !h[0].clock.at.Equal(wantHandoff) || !h[0].until.Equal(departed.Add(handoffGrace)) {
+					t.Fatalf("head did not hand off on its prior clock: %+v", h)
+				}
+
+				// Delete a middle member and append through an unknown slot.
+				time.Sleep(time.Second)
+				s.UpdatePrefetchQueue([]int64{2, 4, -1, 5}, false)
+				s.UpdatePrefetchQueue([]int64{2, 4, -1, 5}, false)
+				s.mu.Lock()
+				two, four, five := s.prefetchSources["2"], s.prefetchSources["4"], s.prefetchSources["5"]
+				stable := two.position == 0 && two.startAt.Equal(second) &&
+					four.position == 1 && four.startAt.Equal(end.Add(3*typicalDuration)) &&
+					five.startAt.Equal(end.Add(5*typicalDuration)) &&
+					s.prefetchSources["1"] == nil && s.prefetchSources["3"] == nil &&
+					s.useBlocks[useBlockID{"removed", 0}] == 0
+				s.mu.Unlock()
+				if !stable {
+					t.Fatal("queue edits failed to preserve surviving slots or withdraw removed members")
+				}
+				// Another head leaves before a valid clock. Its successor keeps
+				// the same exact clock even though the positions change again.
+				s.UpdatePrefetchQueue([]int64{4, -1, 5}, false)
+				if got := s.queueClockLocked(four, time.Now()).at; !got.Equal(end.Add(3 * typicalDuration)) {
+					t.Fatal("successive departure moved the successor", got)
+				}
+				nextEnd := time.Now().Add(20 * time.Second)
+				setFormalPlaybackEnd(t, s, nextEnd)
+				s.mu.Lock()
+				resumed := s.queueClockLocked(four, time.Now()).at.Equal(nextEnd) &&
+					s.queueClockLocked(five, time.Now()).at.Equal(nextEnd.Add(2*typicalDuration))
+				s.mu.Unlock()
+				if !resumed {
+					t.Fatal("valid clock did not replan from the latest queue")
+				}
+			})
+		})
+	}
+}
+
+func TestHeldQueueExpiresAndRestoresThroughCapacity(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.cfg.Logger = slog.Default()
+		end := time.Now().Add(time.Second)
+		setFormalPlaybackEnd(t, s, end)
+		s.UpdatePrefetchQueue([]int64{1, 2}, false)
+		add := func() {
+			t.Helper()
+			_, release := addTestDemand(t, s, s.queueDemandContext(t.Context(), "2"),
+				video{key: w.v.key, songID: "2", size: 2 * rangeBlockSize}, false)
+			release()
+		}
+		add()
+		s.mu.Lock()
+		s.prefetchSources["1"].timing = mediaTiming{rangeBlockSize, time.Second}
+		s.prefetchSources["2"].timing = mediaTiming{2 * rangeBlockSize, 2 * time.Minute}
+		s.retimeQueueLocked(time.Now())
+		s.mu.Unlock()
+		time.Sleep(time.Second)
+		s.UpdatePrefetchQueue([]int64{2}, false)
+		firstExpiry := end.Add(time.Second + sourceGrace)
+		time.Sleep(time.Until(firstExpiry) - time.Nanosecond)
+		synctest.Wait()
+		if p := protectionFor(s, w.v.key, 0); !p.active(time.Now()) {
+			t.Fatal("first block lost protection before its fixed deadline")
+		}
+		time.Sleep(time.Nanosecond)
+		synctest.Wait()
+		s.UpdatePrefetchQueue([]int64{2}, false)
+		add() // Late retries/metadata refresh cannot re-register an expired prefix.
+		plan, _, _ := w.plan(time.Now())
+		s.mu.Lock()
+		count := len(s.useBlocks)
+		s.mu.Unlock()
+		if _, found := plan[0]; found || count != 1 || !plan[1].need.ReadyBy.Equal(end.Add(61*time.Second)) {
+			t.Fatalf("deadline failed to release only the expired block: plan=%+v capacity=%d", plan, count)
+		}
+		capacity := useSpan{"capacity", 0, backgroundUseBlocks - 1}
+		s.mu.Lock()
+		err := s.reserveUseLocked(capacity, false)
+		s.mu.Unlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The operator can stop the room during the very same log second
+		// as natural end. A button event distinguishes that callback.
+		at := time.Now().Truncate(time.Second)
+		timeline := vrclog.PlayerTimeline{Anchor: vrclog.PlaybackAnchor{SongID: 9, At: at}}
+		button, ok, err := vrclog.ParseWithPlayback(at.In(time.Local).Format("2006.01.02 15:04:05") +
+			" Debug - [VideoQueueManager] StopVideo Button Clicked")
+		if !ok || err != nil {
+			t.Fatal("stop button marker was not parsed", err)
+		}
+		s.ObservePlaybackLog(&timeline, []vrclog.Event{
+			{Playback: &vrclog.PlaybackEvent{At: at, Kind: "room-end"}},
+			button,
+			{Playback: &vrclog.PlaybackEvent{At: at, Kind: "room-stop"}},
+		}, time.Now())
+		plan, _, _ = w.plan(at)
+		if _, found := plan[0]; found || plan[1].need.Rolling.Base.IsZero() {
+			t.Fatal("released prefix exceeded capacity or stop kept fixed deadlines")
+		}
+		s.mu.Lock()
+		s.releaseUseLocked(capacity, at)
+		s.notifyUseChangedLocked(capacity.key)
+		s.mu.Unlock()
+		plan, _, _ = w.plan(at)
+		if n := plan[0].need; !n.ReadyAt(at).Equal(at) || n.Rolling.Base.IsZero() {
+			t.Fatal("stopped clock did not restore the queued block when capacity returned", n)
 		}
 	})
 }

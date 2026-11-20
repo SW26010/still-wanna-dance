@@ -24,6 +24,7 @@ type PlaybackEvent struct {
 
 var roomEndAction = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?` +
 	`(?:OnUSharpVideoEnd:\s+PlayNextVideo\(\)|OnUSharpVideoStop:\s+I am owner,\s+QueueChanged\(\))(?:\s|<|$)`)
+var roomStopButton = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?StopVideo Button Clicked(?:\s|<|$)`)
 var roomSelectionData = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?(?:PlayQueueVideo|PlayRandomVideo):.*?\buserData\s*=`)
 var previewSong = regexp.MustCompile(`\[VideoListManager\]\s+PreviewVideo:\s+(\d+)(?:\s|$)`)
 var playerPosition = regexp.MustCompile(`(Syncing video to|SeekTo: call SyncVideo\(\) since newTargetTime is) ([0-9]+(?:\.[0-9]+)?)(?:,|\s|$)`)
@@ -67,8 +68,15 @@ func parsePlayerFact(line string) (Event, bool, error) {
 		playing := m[1] == "True"
 		e.Kind, e.Playing = "transport", &playing
 	case queue:
+		if roomStopButton.MatchString(line) {
+			e.Kind = "room-stop-request"
+			break
+		}
 		if roomEndAction.MatchString(line) {
 			e.Kind = "room-end"
+			if strings.Contains(line, "OnUSharpVideoStop:") {
+				e.Kind = "room-stop"
+			}
 			break
 		}
 		match := roomSelectionData.FindStringIndex(line)

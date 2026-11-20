@@ -31,6 +31,8 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 			lease := until
 			if source.kind == "formal" {
 				lease = earlier(lease, ready.Add(time.Nanosecond))
+			} else if source.kind == "queue" && rollingBase.IsZero() {
+				lease = earlier(lease, sourceDeadline(ready))
 			}
 			p := plannedNeed{need: blocksched.Need{ReadyBy: ready, LeaseUntil: lease, WindowClosed: closed, OpportunisticOrder: order}}
 			if !rollingBase.IsZero() {
@@ -63,9 +65,16 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 	if p := s.formal; p != nil && p.use.first < p.use.last {
 		add(p.use, blockSource{"formal", p}, &p.clock, now.Add(sourceLease), false, time.Time{}, 0)
 	}
+	rollingBase := s.queueStart
+	if s.queueSchedule == queueFixed {
+		rollingBase = time.Time{}
+	}
 	for _, q := range s.prefetchSources {
-		clock := playbackClock{at: q.startAt, media: q.timing}
-		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), false, s.queueStart, 0)
+		if q.use.key == "" {
+			continue
+		}
+		clock := q.clock()
+		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), false, rollingBase, 0)
 	}
 	for _, h := range s.useHandoffs {
 		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, true, time.Time{}, 0)

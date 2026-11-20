@@ -49,6 +49,7 @@ type PlayerTimeline struct {
 	Anchor               PlaybackAnchor
 	route                int64
 	lastEvent, lastStart time.Time
+	naturalTransitionAt  time.Time
 	synced               bool // The current route has supplied a synchronization.
 	previews             map[int64]*previewAssociation
 	activePreview        *previewAssociation
@@ -56,9 +57,17 @@ type PlayerTimeline struct {
 	previewSeek          *PlaybackEvent
 }
 
+type PlaybackBoundary uint8
+
+const (
+	PlaybackContinues PlaybackBoundary = iota
+	PlaybackEnded
+	PlaybackStopped
+)
+
 // Observe is called in file order by the single log reader. Route lines
 // identify anonymous sync callbacks but cannot themselves start playback.
-func (p *PlayerTimeline) Observe(event Event, received time.Time) {
+func (p *PlayerTimeline) Observe(event Event, received time.Time) (boundary PlaybackBoundary) {
 	if event.Reset {
 		*p = PlayerTimeline{}
 		return
@@ -87,6 +96,12 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) {
 		return
 	case "room-selection":
 		delete(p.previews, e.SongID)
+		if !p.naturalTransitionAt.IsZero() {
+			p.naturalTransitionAt = e.At
+		}
+		return
+	case "room-stop-request":
+		p.naturalTransitionAt = time.Time{}
 		return
 	case "room-route":
 		delete(p.previews, e.SongID)
@@ -96,7 +111,7 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) {
 		}
 	}
 	// A stop in file order still ends playback after a delayed read.
-	if e.Kind != "end" && e.Kind != "stop" && e.Kind != "room-end" && received.Sub(e.At) > 4*time.Second {
+	if e.Kind != "end" && e.Kind != "stop" && e.Kind != "room-end" && e.Kind != "room-stop" && received.Sub(e.At) > 4*time.Second {
 		if e.Owner != nil && (*e.Owner != (p.Role == Owner)) {
 			p.Role = UnknownRole
 		}
@@ -163,14 +178,32 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) {
 		}
 		p.synced = true
 		p.Anchor = PlaybackAnchor{Started: started, SongID: p.route, At: e.At, Position: e.Position}
-	case "end", "stop", "room-end":
+	case "end", "stop", "room-end", "room-stop":
 		if e.SongID == 0 || e.SongID == p.Anchor.SongID {
+			if e.Kind == "stop" || e.Kind == "room-stop" {
+				// The old player's stop callback can cross a log second after
+				// natural end or selection of the next song.
+				age := e.At.Sub(p.naturalTransitionAt)
+				continuing := e.Kind == "room-stop" && p.Anchor.SongID == 0 && age >= 0 && age <= time.Second
+				if !continuing {
+					boundary = PlaybackStopped
+				}
+			} else if p.Anchor.SongID != 0 {
+				boundary = PlaybackEnded
+				p.naturalTransitionAt = e.At
+			}
 			p.Anchor = PlaybackAnchor{}
+		} else if e.Kind == "stop" && e.SongID == p.route && p.Anchor.SongID == 0 {
+			boundary = PlaybackStopped
 		}
 		if e.SongID == 0 || e.SongID == p.route {
 			p.route, p.lastStart, p.synced = 0, time.Time{}, false
 		}
 	}
+	if p.Anchor.SongID != 0 || boundary == PlaybackStopped {
+		p.naturalTransitionAt = time.Time{}
+	}
+	return
 }
 
 func (p *PlayerTimeline) rememberPreview(e *PlaybackEvent) {
@@ -194,7 +227,7 @@ func (p *PlayerTimeline) previewApplies(preview *previewAssociation, at time.Tim
 
 func (p *PlayerTimeline) consumePreviewCallback(e *PlaybackEvent) bool {
 	switch e.Kind {
-	case "role", "transport", "room-end", "room-sync":
+	case "role", "transport", "room-end", "room-stop", "room-sync":
 		return false
 	case "local-sync":
 		// The local threshold also occurs during some room-player starts.

@@ -3,6 +3,7 @@ package cacheproxy
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -35,8 +36,9 @@ type queueSource struct {
 	position int
 	startAt  time.Time
 	timing   mediaTiming
+	fixed    mediaTiming // The published media clock while the schedule is held.
 	title    string
-	use      useSpan
+	use      useSpan // Expiry advances first; last preserves the resolved end for readmission.
 }
 
 func (q *queueSource) origin() demandSource {
@@ -47,7 +49,8 @@ func (q *queueSource) origin() demandSource {
 }
 
 func (q *queueSource) readyBy(block, blockSize int64) time.Time {
-	return q.startAt.Add(q.timing.at(block * blockSize))
+	clock := q.clock()
+	return clock.ready(block * blockSize)
 }
 
 type downloadDemand struct {
@@ -120,6 +123,11 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			changed = true
 		}
 	}
+	holdSchedule := false
+	if !reset && len(ids) > 0 && len(s.prefetchOrder) > 0 && s.queueSchedule == queueFormal && !now.Before(s.queueStart) {
+		head := s.prefetchOrder[0]
+		holdSchedule = !slices.Contains(ids, head) || head <= 0 && slices.Equal(s.prefetchOrder[1:], ids)
+	}
 	for i, id := range ids {
 		if id > 0 {
 			song := strconv.FormatInt(id, 10)
@@ -131,12 +139,6 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 				}
 				changed = changed || source.position != i
 				source.position = i
-				metadata, ok := timings[song]
-				if !ok {
-					metadata.timing = estimateMediaTiming(0, 0)
-				}
-				changed = changed || source.timing != metadata.timing || source.title != metadata.title
-				source.timing, source.title = metadata.timing, metadata.title
 				next[song] = source
 			}
 		}
@@ -155,13 +157,26 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			changed = true
 		}
 	}
+	if holdSchedule {
+		// Departing sources used the previous clock through their withdrawal.
+		// Capture survivors before refreshing their catalog metadata.
+		s.holdQueueScheduleLocked()
+	}
+	for song, source := range next {
+		metadata, ok := timings[song]
+		if !ok {
+			metadata.timing = estimateMediaTiming(0, 0)
+		}
+		changed = changed || source.timing != metadata.timing || source.title != metadata.title
+		source.timing, source.title = metadata.timing, metadata.title
+	}
 	if !changed {
 		return nil // Repeated snapshots must not postpone queue deadlines.
 	}
 	s.prefetchSources = next
 	s.prefetchOrder = append([]int64(nil), ids...)
-	if reset && !s.queueStart.After(now) {
-		s.queueStart = now
+	if reset || len(ids) == 0 && s.queueSchedule == queueFixed {
+		s.resetQueueScheduleLocked(now)
 	}
 	changedKeys = append(changedKeys, s.retimeQueueLocked(now)...)
 	s.notifyUseChangedLocked(changedKeys...)
@@ -200,13 +215,23 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	var previousKey string
 	if queue {
-		if s.validQueueSourceLocked(d) && token.use != d.useSpan() {
-			if err := s.replaceUseLocked(token.use, d.useSpan(), false); err != nil {
-				s.mu.Unlock()
-				return nil, nil, err
+		if s.validQueueSourceLocked(d) {
+			now := time.Now()
+			s.refreshUseSourcesLocked(now)
+			span := d.useSpan()
+			if s.queueSchedule == queueFixed {
+				for span.first < span.last && sourceExpired(token.readyBy(span.first, s.cfg.BlockSize), now) {
+					span.first++
+				}
 			}
-			previousKey = token.use.key
-			token.use = d.useSpan()
+			if token.use != span {
+				if err := s.swapUseLocked(token.use, span, false); err != nil {
+					s.mu.Unlock()
+					return nil, nil, err
+				}
+				previousKey = token.use.key
+				token.use = span
+			}
 		}
 	} else if err := s.reserveUseLocked(d.useSpan(), playback); err != nil {
 		s.mu.Unlock()

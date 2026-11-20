@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"still-wanna-dance/internal/vrclog"
 )
 
 // Reproduce the review's 125 s block / 120 s window with real local storage,
@@ -181,6 +184,59 @@ func TestQueueFutureFormalEndTransitionsWithoutWallClockEntryBeyondWindow(t *tes
 		plan, _, _ = w.plan(time.Now())
 		if !plan[1].need.WindowClosed || plan[0].need.ReadyAt(time.Now()) != time.Now() {
 			t.Fatal("formal end changed the relative window or stalled the head clock")
+		}
+	})
+}
+
+func TestQueueHeadDepartureKeepsPreparedBlockAndDefersLaterBlock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s, calls, key := idleBoundaryServer(t, 240)
+		if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,100)"); err != nil {
+			t.Fatal(err)
+		}
+		end := time.Now().Add(time.Second)
+		setFormalPlaybackEnd(t, s, end)
+		if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan error, 1)
+		go func() { _, err := s.PrefetchQueuePlayback(t.Context(), 42); done <- err }()
+		synctest.Wait()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if calls[0].Load() != 1 || calls[1].Load() != 0 {
+			t.Fatalf("unexpected origin calls before departure: %d, %d", calls[0].Load(), calls[1].Load())
+		}
+		s.applyPlaybackTimeline(vrclog.PlayerTimeline{}, true) // The old anchor was retired before the snapshot.
+		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
+			t.Fatal(err)
+		}
+		s.applyPlaybackTimeline(vrclog.PlayerTimeline{
+			Anchor: vrclog.PlaybackAnchor{SongID: 99, At: time.Now()},
+		}, true) // No media mapping for this replacement.
+		synctest.Wait()
+		s.requestBlockReclamation(key)
+		synctest.Wait()
+		r := httptest.NewRequest(http.MethodGet, "https://api.udon.dance/Api/Songs/play?id=42", nil)
+		r.Header.Set("Range", "bytes=0-0")
+		response := httptest.NewRecorder()
+		s.ServeHTTP(response, r)
+		if response.Code != http.StatusPartialContent || response.Body.String() != "r" ||
+			calls[0].Load() != 1 || calls[1].Load() != 0 || !protectionFor(s, key, 0).active(time.Now()) {
+			t.Fatalf("head departure altered the window or discarded ready data: status=%d calls=%d,%d", response.Code, calls[0].Load(), calls[1].Load())
+		}
+		time.Sleep(100*time.Second - time.Nanosecond)
+		synctest.Wait()
+		if calls[1].Load() != 0 {
+			t.Fatal("second block started before its original entry")
+		}
+		time.Sleep(time.Nanosecond)
+		synctest.Wait()
+		if calls[1].Load() != 1 || calls[0].Load() != 1 {
+			t.Fatalf("fixed entry did not release exactly one later block: %d,%d", calls[0].Load(), calls[1].Load())
+		}
+		if err := <-done; err != nil {
+			t.Fatal(err)
 		}
 	})
 }

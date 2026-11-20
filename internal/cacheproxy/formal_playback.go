@@ -32,7 +32,9 @@ func (s *Server) ClearPlaybackLog() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.playerRole = vrclog.UnknownRole
-	s.clearFormalLocked(time.Now())
+	now := time.Now()
+	s.refreshUseSourcesLocked(now)
+	s.clearFormalLocked(now)
 }
 
 // ObservePlaybackLog applies the supplied events in file order. The caller owns
@@ -40,14 +42,43 @@ func (s *Server) ClearPlaybackLog() {
 func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {
 	for _, e := range events {
 		role, anchor := t.Role, t.Anchor
-		t.Observe(e, now)
+		boundary := t.Observe(e, now)
 		anchorChanged := anchor != t.Anchor
-		if !anchorChanged && role == t.Role {
+		if !anchorChanged && role == t.Role && !e.Reset && boundary == vrclog.PlaybackContinues {
 			continue
 		}
 		s.cfg.Logger.Debug("正式播放日志更新", "event_name", "playback_timeline", "role", t.Role.String(), "song_id", t.Anchor.SongID, "anchor", t.Anchor.At, "target_seconds", t.Anchor.Position, "catalog_start", t.Anchor.CatalogStart)
+		if e.Reset || boundary != vrclog.PlaybackContinues {
+			s.endPlaybackFromLog(t.Role, boundary == vrclog.PlaybackEnded)
+			continue
+		}
 		s.applyPlaybackTimeline(*t, anchorChanged)
 	}
+}
+
+func (s *Server) endPlaybackFromLog(role vrclog.PlayerRole, natural bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
+	s.playerRole = role
+	now := time.Now()
+	s.refreshUseSourcesLocked(now)
+	if !natural || s.queueSchedule == queueRolling || len(s.prefetchSources) == 0 {
+		s.clearFormalLocked(now)
+		return
+	}
+	var keys []string
+	if s.queueSchedule == queueFormal {
+		s.holdQueueScheduleLocked()
+		keys = s.retimeQueueLocked(now)
+	}
+	if p := s.formal; p != nil {
+		s.dropFormalLocked(now)
+		keys = append(keys, p.key)
+	}
+	s.notifyUseChangedLocked(keys...)
 }
 
 func (p *formalPlayback) setPosition(at time.Time, position float64) {
@@ -72,7 +103,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 	s.refreshUseSourcesLocked(now)
 	a := t.Anchor
 	if a.SongID == 0 {
-		s.clearFormalLocked(now)
+		s.withdrawFormalLocked(now)
 		return
 	}
 	song := strconv.FormatInt(a.SongID, 10)
@@ -94,7 +125,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 			return
 		}
 		if err != nil || meta.key == "" || meta.size <= 0 || meta.size > s.cfg.MaxFileBytes || !validMediaDuration(meta.end) {
-			s.clearFormalLocked(time.Now())
+			s.withdrawFormalLocked(time.Now())
 			return
 		}
 		p = &formalPlayback{song: song, key: meta.key, started: a.Started, clock: playbackClock{media: estimateMediaTiming(meta.size, meta.end)}}
@@ -120,7 +151,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 		}
 		allowed = err == nil
 		if !allowed && s.formal != p {
-			s.clearFormalLocked(time.Now())
+			s.withdrawFormalLocked(time.Now())
 			return
 		}
 	}
@@ -131,7 +162,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpansion bool) {
 	end := p.clock.end()
 	if !now.Before(end) {
-		s.clearFormalLocked(now)
+		s.withdrawFormalLocked(now)
 		return
 	}
 	span := p.remaining(now, s.cfg.BlockSize)
@@ -141,8 +172,8 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 	}
 	s.formal = p
 	keys := []string{p.key}
-	if !end.Equal(s.queueStart) {
-		s.queueStart = end
+	if s.queueSchedule != queueFormal || !end.Equal(s.queueStart) {
+		s.queueSchedule, s.queueStart = queueFormal, end
 		keys = append(keys, s.retimeQueueLocked(now)...)
 	}
 	s.notifyUseChangedLocked(keys...)
@@ -150,7 +181,7 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 
 func (s *Server) clearFormalLocked(now time.Time) {
 	p := s.formal
-	if p == nil && !s.queueStart.After(now) {
+	if p == nil && s.queueSchedule == queueRolling && !s.queueStart.After(now) {
 		return
 	}
 	s.dropFormalLocked(now)
@@ -158,11 +189,23 @@ func (s *Server) clearFormalLocked(now time.Time) {
 	if p != nil {
 		keys = append(keys, p.key)
 	}
-	if s.queueStart.After(now) {
-		s.queueStart = now
+	if s.queueSchedule != queueRolling || s.queueStart.After(now) {
+		s.resetQueueScheduleLocked(now)
 		keys = append(keys, s.retimeQueueLocked(now)...)
 	}
 	s.notifyUseChangedLocked(keys...)
+}
+
+// An unverified replacement leaves a held schedule in effect. An elapsed
+// estimate also stays available so the next snapshot can hold its deadlines.
+func (s *Server) withdrawFormalLocked(now time.Time) {
+	elapsed := s.queueSchedule == queueFormal && !now.Before(s.queueStart)
+	if s.queueSchedule != queueFixed && !elapsed {
+		s.clearFormalLocked(now)
+	} else if p := s.formal; p != nil {
+		s.dropFormalLocked(now)
+		s.notifyUseChangedLocked(p.key)
+	}
 }
 
 func (s *Server) dropFormalLocked(at time.Time) {

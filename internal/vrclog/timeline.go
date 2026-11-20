@@ -123,6 +123,9 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) {
 	}
 	switch e.Kind {
 	case "route", "room-route":
+		if e.Kind == "room-route" && e.SongID > 0 && e.SongID != p.Anchor.SongID {
+			p.Anchor = PlaybackAnchor{}
+		}
 		p.lastStart, p.synced = time.Time{}, false
 		p.route = e.SongID
 		if e.SongID > 0 {

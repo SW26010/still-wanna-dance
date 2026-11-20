@@ -22,7 +22,8 @@ type PlaybackEvent struct {
 	Playing  *bool     `json:"playing,omitempty"`
 }
 
-var roomEndAction = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?OnUSharpVideoEnd:\s+PlayNextVideo\(\)(?:\s|<|$)`)
+var roomEndAction = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?` +
+	`(?:OnUSharpVideoEnd:\s+PlayNextVideo\(\)|OnUSharpVideoStop:\s+I am owner,\s+QueueChanged\(\))(?:\s|<|$)`)
 var roomSelectionData = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?(?:PlayQueueVideo|PlayRandomVideo):.*?\buserData\s*=`)
 var previewSong = regexp.MustCompile(`\[VideoListManager\]\s+PreviewVideo:\s+(\d+)(?:\s|$)`)
 var playerPosition = regexp.MustCompile(`(Syncing video to|SeekTo: call SyncVideo\(\) since newTargetTime is) ([0-9]+(?:\.[0-9]+)?)(?:,|\s|$)`)

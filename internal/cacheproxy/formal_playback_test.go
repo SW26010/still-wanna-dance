@@ -197,6 +197,98 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	}
 }
 
+func TestFormalPlaybackWithdrawsFromRoomLog(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const song = "http://api.udon.dance/Api/Songs/play?id=1"
+	const nextSong = "http://api.udon.dance/Api/Songs/play?id=2"
+	for _, tc := range []struct {
+		name, roleSuffix, before, withdraw string
+		role                               vrclog.PlayerRole
+		readDelay                          time.Duration
+	}{
+		{
+			name:       "owner stop during same-song preview",
+			roleSuffix: ", since I'm the owner",
+			before:     "<color=#3EFF00>[VideoQueueManager] [16:41:34] : StopVideo Button Clicked</color>",
+			withdraw:   "<color=#3EFF00>[VideoQueueManager] [16:41:34] : OnUSharpVideoStop: I am owner, QueueChanged()</color>",
+			role:       vrclog.Owner,
+			readDelay:  5 * time.Second,
+		},
+		{
+			name:       "follower switches before new sync",
+			roleSuffix: ", since owner is playing",
+			before:     player + "LoadRoutedURL: " + nextSong,
+			withdraw:   player + "Playing synced " + nextSong,
+			role:       vrclog.Follower,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _ := setup(t, nil)
+			v := video{key: videoKey(payload), size: 3 * s.cfg.BlockSize}
+			formalCatalog(t, s, v)
+			if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (2,100)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Store.usage.db.Exec("INSERT INTO song_media(song_id,md5) VALUES (2,?)", v.key); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.UpdatePrefetchQueue([]int64{3}, false); err != nil {
+				t.Fatal(err)
+			}
+			var timeline vrclog.PlayerTimeline
+			observe := func(at time.Time, delay time.Duration, message string) {
+				t.Helper()
+				line := at.Format("2006.01.02 15:04:05") + " Debug - " + message
+				event, ok, err := vrclog.ParseWithPlayback(line)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if ok {
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{event}, at.Add(delay))
+				}
+			}
+			at := time.Now().Truncate(time.Second).Add(-10 * time.Second)
+			observe(at, 0, player+"Started video: "+song+tc.roleSuffix)
+			observe(at, 0, player+"Syncing video to 0.00, current time = 0, threshold = 0.4999999")
+			if tc.role == vrclog.Owner {
+				observe(at.Add(time.Second), 0, "[VideoListManager] PreviewVideo: 1 "+song)
+			} else {
+				observe(at.Add(time.Second), 0, player+"Playing synced "+song)
+			}
+			withdrawAt := at.Add(3 * time.Second)
+			observe(withdrawAt, 0, tc.before)
+			s.mu.Lock()
+			block := useBlockID{v.key, 1}
+			active := s.formal != nil && s.formal.song == "1" && s.useBlocks[block] == 1
+			queueStart := s.queueClockLocked(s.prefetchSources["3"], time.Now()).at
+			s.mu.Unlock()
+			if !active || !queueStart.Equal(at.Add(100*time.Second)) {
+				t.Fatalf("expected song 1 and its queue base before withdrawal, active=%t, queue start=%v", active, queueStart)
+			}
+
+			observe(withdrawAt, tc.readDelay, tc.withdraw)
+			s.mu.Lock()
+			now := time.Now()
+			cleared := s.formal == nil && s.useBlocks[block] == 0
+			queueStart = s.queueClockLocked(s.prefetchSources["3"], now).at
+			s.mu.Unlock()
+			if !cleared || timeline.Anchor.SongID != 0 || !queueStart.Equal(now) || timeline.Role != tc.role {
+				t.Fatalf("room log did not withdraw the old playback and restore the idle queue: cleared=%t, anchor=%+v, queue start=%v, role=%v", cleared, timeline.Anchor, queueStart, timeline.Role)
+			}
+			if tc.role == vrclog.Follower {
+				syncAt := withdrawAt.Add(time.Second)
+				observe(syncAt, 0, player+"Syncing video to 2.00, current time = 0, threshold = 0.4999999")
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				queueStart = s.queueClockLocked(s.prefetchSources["3"], time.Now()).at
+				if s.formal == nil || s.formal.song != "2" || !queueStart.Equal(syncAt.Add(98*time.Second)) {
+					t.Fatal("new song sync did not publish its formal clock and queue base", queueStart)
+				}
+			}
+		})
+	}
+}
+
 func TestFormalMissingMetadataWaitsForSync(t *testing.T) {
 	body := strings.Repeat("a", int(3*rangeBlockSize))
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {

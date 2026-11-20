@@ -27,17 +27,17 @@ type resourceSampleRotation struct {
 	after    cacheproxy.MediaURL
 }
 
-// The sampler and every engine opened by this Console share the active
-// configuration's history. Only direct mode may inspect candidate APIs.
-func (c *Console) configureDownloadRoutesLocked(cfg *cacheproxy.Config) {
+// Downloads, calibration and block sampling share the active upstream's history.
+func (c *Console) routeConfigLocked() cacheproxy.RouteConfig {
 	direct := c.settings.UpstreamMode == "direct"
 	if c.downloadRoutes == nil {
 		c.downloadRoutes = cacheproxy.NewDownloadRoutes(direct, c.files().State("download-routes"))
 	}
-	cfg.DownloadRoutes = c.downloadRoutes
+	cfg := cacheproxy.RouteConfig{DownloadRoutes: c.downloadRoutes}
 	if direct {
 		cfg.DirectCandidates, _ = c.client.Transport.(upstreamrequest.Candidates)
 	}
+	return cfg
 }
 
 // Called with c.mu held. One worker owns the timer, target rotation and
@@ -54,7 +54,7 @@ func (c *Console) startResourceSamplerLocked() {
 	direct := c.settings.UpstreamMode == "direct"
 	client := c.client
 	cfg := cacheproxy.DefaultConfig()
-	c.configureDownloadRoutesLocked(&cfg)
+	cfg.RouteConfig = c.routeConfigLocked()
 	cfg.IsResourceHost = c.resources.IsResourceDomain
 	const interval = 30 * time.Second
 	go func() {

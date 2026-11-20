@@ -46,19 +46,22 @@ func TestNetworkCalibrationReusesConnectivityPlaybackAccess(t *testing.T) {
 	}
 }
 
-func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
+func TestNetworkCalibrationSharesRoutesWithNextDownload(t *testing.T) {
 	c := testConsole(t)
+	c.settings.VideoStorageMode = "unlimited"
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	for id := int64(1); id <= 16; id++ {
 		if err := c.store.ObserveSongURL(ctx, cacheproxy.PlaybackObservation{SongID: id, Node: "cf",
-			URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=134217728", id, id)}); err != nil {
+			URL: fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%032x&s=1048576", id, id)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	var ordinary, first atomic.Int32
-	loaded := make(chan struct{}, 1)
+	const host = "play.udon.dance"
+	const nextPath = "/files/1/17-video.mp4"
+	var ordinary, first, healthy, business atomic.Int32
+	nextBlock := make(chan struct{})
 	c.client.CloseIdleConnections()
 	channels := &coldBusinessChannels{
 		RoundTripper: catalogTransport(func(*http.Request) (*http.Response, error) {
@@ -66,34 +69,56 @@ func TestNetworkCalibrationReusesResourceFallbacks(t *testing.T) {
 			return nil, io.EOF
 		}),
 		channels: []upstreamrequest.Candidate{
-			{ID: "direct/first/192.0.2.1", Mode: "direct", Transport: catalogTransport(func(*http.Request) (*http.Response, error) {
+			{Host: host, IP: "192.0.2.1", Mode: "direct", Transport: catalogTransport(func(*http.Request) (*http.Response, error) {
 				first.Add(1)
 				return nil, io.EOF
 			})},
-			{ID: "direct/second/192.0.2.2", Mode: "direct", Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Scheme != "http" || r.Header.Get("Range") == "" {
+			{Host: host, IP: "192.0.2.2", Mode: "direct", Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Scheme != "http" || r.Header.Get("Range") != "bytes=0-1048575" {
 					t.Error("shared resource policy or range loader was bypassed")
 				}
-				loaded <- struct{}{}
-				<-r.Context().Done()
-				return nil, r.Context().Err()
+				if r.URL.Path == nextPath {
+					business.Add(1)
+				} else if healthy.Add(1) == 2 {
+					close(nextBlock)
+					<-r.Context().Done()
+					return nil, r.Context().Err()
+				}
+				// Give the in-memory response a measurable network duration.
+				time.Sleep(5 * time.Millisecond)
+				return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 0-1048575/1048576"}},
+					ContentLength: 1 << 20, Body: io.NopCloser(io.LimitReader(calibrationZeroReader{}, 1<<20))}, nil
 			})},
 		},
 	}
-	channels.ready.Store(true)
 	c.client = &http.Client{Transport: channels}
 	if err := c.controlNetworkCalibration(false); err != nil {
 		t.Fatal(err)
 	}
 	defer c.networkDiagnostics.calibration.Close()
 	select {
-	case <-loaded:
+	case <-nextBlock:
 	case <-ctx.Done():
 		t.Fatal("calibration did not reach the shared fallback", ctx.Err())
 	}
 	c.networkDiagnostics.calibration.Close()
-	if ordinary.Load() != 0 || first.Load() != 1 || c.service != nil {
-		t.Fatalf("resource access was not shared: ordinary=%d first=%d engine=%t", ordinary.Load(), first.Load(), c.service != nil)
+	rows := c.downloadRoutes.Snapshot()
+	if len(rows) != 2 || rows[0].IP != "192.0.2.2" || rows[0].Failed || rows[0].BlockDuration <= 0 ||
+		rows[0].Source != "download" || rows[1].IP != "192.0.2.1" || !rows[1].Failed || c.service != nil {
+		t.Fatalf("unexpected routes after canceling calibration: %+v, engine=%t", rows, c.service != nil)
+	}
+	c.lifecycleMu.Lock()
+	engine, err := c.ensureEngineLocked()
+	c.lifecycleMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// MD5 of the complete 1 MiB zero-filled response.
+	if _, err := engine.Prefetch(ctx, "http://"+host+nextPath+"?e=b6d81b360a5672d80c27430f39153e2c&s=1048576"); err != nil {
+		t.Fatal(err)
+	}
+	if first.Load() != 1 || ordinary.Load() != 0 || business.Load() != 1 {
+		t.Fatalf("business download did not reuse the healthy IP: first=%d ordinary=%d business=%d", first.Load(), ordinary.Load(), business.Load())
 	}
 }
 

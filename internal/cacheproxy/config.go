@@ -83,8 +83,14 @@ type Config struct {
 	// bounded by upstreamrequest.MaxOperationCandidates before download begins.
 	// It never resolves a song or changes the resource address/content.
 	ResourceTransports func(string) []http.RoundTripper
-	DownloadRoutes     *DownloadRoutes
-	DirectCandidates   upstreamrequest.Candidates
+	RouteConfig
+}
+
+// RouteConfig connects a download executor to the active upstream's shared
+// observations and its current direct IP candidates.
+type RouteConfig struct {
+	DownloadRoutes   *DownloadRoutes
+	DirectCandidates upstreamrequest.Candidates
 }
 
 func DefaultConfig() Config {

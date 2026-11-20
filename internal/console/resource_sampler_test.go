@@ -39,7 +39,7 @@ func TestResourceSamplerRotatesSavedAddressesAfterFailure(t *testing.T) {
 		return resp, nil
 	})}
 	cfg := cacheproxy.DefaultConfig()
-	c.configureDownloadRoutesLocked(&cfg)
+	cfg.RouteConfig = c.routeConfigLocked()
 	var rotation resourceSampleRotation
 	sample := func(request resourceSampleRequest) error {
 		path = ""
@@ -102,7 +102,7 @@ func TestAutomaticSamplerVisitsOtherSavedHosts(t *testing.T) {
 		return &http.Response{Request: r, StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 0-0/1"}}, ContentLength: 1, Body: io.NopCloser(strings.NewReader("x"))}, nil
 	})}}
 	cfg := cacheproxy.DefaultConfig()
-	c.configureDownloadRoutesLocked(&cfg)
+	cfg.RouteConfig = c.routeConfigLocked()
 	hosts := []string{"old.example", "a.example", "b.example", "a.example", "b.example"}
 	for i, host := range hosts {
 		target := fmt.Sprintf("http://%s/files/1/%d-video.mp4?e=%032x&s=1", host, i+1, i+1)

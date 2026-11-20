@@ -31,7 +31,7 @@ func (c *Console) networkDiagnosticsLocked() (*networkDiagnostics, error) {
 			Calibration: upstreamcheck.CalibrationOptions{
 				Candidates: c.calibrationCandidates, SelectSong: metadata.SelectSongExcept,
 				Playback: c.connectivityAccess().Playback, OnPlaybackURL: c.syncPlaybackURL,
-				ResourceTransports: c.resourceTransports,
+				Routes: c.routeConfigLocked(),
 				OnFinish: func(result upstreamcheck.CalibrationStatus) {
 					if result.Phase == "failed" {
 						c.reportFault("task:calibration", errors.New("网络测速未完成"))

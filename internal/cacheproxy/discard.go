@@ -18,10 +18,10 @@ import (
 type DiscardLoader struct{ s *Server }
 
 type DiscardConfig struct {
-	Transport          http.RoundTripper
-	ResourceTransports func(string) []http.RoundTripper
-	ObserveBytes       func(int64)
-	Observe            func(blocksched.Event)
+	Transport http.RoundTripper
+	RouteConfig
+	ObserveBytes func(int64)
+	Observe      func(blocksched.Event)
 }
 
 func NewDiscardLoader(cfg DiscardConfig) (*DiscardLoader, error) {
@@ -31,7 +31,7 @@ func NewDiscardLoader(cfg DiscardConfig) (*DiscardLoader, error) {
 	c := DefaultConfig()
 	c.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	c.ObserveDownloadBytes, c.ObserveBlockSchedule = cfg.ObserveBytes, cfg.Observe
-	c.ResourceTransports = cfg.ResourceTransports
+	c.RouteConfig = cfg.RouteConfig
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{cfg: c, ctx: ctx, cancel: cancel, requests: new(requestActivity),
 		capacityChanged: make(chan struct{}),

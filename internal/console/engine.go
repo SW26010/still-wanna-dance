@@ -119,7 +119,7 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg.DialContext = c.upstreamDial
 	cfg.ResolvePlayback = c.resolvePlayback
 	c.mu.Lock()
-	c.configureDownloadRoutesLocked(&cfg)
+	cfg.RouteConfig = c.routeConfigLocked()
 	c.mu.Unlock()
 	var s *cacheproxy.Server
 	var release func()

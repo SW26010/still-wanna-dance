@@ -16,9 +16,8 @@ import (
 
 const calibrationPrepareWorkers = 4
 
-// Calibration is an opt-in, isolated diagnostic. It does not start the regular
-// monitor or publish recommendations. Business callbacks select candidates and
-// reuse URL observations; media uses ordinary demands with a discard sink.
+// Calibration owns the speed measurement and its scheduler. Media downloads
+// share the active upstream's route observations and discard the response body.
 type Calibration struct {
 	mu      sync.Mutex
 	client  *http.Client
@@ -119,12 +118,12 @@ type CalibrationCandidates struct {
 // The application supplies existing business and access policies. Calibration
 // only bounds preparation and observes downloads; it never selects channels.
 type CalibrationOptions struct {
-	Candidates         func(context.Context) CalibrationCandidates
-	SelectSong         func(context.Context, int64, map[int64]bool) int64
-	Playback           func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)
-	OnPlaybackURL      func(context.Context, PlaybackURLResponse)
-	ResourceTransports func(string) []http.RoundTripper
-	OnFinish           func(CalibrationStatus)
+	Candidates    func(context.Context) CalibrationCandidates
+	SelectSong    func(context.Context, int64, map[int64]bool) int64
+	Playback      func(context.Context, int64, playbacksource.Entry) (Result, *Sample, PlaybackURLResponse)
+	OnPlaybackURL func(context.Context, PlaybackURLResponse)
+	Routes        cacheproxy.RouteConfig
+	OnFinish      func(CalibrationStatus)
 }
 
 // Candidates supplies fresh observations per run. Saved URLs precede live
@@ -434,7 +433,7 @@ func (c *Calibration) download(parent context.Context, client *http.Client, samp
 	c.mu.Unlock()
 	// Only the ordinary admission ceiling and the output sink differ. Window,
 	// ranges, retries and the natural growth cadence remain with the loader.
-	cfg := cacheproxy.DiscardConfig{Transport: client.Transport, ResourceTransports: c.options.ResourceTransports}
+	cfg := cacheproxy.DiscardConfig{Transport: client.Transport, RouteConfig: c.options.Routes}
 	cfg.ObserveBytes = func(n int64) {
 		c.bytes.Add(n)
 	}

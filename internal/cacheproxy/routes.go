@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	"net/url"
 	"sync"
 	"time"
@@ -59,6 +60,9 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 		if err != nil || (v.host != original.host && !s.resourceHostAllowed(v.host)) || v.key != original.key || v.size != original.size {
 			return nil, errors.New("video redirect changed resource or host")
 		}
+		if sample := attempts.sample; sample != nil && sample.target.ip != "" && v.host != sample.target.host {
+			return nil, errors.New("指定线路的资源重定向到了其他主机")
+		}
 		next, err = s.routeRequest(r.Context(), v)
 		if err != nil {
 			return nil, err
@@ -75,18 +79,30 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 	}
 }
 
-// Retry measured channels of the same address only. The loading caller owns
-// alternate URLs and API lookup; download workers never probe or rank routes.
+// Each target keeps an independent attempt budget across redirects and body retries.
 type resourceCandidates struct {
 	transports []http.RoundTripper
 	attempts   *upstreamrequest.Attempts
 	err        error
 	done       bool
+	tried      map[string]bool
+	used       int
+	soleIP     string
+	ordinary   *networkAttempt
 }
 type resourceAttempts struct {
+	block            useBlockID // zero for requests outside a business block
 	targets          map[string]*resourceCandidates
 	redirects        int // Shared across all retries of this block execution.
 	fallbackDeadline func() time.Time
+	needBy           func() time.Time
+	sample           *blockSample
+}
+
+type blockSample struct {
+	target  routeKey
+	visited map[routeKey]bool // One sample, including its redirect chain.
+	manual  bool
 }
 
 func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resourceCandidates {
@@ -117,14 +133,15 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 // route cache or health ranking. Close owns cancellation of a successful body.
 type resourceBody struct {
 	io.ReadCloser
-	cancel    context.CancelFunc
-	ctx       context.Context
-	stopBody  func() bool
-	closeBody func() error
-	attempts  *resourceAttempts
-	once      sync.Once
-	err       error
-	release   func()
+	cancel      context.CancelFunc
+	ctx         context.Context
+	stopBody    func() bool
+	closeBody   func() error
+	attempts    *resourceAttempts
+	once        sync.Once
+	err         error
+	release     func()
+	observation *networkAttempt
 }
 
 func (b *resourceBody) Close() error {
@@ -137,6 +154,7 @@ func (b *resourceBody) Close() error {
 		}
 		b.cancel()
 		b.err = b.closeBody()
+		b.observation.release()
 	})
 	return b.err
 }
@@ -148,14 +166,13 @@ func (b *resourceBody) Read(p []byte) (int, error) {
 
 func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (*http.Response, error) {
 	candidates := s.candidates(r, attempts)
-	transports := candidates.transports
 	var failures []error
 	// Header validation and body failures share the same candidate cursor.
 	for {
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}
-		index, ok := candidates.attempts.Next()
+		transport, remaining, observation, ok := s.nextResourceAttempt(r, attempts, candidates)
 		if !ok {
 			candidates.done = true
 			if candidates.err != nil && len(failures) == 0 {
@@ -166,34 +183,47 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		candidates.err = nil
 		release, err := s.requests.acquire(r.Context())
 		if err != nil {
+			observation.release()
 			return nil, err
 		}
-		transport := transports[index]
 		if transport == nil {
+			observation.release()
 			release()
 			continue
 		}
 		client := *s.client
 		client.Transport = transport
-		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, s.cfg.DownloadTimeout, len(transports)-index, attempts.fallbackDeadline)
+		timeout := s.cfg.DownloadTimeout
+		if observation != nil && observation.reserved && remaining > 1 {
+			timeout = min(timeout, alternateIPLimit)
+		}
+		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, timeout, remaining, attempts.fallbackDeadline)
+		if observation != nil && observation.history.direct && !observation.reserved {
+			ctx = observation.trace(ctx, s.notifyBlockObservation)
+		}
 		if s.cfg.BeginResourceLoad != nil {
 			endLoad, endRequest := s.cfg.BeginResourceLoad(), release
 			release = sync.OnceFunc(func() { endLoad(); endRequest() })
 		}
 		request := r.Clone(ctx)
+		if observation != nil && observation.history.direct && attempts.block.key != "" {
+			release = s.trackBlockRoute(attempts.block, observation, release)
+		}
 		resp, err := attemptClient.Do(request)
 		if err == nil && resp.StatusCode < 500 {
 			closeBody := sync.OnceValue(resp.Body.Close)
 			stopBody := context.AfterFunc(ctx, func() { closeBody() })
-			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, stopBody: stopBody, closeBody: closeBody, attempts: attempts, release: release}
+			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, stopBody: stopBody, closeBody: closeBody, attempts: attempts, release: release, observation: observation}
 			return resp, nil
 		}
+		observation.finish(0, upstreamrequest.AttemptError(ctx, err))
 		if err == nil {
 			err = fmt.Errorf("upstream status %d", resp.StatusCode)
 			resp.Body.Close()
 		}
 		err = upstreamrequest.AttemptError(ctx, err)
 		cancel()
+		observation.release()
 		release()
 		candidates.err = err
 		failures = append(failures, applog.SafeError(err))

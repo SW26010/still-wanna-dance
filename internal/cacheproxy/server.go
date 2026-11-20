@@ -85,8 +85,9 @@ type Server struct {
 	localChecks      chan struct{}             // whole-file merge, checksum and publication capacity
 	requests         *requestActivity
 	scheduler        *blocksched.Scheduler
-	blockObserver    atomic.Pointer[blockObserver] // allocated only while a visualization is subscribed
-	blockCacheBytes  atomic.Int64                  // Owned temporary block file lengths, independent of availability/subscribers.
+	blockRoutes      map[useBlockID]*networkAttempt // mu; direct requests currently in flight
+	blockObserver    atomic.Pointer[blockObserver]  // allocated only while a visualization is subscribed
+	blockCacheBytes  atomic.Int64                   // Owned temporary block file lengths, independent of availability/subscribers.
 	rangeBuffers     chan []byte
 	verifyMu         sync.Mutex
 	verified         map[string]*verifiedFile

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/blocksched"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
 
@@ -82,6 +83,8 @@ type Config struct {
 	// bounded by upstreamrequest.MaxOperationCandidates before download begins.
 	// It never resolves a song or changes the resource address/content.
 	ResourceTransports func(string) []http.RoundTripper
+	DownloadRoutes     *DownloadRoutes
+	DirectCandidates   upstreamrequest.Candidates
 }
 
 func DefaultConfig() Config {

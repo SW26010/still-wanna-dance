@@ -30,6 +30,11 @@ func (e *locationError) Error() string {
 }
 func (e *locationError) Unwrap() error { return e.cause }
 
+// InvalidLocation recognizes net/http's untyped redirect parsing error.
+func InvalidLocation(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "failed to parse Location header ")
+}
+
 // SafeError removes request URLs from transport errors, preserving error identity.
 func SafeError(err error) error {
 	if err == nil {
@@ -57,7 +62,7 @@ func SafeError(err error) error {
 	// error with %v before wrapping in url.Error. Neither URL can be removed
 	// by unwrapping. Discard the whole diagnostic instead of trying to parse
 	// a potentially malformed, relative or quoted URL out of its text.
-	if strings.Contains(err.Error(), "failed to parse Location header ") {
+	if InvalidLocation(err) {
 		return &locationError{cause: err}
 	}
 	var u *url.Error

@@ -77,8 +77,10 @@ func (b BlockView) atTime(now time.Time) int64 {
 }
 
 type BlockDetail struct {
-	Block   BlockView         `json:"block"`
-	Sources []BlockSourceView `json:"sources"`
+	UpstreamIP string            `json:"upstreamIP,omitempty"`
+	ViaProxy   bool              `json:"viaProxy,omitempty"`
+	Block      BlockView         `json:"block"`
+	Sources    []BlockSourceView `json:"sources"`
 }
 
 // One source can refer to multiple resources during a transition. Group by both
@@ -130,6 +132,8 @@ type BlockSnapshot struct {
 	sources         []BlockSourceView
 	needs           []blockDetailNeed
 	sourceRanges    map[string]blockSourceRange
+	upstreamIPs     map[string]string
+	viaProxy        bool
 }
 
 type blockDetailNeed struct {
@@ -150,6 +154,9 @@ func (s *BlockSnapshot) Detail(id string) (BlockDetail, bool) {
 	}
 	r := s.sourceRanges[id]
 	d := BlockDetail{Block: b, Sources: make([]BlockSourceView, 0, r.last-r.first)}
+	if b.State == "downloading" {
+		d.UpstreamIP, d.ViaProxy = s.upstreamIPs[id], s.viaProxy
+	}
 	for _, need := range s.needs[r.first:r.last] {
 		v := blockSourceLabel(s.sources[need.source], b)
 		v.NeedBy, v.WindowClosed = need.needBy, need.windowClosed
@@ -443,6 +450,7 @@ type observedBlock struct {
 	retainedSong     int64
 }
 type blockObservationInput struct {
+	upstreamIPs  map[string]string
 	used         int
 	blocks       []observedBlock
 	sources      []observedSource
@@ -488,6 +496,12 @@ func (o *blockObserver) captureInput(now time.Time) blockObservationInput {
 		availability: make(map[string]BlockAvailabilityView),
 	}
 	indexes := make(map[useBlockID]int, len(s.useBlocks))
+	if len(s.blockRoutes) > 0 {
+		input.upstreamIPs = make(map[string]string, len(s.blockRoutes))
+		for id, attempt := range s.blockRoutes {
+			input.upstreamIPs[blockViewID(id)] = attempt.currentIP()
+		}
+	}
 	sourceIndexes := make(map[blockSource]int)
 	sizes := make(map[string]int64)
 	for key, f := range s.flights {
@@ -631,6 +645,8 @@ func (o *blockObserver) capture(previous *BlockSnapshot) (*BlockSnapshot, time.T
 		PrepareAheadMS: ahead.Milliseconds(), DownloadGraceMS: sourceGrace.Milliseconds(),
 		Blocks: make(map[string]BlockView, len(input.blocks)), Demands: make(map[string]BlockDemandView),
 		Availability: input.availability,
+		upstreamIPs:  input.upstreamIPs,
+		viaProxy:     s.cfg.DownloadRoutes != nil && !s.cfg.DownloadRoutes.direct,
 		sources:      make([]BlockSourceView, len(input.sources)), needs: make([]blockDetailNeed, len(input.needs)),
 		sourceRanges: make(map[string]blockSourceRange, len(input.blocks)),
 	}

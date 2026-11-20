@@ -3,6 +3,7 @@ package upstreamrequest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -12,6 +13,10 @@ import (
 // ResourceScheme is the execution protocol for validated video addresses.
 // Original API-returned URLs remain evidence and are not rewritten in storage.
 const ResourceScheme = "http"
+
+// ErrHeaderBudget indicates that another candidate was given its turn before
+// this route's own timeout. It is a scheduling decision, not a route failure.
+var ErrHeaderBudget = fmt.Errorf("response header budget exhausted: %w", context.DeadlineExceeded)
 
 // Attempts bounds candidate execution across response headers and body failures.
 // It never selects or changes a request's protocol.
@@ -58,20 +63,31 @@ func AttemptError(ctx context.Context, err error) error {
 // fallbackDeadline can supply the latest source estimate for reserving its turn.
 // remaining includes this candidate. The caller owns cancellation through close.
 func NewAttempt(ctx context.Context, source *http.Client, timeout time.Duration, remaining int, fallbackDeadline func() time.Time) (context.Context, *http.Client, context.CancelFunc) {
+	bounded, stop := context.WithTimeout(ctx, timeout)
+	client := *source
+	if remaining == 1 {
+		// No other route needs a share. A second timer at the parent's deadline
+		// would race it and could hide the actual cancellation cause.
+		return bounded, &client, stop
+	}
 	budget := timeout
+	var cause error = context.DeadlineExceeded
+	var estimate time.Time
+	if fallbackDeadline != nil {
+		estimate = fallbackDeadline()
+	}
+	now := time.Now()
 	deadline, _ := ctx.Deadline()
-	if remaining > 1 && fallbackDeadline != nil {
-		if estimate := fallbackDeadline(); !estimate.IsZero() && (deadline.IsZero() || estimate.Before(deadline)) {
-			deadline = estimate
-		}
+	if estimate.After(now) && (deadline.IsZero() || estimate.Before(deadline)) {
+		deadline = estimate
 	}
 	if !deadline.IsZero() {
-		budget = min(budget, time.Until(deadline)/time.Duration(remaining))
+		if share := deadline.Sub(now) / time.Duration(remaining); share < budget {
+			budget, cause = share, ErrHeaderBudget
+		}
 	}
-	bounded, stop := context.WithTimeout(ctx, timeout)
 	child, cancel := context.WithCancelCause(bounded)
-	timer := time.AfterFunc(budget, func() { cancel(context.DeadlineExceeded) })
-	client := *source
+	timer := time.AfterFunc(budget, func() { cancel(cause) })
 	transport := client.Transport
 	if transport == nil {
 		transport = http.DefaultTransport

@@ -31,7 +31,7 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, rea
 	// Redirect progress belongs to this block; other workers keep their
 	// own endpoint and candidate cursor.
 	blockVideo := v
-	attempts := &resourceAttempts{fallbackDeadline: func() time.Time { return sourceDeadline(needBy()) }}
+	attempts := &resourceAttempts{block: useBlockID{v.key, block}, needBy: needBy, fallbackDeadline: func() time.Time { return sourceDeadline(needBy()) }}
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {
@@ -42,7 +42,7 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, rea
 		exhausted := false
 		received := false
 		bodyStarted := false
-		err = func() error {
+		err = func() (result error) {
 			req, err := s.routeRequest(ctx, blockVideo)
 			if err != nil {
 				return err
@@ -66,6 +66,15 @@ func (s *Server) readRange(ctx context.Context, flight *flight, block int64, rea
 			}
 			defer resp.Body.Close()
 			body := resp.Body
+			observation := body.(*resourceBody).observation
+			defer func() {
+				switch {
+				case result == nil:
+					observation.finish(end-start, nil)
+				case bodyStarted && (errors.Is(result, errUpstreamDownload) || errors.Is(result, io.ErrUnexpectedEOF)):
+					observation.finish(0, result)
+				}
+			}()
 			stop := context.AfterFunc(ctx, func() { body.Close() })
 			defer stop()
 			if resp.Request != nil {

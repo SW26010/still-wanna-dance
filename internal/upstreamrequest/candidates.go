@@ -14,12 +14,17 @@ import (
 
 type Address struct {
 	IP      string
-	Expires time.Time
+	Expires time.Time // Zero for a built-in address without a DNS lease.
 }
 type DNSPool interface {
 	Addresses(context.Context, string) ([]Address, error)
 	CurrentAddresses(string) []Address
 	DNSChanged() <-chan struct{}
+}
+
+// A resolver can optionally observe fixed-IP requests to refresh DNS off-path.
+type candidateUseObserver interface {
+	NoteCandidateUse(host string)
 }
 type Candidate struct {
 	ID, Host, Mode, IP string
@@ -97,8 +102,9 @@ func (p *Pool) Current(target string) []Candidate {
 	var cs []Candidate
 	{
 		var v4, v6 []Candidate
+		now := time.Now()
 		for _, a := range p.dns.CurrentAddresses(host) {
-			if time.Now().Before(a.Expires) {
+			if a.valid(now) {
 				c := Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires}
 				if net.ParseIP(a.IP).To4() != nil {
 					v4 = append(v4, c)
@@ -107,8 +113,7 @@ func (p *Pool) Current(target string) []Candidate {
 				}
 			}
 		}
-		// Cold fixed-IP requests cover both families before exhausting one.
-		// Measured order is still supplied by Monitor, never by DNS or dialing.
+		// Interleave both families for unmeasured requests.
 		for i := 0; i < max(len(v4), len(v6)); i++ {
 			if i < len(v6) {
 				cs = append(cs, v6[i])
@@ -153,6 +158,11 @@ func (p *Pool) Current(target string) []Candidate {
 	}
 	return cs
 }
+
+func (a Address) valid(now time.Time) bool {
+	return a.Expires.IsZero() || now.Before(a.Expires)
+}
+
 func (p *Pool) usable(c Candidate) bool {
 	p.mu.Lock()
 	closed := p.closed
@@ -160,12 +170,12 @@ func (p *Pool) usable(c Candidate) bool {
 	if closed {
 		return false
 	}
-	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool { return a.IP == c.IP && time.Now().Before(a.Expires) })
+	now := time.Now()
+	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool { return a.IP == c.IP && a.valid(now) })
 }
 
-// Long-running callers can outlive a DNS answer, especially with short TTLs.
-// Revalidate the same IP through the shared resolver; never change the pinned
-// route or let a failed lookup/retired configuration revive an expired address.
+// Revalidate the same IP through the shared resolver. A failed lookup does not
+// renew an expired DNS lease. A built-in IP can still be available.
 func (p *Pool) ensureUsable(ctx context.Context, c Candidate) error {
 	if p.usable(c) {
 		return nil
@@ -200,6 +210,9 @@ func (t *candidateTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 	}
 	if err := t.pool.ensureUsable(r.Context(), t.candidate); err != nil {
 		return nil, err
+	}
+	if observer, ok := t.pool.dns.(candidateUseObserver); ok && r.Context().Err() == nil {
+		observer.NoteCandidateUse(t.candidate.Host)
 	}
 	return t.transport.RoundTrip(r)
 }

@@ -137,6 +137,31 @@ func (d *Resolver) queryLocked(host string, s *dnsState) *dnsLookup {
 	return call
 }
 
+// NoteCandidateUse keeps discovery active for the configured resource host
+// while requests use fixed IPs. An idle query resumes without delaying the request.
+func (d *Resolver) NoteCandidateUse(host string) {
+	if !d.resourcePresets || host != playUdonDanceHost {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.closed || d.paused {
+		return
+	}
+	d.initLocked()
+	now := time.Now()
+	if s := d.states[host]; s != nil {
+		s.lastUsed = now
+		d.scheduleLocked(host, s)
+		return
+	}
+	s := &dnsState{lastUsed: now, query: func(ctx context.Context) ([]string, time.Duration, error) {
+		return d.resolve(ctx, host)
+	}}
+	d.states[host] = s
+	d.queryLocked(host, s)
+}
+
 func (d *Resolver) nextLocked(host string, s *dnsState) {
 	s.next = d.cache[host].until.Add(-d.policy.RefreshAhead)
 	if earliest := s.attempted.Add(d.policy.MinInterval); s.next.Before(earliest) {

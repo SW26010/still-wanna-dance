@@ -31,7 +31,7 @@ func SampleBlock(ctx context.Context, cfg Config, client *http.Client, target st
 	return sampleBlock(ctx, cfg, client, target, block, manual, "")
 }
 
-// SampleBlockOnIP uses only the requested resource host's current DNS candidate.
+// SampleBlockOnIP uses only the requested resource host's current direct candidate.
 func SampleBlockOnIP(ctx context.Context, cfg Config, client *http.Client, target string, block int64, ip string) error {
 	if ip == "" || cfg.DownloadRoutes == nil || !cfg.DownloadRoutes.direct {
 		return ErrNoSampleDue

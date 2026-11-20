@@ -23,7 +23,9 @@ import (
 type Resolver struct {
 	// Optional transport dependency, set before the resolver is used. DNS,
 	// including provider bootstrap, and resolved TCP connections share it.
-	dialer        transport.StreamDialer
+	dialer          transport.StreamDialer
+	resourcePresets bool
+
 	mu            sync.Mutex
 	cache         map[string]dnsEntry
 	lookups       map[string]*dnsLookup
@@ -50,6 +52,12 @@ type dnsLookup struct {
 // The owner calls Close when no more connections are needed.
 func NewResolver(dialer transport.StreamDialer) *Resolver {
 	return &Resolver{dialer: dialer}
+}
+
+// NewResourceResolver supplies built-in resource candidates alongside DNS for
+// the application's direct upstream. Ordinary DNS dialing still uses DoH.
+func NewResourceResolver() *Resolver {
+	return &Resolver{resourcePresets: true}
 }
 
 type dnsEntry struct {

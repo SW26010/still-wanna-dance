@@ -113,7 +113,7 @@ func (c *Console) requestResourceSample(ctx context.Context, request resourceSam
 	case err := <-request.reply:
 		if errors.Is(err, cacheproxy.ErrNoSampleDue) {
 			if request.IP != "" {
-				return rejectRequest(errors.New("该 IP 当前不在有效 DNS 候选中或正在使用"))
+				return rejectRequest(errors.New("该 IP 当前不在有效直连候选中或正在使用"))
 			}
 			return rejectRequest(errors.New("当前没有可采样的空闲 IP"))
 		}

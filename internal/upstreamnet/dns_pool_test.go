@@ -4,11 +4,155 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
 	"slices"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"golang.getoutline.org/sdk/transport"
+
+	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const host = playUdonDanceHost
+		overlap := playUdonDanceIPs[0]
+		const target = "http://" + host + "/video"
+		d := NewResourceResolver()
+		defer d.Close()
+		d.setBackgroundEnabled(false)
+		dialError := errors.New("fixture dial")
+		p, err := upstreamrequest.NewDirectPool(d, func(_ context.Context, _, address string) (net.Conn, error) {
+			if address != net.JoinHostPort(overlap, "80") {
+				t.Errorf("unexpected dial address %q", address)
+			}
+			return nil, dialError
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer p.Close()
+		if len(p.Current(target)) != len(playUdonDanceIPs) {
+			t.Fatal("presets should be available before DNS discovery")
+		}
+		ctx := context.Background()
+		query := func(context.Context) ([]string, time.Duration, error) {
+			return []string{"2001:db8::1", overlap}, time.Second, nil
+		}
+		for _, name := range []string{host, "api.udon.dance"} {
+			if _, err := d.lookupShared(ctx, name, query); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := p.Current("http://api.udon.dance"); len(got) != 2 {
+			t.Fatalf("presets leaked to the API host: %+v", got)
+		}
+		cs := p.Current(target)
+		i := slices.IndexFunc(cs, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
+		if len(cs) != len(playUdonDanceIPs)+1 || i < 0 || cs[i].ValidUntil.IsZero() || cs[0].IP != "2001:db8::1" {
+			t.Fatalf("expected one candidate for the overlapping IP with its DNS lease: %+v", cs)
+		}
+
+		time.Sleep(2 * time.Second)
+		dnsError := errors.New("fixture DNS offline")
+		if _, err := d.lookupShared(ctx, host, func(context.Context) ([]string, time.Duration, error) {
+			return nil, 0, dnsError
+		}); !errors.Is(err, dnsError) {
+			t.Fatal(err)
+		}
+		var ips []string
+		for _, c := range p.Current(target) {
+			ips = append(ips, c.IP)
+			if !c.ValidUntil.IsZero() {
+				t.Errorf("candidate %s should rely on the preset alone", c.IP)
+			}
+		}
+		want := slices.Clone(playUdonDanceIPs[:])
+		slices.Sort(ips)
+		slices.Sort(want)
+		if !slices.Equal(ips, want) {
+			t.Fatalf("candidates after DNS expiry and failure = %v, want %v", ips, want)
+		}
+		req, err := http.NewRequest(http.MethodGet, target, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := cs[i].Transport.RoundTrip(req); !errors.Is(err, dialError) {
+			t.Fatalf("overlapping candidate did not dial the preset after expiry: %v", err)
+		}
+	})
+}
+
+func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const target = "http://" + playUdonDanceHost + "/video"
+		d := NewResourceResolver()
+		defer d.Close()
+		var dnsDials atomic.Int32
+		d.dialer = transport.FuncStreamDialer(func(ctx context.Context, _ string) (transport.StreamConn, error) {
+			dnsDials.Add(1)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		})
+		d.policy = DNSPolicy{MinInterval: 10 * time.Second, IdleTimeout: 5 * time.Second, QueryTimeout: time.Second}
+		pinnedError := errors.New("fixture pinned dial")
+		pool, err := upstreamrequest.NewDirectPool(d, func(context.Context, string, string) (net.Conn, error) {
+			return nil, pinnedError
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pool.Close()
+
+		preset := pool.Current(target)[0]
+		request := func() error {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+			if err != nil {
+				return err
+			}
+			_, err = preset.Transport.RoundTrip(req)
+			return err
+		}
+		start := time.Now()
+		if err := request(); !errors.Is(err, pinnedError) || !time.Now().Equal(start) {
+			t.Fatalf("cold preset waited for DNS: %v", err)
+		}
+		synctest.Wait()
+		if dnsDials.Load() == 0 {
+			t.Fatal("first fixed request did not start DNS")
+		}
+		time.Sleep(4 * time.Second)
+		before := dnsDials.Load()
+		if err := request(); !errors.Is(err, pinnedError) {
+			t.Fatal(err)
+		}
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if dnsDials.Load() != before || d.states[playUdonDanceHost] == nil {
+			t.Errorf("recent fixed request should keep DNS active at the original idle boundary without refreshing early")
+		}
+
+		time.Sleep(4 * time.Second)
+		synctest.Wait()
+		if got := pool.Current(target); len(got) != len(playUdonDanceIPs) {
+			t.Errorf("idle DNS cleanup removed configured candidates: got %d", len(got))
+		}
+		if d.states[playUdonDanceHost] != nil || dnsDials.Load() != before {
+			t.Fatal("reading candidates should leave DNS idle")
+		}
+		start = time.Now()
+		if err := request(); !errors.Is(err, pinnedError) || !time.Now().Equal(start) {
+			t.Errorf("fixed request waited for DNS: elapsed=%v, err=%v", time.Since(start), err)
+		}
+		synctest.Wait()
+		if dnsDials.Load() == before {
+			t.Fatal("fixed request did not resume background DoH")
+		}
+	})
+}
 
 func TestDNSPoolRetainsBothFamilies(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {

@@ -26,18 +26,22 @@ export interface HealthResult {
   observedAt?: string; validUntil?: string; catalogTime?: string; sampleSongID?: number; http?: number;
   throughputSongID?: number; throughputObservedAt?: string; transferDurationMS?: number; transferredBytes?: number;
   sources?: {api: string; node: string; apiChannelID?: string}[];
-  lastThroughput?: {bytes: number; durationNs: number; songID: number; observedAt: string};
+}
+export interface DownloadRoute {
+  host: string; ip?: string; observedAt: string; source: 'sample'|'download'; failed?: boolean;
+  blockDurationNs?: number; blockAt?: string;
 }
 export interface Health {
-  closed?: boolean; checking?: boolean; manual?: boolean; checkKind?: string; resourcesPaused?: boolean;
-  results?: HealthResult[]; finished?: string; nextCheck?: string; nextThroughput?: string;
-  throughputStatus?: string; throughputSaveFailed?: boolean; policy?: { throughputInterval?: number };
+  closed?: boolean; checking?: boolean; manual?: boolean; checkKind?: string;
+  results?: HealthResult[]; finished?: string; nextCheck?: string;
+  policy?: { throughputInterval?: number };
 }
 export interface UpdateStatus {
   checking: boolean; result: 'unknown' | 'current' | 'available'; reason?: 'failed' | 'not_found' | 'version';
   checkedAt?: string; latestVersion?: string; releaseURL?: string; startupNotice?: boolean;
 }
 export interface Status {
+  downloadRoutes?: DownloadRoute[];
   vrcxImportAvailable: boolean;
   videoImportSuggested: boolean;
   proxyModeMigrated?: boolean;

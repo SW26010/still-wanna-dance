@@ -2250,6 +2250,20 @@
       "bytes": 1325849,
       "sha256": "226760da73e469cd5ac9a26bcb1bc0983f92206bc2588b0ac952c60682f4376a",
       "reason": "离线 WebUI 移除队列预加载开关，将 VRChat 日志目录移至常规设置，并使用播放队列徽章展示日志监听状态。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1330251,
+      "sha256": "711c2e777d9a8e0cbca83c411a4f35694af90e0fe28b8cb0f87354918e794b2f",
+      "reason": "离线 WebUI 支持在资源下载线路表按 IP 采样，并在该区域反馈结果。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1330487,
+      "sha256": "66fd90305cc78d30b33e6ab10940593816dfeb07aedc9ae5ba7de4fb3fe7d76a",
+      "reason": "离线 WebUI 在下载中的块详情显示当前上游 IP 或代理选路状态。"
     }
   ]
 }

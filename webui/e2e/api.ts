@@ -107,7 +107,7 @@ export async function mockAPI(page: Page,{libraryView,firstUse=false}:{libraryVi
     match('POST cache/open','POST songs','POST inventory/scan',
       'POST batch/scan','POST batch/start','POST batch/download','POST batch/cancel',
       'POST import/start','POST import/cleanup','POST import/pause','POST import/resume','POST import/discard',
-      'POST upstream/check','POST upstream/check/catalog','POST upstream/check/playback','POST upstream/check/latency','POST upstream/check/throughput',
+      'POST upstream/check','POST upstream/check/catalog','POST upstream/check/playback','POST upstream/check/throughput',
       'POST proxy/import/discard','POST vrcx/dismiss','POST vrcx/discard','POST terms/leave','POST terms/return');
     if(!handled)return route.fulfill({status:404,body:'not found'});
     if(invalidJSON)return route.fulfill({status:400,body:'invalid JSON'});

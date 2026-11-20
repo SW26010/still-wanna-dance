@@ -3,7 +3,7 @@ import {Button,Caption1,Link,Spinner,Subtitle2,Text,Tooltip} from '@fluentui/rea
 import {ArrowSync20Regular} from '@fluentui/react-icons';
 import {request} from './api';
 import {Diagnostics} from './diagnostics';
-import {NetworkMonitor} from './monitor';
+import {NetworkMonitor,ResourceRoutes} from './monitor';
 import {useApp} from './hooks';
 import {Feedback,Notification,Panel,StatusBadge} from './ui';
 import {date,dated} from './types';
@@ -73,6 +73,7 @@ export function Network({visible}:{visible:boolean}) {
     <section id="network-tests" className="content-stack" tabIndex={-1}>{visible&&<Diagnostics visible={visible}/>}</section>
     {!direct&&!mihomo&&<SOCKS5Service/>}
     {direct&&<NetworkMonitor/>}
+    {!direct&&!!status.downloadRoutes?.length&&<Panel title="资源下载观测"><ResourceRoutes rows={status.downloadRoutes}/></Panel>}
     {mihomo&&visible&&<MihomoDashboard/>}
   </div>;
 }

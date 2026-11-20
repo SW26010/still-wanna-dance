@@ -6,7 +6,7 @@ async function setPageHidden(page: Page, hidden: boolean) {
   await page.evaluate(value => { Object.defineProperty(document, 'hidden', { configurable: true, value }); document.dispatchEvent(new Event('visibilitychange')); }, hidden);
 }
 import { navigate } from './navigation';
-import type { BlockView, BlockEvent, BlockSource, BlockDemand } from '../src/block-timeline-model';
+import type { BlockView, BlockEvent, BlockSource, BlockDemand, BlockDetail } from '../src/block-timeline-model';
 import { applyBlockEvent } from '../src/block-timeline-model';
 import { timeScale, timelineLayout, timelineRange, untimedLayout } from '../src/block-timeline-canvas';
 const singleY = timelineLayout(false, true, false, 16).timedY + 8;
@@ -33,7 +33,7 @@ async function setup(page: Page, count = 48) {
   const emit = async (state: Partial<BlockEvent>) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind: 'blocks', state: { ...initial, reset: false, blocks: [], ...state } } });
   await emit(initial);
   const source: BlockSource = { id: 1, kind: 'get', songID: '42', title: '星河', position: 0, needBy: at, expiresAt: 0, windowClosed: false };
-  const detail = async (b: BlockView, sources: BlockSource[] = [source, { ...source, id: 2, kind: 'queue', position: 3 }]) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind: 'block-detail:' + b.id, state: { block: b, sources } } });
+  const detail = async (b: BlockView, sources: BlockSource[] = [source, { ...source, id: 2, kind: 'queue', position: 3 }], route: Pick<BlockDetail, 'upstreamIP' | 'viaProxy'> = {}) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind: 'block-detail:' + b.id, state: { block: b, sources, ...route } } });
   for (const b of blocks.slice(0, 48)) await detail(b, b.inUse ? undefined : []);
   const streams = async () => {
     const active = await (await page.request.get('/__fixture/streams?id=' + api.fixtureID)).json() as Record<string, number>;
@@ -69,6 +69,25 @@ test('block details use engine byte offsets for custom sizes and tails', async (
   await expect(popup).toContainText('1,048,576 – 1,048,698');
   await expect(popup).toContainText('块 3/3');
   await expect(popup.getByText('fixture-resource',{exact:true})).toHaveCSS('font-family',/Consolas|monospace/);
+});
+
+test('block details follow the current upstream IP', async ({ page }) => {
+  const f = await setup(page, 1);
+  const b = block(0, f.at, { state: 'downloading' });
+  await f.emit({ reset: true, blocks: [b], used: 1 });
+  await f.detail(b, [], { upstreamIP: '2001:db8::1' });
+  await f.open(); await f.canvas.focus(); await f.canvas.press('Home');
+  const popup = page.getByRole('group', { name: '块需求详情' });
+  const value = popup.locator('dt').filter({ hasText: '当前上游 IP' }).locator('+ dd');
+  await expect(value).toHaveText('2001:db8::1');
+  await f.detail(b, []);
+  await expect(value).toHaveText('尚未确认');
+  await f.detail(b, [], { upstreamIP: '192.0.2.1' });
+  await expect(value).toHaveText('192.0.2.1');
+  await f.detail(b, [], { viaProxy: true });
+  await expect(value).toHaveText('由代理选路');
+  await f.detail({ ...b, state: 'available' }, []);
+  await expect(value).toHaveCount(0);
 });
 
 test('rolling queue times advance and reorder without receiving another snapshot', async ({ page }) => {

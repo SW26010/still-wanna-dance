@@ -12,7 +12,7 @@ export interface BlockSource extends RollingTime {
   id: number; kind: 'get' | 'queue' | 'batch' | 'formal' | 'handoff'; songID: string; title: string;
   position: number; needBy: number; expiresAt: number; windowClosed: boolean;
 }
-export interface BlockDetail { block: BlockView; sources: BlockSource[] }
+export interface BlockDetail { block: BlockView; sources: BlockSource[]; upstreamIP?: string; viaProxy?: boolean }
 export interface PlaybackClock { zeroAt: number; endAt: number }
 export interface BlockAvailability {
   totalBytes: number; availableBytes: number;

@@ -137,7 +137,7 @@ form.actions { align-items: flex-end; }
 .timeline-properties-grid { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px 12px; margin: 12px 0 16px; font-size: var(--fontSizeBase200); }
 .timeline-properties-grid dt, .timeline-properties-grid dd { margin: 0; }
 .timeline-properties-grid dt { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightRegular); }
-.timeline-properties-grid dd { font-variant-numeric: tabular-nums; }
+.timeline-properties-grid dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .timeline-properties .timeline-source-heading { display: block; border-top: 1px solid var(--colorNeutralStroke2); padding-top: 12px; }
 .timeline-properties > p { display: block; }
 .timeline-sources { list-style: none; padding: 0; margin: 8px 0; max-height: 220px; overflow-y: auto; }

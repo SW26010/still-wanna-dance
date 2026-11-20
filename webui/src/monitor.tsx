@@ -1,13 +1,15 @@
 import { Button, Subtitle2, Table, TableHeader, TableRow, TableHeaderCell, TableBody, TableCell, TableCellLayout } from '@fluentui/react-components';
+import { useState } from 'react';
+import { APIError, request, unconfirmedAction } from './api';
 import { useApp } from './hooks';
 import { Panel, RecordDetails, TableRegion } from './ui';
-import { type HealthResult, type Health, date, dated } from './types';
+import { type DownloadRoute, type HealthResult, type Health, date, dated } from './types';
 
 const reasons: Record<string,string> = {no_channel:'没有有效候选',no_sample:'等待有效歌曲及资源样本',expired:'观测已过期',timeout:'请求超时',origin_timeout:'源站响应超时（Cloudflare 524）',network_error:'网络请求失败',resolution_unavailable:'无可用资源地址',invalid:'响应校验失败',restricted:'访问受限',upstream_error:'上游错误',http_error:'HTTP 响应异常'};
 const localReasons: Record<string,string> = {local_capacity:'本地代理连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次检测已取消'};
 export function healthReason(r:HealthResult) { return reasons[r.reason||'']||localReasons[r.localDiagnostic||'']||'网络请求失败'; }
 const operationNames: Record<string,string> = {catalog:'歌曲列表',playback_url:'播放地址解析',resource:'视频资源加载'};
-export function healthImpact(h: Health) {
+export function healthImpact(h: Health, routes: DownloadRoute[] = []) {
   if (h.closed) return '检测已关闭。';
   const results = h.results || [];
   const summaries = [
@@ -15,6 +17,10 @@ export function healthImpact(h: Health) {
     ['playback_url', '播放地址查询', '有可用线路', '获取新播放地址可能失败'],
     ['resource', '视频下载', '有成功样本', '样本检测失败'],
   ].map(([operation, label, success, failure]) => {
+    if (operation==='resource') {
+      if (!routes.length) return label+'：尚待观测';
+      return label+'：'+(routes.some(row=>!row.failed)?success:failure);
+    }
     const group = results.filter(r => r.operation === operation);
     const usable = group.filter(r => r.state === 'available' &&
       (!r.validUntil || r.validUntil.startsWith('0001') || new Date(r.validUntil).getTime() > Date.now()));
@@ -24,10 +30,9 @@ export function healthImpact(h: Health) {
   });
   return summaries.join('；')+'。';
 }
-function HealthRow({row:r,minutes,wait='等待调度信息',context}: {row:HealthResult;minutes:number;wait?:string;context?:string}) {
-  const saved = r.lastThroughput, speed = saved ? saved.bytes / (saved.durationNs/1e9) : r.estimatedSpeedBPS;
-  const at = saved?.observedAt || r.throughputObservedAt;
-  const song=saved?.songID ?? r.throughputSongID, duration=saved?saved.durationNs/1e6:r.transferDurationMS, bytes=saved?.bytes ?? r.transferredBytes;
+function HealthRow({row:r,minutes,wait='等待手动检测',context}: {row:HealthResult;minutes:number;wait?:string;context?:string}) {
+  const speed = r.estimatedSpeedBPS, at = r.throughputObservedAt;
+  const song=r.sampleSongID, duration=r.transferDurationMS, bytes=r.transferredBytes;
   const expired = dated(at) && Date.now() >= new Date(at!).getTime()+minutes*60000;
   const issuers=[...new Set((r.sources || []).map(x=>x.api+' · node='+(x.node || '(默认)')+(x.apiChannelID?' · API 通道 '+x.apiChannelID:'')))];
   const noData=r.state==='unavailable'?'尚无成功样本 · 当前资源检查失败：'+(reasons[r.reason || ''] || r.reason || '未知原因'):['no_sample','resolution_unavailable'].includes(r.reason || '')?'尚无成功样本 · 未取得该域名的有效资源地址':'尚无成功样本 · '+wait;
@@ -49,21 +54,56 @@ function HealthTable({rows,minutes,wait,label}:{rows:HealthResult[];minutes:numb
 
 }
 
+export function ResourceRoutes({rows,onSample,samplingDisabled}:{rows:DownloadRoute[];onSample?:(row:DownloadRoute)=>void;samplingDisabled?:boolean}) {
+  if (!rows.length) return null;
+  const columns=['资源主机','线路','最近结果','最近观测','完整 1 MiB 耗时'];
+  return <TableRegion label="资源下载线路"><Table size="small" aria-label="资源下载线路">
+    <TableHeader><TableRow>{columns.map(label=><TableHeaderCell key={label}>{label}</TableHeaderCell>)}</TableRow></TableHeader>
+    <TableBody>{rows.map(row=><TableRow key={row.host+'/'+(row.ip||'proxy')}>
+      <TableCell>{row.host}</TableCell><TableCell className="wrap">{row.ip||'当前代理'}
+        {onSample&&row.ip&&<Button size="small" appearance="subtle" aria-label={`采样 ${row.host} ${row.ip}`} disabled={samplingDisabled} onClick={()=>onSample(row)}>采样</Button>}</TableCell>
+      <TableCell>{row.source==='sample'?'采样':'下载'}{row.failed?'失败':'成功'}</TableCell>
+      <TableCell>{date(row.observedAt)}</TableCell>
+      <TableCell>{row.blockDurationNs ? <TableCellLayout description={date(row.blockAt)}>{(row.blockDurationNs/1e9).toFixed(2)} 秒</TableCellLayout> : '—'}</TableCell>
+    </TableRow>)}</TableBody>
+  </Table></TableRegion>;
+}
+
 export function NetworkMonitor() {
   const app = useApp(), s = app.status.data!, h = s.upstreamMonitor || {}, results = h.results || [];
+  const [sampling,setSampling]=useState(false), [sampleStatus,setSampleStatus]=useState('');
+  async function sample(row?:DownloadRoute) {
+    if (sampling || app.unavailable) return;
+    setSampling(true);
+    setSampleStatus(row ? `正在采样 ${row.ip}…` : '正在采样…');
+    try {
+      await request('upstream/check/throughput',row ? {host:row.host,ip:row.ip} : {},AbortSignal.timeout(30_000));
+      setSampleStatus(row ? `${row.ip} 采样已完成。` : '资源采样已完成。');
+    } catch (error) {
+      setSampleStatus(error instanceof APIError ? error.message : unconfirmedAction);
+    } finally {
+      setSampling(false);
+      app.refresh();
+    }
+  }
   const minutes = (h.policy?.throughputInterval || 20*60*1e9)/(60*1e9);
   const schedule=[['最近完成',h.finished],['下次检测',h.nextCheck]].filter(([,at])=>dated(at)).map(([label,at])=>`${label}：${date(at)}`).join(' · ');
-  const waits: Record<string,string> = {closed:'监测已关闭',business_busy:'业务正在加载视频，自动测速已暂停',running:'正在依次测量资源通道',preparing:'正在获取歌曲及资源地址',other_manual_check:'等待当前手动检测结束',not_scheduled:'自动调度尚未启动',cooldown:`等待 ${minutes} 分钟间隔到期`,due:'已到期，等待调度',waiting_sample:'等待有效歌曲及资源地址',persistence_error:'保存测速记录失败，自动测速已延期',local_capacity:'本地连接额度已满',runtime_retired:'代理运行时已退出',channel_unavailable:'通道已失效',canceled:'本次测速已取消'};
   return <Panel id="network" title="当前连接" action={<Button disabled={app.unavailable || h.checking} onClick={() => void app.action('upstream/check')}>{h.checking?'检测中…':'检查当前连接'}</Button>}>
-    <p role="status">{h.closed?'网络检测已关闭':h.checking?'正在检测…':results.length?healthImpact(h):''}</p>
+    <p role="status">{h.closed?'网络检测已关闭':h.checking?'正在检测…':results.length||s.downloadRoutes?.length?healthImpact(h,s.downloadRoutes):''}</p>
     {schedule&&<span className="secondary">{schedule}</span>}
-    {(['catalog','playback_url','resource'] as const).map(op=>{
+    {(['catalog','playback_url'] as const).map(op=>{
       const rows=results.filter(r=>r.operation===op);
       return <section key={op} className="health-section">
-      <div className="toolbar spread"><div className="inline"><Subtitle2 as="h3">{operationNames[op]}</Subtitle2>{!rows.length&&<span className="secondary">未检测</span>}</div><div className="inline">{(op==='catalog'?[['catalog','检测歌曲列表']]:op==='playback_url'?[['playback','检测播放地址解析']]:[['latency','检测响应延迟'],['throughput','测量下载速度']]).map(([key,label])=><Button size="small" key={key} disabled={app.unavailable||h.manual} onClick={()=>void app.action('upstream/check/'+key)}>{label}</Button>)}</div></div>
-      {!!rows.length&&<HealthTable rows={rows} minutes={minutes} wait={waits[h.throughputStatus||'']} label={'线路检测：'+op}/>}
-      {op==='resource'&&(h.throughputStatus||dated(h.nextThroughput)||h.throughputSaveFailed)&&<span className="secondary">{[waits[h.throughputStatus||''],dated(h.nextThroughput)?'下次测速：'+date(h.nextThroughput):'',h.throughputSaveFailed?'记录保存失败':''].filter(Boolean).join(' · ')}</span>}
+      <div className="toolbar spread"><div className="inline"><Subtitle2 as="h3">{operationNames[op]}</Subtitle2>{!rows.length&&<span className="secondary">未检测</span>}</div>
+        <Button size="small" disabled={app.unavailable||h.manual} onClick={()=>void app.action(op==='catalog'?'upstream/check/catalog':'upstream/check/playback')}>检测{operationNames[op]}</Button></div>
+      {!!rows.length&&<HealthTable rows={rows} minutes={minutes} label={'线路检测：'+op}/>}
     </section>;})}
+    <section className="health-section">
+      <div className="toolbar spread"><Subtitle2 as="h3">{operationNames.resource}</Subtitle2>
+        <Button size="small" disabled={app.unavailable||sampling} onClick={()=>void sample()}>立即采样</Button></div>
+      {sampleStatus&&<p role="status">{sampleStatus}</p>}
+      {s.downloadRoutes?.length ? <ResourceRoutes rows={s.downloadRoutes} onSample={sample} samplingDisabled={app.unavailable||sampling}/> : <span className="secondary">暂无下载或采样记录</span>}
+    </section>
   </Panel>;
 
 }

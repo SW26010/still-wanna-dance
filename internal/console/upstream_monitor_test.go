@@ -141,17 +141,18 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 			t.Fatalf("%s count=%d, want %d: %v", table, count, want, err)
 		}
 	}
-	// Monitor checks three operations on two paths; diagnostics make three to
+	// Monitor checks catalog and playback on two paths; diagnostics make three to
 	// six requests because primary success cancels pending backup catalogs.
-	if !s.Scheduled || len(s.Results) != 6 || calls.Load() < 9 || calls.Load() > 12 {
+	if !s.Scheduled || len(s.Results) != 4 || calls.Load() < 7 || calls.Load() > 10 {
 		t.Fatalf("bad snapshot: %+v, calls %d", s, calls.Load())
 	}
 	for _, result := range s.Results {
-		if result.State != "available" {
-			t.Fatalf("%+v", result)
-		}
-		if result.Operation == upstreamstate.Resource && (result.EstimatedSpeedBPS == nil || result.SampleSongID != 42) {
-			t.Fatalf("missing resource measurement: %+v", result)
+		if result.Operation == upstreamstate.Resource {
+			if result.EstimatedSpeedBPS != nil || result.State == "available" {
+				t.Fatalf("automatic monitor measured a resource: %+v", result)
+			}
+		} else if result.State != "available" {
+			t.Fatal(result)
 		}
 	}
 	before := calls.Load()
@@ -164,7 +165,7 @@ func TestMonitorLifecycleConsentAndStatus(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if len(status.Monitor.Results) != 6 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
+	if len(status.Monitor.Results) != 4 || calls.Load() != before || strings.Contains(w.Body.String(), "upstreamHealth") {
 		t.Fatal("status not a pure canonical snapshot", w.Body.String())
 	}
 	if err := c.requestMonitorCheck(); err == nil {
@@ -226,7 +227,7 @@ func TestMonitorConfigChangeCancelsAndRestarts(t *testing.T) {
 }
 
 func TestSelectedMonitorEndpointsRequireTokenAndDispatch(t *testing.T) {
-	for _, kind := range []upstreamstate.CheckKind{upstreamstate.CheckCatalog, upstreamstate.CheckPlayback, upstreamstate.CheckLatency, upstreamstate.CheckThroughput} {
+	for _, kind := range []upstreamstate.CheckKind{upstreamstate.CheckCatalog, upstreamstate.CheckPlayback} {
 		t.Run(string(kind), func(t *testing.T) {
 			c := testConsole(t)
 			var calls atomic.Int32

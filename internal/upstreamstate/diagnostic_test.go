@@ -9,6 +9,33 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
+func TestApplicationMonitorFullCheckOnlyReadsCatalogAndPlayback(t *testing.T) {
+	channel := upstreamrequest.NewChannel()
+	channel.Publish(transportFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Header.Get("Range") != "" {
+			t.Errorf("application Monitor requested a resource block")
+		}
+		return fixture(r)
+	}))
+	m, err := NewMonitor(Options{Channel: channel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if err := m.Check(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[Operation]bool)
+	for _, row := range m.Snapshot().Results {
+		if row.State == "available" {
+			seen[row.Operation] = true
+		}
+	}
+	if !seen[Catalog] || !seen[PlaybackURL] || seen[Resource] {
+		t.Fatal(seen)
+	}
+}
+
 func TestScopedMonitorMeasuresThroughputWithoutPublishing(t *testing.T) {
 	other := upstreamrequest.NewChannel()
 	other.Publish(&upstreamrequest.Pool{})
@@ -20,7 +47,7 @@ func TestScopedMonitorMeasuresThroughputWithoutPublishing(t *testing.T) {
 		}
 		return fixture(r)
 	}))
-	m, err := NewMonitor(Options{Channel: channel})
+	m, err := NewExperimentMonitor(Options{Channel: channel})
 	if err != nil {
 		t.Fatal(err)
 	}

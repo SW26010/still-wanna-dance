@@ -378,3 +378,8 @@ func TestTransportOwnershipAndNoConfigurationLeaks(t *testing.T) {
 		}
 	}
 }
+
+func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
+	o.Channel = channel
+	return NewExperimentMonitor(o)
+}

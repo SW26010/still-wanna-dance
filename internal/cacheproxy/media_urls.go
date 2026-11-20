@@ -98,10 +98,19 @@ func (s *Store) AvailableMediaURLs(ctx context.Context) ([]MediaURL, error) {
 
 // FirstAvailableMediaURL reads one accepted address without loading the full list.
 func (s *Store) FirstAvailableMediaURL(ctx context.Context, accept func(string) bool) (MediaURL, bool, error) {
+	return s.NextAvailableMediaURL(ctx, MediaURL{}, accept)
+}
+
+// NextAvailableMediaURL starts after the previous (MD5, node) key and wraps
+// at the end. The previous row can be updated or deleted between calls.
+func (s *Store) NextAvailableMediaURL(ctx context.Context, after MediaURL, accept func(string) bool) (MediaURL, bool, error) {
 	if accept == nil {
 		accept = func(string) bool { return true }
 	}
-	urls, err := s.mediaURLs(ctx, "", nil, playbacksource.Nodes(), -1, accept)
+	urls, err := s.mediaURLs(ctx, "after", after, playbacksource.Nodes(), -1, accept)
+	if err == nil && len(urls) == 0 && after.MD5 != "" {
+		urls, err = s.mediaURLs(ctx, "", nil, playbacksource.Nodes(), -1, accept)
+	}
 	if err != nil || len(urls) == 0 {
 		return MediaURL{}, false, err
 	}
@@ -123,6 +132,10 @@ func (s *Store) mediaURLs(ctx context.Context, scope string, value any, nodes []
 	case "media":
 		filter += " AND u.md5=?"
 		args = append(args, value)
+	case "after":
+		after := value.(MediaURL)
+		filter += " AND (u.md5,u.node)>(?,?)"
+		args = append(args, after.MD5, after.Node)
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, `SELECT u.url,u.md5,u.node,COALESCE(m.byte_size,0)

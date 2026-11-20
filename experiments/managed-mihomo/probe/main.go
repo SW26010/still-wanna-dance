@@ -123,7 +123,7 @@ func main() {
 		if cmd.Monitor {
 			channel := upstreamrequest.NewChannel()
 			channel.Publish(&upstreamrequest.Transport{Pool: pool})
-			m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel, Policy: upstreamstate.Policy{RequestTimeout: 10 * time.Second, ResourceTimeout: 3 * time.Second, ResourceMaxBytes: 4 << 20}})
+			m, err := upstreamstate.NewExperimentMonitor(upstreamstate.Options{Channel: channel, Policy: upstreamstate.Policy{RequestTimeout: 10 * time.Second, ResourceTimeout: 3 * time.Second, ResourceMaxBytes: 4 << 20}})
 			if err != nil {
 				fmt.Println(`{"monitorReady":false}`)
 				continue

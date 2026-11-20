@@ -14,8 +14,8 @@ import (
 type Options struct {
 	// Channel selects the required application-owned observation scope.
 	// The owner closes its transports.
-	Channel   *upstreamrequest.Channel
-	Resources *upstreamrequest.Resources
+	Channel *upstreamrequest.Channel
+
 	// Optional sample override retained for direct-path experiments. Business
 	// metadata traversal belongs to catalogsync and never calls this hook.
 	PlaybackSongCandidates func(context.Context) []int64
@@ -28,46 +28,36 @@ type Options struct {
 	OnPlaybackURL func(context.Context, PlaybackURLResponse)
 	// OnProgress receives phase boundaries and completed results outside locks.
 	// Calls within a batch are sequential; Close cancels and waits for callbacks.
-	OnProgress          func(context.Context, CheckProgress)
-	Policy              Policy
-	ThroughputStatePath string
+	OnProgress func(context.Context, CheckProgress)
+	Policy     Policy
 }
 type Status struct {
-	LastThroughputAttempt time.Time `json:"lastThroughputAttempt"`
-	NextThroughput        time.Time `json:"nextThroughput"`
-	ThroughputStatus      string    `json:"throughputStatus"`
-	ThroughputSaveFailed  bool      `json:"throughputSaveFailed"`
-	Manual                bool      `json:"manual"`
-	CheckKind             CheckKind `json:"checkKind,omitempty"`
-	ResourcesPaused       bool      `json:"resourcesPaused"`
-	Checking              bool      `json:"checking"`
-	Scheduled             bool      `json:"scheduled"`
-	Closed                bool      `json:"closed"`
-	Started               time.Time `json:"started"`
-	Finished              time.Time `json:"finished"`
-	NextCheck             time.Time `json:"nextCheck"`
-	Results               []Result  `json:"results"`
-	Policy                Policy    `json:"policy"`
+	Manual    bool      `json:"manual"`
+	CheckKind CheckKind `json:"checkKind,omitempty"`
+	Checking  bool      `json:"checking"`
+	Scheduled bool      `json:"scheduled"`
+	Closed    bool      `json:"closed"`
+	Started   time.Time `json:"started"`
+	Finished  time.Time `json:"finished"`
+	NextCheck time.Time `json:"nextCheck"`
+	Results   []Result  `json:"results"`
+	Policy    Policy    `json:"policy"`
 }
 
 // Monitor is independent of consumers and network configuration. Nothing starts
 // automatically; the owner explicitly starts and closes the monitor.
 type Monitor struct {
+	experimentProbe        experimentResourceProbe
 	playbackSongCandidates func(context.Context) []int64
-	resources              *upstreamrequest.Resources
 	diagnostics            map[string]observation
 	resourceSources        map[string]observation
 	onCatalog              func(context.Context, []CatalogResponse)
 	onPlaybackURL          func(context.Context, PlaybackURLResponse)
 	onProgress             func(context.Context, CheckProgress)
-	throughputSaveFailed   bool
 	batchKind              CheckKind
 	batchCtx               context.Context
 	batchCancel            context.CancelFunc
 	manualDone             chan struct{}
-	throughputStatePath    string
-	lastThroughput         time.Time
-	batchThroughput        *bool
 	throughput             map[string]observation
 	batchManual            bool
 	mu                     sync.Mutex
@@ -93,23 +83,14 @@ func NewMonitor(o Options) (*Monitor, error) {
 	if o.Channel == nil {
 		return nil, errors.New("upstream monitor channel is required")
 	}
-	return newMonitor(o, o.Channel)
-}
-
-// Direct monitoring and isolated path experiments use the same implementation.
-func newMonitor(o Options, channel *upstreamrequest.Channel) (*Monitor, error) {
+	channel := o.Channel
 	p := normalized(o.Policy)
 	if err := validatePolicy(p); err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	snapshot := channel.Snapshot()
-	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), throughputStatePath: o.ThroughputStatePath, throughput: make(map[string]observation)}
-	m.resources = o.Resources
-	if m.resources == nil {
-		m.resources = channel.Resources
-	}
-	m.loadThroughputTime()
+	m := &Monitor{ctx: ctx, cancel: cancel, channel: channel, revision: snapshot.Revision, policy: p, history: make(map[string][]observation), throughput: make(map[string]observation)}
 	m.playbackSongCandidates = o.PlaybackSongCandidates
 	m.onCatalog = o.OnCatalog
 	m.onPlaybackURL = o.OnPlaybackURL
@@ -191,28 +172,23 @@ func (m *Monitor) Snapshot() Status {
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
 	s := Status{
-		Manual:          m.manualDone != nil || (m.active != nil && m.batchManual),
-		CheckKind:       m.batchKind,
-		ResourcesPaused: m.resources.ResourceBusy() && (m.active == nil || !m.batchManual),
-		Checking:        m.active != nil,
-		Scheduled:       m.scheduler != nil && !m.closed,
-		Closed:          m.closed,
-		Started:         m.started,
-		Finished:        m.finished,
-		NextCheck:       m.nextCheck,
-		Policy:          m.policy,
-		Results:         make([]Result, 0, len(operations)),
+		Manual:    m.manualDone != nil || (m.active != nil && m.batchManual),
+		CheckKind: m.batchKind,
+		Checking:  m.active != nil,
+		Scheduled: m.scheduler != nil && !m.closed,
+		Closed:    m.closed,
+		Started:   m.started,
+		Finished:  m.finished,
+		NextCheck: m.nextCheck,
+		Policy:    m.policy,
+		Results:   make([]Result, 0, len(operations)),
 	}
 	now := time.Now()
 	for _, op := range operations {
-		s.Results = append(s.Results, m.resultsLocked(op, now)...)
+		if op != Resource || m.experimentProbe != nil {
+			s.Results = append(s.Results, m.resultsLocked(op, now)...)
+		}
 	}
-	s.LastThroughputAttempt = m.lastThroughput
-	if !m.lastThroughput.IsZero() {
-		s.NextThroughput = m.lastThroughput.Add(m.policy.ThroughputInterval)
-	}
-	s.ThroughputSaveFailed = m.throughputSaveFailed
-	s.ThroughputStatus = m.throughputStatus(s, now)
 	return s
 }
 func (m *Monitor) Start() error {
@@ -332,7 +308,6 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 			m.batchManual = manual
 			m.batchKind = kind
 			m.batchCtx, m.batchCancel = context.WithCancel(m.ctx)
-			m.batchThroughput = nil
 			m.active = make(chan struct{})
 			m.started = time.Now()
 			stopCaller := func() bool { return false }
@@ -414,7 +389,6 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 			m.finished = time.Now()
 			if m.scheduler != nil {
 				m.nextCheck = m.finished.Add(m.policy.Interval)
-				m.scheduleThroughputLocked()
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
 				}

@@ -279,7 +279,7 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 	setupStart, setupBytes := time.Now(), total.Load()
 	setupCtx, setupCancel := context.WithTimeout(ctx, 3*time.Minute)
 	if s.Arm == "monitor" {
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
+		m, err := upstreamstate.NewExperimentMonitor(upstreamstate.Options{Channel: channel, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
 		if err != nil {
 			setupCancel()
 			s.Error = "monitor_init"

@@ -81,8 +81,9 @@ func (c *Console) operationClients(ctx context.Context, op upstreamstate.Operati
 	return clients
 }
 
-// The download engine owns range retries; all callers supply the same measured
-// preferences and current fallbacks for each resource address.
+// The production Monitor does not probe resources, so direct calibration uses
+// the target's current DNS candidate order. The range executor ranks IPs for
+// business downloads and block sampling separately.
 func (c *Console) resourceTransports(target string) []http.RoundTripper {
 	var transports []http.RoundTripper
 	for _, selection := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {

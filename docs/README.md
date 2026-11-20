@@ -17,7 +17,7 @@
 | 配置、存储与生命周期 | [配置生命周期](settings-lifecycle.md)、[存储契约](storage.md)、[运行文件生命周期](runtime-lifecycle.md)、[曲库与需求统计](song-catalog-design.md) |
 | 数据库 v9 媒体地址与字段整理 | [关系、更新与失败规则](song-catalog-design.md#媒体地址模型)、[地址存储与字段清理](storage.md#媒体地址存储目标)、[v8 静默一次性迁移](storage.md#v8-到-v9-的静默迁移)；[开发验证](validation/storage-v9-20261101.md) |
 | 持久化整理目标与迁移 | [职责与边界](persistence-design.md)维护分类原则；[迁移计划](persistence-migration-plan.md)记录实现范围、逐项核对与剩余验证 |
-| 网络 | [资源域名规则](resource-domains.md)、[上游通道](upstream-channels.md)、[共享 IP 选路设计（未实施）](download-upstream-routing.md)、[Mihomo 与 zashboard](mihomo-dashboard.md) |
+| 网络 | [资源域名规则](resource-domains.md)、[上游通道](upstream-channels.md)、[资源下载的共享 IP 选路](download-upstream-routing.md)、[Mihomo 与 zashboard](mihomo-dashboard.md) |
 | WebUI | [WebUI 目标设计](webui-design.md)为页面与交互的 canonical 文档；现有界面见[内容约定](webui-content.md)，组件与验收见 [Fluent UI](fluent-ui-migration.md)、[可访问性](webui-accessibility.md) |
 | 开发与分发 | [开发环境](development.md)、[测试维护与 CI 修复](development.md#测试维护与-ci-修复)、[发布前本机 Windows 完整预检](development.md#发布前本机-windows-完整预检)、[Portable 打包](packaging.md)、[对应源码](corresponding-source.md)、[许可资料](licenses/README.md) |
 

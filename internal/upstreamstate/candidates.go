@@ -214,7 +214,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) {
 	// Refresh measurements before their own expiry. DNS leases only govern
 	// candidate eligibility; the resolver refreshes them and signals changes.
-	for _, op := range operations {
+	for _, op := range []Operation{Catalog, PlaybackURL} {
 		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
 			if r.State != "available" {
 				continue

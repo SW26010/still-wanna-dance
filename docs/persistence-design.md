@@ -78,7 +78,7 @@ SWD/
     state/                          # 可重建跨会话状态，通常无需备份
       terms.json
       channel.key
-      throughput.json
+      download-routes.json          # 直连资源下载与块采样的近期成功观测
       inventory.json
       batch-last-success.json       # 最近成功的完整批量任务结果
       batch-last-attempt.json       # 最近结束的任务，包括失败或中止

@@ -90,12 +90,12 @@ func normalized(p Policy) Policy {
 // identify the checked service in every state; they are not recommendations.
 // A resource Entry is never a playable URL for an arbitrary video.
 type Result struct {
-	LocalDiagnostic      string                           `json:"localDiagnostic,omitempty"`
-	LocalObservedAt      time.Time                        `json:"localObservedAt,omitzero"`
-	Sources              []upstreamrequest.ResourceSource `json:"sources,omitempty"`
-	LastThroughput       *ThroughputSample                `json:"lastThroughput,omitempty"`
-	ThroughputSongID     int64                            `json:"throughputSongID,omitempty"`
-	ThroughputObservedAt time.Time                        `json:"throughputObservedAt"`
+	LocalDiagnostic string                           `json:"localDiagnostic,omitempty"`
+	LocalObservedAt time.Time                        `json:"localObservedAt,omitzero"`
+	Sources         []upstreamrequest.ResourceSource `json:"sources,omitempty"`
+
+	ThroughputSongID     int64     `json:"throughputSongID,omitempty"`
+	ThroughputObservedAt time.Time `json:"throughputObservedAt"`
 	// CatalogTime preserves the upstream response time verbatim, not the probe time.
 	CatalogTime        string    `json:"catalogTime,omitempty"`
 	ChannelID          string    `json:"channelID,omitempty"`
@@ -264,7 +264,6 @@ func (m *Monitor) record(o observation) {
 			return
 		}
 		m.throughput[key] = o
-		m.persistThroughputResult()
 	}
 }
 func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (r Result) {
@@ -276,9 +275,6 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 	defer func() {
 		if op != Resource {
 			return
-		}
-		if o, ok := m.throughput[key]; ok {
-			r.LastThroughput = &ThroughputSample{ObservedAt: o.at, SongID: o.songID, Bytes: o.bytes, Duration: o.transferDuration, Scheme: o.scheme}
 		}
 		if r.State != "available" {
 			return

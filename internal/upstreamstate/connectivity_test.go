@@ -63,9 +63,6 @@ func TestConnectivityUsesMonitorRoutesCallbacksAndOneByteProbes(t *testing.T) {
 				if requests != round*wantRequests || catalogs != round*wantCatalogs || int(urls.Load()) != round*wantURLs {
 					t.Fatalf("requests=%d catalogs=%d urls=%d", requests, catalogs, urls.Load())
 				}
-				if !m.Snapshot().LastThroughputAttempt.IsZero() {
-					t.Fatal("connectivity reset throughput cooldown")
-				}
 				for _, r := range m.Snapshot().Results {
 					if r.State != "available" || r.EstimatedLatencyMS == nil {
 						t.Fatal("missing Monitor observation", r)

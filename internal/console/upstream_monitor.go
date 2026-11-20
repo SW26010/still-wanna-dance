@@ -14,7 +14,6 @@ func (c *Console) newUpstreamMonitor(o upstreamstate.Options) (*upstreamstate.Mo
 		c.syncCatalogs(ctx, responses)
 	}
 	o.OnPlaybackURL = c.syncPlaybackURL
-	o.Resources = c.resources
 	o.Channel = c.requestChannel
 	return upstreamstate.NewMonitor(o)
 }
@@ -42,13 +41,12 @@ func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 	if err := n.startAutomatic(); err != nil {
 		return err
 	}
+	c.startResourceSamplerLocked()
 	if c.settings.UpstreamMode != "direct" {
 		return nil
 	}
 	if c.monitor == nil {
-		m, err := c.newUpstreamMonitor(upstreamstate.Options{
-			ThroughputStatePath: c.files().State("throughput"),
-		})
+		m, err := c.newUpstreamMonitor(upstreamstate.Options{})
 		if err != nil {
 			return err
 		}
@@ -96,7 +94,9 @@ func (c *Console) requestMonitorCheck(selected ...upstreamstate.CheckKind) error
 	go func() {
 		defer close(done)
 		if kind == "" {
-			_ = m.Check(context.Background())
+			if err := m.Check(context.Background()); err == nil {
+				_ = c.requestResourceSample(context.Background(), resourceSampleRequest{})
+			}
 		} else {
 			_ = m.CheckSelected(context.Background(), kind)
 		}

@@ -118,7 +118,9 @@ func (c *Console) openEngineLocked(key string) (*cacheproxy.Server, func(), erro
 	cfg.LocalProtectionGrace = time.Duration(settings.LocalProtectionGraceSeconds) * time.Second
 	cfg.DialContext = c.upstreamDial
 	cfg.ResolvePlayback = c.resolvePlayback
-	cfg.ResourceTransports = c.resourceTransports
+	c.mu.Lock()
+	c.configureDownloadRoutesLocked(&cfg)
+	c.mu.Unlock()
 	var s *cacheproxy.Server
 	var release func()
 	if key != "" {

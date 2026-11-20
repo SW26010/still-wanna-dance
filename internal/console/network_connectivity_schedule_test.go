@@ -156,7 +156,13 @@ func TestAutomaticConnectivitySharesManualFlowAndProgress(t *testing.T) {
 			}
 			return resp, nil
 		})}
-		if err := c.StartUpstreamServices(); err != nil {
+		// Count only the connectivity scheduler's own requests. The independent
+		// block sampler also issues ranges on this transport in an idle proxy.
+		diagnostics, err := c.networkDiagnosticsLocked()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := diagnostics.startAutomatic(); err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()

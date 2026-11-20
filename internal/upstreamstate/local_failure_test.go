@@ -29,14 +29,8 @@ func TestLocalFailuresPreserveRecommendationSamplesAndSources(t *testing.T) {
 		m.updatePreferencesLocked(f, o.at, "")
 		m.mu.Unlock()
 		after, ok := m.Recommended(Resource)
-		if !ok || after.Channel.ID != before.Channel.ID || after.Result.Samples != before.Result.Samples || after.Result.ObservedAt != before.Result.ObservedAt || after.Result.LocalDiagnostic != state || after.Result.LastThroughput == nil || after.Result.LastThroughput.ObservedAt != now {
+		if !ok || after.Channel.ID != before.Channel.ID || after.Result.Samples != before.Result.Samples || after.Result.ObservedAt != before.Result.ObservedAt || after.Result.LocalDiagnostic != state || !after.Result.ThroughputObservedAt.Equal(now) {
 			t.Fatalf("local error contaminated quality: %+v", after.Result)
-		}
-		m.mu.Lock()
-		status := m.throughputStatus(Status{Scheduled: true, Results: []Result{after.Result}}, time.Now())
-		m.mu.Unlock()
-		if status != state {
-			t.Fatal("local throughput attempt hidden", status)
 		}
 	}
 	// Real business timeouts still remove eligibility and preserve historical

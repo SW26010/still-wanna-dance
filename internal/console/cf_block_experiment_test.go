@@ -488,7 +488,7 @@ func TestCFBlockExperiment(t *testing.T) {
 	for arm, pool := range map[string]*upstreamrequest.Pool{"dns": baseline, "extra": extra} {
 		ch := upstreamrequest.NewChannel()
 		ch.Publish(&cfexpProvider{api: baseline, resource: pool, ordinary: ordinary})
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: ch, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
+		m, err := upstreamstate.NewExperimentMonitor(upstreamstate.Options{Channel: ch, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
 		if err != nil {
 			fail("monitor_init")
 		}

@@ -108,6 +108,10 @@ type Console struct {
 	upstreamDial        upstreamDialFunc
 	resources           *upstreamrequest.Resources
 	requestChannel      *upstreamrequest.Channel
+	downloadRoutes      *cacheproxy.DownloadRoutes
+	sampleCancel        context.CancelFunc
+	sampleDone          chan struct{}
+	sampleRequests      chan resourceSampleRequest
 	requestRevision     uint64
 	metadata            *catalogsync.Sync
 	monitor             *upstreamstate.Monitor
@@ -201,6 +205,7 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 		c.editor.initializeSettings(c.settings)
 	}
 	if err == nil {
+
 		c.loadSnapshots()
 		c.loadImportTask()
 		if c.settings.UpstreamMode == "direct" {
@@ -404,6 +409,9 @@ func (c *Console) BeginShutdown() {
 	if c.requestRevision != 0 {
 		c.requestChannel.Release(c.requestRevision)
 	}
+	if c.sampleCancel != nil {
+		c.sampleCancel()
+	}
 	c.resources.Close()
 	c.networkDiagnostics.shutdown()
 	if c.batchCancel != nil {
@@ -442,6 +450,7 @@ func (c *Console) Close() error {
 	metadata := c.metadata
 	monitor := c.monitor
 	networkDiagnostics := c.networkDiagnostics
+	sampleDone := c.sampleDone
 	monitorManualDone := c.monitorManualDone
 	updateDone := c.updateDone
 	done, importDone := c.batchDone, c.importDone
@@ -451,6 +460,9 @@ func (c *Console) Close() error {
 	c.inventoryMu.Unlock()
 	err := c.stop()
 	networkDiagnostics.close()
+	if sampleDone != nil {
+		<-sampleDone
+	}
 	if metadata != nil {
 		metadata.Close()
 	}
@@ -478,6 +490,7 @@ func (c *Console) Close() error {
 		err = errors.Join(err, c.store.Close())
 	}
 	c.lifecycleMu.Unlock()
+	c.downloadRoutes.Flush()
 	c.client.CloseIdleConnections()
 	if tr, ok := c.client.Transport.(interface{ Retire() }); ok {
 		tr.Retire()
@@ -596,6 +609,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CatalogSync           catalogSyncStatus            `json:"catalogSync"`
 			UpstreamMonitor       upstreamstate.Status         `json:"upstreamMonitor"`
 			Update                updateStatus                 `json:"update"`
+
+			DownloadRoutes []cacheproxy.RouteObservation `json:"downloadRoutes,omitempty"`
 		}{
 			Running: running, Settings: saved, ActiveSettings: c.settings,
 			RestartRequired:      saved != c.settings,
@@ -616,6 +631,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired
+		routes := c.downloadRoutes
 		service, vrcxDismissed := c.service, c.vrcxImportDismissed
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
@@ -634,6 +650,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		c.mu.Unlock()
+		result.DownloadRoutes = routes.Snapshot()
 		if c.workOpenError != nil {
 			result.WorkError = applog.SafeError(c.workOpenError).Error()
 		}
@@ -768,12 +785,15 @@ func (c *Console) serveAction(w http.ResponseWriter, r *http.Request) {
 	case "/api/upstream/check/playback":
 		source = "upstream-playback"
 		err = c.requestMonitorCheck(upstreamstate.CheckPlayback)
-	case "/api/upstream/check/latency":
-		source = "upstream-latency"
-		err = c.requestMonitorCheck(upstreamstate.CheckLatency)
 	case "/api/upstream/check/throughput":
 		source = "upstream-throughput"
-		err = c.requestMonitorCheck(upstreamstate.CheckThroughput)
+		var input resourceSampleRequest
+		if r.ContentLength != 0 {
+			err = decodeRequest(json.NewDecoder(r.Body), &input)
+		}
+		if err == nil {
+			err = c.requestResourceSample(r.Context(), input)
+		}
 	case "/api/exit", "/api/restart":
 		c.lifecycle.request(ShutdownAction(strings.TrimPrefix(r.URL.Path, "/api/")), func(action ShutdownAction) {
 			controller := http.NewResponseController(w)

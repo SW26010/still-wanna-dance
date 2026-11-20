@@ -121,8 +121,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 	}
 	if id > 0 && kind != CheckCatalog && ctx.Err() == nil {
 		m.publishProgress(ctx, PlaybackURL)
-		samples := make(chan videoSample)
-		go func() {
+		playback := func(samples chan<- videoSample) {
 			var routes sync.WaitGroup
 			for _, r := range playbackRoutes {
 				routes.Add(1)
@@ -134,7 +133,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 						o, sample, response := probePlaybackResponse(ctx, requestClient(c.Transport), p, id, r)
 						publish(o, c)
 						m.deliverPlaybackURL(ctx, source.Revision, response)
-						if kind != CheckPlayback && sample != nil {
+						if samples != nil && sample != nil {
 							select {
 							case samples <- *sample:
 							case <-ctx.Done():
@@ -144,25 +143,11 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				}(r)
 			}
 			routes.Wait()
-			close(samples)
-		}()
-		seen := make(map[string]bool)
-		// Consume as soon as an API channel yields a sample. Resource probes remain
-		// serial through body close, including across domains and candidates.
-		for sample := range samples {
-			if seen[sample.host] || ctx.Err() != nil {
-				continue
-			}
-			if len(seen) == 0 {
-				m.publishProgress(ctx, Resource)
-			}
-			seen[sample.host] = true
-			for _, c := range prepare(entry(Resource, sample.host)) {
-				if ctx.Err() != nil {
-					break
-				}
-				publish(m.probeResourceWhenIdle(ctx, requestClient(c.Transport), p, id, sample, true), c)
-			}
+		}
+		if m.experimentProbe != nil && m.batchManual && kind.includes(Resource) {
+			m.experimentProbe(ctx, p, id, kind, playback, prepare, publish)
+		} else {
+			playback(nil)
 		}
 	}
 	m.mu.Lock()

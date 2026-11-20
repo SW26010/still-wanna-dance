@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"log/slog"
+	"net/url"
 
 	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/cacheproxy"
@@ -26,19 +27,31 @@ func (c *Console) connectivityCachedSong(ctx context.Context, previous int64) in
 }
 
 func (c *Console) connectivityCachedResource(ctx context.Context) string {
+	return c.cachedResourceForHost(ctx, "", cacheproxy.MediaURL{}).URL
+}
+
+func (c *Console) cachedResourceForHost(ctx context.Context, host string, after cacheproxy.MediaURL) cacheproxy.MediaURL {
 	store, err := c.businessStore()
 	if err == nil {
 		var ok bool
 		var sample cacheproxy.MediaURL
-		sample, ok, err = store.FirstAvailableMediaURL(ctx, upstreamcheck.ValidResourceSampleURL)
+		sample, ok, err = store.NextAvailableMediaURL(ctx, after, func(target string) bool {
+			if host != "" {
+				u, err := url.Parse(target)
+				if err != nil || u.Hostname() != host {
+					return false
+				}
+			}
+			return upstreamcheck.ValidResourceSampleURL(target)
+		})
 		if ok {
-			return sample.URL
+			return sample
 		}
 	}
 	if err != nil && ctx.Err() == nil {
 		slog.Warn("连通性检测的资源样本读取失败", "event_name", "connectivity_resource_sample_failed", "error", applog.SafeError(err))
 	}
-	return ""
+	return cacheproxy.MediaURL{}
 }
 
 // Both triggers receive the same active access policy. Direct paths retain the

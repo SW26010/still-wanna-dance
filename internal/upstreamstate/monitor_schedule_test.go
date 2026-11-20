@@ -17,7 +17,6 @@ func TestShortDNSLeaseDoesNotRepeatHealthyChecks(t *testing.T) {
 				var catalogs, playback atomic.Int32
 				m.onCatalog = func(context.Context, []CatalogResponse) { catalogs.Add(1) }
 				m.onPlaybackURL = func(context.Context, PlaybackURLResponse) { playback.Add(1) }
-				m.lastThroughput = time.Now()
 				if err := m.Start(); err != nil {
 					t.Fatal(err)
 				}

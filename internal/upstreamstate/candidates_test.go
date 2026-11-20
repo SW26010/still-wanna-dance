@@ -264,7 +264,7 @@ func TestResourceRecommendationRequiresFreshThroughput(t *testing.T) {
 			}
 			m.mu.Unlock()
 			r := m.Results(Resource)[0]
-			if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS != nil || r.LastThroughput == nil {
+			if r.State != "available" || r.EstimatedLatencyMS == nil || r.EstimatedSpeedBPS != nil {
 				t.Fatalf("expected healthy A with only historical throughput: %+v", r)
 			}
 			if s, ok := m.Recommended(Resource); !ok || s.Result.EstimatedSpeedBPS != nil {

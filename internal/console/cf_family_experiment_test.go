@@ -241,7 +241,7 @@ func TestCFFamilyExperiment(t *testing.T) {
 	for arm, pool := range map[string]*upstreamrequest.Pool{"dns": baseline, "extra": extra} {
 		channel := upstreamrequest.NewChannel()
 		channel.Publish(&cfexpProvider{api: baseline, resource: pool, ordinary: ordinary})
-		m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
+		m, err := upstreamstate.NewExperimentMonitor(upstreamstate.Options{Channel: channel, PlaybackSongCandidates: func(context.Context) []int64 { return []int64{1343} }})
 		if err != nil {
 			fail("monitor_init")
 		}

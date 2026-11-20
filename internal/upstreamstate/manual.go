@@ -28,6 +28,9 @@ func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
 	if !ValidCheckKind(kind) {
 		return errors.New("unknown monitor check kind")
 	}
+	if m.experimentProbe == nil && kind.includes(Resource) {
+		return errors.New("resource checks require the block sampler")
+	}
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()

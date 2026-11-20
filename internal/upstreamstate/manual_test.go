@@ -100,7 +100,6 @@ func TestSelectedChecksScopeAndBusinessPriority(t *testing.T) {
 				}
 				defer m.Close()
 				m.songID, m.songAt = 42, time.Now()
-				m.lastThroughput = time.Now() // Automatic throughput is still cooling down.
 				release := ch.BeginResourceLoad()
 				defer release()
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -176,7 +175,7 @@ func TestSelectedCheckPreservesUnrelatedPreferences(t *testing.T) {
 	}
 }
 
-func TestSelectedThroughputPreemptsPausedAutomaticBatch(t *testing.T) {
+func TestSelectedThroughputRunsAfterAutomaticBatchWhileBusy(t *testing.T) {
 	var active atomic.Int32
 	m := testMonitor(t, func(r *http.Request) (*http.Response, error) {
 		resp, err := fixture(r)
@@ -191,7 +190,7 @@ func TestSelectedThroughputPreemptsPausedAutomaticBatch(t *testing.T) {
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
-	awaitCondition(t, func() bool { return m.Snapshot().Checking && resultFor(t, m, Catalog, "api").State == "available" })
+	awaitCondition(t, func() bool { return !m.Snapshot().Checking && resultFor(t, m, Catalog, "api").State == "available" })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := m.CheckSelected(ctx, CheckThroughput); err != nil {

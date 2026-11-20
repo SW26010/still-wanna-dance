@@ -37,7 +37,7 @@ func TestChannelAvailabilityAndAutomaticRefresh(t *testing.T) {
 	}
 	ch.Publish(transportFunc(fixture))
 	awaitCondition(t, func() bool { return !m.Snapshot().Finished.IsZero() })
-	if resultFor(t, m, Resource, "play.udon.dance").State != "available" {
+	if resultFor(t, m, PlaybackURL, "cf").State != "available" || resultFor(t, m, Resource, "play.udon.dance").State != "unknown" {
 		t.Fatal(m.Snapshot())
 	}
 	ch.Publish(serialProbeChannels{&candidateFixture{expires: time.Now().Add(time.Hour), changed: make(chan struct{})},

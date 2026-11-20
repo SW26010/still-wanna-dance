@@ -250,7 +250,6 @@ SWD/                              # ZIP 内固定目录，不含版本号
       terms.json                  # 明确同意后才写入
       channel.key                 # 网络通道身份材料
       webui-port.json             # 上次成功启动的本地控制端口
-      throughput.json
       inventory.json
       batch-last-success.json
       batch-last-attempt.json
@@ -294,7 +293,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `R/data/state/terms.json` | 用户主动确认后写入；条款变化要求重新确认 | 可重建；缺失则重新确认，不是身份或内容授权证明 |
 | `R/data/state/channel.key` | 32 字节密钥，供通道身份使用；仅缺失时生成。损坏时通道可用临时身份 | 可选保留；缺失重建会改变直连通道身份；Mihomo 原配置名称和原生选择不依赖此文件 |
 | `R/data/state/webui-port.json` | 上次成功启动的 WebUI 回环端口；配置实例锁下读取及原子更新 | 可丢弃；缺失或无效时由系统分配，不用于验证实例身份 |
-| `R/data/state/throughput.json` | 测速尝试冷却与历史样本；网络监测需要持久化时更新 | 可重建；丢失旧样本和冷却时间，不包含凭据或播放 URL |
+| `R/data/state/download-routes.json` | 直连下载和独立块采样的近期成功观测，按主机与 IP 保存 | 可重建；保存原始时间、来源和整块耗时，恢复规则见[共享 IP 选路](download-upstream-routing.md) |
 | `R/data/state/mihomo/` | 核心拥有的工作目录；启用内嵌代理且确认条款后创建，不写原始订阅或明文节点配置。`cache.db` 按原生规则保存组名和所选名称，异常时允许原生重建该文件；启动时打不开则提示并继续运行。完整边界见 [Mihomo 选择缓存](mihomo-dashboard.md#配置和运行)；自动 geo 更新关闭 | 可重建的选择状态，不是节点备份或异常材料保全文件；名称可能含地址；主配置原文受 DPAPI 保护，其他 Mihomo 原生缓存仍可能包含明文参数和凭据；同目录其他未知文件不在 SWD 清理范围内 |
 | `R/data/state/video-import.sqlite` 及其 SQLite 伴随文件 | 一批视频导入的固定清单、结果及成功回执；独立于核心库，成功回执与清理结果逐项提交，跳过／失败结果有界批量提交，失败停止后续处理 | 缺失时可新建任务，旧清理回执不可重建；重启只恢复待继续状态。兼容读取旧 `video-import.json`，明确继续／清理时迁移；详见[视频导入与恢复](video-import.md) |
 | `R/data/state/inventory.json` | 最近成功的库存快照；扫描失败保留上次结果 | 可重新扫描 |
@@ -310,7 +309,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | `V/.swd-tmp/import-<数字>/video` | 单次导入硬链接或独立复制暂存；复制与发布规则见[视频导入](video-import.md)。操作结束只删除自己的 `video` 及空目录，崩溃后仅清理空目录或恰有一个普通 `video` 文件的已知目录，绝不递归删除陌生内容 | 不必备份；合法库启动时按媒体锁及格式校验后清理；源视频和完整本地视频不受影响 |
 | `B/.<配置文件名>.swd-tmp`、`R/data/state/.terms.json.swd-tmp`、`R/data/state/.<状态文件名>.swd-tmp` | 主配置、条款及已登记状态文件的固定原子工作槽（各目标至多一个）；配置锁持有者启动时只清理本实例已知工作槽，不全盘扫描 | 非备份对象；未知文件及旧随机命名不泛化删除，工作槽占用/不安全时拒绝清理并保留最后有效数据 |
 | 可写性探测目录中的 `.swd-probe-*` | Windows 使用内核 delete-on-close 创建临时探测文件，正常关闭或进程终止后删除；不扫描用户外部目录 | 非备份对象 |
-| `R/data/state/channel.key` 损坏、`R/data/state/throughput.json` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份。测速状态损坏时跳过载入并在下次成功保存时原子替换，均不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
+| `R/data/state/channel.key` 损坏 | 密钥损坏时原文件原地保留，通道告警并使用进程内临时身份。不再新增 `.corrupt-*` 副本 | 密钥需要恢复原始备份才能恢复历史身份；旧试验版的 `.corrupt-*` 不自动清理 |
 
 库存和批量下载结果快照使用 `schemaVersion=3`，分别保存 `databasePath`、`videoDir` 与 `result`。配置目录内的位置保存为相对路径，读取以 B 为基准，便携整包移动仍可匹配；数据库或视频位置任一变化都不加载旧结果。缺失、损坏及旧／不支持格式跳过，不迁移或新建历史。每种仅保留最近一份，恢复只显示带时间的过去结果，不恢复任务、文件选择或删除授权。写入失败保留已完成的本次内存结果并提示未保存，磁盘上次结果保持不变。设置、密钥和状态仍归配置实例，不进入媒体 SQLite。
 
@@ -377,7 +376,6 @@ SWD/                              # ZIP 内固定目录，不含版本号
 | config.proxyConfigInfo | 可选展示元数据 `{name,importedAt}`，普通 JSON 保存，不加密；与 proxyNodes 在同一配置事务更新。名称只保留文件名、不保留路径；URL/Base64 使用通用名称，不记录来源类型或入口 URL。时间为通过导入检查时的 UTC RFC 3339 时刻。缺失／无法读取的元数据只影响展示，不虚构名称或时间、不改变有效原文；节点和组数量由原文派生，不落入元数据。仅修改元数据不要求核心重启 |
 | terms.json | 封套 `{format:2, protection:"dpapi-current-user", receipts:["<base64>", ...]}`；单文件最多 8 条独立加密凭据，总大小上限 64 KiB。密文包含 purpose=`swd-terms-receipt-v1`、version（条款版本）、sha256（正文摘要）及 acceptedAt（非零有效时间）。封套版本独立于条款版本；不兼容旧单条封套或明文，不自动迁移。读写及淘汰规则见下文 |
 | channel.key | 无复杂封套，精确 32 个随机字节，供下述 HMAC-SHA256 用途共享，域分隔符冻结。缺失排他生成；长度错误或不可读时保留原文件，通道使用临时身份且不复用持久样本。不是加密凭据或节点快照的密钥 |
-| data/state/throughput.json | schemaVersion=2、lastAttempt、samples；sample 包含 observedAt、songID、bytes、durationNs。只恢复合法的直连通道、正字节/时长且非未来样本；代理样本不再恢复或保存。无版本/其它版本不解释；坏 JSON 保留至下一次成功的原子保存，不生成隔离副本；旧 v1 黄金样本保留用于拒绝回归；历史节点键和缺少通道身份的聚合样本不迁移。它不是网络当前健康真相 |
 | data/state/inventory.json | schemaVersion=3、databasePath、videoDir、result；result 为 Inventory：catalog（revision/source）、coverageKnown/coveredSongs/unresolvedSongs/totalSongs/catalogRevision/videos/bytes/scanning/updated/error；恢复强制 scanning=false |
 | data/state/batch-last-success.json、batch-last-attempt.json | 同一独立快照版本 3 和数据库／视频组合归属；result 为 Batch：id（任务标识，旧快照缺少时在加载时补发）、可选 target、catalog（revision/source）、catalogWarning/budgetReached/catalogHits/reused/scanOnly/missing/unresolved/updated/finished/running/phase/total/checked/hits/downloaded/failed/skipped/current/failures（完整失败记录 id/name/error；无失败时可省略）。恢复 running=false；attempt 需 finished 非零。公共状态只传摘要，明细分页不截断快照。不是可恢复执行队列 |
 | Windows 会话发现 JSON | address（仅 127.0.0.1 回环地址）、Identity（SWD 应用/协议版本、EXE、配置、PID 和进程创建时间）；仅供临时发现，还核实进程、端口和后端身份；无需用户数据迁移版本，不作为授权依据 |

@@ -31,9 +31,6 @@ func probePlaybackResponse(ctx context.Context, client *http.Client, p Policy, i
 	}
 	return observed(o), &videoSample{s.URL, s.Host, s.Checksum, s.Size}, response
 }
-func probeResourceMode(ctx context.Context, client *http.Client, p Policy, id int64, s videoSample, throughput bool) observation {
-	return observed(upstreamcheck.ProbeResource(ctx, client, probePolicy(p), id, upstreamcheck.Sample{URL: s.url, Host: s.host, Checksum: s.checksum, Size: s.size}, throughput))
-}
 func localObservation(state string) bool {
 	return state == "canceled" || state == "local_capacity" || state == "runtime_retired" || state == "channel_unavailable"
 }

@@ -21,7 +21,7 @@ func playbackDeliveryMonitor(t *testing.T, candidates bool, tr transportFunc, ca
 	} else {
 		ch.Publish(tr)
 	}
-	m, err := NewMonitor(Options{Channel: ch, OnPlaybackURL: callback})
+	m, err := NewExperimentMonitor(Options{Channel: ch, OnPlaybackURL: callback})
 	if err != nil {
 		t.Fatal(err)
 	}

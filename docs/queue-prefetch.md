@@ -34,6 +34,8 @@
 
 ## 资源需求与优先级
 
+各类预加载问题的样本频度、候选方案和验证优先级见[队列预加载问题与改进方向](research/queue-prefetch-issues.md)。
+
 这一层负责把队列与读取事实转换为独立块需求；整体动机、分层及算例见[全局块调度设计](block-scheduler-design.md)，参数与协议细节见[运行规则](download-concurrency.md)。
 
 队首开始时刻按 `max(已发布的队列基准, now)` 滚动。其余歌曲累加前项时长，各块再加块起点对应的媒体时间。下载和本地保护共用块距队首的相对时间门槛，交接在成员退出时冻结 need-by。规则见[队列预计使用时间](download-resource-design.md#队列预计使用时间)，元数据缺失和版本匹配见[并发说明](download-concurrency.md)。

@@ -158,7 +158,7 @@ func (s *Server) releasePublication(r *publicationReservation) {
 }
 
 func (s *Server) commitPreparedPublication(r *publicationReservation, source string, item retainedVideo) error {
-	return s.Store.retentionDecision(func() error {
+	err := s.Store.retentionDecision(func() error {
 		if err := r.ctx.Err(); err != nil {
 			return context.Cause(r.ctx)
 		}
@@ -171,6 +171,7 @@ func (s *Server) commitPreparedPublication(r *publicationReservation, source str
 		}
 		s.retentionMu.Lock()
 		accepted := s.publications[item.key] == r
+		retained, exists := s.retained[item.key]
 		s.retentionMu.Unlock()
 		if !accepted {
 			return ErrNotRetained
@@ -180,6 +181,17 @@ func (s *Server) commitPreparedPublication(r *publicationReservation, source str
 		}
 		// No other admission/retention pass can change this decision until inventory
 		// settlement. The worker's video pin also excludes explicit file deletion.
+		if exists && retained.size == item.size {
+			// An import can publish this MD5 while its blocks are downloading.
+			// Keep that publication, including any active readers and hard links.
+			info, err := os.Lstat(item.path)
+			if err == nil && info.Mode().IsRegular() && info.Size() == retained.size && info.ModTime().UnixNano() == retained.modified {
+				return nil
+			}
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
 		if err := os.Rename(source, item.path); err != nil {
 			return err
 		}
@@ -191,4 +203,8 @@ func (s *Server) commitPreparedPublication(r *publicationReservation, source str
 		s.retentionMu.Unlock()
 		return nil
 	})
+	if err == nil {
+		s.notifyResourceAvailability(item.key)
+	}
+	return err
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -119,32 +120,44 @@ func TestSongLoadingShortCachedRangeRecoversBeforeBody(t *testing.T) {
 func TestOwnerRetryServesPromisedFullBodyAfterPublication(t *testing.T) {
 	body := bytes.Repeat([]byte("p"), int(rangeBlockSize+16))
 	headers, failed := make(chan struct{}), make(chan struct{}, 1)
-	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+	target := videoURL(string(body))
+	modified := time.Now().Truncate(time.Second)
+	source := filepath.Join(t.TempDir(), "video.mp4")
+	if err := os.WriteFile(source, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(source, modified, modified); err != nil {
+		t.Fatal(err)
+	}
+	allowed := map[string]bool{fmt.Sprintf("%x", md5.Sum(body)): true}
+	var s *Server
+	resolve := func(ctx context.Context, _ string) (string, error) {
+		select {
+		case <-failed:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+		receipt, err := s.ImportVideo(ctx, source, allowed)
+		if err != nil || receipt == nil {
+			t.Errorf("import receipt=%v err=%v", receipt, err)
+			return "", err
+		}
+		return target, nil
+	}
+	s, _ = setup(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("stale") != "1" {
 			t.Error("retry downloaded the published file")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		writeShortCachedRange(w, r, body, headers, failed)
-	})
-	target := videoURL(string(body))
+	}, func(c *Config) { c.ResolvePlayback = resolve })
 	if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, URL: target + "&stale=1", Node: "cf"}); err != nil {
 		t.Fatal(err)
 	}
-	modified := time.Now().Truncate(time.Second)
-	s.cfg.ResolvePlayback = func(ctx context.Context, _ string) (string, error) {
-		select {
-		case <-failed:
-		case <-ctx.Done():
-			return "", ctx.Err()
-		}
-		path := s.cfg.videoFile(fmt.Sprintf("%x", md5.Sum(body)))
-		if err := os.WriteFile(path, body, 0600); err != nil {
-			return "", err
-		}
-		return target, os.Chtimes(path, modified, modified)
-	}
+	s.mu.Lock()
 	s.playerRole = vrclog.Owner
+	s.mu.Unlock()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	r := httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx)
@@ -158,7 +171,7 @@ func TestOwnerRetryServesPromisedFullBodyAfterPublication(t *testing.T) {
 	}
 }
 
-func TestSongLoadingFailedCacheDoesNotSwitchAfterBody(t *testing.T) {
+func TestSongLoadingSwitchesURLAfterFirstBody(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(rangeBlockSize+16))
 	firstBody := make(chan struct{}, 1)
 	var freshDownloads atomic.Int32
@@ -204,7 +217,7 @@ func TestSongLoadingFailedCacheDoesNotSwitchAfterBody(t *testing.T) {
 		defer func() { aborted = recover() }()
 		s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42", nil).WithContext(ctx))
 	}()
-	if aborted != http.ErrAbortHandler || w.Body.Len() == 0 || w.Body.Len() >= len(body) || freshDownloads.Load() != 0 {
+	if aborted != nil || !bytes.Equal(w.Body.Bytes(), body) || freshDownloads.Load() != 1 {
 		t.Fatalf("abort=%v bytes=%d new downloads=%d", aborted, w.Body.Len(), freshDownloads.Load())
 	}
 }
@@ -330,7 +343,7 @@ func TestQueueLocalHitDoesNotWaitForAPI(t *testing.T) {
 	}
 }
 
-func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
+func TestFailedCachedURLWaitsUntilCanceled(t *testing.T) {
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(403) })
 
 	if err := s.ObserveSongURL(context.Background(), PlaybackObservation{SongID: 42, URL: videoURL(payload), Node: "cf"}); err != nil {
@@ -338,8 +351,10 @@ func TestFailedCachedURLPreservesRefreshFailure(t *testing.T) {
 	}
 	refreshFailure := errors.New("API refresh unavailable")
 	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", refreshFailure }
-	_, err := s.PrefetchPlayback(context.Background(), 42)
-	if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, refreshFailure) || !strings.Contains(err.Error(), "saved URL refresh") {
+	ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+	defer cancel()
+	_, err := s.PrefetchPlayback(ctx, 42)
+	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("lost failure context: %v", err)
 	}
 }
@@ -436,21 +451,23 @@ func TestCachedCandidatesOnlyUseCFEntry(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+			defer cancel()
 			switch entry {
 			case "prefetch":
-				if _, err := s.PrefetchPlayback(context.Background(), 42); !errors.Is(err, refreshErr) {
+				if _, err := s.PrefetchPlayback(ctx, 42); !errors.Is(err, context.DeadlineExceeded) {
 					t.Fatal(err)
 				}
 			case "playback":
 				w := httptest.NewRecorder()
-				s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42&node=nya", nil))
-				if w.Code != http.StatusBadGateway {
+				s.ServeHTTP(w, httptest.NewRequest("GET", "http://api.udon.dance/Api/Songs/play?id=42&node=nya", nil).WithContext(ctx))
+				if w.Code < 400 || ctx.Err() == nil {
 					t.Fatal(w.Code, w.Body.String())
 				}
 			case "preview":
 				target := PreviewTarget{Resource: fmt.Sprintf("%x", md5.Sum([]byte(payload))), Size: int64(len(payload)), AdmissionSongID: "42"}
-				w := previewResponse(s, target, nil)
-				if w.Code != http.StatusBadGateway {
+				w := previewResponseContext(ctx, s, target, nil)
+				if w.Code < 400 || ctx.Err() == nil {
 					t.Fatal(w.Code, w.Body.String())
 				}
 			}

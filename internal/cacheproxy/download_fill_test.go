@@ -28,6 +28,105 @@ func fillTestCatalog(t *testing.T, s *Server, songs []CatalogSong) LocalCatalog 
 	return local
 }
 
+func TestFillAndSharedDownloadRecoverTogether(t *testing.T) {
+	const id = 9000001
+	var recoverOrigin atomic.Bool
+	started, release := make(chan struct{}), make(chan struct{})
+	enter := sync.OnceFunc(func() { close(started) })
+	unblock := sync.OnceFunc(func() { close(release) })
+	defer unblock()
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		enter()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		if !recoverOrigin.Swap(true) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
+		serveFixtureContent(w, r, payload)
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return videoURL("new version"), nil }
+	})
+	old := videoURL(payload)
+	local := fillTestCatalog(t, s, []CatalogSong{{ID: id, MD5: videoKey(payload)}})
+	if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: id, URL: old, Node: "cf"}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	fillDone := make(chan DownloadFillResult, 1)
+	go func() {
+		result, _ := s.NewDownloadFill(ctx, false, false).Run(local, s.PrefetchDownload, nil)
+		fillDone <- result
+	}()
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("fill did not start")
+	}
+	other := make(chan error, 1)
+	go func() { _, err := s.Prefetch(ctx, old); other <- err }()
+	for {
+		s.mu.Lock()
+		joined := 0
+		for d := range s.demands {
+			if d.flight != nil && d.key == videoKey(payload) {
+				joined++
+			}
+		}
+		s.mu.Unlock()
+		if joined == 2 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("second source did not join")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	unblock()
+	result := <-fillDone
+	if result.Checked != 1 || result.Downloaded != 1 || result.Failed != 0 {
+		t.Fatalf("fill result %+v", result)
+	}
+	if err := <-other; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInitiallyUnmappedFillKeepsSelectedSongs(t *testing.T) {
+	const selected = 9000001
+	var outside atomic.Int32
+	var calls atomic.Int32
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
+		serveFixtureContent(w, r, payload)
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			if id != strconv.Itoa(selected) {
+				outside.Add(1)
+			}
+			return videoURL(payload), nil
+		}
+	})
+	seedPreview(t, s, payload) // An unselected song already maps to this MD5.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ctx = context.WithValue(ctx, fillCandidatesKey{}, map[string]struct{}{strconv.Itoa(selected): {}})
+	_, err := s.PrefetchDownload(ctx, selected)
+	if err != nil || calls.Load() != 2 || outside.Load() != 0 {
+		t.Fatalf("error=%v unselected queries=%d", err, outside.Load())
+	}
+}
+
 func TestDownloadFillProgressDeliversFailuresOnce(t *testing.T) {
 	s, _ := setup(t, nil)
 	local := fillTestCatalog(t, s, []CatalogSong{
@@ -307,7 +406,7 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 		if r.URL.Query().Get("e") != videoKey(payload) {
 			t.Error("over-budget resource reached upstream")
 		}
-		if !retry.Load() {
+		if !retry.Swap(true) {
 			select {
 			case <-budgetStop:
 			case <-r.Context().Done():
@@ -341,10 +440,6 @@ func TestDownloadFillRetriesAdmittedResourceAfterBudgetStop(t *testing.T) {
 		mu.Unlock()
 		switch id {
 		case firstID:
-			if _, err := s.PrefetchSong(ctx, strconv.FormatInt(id, 10), videoURL(payload)); !errors.Is(err, errUpstreamDownload) {
-				return "", err
-			}
-			retry.Store(true)
 			return s.PrefetchSong(ctx, strconv.FormatInt(id, 10), videoURL(payload))
 		case otherID:
 			mu.Lock()

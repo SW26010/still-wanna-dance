@@ -54,6 +54,7 @@ func (q *queueSource) readyBy(block, blockSize int64) time.Time {
 }
 
 type downloadDemand struct {
+	lookup                resourceAddresses // Initial address policy and any already-started song check.
 	ctx                   context.Context
 	cancel                context.CancelCauseFunc
 	flight                *flight // Attached download session, protected by Server.mu.
@@ -194,6 +195,11 @@ func (s *Server) addDemand(ctx context.Context, v video, playback bool) (*downlo
 	}
 	token, queue := ctx.Value(queueDemandKey{}).(*queueSource)
 	d := &downloadDemand{ctx: ctx, key: v.key, song: v.songID, queue: queue, playback: playback, queueSource: token}
+	d.lookup = resourceAddresses{key: v.key, size: v.size, preferredSong: v.songID}
+	if v.lookup != nil {
+		d.lookup = *v.lookup
+	}
+	d.lookup.preferredCheck = v.refresh
 	d.origin, _ = ctx.Value(playbackOriginKey{}).(playbackOrigin)
 	if !playback {
 		d.lastBlock = blockCount(v.size, s.cfg.BlockSize)
@@ -307,7 +313,9 @@ func (s *Server) consumeDemand(d *downloadDemand, next int64) {
 	s.releaseUseLocked(span, time.Now())
 	d.firstBlock = next
 	s.refreshUseProtectionLocked(span)
-	s.publishUseChangedLocked(d.key)
+	// Consumption advances the GET's prefix without changing its lookup scope.
+	s.notifyResourceChangedLocked(d.key)
+	s.publishUseChangedLocked()
 }
 
 func (s *Server) notifyUseChangedLocked(keys ...string) {
@@ -326,6 +334,9 @@ func (s *Server) publishUseChangedLocked(keys ...string) {
 	// together. Timer callbacks use this same path when they change sources.
 	s.armUseTimerLocked()
 	for _, key := range uniqueResourceKeys(append(keys, expired...)) {
+		if f := s.flights[key]; f != nil {
+			s.syncAddressLookupsLocked(f, false)
+		}
 		s.notifyResourceChangedLocked(key)
 	}
 	s.notifyBlockObservation()

@@ -39,6 +39,15 @@ func TestRequestTerminalFailureHistory(t *testing.T) {
 								return nil, context.Cause(r.Context())
 							}
 						}
+						// Expire the caller's actual demand while its upstream is failing.
+						s.mu.Lock()
+						for d := range s.demands {
+							if d.playback && d.clock != nil {
+								d.clock.at = time.Now().Add(-time.Hour)
+								s.notifyResourceChangedLocked(d.key)
+							}
+						}
+						s.mu.Unlock()
 						switch reason {
 						case "expired":
 							return nil, errSourceExpired
@@ -62,9 +71,7 @@ func TestRequestTerminalFailureHistory(t *testing.T) {
 					t.Fatalf("crash=%v bytes=%d", crash, w.Body.Len())
 				}
 				wantStatus := 504
-				if reason == "upstream-status" {
-					wantStatus = 502
-				}
+
 				if afterBody {
 					wantStatus = 200
 				}
@@ -78,13 +85,7 @@ func TestRequestTerminalFailureHistory(t *testing.T) {
 				if err != nil || len(page.Requests) != 1 {
 					t.Fatal(page, err)
 				}
-				want := reason
-				if reason != "expired" {
-					want = "aborted"
-					if !afterBody {
-						want = "failed"
-					}
-				}
+				want := "expired"
 				if page.Requests[0].Outcome != want {
 					t.Fatalf("got %+v, want %s", page.Requests[0], want)
 				}

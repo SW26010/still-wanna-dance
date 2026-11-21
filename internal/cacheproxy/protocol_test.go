@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestResourceCandidatesAlwaysUseHTTP(t *testing.T) {
@@ -83,7 +84,7 @@ func TestResourceRejectsHTTPSUpgradeWithoutLoop(t *testing.T) {
 					return &http.Response{StatusCode: status, Header: http.Header{"Location": {strings.Replace(videoURL(payload), "http:", "https:", 1)}}, Body: http.NoBody, Request: r}, nil
 				})}
 			}
-			if _, err := s.Prefetch(t.Context(), videoURL(payload)); err == nil || !strings.Contains(err.Error(), "revisits HTTP resource") {
+			if err := readFixtureBlock(t, s, videoURL(payload), time.Time{}); err == nil || !strings.Contains(err.Error(), "revisits HTTP resource") {
 				t.Fatal(err)
 			}
 			if strings.Join(calls, ",") != "http" {

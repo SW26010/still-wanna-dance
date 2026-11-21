@@ -224,10 +224,10 @@ func TestCompletedQueueRefetchSharesGETAndAvailableBlocks(t *testing.T) {
 	waitQueueRefetch(t, s, v, calls, 3)
 }
 
-func TestCompletedQueueRefetchFailureDoesNotLoop(t *testing.T) {
+func TestCompletedQueueRefetchRetriesWhileNeeded(t *testing.T) {
 	var requests atomic.Int32
 	s, v, _, calls := completedQueueFixture(t, payload, func(*http.Request) error {
-		if requests.Add(1) > 1 {
+		if requests.Add(1) == 2 {
 			return errors.New("refetch origin unavailable")
 		}
 		return nil
@@ -236,27 +236,7 @@ func TestCompletedQueueRefetchFailureDoesNotLoop(t *testing.T) {
 	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		s.mu.Lock()
-		stopped := s.resourceUses[v.key] == nil && s.flights[v.key] == nil
-		s.mu.Unlock()
-		if stopped && calls.Load() > 1 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("failed refetch did not finish its bounded attempts", calls.Load())
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	before := calls.Load()
-	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(100 * time.Millisecond)
-	if calls.Load() != before {
-		t.Fatal("unchanged usage retried a terminal failure indefinitely", calls.Load())
-	}
+	waitQueueRefetch(t, s, v, calls, 3)
 }
 
 func TestCompletedQueueRefetchSurvivesFormerDeadline(t *testing.T) {

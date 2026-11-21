@@ -38,6 +38,7 @@ type RouteObservation struct {
 
 type routeEntry struct {
 	RouteObservation
+	retry         retryBackoff
 	successAt     time.Time
 	successSource string
 	inFlight      int
@@ -54,6 +55,7 @@ type DownloadRoutes struct {
 	direct           bool
 	proxySampleAfter time.Time
 	entries          map[routeKey]*routeEntry
+	recovered        chan struct{} // A previously cooling route became eligible early.
 	path             string
 	timer            *time.Timer
 	saveMu           sync.Mutex
@@ -136,6 +138,11 @@ func preferRoute(a, b *routeEntry, now time.Time, urgent bool) bool {
 
 // Choose and reserve under one lock so parallel workers see each other's load.
 func (h *DownloadRoutes) choose(host string, candidates []upstreamrequest.Candidate, tried map[string]bool, needBy time.Time, sample *blockSample) (upstreamrequest.Candidate, int, bool) {
+	return h.chooseForAttempt(host, candidates, tried, needBy, &resourceAttempts{sample: sample}, nil)
+}
+
+func (h *DownloadRoutes) chooseForAttempt(host string, candidates []upstreamrequest.Candidate, tried map[string]bool, needBy time.Time, attempts *resourceAttempts, cursor *resourceCandidates) (upstreamrequest.Candidate, int, bool) {
+	sample := attempts.sample
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	now := time.Now()
@@ -158,11 +165,18 @@ func (h *DownloadRoutes) choose(host string, candidates []upstreamrequest.Candid
 			continue
 		}
 		hasValid = true
+		key := routeKey{host, c.IP}
+		e := h.entry(key, now)
+		if attempts.persistent && e.retry.until.After(now) {
+			attempts.retryAt = earlier(attempts.retryAt, e.retry.until)
+			continue
+		}
+		if cursor != nil && attempts.pathCooling(cursor, c.IP) {
+			continue
+		}
 		if tried[c.IP] || (sample != nil && sample.target.ip != "" && (host != sample.target.host || c.IP != sample.target.ip)) {
 			continue
 		}
-		key := routeKey{host, c.IP}
-		e := h.entry(key, now)
 		if c.ValidUntil.After(e.lease) {
 			e.repeated = !e.lease.IsZero()
 			e.lease = c.ValidUntil
@@ -210,9 +224,21 @@ func (h *DownloadRoutes) release(k routeKey) {
 	h.entries[k].inFlight--
 }
 
-func (h *DownloadRoutes) record(k routeKey, source string, bytes int64, failed bool, elapsed time.Duration) {
+func (h *DownloadRoutes) recoverySignal() <-chan struct{} {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.recovered == nil {
+		h.recovered = make(chan struct{})
+	}
+	return h.recovered
+}
+
+func (h *DownloadRoutes) record(k routeKey, source string, bytes int64, failed bool, elapsed time.Duration) time.Time {
 	if (bytes <= 0 && !failed) || (h.direct && k.ip == "") {
-		return
+		return time.Time{}
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -222,7 +248,15 @@ func (h *DownloadRoutes) record(k routeKey, source string, bytes int64, failed b
 	}
 	e := h.entry(k, now)
 	e.ObservedAt, e.Source, e.Failed = now, source, failed
+	if failed && !e.retry.until.After(now) {
+		e.retry.fail(now)
+	}
 	if bytes > 0 {
+		if e.retry.until.After(now) && h.recovered != nil {
+			close(h.recovered)
+			h.recovered = nil
+		}
+		e.retry = retryBackoff{}
 		e.successAt, e.successSource = now, source
 		if bytes == DefaultBlockSize {
 			e.BlockDuration, e.BlockAt = elapsed, now
@@ -234,6 +268,7 @@ func (h *DownloadRoutes) record(k routeKey, source string, bytes int64, failed b
 			}
 		}
 	}
+	return e.retry.until
 }
 
 func (h *DownloadRoutes) Snapshot() []RouteObservation {

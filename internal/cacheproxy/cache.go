@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -125,6 +124,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 			return nil, nil, err
 		}
 	}
+	f.addresses.attach(v)
 	if v.songID != "" {
 		f.monitorSongs[v.songID] = true
 	}
@@ -136,6 +136,7 @@ func (s *Server) obtainDemand(ctx context.Context, v video, background, playback
 		transferred = true
 	}
 	demand.flight = f
+	s.syncAddressLookupsLocked(f, false)
 	s.notifyResourceChangedLocked(v.key)
 	s.mu.Unlock()
 	log.Debug("操作已关联共享资源任务", "event_name", "cache_task_attached", "flight_id", f.id, "wait_ms", time.Since(waitStart).Milliseconds())
@@ -249,19 +250,6 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		}
 	}
 	stopCheck() // Waiting for a block's activation window has no execution timer.
-	if v.localOnly {
-		addresses := resourceAddresses{key: v.key, size: v.size, preferredSong: v.songID}
-		resolved, err := addresses.next(ctx, s, video{})
-		if err != nil {
-			return "", "", fmt.Errorf("%w: resolve evicted resource: %w", errUpstreamDownload, err)
-		}
-		if resolved.key != v.key || resolved.size != v.size {
-			return "", "", fmt.Errorf("%w: resolved address changed evicted resource identity", errUpstreamDownload)
-		}
-		resolved.songID = v.songID
-		v = resolved
-		flight.progress.setHost(v.host)
-	}
 	flight.log.Debug("视频下载已开始", "event_name", "download_started", "key", v.key, "size", v.size)
 	flight.ranges = s.reuseLocalResource(v, flight.ranges)
 	if flight.ranges != nil {
@@ -301,6 +289,7 @@ func (s *Server) startFlightLocked(v video, background bool, log *slog.Logger) (
 	f.progress = startProgress(f.log, v.size, 15*time.Second)
 	f.progress.observeBytes = s.observeDownloadBytes
 	f.monitorSongs = make(map[string]bool)
+	f.addresses.attach(v)
 	if v.songID != "" {
 		f.monitorSongs[v.songID] = true
 	}

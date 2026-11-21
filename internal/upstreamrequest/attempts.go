@@ -27,7 +27,7 @@ type Attempts struct {
 }
 
 func NewAttempts(count int) *Attempts {
-	return &Attempts{count: min(count, MaxOperationCandidates)}
+	return &Attempts{count: count}
 }
 
 func (a *Attempts) Next() (int, bool) {

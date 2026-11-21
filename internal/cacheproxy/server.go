@@ -24,8 +24,7 @@ import (
 )
 
 type video struct {
-	candidates             *songCandidates
-	savedAddress           bool
+	lookup                 *resourceAddresses // Immutable address-discovery policy for this resource.
 	refresh                *playbackCheck
 	localOnly              bool
 	songID                 string
@@ -33,6 +32,7 @@ type video struct {
 	size                   int64
 }
 type flight struct {
+	addresses     blockAddresses
 	route         video                   // Resource routing only; never carries a caller's song or origin.
 	discard       bool                    // isolated measurement only; never serves cached media
 	cancel        context.CancelCauseFunc // protected by Server.mu
@@ -532,110 +532,33 @@ func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request, preview *pre
 	}
 	s.pinVideo(v)
 	defer func() { s.releaseVideo(v) }()
-	var get *downloadDemand
-	var releaseDemand func()
-	attachGET := func(resource video) error {
-		ctx := context.WithValue(r.Context(), httpGETKey{}, true)
-		// A new admission before headers must not reuse the previous source.
-		ctx = context.WithValue(ctx, sourceDemandKey{}, (*downloadDemand)(nil))
-		demand, release, err := s.addDemand(ctx, resource, true)
-		if err != nil {
-			return err
-		}
-		get, releaseDemand = demand, release
-		r = r.WithContext(context.WithValue(ctx, sourceDemandKey{}, demand))
-		response.consumption = &getConsumption{s: s, demand: demand, size: resource.size}
-		return nil
-	}
-	if err := attachGET(v); err != nil {
+	ctx := context.WithValue(r.Context(), httpGETKey{}, true)
+	get, releaseDemand, err := s.addDemand(ctx, v, true)
+	if err != nil {
 		response.recordFailure(clientContext, err)
 		http.Error(w, "block demand capacity unavailable", cacheErrorStatus(err))
 		return
 	}
-	defer func() { releaseDemand() }()
+	defer releaseDemand()
+	r = r.WithContext(context.WithValue(ctx, sourceDemandKey{}, get))
+	response.consumption = &getConsumption{s: s, demand: get, size: v.size}
 	if r.Method == http.MethodGet {
 		s.Store.recordGET(v.songID, v.key)
 	}
-	// Transfer the request pin and event identity together on every pre-body retry.
-	retry := func(cause error) error {
-		finishWait := s.watchRetryDeadline(get)
-		var replacement video
-		var fallbackErr error
-		switch {
-		case get.ctx.Err() != nil:
-			return finishWait()
-		case preview != nil:
-			replacement, fallbackErr = preview.nextAddress(get.ctx, s, v)
-		default:
-			replacement, fallbackErr = s.retrySongURL(get.ctx, v)
-		}
-		if err := finishWait(); err != nil {
-			return err
-		}
-		if fallbackErr != nil {
-			return errors.Join(cause, fmt.Errorf("saved URL refresh: %w", fallbackErr))
-		}
-		if response.status != 0 {
-			// retrySongURL verified the same MD5 and size. The open response
-			// already owns its range, source deadline, consumption and pin.
-			v = replacement
-			return nil
-		}
-		if r.Method == http.MethodGet {
-			ctx, err := s.playbackContext(r, replacement, start)
-			if err != nil {
-				return err
-			}
-			r = r.WithContext(ctx)
-		}
-		releaseDemand()
-		if errors.Is(context.Cause(get.ctx), errSourceExpired) {
-			return errSourceExpired
-		}
-		s.pinVideo(replacement)
-		if err := attachGET(replacement); err != nil {
-			s.releaseVideo(replacement)
-			return err
-		}
-		s.releaseVideo(v)
-		v = replacement
-		event.key = v.key
-		response.current.identify(v.songID, v.key)
-		return nil
-	}
 	var f *flight
 	var stream *spoolReader
-loadVideo:
-	if preview != nil && !v.localOnly {
-		if v.host == "" {
-			// Joining an active resource does not resolve or refresh its address.
-			if shared, ok := s.previewRoute(v); ok {
-				v = shared
-			} else if err = retry(nil); err != nil {
-				goto serveVideo
-			}
-		}
-	}
 	if v.localOnly {
-		// Do not enter obtain: it can download or update the current song mapping.
 		_, err = s.verifiedFile(r.Context(), v)
-		f = &flight{source: "HIT"}
 		if err == nil {
+			f = &flight{source: "HIT"}
 			log.Debug("播放请求命中本地视频", "event_name", "playback_local_hit", "song_id", v.songID)
-		} else if preview != nil && r.Context().Err() == nil {
-			if err = retry(err); err == nil {
-				goto loadVideo
-			}
-		}
-	} else {
-		f, stream, err = s.obtainDemand(r.Context(), v, false, r.Method == http.MethodGet)
-		if err != nil && (preview != nil || v.savedAddress) && errors.Is(err, errUpstreamDownload) && r.Context().Err() == nil {
-			if err = retry(err); err == nil {
-				goto loadVideo
-			}
+		} else if preview != nil && !errors.Is(err, ErrLocalStorage) {
+			v.localOnly = false
 		}
 	}
-serveVideo:
+	if !v.localOnly {
+		f, stream, err = s.obtainDemand(r.Context(), v, false, r.Method == http.MethodGet)
+	}
 	if err != nil {
 		response.recordFailure(clientContext, err)
 		if response.status != 0 {
@@ -659,20 +582,6 @@ serveVideo:
 		}
 		pending := serveStream(response, r, v, stream)
 		if stream.err != nil {
-			if (preview != nil || v.savedAddress) && errors.Is(stream.err, errUpstreamDownload) && r.Context().Err() == nil {
-				if response.bytes == 0 && response.writeErr == nil {
-					// finish wakes readers before the failed flight is removed.
-					// Wait for removal so a same-MD5 retry starts a new flight.
-					select {
-					case <-f.done:
-					case <-r.Context().Done():
-						return
-					}
-					if stream.err = retry(stream.err); stream.err == nil {
-						goto loadVideo
-					}
-				}
-			}
 			response.recordFailure(clientContext, stream.err)
 			if r.Context().Err() != nil {
 				log.Debug("客户端已断开连接", "event_name", "client_disconnected", "cache", "MISS")

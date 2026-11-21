@@ -12,42 +12,50 @@ import (
 // The engine owns the registry reference. Flights and old spools retain their
 // own references, without retaining response cursors or half-block prefixes.
 type localResource struct {
-	blockSize int64 // Immutable for both stored blocks and storage-free measurements.
-	mu        sync.Mutex
-	storage   *blockFiles
-	video     video  // Identity is immutable; routing is protected by Server.retentionMu.
-	etag      string // protected by mu; the first valid response establishes the entity
-	entitySet bool
-	done      map[int64]bool // Availability only for the storage-free diagnostic loader.
+	blockSize  int64 // Immutable for both stored blocks and storage-free measurements.
+	mu         sync.Mutex
+	storage    *blockFiles
+	video      video             // Identity is immutable; routing is protected by Server.retentionMu.
+	validators map[string]string // Strong ETags by validated endpoint.
+	entitySet  bool
+	done       map[int64]bool // Availability only for the storage-free diagnostic loader.
 }
 
-func (d *localResource) strongETag() string {
+// HTTP validators are scoped to the validated final URL.
+func (d *localResource) etagFor(v video) string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if strings.HasPrefix(d.etag, "W/") {
-		return ""
-	}
-	return d.etag
+	return d.validators[v.requestURL()]
 }
 
-var errEntityAddressChanged = errors.New("upstream entity address changed between ranges")
+func (d *localResource) boundToOtherAddress(v video) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	current := v.requestURL()
+	for endpoint := range d.validators {
+		if endpoint != current {
+			return true
+		}
+	}
+	return false
+}
 
-// The caller holds Server.retentionMu when the resource is shared. Bind the
-// validator to the validated final endpoint, rather than its redirecting alias.
 func (d *localResource) acceptEntity(v video, etag string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	key := v.requestURL()
+	if old := d.validators[key]; old != "" && old != etag {
+		return errors.New("upstream entity changed between ranges")
+	}
+	if etag != "" && !strings.HasPrefix(etag, "W/") {
+		if d.validators == nil {
+			d.validators = make(map[string]string)
+		}
+		d.validators[key] = etag
+	}
 	if !d.entitySet {
 		d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
-		d.etag, d.entitySet = etag, true
-	}
-	if d.etag != "" && !strings.HasPrefix(d.etag, "W/") {
-		if videoAddress(d.video) != videoAddress(v) {
-			return errEntityAddressChanged
-		}
-		if d.etag != etag {
-			return errors.New("upstream entity changed between ranges")
-		}
+		d.entitySet = true
 	}
 	return nil
 }
@@ -152,11 +160,11 @@ func (s *Server) acquireLocalResource(v video) (*localResource, error) {
 // validator belongs to its old address: drop both registry and execution
 // references when it changes, while old readers keep their own references.
 func (s *Server) reuseLocalResource(v video, d *localResource) *localResource {
-	if d == nil {
-		return nil
+	if d == nil || v.host == "" {
+		return d
 	}
 	s.retentionMu.Lock()
-	changed := d.strongETag() != "" && videoAddress(d.video) != videoAddress(v)
+	changed := d.boundToOtherAddress(v)
 	if !changed {
 		d.video.host, d.video.path, d.video.query = v.host, v.path, v.query
 	}

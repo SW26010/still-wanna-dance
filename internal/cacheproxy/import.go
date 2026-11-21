@@ -252,6 +252,9 @@ func (s *Server) importSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 		result = &ImportedVideo{ImportFile: snapshot, Destination: dest, MD5: key}
 		return nil
 	})
+	if result != nil {
+		s.notifyResourceAvailability(key)
+	}
 	return result, err
 }
 

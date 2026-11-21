@@ -214,19 +214,8 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 				}
 			}
 			if tc.changedAddress {
-				deadline := time.Now().Add(3 * time.Second)
-				for {
-					s.mu.Lock()
-					stopped := s.resourceUses[v.key] == nil && s.flights[v.key] == nil
-					s.mu.Unlock()
-					if stopped {
-						break
-					}
-					if time.Now().After(deadline) {
-						t.Fatal("changed resource resolution did not stop")
-					}
-					time.Sleep(5 * time.Millisecond)
-				}
+				// Allow another discovery pass while the old content remains pinned.
+				time.Sleep(1300 * time.Millisecond)
 				if calls.Load() != 2 {
 					t.Fatal("downloaded different content for existing usage", calls.Load())
 				}

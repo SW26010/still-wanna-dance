@@ -32,6 +32,8 @@ type sessionPlan struct {
 }
 
 type downloadSession struct {
+	addressCtx     context.Context
+	stopAddresses  context.CancelFunc
 	s              *Server
 	ctx            context.Context
 	v              video
@@ -50,6 +52,7 @@ type downloadSession struct {
 
 func newDownloadSession(s *Server, ctx context.Context, v video, f *flight) *downloadSession {
 	w := &downloadSession{s: s, ctx: ctx, v: v, f: f, wake: make(chan struct{}, 1), jobs: make(map[int64]*scheduledBlock)}
+	w.addressCtx, w.stopAddresses = context.WithCancel(ctx)
 	w.reads = s.scheduler.NewReadRequests(func(block int64) string { return downloadTaskKey(w.v.key, w.v.size, block) }, w.wake)
 	s.mu.Lock()
 	w.changes = s.watchResourceLocked(v.key)
@@ -82,7 +85,7 @@ func (w *downloadSession) run(ctx context.Context, p *blocksched.Progress, block
 	stop := context.AfterFunc(w.ctx, func() { cancel(context.Cause(w.ctx)) })
 	defer stop()
 	defer cancel(nil)
-	return blocksched.Result{Err: w.s.readRange(ctx, w.f, block, p.Ready, func() time.Time {
+	return blocksched.Result{Err: w.fetchBlock(ctx, block, p.Ready, func() time.Time {
 		return w.s.scheduler.TaskNeedBy(w.reads.Key(block))
 	})}
 }
@@ -117,6 +120,8 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 	w.s.mu.Lock()
 	w.sourceAt = w.s.refreshDownloadDeadlinesLocked(w.f, w.v.key, now, w.f.ranges.firstMissing)
 	plan, active := w.s.collectUsePlanLocked(w.v.key, now)
+	newLookup := w.f.addresses.pending
+	w.f.addresses.pending = false
 	// Projection still checks actual source exits/expiry at now. Cap live
 	// leases to this confirmation's fixed horizon; shorter handoffs retain
 	// their original deadlines and continue to contribute nextExpiry.
@@ -131,6 +136,9 @@ func (w *downloadSession) plan(now time.Time) (map[int64]blockUse, <-chan struct
 	}
 	changed := w.changes.changed
 	w.s.mu.Unlock()
+	if newLookup {
+		w.refreshAddresses(w.addressCtx, true)
+	}
 	requested := w.reads.Requested()
 	for block := range requested {
 		if _, ok := plan[block]; !ok {
@@ -312,6 +320,8 @@ func (w *downloadSession) reapCompleted() error {
 
 func (w *downloadSession) close(result error) error {
 	defer w.releaseResourceWatch()
+	w.stopAddresses()
+	defer w.f.addresses.wg.Wait()
 	w.reads.Close()
 	if errors.Is(result, errPreempted) {
 		w.s.preemptFlight(w.f, nil)

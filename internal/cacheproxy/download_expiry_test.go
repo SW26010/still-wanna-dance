@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -120,6 +122,49 @@ func TestReadableBlockDoesNotExpireGET(t *testing.T) {
 	})
 }
 
+func TestImportDuringUpstreamReadPreservesGETDeadline(t *testing.T) {
+	s, _ := setup(t, nil, func(c *Config) { c.CacheUnlimited = true })
+	v := parsedVideo(t, s, payload)
+	source := filepath.Join(t.TempDir(), "video.mp4")
+	if err := os.WriteFile(source, []byte(payload), 0600); err != nil {
+		t.Fatal(err)
+	}
+	reading, closed := make(chan int64, 1), make(chan int64, 1)
+	var upstream atomic.Int32
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			upstream.Add(1)
+			resp := fixtureRangeResponse(r, payload)
+			resp.Body = &continuingRangeBody{ctx: r.Context(), ready: reading, closed: closed}
+			return resp, nil
+		})}
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	done := make(chan *responseRecorder, 1)
+	go func() { done <- requestContext(ctx, s, http.MethodGet, videoURL(payload), nil) }()
+	receiveDemandEvent(t, reading)
+	if receipt, err := s.ImportVideo(t.Context(), source, map[string]bool{v.key: true}); err != nil || receipt == nil {
+		t.Fatal(receipt, err)
+	}
+	s.mu.Lock()
+	for d := range s.demands {
+		if d.key == v.key && d.playback && d.clock != nil {
+			d.clock.at = time.Now().Add(-sourceGrace)
+		}
+	}
+	s.notifyResourceChangedLocked(v.key)
+	s.mu.Unlock()
+	if w := receiveDemandEvent(t, done); w.Code != http.StatusGatewayTimeout || w.aborted {
+		t.Fatalf("GET awaiting the missing block: status=%d aborted=%v", w.Code, w.aborted)
+	}
+	receiveDemandEvent(t, closed)
+	assertResponse(t, requestContext(ctx, s, http.MethodGet, videoURL(payload), nil), http.StatusOK, payload)
+	if calls := upstream.Load(); calls != 1 {
+		t.Fatalf("GET after import contacted upstream again: %d total requests", calls)
+	}
+}
+
 func TestGETDeliversBlockStoredBetweenDeadlineAndReevaluation(t *testing.T) {
 	s, _ := setup(t, nil)
 	ready, closed := make(chan int64, 1), make(chan int64, 1)
@@ -178,22 +223,17 @@ func TestAddressRetryDeadlineFollowsFirstMissingBlock(t *testing.T) {
 		clock := &playbackClock{at: time.Now().Add(time.Second - sourceGrace), limit: w.v.size, media: mediaTiming{w.v.size, time.Minute}}
 		a, release := addTestDemand(t, s, context.WithValue(t.Context(), playbackClockKey{}, clock), w.v, true)
 		defer release()
-		a.flight = &flight{err: errUpstreamDownload, done: make(chan struct{})}
-		close(a.flight.done)
-		finishWait := s.watchRetryDeadline(a)
-		defer finishWait()
-		// A later flight makes only the first block locally readable.
-		s.retentionMu.Lock()
-		s.localResources = map[string]*localResource{w.v.key: w.f.ranges}
-		s.retentionMu.Unlock()
+		a.flight = w.f
 		w.f.ranges.finish(0)
-		time.Sleep(time.Until(sourceDeadline(clock.ready(0))))
-		synctest.Wait()
+		s.mu.Lock()
+		s.refreshDownloadDeadlinesLocked(w.f, w.v.key, sourceDeadline(clock.ready(0)), w.f.ranges.firstMissing)
+		s.mu.Unlock()
 		if a.ctx.Err() != nil {
 			t.Fatal("readable first block expired the GET", context.Cause(a.ctx))
 		}
-		time.Sleep(time.Until(sourceDeadline(clock.ready(rangeBlockSize))))
-		synctest.Wait()
+		s.mu.Lock()
+		s.refreshDownloadDeadlinesLocked(w.f, w.v.key, sourceDeadline(clock.ready(rangeBlockSize)), w.f.ranges.firstMissing)
+		s.mu.Unlock()
 		if !errors.Is(context.Cause(a.ctx), errSourceExpired) {
 			t.Fatal("waiting GET missed the next missing block's deadline", context.Cause(a.ctx))
 		}

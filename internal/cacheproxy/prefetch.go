@@ -67,7 +67,7 @@ func (s *Server) PrefetchDownload(ctx context.Context, id int64) (string, error)
 		}
 		return "", fmt.Errorf("%w: %w", errPlaybackUpstream, err)
 	}
-	return s.prefetchVideo(withPreparationScope(ctx), v)
+	return s.prefetchFillVideo(withPreparationScope(ctx), v, strconv.FormatInt(id, 10), check)
 }
 
 func (s *Server) prefetchResource(ctx context.Context, key, id string) (string, error) {
@@ -86,33 +86,31 @@ func (s *Server) prefetchResource(ctx context.Context, key, id string) (string, 
 	if err != nil {
 		return "", err
 	}
-	selected, _ := ctx.Value(fillCandidatesKey{}).(map[string]struct{})
-	p := previewRequest{target: target, addresses: &resourceAddresses{key: key, size: target.Size, preferredSong: id, batch: true, selectedSongs: selected}}
+	p := previewRequest{target: target, addresses: batchAddressLookup(ctx, video{key: key, size: target.Size}, id)}
 	v, err := p.video(ctx, s)
-	if err == nil && !v.localOnly && v.host == "" {
-		v, err = p.nextAddress(ctx, s, video{})
+	if err != nil {
+		return "", err
 	}
-	if err == nil && id != "" && ctx.Err() == nil && p.addresses.preferredCheck == nil {
+	if id != "" && ctx.Err() == nil && p.addresses.preferredCheck == nil {
 		// Reusing an address must still refresh the explicit song's mapping.
-		// The download keeps v; retries reuse this result even after the shared
-		// in-flight query has finished and left the server's lookup table.
+		// The download keeps v. Its first lookup reuses this check even if
+		// it has already left the server's in-flight table.
 		var finishCheck func()
 		p.addresses.preferredCheck, finishCheck = s.startBatchPlaybackCheck(ctx, id, v)
 		defer finishCheck()
 	}
-	for err == nil {
-		// The API lookup alias is never the caller's song identity.
-		v.songID = id
-		source, downloadErr := s.prefetchVideo(ctx, v)
-		if downloadErr == nil || !errors.Is(downloadErr, errUpstreamDownload) || ctx.Err() != nil {
-			return source, downloadErr
-		}
-		v, err = p.nextAddress(ctx, s, v)
-		if err != nil {
-			return source, errors.Join(downloadErr, err)
-		}
-	}
-	return "", err
+	return s.prefetchFillVideo(ctx, v, id, p.addresses.preferredCheck)
+}
+
+func (s *Server) prefetchFillVideo(ctx context.Context, v video, id string, check *playbackCheck) (string, error) {
+	v.lookup = batchAddressLookup(ctx, v, id)
+	v.songID, v.refresh = id, check
+	return s.prefetchVideo(ctx, v)
+}
+
+func batchAddressLookup(ctx context.Context, v video, id string) *resourceAddresses {
+	selected, _ := ctx.Value(fillCandidatesKey{}).(map[string]struct{})
+	return &resourceAddresses{key: v.key, size: v.size, preferredSong: id, batch: true, selectedSongs: selected}
 }
 
 func (s *Server) prefetch(ctx context.Context, id, target string) (source string, resultErr error) {
@@ -203,20 +201,20 @@ retryDownload:
 	case <-ctx.Done():
 		return "", context.Cause(ctx)
 	case <-f.done:
-		if errors.Is(f.err, errPreempted) {
-			goto retryDownload
-		}
-		if errors.Is(f.err, ErrNotRetained) && demand.queue {
-			return "TEMP", nil
-		}
-		if f.err != nil {
-			return f.source, f.err
-		}
-		if id != "" {
-			if err := s.recordSongVideo(ctx, id, v); err != nil {
-				return f.source, err
-			}
-		}
-		return f.source, nil
 	}
+	if errors.Is(f.err, errPreempted) {
+		goto retryDownload
+	}
+	if errors.Is(f.err, ErrNotRetained) && demand.queue {
+		return "TEMP", nil
+	}
+	if f.err != nil {
+		return f.source, f.err
+	}
+	if id != "" {
+		if err := s.recordSongVideo(ctx, id, v); err != nil {
+			return f.source, err
+		}
+	}
+	return f.source, nil
 }

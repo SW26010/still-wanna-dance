@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"still-wanna-dance/internal/upstreamrequest"
 )
 
 type resourceTransportFunc func(*http.Request) (*http.Response, error)
@@ -50,7 +48,7 @@ func TestResourceDownloadUsesMeasuredChannelsWithoutChangingURL(t *testing.T) {
 	}
 }
 
-func TestResourceFallbackIsBounded(t *testing.T) {
+func TestResourceRetriesAllCandidatesUntilCanceled(t *testing.T) {
 	s, _ := setup(t, func(http.ResponseWriter, *http.Request) { t.Error("unmeasured fallback") })
 	calls := 0
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
@@ -60,10 +58,12 @@ func TestResourceFallbackIsBounded(t *testing.T) {
 		}
 		return out
 	}
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err == nil {
+	ctx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+	defer cancel()
+	if _, err := s.Prefetch(ctx, videoURL(payload)); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("expected failure")
 	}
-	if calls != upstreamrequest.MaxOperationCandidates {
+	if calls != 20 {
 		t.Fatal("unbounded fallback", calls)
 	}
 }

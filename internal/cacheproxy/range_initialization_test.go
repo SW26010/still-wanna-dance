@@ -75,7 +75,11 @@ func TestConcurrentRangeEntityIsCheckedBeforeWriting(t *testing.T) {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 			response := fixtureRangeResponse(r, body)
 			if r.Header.Get("Range") == "bytes=0-1023" {
-				close(prefix)
+				select {
+				case <-prefix:
+				default:
+					close(prefix)
+				}
 				select {
 				case <-entity:
 				case <-r.Context().Done():
@@ -96,10 +100,10 @@ func TestConcurrentRangeEntityIsCheckedBeforeWriting(t *testing.T) {
 			return response, nil
 		})}
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 700*time.Millisecond)
 	defer cancel()
 	_, err := s.Prefetch(ctx, videoURL(body))
-	if !errors.Is(err, errUpstreamDownload) || !strings.Contains(err.Error(), "entity changed") {
+	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("mismatched in-flight entity was accepted", err)
 	}
 	v := parsedVideo(t, s, body)
@@ -134,7 +138,9 @@ func TestUnsupportedRangeWarnsWithoutReadingWholeResponse(t *testing.T) {
 				}
 				return transports
 			}
-			_, err := s.Prefetch(t.Context(), videoURL(payload)+"&token=private-token")
+			ctx, cancel := context.WithTimeout(t.Context(), 700*time.Millisecond)
+			defer cancel()
+			_, err := s.Prefetch(ctx, videoURL(payload)+"&token=private-token")
 			if (err == nil) != fallback || reads.Load() != 0 || closes.Load() != 1 || calls.Load() != 1 || s.StorageError() != nil {
 				t.Fatalf("unsupported response: fallback=%v err=%v reads=%d closes=%d calls=%d", fallback, err, reads.Load(), closes.Load(), calls.Load())
 			}

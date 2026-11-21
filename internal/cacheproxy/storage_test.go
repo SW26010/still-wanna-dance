@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeTestFile(t *testing.T, path, body string) {
@@ -128,7 +129,9 @@ func TestActiveReaderAndFailedDownloadKeepExistingVersion(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer f.Close()
-			_, err = s.PrefetchSong(context.Background(), "1344", videoURL(payload))
+			ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+			defer cancel()
+			_, err = s.PrefetchSong(ctx, "1344", videoURL(payload))
 			if (err != nil) != fail {
 				t.Fatal(err)
 			}

@@ -165,9 +165,9 @@ func (f *DownloadFill) fillResources(ctx context.Context, references map[string]
 	return jobs, nil
 }
 
-// Run uses the existing song preparation adapter, forwarding an opaque context
-// through all retries. The adapter returns the engine's PrefetchDownload result;
-// fixed-resource preparation already owns bounded alias and URL retries.
+// Run passes the caller's context through song preparation and download.
+// An admitted fill keeps retrying unavailable upstreams until it completes or
+// the caller cancels. Other sources can continue the same shared download.
 // Progress callbacks are serialized and contain only newly settled failures;
 // counters and failure slices are independent copies. The callback must
 // return promptly. Run waits for every started preparation and retry budget

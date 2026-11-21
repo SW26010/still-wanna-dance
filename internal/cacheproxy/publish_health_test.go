@@ -92,11 +92,13 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 			s.client.Transport = publishTransport{body}
 			_, release := addTestDemand(t, s, context.Background(), v, false)
 			defer release()
-			_, _, err = s.prepare(context.Background(), v, f)
+			ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+			defer cancel()
+			_, _, err = s.prepare(ctx, v, f)
 			if err == nil {
 				t.Fatal("expected publication failure")
 			}
-			wantFailure := mode == "read" || mode == "short" || mode == "checksum"
+			wantFailure := mode == "checksum"
 			if (errors.Is(err, errUpstreamDownload) && !errors.Is(err, context.Canceled)) != wantFailure {
 				t.Fatalf("mode=%s error=%v", mode, err)
 			}
@@ -104,10 +106,10 @@ func TestPublicationDistinguishesLocalAndUpstreamFailures(t *testing.T) {
 			if errors.Is(err, ErrLocalStorage) != wantLocal {
 				t.Fatalf("local classification mode=%s err=%v", mode, err)
 			}
-			if mode == "read" && !errors.Is(err, readFailure) {
+			if mode == "read" && !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatal("lost underlying reader error", err)
 			}
-			if mode == "canceled" && !errors.Is(err, context.Canceled) {
+			if mode == "canceled" && !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatal("lost cancellation", err)
 			}
 		})

@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -79,30 +78,9 @@ func TestResourceFallbackIncludesRangeValidationAndBody(t *testing.T) {
 	}
 }
 
-func TestResourceBodyFallbackStopsAtCandidateBudget(t *testing.T) {
-	s, _ := setup(t, nil)
-	var calls atomic.Int32
-	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
-		var transports []http.RoundTripper
-		for range 8 {
-			transports = append(transports, resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
-				calls.Add(1)
-				return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 0-35/36"}}, ContentLength: 36, Body: io.NopCloser(bytes.NewReader([]byte("short"))), Request: r}, nil
-			}))
-		}
-		return transports
-	}
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err == nil {
-		t.Fatal("short content accepted")
-	}
-	if calls.Load() != upstreamrequest.MaxOperationCandidates {
-		t.Fatalf("attempts=%d", calls.Load())
-	}
-}
-
 func TestResourceBodyFallbackReachesLastCandidate(t *testing.T) {
 	s, _ := setup(t, nil)
-	var calls [upstreamrequest.MaxOperationCandidates]atomic.Int32
+	var calls [upstreamrequest.MaxOperationCandidates + 2]atomic.Int32
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		var transports []http.RoundTripper
 		for i := range calls {
@@ -138,12 +116,12 @@ func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
 		{"initial-redirects", 6, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var cancel context.CancelFunc
 			var calls atomic.Int32
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				n := int(calls.Add(1))
 				if n >= 40 {
-					cancel() // Safety stop if changing URLs still bypasses the budget.
+					t.Error("redirect chain escaped its hop limit")
+					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				if n <= tc.initialRedirects || (n-tc.initialRedirects)%2 == 0 {
@@ -167,14 +145,11 @@ func TestRangeRedirectBudgetSurvivesBodyFailures(t *testing.T) {
 				}
 				return channels
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			_, err := s.Prefetch(ctx, videoURL(payload))
-			// Follow five redirects, then reject the sixth. Initial redirects
-			// must still count after the first response reaches the block reader.
+			// Inspect one redirect chain independently of later business retry passes.
+			err := readFixtureBlock(t, s, videoURL(payload), time.Time{})
 			want := int32(12 - tc.initialRedirects)
-			if ctx.Err() != nil || !errors.Is(err, errTooManyVideoRedirects) || calls.Load() != want {
-				t.Fatalf("calls=%d want=%d caller_error=%v error=%v", calls.Load(), want, ctx.Err(), err)
+			if !errors.Is(err, errTooManyVideoRedirects) || calls.Load() != want {
+				t.Fatalf("calls=%d want=%d err=%v", calls.Load(), want, err)
 			}
 		})
 	}
@@ -191,7 +166,7 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 			final := original + "&hop=5"
 			var originalFirst, originalBackup, finalFirst, finalBackup atomic.Int32
 			var entered atomic.Int32
-			allStarted, prefixRead := make(chan struct{}), make(chan struct{})
+			allStarted := make(chan struct{})
 			s.cfg.ResourceTransports = func(target string) []http.RoundTripper {
 				var transports []http.RoundTripper
 				for channel := range 2 {
@@ -229,15 +204,12 @@ func TestLaterRangeRedirectRetriesFinalEndpoint(t *testing.T) {
 									t.Error("redirect forwarded a foreign entity condition")
 								}
 								if start == 0 {
-									resp.Body = &rangeCountedBody{ReadCloser: resp.Body, closed: sync.OnceFunc(func() { close(prefixRead) })}
 									return resp, nil
 								}
-								// Establish the final endpoint's entity before injecting
-								// an independent body/validation failure there.
-								select {
-								case <-prefixRead:
-								case <-r.Context().Done():
-									return nil, r.Context().Err()
+								// Other blocks already reached B through A. Publishing B
+								// must preserve their cursor and B's own entity condition.
+								if err := waitForSharedAddress(r.Context(), s, r.URL.Query().Get("e"), final); err != nil {
+									return nil, err
 								}
 								switch failure {
 								case "short":

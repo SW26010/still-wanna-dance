@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStorageV9Constraints(t *testing.T) {
@@ -112,7 +113,9 @@ func TestPrefetchDoesNotPersistRequestHistory(t *testing.T) {
 					w.WriteHeader(status)
 				}
 			})
-			_, err := s.PrefetchSong(t.Context(), "42", videoURL(payload))
+			ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+			defer cancel()
+			_, err := s.PrefetchSong(ctx, "42", videoURL(payload))
 			if (err == nil) != (status == 200) {
 				t.Fatalf("prefetch status %d: %v", status, err)
 			}

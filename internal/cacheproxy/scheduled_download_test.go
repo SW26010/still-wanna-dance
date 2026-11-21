@@ -25,7 +25,7 @@ func testSession(t *testing.T) (*downloadSession, *Server) {
 
 func testSessionServer(t *testing.T, cfg blocksched.Config) *Server {
 	t.Helper()
-	s := &Server{Store: &Store{}, cfg: Config{BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
+	s := &Server{Store: &Store{}, cfg: Config{DownloadTimeout: time.Hour, BlockSize: DefaultBlockSize, LocalProtectionGrace: DefaultLocalProtectionGrace}, capacityChanged: make(chan struct{}), scheduler: blocksched.New(cfg)}
 	s.client, s.requests = &http.Client{}, new(requestActivity)
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() })}

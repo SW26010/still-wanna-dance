@@ -7,13 +7,149 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestSharedDownloadUsesLiveLookupScopes(t *testing.T) {
+	for _, fillFirst := range []bool{true, false} {
+		t.Run(fmt.Sprintf("fill_first=%v", fillFirst), func(t *testing.T) {
+			started, releaseOrigin := make(chan struct{}), make(chan struct{})
+			var oldCalls atomic.Int32
+			enter := sync.OnceFunc(func() { close(started) })
+			old := videoURL(payload)
+			var outside atomic.Int32
+			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Has("fresh") {
+					serveFixtureContent(w, r, payload)
+					return
+				}
+				enter()
+				select {
+				case <-releaseOrigin:
+					if oldCalls.Add(1) > 1 && !fillFirst {
+						serveFixtureContent(w, r, payload)
+						return
+					}
+					w.WriteHeader(http.StatusGone)
+				case <-r.Context().Done():
+				}
+			}, func(cfg *Config) {
+				cfg.CacheUnlimited = true
+				cfg.ResolvePlayback = func(ctx context.Context, id string) (string, error) {
+					if id == "1" {
+						return old, nil
+					}
+					outside.Add(1)
+					return old + "&fresh=1", nil
+				}
+			})
+			key := videoKey(payload)
+			fillTestCatalog(t, s, []CatalogSong{{ID: 1, MD5: key}, {ID: 2, MD5: key}})
+			if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, URL: old, Node: "cf"}); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), 6*time.Second)
+			defer cancel()
+			fillDone := make(chan error, 1)
+			fill := func() {
+				scope := context.WithValue(withExpectedMD5(ctx, key), fillCandidatesKey{}, map[string]struct{}{"1": {}})
+				_, err := s.PrefetchDownload(scope, 1)
+				fillDone <- err
+			}
+			getCtx, stopGET := context.WithCancel(ctx)
+			defer stopGET()
+			resp := httptest.NewRecorder()
+			getDone := make(chan struct{})
+			get := func() {
+				defer close(getDone)
+				defer func() {
+					if p := recover(); p != nil && p != http.ErrAbortHandler {
+						panic(p)
+					}
+				}()
+				s.ServeHTTP(resp, httptest.NewRequestWithContext(getCtx, http.MethodGet, old, nil))
+			}
+			first, second := get, fill
+			if fillFirst {
+				first, second = fill, get
+			}
+			go first()
+			select {
+			case <-started:
+			case <-ctx.Done():
+				t.Fatal("first source did not start")
+			}
+			go second()
+			for {
+				s.mu.Lock()
+				joined := 0
+				for d := range s.demands {
+					if d.flight != nil && d.key == key {
+						joined++
+					}
+				}
+				s.mu.Unlock()
+				if joined == 2 {
+					break
+				}
+				select {
+				case <-time.After(time.Millisecond):
+				case <-ctx.Done():
+					t.Fatal("sources did not join")
+				}
+			}
+			if !fillFirst {
+				stopGET()
+				<-getDone
+			}
+			close(releaseOrigin)
+			err := <-fillDone
+			if err != nil {
+				t.Fatalf("fill failed after recovery: %v", err)
+			}
+			if fillFirst {
+				<-getDone
+				if outside.Load() == 0 || resp.Code != 200 || resp.Body.String() != payload {
+					t.Fatalf("GET failed to use its alias: calls=%d status=%d body=%q", outside.Load(), resp.Code, resp.Body.String())
+				}
+			} else if outside.Load() != 0 {
+				t.Fatalf("withdrawn GET queried %d outside aliases", outside.Load())
+			}
+		})
+	}
+}
+
+func TestKnownSizeFillSearchesEachAliasOnce(t *testing.T) {
+	var mu sync.Mutex
+	calls := make(map[string]int)
+	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
+		cfg.CacheUnlimited = true
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			mu.Lock()
+			calls[id]++
+			mu.Unlock()
+			if id == "2" {
+				return videoURL(payload), nil
+			}
+			return videoURL("another version"), nil
+		}
+	})
+	target := seedPreview(t, s, payload)
+	fillTestCatalog(t, s, []CatalogSong{{ID: 1, MD5: target.Resource}, {ID: 2, MD5: target.Resource}})
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, err := s.PrefetchDownload(withExpectedMD5(ctx, target.Resource), 1)
+	mu.Lock()
+	defer mu.Unlock()
+	if err != nil || calls["1"] != 1 || calls["2"] != 1 {
+		t.Fatalf("calls=%v err=%v", calls, err)
+	}
+}
 
 func TestDownloadFillSharesPendingLookupWithPreview(t *testing.T) {
 	for _, tc := range []struct {
@@ -573,7 +709,7 @@ func TestFixedResourceFillReusesCompletedCheck(t *testing.T) {
 			if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 1, Node: "cf", URL: oldURL}); err != nil {
 				t.Fatal(err)
 			}
-			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 			result := make(chan error, 1)
 			go func() {
@@ -601,14 +737,39 @@ func TestFixedResourceFillReusesCompletedCheck(t *testing.T) {
 				}
 			}
 			releaseDownload()
+			if changed {
+				// The cached API check belongs to the first pass. A different MD5
+				// leaves the original download pending until its caller cancels.
+				s.mu.Lock()
+				a := &s.flights[target.Resource].addresses
+				s.mu.Unlock()
+				for {
+					a.mu.Lock()
+					updated := a.changed
+					finishedPass := false
+					for _, lookup := range a.lookups {
+						finishedPass = finishedPass || lookup.refresh.delay > 0
+					}
+					a.mu.Unlock()
+					if finishedPass {
+						break
+					}
+					select {
+					case <-updated:
+					case <-ctx.Done():
+						t.Fatal("first lookup pass did not finish")
+					}
+				}
+				cancel()
+			}
 			var err error
 			select {
 			case err = <-result:
-			case <-ctx.Done():
+			case <-time.After(2 * time.Second):
 				t.Fatal("fixed-resource retry did not finish")
 			}
 			if changed {
-				if err == nil || !strings.Contains(err.Error(), "当前资源") || freshDownloads.Load() != 0 {
+				if !errors.Is(err, context.Canceled) || freshDownloads.Load() != 0 {
 					t.Fatal("fixed target followed new mapping", err, freshDownloads.Load())
 				}
 			} else {

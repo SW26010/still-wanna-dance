@@ -64,7 +64,9 @@ func TestParallelRangeEntityValidation(t *testing.T) {
 					http.StatusPartialContent, string(body[:rangeBlockSize]))
 				s.wg.Wait()
 			}
-			_, err := s.Prefetch(context.Background(), target)
+			ctx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+			defer cancel()
+			_, err := s.Prefetch(ctx, target)
 			wantFailure := strings.HasPrefix(validator, "strong-") && validator != "strong-stable" || validator == "weak-corrupt"
 			if (err != nil) != wantFailure {
 				t.Fatalf("failure=%v, want %v", err, wantFailure)
@@ -125,6 +127,7 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 			fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end)
 			if start >= 2*rangeBlockSize {
 				readers.Wait()
+				s.cancel()
 				return nil, errors.New("controlled failed block")
 			}
 			return &http.Response{StatusCode: 206,
@@ -168,7 +171,7 @@ func TestParallelRangeFailureJoinsClosingPeersBeforeCleanup(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("flight did not finish cleanup")
 	}
-	if f.err == nil || !strings.Contains(f.err.Error(), "controlled failed block") {
+	if !errors.Is(f.err, context.Canceled) {
 		t.Fatal("root failure lost", f.err)
 	}
 	if _, err := os.Stat(s.cfg.videoFile(v.key)); !os.IsNotExist(err) {

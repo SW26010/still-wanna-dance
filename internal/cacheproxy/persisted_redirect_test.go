@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
@@ -47,12 +48,14 @@ func TestPersistedURLRedirectTrustIsTaskScoped(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer s.Close()
-			w := request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil)
+			ctx, cancel := context.WithTimeout(t.Context(), 600*time.Millisecond)
+			defer cancel()
+			w := requestContext(ctx, s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil)
 			if kind == "same-host" {
 				if w.Code != 200 || w.Body.String() != payload || bodies.Load() != 1 {
 					t.Fatalf("status=%d bodies=%d", w.Code, bodies.Load())
 				}
-			} else if w.Code != 502 || bodies.Load() != 0 {
+			} else if w.Code < 400 || ctx.Err() == nil || bodies.Load() != 0 {
 				t.Fatalf("untrusted redirect accepted: status=%d bodies=%d", w.Code, bodies.Load())
 			}
 			if w := request(s, "GET", target, nil); w.Code != 400 {

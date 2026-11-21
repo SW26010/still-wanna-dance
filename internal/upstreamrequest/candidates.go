@@ -32,8 +32,7 @@ type Candidate struct {
 	Transport          http.RoundTripper
 }
 
-// MaxOperationCandidates is the shared API/download attempt budget. The caller
-// ranks and selects paths before the download layer snapshots this bounded list.
+// MaxOperationCandidates bounds metadata requests and one-shot diagnostics.
 const MaxOperationCandidates = 6
 
 // Candidates may populate cold DNS state. A discovery error may accompany still

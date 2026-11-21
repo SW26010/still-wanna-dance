@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"strconv"
 	"sync"
 	"time"
 
@@ -83,10 +84,11 @@ func (s *Server) trackBlockRoute(id useBlockID, a *networkAttempt, release func(
 	}
 }
 
-func (a *networkAttempt) finish(bytes int64, networkErr error) {
+func (a *networkAttempt) finish(bytes int64, networkErr error) time.Time {
 	if a == nil {
-		return
+		return time.Time{}
 	}
+	var sharedUntil time.Time
 	a.once.Do(func() {
 		key := a.key
 		key.ip = a.currentIP()
@@ -103,9 +105,13 @@ func (a *networkAttempt) finish(bytes int64, networkErr error) {
 			bytes, failed = 0, false
 		}
 		elapsed := time.Since(a.started)
-		a.history.record(key, a.source, bytes, failed, elapsed)
+		until := a.history.record(key, a.source, bytes, failed, elapsed)
+		if a.reserved || !a.history.direct {
+			sharedUntil = until
+		}
 		slog.Debug("资源线路尝试结束", "event_name", "resource_route_attempt", "host", key.host, "ip", key.ip, "source", a.source, "bytes", bytes, "network_failure", failed, "duration", elapsed)
 	})
+	return sharedUntil
 }
 
 // Called once by the owner after closing the response (or a failed dial).
@@ -131,11 +137,17 @@ func (a *networkAttempt) release() {
 func (s *Server) nextResourceAttempt(r *http.Request, attempts *resourceAttempts, c *resourceCandidates) (http.RoundTripper, int, *networkAttempt, bool) {
 	h := s.cfg.DownloadRoutes
 	if h == nil {
-		index, ok := c.attempts.Next()
-		if !ok {
-			return nil, 0, nil, false
+		for {
+			index, ok := c.attempts.Next()
+			if !ok {
+				return nil, 0, nil, false
+			}
+			c.path = strconv.Itoa(index)
+			if attempts.pathCooling(c, c.path) {
+				continue
+			}
+			return c.transports[index], len(c.transports) - index, nil, true
 		}
-		return c.transports[index], len(c.transports) - index, nil, true
 	}
 	limit := upstreamrequest.MaxOperationCandidates
 	source := "download"
@@ -143,7 +155,7 @@ func (s *Server) nextResourceAttempt(r *http.Request, attempts *resourceAttempts
 		limit = 1
 		source = "sample"
 	}
-	if c.used >= limit {
+	if !attempts.persistent && c.used >= limit {
 		return nil, 0, nil, false
 	}
 	a := &networkAttempt{history: h, parent: r.Context(), key: routeKey{host: r.URL.Hostname()}, source: source, sharedSampleDeadline: attempts.redirects > 0}
@@ -165,25 +177,30 @@ func (s *Server) nextResourceAttempt(r *http.Request, attempts *resourceAttempts
 			}
 		}
 		tried := c.tried
+
 		if c.used == 1 && c.attempts.RetrySingle && len(current) == 1 && current[0].IP == c.soleIP {
 			tried = nil // The sole pinned path gets the existing single body retry.
 		}
-		selected, count, valid := h.choose(a.key.host, current, tried, need, attempts.sample)
+		selected, count, valid := h.chooseForAttempt(a.key.host, current, tried, need, attempts, c)
 		if !valid && c.used == 0 {
 			discovery, cancel := context.WithTimeout(r.Context(), discoveryBudget(r.Context(), s.cfg.DownloadTimeout, attempts.fallbackDeadline))
 			current, _ = s.cfg.DirectCandidates.Candidates(discovery, r.URL.String())
 			cancel()
 			a.sharedSampleDeadline = true
-			selected, count, valid = h.choose(a.key.host, current, tried, need, attempts.sample)
+			selected, count, valid = h.chooseForAttempt(a.key.host, current, tried, need, attempts, c)
 		}
 		if count > 0 {
 			if c.used == 0 && count == 1 {
 				c.soleIP = selected.IP
 			}
 			c.tried[selected.IP] = true
-			remaining := min(count, limit-c.used)
+			remaining := count
+			if !attempts.persistent {
+				remaining = min(count, limit-c.used)
+			}
 			c.used++
 			a.key.ip, a.reserved, a.started = selected.IP, true, time.Now()
+			c.path = selected.IP
 			return selected.Transport, remaining, a, true
 		}
 		if valid && attempts.sample == nil { // All valid candidates for this download were tried.
@@ -194,8 +211,21 @@ func (s *Server) nextResourceAttempt(r *http.Request, attempts *resourceAttempts
 		c.err = ErrNoSampleDue
 		return nil, 0, nil, false
 	}
+	if attempts.persistent && !h.direct {
+		h.mu.Lock()
+		until := h.entry(a.key, time.Now()).retry.until
+		h.mu.Unlock()
+		if until.After(time.Now()) {
+			attempts.retryAt = earlier(attempts.retryAt, until)
+			return nil, 0, nil, false
+		}
+	}
 	retryOrdinaryBody := c.used == 1 && c.attempts.RetrySingle && c.ordinary != nil
 	if c.ordinary != nil && !retryOrdinaryBody {
+		return nil, 0, nil, false
+	}
+	c.path = ""
+	if attempts.pathCooling(c, c.path) {
 		return nil, 0, nil, false
 	}
 	c.used++

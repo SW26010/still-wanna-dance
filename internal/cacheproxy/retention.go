@@ -193,6 +193,13 @@ func (s *Server) retentionLoop() {
 	}
 }
 
+func (s *Server) hasPublishedVideo(v video) bool {
+	s.retentionMu.Lock()
+	defer s.retentionMu.Unlock()
+	item, ok := s.retained[v.key]
+	return ok && item.size == v.size
+}
+
 // Called under retentionMu for every successful publication/removal, including
 // superseded and invalid files. Changes made during a scan override its results.
 func (s *Server) retainVideoLocked(key string, item *retainedVideo) {

@@ -190,7 +190,13 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 	if mode == "foreground" {
 		assertResponse(t, request(s, "GET", target, nil), 200, string(body))
 	} else {
-		go func() { _, err := s.Prefetch(ctx, target); finished <- err }()
+		retryCtx := ctx
+		if mode == "changed-entity" || mode == "wrong-range" {
+			var stop context.CancelFunc
+			retryCtx, stop = context.WithTimeout(ctx, 650*time.Millisecond)
+			defer stop()
+		}
+		go func() { _, err := s.Prefetch(retryCtx, target); finished <- err }()
 		err := receiveDemandEvent(t, finished)
 		if mode == "changed-entity" || mode == "wrong-range" || mode == "corrupt" {
 			if err == nil {

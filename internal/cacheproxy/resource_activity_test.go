@@ -1,6 +1,7 @@
 package cacheproxy
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -28,7 +29,9 @@ func TestResourceLoadHookCoversDownloadAndReleasesOnFailure(t *testing.T) {
 				active.Add(1)
 				return func() { active.Add(-1); released <- struct{}{} }
 			}
-			w := request(s, "GET", videoURL(payload), nil)
+			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+			defer cancel()
+			w := requestContext(ctx, s, "GET", videoURL(payload), nil)
 			if !fail {
 				assertResponse(t, w, 200, payload)
 			}

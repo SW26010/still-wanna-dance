@@ -29,7 +29,10 @@ func seedPreview(t *testing.T, s *Server, body string) PreviewTarget {
 	return PreviewTarget{Resource: key, Size: int64(len(body)), AdmissionSongID: "1"}
 }
 
-func previewResponse(s *Server, target PreviewTarget, headers map[string]string) (w *responseRecorder) {
+func previewResponse(s *Server, target PreviewTarget, headers map[string]string) *responseRecorder {
+	return previewResponseContext(context.Background(), s, target, headers)
+}
+func previewResponseContext(ctx context.Context, s *Server, target PreviewTarget, headers map[string]string) (w *responseRecorder) {
 	w = &responseRecorder{ResponseRecorder: httptest.NewRecorder()}
 	defer func() {
 		if crash := recover(); crash != nil {
@@ -39,7 +42,7 @@ func previewResponse(s *Server, target PreviewTarget, headers map[string]string)
 			w.aborted = true
 		}
 	}()
-	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/media/preview", nil)
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/media/preview", nil).WithContext(ctx)
 	for k, v := range headers {
 		r.Header.Set(k, v)
 	}
@@ -265,8 +268,10 @@ func TestPreviewRejectsNewVersionWithoutInvalidatingObservation(t *testing.T) {
 		}
 	})
 	target := seedPreview(t, s, payload)
-	w := previewResponse(s, target, nil)
-	if w.Code < 400 || downloads.Load() != 0 {
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	w := previewResponseContext(ctx, s, target, nil)
+	if w.Code < 400 || ctx.Err() == nil || downloads.Load() != 0 {
 		t.Fatal(w.Code, w.Body.String(), downloads.Load())
 	}
 	urls, err := s.Store.SongURLs(context.Background(), 1, "")

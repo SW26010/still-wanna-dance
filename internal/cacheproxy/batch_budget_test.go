@@ -145,7 +145,7 @@ func TestBatchBudgetFailedPrefetchReleasesReservation(t *testing.T) {
 			fail.Store(true)
 			s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if fail.Load() {
-					http.Error(w, "controlled upstream failure", http.StatusServiceUnavailable)
+					serveFixtureContent(w, r, nextPayload) // Wrong content MD5 fails publication and releases its reservation.
 					return
 				}
 				serveFixtureContent(w, r, nextPayload)

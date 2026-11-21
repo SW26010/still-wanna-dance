@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"net/url"
 	"sync"
 	"time"
@@ -15,11 +14,17 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
+var errReselectSource = errors.New("reselect block source before retry")
+
 var errTooManyVideoRedirects = errors.New("too many video redirects")
 
+func (v video) requestURL() string {
+	u := url.URL{Scheme: upstreamrequest.ResourceScheme, Host: v.host, Path: v.path, RawQuery: v.query}
+	return u.String()
+}
+
 func (s *Server) routeRequest(ctx context.Context, v video) (*http.Request, error) {
-	u := &url.URL{Scheme: upstreamrequest.ResourceScheme, Host: v.host, Path: v.path, RawQuery: v.query}
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, v.requestURL(), nil)
 	if err == nil {
 		r.Host = v.host
 		r.Header.Set("Accept-Encoding", "identity")
@@ -70,6 +75,12 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 		if attempts.redirects >= 5 {
 			return nil, errTooManyVideoRedirects
 		}
+		if attempts.urlRetryAt != nil {
+			if until := attempts.urlRetryAt(v); until.After(time.Now()) {
+				attempts.retryAt = earlier(attempts.retryAt, until)
+				return nil, errors.New("redirect target is in backoff")
+			}
+		}
 		attempts.redirects++
 		next.Header = r.Header.Clone()
 		// Entity conditions belong to the original target URI. The final
@@ -79,12 +90,14 @@ func (s *Server) videoResponse(r *http.Request, original video, attempts *resour
 	}
 }
 
-// Each target keeps an independent attempt budget across redirects and body retries.
+// Each target keeps its own candidate cursor during one pass.
 type resourceCandidates struct {
+	target     string
+	path       string // Current candidate identity within this URL.
 	transports []http.RoundTripper
 	attempts   *upstreamrequest.Attempts
 	err        error
-	done       bool
+	more       bool // The selected path had untried siblings at selection time.
 	tried      map[string]bool
 	used       int
 	soleIP     string
@@ -93,9 +106,15 @@ type resourceCandidates struct {
 type resourceAttempts struct {
 	block            useBlockID // zero for requests outside a business block
 	targets          map[string]*resourceCandidates
-	redirects        int // Shared across all retries of this block execution.
+	redirects        int // Shared by one pass over this URL and its targets.
 	fallbackDeadline func() time.Time
 	needBy           func() time.Time
+	paths            map[methodKey]retryBackoff // Block-owned availability of individual URL/transport pairs.
+	retryAt          time.Time                  // Earliest time a cooling method may be retried.
+	persistent       bool
+	reselectSource   func() bool           // Yield to the block executor when another source is ready.
+	urlRetryAt       func(video) time.Time // Block-owned URL cooldown, including redirect targets.
+	rejectedURL      string                // Validated endpoint that returned 403, 404 or 410.
 	sample           *blockSample
 }
 
@@ -122,8 +141,11 @@ func (s *Server) candidates(r *http.Request, attempts *resourceAttempts) *resour
 	if len(transports) == 0 {
 		transports = []http.RoundTripper{s.client.Transport}
 	}
-	transports = append([]http.RoundTripper(nil), transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]...)
-	candidates := &resourceCandidates{transports: transports, attempts: upstreamrequest.NewAttempts(len(transports))}
+	if !attempts.persistent {
+		transports = transports[:min(upstreamrequest.MaxOperationCandidates, len(transports))]
+	}
+	transports = append([]http.RoundTripper(nil), transports...)
+	candidates := &resourceCandidates{target: key, transports: transports, attempts: upstreamrequest.NewAttempts(len(transports))}
 	attempts.targets[key] = candidates
 	return candidates
 }
@@ -172,9 +194,12 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}
+		if candidates.err != nil && attempts.reselectSource != nil && attempts.reselectSource() {
+			return nil, errReselectSource
+		}
 		transport, remaining, observation, ok := s.nextResourceAttempt(r, attempts, candidates)
+		candidates.more = ok && remaining > 1
 		if !ok {
-			candidates.done = true
 			if candidates.err != nil && len(failures) == 0 {
 				failures = append(failures, candidates.err)
 			}
@@ -216,7 +241,10 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 			resp.Body = &resourceBody{ReadCloser: resp.Body, cancel: cancel, ctx: ctx, stopBody: stopBody, closeBody: closeBody, attempts: attempts, release: release, observation: observation}
 			return resp, nil
 		}
-		observation.finish(0, upstreamrequest.AttemptError(ctx, err))
+		sharedUntil := observation.finish(0, upstreamrequest.AttemptError(ctx, err))
+		if r.Context().Err() == nil {
+			attempts.failedPath(candidates, sharedUntil)
+		}
 		if err == nil {
 			err = fmt.Errorf("upstream status %d", resp.StatusCode)
 			resp.Body.Close()

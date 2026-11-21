@@ -154,21 +154,18 @@ func TestLateLocalReaderPreservesNewFlightAddress(t *testing.T) {
 }
 
 func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
-	for _, status := range []int{http.StatusPartialContent} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
+	for _, binding := range []string{"first endpoint", "later endpoint"} {
+		t.Run(binding, func(t *testing.T) {
 			body := bytes.Repeat([]byte("x"), int(2*rangeBlockSize))
 			oldURL := videoURL(string(body))
 			currentURL := strings.Replace(oldURL, "play.udon.dance", "nya.xin.moe", 1)
+			var firstBlockRequests atomic.Int32
 			s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 				if tag := r.Header.Get("If-Match"); tag != "" && tag != `"current-endpoint"` {
 					w.WriteHeader(http.StatusPreconditionFailed)
 					return
 				}
 				w.Header().Set("ETag", `"current-endpoint"`)
-				if status == http.StatusOK {
-					serveFixtureContent(w, r, string(body))
-					return
-				}
 				var start, end int64
 				if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &start, &end); err != nil {
 					t.Error(err)
@@ -178,16 +175,26 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 				if start > 0 && r.Header.Get("If-Match") != `"current-endpoint"` {
 					t.Error("new ranges lost the current endpoint's entity condition")
 				}
+				if start == 0 {
+					firstBlockRequests.Add(1)
+				}
 				w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(body)))
 				w.WriteHeader(http.StatusPartialContent)
 				w.Write(body[start : end+1])
 			})
 			v := parsedVideo(t, s, string(body))
 			local, err := s.newLocalResource(v, s.cfg.Logger)
-			if err == nil {
-				err = local.acceptEntity(v, `"old-endpoint"`)
-			}
 			if err != nil {
+				t.Fatal(err)
+			}
+			tagged := v
+			if binding == "later endpoint" {
+				if err := local.acceptEntity(v, ""); err != nil {
+					t.Fatal(err)
+				}
+				tagged.query += "&endpoint=alternate"
+			}
+			if err := local.acceptEntity(tagged, `"old-endpoint"`); err != nil {
 				t.Fatal(err)
 			}
 			if err := local.storage.store(0, body[:rangeBlockSize]); err != nil {
@@ -206,6 +213,9 @@ func TestChangedAddressDoesNotReuseStrongValidator(t *testing.T) {
 			assertResponse(t, request(s, http.MethodGet, currentURL, map[string]string{"Range": fmt.Sprintf("bytes=0-%d", rangeBlockSize-1)}),
 				http.StatusPartialContent, string(body[:rangeBlockSize]))
 			s.wg.Wait()
+			if firstBlockRequests.Load() != 1 {
+				t.Fatal("new session did not fetch the first block from the current endpoint")
+			}
 			if _, err := s.Prefetch(ctx, currentURL); err != nil {
 				t.Fatal("same content at the current address failed", err)
 			}
@@ -292,11 +302,8 @@ func TestChangedRedirectTargetDoesNotKeepOldStrongValidator(t *testing.T) {
 				}
 				s.wg.Wait()
 			}
-			firstStatus := 206
-			if tc.finalEntry {
-				firstStatus = 502
-			} // Reject the old bound entity before accepting new blocks.
-			if statuses[0] != firstStatus || statuses[1] != 206 || stale.Load() != 0 {
+
+			if statuses[0] != 206 || statuses[1] != 206 || stale.Load() != 0 {
 				t.Fatalf("changed redirect retained a foreign entity condition: statuses=%v stale=%d", statuses, stale.Load())
 			}
 			got := make([]byte, blockSize)
@@ -304,7 +311,7 @@ func TestChangedRedirectTargetDoesNotKeepOldStrongValidator(t *testing.T) {
 				t.Fatal("retiring entity broke old reader", err)
 			}
 			reader.Close()
-			if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+			if _, err := os.Stat(oldPath); !tc.finalEntry && !os.IsNotExist(err) {
 				t.Fatal("old entity blocks were not released", err)
 			}
 		})

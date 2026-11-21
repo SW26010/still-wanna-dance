@@ -48,14 +48,16 @@ func TestSongRetryKeepsSelectedResource(t *testing.T) {
 				if err := s.ObserveSongURL(t.Context(), PlaybackObservation{SongID: 42, Node: "cf", URL: videoURL(payload) + "&address=old"}); err != nil {
 					t.Fatal(err)
 				}
+				ctx, cancel := context.WithTimeout(t.Context(), 850*time.Millisecond)
+				defer cancel()
 				if queued {
-					_, err := s.PrefetchPlayback(t.Context(), 42)
+					_, err := s.PrefetchPlayback(ctx, 42)
 					if (err != nil) != changed {
 						t.Fatalf("changed=%v, prefetch error=%v", changed, err)
 					}
 				} else {
-					w := request(s, http.MethodGet, "http://api.udon.dance/Api/Songs/play?id=42", nil)
-					if changed && w.Code == http.StatusOK || !changed && (w.Code != http.StatusOK || w.Body.String() != body) {
+					w := requestContext(ctx, s, http.MethodGet, "http://api.udon.dance/Api/Songs/play?id=42", nil)
+					if changed && w.Code < 400 || !changed && (w.Code != http.StatusOK || w.Body.String() != body) {
 						t.Fatalf("changed=%v, status=%d body=%q", changed, w.Code, w.Body.String())
 					}
 				}
@@ -117,13 +119,14 @@ func TestGETAddressRetryUsesPublishedResource(t *testing.T) {
 func testGETAddressRetryDeadline(t *testing.T, publishDuringLookup bool) {
 	t.Helper()
 	oldRequest := make(chan struct{})
+	markOld := sync.OnceFunc(func() { close(oldRequest) })
 	deny := make(chan struct{})
 	failOld := sync.OnceFunc(func() { close(deny) })
 	defer failOld()
 	freshRequests := atomic.Int32{}
 	s, _ := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("address") == "old" {
-			close(oldRequest)
+			markOld()
 			<-deny
 			http.Error(w, "denied", http.StatusForbidden)
 			return
@@ -164,7 +167,9 @@ func testGETAddressRetryDeadline(t *testing.T, publishDuringLookup bool) {
 		t.Fatal("GET did not retain its source while replacing the address")
 	}
 	failOld()
-	receiveDemandEvent(t, old.flight.done)
+	s.mu.Lock()
+	s.notifyResourceChangedLocked(old.key)
+	s.mu.Unlock()
 	queryCtx := receiveDemandEvent(t, resolving)
 	if old.ctx.Err() != nil {
 		t.Fatal("GET expired before the replacement address wait")
@@ -230,8 +235,8 @@ func TestResourceAddressEligibilityPrecedesCandidateLimit(t *testing.T) {
 		}
 	}
 	addresses := resourceAddresses{key: v.key, size: v.size}
-	got, err := addresses.next(t.Context(), s, video{})
-	if err != nil || !got.savedAddress || got.songID != "" || queries.Load() != 0 {
+	got, err := addresses.next(t.Context(), s)
+	if err != nil || got.requestURL() != v.requestURL() || got.songID != "" || queries.Load() != 0 {
 		t.Fatalf("address=%+v queries=%d err=%v", got, queries.Load(), err)
 	}
 	all, err := s.Store.ResourceURLs(t.Context(), v.key, "", 40)
@@ -241,10 +246,10 @@ func TestResourceAddressEligibilityPrecedesCandidateLimit(t *testing.T) {
 }
 
 func TestResourcePreviewKeepsAliasLimit(t *testing.T) {
-	var queries atomic.Int32
+	var queries []string
 	s, _ := setup(t, nil, func(cfg *Config) {
-		cfg.ResolvePlayback = func(context.Context, string) (string, error) {
-			queries.Add(1)
+		cfg.ResolvePlayback = func(_ context.Context, id string) (string, error) {
+			queries = append(queries, id)
 			return "", errors.New("unavailable")
 		}
 	})
@@ -257,9 +262,16 @@ func TestResourcePreviewKeepsAliasLimit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	addresses := resourceAddresses{key: target.Resource, size: target.Size}
-	if _, err := addresses.next(t.Context(), s, video{}); err == nil || queries.Load() != 8 {
-		t.Fatalf("queries=%d error=%v", queries.Load(), err)
+	for _, tc := range []struct {
+		preferred string
+		count     int
+	}{{"", 8}, {"1", 8}, {"42", 9}} {
+		queries = nil
+		addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: tc.preferred}
+		_, err := addresses.next(t.Context(), s)
+		if err == nil || len(queries) != tc.count || tc.preferred != "" && queries[0] != tc.preferred {
+			t.Fatalf("preferred=%q queries=%v error=%v", tc.preferred, queries, err)
+		}
 	}
 }
 
@@ -297,7 +309,7 @@ func TestResourceAddressServerStopBeforeWaiterCancellation(t *testing.T) {
 			// The server-owned lookup can finish before its asynchronous cancellation
 			// reaches the request waiting for a fixed resource's address.
 			addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: "1", preferredCheck: check, batch: true}
-			_, err := addresses.next(t.Context(), s, video{})
+			_, err := addresses.next(t.Context(), s)
 			if !errors.Is(err, context.Canceled) || storageFailure && (!errors.Is(err, ErrLocalStorage) || errors.Is(err, errPlaybackUpstream)) {
 				t.Fatalf("resource address error = %v", err)
 			}
@@ -326,7 +338,7 @@ func TestResourceAddressRetriesAfterIndependentLookupFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			addresses := resourceAddresses{key: target.Resource, size: target.Size, preferredSong: "1", batch: true}
-			v, err := addresses.next(t.Context(), s, video{})
+			v, err := addresses.next(t.Context(), s)
 			if err != nil || v.key != target.Resource || len(calls) != 2 || <-calls != "1" || <-calls != "2" {
 				t.Fatalf("address=%+v lookup calls=%d error=%v", v, len(calls), err)
 			}

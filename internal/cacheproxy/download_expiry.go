@@ -49,46 +49,6 @@ func (d *downloadDemand) expireGET() {
 	d.cancel(errSourceExpired)
 }
 
-// While the old flight is gone, the address lookup can outlive the GET. Wake
-// this source at its first missing block's deadline, even without a new flight.
-// The returned function settles the same deadline when the lookup finishes.
-func (s *Server) watchRetryDeadline(d *downloadDemand) func() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	check := func() time.Time {
-		if !s.demands[d] || d.flight == nil || d.ctx.Err() != nil || s.closed {
-			return time.Time{}
-		}
-		next := s.refreshGETDeadlinesLocked(d.key, time.Now(), s.failedGETDeadlineLocked)
-		if d.ctx.Err() != nil {
-			return time.Time{}
-		}
-		return next
-	}
-	var timer *time.Timer
-	if at := check(); !at.IsZero() {
-		timer = time.AfterFunc(time.Until(at), func() {
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			if timer != nil {
-				if next := check(); !next.IsZero() {
-					timer.Reset(time.Until(next))
-				}
-			}
-		})
-	}
-	return func() error {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if timer != nil {
-			timer.Stop()
-			timer = nil
-		}
-		check()
-		return context.Cause(d.ctx)
-	}
-}
-
 func (s *Server) refreshDownloadDeadlinesLocked(f *flight, key string, now time.Time, firstMissing func(useSpan) (int64, bool)) time.Time {
 	return s.refreshGETDeadlinesLocked(key, now, func(d *downloadDemand) time.Time {
 		switch d.flight {

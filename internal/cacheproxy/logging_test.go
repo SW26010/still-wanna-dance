@@ -358,7 +358,9 @@ func TestLogsMalformedLocationIsRedacted(t *testing.T) {
 		w.Header().Set("Location", "http://nya.xin.moe/%zz?token=secret")
 		w.WriteHeader(http.StatusFound)
 	})
-	if _, err := s.Prefetch(context.Background(), videoURL(payload)); err == nil {
+	ctx, cancel := context.WithTimeout(t.Context(), 400*time.Millisecond)
+	defer cancel()
+	if _, err := s.Prefetch(ctx, videoURL(payload)); err == nil {
 		t.Fatal("expected redirect failure")
 	}
 	s.Close()
@@ -368,7 +370,7 @@ func TestLogsMalformedLocationIsRedacted(t *testing.T) {
 		if strings.Contains(string(encoded), "secret") || strings.Contains(string(encoded), "token") {
 			t.Fatalf("Location leaked: %s", encoded)
 		}
-		if r["event_name"] == "cache_task_failed" {
+		if r["event_name"] == "block_retry" {
 			failureLogged = true
 		}
 	}

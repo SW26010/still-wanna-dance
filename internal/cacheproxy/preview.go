@@ -128,7 +128,7 @@ func (p *previewRequest) video(ctx context.Context, s *Server) (video, error) {
 		p.target.Size = v.size
 	}
 	if v.size <= 0 {
-		return p.nextAddress(ctx, s, v)
+		return p.nextAddress(ctx, s)
 	}
 	if v.size > s.cfg.MaxFileBytes {
 		return video{}, errors.New("资源超过允许的大小")
@@ -136,6 +136,7 @@ func (p *previewRequest) video(ctx context.Context, s *Server) (video, error) {
 	if info, err := os.Stat(s.cfg.videoFile(v.key)); err == nil && info.Mode().IsRegular() && info.Size() == v.size {
 		v.localOnly = true
 	}
+	v.lookup = &resourceAddresses{key: v.key, size: v.size, preferredSong: p.target.AdmissionSongID}
 	return v, nil
 }
 
@@ -154,13 +155,14 @@ func (s *Server) previewRoute(v video) (video, bool) {
 	return video{}, false
 }
 
-func (p *previewRequest) nextAddress(ctx context.Context, s *Server, failed video) (video, error) {
+func (p *previewRequest) nextAddress(ctx context.Context, s *Server) (video, error) {
 	if p.addresses == nil {
 		p.addresses = &resourceAddresses{key: p.target.Resource, size: p.target.Size, preferredSong: p.target.AdmissionSongID}
 	}
-	v, err := p.addresses.next(ctx, s, failed)
+	v, err := p.addresses.next(ctx, s)
 	if err == nil {
 		p.target.Size = v.size
+		v.lookup = &resourceAddresses{key: v.key, size: v.size, preferredSong: p.target.AdmissionSongID}
 	}
 	return v, err
 }

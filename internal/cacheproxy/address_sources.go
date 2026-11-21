@@ -16,6 +16,8 @@ var errPlaybackUpstream = errors.New("playback upstream failed")
 
 const playbackResolveBudget = 30 * time.Second
 
+var errAddressLookupBudget = fmt.Errorf("address lookup budget exhausted: %w", context.DeadlineExceeded)
+
 type playbackCheck struct {
 	done      chan struct{}
 	v         video
@@ -99,6 +101,11 @@ func (s *Server) startPlaybackCheckOwned(caller context.Context, id string, loca
 	key := id
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := caller.Err(); err != nil {
+		check := &playbackCheck{done: make(chan struct{}), err: err}
+		close(check.done)
+		return check, false
+	}
 	if check := s.playbackChecks[key]; check != nil {
 		check.exclusive = false
 		return check, false
@@ -181,9 +188,15 @@ func (s *Server) loadSongAddress(ctx context.Context, canonical string) (video, 
 	if err != nil {
 		return video{}, err
 	}
-	candidates := &songCandidates{remaining: urls, tried: make(map[string]bool)}
-	if v, ok := s.nextSongCandidate(ctx, canonical, check, candidates); ok {
-		return v, nil
+	for _, saved := range urls {
+		r, err := http.NewRequestWithContext(ctx, http.MethodGet, saved.URL, nil)
+		if err != nil {
+			continue
+		}
+		if v, err := s.parseResolved(r); err == nil {
+			v.songID, v.refresh = canonical, check
+			return v, nil
+		}
 	}
 	return s.waitSongQuery(ctx, check)
 }
@@ -210,63 +223,12 @@ func (s *Server) waitSongQuery(ctx context.Context, check *playbackCheck) (video
 	return check.v, nil
 }
 
-// Candidates belong to one load, including all pre-body retries.
-type songCandidates struct {
-	remaining []MediaURL
-	tried     map[string]bool
-}
-
-func videoAddress(v video) string { return v.host + v.path + "?" + v.query }
-func (s *Server) nextSongCandidate(ctx context.Context, id string, check *playbackCheck, candidates *songCandidates) (video, bool) {
-	for len(candidates.remaining) > 0 {
-		o := candidates.remaining[0]
-		candidates.remaining = candidates.remaining[1:]
-		r, err := http.NewRequestWithContext(ctx, http.MethodGet, o.URL, nil)
-		if err != nil {
-			continue
-		}
-		v, err := s.parseResolved(r)
-		if err != nil || candidates.tried[videoAddress(v)] {
-			continue
-		}
-		candidates.tried[videoAddress(v)] = true
-		v.songID, v.savedAddress, v.refresh, v.candidates = id, true, check, candidates
-		return v, true
-	}
-	return video{}, false
-}
-func (s *Server) retrySongURL(ctx context.Context, v video) (video, error) {
-	if v.candidates != nil {
-		for {
-			next, ok := s.nextSongCandidate(ctx, v.songID, v.refresh, v.candidates)
-			if !ok {
-				break
-			}
-			if next.key == v.key && next.size == v.size {
-				return next, nil
-			}
-		}
-	}
-	fresh, err := s.waitSongQuery(ctx, v.refresh)
-	if err != nil {
-		return video{}, err
-	}
-	if fresh.key != v.key || fresh.size != v.size {
-		return video{}, errors.New("refreshed URL does not match selected resource")
-	}
-	if videoAddress(fresh) == videoAddress(v) || (v.candidates != nil && v.candidates.tried[videoAddress(fresh)]) {
-		return video{}, errors.New("refreshed URL matches failed address")
-	}
-	return fresh, nil
-}
-
 // Resource address lookup is request-owned and pinned to content identity.
 // Lookup aliases never become the download's song identity.
 type resourceAddresses struct {
 	key            string
 	preferredSong  string
 	preferredCheck *playbackCheck
-	preferredTried bool
 	batch          bool
 	selectedSongs  map[string]struct{}
 	size           int64
@@ -275,8 +237,18 @@ type resourceAddresses struct {
 	tried          map[string]bool
 }
 
-func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (video, error) {
+func (p *resourceAddresses) next(ctx context.Context, s *Server) (video, error) {
+	var first video
+	err := p.search(ctx, s, func(v video) bool {
+		first = v
+		return false
+	})
+	return first, err
+}
 
+// One continuous search shares its ordinary API budget across all yielded URLs.
+// Returning false from yield leaves the cursor at the next candidate.
+func (p *resourceAddresses) search(ctx context.Context, s *Server, yield func(video) bool) error {
 	if p.tried == nil {
 		p.tried = make(map[string]bool)
 		// Known addresses are selected by resource, independent of the API
@@ -284,7 +256,7 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		var err error
 		p.candidates, err = s.Store.mediaURLs(ctx, "media", p.key, playbacksource.Nodes(), 32, nil)
 		if err != nil {
-			return video{}, err
+			return err
 		}
 		// Preview and retry keep their existing alias bound. Batch fill tries
 		// each candidate within the caller's lifetime and per-query timeout.
@@ -294,9 +266,17 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		}
 		songs, err := s.Store.resourceSongs(ctx, p.key, p.preferredSong, limit)
 		if err != nil {
-			return video{}, err
+			return err
+		}
+		// Keep the explicit song first even if its mapping has since changed.
+		_, selected := p.selectedSongs[p.preferredSong]
+		if p.preferredSong != "" && (p.preferredCheck != nil || p.selectedSongs == nil || selected) {
+			p.songs = append(p.songs, p.preferredSong)
 		}
 		for _, id := range songs {
+			if id == p.preferredSong {
+				continue
+			}
 			if p.selectedSongs != nil {
 				if _, ok := p.selectedSongs[id]; !ok {
 					continue
@@ -304,19 +284,16 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 			}
 			p.songs = append(p.songs, id)
 		}
-
 	}
-	if failed.host != "" {
-		p.tried[videoAddress(failed)] = true
-	}
-	accept := func(v video) (video, bool) {
-		if v.key != p.key || p.size > 0 && v.size != p.size || p.tried[videoAddress(v)] {
-			return video{}, false
+	visit := func(v video) bool {
+		key := v.requestURL()
+		if v.key != p.key || p.size > 0 && v.size != p.size || p.tried[key] {
+			return true
 		}
-		p.tried[videoAddress(v)] = true
+		p.tried[key] = true
 		p.size = v.size
-		v.songID, v.refresh, v.candidates = "", nil, nil
-		return v, true
+		v.songID, v.refresh = "", nil
+		return yield(v)
 	}
 	for len(p.candidates) > 0 {
 		o := p.candidates[0]
@@ -326,32 +303,21 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 			continue
 		}
 		v, err := s.parseResolved(r)
-		if err == nil {
-			v.savedAddress = true
-			if v, ok := accept(v); ok {
-				return v, nil
-			}
+		if err == nil && !visit(v) {
+			return nil
 		}
 	}
 	if !p.batch {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, playbackResolveBudget)
+		ctx, cancel = context.WithTimeoutCause(ctx, playbackResolveBudget, errAddressLookupBudget)
 		defer cancel()
 	}
-	// The preferred query belongs to this request even if its song no longer
-	// appears in the current mapping snapshot.
-	if p.preferredCheck != nil && !p.preferredTried {
-		p.songs = append([]string{p.preferredSong}, p.songs...)
-	}
 	for len(p.songs) > 0 {
+		if err := ctx.Err(); err != nil {
+			return context.Cause(ctx)
+		}
 		id := p.songs[0]
 		p.songs = p.songs[1:]
-		if id == p.preferredSong {
-			if p.preferredTried {
-				continue
-			}
-			p.preferredTried = true
-		}
 		lookupCtx := ctx
 		cancelLookup := func() {}
 		if p.batch {
@@ -373,23 +339,21 @@ func (p *resourceAddresses) next(ctx context.Context, s *Server, failed video) (
 		finishCheck()
 		cancelLookup()
 		if errors.Is(err, ErrLocalStorage) {
-			return video{}, err
+			return err
 		}
 		if ctx.Err() != nil {
-			return video{}, ctx.Err()
+			return context.Cause(ctx)
 		}
 		// The server-owned check may stop before server cancellation reaches
 		// the request's asynchronously canceled context.
 		if err := s.ctx.Err(); err != nil {
-			return video{}, err
+			return err
 		}
-		if err == nil {
-			if v, ok := accept(v); ok {
-				return v, nil
-			}
+		if err == nil && !visit(v) {
+			return nil
 		}
 		// A valid URL for a newer version remains valid evidence. It is simply
 		// not eligible for this pinned resource; never reject or switch to it.
 	}
-	return video{}, fmt.Errorf("%w: 当前资源没有可用地址或可解析的歌曲关联，请更新曲库后重试", errPlaybackUpstream)
+	return fmt.Errorf("%w: 当前资源没有可用地址或可解析的歌曲关联，请更新曲库后重试", errPlaybackUpstream)
 }

@@ -3,7 +3,6 @@ package cacheproxy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"still-wanna-dance/internal/applog"
@@ -60,20 +59,10 @@ func (s *Server) PrefetchPlayback(ctx context.Context, id int64) (string, error)
 		preparationAdmitted(ctx)
 		return "HIT", nil
 	}
-	for {
-		if err := s.refreshQueueResourceTiming(ctx, v); err != nil {
-			return "", err
-		}
-		source, err := s.prefetchVideo(ctx, v)
-		if err == nil || !v.savedAddress || !errors.Is(err, errUpstreamDownload) || ctx.Err() != nil {
-			return source, err
-		}
-		fresh, fallbackErr := s.retrySongURL(ctx, v)
-		if fallbackErr != nil {
-			return source, errors.Join(err, fmt.Errorf("saved URL refresh: %w", fallbackErr))
-		}
-		v = fresh
+	if err := s.refreshQueueResourceTiming(ctx, v); err != nil {
+		return "", err
 	}
+	return s.prefetchVideo(ctx, v)
 }
 
 // PrefetchQueuePlayback captures source identity before asynchronous resolution.

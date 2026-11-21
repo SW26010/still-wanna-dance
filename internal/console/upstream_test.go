@@ -87,10 +87,18 @@ func TestPrefetchOnlyUsesCFEntry(t *testing.T) {
 				t.Fatal(err)
 			}
 			mu.Lock()
-			got := strings.Join(nodes, ",")
+			got := append([]string(nil), nodes...)
 			mu.Unlock()
-			if got != "cf" {
-				t.Fatalf("queried nodes=%s; want only cf", got)
+			if len(got) == 0 {
+				t.Fatal("no playback lookup")
+			}
+			for _, node := range got {
+				if node != "cf" {
+					t.Fatalf("queried nodes=%v; want only cf", got)
+				}
+			}
+			if failure != "status" && failure != "timeout" && len(got) != 1 {
+				t.Fatalf("unexpected lookups: %v", got)
 			}
 			if !wantErr && source != "MISS" {
 				t.Fatal(source)

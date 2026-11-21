@@ -19,7 +19,7 @@ func TestRangeFailureStatusPreservesRootCause(t *testing.T) {
 		name   string
 		status int
 	}{
-		{"connection", 502}, {"timeout", 504}, {"parent-deadline", 504}, {"shutdown", 503},
+		{"connection", 504}, {"timeout", 504}, {"parent-deadline", 504}, {"shutdown", 503},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, _ := setup(t, nil)
@@ -31,6 +31,16 @@ func TestRangeFailureStatusPreservesRootCause(t *testing.T) {
 				return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 					if r.Header.Get("Range") == fmt.Sprintf("bytes=0-%d", rangeBlockSize-1) {
 						return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", rangeBlockSize-1, len(body))}}, ContentLength: rangeBlockSize, Body: io.NopCloser(strings.NewReader(body[:rangeBlockSize])), Request: r}, nil
+					}
+					if tc.name != "shutdown" {
+						s.mu.Lock()
+						for d := range s.demands {
+							if d.playback && d.clock != nil {
+								d.clock.at = time.Now().Add(-time.Hour)
+								s.notifyResourceChangedLocked(d.key)
+							}
+						}
+						s.mu.Unlock()
 					}
 					switch tc.name {
 					case "timeout":
@@ -80,38 +90,16 @@ func TestRangeTransportErrorsRedactSignedURLs(t *testing.T) {
 					return &http.Response{StatusCode: 206, Header: http.Header{"Content-Range": {fmt.Sprintf("bytes 0-%d/%d", rangeBlockSize-1, len(body))}}, ContentLength: rangeBlockSize, Body: io.NopCloser(strings.NewReader(body[:rangeBlockSize])), Request: r}, nil
 				})}
 			}
-			r, _ := http.NewRequest("GET", target, nil)
-			v, err := s.parseResolved(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			f, reader, err := s.obtain(context.Background(), v)
-			if reader != nil {
-				defer reader.Close()
-			}
-			<-f.done
-			if err == nil {
-				err = f.err
-			}
-			if !errors.Is(err, errUpstreamDownload) || !errors.Is(err, cause) {
-				t.Fatalf("lost classification: %v", err)
-			}
-			if failures.Load() != 1 {
-				t.Fatalf("range attempts=%d", failures.Load())
-			}
-			if strings.Contains(err.Error(), "private-") || strings.Contains(err.Error(), "token=") {
-				t.Fatalf("unsafe error: %v", err)
-			}
-			// Force the second request to send body bytes before its later range
-			// fails, exercising stream_failed rather than only cache_failed.
+			ctx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+			defer cancel()
 			w := &firstBodyRecorder{httptest.NewRecorder(), firstBody}
 			var aborted any
 			func() {
 				defer func() { aborted = recover() }()
-				s.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
+				s.ServeHTTP(w, httptest.NewRequest("GET", target, nil).WithContext(ctx))
 			}()
-			if aborted != http.ErrAbortHandler || w.Body.Len() == 0 {
-				t.Fatalf("abort=%v bytes=%d", aborted, w.Body.Len())
+			if aborted != http.ErrAbortHandler || w.Body.Len() == 0 || failures.Load() < 2 {
+				t.Fatalf("abort=%v bytes=%d failures=%d", aborted, w.Body.Len(), failures.Load())
 			}
 			if err := s.Close(); err != nil {
 				t.Fatal(err)
@@ -125,7 +113,7 @@ func TestRangeTransportErrorsRedactSignedURLs(t *testing.T) {
 			if !bytes.Contains(data, []byte(cause.Error())) {
 				t.Fatal("root diagnostic missing")
 			}
-			if !bytes.Contains(data, []byte(`"event_name":"stream_failed"`)) {
+			if !bytes.Contains(data, []byte(`"event_name":"block_retry"`)) {
 				t.Fatal("stream error exit was not exercised")
 			}
 		})

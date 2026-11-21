@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestHTTPOriginUsesIndependentDialAndPublicName(t *testing.T) {
@@ -71,7 +72,7 @@ func TestUpstreamDialFailureNeverFallsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if _, err = s.Prefetch(context.Background(), videoURL(payload)); err == nil || !strings.Contains(err.Error(), sentinel.Error()) {
+	if err = readFixtureBlock(t, s, videoURL(payload), time.Time{}); err == nil || !strings.Contains(err.Error(), sentinel.Error()) {
 		t.Fatal(err)
 	}
 	if calls.Load() != 1 {
@@ -137,8 +138,8 @@ func TestVideoRedirectRejectsChangedContentAndForeignHosts(t *testing.T) {
 				w.Header().Set("Location", target)
 				w.WriteHeader(302)
 			})
-			if w := request(s, "GET", videoURL(payload), nil); w.Code != 502 {
-				t.Fatal(w.Code)
+			if err := readFixtureBlock(t, s, videoURL(payload), time.Time{}); err == nil {
+				t.Fatal("accepted invalid redirect")
 			}
 			if calls.Load() != 1 {
 				t.Fatal("followed invalid redirect", calls.Load())

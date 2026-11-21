@@ -130,6 +130,9 @@ func TestActiveSharedLifecycle(t *testing.T) {
 				unblock()
 			}
 			readers.Wait()
+			if outcome == "fail" {
+				first.cancel(context.Canceled)
+			}
 			if outcome == "close" {
 				s.Close()
 			} else {

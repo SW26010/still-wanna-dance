@@ -117,6 +117,9 @@ func TestPlayerOwnerUpstreamTimeoutAbortsNormalResponse(t *testing.T) {
 	}
 	w := &playerHeaderWriter{ResponseRecorder: httptest.NewRecorder(), flushed: sync.OnceFunc(func() { close(headers) })}
 	r := httptest.NewRequest("GET", videoURL(payload), nil)
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	r = r.WithContext(ctx)
 	r.Header.Set("User-Agent", "NSPlayer/12")
 	r.Header.Set("Range", "bytes=4-")
 	var crash any

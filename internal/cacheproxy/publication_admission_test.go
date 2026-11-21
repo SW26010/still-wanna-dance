@@ -232,6 +232,23 @@ func TestZeroBudgetStreamsWithoutWholeVideoVerificationOrPublication(t *testing.
 	assertNoPartial(t, cfg.tempDir())
 }
 
+func waitForPublicationReservation(t *testing.T, s *Server, key string) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		s.retentionMu.Lock()
+		ready := s.publications[key] != nil
+		s.retentionMu.Unlock()
+		if ready {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("publication did not reserve before waiting for local I/O")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 	s, cfg := setup(t, nil)
 	low, a := completedRangeFlight(t, s, payload)
@@ -242,29 +259,13 @@ func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 	for range cap(s.localChecks) {
 		s.localChecks <- struct{}{}
 	}
-	waitReserved := func(key string) {
-		t.Helper()
-		deadline := time.Now().Add(3 * time.Second)
-		for {
-			s.retentionMu.Lock()
-			ready := s.publications[key] != nil
-			s.retentionMu.Unlock()
-			if ready {
-				return
-			}
-			if time.Now().After(deadline) {
-				t.Fatal("publication did not reserve before waiting for local I/O")
-			}
-			time.Sleep(time.Millisecond)
-		}
-	}
 	first, second := make(chan error, 1), make(chan error, 1)
 	lowSnapshot := pinTestPublicationSnapshot(t, low)
 	highSnapshot := pinTestPublicationSnapshot(t, high)
 	go func() { first <- s.publishBlocks(context.Background(), cfg.videoFile(a.key), a, low, lowSnapshot) }()
-	waitReserved(a.key)
+	waitForPublicationReservation(t, s, a.key)
 	go func() { second <- s.publishBlocks(context.Background(), cfg.videoFile(b.key), b, high, highSnapshot) }()
-	waitReserved(b.key)
+	waitForPublicationReservation(t, s, b.key)
 	if err := receiveDemandEvent(t, first); !errors.Is(err, ErrNotRetained) {
 		t.Fatal("displaced waiter did not release without starting merge", err)
 	}
@@ -301,8 +302,20 @@ func TestCompleteDownloadKeepsSnapshotWhileWaitingToPublish(t *testing.T) {
 	})
 	defer unblock()
 
-	assertResponse(t, request(s, "GET", videoURL(body), nil), http.StatusOK, body)
 	v := parsedVideo(t, s, body)
+	// GET releases each block as it is delivered. Hold a preparation demand
+	// until the complete snapshot is reserved, even with zero protection grace.
+	_, release := addTestDemand(t, s, t.Context(), v, false)
+	defer release()
+	assertResponse(t, request(s, "GET", videoURL(body), nil), http.StatusOK, body)
+	waitForPublicationReservation(t, s, v.key)
+	release()
+	s.mu.Lock()
+	stillNeeded := s.useBlocks[useBlockID{v.key, 0}] != 0 || s.useBlocks[useBlockID{v.key, 1}] != 0
+	s.mu.Unlock()
+	if stillNeeded {
+		t.Fatal("fixture still protects downloaded blocks through a demand")
+	}
 	s.retentionMu.Lock()
 	local := s.localResources[v.key]
 	s.retentionMu.Unlock()

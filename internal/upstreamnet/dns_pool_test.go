@@ -107,6 +107,11 @@ func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 		}
 		defer pool.Close()
 
+		dnsActive := func() bool {
+			d.mu.Lock()
+			defer d.mu.Unlock()
+			return d.states[playUdonDanceHost] != nil
+		}
 		preset := pool.Current(target)[0]
 		request := func() error {
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
@@ -131,7 +136,7 @@ func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 		synctest.Wait()
-		if dnsDials.Load() != before || d.states[playUdonDanceHost] == nil {
+		if dnsDials.Load() != before || !dnsActive() {
 			t.Errorf("recent fixed request should keep DNS active at the original idle boundary without refreshing early")
 		}
 
@@ -140,7 +145,7 @@ func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 		if got := pool.Current(target); len(got) != len(playUdonDanceIPs) {
 			t.Errorf("idle DNS cleanup removed configured candidates: got %d", len(got))
 		}
-		if d.states[playUdonDanceHost] != nil || dnsDials.Load() != before {
+		if dnsActive() || dnsDials.Load() != before {
 			t.Fatal("reading candidates should leave DNS idle")
 		}
 		start = time.Now()

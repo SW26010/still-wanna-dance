@@ -30,10 +30,16 @@ func TestDNSRefreshIsAutomaticAndKeepsValidAnswers(t *testing.T) {
 			t.Fatal(err)
 		}
 		ips[0] = "mutated"
+		d.mu.Lock()
 		expires := d.cache["example.com"].until
+		d.mu.Unlock()
 		time.Sleep(10 * time.Second)
 		synctest.Wait()
-		if calls.Load() != 2 || d.states["example.com"].err == nil || d.cache["example.com"].until != expires {
+		d.mu.Lock()
+		state := d.states["example.com"]
+		keptTTL := state != nil && state.err != nil && d.cache["example.com"].until == expires
+		d.mu.Unlock()
+		if calls.Load() != 2 || !keptTTL {
 			t.Fatal("refresh failure lost original TTL")
 		}
 		ips, err = d.lookupShared(context.Background(), "example.com", query)
@@ -42,7 +48,10 @@ func TestDNSRefreshIsAutomaticAndKeepsValidAnswers(t *testing.T) {
 		}
 		time.Sleep(16 * time.Second)
 		synctest.Wait()
-		if time.Now().Before(d.cache["example.com"].until) {
+		d.mu.Lock()
+		until := d.cache["example.com"].until
+		d.mu.Unlock()
+		if time.Now().Before(until) {
 			t.Fatal("TTL extended by failure")
 		}
 		// Expired lookup cannot use stale data, even before the next background retry.
@@ -123,7 +132,10 @@ func TestDNSRefreshPolicyIdleAndProxyPause(t *testing.T) {
 		}
 		time.Sleep(time.Minute)
 		synctest.Wait()
-		if len(d.states) != 0 || len(d.cache) != 0 {
+		d.mu.Lock()
+		idle := len(d.states) == 0 && len(d.cache) == 0
+		d.mu.Unlock()
+		if !idle {
 			t.Fatal("idle state not reclaimed")
 		}
 		before := calls.Load()

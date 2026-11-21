@@ -112,7 +112,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func (c Config) prepareAhead() time.Duration {
+func (c *Config) prepareAhead() time.Duration {
 	if c.PrepareAhead == 0 {
 		return blocksched.DefaultPrepareAhead
 	}

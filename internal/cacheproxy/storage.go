@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 )
 
-func (c Config) videosDir() string  { return c.VideoDir }
-func (c Config) tempDir() string    { return c.Work.Path() }
-func (c Config) publishDir() string { return filepath.Join(c.VideoDir, ".swd-tmp") }
-func (c Config) videoFile(key string) string {
+func (c *Config) videosDir() string  { return c.VideoDir }
+func (c *Config) tempDir() string    { return c.Work.Path() }
+func (c *Config) publishDir() string { return filepath.Join(c.VideoDir, ".swd-tmp") }
+func (c *Config) videoFile(key string) string {
 	return filepath.Join(c.videosDir(), key+".mp4")
 }
 

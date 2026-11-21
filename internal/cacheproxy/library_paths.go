@@ -86,6 +86,6 @@ func CacheDirectory(path string) (string, error) {
 	return path, nil
 }
 
-func (c Config) libraryPaths() LibraryPaths {
+func (c *Config) libraryPaths() LibraryPaths {
 	return LibraryPaths{DatabasePath: c.Store.path, VideoDir: c.VideoDir}
 }

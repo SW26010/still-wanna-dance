@@ -250,8 +250,7 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	cfg.Logger.Info("资源引擎已就绪", "event_name", "cache_engine_ready", "removed_partials", cleaned, "max_local_validations", cfg.MaxLocalValidations,
 		"block_size_bytes", cfg.BlockSize,
 		"video_request_soft_limit", cfg.DownloadConcurrencySoftLimit, "download_grow_interval_ms", cfg.DownloadGrowInterval.Milliseconds(),
-		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "video_budget_bytes", cfg.VideoBudgetBytes, "cache_unlimited", cfg.CacheUnlimited,
-		"aggressive_block_reclamation", cfg.aggressiveBlockReclamation())
+		"download_timeout_ms", cfg.DownloadTimeout.Milliseconds(), "video_budget_bytes", cfg.VideoBudgetBytes, "cache_unlimited", cfg.CacheUnlimited)
 	failed = false
 	return s, nil
 }

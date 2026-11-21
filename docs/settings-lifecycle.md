@@ -36,7 +36,7 @@ WebUI 的 `useSettingsController` 统一持有草稿、变更比较、保存、�
 
 「忽略 VRCX 导入建议」是当前配置实例的界面选择，主配置以 `vrcxImportDismissed` 保存；不进入可编辑的 `settings` / `activeSettings`，不应用待重启设置，普通设置保存保留该字段。默认与完整生命周期统一见[历史初始化契约](song-catalog-design.md#vrcx-历史初始化)。
 
-块回收固定采用原默认策略，规则见[本地资源管理](download-resource-design.md#6-本地资源管理的存储与外部契约)。已移除 `aggressiveBlockReclamation` 配置，旧值（包括 on/off）读取时忽略，不进入设置 API 或运行快照；单纯读取不改写文件，在下一次成功写入配置时清除该字段及其大小写别名，保留其他未知字段，不增加配置版本或单独迁移流程。
+各视频存储预算模式共用块回收规则，见[本地资源管理](download-resource-design.md#6-本地资源管理的存储与外部契约)。已移除 `aggressiveBlockReclamation` 配置，旧值（包括 on/off）读取时忽略，不进入设置 API 或运行快照；单纯读取不改写文件，在下一次成功写入配置时清除该字段及其大小写别名，保留其他未知字段，不增加配置版本或单独迁移流程。
 
 「高级下载设置」中的下载并发软上限与增长间隔也遵循此规则。配置字段 `downloadConcurrencySoftLimit` 与 `downloadGrowIntervalMS` 缺失或 null 时分别使用 16 和 250，明确保存的 0 ms 表示关闭缓增；范围与执行语义见[下载并发](download-concurrency.md)。
 

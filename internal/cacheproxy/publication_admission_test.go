@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -45,7 +46,7 @@ func TestPublicationAdmissionRanksFullCacheBeforeMerge(t *testing.T) {
 				s.protection[oldKey] = map[int64]blockProtection{0: {start: time.Now()}}
 				s.retentionMu.Unlock()
 			}
-			err := s.publishBlocks(context.Background(), cfg.videoFile(v.key), v, f)
+			err := s.publishBlocks(context.Background(), cfg.videoFile(v.key), v, f, pinTestPublicationSnapshot(t, f))
 			if mode == "higher" {
 				if err != nil {
 					t.Fatal("full cache rejected a better replacement", err)
@@ -116,7 +117,7 @@ func TestFavoritePublicationSharesBudgetAndRankingWithEviction(t *testing.T) {
 			}
 			putRetained(t, cfg.videoFile(oldKey), len(payload))
 			setRetentionLimit(t, s, v.size)
-			err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f)
+			err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f, pinTestPublicationSnapshot(t, f))
 			if retain && err != nil || !retain && !errors.Is(err, ErrNotRetained) {
 				t.Fatal(err)
 			}
@@ -258,9 +259,11 @@ func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 		}
 	}
 	first, second := make(chan error, 1), make(chan error, 1)
-	go func() { first <- s.publishBlocks(context.Background(), cfg.videoFile(a.key), a, low) }()
+	lowSnapshot := pinTestPublicationSnapshot(t, low)
+	highSnapshot := pinTestPublicationSnapshot(t, high)
+	go func() { first <- s.publishBlocks(context.Background(), cfg.videoFile(a.key), a, low, lowSnapshot) }()
 	waitReserved(a.key)
-	go func() { second <- s.publishBlocks(context.Background(), cfg.videoFile(b.key), b, high) }()
+	go func() { second <- s.publishBlocks(context.Background(), cfg.videoFile(b.key), b, high, highSnapshot) }()
 	waitReserved(b.key)
 	if err := receiveDemandEvent(t, first); !errors.Is(err, ErrNotRetained) {
 		t.Fatal("displaced waiter did not release without starting merge", err)
@@ -276,6 +279,79 @@ func TestPublicationDisplacementCancelsWaitingMerge(t *testing.T) {
 	}
 	expectRetained(t, cfg.videoFile(a.key), false)
 	expectRetained(t, cfg.videoFile(b.key), true)
+}
+
+func TestCompleteDownloadKeepsSnapshotWhileWaitingToPublish(t *testing.T) {
+	body := strings.Repeat("r", int(2*rangeBlockSize))
+	s, cfg := setup(t, nil, func(c *Config) {
+		c.LocalProtectionGrace = 0
+		c.ResourceTransports = func(string) []http.RoundTripper {
+			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+				return fixtureRangeResponse(r, body), nil
+			})}
+		}
+	})
+	for range cap(s.localChecks) {
+		s.localChecks <- struct{}{}
+	}
+	unblock := sync.OnceFunc(func() {
+		for range cap(s.localChecks) {
+			<-s.localChecks
+		}
+	})
+	defer unblock()
+
+	assertResponse(t, request(s, "GET", videoURL(body), nil), http.StatusOK, body)
+	v := parsedVideo(t, s, body)
+	s.retentionMu.Lock()
+	local := s.localResources[v.key]
+	s.retentionMu.Unlock()
+	if local == nil {
+		t.Fatal("flight disappeared while publication was waiting")
+	}
+	s.reclaimLocalBlocks()
+	if !local.has(0) || !local.has(1) {
+		t.Fatal("reclamation detached blocks while the flight was publishing")
+	}
+	assertResponse(t, request(s, "GET", videoURL(body), map[string]string{"Range": "bytes=0-3"}),
+		http.StatusPartialContent, body[:4])
+	unblock()
+	s.wg.Wait()
+	got, err := os.ReadFile(cfg.videoFile(v.key))
+	if err != nil || string(got) != body {
+		t.Fatalf("publication lost its already-complete snapshot: %v (%d bytes)", err, len(got))
+	}
+	assertNoPartial(t, cfg.tempDir())
+}
+
+func TestSeparatedRangesCanFinishWithoutPublishing(t *testing.T) {
+	body := strings.Repeat("a", int(rangeBlockSize)) + "tail"
+	var calls atomic.Int32
+	s, cfg := setup(t, nil, func(c *Config) {
+		c.LocalProtectionGrace = 0
+		c.ResourceTransports = func(string) []http.RoundTripper {
+			return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+				calls.Add(1)
+				return fixtureRangeResponse(r, body), nil
+			})}
+		}
+	})
+	target := videoURL(body)
+	assertResponse(t, request(s, "GET", target, map[string]string{
+		"Range": fmt.Sprintf("bytes=0-%d", rangeBlockSize-1),
+	}), http.StatusPartialContent, body[:rangeBlockSize])
+	s.wg.Wait()
+	s.reclaimLocalBlocks()
+	assertNoPartial(t, cfg.tempDir())
+
+	assertResponse(t, request(s, "GET", target, map[string]string{
+		"Range": fmt.Sprintf("bytes=%d-", rangeBlockSize),
+	}), http.StatusPartialContent, "tail")
+	s.wg.Wait()
+	if calls.Load() != 2 {
+		t.Fatal("publication refetched a block without a demand", calls.Load())
+	}
+	expectRetained(t, cfg.videoFile(videoKey(body)), false)
 }
 
 func TestZeroBudgetQueuePreparationReportsTemporaryReadiness(t *testing.T) {

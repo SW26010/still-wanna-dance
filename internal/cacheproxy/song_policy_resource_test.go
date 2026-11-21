@@ -132,7 +132,7 @@ func TestFavoritePublicationRespectsBudgetWithoutChangingScores(t *testing.T) {
 				t.Fatal(err)
 			}
 			setRetentionLimit(t, s, limit)
-			err = s.publishBlocks(ctx, cfg.videoFile(v.key), v, f)
+			err = s.publishBlocks(ctx, cfg.videoFile(v.key), v, f, pinTestPublicationSnapshot(t, f))
 			wantSaved := limit >= v.size
 			if wantSaved && err != nil || !wantSaved && !errors.Is(err, ErrNotRetained) {
 				t.Fatal(err)
@@ -394,34 +394,4 @@ func TestDisabledFavoriteRetentionUsesOrdinaryPublicationAndBatchBudget(t *testi
 		t.Fatal("favorite lost ordinary publication eligibility", err)
 	}
 	s.releasePublication(r)
-}
-
-func TestBlockedTemporaryCleanupReusesProtectionWithoutFavoriteExpansion(t *testing.T) {
-	w, s := testSession(t)
-	s.cfg.VideoBudgetBytes = rangeBlockSize
-	d := reclamationResource(t, s, w.v)
-	s.retentionMu.Lock()
-	if s.versionPins == nil {
-		s.versionPins = make(map[string]int)
-	}
-	s.versionPins[w.v.key]++
-	s.retentionMu.Unlock()
-	policies := map[string]resourcePolicy{w.v.key: {blocked: true}}
-	s.reclaimBlocksWithPolicies(policies)
-	if !d.has(0) {
-		t.Fatal("policy removed active resource")
-	}
-	s.retentionMu.Lock()
-	delete(s.versionPins, w.v.key)
-	s.retentionMu.Unlock()
-	s.reclaimBlocksWithPolicies(policies)
-	if d.has(0) {
-		t.Fatal("blocked temporary data survived")
-	}
-	d = reclamationResource(t, s, w.v)
-	s.cfg.VideoBudgetBytes = 0
-	s.reclaimBlocksWithPolicies(map[string]resourcePolicy{w.v.key: {favorite: true}})
-	if d.has(0) {
-		t.Fatal("favorite added temporary protection")
-	}
 }

@@ -21,9 +21,6 @@ type spool struct {
 	demand   func(context.Context, int64) func()
 }
 
-// Once all blocks are readable, withdrawing a source must not cancel publication.
-func (s *spool) hasAllBytes(size int64) bool { return s.blocks.complete() }
-
 // Only complete, validated blocks become visible to readers.
 func (s *spool) WriteAt(p []byte, offset int64) (int, error) {
 	if offset < 0 || offset%s.blocks.blockSize != 0 {

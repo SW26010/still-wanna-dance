@@ -103,37 +103,47 @@ func moveCompletedQueueOut(t *testing.T, s *Server, v video) {
 	local := s.localResources[v.key]
 	available := local != nil && local.has(0)
 	s.retentionMu.Unlock()
-	if available {
-		t.Fatal("unprotected zero-budget block was not reclaimed")
+	if !available {
+		t.Fatal("reclamation removed a block still needed by the queue")
 	}
 }
 
-func TestCompletedQueueReentryAfterReclamation(t *testing.T) {
+// Simulate loss of cached content while the registered queue use survives.
+func loseCompletedQueueBlock(t *testing.T, s *Server, v video) {
+	t.Helper()
+	s.retentionMu.Lock()
+	local := s.localResources[v.key]
+	s.retentionMu.Unlock()
+	if local == nil {
+		t.Fatal("fixture has no cached blocks")
+	}
+	files := local.storage.retire(func(block int64) bool { return block == 0 })
+	local.storage.removeFiles(files)
+	s.notifyResourceAvailability(v.key)
+}
+
+func TestCompletedQueueReentryReusesLiveBlocks(t *testing.T) {
 	s, v, q, calls := completedQueueFixture(t, payload, nil)
-	for cycle := int32(1); cycle <= 2; cycle++ {
+	for range 2 {
 		moveCompletedQueueOut(t, s, v)
-		time.Sleep(50 * time.Millisecond)
-		if calls.Load() != cycle {
-			t.Fatal("future usage refilled an unprotected block", calls.Load())
-		}
 		for range 3 {
 			if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 				t.Fatal(err)
 			}
 		}
-		waitQueueRefetch(t, s, v, calls, cycle+1)
+		waitQueueRefetch(t, s, v, calls, 1)
 		s.mu.Lock()
 		valid := s.prefetchSources["42"] == q && q.use.contains(v.key, 0) && len(s.demands) == 0
 		s.mu.Unlock()
 		if !valid {
-			t.Fatal("refetch replaced the source or created synthetic usage")
+			t.Fatal("reentry replaced the source or created synthetic usage")
 		}
 	}
-	// No GET was needed to recover availability. Actual playback now reuses it.
+	// Actual playback can reuse the same block without a new download.
 	r := httptest.NewRequest(http.MethodGet, videoURL(payload), nil)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
-	if w.Code != http.StatusOK || w.Body.String() != payload || calls.Load() != 3 {
+	if w.Code != http.StatusOK || w.Body.String() != payload || calls.Load() != 1 {
 		t.Fatal("playback fell back to a cold download", w.Code, calls.Load())
 	}
 }
@@ -143,6 +153,7 @@ func TestCompletedQueueRefetchWindowAndWithdrawal(t *testing.T) {
 		t.Run(action, func(t *testing.T) {
 			s, v, _, calls := completedQueueFixture(t, payload, nil)
 			moveCompletedQueueOut(t, s, v)
+			loseCompletedQueueBlock(t, s, v)
 			const predecessor = 60 * time.Second
 			if _, err := s.Store.usage.db.Exec("INSERT INTO songs(id,end) VALUES (1,?)", predecessor.Seconds()); err != nil {
 				t.Fatal(err)
@@ -202,6 +213,7 @@ func TestCompletedQueueRefetchSharesGETAndAvailableBlocks(t *testing.T) {
 	_, release := addTestDemand(t, s, ctx, v, true)
 	defer release()
 	moveCompletedQueueOut(t, s, v)
+	loseCompletedQueueBlock(t, s, v)
 	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 		t.Fatal(err)
 	}
@@ -233,6 +245,7 @@ func TestCompletedQueueRefetchRetriesWhileNeeded(t *testing.T) {
 		return nil
 	})
 	moveCompletedQueueOut(t, s, v)
+	loseCompletedQueueBlock(t, s, v)
 	if err := s.UpdatePrefetchQueue([]int64{42, 1}, false); err != nil {
 		t.Fatal(err)
 	}
@@ -242,6 +255,7 @@ func TestCompletedQueueRefetchRetriesWhileNeeded(t *testing.T) {
 func TestCompletedQueueRefetchSurvivesFormerDeadline(t *testing.T) {
 	s, v, q, calls := completedQueueFixture(t, payload, nil)
 	moveCompletedQueueOut(t, s, v)
+	loseCompletedQueueBlock(t, s, v)
 	ctx := context.WithValue(t.Context(), playbackClockKey{}, &playbackClock{
 		at: time.Now().Add(-time.Minute), limit: 1, media: estimateMediaTiming(1, 1),
 	})

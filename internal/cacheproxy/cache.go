@@ -260,14 +260,7 @@ func (s *Server) prepare(ctx context.Context, v video, flight *flight) (pathResu
 		flight.progress.setHost(flight.ranges.video.host)
 		flight.log.Debug("已复用本地临时视频块", "event_name", "local_blocks_reused", "retained_bytes", retained)
 	}
-	publishErr := s.publishScheduled(ctx, path, v, flight)
-	if err := publishErr; err != nil {
-		return "", "", err
-	}
-	flight.progress.setStage("index")
-	indexCtx, stopIndex := context.WithTimeout(ctx, s.cfg.DownloadTimeout)
-	defer stopIndex()
-	if err := s.recordVideo(indexCtx, v); err != nil {
+	if err := s.publishScheduled(ctx, path, v, flight); err != nil {
 		return "", "", err
 	}
 	flight.log.Info("完整视频已发布并登记", "event_name", "download_published", "key", v.key, "size", v.size)

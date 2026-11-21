@@ -17,6 +17,8 @@ func completedRangeFlight(t *testing.T, s *Server, body string) (*flight, video)
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, releaseDemand := addTestDemand(t, s, t.Context(), v, false)
+	t.Cleanup(releaseDemand)
 	d, err := s.newLocalResource(v, s.cfg.Logger)
 	if err != nil {
 		t.Fatal(err)
@@ -39,6 +41,16 @@ func completedRangeFlight(t *testing.T, s *Server, body string) (*flight, video)
 		s.releaseVideo(v)
 	})
 	return f, v
+}
+
+func pinTestPublicationSnapshot(t *testing.T, f *flight) *blockReader {
+	t.Helper()
+	snapshot, err := f.ranges.storage.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { snapshot.Close() })
+	return snapshot
 }
 
 func TestDownloadedValidationSharesCapacityAndCancels(t *testing.T) {
@@ -110,7 +122,7 @@ func TestDownloadedValidationDistinguishesStorageAndIntegrity(t *testing.T) {
 			case "canceled":
 				cancel()
 			}
-			err := s.storageError(s.publishBlocks(ctx, cfg.videoFile(v.key), v, f))
+			err := s.storageError(s.publishBlocks(ctx, cfg.videoFile(v.key), v, f, pinTestPublicationSnapshot(t, f)))
 			local := mode == "read_failure"
 			if errors.Is(err, ErrLocalStorage) != local || (s.StorageError() != nil) != local {
 				t.Fatalf("storage classification lost: result=%v storage=%v", err, s.StorageError())

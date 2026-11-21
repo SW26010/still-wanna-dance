@@ -24,6 +24,8 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			_, releaseDemand := addTestDemand(t, s, ctx, v, false)
+			defer releaseDemand()
 			f := &flight{streaming: make(chan struct{}), log: s.cfg.Logger}
 			f.progress = startProgress(f.log, v.size, time.Minute)
 			defer f.progress.finish(nil)
@@ -104,7 +106,7 @@ func TestStoppedInitialRequestStartsWithFreshCandidates(t *testing.T) {
 			reader := f.spool.blocks.reader()
 			defer reader.Close()
 			if _, err := reader.ReadAt(got, 0); err != nil || string(got) != payload || !f.ranges.has(0) {
-				t.Fatal("restartd first range did not complete", err)
+				t.Fatal("restarted first range did not complete", err)
 			}
 			if failedCalls != 3 || currentCalls != 3 || failure == "redirect" && redirects != 3 {
 				t.Fatalf("new execution reused old history: failed=%d current=%d redirects=%d", failedCalls, currentCalls, redirects)

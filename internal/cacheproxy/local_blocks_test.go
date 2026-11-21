@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+// Exercise a pinned reader independently of a publishing flight.
+func (f *blockFiles) snapshot() (*blockReader, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.closed {
+		return nil, os.ErrClosed
+	}
+	if !f.completeLocked() {
+		return nil, errBlockUnavailable
+	}
+	return f.snapshotLocked(), nil
+}
+
 func TestBlockFilesCompleteBlocksAndIndependentLifetime(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), int(rangeBlockSize+19))
 	f := newBlockFiles(t.TempDir(), int64(len(body)), rangeBlockSize, nil)

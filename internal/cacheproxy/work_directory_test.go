@@ -131,6 +131,7 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 
 	})
 	f, v := completedRangeFlight(t, s, payload)
+	snapshot := pinTestPublicationSnapshot(t, f)
 	blocks, err := filepath.Glob(filepath.Join(w.Path(), "download-block-*.part"))
 	if err != nil || len(blocks) != 1 {
 		t.Fatal("block did not use prepared workspace", blocks, err)
@@ -143,7 +144,7 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 	if err := os.WriteFile(cfg.publishDir(), []byte("not a directory"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f); err == nil {
+	if err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f, snapshot); err == nil {
 		t.Fatal("publication ignored its target-side stage")
 	}
 	if got, err := os.ReadFile(blocks[0]); err != nil || string(got) != payload {
@@ -155,7 +156,7 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 	if err := os.Mkdir(cfg.publishDir(), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f); err != nil {
+	if err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f, snapshot); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := os.ReadFile(cfg.videoFile(v.key)); err != nil || string(got) != payload {

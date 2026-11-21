@@ -2,23 +2,9 @@ package cacheproxy
 
 import "time"
 
-func (c Config) aggressiveBlockReclamation() bool {
-	return !c.CacheUnlimited && c.VideoBudgetBytes == 0
-}
-
-func (s *Server) aggressiveBlockReclamation() bool {
-	s.retentionMu.Lock()
-	defer s.retentionMu.Unlock()
-	return s.cfg.aggressiveBlockReclamation()
-}
-
-// A completed write can create an unprotected block (for example, when the
-// download window starts before the independent local protection window).
 func (s *Server) requestBlockReclamation(key string) {
 	s.retentionMu.Lock()
-	if s.cfg.aggressiveBlockReclamation() {
-		s.requestResourceRetentionLocked(key)
-	}
+	s.requestResourceRetentionLocked(key)
 	s.retentionMu.Unlock()
 }
 
@@ -26,14 +12,10 @@ func (s *Server) requestBlockReclamation(key string) {
 // I/O references keep the exact detached files alive; a later store uses a new
 // path and cannot be affected by this pass's unlocked filesystem cleanup.
 func (s *Server) reclaimLocalBlocks() {
-	s.reclaimBlocksWithPolicies(nil)
+	s.reclaimSelectedBlocks(nil)
 }
 
-func (s *Server) reclaimBlocksWithPolicies(policies map[string]resourcePolicy) {
-	s.reclaimSelectedBlocks(policies, nil)
-}
-
-func (s *Server) reclaimSelectedBlocks(policies map[string]resourcePolicy, keys map[string]bool) {
+func (s *Server) reclaimSelectedBlocks(keys map[string]bool) {
 	type cleanup struct {
 		blocks  *blockFiles
 		files   []*localBlockFile
@@ -41,18 +23,15 @@ func (s *Server) reclaimSelectedBlocks(policies map[string]resourcePolicy, keys 
 	}
 	var pending []cleanup
 	var changed []string
+	// Keep the decision atomic with both source changes and grace updates.
+	s.mu.Lock()
 	s.retentionMu.Lock()
-	aggressive := s.cfg.aggressiveBlockReclamation()
 	now := time.Now()
 	reclaim := func(key string, local *localResource) {
-		// A policy change does not interrupt work already using this resource.
-		if !aggressive && (!policies[key].blocked || s.versionPins[key] > 0) {
-			return
-		}
 		blocks := local.storage
 		removed := false
 		files := blocks.retire(func(block int64) bool {
-			remove := !s.blockProtectedLocked(key, block, now)
+			remove := s.useBlocks[useBlockID{key, block}] == 0 && !s.blockProtectedLocked(key, block, now)
 			removed = removed || remove
 			return remove
 		})
@@ -77,6 +56,7 @@ func (s *Server) reclaimSelectedBlocks(policies map[string]resourcePolicy, keys 
 		}
 	}
 	s.retentionMu.Unlock()
+	s.mu.Unlock()
 	if len(changed) > 0 {
 		// Availability changed even when an I/O pin delays physical removal.
 		// Wake both live sessions and continuing usage after session completion.

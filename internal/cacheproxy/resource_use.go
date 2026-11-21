@@ -43,8 +43,7 @@ func (s *Server) startResourceUseLocked(v video) {
 	go s.coordinateResourceUse(u)
 }
 
-// Range downloads call this after a successful complete
-// block write. Observation is notified regardless of the reclamation policy.
+// Range downloads call this after a successful complete block write.
 func (s *Server) notifyBlockStored(key string) {
 	s.notifyBlockObservation()
 	s.requestBlockReclamation(key)
@@ -121,9 +120,9 @@ func (s *Server) coordinateResourceUse(u *resourceUse) {
 	}
 }
 
-// Caller holds mu. As in a running session's completed-work filter, only a
-// current finite usage entering protection can fund automatic refetch. A local
-// grace tail or an untimed source alone must not cause refill/evict cycles.
+// After a shared flight ends, automatic refetch requires a current finite need
+// entering its protection window. A grace tail or an untimed source alone does
+// not trigger refetch. Caller holds mu.
 func (s *Server) nextResourceRefetchLocked(v video, plan map[int64]blockUse) time.Time {
 	s.retentionMu.Lock()
 	defer s.retentionMu.Unlock()

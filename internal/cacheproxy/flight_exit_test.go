@@ -37,6 +37,130 @@ func (h flightEventHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
+func pauseDownloadAtEvent(t *testing.T, body, event string) (*Server, <-chan struct{}, func()) {
+	t.Helper()
+	paused, finish := make(chan struct{}), make(chan struct{})
+	resume := sync.OnceFunc(func() { close(finish) })
+	cfg := fixtureConfig()
+	prepareFixtureResources(t, &cfg, t.TempDir(), true)
+	cfg.LocalProtectionGrace = 0
+	cfg.Logger = slog.New(flightEventHandler{
+		Handler: slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		handle: func(r slog.Record) {
+			if testlog.EventName(r) == event {
+				close(paused)
+				<-finish
+			}
+		},
+	})
+	cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			return fixtureRangeResponse(r, body), nil
+		})}
+	}
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		resume()
+		if err := s.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return s, paused, resume
+}
+
+func TestRangeUsesPublishedVideoDuringFlightCleanup(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		body := payload
+		s, published, resume := pauseDownloadAtEvent(t, body, "download_published")
+		target := videoURL(body)
+		assertResponse(t, request(s, http.MethodGet, target, nil), http.StatusOK, body)
+		receiveDemandEvent(t, published)
+
+		v := parsedVideo(t, s, body)
+		s.mu.Lock()
+		old := s.flights[v.key]
+		s.mu.Unlock()
+		s.reclaimLocalBlocks()
+		if old == nil || old.ranges.has(0) {
+			t.Fatal("fixture did not reclaim the first block during flight cleanup")
+		}
+
+		response := make(chan *responseRecorder, 1)
+		go func() {
+			response <- request(s, http.MethodGet, target, map[string]string{"Range": "bytes=0-3"})
+		}()
+		select {
+		case rec := <-response:
+			assertResponse(t, rec, http.StatusPartialContent, body[:4])
+		case <-time.After(time.Second):
+			resume()
+			assertResponse(t, receiveDemandEvent(t, response), http.StatusPartialContent, body[:4])
+			t.Fatal("Range waited for the old flight to finish cleanup")
+		}
+	})
+}
+
+func TestRangeDuringPublicationDoesNotWaitForMediaRegistration(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s, verified, resume := pauseDownloadAtEvent(t, payload, "download_verified")
+		target := videoURL(payload)
+		assertResponse(t, request(s, http.MethodGet, target, nil), http.StatusOK, payload)
+		receiveDemandEvent(t, verified)
+
+		db := s.Store.db
+		conn, err := db.Conn(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		releaseWriter := sync.OnceFunc(func() {
+			if err := conn.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+		defer releaseWriter()
+		before := db.Stats().WaitCount
+		resume()
+		waitForDatabaseWait(t, db, before)
+		key := videoKey(payload)
+		if _, err := os.Stat(s.cfg.videoFile(key)); err != nil {
+			t.Fatal("media registration must be waiting after the file was published", err)
+		}
+		s.mu.Lock()
+		f := s.flights[key]
+		s.mu.Unlock()
+		if f == nil {
+			t.Fatal("flight exited while media registration was blocked")
+		}
+		s.reclaimLocalBlocks()
+
+		response := make(chan *responseRecorder, 1)
+		go func() {
+			response <- request(s, http.MethodGet, target, map[string]string{"Range": "bytes=0-3"})
+		}()
+		select {
+		case rec := <-response:
+			assertResponse(t, rec, http.StatusPartialContent, payload[:4])
+		case <-time.After(time.Second):
+			releaseWriter()
+			assertResponse(t, receiveDemandEvent(t, response), http.StatusPartialContent, payload[:4])
+			t.Fatal("Range waited for the media write connection")
+		}
+		releaseWriter()
+		receiveDemandEvent(t, f.done)
+		if f.err != nil {
+			t.Fatal("flight did not finish media registration", f.err)
+		}
+		var size int64
+		err = s.Store.playbackDB.QueryRowContext(t.Context(), "SELECT byte_size FROM media WHERE md5=?", key).Scan(&size)
+		if err != nil || size != int64(len(payload)) {
+			t.Fatal("published media was not registered", size, err)
+		}
+	})
+}
+
 func TestGETArrivingAfterIdleSnapshotKeepsFlight(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)

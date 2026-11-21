@@ -25,7 +25,9 @@ type blockFiles struct {
 	files        map[int64]*localBlockFile
 	refs         int
 	closed       bool
-	onDiskChange func(int64) // File lengths, including retired files until deletion.
+	capture      bool         // One shared flight can capture the complete set.
+	publication  *blockReader // Owned by that flight until taken for publication.
+	onDiskChange func(int64)  // File lengths, including retired files until deletion.
 }
 
 type localBlockFile struct {
@@ -120,6 +122,7 @@ func (f *blockFiles) store(block int64, data []byte) error {
 	}
 	f.files[block] = b
 	kept = true
+	f.captureCompleteLocked()
 	return nil
 }
 
@@ -142,6 +145,10 @@ func (f *blockFiles) availableBlocks() []int64 {
 func (f *blockFiles) complete() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	return f.completeLocked()
+}
+
+func (f *blockFiles) completeLocked() bool {
 	return int64(len(f.files)) == blockCount(f.size, f.blockSize)
 }
 
@@ -201,6 +208,11 @@ func (f *blockFiles) unpin(b *localBlockFile) {
 func (f *blockFiles) retire(eligible func(int64) bool) []*localBlockFile {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	// Readers joining a publishing flight still use its spool. Keep the
+	// captured set available until publication hands them a terminal result.
+	if f.publication != nil {
+		return nil
+	}
 	return f.retireLocked(eligible)
 }
 
@@ -233,22 +245,41 @@ func (f *blockFiles) removeFiles(files []*localBlockFile) {
 	}
 }
 
-// A merge needs an atomic complete snapshot. Subsequent reclamation can remove
-// availability for new reads, but cannot remove these exact files until Close.
-func (f *blockFiles) snapshot() (*blockReader, error) {
+// Capture already-complete reused data or pin the complete set in the same
+// critical section as its last write, before reclamation can detach a block.
+func (f *blockFiles) beginPublicationCapture() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.closed {
-		return nil, os.ErrClosed
+	f.capture = true
+	f.captureCompleteLocked()
+}
+
+func (f *blockFiles) captureCompleteLocked() {
+	if f.capture && f.publication == nil && f.completeLocked() {
+		f.publication = f.snapshotLocked()
 	}
-	if int64(len(f.files)) != blockCount(f.size, f.blockSize) {
-		return nil, errBlockUnavailable
-	}
+}
+
+func (f *blockFiles) publicationSnapshot() *blockReader {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.publication
+}
+
+func (f *blockFiles) takePublicationSnapshot() *blockReader {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	snapshot := f.publication
+	f.capture, f.publication = false, nil
+	return snapshot
+}
+
+func (f *blockFiles) snapshotLocked() *blockReader {
 	s := &blockReader{owner: f, blocks: make([]*localBlockFile, blockCount(f.size, f.blockSize))}
 	for block := range s.blocks {
 		b := f.files[int64(block)]
 		b.pins++
 		s.blocks[block] = b
 	}
-	return s, nil
+	return s
 }

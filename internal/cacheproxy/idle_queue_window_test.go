@@ -114,7 +114,7 @@ func TestIdleQueueBoundaryDoesNotEnterBetweenRefreshes(t *testing.T) {
 	}
 }
 
-func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
+func TestIdleQueueKeepsCompletedBlocksOutsideWindow(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s, calls, key := idleBoundaryServer(t, 240)
 		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
@@ -134,8 +134,8 @@ func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 		s.retentionMu.Lock()
 		local := s.localResources[key]
 		s.retentionMu.Unlock()
-		if calls[1].Load() != 1 || protectionFor(s, key, 1).active(time.Now()) || local != nil && local.has(1) {
-			t.Fatal("completed resource refilled outside the idle window", calls[1].Load())
+		if calls[1].Load() != 1 || protectionFor(s, key, 1).active(time.Now()) || local == nil || !local.has(1) {
+			t.Fatal("live out-of-window demand lost its block", calls[1].Load())
 		}
 		if _, err := s.Store.usage.db.Exec(`UPDATE songs SET end=240 WHERE id=42`); err != nil {
 			t.Fatal(err)
@@ -145,8 +145,22 @@ func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 		}
 		time.Sleep(30 * time.Second)
 		synctest.Wait()
-		if calls[0].Load() != 1 || calls[1].Load() != 2 || !protectionFor(s, key, 1).active(time.Now()) {
-			t.Fatal("completed resource failed to refetch once after metadata changed", calls[0].Load(), calls[1].Load())
+		if calls[0].Load() != 1 || calls[1].Load() != 1 || !protectionFor(s, key, 1).active(time.Now()) {
+			t.Fatal("reentry failed to reuse the retained block", calls[0].Load(), calls[1].Load())
+		}
+		if _, err := s.Store.usage.db.Exec(`UPDATE songs SET end=250 WHERE id=42`); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdatePrefetchQueue([]int64{42}, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdatePrefetchQueue(nil, true); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(handoffGrace)
+		synctest.Wait()
+		if local.has(1) || !protectionFor(s, key, 1).until.IsZero() || calls[1].Load() != 1 {
+			t.Fatal("withdrawn out-of-window block survived or was downloaded again")
 		}
 	})
 }

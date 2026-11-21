@@ -138,9 +138,13 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 		t.Fatalf("received %d bytes before preemption", received)
 	}
 	partial := localBlockPath(t, old.spool.blocks, 0)
-	if mode == "grace" {
-		assertResponse(t, request(s, "GET", target, map[string]string{"Range": "bytes=0-2"}), http.StatusPartialContent, string(body[:3]))
-	}
+	// A separate source still needs the completed prefix after the first
+	// execution stops. The grace case subsequently releases even that source.
+	prefix := context.WithValue(context.WithValue(ctx, httpGETKey{}, true), playbackClockKey{}, &playbackClock{
+		at: time.Now(), limit: 2 * rangeBlockSize, media: estimateMediaTiming(v.size, 40),
+	})
+	_, releasePrefix := addTestDemand(t, s, prefix, v, true)
+	defer releasePrefix()
 
 	s.mu.Lock()
 	old.preempted = true
@@ -152,6 +156,12 @@ func testWholeFlightReuse(t *testing.T, mode string) {
 	receiveDemandEvent(t, old.done)
 	if !errors.Is(old.err, errPreempted) {
 		t.Fatal("old flight did not lose its seat", old.err)
+	}
+	if mode == "grace" {
+		releasePrefix()
+		if !protectionFor(s, v.key, 0).until.After(time.Now()) {
+			t.Fatal("released prefix did not enter grace")
+		}
 	}
 	if _, err := os.Stat(partial); err != nil {
 		t.Fatal("preemption removed the partial file", err)

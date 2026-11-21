@@ -10,9 +10,8 @@ import (
 	"os"
 )
 
-// Publication reads a complete pinned snapshot. The snapshot survives source
-// changes/reclamation, while streaming readers keep their own block resource.
-func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight *flight) (result error) {
+// publishBlocks borrows the caller's complete, pinned snapshot for the merge.
+func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight *flight, snapshot *blockReader) (result error) {
 	reservation, err := s.reservePublication(ctx, v)
 	if err != nil {
 		return err
@@ -30,17 +29,6 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	snapshot, err := flight.ranges.storage.snapshot()
-	if errors.Is(err, errBlockUnavailable) {
-		// Aggressive reclamation may remove completed blocks before the merge
-		// snapshot is pinned, even with a positive or unlimited video budget.
-		// This is a retention outcome, not a disk fault or a reason to refill.
-		return ErrNotRetained
-	}
-	if err != nil {
-		return err
-	}
-	defer snapshot.Close()
 	file, err := os.CreateTemp(s.cfg.publishDir(), "download-publish-*.part")
 	if err != nil {
 		return err

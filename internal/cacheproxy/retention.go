@@ -326,11 +326,11 @@ func (s *Server) trimCachePass(reconcile bool) error {
 // A nil selection checks all resources. A protection-only pass looks up just
 // the affected resources before considering the independent capacity limit.
 func (s *Server) trimCacheDecision(keys map[string]bool) error {
+	s.reclaimSelectedBlocks(keys)
 	policies, err := s.resourcePolicies(context.Background())
 	if err != nil {
 		return err
 	}
-	s.reclaimSelectedBlocks(policies, keys)
 	s.retentionMu.Lock()
 	limit := s.cfg.VideoBudgetBytes
 	unlimited := s.cfg.CacheUnlimited

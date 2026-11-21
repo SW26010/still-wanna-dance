@@ -42,7 +42,7 @@ func TestIndependentCrossVolumePublicationAndImport(t *testing.T) {
 		}
 		t.Fatal("fixture did not prove distinct NTFS volumes", err)
 	}
-	if err := engine.publishBlocks(t.Context(), cfg.videoFile(resource.key), resource, flight); err != nil {
+	if err := engine.publishBlocks(t.Context(), cfg.videoFile(resource.key), resource, flight, pinTestPublicationSnapshot(t, flight)); err != nil {
 		t.Fatal("cross-volume block publication", err)
 	}
 	if got, err := os.ReadFile(cfg.videoFile(resource.key)); err != nil || string(got) != payload {
@@ -135,7 +135,7 @@ func TestSelectedBlockCacheOnAnotherVolume(t *testing.T) {
 		}
 		t.Fatal("fixture did not prove distinct NTFS volumes", err)
 	}
-	if err := engine.publishBlocks(t.Context(), cfg.videoFile(resource.key), resource, flight); err != nil {
+	if err := engine.publishBlocks(t.Context(), cfg.videoFile(resource.key), resource, flight, pinTestPublicationSnapshot(t, flight)); err != nil {
 		t.Fatal("publication from selected cache", err)
 	}
 	if got, err := os.ReadFile(cfg.videoFile(resource.key)); err != nil || string(got) != payload {

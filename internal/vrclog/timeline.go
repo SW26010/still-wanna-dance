@@ -102,8 +102,6 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 		p.selectionPending = false
 		p.naturalTransitionAt = time.Time{}
 		return
-	case "room-route":
-		delete(p.previews, e.SongID)
 	default:
 		if p.consumePreviewCallback(e) {
 			return
@@ -137,8 +135,11 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 	}
 	switch e.Kind {
 	case "route", "room-route":
-		if e.Kind == "room-route" && e.SongID > 0 && e.SongID != p.Anchor.SongID {
-			p.Anchor = PlaybackAnchor{}
+		if e.Kind == "room-route" {
+			delete(p.previews, e.SongID)
+			if e.SongID > 0 && e.SongID != p.Anchor.SongID {
+				p.Anchor = PlaybackAnchor{}
+			}
 		}
 		p.lastStart, p.synced = time.Time{}, false
 		p.route = e.SongID
@@ -227,7 +228,7 @@ func (p *PlayerTimeline) previewApplies(preview *previewAssociation, at time.Tim
 
 func (p *PlayerTimeline) consumePreviewCallback(e *PlaybackEvent) bool {
 	switch e.Kind {
-	case "role", "transport", "room-end", "room-stop", "room-sync":
+	case "role", "transport", "room-end", "room-stop", "room-sync", "room-route":
 		return false
 	case "local-sync":
 		// The local threshold also occurs during some room-player starts.

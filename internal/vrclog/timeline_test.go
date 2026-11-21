@@ -365,6 +365,29 @@ func TestRoomClockIgnoresGamePreview(t *testing.T) {
 	}
 }
 
+func TestRoomClockLateRoomRouteKeepsPreviewAssociation(t *testing.T) {
+	const room = "http://api.udon.dance/Api/Songs/play?id=139"
+	const preview = "http://api.udon.dance/Api/Songs/play?id=10980"
+	const player = "[USharpVideo (WannaDance)] "
+	at := time.Date(2026, 11, 19, 19, 55, 34, 0, time.Local)
+	var timeline PlayerTimeline
+	observeTimelineLine(t, &timeline, at, 0, player+"Playing synced "+room)
+	observeTimelineLine(t, &timeline, at, 0, player+"OnVideoStart: Started video: "+room+", since owner is playing")
+	observeTimelineLine(t, &timeline, at, 0, player+"Syncing video to 10.00")
+	anchor := timeline.Anchor
+	if anchor.SongID != 139 || timeline.Role != Follower {
+		t.Fatalf("missing initial room playback: anchor=%+v role=%v", anchor, timeline.Role)
+	}
+
+	observeTimelineLine(t, &timeline, at.Add(time.Second), 0, "[VideoListManager] PreviewVideo: 10980 "+preview)
+	observeTimelineLine(t, &timeline, at.Add(2*time.Second), 5*time.Second, player+"Playing synced "+preview)
+	observeTimelineLine(t, &timeline, at.Add(7*time.Second), 0, player+"OnVideoStart: Started video: "+preview+", since I'm the owner")
+	observeTimelineLine(t, &timeline, at.Add(7*time.Second), 0, player+"Syncing video to 30.00, current time = 0.00")
+	if timeline.Anchor != anchor || timeline.Role != Follower {
+		t.Fatalf("preview took over after the late room route: anchor=%+v role=%v", timeline.Anchor, timeline.Role)
+	}
+}
+
 func TestRoomClockAcceptsFormalPlayAfterSameSongPreview(t *testing.T) {
 	const songURL = "http://api.udon.dance/Api/Songs/play?id=10980"
 	const player = "[USharpVideo (WannaDance)] "

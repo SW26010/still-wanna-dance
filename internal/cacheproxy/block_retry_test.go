@@ -55,6 +55,35 @@ func waitForSharedAddress(ctx context.Context, s *Server, key, target string) er
 	}
 }
 
+func TestRangeRetryIgnoresValidatorFromIncompleteBlock(t *testing.T) {
+	s, cfg := setup(t, nil)
+	var attempts, staleConditions atomic.Int32
+	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
+		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+			if tag := r.Header.Get("If-Match"); tag != "" && tag != `"current"` {
+				staleConditions.Add(1)
+				return &http.Response{StatusCode: http.StatusPreconditionFailed, Body: http.NoBody, Request: r}, nil
+			}
+			resp := fixtureRangeResponse(r, payload)
+			resp.Header.Set("ETag", `"current"`)
+			if attempts.Add(1) == 1 {
+				resp.Header.Set("ETag", `"incomplete"`)
+				resp.Body = io.NopCloser(strings.NewReader(payload[:1]))
+			}
+			return resp, nil
+		})}
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Second)
+	defer cancel()
+	if _, err := s.Prefetch(ctx, videoURL(payload)); err != nil {
+		t.Fatalf("same URL did not recover after an incomplete range (%d obsolete If-Match requests): %v", staleConditions.Load(), err)
+	}
+	got, err := os.ReadFile(cfg.videoFile(videoKey(payload)))
+	if err != nil || string(got) != payload || attempts.Load() != 2 || staleConditions.Load() != 0 {
+		t.Fatalf("published=%q, error=%v, successful conditions=%d, obsolete conditions=%d", got, err, attempts.Load(), staleConditions.Load())
+	}
+}
+
 func TestAddressDiscoveryUsesNextAttemptAfterTimeout(t *testing.T) {
 	for _, phase := range []string{"headers", "body"} {
 		t.Run(phase, func(t *testing.T) {

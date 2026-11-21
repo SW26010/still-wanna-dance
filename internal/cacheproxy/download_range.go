@@ -43,12 +43,10 @@ func (s *Server) readRangeAt(ctx context.Context, flight *flight, block int64, v
 		if err := ctx.Err(); err != nil {
 			return context.Cause(ctx)
 		}
-		var err error
-		var data []byte
 		received := false
 		bodyStarted := false
 		var sharedUntil time.Time
-		err = func() (result error) {
+		err := func() (result error) {
 			req, err := s.routeRequest(ctx, blockVideo)
 			if err != nil {
 				return err
@@ -95,43 +93,44 @@ func (s *Server) readRangeAt(ctx context.Context, flight *flight, block int64, v
 				}
 				return err
 			}
-			s.retentionMu.Lock()
-			entityErr := download.acceptEntity(blockVideo, resp.Header.Get("ETag"))
-			s.retentionMu.Unlock()
-			if entityErr != nil {
-				return entityErr
+			etag := resp.Header.Get("ETag")
+			if bound := download.etagFor(blockVideo); bound != "" && bound != etag {
+				return errRangeEntityChanged
 			}
 			flight.progress.setHost(blockVideo.host)
 			bodyStarted = true
+			reader := contextReader{ctx, progressReader{upstreamReader{body}, flight.progress}}
+			var n int64
 			if flight.discard {
 				// Stream into io.Discard's small reusable buffer; never allocate
 				// a block-sized buffer, spool, or whole-video checksum state.
-				n, err := io.Copy(io.Discard, io.LimitReader(contextReader{ctx, progressReader{upstreamReader{body}, flight.progress}}, end-start+1))
-				if err != nil {
-					return err
+				n, err = io.Copy(io.Discard, io.LimitReader(reader, end-start+1))
+			} else {
+				if *buffer == nil {
+					*buffer = s.rangeBuffer()
 				}
-				if n < end-start {
-					return io.ErrUnexpectedEOF
-				}
-				if n > end-start {
-					return errors.New("oversized range response")
-				}
-				return nil
+				var data []byte
+				data, err = readRangeBlock(reader, (*buffer)[:end-start+1])
+				n = int64(len(data))
 			}
-			if *buffer == nil {
-				*buffer = s.rangeBuffer()
-			}
-			data, err = readRangeBlock(contextReader{ctx, progressReader{upstreamReader{body}, flight.progress}}, (*buffer)[:end-start+1])
 			if err != nil {
 				return err
 			}
-			if int64(len(data)) < end-start {
+			if n < end-start {
 				return io.ErrUnexpectedEOF
 			}
-			if int64(len(data)) > end-start {
+			if n > end-start {
 				return errors.New("oversized range response")
 			}
-			return nil
+			if ctx.Err() != nil {
+				return context.Cause(ctx)
+			}
+			// Another block may have bound this URL while we read the body.
+			// Incomplete responses must never pin a validator for later retries.
+			s.retentionMu.Lock()
+			entityErr := download.acceptEntity(blockVideo, etag)
+			s.retentionMu.Unlock()
+			return entityErr
 		}()
 		if err != nil && ctx.Err() != nil {
 			return context.Cause(ctx)

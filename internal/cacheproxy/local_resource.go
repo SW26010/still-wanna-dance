@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+var errRangeEntityChanged = errors.New("upstream entity changed between ranges")
+
 // localResource is a view of local complete blocks, not resumable execution.
 // The engine owns the registry reference. Flights and old spools retain their
 // own references, without retaining response cursors or half-block prefixes.
@@ -45,7 +47,7 @@ func (d *localResource) acceptEntity(v video, etag string) error {
 	defer d.mu.Unlock()
 	key := v.requestURL()
 	if old := d.validators[key]; old != "" && old != etag {
-		return errors.New("upstream entity changed between ranges")
+		return errRangeEntityChanged
 	}
 	if etag != "" && !strings.HasPrefix(etag, "W/") {
 		if d.validators == nil {

@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"still-wanna-dance/internal/blocksched"
 )
 
 func TestPreviewGrowthDoesNotWaitForResponseHeaders(t *testing.T) {
@@ -69,33 +71,41 @@ func TestPreviewGrowthDoesNotWaitForResponseHeaders(t *testing.T) {
 func TestConcurrentRangeEntityIsCheckedBeforeWriting(t *testing.T) {
 	const blockSize = 1024
 	body := strings.Repeat("e", 2*blockSize)
-	prefix, entity := make(chan struct{}), make(chan struct{})
-	s, _ := setup(t, nil, func(c *Config) { c.BlockSize = blockSize; c.DownloadGrowInterval = 0 })
+	prefixReading, tailStored := make(chan struct{}), make(chan struct{})
+	releasePrefix := sync.OnceFunc(func() { close(tailStored) })
+	markPrefixReading := sync.OnceFunc(func() { close(prefixReading) })
+	tail := downloadTaskKey(videoKey(body), int64(len(body)), 1)
+	s, _ := setup(t, nil, func(c *Config) {
+		c.BlockSize = blockSize
+		c.DownloadGrowInterval = 0
+		c.ObserveBlockSchedule = func(event blocksched.Event) {
+			if event.Kind == "finished" && event.Key == tail {
+				releasePrefix()
+			}
+		}
+	})
 	s.cfg.ResourceTransports = func(string) []http.RoundTripper {
 		return []http.RoundTripper{resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
 			response := fixtureRangeResponse(r, body)
 			if r.Header.Get("Range") == "bytes=0-1023" {
-				select {
-				case <-prefix:
-				default:
-					close(prefix)
-				}
-				select {
-				case <-entity:
-				case <-r.Context().Done():
-					return nil, r.Context().Err()
-				}
 				response.Header.Set("ETag", `"old"`)
+				reader := response.Body
+				response.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) {
+					markPrefixReading()
+					select {
+					case <-tailStored:
+						return reader.Read(p)
+					case <-r.Context().Done():
+						return 0, r.Context().Err()
+					}
+				}))
 			} else {
 				select {
-				case <-prefix:
+				case <-prefixReading:
 				case <-r.Context().Done():
 					return nil, r.Context().Err()
 				}
 				response.Header.Set("ETag", `"current"`)
-				reader := response.Body
-				var once sync.Once
-				response.Body = io.NopCloser(publishReaderFunc(func(p []byte) (int, error) { once.Do(func() { close(entity) }); return reader.Read(p) }))
 			}
 			return response, nil
 		})}
@@ -105,6 +115,11 @@ func TestConcurrentRangeEntityIsCheckedBeforeWriting(t *testing.T) {
 	_, err := s.Prefetch(ctx, videoURL(body))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("mismatched in-flight entity was accepted", err)
+	}
+	select {
+	case <-tailStored:
+	default:
+		t.Fatal("incomplete prefix prevented the other range from binding the entity")
 	}
 	v := parsedVideo(t, s, body)
 	if _, err := os.Stat(s.cfg.videoFile(v.key)); !os.IsNotExist(err) {

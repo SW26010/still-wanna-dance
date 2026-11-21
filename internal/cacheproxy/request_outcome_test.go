@@ -209,11 +209,12 @@ func TestRequestRetrySuccessDoesNotKeepTimeout(t *testing.T) {
 }
 
 func TestLocalPlaybackHistoryIgnoresBackgroundLookupFailure(t *testing.T) {
-	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) })
+	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) { serveFixtureContent(w, r, payload) }, func(cfg *Config) {
+		cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", context.DeadlineExceeded }
+	})
 	if _, err := s.PrefetchSong(t.Context(), "42", videoURL(payload)); err != nil {
 		t.Fatal(err)
 	}
-	s.cfg.ResolvePlayback = func(context.Context, string) (string, error) { return "", context.DeadlineExceeded }
 	assertResponse(t, request(s, "GET", "http://api.udon.dance/Api/Songs/play?id=42", nil), 200, payload)
 	s.wg.Wait()
 	if err := errors.Join(s.Close(), cfg.Store.Close()); err != nil {

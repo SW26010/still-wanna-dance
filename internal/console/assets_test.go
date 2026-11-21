@@ -63,6 +63,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 						t.Fatal(err)
 					}
 					wantDefaults := map[string]int{
+						"logBudgetBytes":               int(defaults.LogBudgetBytes),
 						"prepareAheadSeconds":          defaults.PrepareAheadSeconds,
 						"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
 						"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,

@@ -59,7 +59,7 @@ test('failed settings save retains the draft for retry and success does not disc
   await page.goto('/#network-proxy');await selectMihomo(page);await inspect(page);
   await expect(reports(page)).toHaveValue(/Base64 配置.*1 个节点/);
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByText(/fixture save failed/)).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'fixture save failed',exact:true})).toBeVisible();
   await expect(reports(page)).toHaveValue(/Base64 配置.*1 个节点/);fail=false;
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(reports(page)).toHaveValue(/Base64 配置.*1 个节点/);
@@ -90,7 +90,7 @@ test('save automatically imports pending URL once and retries a failed save with
   const input=page.getByRole('textbox',{name:'导入配置文件',exact:true});
   await input.fill('https://example.invalid/config.yaml?private-token=fixture');
   await page.getByRole('button',{name:'保存设置',exact:true}).click();
-  await expect(page.getByText(/fixture write failed/)).toBeVisible();
+  await expect(page.getByRole('listitem',{name:'fixture write failed',exact:true})).toBeVisible();
   await expect(reports(page)).toHaveValue(/URL 配置.*1 个节点/);await expect(input).toHaveValue('');
   fail=false;await page.getByRole('button',{name:'保存设置',exact:true}).click();
   await expect(page.getByRole('button',{name:'重启并应用',exact:true})).toBeEnabled();

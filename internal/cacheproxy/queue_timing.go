@@ -12,7 +12,7 @@ type queueSchedule uint8
 
 const (
 	queueRolling queueSchedule = iota
-	queueFormal                // A valid playback clock supplied queueStart, even if playback has ended.
+	queueFormal                // The published formal clock supplies queueStart.
 	queueFixed                 // Keep absolute deadlines until the next valid room clock or stop.
 )
 
@@ -90,8 +90,8 @@ func (s *Server) notifyQueuePreparationLocked() {
 	}
 }
 
-// A known natural transition can hold absolute deadlines for surviving members.
-// Otherwise the published base rolls with max(base, now) without republishing.
+// A held schedule preserves absolute deadlines for surviving members.
+// A rolling schedule evaluates max(base, now) without republishing.
 func (s *Server) retimeQueueLocked(now time.Time) []string {
 	if s.queueSchedule == queueFixed {
 		return s.extendHeldQueueLocked(now)
@@ -122,11 +122,28 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 	return changed
 }
 
-func (s *Server) holdQueueScheduleLocked() {
-	s.queueSchedule = queueFixed
-	for _, q := range s.prefetchSources {
-		q.fixed = q.timing
+func (s *Server) holdQueueScheduleLocked(base time.Time, sources map[string]*queueSource) {
+	shift := base.Sub(s.queueStart)
+	for _, q := range sources {
+		if !q.startAt.IsZero() {
+			q.startAt = q.startAt.Add(shift)
+			q.fixed = q.timing
+		}
 	}
+	s.queueSchedule = queueFixed
+}
+
+// Retiring a formal clock holds its published deadlines until replacement.
+func (s *Server) holdPublishedQueueLocked(now time.Time) []string {
+	if s.queueSchedule != queueFormal {
+		return nil
+	}
+	if len(s.prefetchSources) == 0 {
+		s.resetQueueScheduleLocked(now)
+		return nil
+	}
+	s.holdQueueScheduleLocked(s.queueStart, s.prefetchSources)
+	return s.retimeQueueLocked(now)
 }
 
 func (s *Server) resetQueueScheduleLocked(now time.Time) {
@@ -219,7 +236,6 @@ func (s *Server) expireQueueUseLocked(now time.Time) []string {
 			if q == nil || at.After(now) {
 				break
 			}
-			s.expireFormalLocked(at)
 			s.releaseUseLocked(useSpan{q.use.key, q.use.first, q.use.first + 1}, at)
 			q.use.first++
 			keys = append(keys, q.use.key)

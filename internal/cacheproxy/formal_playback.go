@@ -29,12 +29,7 @@ func (p *formalPlayback) remaining(now time.Time, size int64) useSpan {
 
 // ClearPlaybackLog withdraws the gateway's room state when its consumer stops.
 func (s *Server) ClearPlaybackLog() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.playerRole = vrclog.UnknownRole
-	now := time.Now()
-	s.refreshUseSourcesLocked(now)
-	s.clearFormalLocked(now)
+	s.endPlaybackFromLog(vrclog.UnknownRole)
 }
 
 // ObservePlaybackLog applies the supplied events in file order. The caller owns
@@ -42,21 +37,26 @@ func (s *Server) ClearPlaybackLog() {
 func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {
 	for _, e := range events {
 		role, anchor := t.Role, t.Anchor
-		boundary := t.Observe(e, now)
+		change := t.Observe(e, now)
+		if change.SelectedSong != 0 {
+			s.mu.Lock()
+			s.selectedRoomSong = change.SelectedSong
+			s.mu.Unlock()
+		}
 		anchorChanged := anchor != t.Anchor
-		if !anchorChanged && role == t.Role && !e.Reset && boundary == vrclog.PlaybackContinues {
+		if !anchorChanged && role == t.Role && !e.Reset && !change.Stopped {
 			continue
 		}
 		s.cfg.Logger.Debug("正式播放日志更新", "event_name", "playback_timeline", "role", t.Role.String(), "song_id", t.Anchor.SongID, "anchor", t.Anchor.At, "target_seconds", t.Anchor.Position, "catalog_start", t.Anchor.CatalogStart)
-		if e.Reset || boundary != vrclog.PlaybackContinues {
-			s.endPlaybackFromLog(t.Role, boundary == vrclog.PlaybackEnded)
+		if e.Reset || change.Stopped {
+			s.endPlaybackFromLog(t.Role)
 			continue
 		}
 		s.applyPlaybackTimeline(*t, anchorChanged)
 	}
 }
 
-func (s *Server) endPlaybackFromLog(role vrclog.PlayerRole, natural bool) {
+func (s *Server) endPlaybackFromLog(role vrclog.PlayerRole) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -65,20 +65,7 @@ func (s *Server) endPlaybackFromLog(role vrclog.PlayerRole, natural bool) {
 	s.playerRole = role
 	now := time.Now()
 	s.refreshUseSourcesLocked(now)
-	if !natural || s.queueSchedule == queueRolling || len(s.prefetchSources) == 0 {
-		s.clearFormalLocked(now)
-		return
-	}
-	var keys []string
-	if s.queueSchedule == queueFormal {
-		s.holdQueueScheduleLocked()
-		keys = s.retimeQueueLocked(now)
-	}
-	if p := s.formal; p != nil {
-		s.dropFormalLocked(now)
-		keys = append(keys, p.key)
-	}
-	s.notifyUseChangedLocked(keys...)
+	s.clearFormalLocked(now)
 }
 
 func (p *formalPlayback) setPosition(at time.Time, position float64) {
@@ -109,12 +96,7 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 	song := strconv.FormatInt(a.SongID, 10)
 	p := s.formal
 	if p == nil || p.song != song || p.started != a.Started {
-		// Retire old playback for GET admission while the queue keeps its
-		// last published base until the new clock has been resolved.
-		if p != nil {
-			s.dropFormalLocked(now)
-			s.notifyUseChangedLocked(p.key)
-		}
+		s.withdrawFormalLocked(now)
 		s.mu.Unlock()
 		meta, err := s.Store.formalMedia(s.ctx, a.SongID)
 		if err != nil && s.ctx.Err() == nil {
@@ -170,6 +152,9 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 	if allowExpansion && span.last-span.first <= maxUseBlocks && s.swapUseLocked(p.use, span, false) == nil {
 		p.use = span
 	}
+	if s.formal != p {
+		s.selectedRoomSong = 0
+	}
 	s.formal = p
 	keys := []string{p.key}
 	if s.queueSchedule != queueFormal || !end.Equal(s.queueStart) {
@@ -180,6 +165,7 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 }
 
 func (s *Server) clearFormalLocked(now time.Time) {
+	s.selectedRoomSong = 0
 	p := s.formal
 	if p == nil && s.queueSchedule == queueRolling && !s.queueStart.After(now) {
 		return
@@ -196,15 +182,16 @@ func (s *Server) clearFormalLocked(now time.Time) {
 	s.notifyUseChangedLocked(keys...)
 }
 
-// An unverified replacement leaves a held schedule in effect. An elapsed
-// estimate also stays available so the next snapshot can hold its deadlines.
+// Clock withdrawal leaves the published queue schedule available for handoff.
 func (s *Server) withdrawFormalLocked(now time.Time) {
-	elapsed := s.queueSchedule == queueFormal && !now.Before(s.queueStart)
-	if s.queueSchedule != queueFixed && !elapsed {
-		s.clearFormalLocked(now)
-	} else if p := s.formal; p != nil {
-		s.dropFormalLocked(now)
-		s.notifyUseChangedLocked(p.key)
+	p := s.formal
+	s.dropFormalLocked(now)
+	keys := s.holdPublishedQueueLocked(now)
+	if p != nil {
+		keys = append(keys, p.key)
+	}
+	if len(keys) > 0 {
+		s.notifyUseChangedLocked(keys...)
 	}
 }
 
@@ -227,10 +214,10 @@ func (s *Server) nextFormalExpiryLocked() time.Time {
 	return p.clock.end()
 }
 
-func (s *Server) expireFormalLocked(now time.Time) {
+func (s *Server) expireFormalLocked(now time.Time) []string {
 	p := s.formal
 	if p == nil {
-		return
+		return nil
 	}
 	for p.use.first < p.use.last {
 		b := p.use.first
@@ -241,9 +228,11 @@ func (s *Server) expireFormalLocked(now time.Time) {
 		s.releaseUseLocked(useSpan{p.key, b, b + 1}, n.Add(time.Nanosecond))
 		p.use.first++
 	}
-	if !now.Before(p.clock.end()) {
-		s.dropFormalLocked(p.clock.end())
+	if end := p.clock.end(); !now.Before(end) {
+		s.dropFormalLocked(end)
+		return s.holdPublishedQueueLocked(end)
 	}
+	return nil
 }
 
 // Only look at the Range head, or its immediate neighbor for the player's

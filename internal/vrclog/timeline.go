@@ -50,6 +50,7 @@ type PlayerTimeline struct {
 	route                int64
 	lastEvent, lastStart time.Time
 	naturalTransitionAt  time.Time
+	selectionPending     bool
 	synced               bool // The current route has supplied a synchronization.
 	previews             map[int64]*previewAssociation
 	activePreview        *previewAssociation
@@ -57,17 +58,14 @@ type PlayerTimeline struct {
 	previewSeek          *PlaybackEvent
 }
 
-type PlaybackBoundary uint8
-
-const (
-	PlaybackContinues PlaybackBoundary = iota
-	PlaybackEnded
-	PlaybackStopped
-)
+type PlaybackChange struct {
+	SelectedSong int64 // A newly observed room selection.
+	Stopped      bool  // The room stopped without continuing into a selection.
+}
 
 // Observe is called in file order by the single log reader. Route lines
 // identify anonymous sync callbacks but cannot themselves start playback.
-func (p *PlayerTimeline) Observe(event Event, received time.Time) (boundary PlaybackBoundary) {
+func (p *PlayerTimeline) Observe(event Event, received time.Time) (change PlaybackChange) {
 	if event.Reset {
 		*p = PlayerTimeline{}
 		return
@@ -76,6 +74,7 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (boundary Play
 	if e == nil || e.At.Before(p.lastEvent) || e.At.After(received) {
 		return
 	}
+	previousAnchor := p.Anchor
 	// A local seek can identify a following sync even if it omits the threshold.
 	// A sync with the room threshold keeps its source independently of the seek.
 	seek := p.previewSeek
@@ -96,11 +95,11 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (boundary Play
 		return
 	case "room-selection":
 		delete(p.previews, e.SongID)
-		if !p.naturalTransitionAt.IsZero() {
-			p.naturalTransitionAt = e.At
-		}
+		p.selectionPending = true
+		change.SelectedSong = e.SongID
 		return
 	case "room-stop-request":
+		p.selectionPending = false
 		p.naturalTransitionAt = time.Time{}
 		return
 	case "room-route":
@@ -184,24 +183,25 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (boundary Play
 				// The old player's stop callback can cross a log second after
 				// natural end or selection of the next song.
 				age := e.At.Sub(p.naturalTransitionAt)
-				continuing := e.Kind == "room-stop" && p.Anchor.SongID == 0 && age >= 0 && age <= time.Second
-				if !continuing {
-					boundary = PlaybackStopped
-				}
+				continuedNaturalEnd := e.Kind == "room-stop" && p.Anchor.SongID == 0 && age >= 0 && age <= time.Second
+				change.Stopped = !p.selectionPending && !continuedNaturalEnd
 			} else if p.Anchor.SongID != 0 {
-				boundary = PlaybackEnded
 				p.naturalTransitionAt = e.At
 			}
 			p.Anchor = PlaybackAnchor{}
 		} else if e.Kind == "stop" && e.SongID == p.route && p.Anchor.SongID == 0 {
-			boundary = PlaybackStopped
+			change.Stopped = !p.selectionPending
 		}
 		if e.SongID == 0 || e.SongID == p.route {
 			p.route, p.lastStart, p.synced = 0, time.Time{}, false
 		}
 	}
-	if p.Anchor.SongID != 0 || boundary == PlaybackStopped {
+	if p.Anchor.SongID != 0 || change.Stopped {
 		p.naturalTransitionAt = time.Time{}
+	}
+	newPlayback := p.Anchor.SongID != 0 && (p.Anchor.SongID != previousAnchor.SongID || p.Anchor.Started != previousAnchor.Started)
+	if change.Stopped || newPlayback {
+		p.selectionPending = false
 	}
 	return
 }

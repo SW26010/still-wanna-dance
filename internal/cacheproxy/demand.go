@@ -124,10 +124,11 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			changed = true
 		}
 	}
-	holdSchedule := false
-	if !reset && len(ids) > 0 && len(s.prefetchOrder) > 0 && s.queueSchedule == queueFormal && !now.Before(s.queueStart) {
-		head := s.prefetchOrder[0]
-		holdSchedule = !slices.Contains(ids, head) || head <= 0 && slices.Equal(s.prefetchOrder[1:], ids)
+	selected := s.selectedRoomSong
+	selectedDeparted := selected != 0 && slices.Contains(s.prefetchOrder, selected) && !slices.Contains(ids, selected)
+	holdIdleSchedule := !reset && len(ids) > 0 && s.queueSchedule == queueRolling && selectedDeparted && s.prefetchOrder[0] == selected
+	if reset || selectedDeparted {
+		s.selectedRoomSong = 0
 	}
 	for i, id := range ids {
 		if id > 0 {
@@ -158,10 +159,10 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			changed = true
 		}
 	}
-	if holdSchedule {
-		// Departing sources used the previous clock through their withdrawal.
-		// Capture survivors before refreshing their catalog metadata.
-		s.holdQueueScheduleLocked()
+	if holdIdleSchedule {
+		// Preserve the surviving slots at the instant before the selected head
+		// departed. Newly added sources receive their slots after the old tail.
+		s.holdQueueScheduleLocked(now, next)
 	}
 	for song, source := range next {
 		metadata, ok := timings[song]

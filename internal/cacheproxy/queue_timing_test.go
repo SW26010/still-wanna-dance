@@ -86,7 +86,7 @@ func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	})
 }
 
-func TestQueueFollowsFormalEndAcrossGETAndNaturalExpiry(t *testing.T) {
+func TestQueueHoldsFormalScheduleAcrossGETAndClockExpiry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)
 		base := time.Now()
@@ -109,13 +109,13 @@ func TestQueueFollowsFormalEndAcrossGETAndNaturalExpiry(t *testing.T) {
 		check(base.Add(time.Minute))
 		time.Sleep(25 * time.Second)
 		synctest.Wait()
-		check(time.Now())
+		check(base.Add(time.Minute))
 		release()
-		check(time.Now())
+		check(base.Add(time.Minute))
 	})
 }
 
-func TestQueueDownloadSurvivesFormerDeadline(t *testing.T) {
+func TestRollingQueueDownloadSurvivesFormerDeadline(t *testing.T) {
 	for _, status := range []int{http.StatusPartialContent} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -160,7 +160,6 @@ func TestQueueDownloadSurvivesFormerDeadline(t *testing.T) {
 				getCtx := context.WithValue(t.Context(), playbackClockKey{}, clock)
 				_, release := addTestDemand(t, s, getCtx, video{key: "stale-get", size: 1}, true)
 				defer release()
-				setFormalPlaybackEnd(t, s, now.Add(10*time.Second))
 				s.UpdatePrefetchQueue([]int64{1}, false)
 				ctx := s.queueDemandContext(t.Context(), "1")
 				if _, err := s.PrefetchSong(ctx, "1", videoURL(payload)); err != nil {
@@ -343,12 +342,8 @@ func TestQueueHeadDepartureRetainsSuccessorSchedule(t *testing.T) {
 				if n := plan[0].need; !n.ReadyBy.Equal(second) || !n.Rolling.Base.IsZero() {
 					t.Fatalf("successor changed deadline on departure: %+v, want %s", n, second)
 				}
-				wantHandoff := maxTime(departed, end)
-				if tc.endFirst {
-					wantHandoff = end
-				}
 				h := snapshotUseHandoffs(s)
-				if len(h) != 1 || h[0].span.key != "head" || !h[0].clock.at.Equal(wantHandoff) || !h[0].until.Equal(departed.Add(handoffGrace)) {
+				if len(h) != 1 || h[0].span.key != "head" || !h[0].clock.at.Equal(end) || !h[0].until.Equal(departed.Add(handoffGrace)) {
 					t.Fatalf("head did not hand off on its prior clock: %+v", h)
 				}
 
@@ -443,6 +438,7 @@ func TestHeldQueueExpiresAndRestoresThroughCapacity(t *testing.T) {
 		}
 		s.ObservePlaybackLog(&timeline, []vrclog.Event{
 			{Playback: &vrclog.PlaybackEvent{At: at, Kind: "room-end"}},
+			{Playback: &vrclog.PlaybackEvent{At: at, Kind: "room-selection", SongID: 2}},
 			button,
 			{Playback: &vrclog.PlaybackEvent{At: at, Kind: "room-stop"}},
 		}, time.Now())
@@ -459,4 +455,79 @@ func TestHeldQueueExpiresAndRestoresThroughCapacity(t *testing.T) {
 			t.Fatal("stopped clock did not restore the queued block when capacity returned", n)
 		}
 	})
+}
+
+func TestQueueSelectionPreservesPublishedSuccessorTimes(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		formal    bool
+		selection int64
+	}{
+		{name: "switch from active playback", formal: true, selection: 1},
+		{name: "start the head from idle", selection: 1},
+		{name: "delete the idle head"},
+		{name: "idle head differs from selection", selection: 9},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.Logger = slog.Default()
+				s.cfg.PrepareAhead = 120 * time.Second
+				base := time.Now()
+				formalEnd := base.Add(3 * time.Minute)
+				var timeline vrclog.PlayerTimeline
+				if tc.formal {
+					timeline.Anchor = vrclog.PlaybackAnchor{SongID: 9, At: base}
+					setFormalPlaybackEnd(t, s, formalEnd)
+				}
+				s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
+				registerQueueResource(t, s, "2", w.v.key)
+				time.Sleep(20 * time.Second)
+				departed := time.Now()
+				if tc.selection > 0 {
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{
+						{Playback: &vrclog.PlaybackEvent{Kind: "room-selection", SongID: tc.selection, At: departed}},
+						{Playback: &vrclog.PlaybackEvent{Kind: "room-stop", At: departed}},
+					}, departed)
+				}
+				s.UpdatePrefetchQueue([]int64{2, 3}, false)
+				expect := departed
+				held := tc.selection == 1
+				if held {
+					expect = expect.Add(typicalDuration)
+				}
+				if tc.formal {
+					expect = formalEnd.Add(typicalDuration)
+				}
+				check := func(want time.Time, fixed bool) {
+					t.Helper()
+					now := time.Now()
+					plan, _, _ := w.plan(now)
+					if n := plan[0].need; n.ReadyAt(now) != want || n.Rolling.Base.IsZero() != fixed {
+						t.Fatalf("successor clock = %v, want %v (fixed=%t)", n, want, fixed)
+					}
+					s.mu.Lock()
+					second := s.prefetchSources["2"]
+					third := s.prefetchSources["3"]
+					membershipOK := s.prefetchSources["1"] == nil && second.position == 0 && third.position == 1
+					next := s.queueClockLocked(third, now).at
+					s.mu.Unlock()
+					if !membershipOK || next != want.Add(typicalDuration) {
+						t.Fatal("queue membership or later deadline changed unexpectedly", next)
+					}
+				}
+				check(expect, held)
+				if held && protectionFor(s, w.v.key, 0).active(departed) {
+					t.Fatal("successor entered the preparation window early")
+				}
+				time.Sleep(5 * time.Second)
+				if held {
+					check(expect, true)
+				}
+				end := time.Now().Add(40 * time.Second)
+				setFormalPlaybackEnd(t, s, end)
+				check(end, false)
+			})
+		})
+	}
 }

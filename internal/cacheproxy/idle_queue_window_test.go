@@ -151,7 +151,7 @@ func TestIdleQueueCompletedResourceWaitsForRealWindowChange(t *testing.T) {
 	})
 }
 
-func TestQueueFutureFormalEndTransitionsWithoutWallClockEntryBeyondWindow(t *testing.T) {
+func TestQueueFormalClockExpiryRetainsAbsoluteWindowEntry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)
 		s.cfg.PrepareAhead = 120 * time.Second
@@ -171,19 +171,17 @@ func TestQueueFutureFormalEndTransitionsWithoutWallClockEntryBeyondWindow(t *tes
 		if future != base.Add(60*time.Second) {
 			t.Fatal("future estimate was pulled forward", future)
 		}
-		// Keep the published snapshot across the old absolute t=65 entry.
+		// While the formal clock is active this offset stays outside the rolling window.
 		plan, _, _ := w.plan(time.Now())
 		if !plan[1].refetchAt().IsZero() {
 			t.Fatal("out-of-window resource retained an absolute refetch timer")
 		}
 		time.Sleep(6 * time.Second)
 		synctest.Wait()
-		if !plan[1].need.WindowClosed || protectionFor(s, w.v.key, 1).active(time.Now()) {
-			t.Fatal("old future estimate crossed the idle boundary before refresh")
-		}
 		plan, _, _ = w.plan(time.Now())
-		if !plan[1].need.WindowClosed || plan[0].need.ReadyAt(time.Now()) != time.Now() {
-			t.Fatal("formal end changed the relative window or stalled the head clock")
+		if plan[1].need.WindowClosed || plan[1].refetchAt() != base.Add(65*time.Second) ||
+			!protectionFor(s, w.v.key, 1).active(time.Now()) || plan[0].need.ReadyAt(time.Now()) != future {
+			t.Fatal("held schedule did not use the previous absolute deadlines")
 		}
 	})
 }

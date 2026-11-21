@@ -275,8 +275,12 @@ func TestFormalPlaybackWithdrawsFromRoomLog(t *testing.T) {
 			cleared := s.formal == nil && s.useBlocks[block] == 0
 			queueStart = s.queueClockLocked(s.prefetchSources["3"], now).at
 			s.mu.Unlock()
-			if !cleared || timeline.Anchor.SongID != 0 || !queueStart.Equal(now) || timeline.Role != tc.role {
-				t.Fatalf("room log did not withdraw the old playback and restore the idle queue: cleared=%t, anchor=%+v, queue start=%v, role=%v", cleared, timeline.Anchor, queueStart, timeline.Role)
+			wantStart := now
+			if tc.role == vrclog.Follower {
+				wantStart = at.Add(100 * time.Second)
+			}
+			if !cleared || timeline.Anchor.SongID != 0 || !queueStart.Equal(wantStart) || timeline.Role != tc.role {
+				t.Fatalf("room log did not withdraw playback with the expected queue schedule: cleared=%t, anchor=%+v, queue start=%v, role=%v", cleared, timeline.Anchor, queueStart, timeline.Role)
 			}
 			if tc.role == vrclog.Follower {
 				syncAt := withdrawAt.Add(time.Second)
@@ -493,9 +497,35 @@ func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
 		}, at)
 	}
 	at := time.Now().Truncate(time.Second)
-	start(at.Add(-20 * time.Second))
+	previousStart := at.Add(-20 * time.Second)
+	start(previousStart)
 	before := len(logs.records(t))
-	start(at)
+	func() {
+		db := s.Store.playbackDB
+		conn, err := db.Conn(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		waiting := db.Stats().WaitCount
+		started := make(chan struct{})
+		go func() {
+			start(at)
+			close(started)
+		}()
+		defer func() {
+			conn.Close()
+			<-started
+		}()
+		waitForDatabaseWait(t, db, waiting)
+
+		oldEnd := previousStart.Add(100 * time.Second)
+		s.mu.Lock()
+		got := s.queueClockLocked(s.prefetchSources["2"], oldEnd.Add(time.Second)).at
+		s.mu.Unlock()
+		if !got.Equal(oldEnd) {
+			t.Errorf("queue start while replacement is blocked = %v, want %v", got, oldEnd)
+		}
+	}()
 
 	var starts []any
 	for _, entry := range logs.records(t)[before:] {
@@ -515,8 +545,8 @@ func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
-	if s.formal != nil || !s.queueClockLocked(s.prefetchSources["2"], now).at.Equal(now) {
-		t.Fatal("rejected replacement did not restore the idle queue clock")
+	if s.formal != nil || !s.queueClockLocked(s.prefetchSources["2"], now).at.Equal(at.Add(100*time.Second)) {
+		t.Fatal("rejected replacement lost the last published queue clock")
 	}
 }
 

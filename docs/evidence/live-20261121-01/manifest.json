@@ -1,0 +1,22 @@
+{
+  "batch": "LIVE-20261121-01",
+  "hashBasis": "git-blob (UTF-8 normalized to LF)",
+  "sourceRevision": "a30cdead25d4df558bacbd6cc68f8892f4476ce2",
+  "fixtureOverlaySHA256": "2c1cf8c6867f4c35774ba3efe6411becdb3795fd6d5be08623b776c9f499807f",
+  "executableSHA256": "3cd1e1867a3a19d3a9d43b335d14a795d1829cbca2b6473cdbce8969a73001af",
+  "build": "Isolated Go cacheproxy test executable built with no_easytier; desktop executable was outside this run.",
+  "source": "VRChat player log, request and room-clock events from the SWD engine, origin fault controls, and operator observations.",
+  "sanitization": "Relative timestamps, numeric media and request fields, selected player events, and operator observations. No account identifiers, instance identifiers, absolute paths, URLs, or raw game logs.",
+  "files": [
+    {
+      "path": "docs/acceptance/live-acceptance-20261121-01.md",
+      "bytes": 4484,
+      "sha256": "f9660002ef5fc43433e7484eab2caae6d814f3ad54b17859934156b2c8bb1b6d"
+    },
+    {
+      "path": "docs/evidence/live-20261121-01/playback.json",
+      "bytes": 59430,
+      "sha256": "bddf1f15864615050259b5b7475efce4e62d9d535a5b0b4a64e5e4c26b944de7"
+    }
+  ]
+}

@@ -10,6 +10,8 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 ## 文件索引
 
+2026-11-21 [正式播放缺块与房间进度](../acceptance/live-acceptance-20261121-01.md)记录 owner 收到 206 后长时间无正文时的同步进度、卡住后手动刷新，以及非 owner 连续四次收到同一缺块的 504 后自动恢复。[证据清单](live-20261121-01/manifest.json)
+
 2026-11-18 [非 owner 日常播放日志核对](../acceptance/live-acceptance-20261118-01.md)覆盖 9 次播放、13 条同步与 21 次两秒交接。两次片尾同步随后被游戏校正，本场没有入口 504 或 owner 断流样本。[证据清单](live-20261118-01/manifest.json)
 
 2026-11-17 [正常响应头与 owner 手动刷新](../acceptance/live-acceptance-20261117-03.md)及[重复观察／非 owner 三组对照](../acceptance/live-acceptance-20261117-04.md)：[03 清单](live-20261117-03/manifest.json)、[04 清单](live-20261117-04/manifest.json)。保留无 504 仍自动回零、三首 owner 延后刷新成功；非 owner 自动组总卡顿 24 秒，两策略下等 8 秒刷新分别 12／10 秒恢复。另列过早刷新仍落入坏块、缓存绕过、好友操作及旧请求重叠；事实、工程取舍与未来计划分别记录，产品策略未改变。

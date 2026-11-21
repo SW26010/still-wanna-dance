@@ -147,7 +147,7 @@ func run() (runErr error) {
 		return err
 	}
 	defer configLease.Close()
-	level, configErr := console.ReadLogLevel(p)
+	level, logBudget, configErr := console.ReadLogSettings(p)
 	startupSettings, settingsErr := console.ReadStartupSettings(p)
 	if configErr == nil {
 		configErr = settingsErr
@@ -178,10 +178,13 @@ func run() (runErr error) {
 	} else {
 		defer func() { runErr = errors.Join(runErr, work.Close()) }()
 	}
+	if configErr != nil {
+		return configErr
+	}
 	logDir := apppaths.ForConfig(p).LogDir
 	var writer *applog.Writer
 	if level != applog.Off {
-		writer, err = applog.Open(logDir, applog.MaxBytes, applog.MaxTotalBytes, func(err error) {
+		writer, err = applog.Open(logDir, applog.MaxBytes, logBudget, func(err error) {
 			message := fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
 			fmt.Fprintln(os.Stderr, message)
 		})
@@ -222,9 +225,6 @@ func run() (runErr error) {
 		}
 	}()
 	slog.Info("程序正在启动", "event_name", "application_starting", "config", p, "listen", *address, "tray", !*noTray, "go", runtime.Version())
-	if configErr != nil {
-		return configErr
-	}
 	if err := configLease.CleanWorkFiles(); err != nil {
 		return err
 	}

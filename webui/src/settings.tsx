@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useContext, type ReactNode, type Ref } from 'react';
 import {flushSync} from 'react-dom';
 import { Button, Checkbox, Divider, Field, Input, Select, Text, Tooltip } from '@fluentui/react-components';
-import { bootstrap, type DownloadNumberField } from './bootstrap';
-import {downloadNumber,hasProxyImport,type Draft} from './settings-draft';
+import type {SettingsNumberField} from './bootstrap';
+import {hasProxyImport,maxLogBudgetMiB,settingsNumber,settingsNumberDefault,type Draft} from './settings-draft';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress } from './ui';
 import { CacheCapacityFields } from './cache-capacity';
@@ -86,8 +86,8 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     return typeof value==='string'&&(value===issue.value||!!value&&!!issue.value&&samePath(value,issue.value));
   }));
   useEffect(()=>{app.setSettingsDirty(section,dirty);return ()=>app.setSettingsDirty(section,false);},[section,dirty,app.setSettingsDirty]);
-  const prepareAheadSeconds = downloadNumber(d, 'prepareAheadSeconds');
-  const localProtectionGraceSeconds = downloadNumber(d, 'localProtectionGraceSeconds');
+  const prepareAheadSeconds = settingsNumber(d, 'prepareAheadSeconds');
+  const localProtectionGraceSeconds = settingsNumber(d, 'localProtectionGraceSeconds');
   const cacheEstimate = Number.isInteger(prepareAheadSeconds) && prepareAheadSeconds >= 100 && prepareAheadSeconds <= 16000
     && Number.isInteger(localProtectionGraceSeconds) && localProtectionGraceSeconds >= 0 && localProtectionGraceSeconds <= 10000
     ? `预计 ${((prepareAheadSeconds + localProtectionGraceSeconds) * 2_000_000 / 8 / 1024 ** 2).toFixed(2)} MiB` : '';
@@ -129,9 +129,9 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
     fieldError:name=>{const input=formRef.current?.elements.namedItem(name);return isInput(input)?inputError(input):'';},
     hasField:name=>!!formRef.current?.elements.namedItem(name),focus:focusInvalid,
   }),[editor.registerForm,editor.selectTab,section]);
-  const numberField = (key: DownloadNumberField, label: string, min: number, max: number, description: string, unit?: string) => <ValidationField className="settings-number-field" name={key} label={label} labelHint={description}>
+  const numberField = (key: SettingsNumberField, label: string, min: number, max: number, description: string, unit?: string) => <ValidationField className="settings-number-field" name={key} label={label} labelHint={description}>
     <Tooltip content={description} relationship="description">{({ref,...trigger})=><div {...trigger} ref={ref as Ref<HTMLDivElement>}>
-      <NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(bootstrap.settingsDefaults[key])} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} />
+      <NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(settingsNumberDefault(key))} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} />
     </div>}</Tooltip>
   </ValidationField>;
   const saveButton=<Button type="submit" form={'settings-form-'+section} appearance="primary" disabled={disabled || locationChecking || !dirty}>保存设置</Button>;
@@ -160,7 +160,15 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
       <Divider /><RequestRetentionFields mode={d.requestRetentionMode} value={d.requestRetentionDays} disabled={disabled} onChange={update} />
       <Divider /><DirectoryField purpose="log-directory" name="vrchatLogDir" label="VRChat 日志目录" hint="默认自动识别，找不到日志时点击选择。" disabled={disabled} value={d.vrchatLogDir || s.defaultLogDir} defaultValue={s.defaultLogDir} isDefault={!d.vrchatLogDir}
         onChange={vrchatLogDir=>update({vrchatLogDir})} onReset={()=>update({vrchatLogDir:''})} onPending={editor.pathPending}/>
-      <Divider /><ValidationField name="logLevel" label="程序日志级别"><Select name="logLevel" disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as typeof s.settings.logLevel})}>{!['off','error','warn','info','debug'].includes(d.logLevel)&&<option value={d.logLevel}>无效值：{d.logLevel||'空'}</option>}<option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option></Select></ValidationField></>}
+      <Divider /><div className="settings-columns">
+        <ValidationField name="logLevel" label="程序日志级别">
+          <Select name="logLevel" disabled={disabled} value={d.logLevel} onChange={(_,v)=>update({logLevel:v.value as typeof s.settings.logLevel})}>
+            {!['off','error','warn','info','debug'].includes(d.logLevel)&&<option value={d.logLevel}>无效值：{d.logLevel||'空'}</option>}
+            <option value="off">关闭</option><option value="error">仅错误（Error）</option><option value="warn">警告及错误（Warn）</option><option value="info">信息（Info，默认）</option><option value="debug">详细调试（Debug）</option>
+          </Select>
+        </ValidationField>
+        {numberField('logBudgetBytes','程序日志大小上限',1,maxLogBudgetMiB,'启动和换片时按上限清理最旧的日志分片。','MiB')}
+      </div></>}
       {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields editor={editor} />
       </fieldset>
 </>}

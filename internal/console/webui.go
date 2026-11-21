@@ -38,7 +38,7 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 		data["build"] = buildinfo.Current()
 	}
 	if page == "console" {
-		data["settingsDefaults"] = downloadSettingsDefaults()
+		data["settingsDefaults"] = numericSettingsDefaults()
 	}
 	if page == "console" || page == "help" {
 		c.mu.Lock()
@@ -56,9 +56,10 @@ func (c *Console) serveWebUI(w http.ResponseWriter, page, title string, data map
 	serveWebUIPage(w, title, c.token, data)
 }
 
-func downloadSettingsDefaults() map[string]int {
+func numericSettingsDefaults() map[string]int {
 	defaults := defaultSettings()
 	return map[string]int{
+		"logBudgetBytes":               int(defaults.LogBudgetBytes),
 		"prepareAheadSeconds":          int(blocksched.DefaultPrepareAhead / time.Second),
 		"downloadConcurrencySoftLimit": defaults.DownloadConcurrencySoftLimit,
 		"downloadGrowIntervalMS":       defaults.DownloadGrowIntervalMS,

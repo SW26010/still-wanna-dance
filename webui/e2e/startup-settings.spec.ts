@@ -13,7 +13,7 @@ test('startup settings have one owner and saving does not trigger acceleration o
  await expect(follow).toHaveCount(0);
  await expect(general.getByRole('textbox',{name:'VRChat 日志目录',exact:true})).toBeVisible();
  const fields=await general.locator('form input[name], form select[name]').evaluateAll(elements=>elements.map(element=>element.getAttribute('name')));
- expect(fields.slice(-2)).toEqual(['vrchatLogDir','logLevel']);
+ expect(fields.slice(-3)).toEqual(['vrchatLogDir','logLevel','logBudgetBytes']);
  await auto.check();
  expect(api.state.settings.autoAccelerate).toBe(false);
  await saveSettings(page,'待重启');

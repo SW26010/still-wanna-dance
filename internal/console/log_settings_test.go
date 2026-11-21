@@ -11,10 +11,13 @@ import (
 	"still-wanna-dance/internal/applog"
 )
 
-func TestReadLogLevelDefaultsAndValidation(t *testing.T) {
+func TestReadLogSettingsDefaultsAndValidation(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	if level, err := ReadLogLevel(path); err != nil || level != applog.Info {
-		t.Fatal(level, err)
+	if level, budget, err := ReadLogSettings(path); err != nil || level != applog.Info || budget != applog.DefaultTotalBytes {
+		t.Fatal(level, budget, err)
+	}
+	if level, budget, err := ReadLogSettings(filepath.Dir(path)); err == nil || level != applog.Info || budget != 0 {
+		t.Fatal("unreadable config returned a logging budget", level, budget, err)
 	}
 	for _, tc := range []struct {
 		data string
@@ -38,8 +41,12 @@ func TestReadLogLevelDefaultsAndValidation(t *testing.T) {
 		if err := os.WriteFile(path, []byte(tc.data), 0600); err != nil {
 			t.Fatal(err)
 		}
-		if level, err := ReadLogLevel(path); (err != nil) != tc.fail || level != tc.want {
-			t.Fatalf("%s: %v %v", tc.data, level, err)
+		wantBudget := applog.DefaultTotalBytes
+		if tc.fail {
+			wantBudget = 0
+		}
+		if level, budget, err := ReadLogSettings(path); (err != nil) != tc.fail || level != tc.want || budget != wantBudget {
+			t.Fatalf("%s: %v %d %v", tc.data, level, budget, err)
 		}
 		after, err := os.ReadFile(path)
 		if err != nil || string(after) != tc.data {
@@ -48,11 +55,68 @@ func TestReadLogLevelDefaultsAndValidation(t *testing.T) {
 	}
 }
 
+func TestReadLogBudget(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	for _, tc := range []struct {
+		value string
+		want  int64 // zero indicates rejection before file logging
+	}{
+		{"null", applog.DefaultTotalBytes},
+		{"1048576", applog.MaxBytes},
+		{"67108864", 64 << 20},
+		{"0", 0},
+		{"-1", 0},
+		{"1048575", 0},
+		{"1048576.5", 0},
+		{`"1048576"`, 0},
+		{"9223372036854775808", 0},
+	} {
+		data := `{"schemaVersion":8,"logLevel":"off","logBudgetBytes":` + tc.value + `}`
+		if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+		level, budget, err := ReadLogSettings(path)
+		if (err != nil) != (tc.want == 0) || level != applog.Off || budget != tc.want {
+			t.Fatalf("logBudgetBytes=%s: level=%v budget=%d err=%v", tc.value, level, budget, err)
+		}
+		loaded, err := loadConfigFile(path)
+		if (err != nil) != (tc.want == 0) || (err == nil && loaded.Settings.LogBudgetBytes != tc.want) {
+			t.Fatalf("full config load disagrees for %s: %v", tc.value, err)
+		}
+	}
+}
+
+func TestRecoveryRepairsLogBudget(t *testing.T) {
+	view := recoveryFixture(t, `{"schemaVersion":8,"logBudgetBytes":0}`)
+	w := recoveryRequest(view, "GET", "/api/recovery/settings", "")
+	var state struct {
+		Settings Settings
+		Fields   map[string]string
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil || w.Code != 200 || state.Settings.LogBudgetBytes != 0 || state.Fields["logBudgetBytes"] == "" {
+		t.Fatal(w.Code, w.Body.String(), err)
+	}
+	w = recoveryRequest(view, "POST", "/api/settings", `{"logBudgetBytes":1048576}`)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if _, budget, err := ReadLogSettings(view.identity.Config); budget != applog.MaxBytes || err != nil {
+		t.Fatal(budget, err)
+	}
+}
+
 func TestLogSettingsSaveAndRestart(t *testing.T) {
 	c := testConsole(t)
 	if c.settings.LogLevel != "info" {
 		t.Fatal("default", c.settings.LogLevel)
 	}
+	if err := updateConfigFile(c.configPath, func(fields map[string]json.RawMessage, _ bool) error {
+		fields["logBudgetBytes"] = json.RawMessage(`67108864`)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
 	post := func(value string) *httptest.ResponseRecorder {
 		s := c.editor.savedSettings
 		s.LogLevel = value
@@ -71,9 +135,9 @@ func TestLogSettingsSaveAndRestart(t *testing.T) {
 		if c.settings.LogLevel != active || c.editor.savedSettings.LogLevel != value {
 			t.Fatal("save changed the active level or lost the saved level")
 		}
-		level, err := ReadLogLevel(c.configPath)
-		if err != nil || level.String() != value {
-			t.Fatal("bootstrap disagrees with saved settings", level, err)
+		level, budget, err := ReadLogSettings(c.configPath)
+		if err != nil || level.String() != value || budget != 64<<20 {
+			t.Fatal("bootstrap disagrees with saved settings", level, budget, err)
 		}
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))

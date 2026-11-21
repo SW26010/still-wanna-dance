@@ -2,6 +2,7 @@ package console
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -65,23 +66,43 @@ func ReadStartupSettings(path string) (Settings, error) {
 	return loaded.Settings, err
 }
 
-// ReadLogLevel bootstraps logging before Console construction can emit events.
-// The entrypoint holds the config lease; use the same envelope validation and
-// JSON field matching as the full settings load, without opening any resources.
-func ReadLogLevel(path string) (applog.Level, error) {
+func decodeLogBudget(data []byte) (int64, error) {
+	settings := struct {
+		LogBudgetBytes int64 `json:"logBudgetBytes"`
+	}{LogBudgetBytes: applog.DefaultTotalBytes}
+	if data != nil {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return 0, fmt.Errorf("配置文件中的 logBudgetBytes 必须为整数字节数：%w", err)
+		}
+	}
+	if err := validateLogBudget(settings.LogBudgetBytes); err != nil {
+		return 0, fmt.Errorf("配置文件中的 logBudgetBytes：%w", err)
+	}
+	return settings.LogBudgetBytes, nil
+}
+
+// ReadLogSettings bootstraps logging before Console construction can emit events.
+// On error the level is still usable for stderr diagnostics, but no file budget
+// has been authorized. A missing configuration uses the defaults.
+func ReadLogSettings(path string) (applog.Level, int64, error) {
 	data, _, err := readConfigFile(path)
 	if err != nil {
-		return applog.Info, err
+		return applog.Info, 0, err
 	}
+	budget, budgetErr := decodeLogBudget(data)
 	var settings struct {
 		LogLevel string `json:"logLevel"`
 	}
 	if data != nil {
 		if err := json.Unmarshal(data, &settings); err != nil {
-			return applog.Info, fmt.Errorf("读取程序日志级别：%w", err)
+			return applog.Info, 0, errors.Join(budgetErr, fmt.Errorf("读取程序日志级别：%w", err))
 		}
 	}
-	return applog.ParseLevel(settings.LogLevel)
+	level, levelErr := applog.ParseLevel(settings.LogLevel)
+	if err := errors.Join(budgetErr, levelErr); err != nil {
+		return level, 0, err
+	}
+	return level, budget, nil
 }
 
 // The disk document is separate from the editable settings API. The latter

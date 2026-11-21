@@ -9,7 +9,7 @@ import (
 )
 
 const MaxBytes int64 = 1 << 20
-const MaxTotalBytes int64 = 20 << 20
+const DefaultTotalBytes int64 = 20 << 20
 
 // Writer must have one process owner (the console's config lock supplies this).
 type Writer struct {

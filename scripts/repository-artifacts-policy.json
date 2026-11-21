@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1331044,
+      "sha256": "99efa007b59aaf496595a57873f82e67b57713f066d396e1c73dc19ebc8eace5",
+      "reason": "离线 WebUI 使用 Fluent 数值输入在常规设置中管理程序日志大小上限。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1329564,
       "sha256": "cbe2e23e86411105bf070b204447992cf956fd08fc26775058aead5d8865861b",
       "reason": "Embedded WebUI rebuilt to report queue prefetch retries in video demand status. Verified against webui/build-manifest.json."

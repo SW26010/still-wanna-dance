@@ -87,8 +87,13 @@ export function useSettingsController(s:SettingsSnapshot,loadedRevision:number|u
         const imported=importedProxyDraft(report);
         ready={...d,...imported};update(imported);
       }
-      const saved = settingsPayload(draftFrom(s.settings)), values = settingsPayload(ready);
-      const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => value !== saved[key as keyof typeof saved]));
+      const savedDraft = draftFrom(s.settings);
+      const saved = settingsPayload(savedDraft), values = settingsPayload(ready);
+      const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => {
+        // Preserve the exact file value unless the displayed field was edited.
+        if (key === 'logBudgetBytes') return ready.logBudgetBytes !== savedDraft.logBudgetBytes && value !== s.settings.logBudgetBytes;
+        return value !== saved[key as keyof typeof saved];
+      }));
       const pendingDatabase=confirmedStorage&&!s.settings.databasePath?values.databasePath:locationValidation.pendingDatabase;
       if (pendingDatabase) {
         if (!samePath(pendingDatabase, values.databasePath)) {

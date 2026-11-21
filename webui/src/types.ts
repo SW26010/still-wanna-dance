@@ -2,6 +2,7 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export interface Settings {
   theme: ThemePreference;
   logLevel: 'off' | 'error' | 'warn' | 'info' | 'debug';
+  logBudgetBytes: number;
 	retainFavorites: boolean;
   databasePath: string; videoDir: string; blockCacheDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number;
   prepareAheadSeconds: number; downloadConcurrencySoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; upstreamMode: string;

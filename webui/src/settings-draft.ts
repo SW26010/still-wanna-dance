@@ -1,9 +1,11 @@
-import {bootstrap,type DownloadNumberField} from './bootstrap';
+import {bootstrap,type SettingsNumberField} from './bootstrap';
 import {decode,request} from './api';
 import type {Settings} from './types';
 import {capacityPayload,type CapacityDraft} from './cache-capacity';
 
-const numeric = ['requestRetentionDays','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds'] as const;
+const numeric = ['requestRetentionDays','prepareAheadSeconds','downloadConcurrencySoftLimit','downloadGrowIntervalMS','localProtectionGraceSeconds','logBudgetBytes'] as const;
+const bytesPerMiB = 2 ** 20;
+export const maxLogBudgetMiB = 2 ** 43 - 1; // Largest whole MiB that fits in an int64 byte count.
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id: string; nodes: number; groups: number; name: string; importedAt?: string }
 export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { theme?: Settings['theme']; proxyImportID: string; proxyImportText: string; proxyImportName: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
@@ -15,15 +17,25 @@ export function draftFrom(s: Settings): Draft {
     prepareAheadSeconds: String(s.prepareAheadSeconds),
     downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
     localProtectionGraceSeconds: String(s.localProtectionGraceSeconds),
+    // The UI edits whole MiB. The persisted setting retains byte precision.
+    logBudgetBytes: String(Math.min(maxLogBudgetMiB, Math.floor(s.logBudgetBytes / bytesPerMiB))),
     videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportName: '', proxyImportSource: 'config' };
 }
 export function settingsPayload(d: Draft) {
   const { videoStorageMode, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
-  return { ...values, ...Object.fromEntries(numeric.map(k => [k, k === 'requestRetentionDays' ? Number(d[k]) : downloadNumber(d, k)])), ...capacityPayload({videoStorageMode, videoBudgetGiB}),
+  const numbers = numeric.map(key => {
+    const value = key === 'requestRetentionDays' ? Number(d[key]) : settingsNumber(d, key);
+    return [key, key === 'logBudgetBytes' ? value * bytesPerMiB : value] as const;
+  });
+  return { ...values, ...Object.fromEntries(numbers), ...capacityPayload({videoStorageMode, videoBudgetGiB}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
-export function downloadNumber(d: Draft, key: DownloadNumberField) {
-  return Number(d[key].trim() || bootstrap.settingsDefaults[key]);
+export function settingsNumberDefault(key: SettingsNumberField) {
+  const value = bootstrap.settingsDefaults[key];
+  return key === 'logBudgetBytes' ? value / bytesPerMiB : value;
+}
+export function settingsNumber(d: Draft, key: SettingsNumberField) {
+  return Number(d[key].trim() || settingsNumberDefault(key));
 }
 export function fingerprint(d: Draft) {
   return JSON.stringify({...settingsPayload(d), emptyNumbers: numeric.filter(k => k !== 'requestRetentionDays' && !d[k].trim()), proxyImportText: d.proxyImportText, proxyImportName: d.proxyImportName, proxyImportSource: d.proxyImportText ? d.proxyImportSource : ''});

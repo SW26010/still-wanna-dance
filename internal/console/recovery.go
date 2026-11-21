@@ -152,7 +152,7 @@ func (r *Recovery) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case req.Method == http.MethodGet && (req.URL.Path == "/" || req.URL.Path == "/help" || req.URL.Path == "/about" || req.URL.Path == "/terms"):
 		serveWebUIPage(w, "WebUI", r.token, map[string]any{
 			"page": "console", "token": r.token, "theme": r.DesktopState().Theme, "recovery": map[string]string{"reason": r.reason},
-			"settingsDefaults": downloadSettingsDefaults(),
+			"settingsDefaults": numericSettingsDefaults(),
 			"build":            buildinfo.Current(), "terms": map[string]string{"text": legal.Text, "version": legal.Version},
 		})
 	case req.Method == http.MethodGet && req.URL.Path == "/api/identity":

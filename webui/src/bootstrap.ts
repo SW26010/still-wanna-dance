@@ -1,7 +1,8 @@
 import type { Settings, ThemePreference } from './types';
 export type DownloadNumberField = 'prepareAheadSeconds' | 'downloadConcurrencySoftLimit' | 'downloadGrowIntervalMS' | 'localProtectionGraceSeconds';
+export type SettingsNumberField = DownloadNumberField | 'logBudgetBytes';
 export interface Bootstrap {
-  settingsDefaults: Pick<Settings, DownloadNumberField>;
+  settingsDefaults: Pick<Settings, SettingsNumberField>;
   theme?: ThemePreference;
   page: 'about' | 'help' | 'terms' | 'console';
   token: string;

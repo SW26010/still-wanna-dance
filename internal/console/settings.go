@@ -28,6 +28,7 @@ type Settings struct {
 	ExitWithVRChat               bool   `json:"exitWithVRChat"`
 	Theme                        string `json:"theme"`
 	LogLevel                     string `json:"logLevel"`
+	LogBudgetBytes               int64  `json:"logBudgetBytes"`
 	RestoreHostsOnStopOrExit     bool   `json:"restoreHostsOnStopOrExit"`
 	PrepareAheadSeconds          int    `json:"prepareAheadSeconds"`
 	DownloadConcurrencySoftLimit int    `json:"downloadConcurrencySoftLimit"`
@@ -52,6 +53,7 @@ type Settings struct {
 func defaultSettings() Settings {
 	return Settings{
 		RequestRetentionMode: "unlimited",
+		LogBudgetBytes:       applog.DefaultTotalBytes,
 		AutoAccelerate:       false, AutoOpenWebUI: true, RestoreHostsOnStopOrExit: true,
 		VideoStorageMode: "none", VideoBudgetBytes: 0, RetainFavorites: true,
 		DownloadConcurrencySoftLimit: cacheproxy.VideoRequestSoftLimit, DownloadGrowIntervalMS: int(cacheproxy.DefaultDownloadGrowInterval / time.Millisecond),
@@ -142,6 +144,9 @@ func normalizeSettings(s Settings) (Settings, error) {
 		return s, invalidSetting(err, "logLevel")
 	}
 	s.LogLevel = level.String()
+	if err := validateLogBudget(s.LogBudgetBytes); err != nil {
+		return s, invalidSetting(err, "logBudgetBytes")
+	}
 	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
 		return s, invalidSetting(errors.New("主题必须为 system、light 或 dark"), "theme")
 	}
@@ -201,6 +206,13 @@ func normalizeSettings(s Settings) (Settings, error) {
 		}
 	}
 	return s, nil
+}
+
+func validateLogBudget(budget int64) error {
+	if budget < applog.MaxBytes {
+		return errors.New("程序日志大小上限至少为 1 MiB")
+	}
+	return nil
 }
 
 func pathContains(parent, child string) bool {

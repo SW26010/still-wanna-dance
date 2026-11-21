@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/applog"
 	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
@@ -95,6 +97,78 @@ func TestApplicationCleansBlocksBeforeStartupFailure(t *testing.T) {
 	}
 }
 
+func TestApplicationLogBudgetAtStartup(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	listen := listener.Addr().String()
+	for _, tc := range []struct {
+		name, config, failure string
+		oldFiles, retained    int
+		writeLog              bool
+	}{
+		{"missing", "", listen, 24, 19, true},
+		{"default", `{"schemaVersion":8}`, listen, 2, 2, true},
+		{"custom", `{"schemaVersion":8,"logBudgetBytes":2097152}`, listen, 2, 1, true},
+		{"off", `{"schemaVersion":8,"logLevel":"off","logBudgetBytes":2097152}`, listen, 2, 2, false},
+		{"invalid_budget", `{"schemaVersion":8,"logBudgetBytes":0}`, "logBudgetBytes", 24, 24, false},
+		{"malformed_json", `{"schemaVersion":8,"logBudgetBytes":64 MiB}`, "读取程序配置", 24, 24, false},
+		{"invalid_other_setting", `{"schemaVersion":8,"logBudgetBytes":1048576,"theme":"invalid"}`, "主题必须为", 24, 24, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "config.json")
+			if tc.config != "" {
+				if err := os.WriteFile(config, []byte(tc.config), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			startupWorkForTest(t, config)
+			logDir := apppaths.ForConfig(config).LogDir
+			if err := os.MkdirAll(logDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			paths := make([]string, tc.oldFiles)
+			data := make([]byte, applog.MaxBytes)
+			for i := range paths {
+				paths[i] = filepath.Join(logDir, fmt.Sprintf("20200101T000000Z-%d.log", i+1))
+				data[0] = byte(i)
+				if err := os.WriteFile(paths[i], data, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-config", config, "-listen", listen, "-no-tray", "-no-open")
+			cmd.Env = append(os.Environ(), "SWD_RESTART_TEST_APP=1")
+			configureRestartCommand(cmd)
+			if output, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(output), tc.failure) {
+				t.Fatalf("unexpected startup result: %v\n%s", err, output)
+			}
+			wantFiles := tc.retained
+			if tc.writeLog {
+				wantFiles++
+			}
+			if entries, err := os.ReadDir(logDir); err != nil || len(entries) != wantFiles {
+				t.Errorf("found %d log files, want %d: %v", len(entries), wantFiles, err)
+			}
+			for i, path := range paths {
+				if i < tc.oldFiles-tc.retained {
+					if _, err := os.Stat(path); !os.IsNotExist(err) {
+						t.Fatalf("old segment %d was not removed: %v", i+1, err)
+					}
+					continue
+				}
+				data[0] = byte(i)
+				if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, data) {
+					t.Fatalf("retained segment %d was lost or modified: %v", i+1, err)
+				}
+			}
+		})
+	}
+}
+
 // Exercise the real startup sink and final error path without starting a
 // Console, accepting terms or contacting upstreams. An occupied loopback port
 // fails after logging/work setup, so Off must reach that failure unchanged.
@@ -163,6 +237,15 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 				bytes.Contains(output, []byte("temporary_cleanup_skipped")) != wantWarn {
 				t.Fatalf("cleanup ignored level %s: %s", level, output)
 			}
+			if level == "invalid" {
+				if !bytes.Contains(output, []byte("程序日志级别必须为")) {
+					t.Fatalf("missing configuration error on stderr: %s", output)
+				}
+				if _, err := os.Stat(logDir); !os.IsNotExist(err) {
+					t.Fatalf("invalid log level accessed the log directory: %v", err)
+				}
+				return
+			}
 			if level == "off" {
 				for _, name := range existingNames {
 					data, err := os.ReadFile(filepath.Join(logDir, name))
@@ -227,7 +310,7 @@ func TestApplicationLogLevelAtStartup(t *testing.T) {
 			if level == "info" && betaRecords != len(betaNames) {
 				t.Fatalf("beta4 records were not readable: %d", betaRecords)
 			}
-			if !failed || started != (level == "info" || level == "debug" || level == "invalid") {
+			if !failed || started != (level == "info" || level == "debug") {
 				t.Fatalf("incorrect level filter: %+v", logs)
 			}
 		})

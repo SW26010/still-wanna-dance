@@ -29,6 +29,7 @@ for (const prefix of ['', 'night.json.d\\']) test(`default storage paths stay re
   await page.getByRole('tab', {name:'下载与缓存', exact:true}).click();
   await expect(page.getByRole('textbox', {name:'临时视频缓存目录', exact:true})).toHaveValue('.\\work');
   // System-owned default log paths are absolute and retain their current display.
+  await page.getByRole('tab', {name:'常规', exact:true}).click();
   await expect(page.getByRole('textbox', {name:'VRChat 日志目录', exact:true})).toHaveValue(api.state.defaultLogDir);
   await page.goto('/#video-import');
   await expect(page.getByText('本次导入到完整视频目录：.\\' + prefix + 'videos', {exact:true})).toBeVisible();

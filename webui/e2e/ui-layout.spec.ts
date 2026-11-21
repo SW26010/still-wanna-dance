@@ -18,19 +18,23 @@ for(const [width,height] of [[1440,1000],[900,1200],[390,2000]])test(`short page
 
 for(const width of [390,800,1440])test(`settings and network show their controls without nested disclosure at ${width}px`,async({page},info)=>{
   await mockAPI(page);await page.setViewportSize({width,height:1000});await page.goto('/#/settings');
+  const resetEdges: number[] = [];
   for(const tab of ['常规','存储','下载与缓存','网络']){
     await page.getByRole('tab',{name:tab,exact:true}).click();
     await expect(page.getByRole('button',{name:'保存设置',exact:true})).toBeVisible();
     await expect(page.locator('.fui-Accordion')).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    if(tab==='下载与缓存'){
-      const log=(await page.getByRole('button',{name:'VRChat 日志目录：恢复默认',exact:true}).boundingBox())!;
-      const cache=(await page.getByRole('button',{name:'临时视频缓存目录：恢复默认',exact:true}).boundingBox())!;
-      expect(Math.abs(log.x+log.width-cache.x-cache.width)).toBeLessThan(1);
+    if(tab==='常规'||tab==='下载与缓存'){
+      const name=tab==='常规'?'VRChat 日志目录：恢复默认':'临时视频缓存目录：恢复默认';
+      const reset=page.getByRole('button',{name,exact:true});
+      await expect(reset).toBeVisible();
+      const box=(await reset.boundingBox())!;
+      resetEdges.push(box.x+box.width);
     }
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:info.outputPath(tab+'.png'),fullPage:true,animations:'disabled'});
   }
+  expect(Math.abs(resetEdges[0]-resetEdges[1])).toBeLessThan(1);
   await expect(page.getByRole('link',{name:'检测当前连接',exact:true})).toHaveCount(0);
   await navigate(page,'网络');
   await expect(page.getByRole('heading',{name:'网络',level:1,exact:true})).toBeVisible();

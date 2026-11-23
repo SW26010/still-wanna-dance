@@ -48,8 +48,8 @@ func TestTermsSlotsNewestMatch(t *testing.T) {
 			if err := c.loadTerms(); err != nil {
 				t.Fatal(err)
 			}
-			if c.terms != tc.want || c.termsNeedsConfirmation == tc.want.valid() {
-				t.Fatalf("unexpected loaded receipt: %+v, needsConfirmation=%t", c.terms, c.termsNeedsConfirmation)
+			if c.terms != tc.want || (c.termsConfirmationIssue == termsReceiptUnverified) == tc.want.valid() {
+				t.Fatalf("unexpected loaded receipt: %+v, issue=%d", c.terms, c.termsConfirmationIssue)
 			}
 			decrypts := 0
 			c.termsProtection.unprotect = func(cipher []byte) ([]byte, error) {
@@ -190,7 +190,7 @@ func TestTermsSlotsSaveFailurePreservesExistingFile(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := c.acceptTerms(); err == nil || c.termsAccepted() || !c.termsNeedsConfirmation {
+			if err := c.acceptTerms(); err == nil || c.termsAccepted() || c.termsConfirmationIssue != termsReceiptUnverified {
 				t.Fatal("failed save granted consent", err)
 			}
 			after, err := os.ReadFile(c.files().Terms)

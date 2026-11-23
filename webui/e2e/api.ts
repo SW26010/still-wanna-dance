@@ -21,7 +21,7 @@ export async function mockAPI(page: Page,{libraryView,firstUse=false}:{libraryVi
   const fixtureID=crypto.randomUUID();
   await page.context().addCookies([{name:'fixture-id',value:fixtureID,url:'http://127.0.0.1:18473'}]);
   const state = statusFixture(), calls: {path:string;body:Record<string,unknown>;token?:string}[] = [];
-  const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false};
+  const terms={text:'测试完整条款。软件许可不等于内容授权。',version:'fixture',sha256:'fixture-hash',accepted:true,needsConfirmation:false,receiptReadError:''};
   const diagnostics={connectivity:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,results:[],lastResult:undefined},calibration:{revision:1,run:0,upstream:'direct',phase:'idle',running:false,lastValid:undefined,referenceBitrateBPS:2000000}};
   const diagnosticSockets=new Set<WebSocketRoute>();
   await page.routeWebSocket(/\/api\/(history|block-demands)\/events(?:\?|$)/,socket=>{

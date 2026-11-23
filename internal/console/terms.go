@@ -17,6 +17,17 @@ import (
 )
 
 var errTermsStartup = errors.New("terms saved but startup failed")
+var errTermsReceiptRead = errors.New("读取条款确认记录")
+
+const termsReceiptReadMessage = "之前的同意记录暂时无法读取。请检查文件占用或权限后重试。"
+
+type termsReceiptIssue uint8
+
+const (
+	termsReceiptNoIssue termsReceiptIssue = iota
+	termsReceiptUnverified
+	termsReceiptUnreadable
+)
 
 type termsReceipt struct {
 	Version    string    `json:"version"`
@@ -62,16 +73,19 @@ func (c *Console) termsAccepted() bool {
 
 func (c *Console) loadTerms() error {
 	c.terms = termsReceipt{}
-	c.termsNeedsConfirmation = false
+	c.termsConfirmationIssue = termsReceiptNoIssue
 	c.termsProtection = defaultTermsProtection
 	receipts, present, err := readTermsReceipts(c.files().Terms)
 	if err != nil {
+		c.termsConfirmationIssue = termsReceiptUnreadable
 		return err
 	}
 	c.terms = c.findAcceptedTerms(receipts)
-	c.termsNeedsConfirmation = present && !c.terms.valid()
-	if len(receipts) > 0 && c.termsNeedsConfirmation {
-		slog.Warn("使用条款确认记录无效", "event_name", "terms_receipt_invalid", "reason", "no verifiable current terms receipt")
+	if present && !c.terms.valid() {
+		c.termsConfirmationIssue = termsReceiptUnverified
+		if len(receipts) > 0 {
+			slog.Warn("使用条款确认记录无效", "event_name", "terms_receipt_invalid", "reason", "no verifiable current terms receipt")
+		}
 	}
 	return nil
 }
@@ -84,12 +98,12 @@ func readTermsReceipts(path string) ([]json.RawMessage, bool, error) {
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, true, fmt.Errorf("读取条款确认记录：%w", err)
+		return nil, true, fmt.Errorf("%w：%w", errTermsReceiptRead, err)
 	}
 	defer f.Close()
 	b, err := io.ReadAll(io.LimitReader(f, maxTermsBytes+1))
 	if err != nil {
-		return nil, true, fmt.Errorf("读取条款确认记录：%w", err)
+		return nil, true, fmt.Errorf("%w：%w", errTermsReceiptRead, err)
 	}
 	var envelope termsEnvelope
 	if len(b) > maxTermsBytes || json.Unmarshal(b, &envelope) != nil || envelope.Format != 2 ||
@@ -126,12 +140,19 @@ func (c *Console) acceptTerms() error {
 	if c.closing {
 		return fmt.Errorf("程序正在退出")
 	}
-	receipts, _, err := readTermsReceipts(c.files().Terms)
+	receipts, present, err := readTermsReceipts(c.files().Terms)
 	if err != nil {
+		if !c.terms.valid() {
+			c.termsConfirmationIssue = termsReceiptUnreadable
+		}
 		return err
 	}
 	receipt := c.findAcceptedTerms(receipts)
 	if !receipt.valid() {
+		c.termsConfirmationIssue = termsReceiptNoIssue
+		if present && !c.terms.valid() {
+			c.termsConfirmationIssue = termsReceiptUnverified
+		}
 		receipt = termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}
 		plain, err := json.Marshal(protectedTerms{termsPurpose, receipt})
 		if err != nil {
@@ -162,7 +183,7 @@ func (c *Console) acceptTerms() error {
 		}
 	}
 	c.terms = receipt
-	c.termsNeedsConfirmation = false
+	c.termsConfirmationIssue = termsReceiptNoIssue
 	c.cancelTermsExitLocked()
 	if c.client != nil {
 		if proxy, ok := c.client.Transport.(*mihomoTransport); ok && proxy.core == nil && c.settings.nodeSnapshot != "" {
@@ -232,9 +253,13 @@ func (c *Console) serveConsolePage(w http.ResponseWriter, entry *termsEntry) {
 func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method == "GET" && r.URL.Path == "/api/terms/current" {
 		c.mu.Lock()
-		accepted, needsConfirmation := c.terms.valid(), c.termsNeedsConfirmation
+		accepted, issue := c.terms.valid(), c.termsConfirmationIssue
 		c.mu.Unlock()
-		writeJSON(w, map[string]any{"text": legal.Text, "version": legal.Version, "sha256": legal.Hash(), "accepted": accepted, "needsConfirmation": needsConfirmation})
+		status := map[string]any{"text": legal.Text, "version": legal.Version, "sha256": legal.Hash(), "accepted": accepted, "needsConfirmation": issue != termsReceiptNoIssue}
+		if issue == termsReceiptUnreadable {
+			status["receiptReadError"] = termsReceiptReadMessage
+		}
+		writeJSON(w, status)
 		return true
 	}
 	if r.Method == "GET" && r.URL.Path == "/terms.txt" {
@@ -300,7 +325,11 @@ func (c *Console) serveTerms(w http.ResponseWriter, r *http.Request) bool {
 			}
 			c.reportFault("terms:accept", err)
 			slog.Error("使用条款确认失败", "event_name", "terms_accept_failed", "error", err)
-			http.Error(w, "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试", 500)
+			message := "无法安全保存同意记录：需要 Windows 当前用户保护及可写的配置目录，请检查运行环境和日志后重试"
+			if errors.Is(err, errTermsReceiptRead) {
+				message = termsReceiptReadMessage
+			}
+			http.Error(w, message, http.StatusInternalServerError)
 			return true
 		}
 		c.reportFault("terms:accept", nil)

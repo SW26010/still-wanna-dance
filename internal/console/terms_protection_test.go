@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/apppaths"
 	"still-wanna-dance/internal/legal"
 )
 
@@ -191,7 +192,81 @@ func TestTermsProtectFailureAndReadError(t *testing.T) {
 	if err := os.MkdirAll(c.files().Terms, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.loadTerms(); err == nil {
+	if err := c.loadTerms(); !errors.Is(err, errTermsReceiptRead) || c.termsConfirmationIssue != termsReceiptUnreadable {
 		t.Fatal("ordinary I/O error was hidden")
+	}
+}
+
+func TestTermsUnreadableReceiptKeepsConsoleAvailable(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(config, []byte(`{"schemaVersion":8,"autoOpenWebUI":false,"autoAccelerate":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	path := apppaths.ForConfig(config).Terms
+	if err := os.MkdirAll(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(path, "keep")
+	if err := os.WriteFile(marker, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := newConsoleWithWorkForTest(t, config, "127.0.0.1:18081")
+	if err != nil {
+		t.Fatal("receipt error prevented Console startup", err)
+	}
+	defer c.Close()
+	c.AutoStart()
+	if !c.OpenWebUIOnLaunch() || c.termsAccepted() || c.service != nil || c.httpServer != nil {
+		t.Fatal("receipt error did not keep the gate closed with WebUI available")
+	}
+	request := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest(method, "http://"+c.address+path, strings.NewReader(body))
+		r.Header.Set("X-SWD-Token", c.token)
+		w := httptest.NewRecorder()
+		c.ServeHTTP(w, r)
+		return w
+	}
+	if w := request("GET", "/", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"termsGate":{"pageID":`) {
+		t.Fatal("WebUI did not offer consent", w.Code)
+	}
+	var terms struct {
+		Accepted, NeedsConfirmation bool
+		ReceiptReadError            string
+	}
+	w := request("GET", "/api/terms/current", "")
+	if err := json.Unmarshal(w.Body.Bytes(), &terms); err != nil || w.Code != 200 || terms.Accepted || !terms.NeedsConfirmation || terms.ReceiptReadError != termsReceiptReadMessage {
+		t.Fatal("the terms endpoint lost the receipt read failure", w.Code, terms, err)
+	}
+	if w := request("GET", "/api/status", ""); w.Code != 428 {
+		t.Fatal("business access was granted", w.Code)
+	}
+	confirm, err := json.Marshal(map[string]any{"version": legal.Version, "sha256": legal.Hash(), "agree": true, "contentRights": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := request("POST", "/api/terms/accept", string(confirm)); w.Code != 500 || !strings.Contains(w.Body.String(), termsReceiptReadMessage) || c.termsAccepted() {
+		t.Fatal("unreadable receipt enabled consent", w.Code, w.Body.String())
+	}
+	if saved, err := os.ReadFile(marker); err != nil || string(saved) != "keep" {
+		t.Fatal("failed consent touched the previous path", err)
+	}
+	if err := os.Rename(path, path+".blocked"); err != nil {
+		t.Fatal(err)
+	}
+	valid := protectedReceiptBytes(t, protectedTerms{termsPurpose, termsReceipt{legal.Version, legal.Hash(), time.Now().UTC()}})
+	if err := os.WriteFile(path, valid, 0600); err != nil {
+		t.Fatal(err)
+	}
+	// The retry should open the gate without starting a gateway in this test.
+	c.settings.AutoAccelerate = false
+	if w := request("POST", "/api/terms/accept", string(confirm)); w.Code != 200 || !c.termsAccepted() {
+		t.Fatal("consent did not recover after making the receipt readable", w.Code, w.Body.String())
+	}
+	if saved, err := os.ReadFile(path); err != nil || !bytes.Equal(saved, valid) {
+		t.Fatal("retry rewrote a verifiable receipt", err)
+	}
+	if w := request("GET", "/api/status", ""); w.Code != 200 {
+		t.Fatal("verified consent did not open the gate", w.Code)
 	}
 }

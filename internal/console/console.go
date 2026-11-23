@@ -49,9 +49,9 @@ type Console struct {
 	proxyModeMigrated      bool // startup notice; migration is already persisted
 	identity               desktop.Identity
 	lifecycle              *applicationLifecycle
-	terms                  termsReceipt // protected by mu; separate from editable settings
-	termsNeedsConfirmation bool         // an existing record could not be verified for this user/version
-	termsStartupFailed     bool         // protected by mu; consent was saved but startup did not complete
+	terms                  termsReceipt      // protected by mu; separate from editable settings
+	termsConfirmationIssue termsReceiptIssue // protected by mu; result of checking the receipt
+	termsStartupFailed     bool              // protected by mu; consent was saved but startup did not complete
 	termsProtection        dataProtection
 	termsPageID            string
 	termsExitTimer         *time.Timer
@@ -195,9 +195,9 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	c.editor.initializeSettings(c.settings)
 	err = c.editor.validateResourcePaths(c.settings)
 	if err == nil {
-		err = c.loadTerms()
-	}
-	if err == nil {
+		if readErr := c.loadTerms(); readErr != nil {
+			slog.Warn("使用条款确认记录无法读取", "event_name", "terms_receipt_read_failed", "error", applog.SafeError(readErr))
+		}
 		c.upstreamDial, c.client, err = c.networkFor(c.settings)
 	}
 	if err == nil && loaded.UpstreamAuto {

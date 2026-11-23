@@ -32,6 +32,30 @@ test('failed consent remains modal and retries without enabling business reads',
   await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeVisible();
 });
 
+test('an unreadable receipt explains the problem and keeps the terms gate closed until retry succeeds',async({page})=>{
+  const api=await mockAPI(page);let readable=false;
+  const message='之前的同意记录暂时无法读取。请检查文件占用或权限后重试。';
+  Object.assign(api.terms,{accepted:false,needsConfirmation:true,receiptReadError:message});
+  await page.route('**/api/terms/accept',async route=>{
+    if(!readable)return route.fulfill({status:500,body:message});
+    api.terms.accepted=true;
+    await route.fulfill({json:{ok:true}});
+  });
+  await page.goto('/?gate=1');
+  const dialog=page.getByRole('alertdialog');
+  const accept=dialog.getByRole('button',{name:'同意完整条款'});
+  await expect(dialog.getByText(message,{exact:true})).toBeVisible();
+  await expect(dialog.getByRole('article')).toContainText(api.terms.text);
+  await accept.click();
+  await expect(dialog).toContainText('条款确认未保存');
+  await expect(dialog).toBeVisible();
+  expect(api.calls.some(c=>c.path==='status')).toBe(false);
+  readable=true;
+  await accept.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'开始加速',exact:true})).toBeVisible();
+});
+
 test('saved consent reports startup failure and allows repair',async({page})=>{
   const api=await mockAPI(page);api.terms.accepted=false;
   await page.route('**/api/terms/accept',async route=>{

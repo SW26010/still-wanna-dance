@@ -2285,6 +2285,13 @@
       "bytes": 1331382,
       "sha256": "b885eb456dc61d5120c9f028a71ee58266d2655a8359476c0752489e4e4e832c",
       "reason": "离线 WebUI 在常规设置报告文件日志不可用，并在网络页原位报告 Mihomo 面板故障。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1331460,
+      "sha256": "ab43d0648a16a1532ce80bb29eae85224ef713ae5c49c8205f841aa04ba84a6b",
+      "reason": "离线 WebUI 在条款确认页报告同意记录读取失败，并保留确认重试入口。"
     }
   ]
 }

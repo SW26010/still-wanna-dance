@@ -94,6 +94,7 @@ WebUI 不提供日志阅读器；原 `/api/logs`、`/api/logs/export` 与 `#/log
 | `cache_engine_ready` | 引擎配置摘要、视频预算及启动清理的残留临时文件数；零预算是正常策略，残留不能直接证明上次为何退出 |
 | `temporary_cleanup_removed` / `temporary_cleanup_skipped` / `temporary_cleanup_failed` | 回收、保留或无法删除的暂存路径；可安全写入的现用目录允许跳过失败条目 |
 | `config_work_cleanup_removed` / `config_work_cleanup_failed` | 配置锁持有者回收已知的原子写入工作槽；失败时保留槽和正式文件，由对应操作报告后续保存失败 |
+| `terms_receipt_read_failed` | 启动时同意记录无法读取；条款确认页可用，业务门禁保持关闭 |
 | `vrchat_detected` / `vrchat_exited` | 开启「随 VRChat 退出」后，本次首次检测到游戏、随后确认当前会话内游戏进程均已结束；后者请求正常退出 SWD |
 | `vrchat_process_check_failed` | 游戏进程状态暂时无法确认，不触发退出；持续失败只在开始时记录一次，成功检查后恢复判定 |
 | `snapshot_load_failed` / `monitor_throughput_state_load_failed` | 可重建状态未恢复的原因；不生成连续损坏备份 |

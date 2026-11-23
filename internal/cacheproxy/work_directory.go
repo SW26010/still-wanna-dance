@@ -19,6 +19,7 @@ type WorkDirectory struct {
 	unlock         func() error
 	mu             sync.Mutex
 	cleanupPending bool
+	cleanupSkipped bool
 	closed         bool
 	err            error
 }
@@ -74,13 +75,14 @@ func openWorkDirectory(path string, log *slog.Logger, create, clean bool) (*Work
 	if log == nil {
 		log = slog.Default()
 	}
+	work := &WorkDirectory{path: path, unlock: unlock, cleanupPending: !clean}
 	if clean {
-		if _, err := cleanMediaWorkFiles(path, log, blockWork); err != nil {
+		if err := work.clean(log, create); err != nil {
 			unlock()
 			return nil, fmt.Errorf("清理临时视频块：%w", err)
 		}
 	}
-	return &WorkDirectory{path: path, unlock: unlock, cleanupPending: !clean}, nil
+	return work, nil
 }
 
 func (w *WorkDirectory) Path() string { return w.path }
@@ -89,6 +91,25 @@ func (w *WorkDirectory) CleanupPending() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.cleanupPending
+}
+
+// CleanupComplete is used only to retire a recorded cleanup location.
+func (w *WorkDirectory) CleanupComplete() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return !w.cleanupPending && !w.cleanupSkipped
+}
+
+func (w *WorkDirectory) clean(log *slog.Logger, active bool) error {
+	_, entryErr, err := cleanMediaWorkFiles(w.path, log, blockWork)
+	w.cleanupSkipped = entryErr != nil
+	if err != nil || entryErr == nil {
+		return err
+	}
+	if !active {
+		return entryErr
+	}
+	return workfiles.Probe(w.path)
 }
 
 // CompleteCleanup requires the owner to have rechecked data-path separation;
@@ -105,7 +126,7 @@ func (w *WorkDirectory) CompleteCleanup(log *slog.Logger) error {
 	if log == nil {
 		log = slog.Default()
 	}
-	if _, err := cleanMediaWorkFiles(w.path, log, blockWork); err != nil {
+	if err := w.clean(log, true); err != nil {
 		return fmt.Errorf("清理临时视频块：%w", err)
 	}
 	w.cleanupPending = false

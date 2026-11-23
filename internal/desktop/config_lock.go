@@ -39,30 +39,13 @@ func (l *configLease) CleanWorkFiles() error {
 	if err := workfiles.CheckDir(p.Root); err != nil {
 		return err
 	}
-	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("download-routes"), p.State("video-import"), p.VideoImport} {
-		if err := cleanConfigWorkFile(path); err != nil {
-			return err
+	for _, path := range []string{p.Config, p.Terms, p.State("inventory"), p.State("batch-last-success"), p.State("batch-last-attempt"), p.State("download-routes"), p.State("video-import"), p.VideoImport, p.State("webui-port")} {
+		if removed, err := workfiles.Clean(path); err != nil {
+			// The atomic writer will still reject a blocked slot when a save needs it.
+			slog.Warn("已跳过配置工作文件清理", "event_name", "config_work_cleanup_failed", "path", path, "error", err)
+		} else if removed {
+			slog.Info("配置工作文件已清理", "event_name", "config_work_cleanup_removed", "path", path)
 		}
-	}
-	// A blocked optional port hint must not prevent the console from starting.
-	// Write will also reject an unsafe slot, leaving it untouched.
-	portPath := p.State("webui-port")
-	if removed, err := workfiles.Clean(portPath); err != nil {
-		slog.Warn("已跳过 WebUI 端口文件清理", "event_name", "console_port_cleanup_skipped", "path", portPath, "error", err)
-	} else if removed {
-		slog.Info("配置工作文件已清理", "event_name", "config_work_cleanup_removed", "path", portPath)
-	}
-	return nil
-}
-
-func cleanConfigWorkFile(path string) error {
-	removed, err := workfiles.Clean(path)
-	if err != nil {
-		slog.Error("配置工作文件清理失败", "event_name", "config_work_cleanup_failed", "path", path, "error", err)
-		return fmt.Errorf("清理配置工作文件 %s：%w", path, err)
-	}
-	if removed {
-		slog.Info("配置工作文件已清理", "event_name", "config_work_cleanup_removed", "path", path)
 	}
 	return nil
 }

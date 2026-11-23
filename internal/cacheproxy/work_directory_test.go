@@ -104,8 +104,8 @@ func TestPublicationCleanupPreservesBlocksAndUnrecognizedFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := cleanMediaWorkFiles(dir, fixtureConfig().Logger, publicationWork); err != nil {
-		t.Fatal(err)
+	if _, entryErr, err := cleanMediaWorkFiles(dir, fixtureConfig().Logger, publicationWork); err != nil || entryErr != nil {
+		t.Fatal(entryErr, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "download-publish-123.part")); !os.IsNotExist(err) {
 		t.Fatal("publication stage survived", err)

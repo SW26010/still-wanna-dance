@@ -45,7 +45,7 @@
 
 目录及祖先拒绝符号链接和 Windows 重解析点。文件必须为普通文件；Windows 按已打开的根句柄定位，禁止中间重解析点，独占打开并核对身份后按句柄删除。其他进程打开文件（包括硬链接别名）时删除失败；解除硬链接不改写共享内容。Linux 采用受根目录约束的 unlink，依赖配置/存储锁排除其他 SWD 写入者，不将 Unix 的打开描述符当作独占锁。
 
-识别到的工作名称若内容或类型异常，记录 `temporary_cleanup_skipped` 并保留；其他未知项直接保留。实际 I/O 错误、只读文件、占用句柄等返回错误；工作区清理失败阻止视频引擎启动并允许用户修复设置，媒体启动失败释放相应锁，配置清理失败阻止 Console 创建。成功项记录 `temporary_cleanup_removed` / `config_work_cleanup_removed`，配置失败记录 `config_work_cleanup_failed`；快照和吞吐读取失败另有告警，不把磁盘故障当成清理成功。
+识别到的工作名称若内容或类型异常，记录 `temporary_cleanup_skipped` 并保留；其他未知项直接保留。单个暂存条目因 I/O、只读或句柄占用无法删除时，记录 `temporary_cleanup_failed`，继续处理同一目录的其他条目。现用目录通过安全和可写性检查后可继续启动引擎，旧工作区有未清理条目时保留待清理记录。固定工作槽清理失败记录 `config_work_cleanup_failed` 并继续启动，实际写入受阻时由对应操作报告。成功项仍记录 `temporary_cleanup_removed` / `config_work_cleanup_removed`；快照和吞吐读取失败另有告警。
 
 ## 重启、切库、备份和覆盖
 

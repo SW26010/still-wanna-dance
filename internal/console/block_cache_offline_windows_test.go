@@ -28,6 +28,47 @@ func unusedDrive(t *testing.T) string {
 	return ""
 }
 
+func TestActivationContinuesWithLockedOldMediaFiles(t *testing.T) {
+	c := testConsole(t)
+	workPath := c.work.Path()
+	if err := c.work.Close(); err != nil {
+		t.Fatal(err)
+	}
+	publication := filepath.Join(c.settings.VideoDir, ".swd-tmp")
+	if err := os.Mkdir(publication, 0700); err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{filepath.Join(workPath, "download-block-123.part"), filepath.Join(publication, "download-publish-123.part")}
+	for _, path := range paths {
+		if err := os.WriteFile(path, []byte("keep"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer file.Close()
+	}
+	work, err := cacheproxy.OpenWorkDirectory(workPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer work.Close()
+	defer c.Close()
+	c.work = work
+	if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if !c.DesktopState().CDN || c.activation.Phase != "waiting" {
+		t.Fatal("video gateway did not complete acceleration startup", c.activation)
+	}
+	for _, path := range paths {
+		if b, err := os.ReadFile(path); err != nil || string(b) != "keep" {
+			t.Fatal("startup changed a locked temporary file", path, err)
+		}
+	}
+}
+
 func TestBlockCacheSelectionWithOfflineLibraryVolume(t *testing.T) {
 	offline := unusedDrive(t)
 	for _, resource := range []string{"database", "video", "both"} {

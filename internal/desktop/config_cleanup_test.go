@@ -110,8 +110,11 @@ func TestConfigCleanupDoesNotTraverseWorkSlotDirectory(t *testing.T) {
 	if err := os.WriteFile(child, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := lease.CleanWorkFiles(); err == nil {
-		t.Fatal("unsafe receipt slot was accepted")
+	if err := lease.CleanWorkFiles(); err != nil {
+		t.Fatalf("unsafe receipt slot prevented startup: %v", err)
+	}
+	if err := workfiles.Write(target, []byte("new receipt")); err == nil {
+		t.Fatal("write accepted the unsafe receipt slot")
 	}
 	if data, err := os.ReadFile(child); err != nil || string(data) != "keep" {
 		t.Fatal("unsafe directory was traversed or changed", err)

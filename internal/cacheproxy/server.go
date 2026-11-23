@@ -232,9 +232,14 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 	if err := workfiles.CheckDir(cfg.Work.Path()); err != nil {
 		return nil, err
 	}
-	cleaned, err := cleanMediaWorkFiles(cfg.publishDir(), cfg.Logger, publicationWork)
+	cleaned, entryErr, err := cleanMediaWorkFiles(cfg.publishDir(), cfg.Logger, publicationWork)
 	if err != nil {
 		return nil, fmt.Errorf("clean temporary media files: %w", err)
+	}
+	if entryErr != nil {
+		if err := workfiles.Probe(cfg.publishDir()); err != nil {
+			return nil, fmt.Errorf("视频发布暂存目录无法写入：%w", err)
+		}
 	}
 	if err := store.usage.start(cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited); err != nil {
 		return nil, err

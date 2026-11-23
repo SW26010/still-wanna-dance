@@ -138,7 +138,7 @@ func CleanupPendingBlockCaches(executable, config string, s Settings, current *c
 		previous.BlockCacheDir = root
 		path := blockWorkPath(executable, config, previous)
 		if current != nil && sameResourcePath(path, current.Path()) {
-			if !current.CleanupPending() {
+			if current.CleanupComplete() {
 				completed = append(completed, root) // Opening the current workspace already cleaned it.
 			}
 			continue

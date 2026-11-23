@@ -29,7 +29,11 @@ func (s *Server) publishBlocks(ctx context.Context, path string, v video, flight
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	file, err := os.CreateTemp(s.cfg.publishDir(), "download-publish-*.part")
+	stage := s.cfg.publishDir()
+	if err := preparePublicationDirectory(s.cfg.VideoDir, stage); err != nil {
+		return fmt.Errorf("准备视频发布暂存：%w", err)
+	}
+	file, err := os.CreateTemp(stage, "download-publish-*.part")
 	if err != nil {
 		return err
 	}

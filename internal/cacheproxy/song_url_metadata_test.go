@@ -62,11 +62,14 @@ func TestResolvePlaybackRecordsSharedMediaWithoutDownload(t *testing.T) {
 	if apiCalls.Load() != 2 || videoCalls.Load() != 0 {
 		t.Fatalf("API calls=%d, video calls=%d", apiCalls.Load(), videoCalls.Load())
 	}
-	for dir, count := range map[string]int{cfg.videosDir(): 2, cfg.tempDir(): 1, cfg.publishDir(): 0} {
+	for dir, count := range map[string]int{cfg.videosDir(): 1, cfg.tempDir(): 1} {
 		entries, err := os.ReadDir(dir)
 		if err != nil || len(entries) != count {
 			t.Fatalf("resolution created media files: %s: %v %v", dir, entries, err)
 		}
+	}
+	if _, err := os.Stat(cfg.publishDir()); !os.IsNotExist(err) {
+		t.Fatal("metadata resolution prepared publication storage", err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)

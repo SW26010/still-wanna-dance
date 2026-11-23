@@ -138,8 +138,8 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 	}
 	// Fail only the publication directory. Downloaded blocks in the separate
 	// workspace must remain usable, and a repaired publication can reuse them.
-	if err := os.Remove(cfg.publishDir()); err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(cfg.publishDir()); !os.IsNotExist(err) {
+		t.Fatal("engine prepared publication storage before use", err)
 	}
 	if err := os.WriteFile(cfg.publishDir(), []byte("not a directory"), 0600); err != nil {
 		t.Fatal(err)
@@ -153,9 +153,6 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 	if err := os.Remove(cfg.publishDir()); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(cfg.publishDir(), 0700); err != nil {
-		t.Fatal(err)
-	}
 	if err := s.publishBlocks(t.Context(), cfg.videoFile(v.key), v, f, snapshot); err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +164,21 @@ func TestEngineSeparatesBlocksFromPublicationAndImport(t *testing.T) {
 	if err := os.WriteFile(source, []byte(imported), 0600); err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := s.ImportVideo(t.Context(), source, map[string]bool{videoKey(imported): true})
+	if err := os.Remove(cfg.publishDir()); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, cfg.publishDir(), "not a directory")
+	allowed := map[string]bool{videoKey(imported): true}
+	if receipt, err := s.ImportVideo(t.Context(), source, allowed); err == nil || receipt != nil {
+		t.Fatal("import ignored its blocked stage", receipt, err)
+	}
+	if got, err := os.ReadFile(source); err != nil || string(got) != imported {
+		t.Fatal("failed import changed its source", err)
+	}
+	if err := os.Remove(cfg.publishDir()); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := s.ImportVideo(t.Context(), source, allowed)
 	if err != nil || receipt == nil {
 		t.Fatal("import failed", err)
 	}

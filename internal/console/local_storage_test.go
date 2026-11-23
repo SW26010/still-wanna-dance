@@ -103,9 +103,6 @@ func TestLocalStorageFailureStopsConsoleFallback(t *testing.T) {
 			defer func() { cancelWatch(); <-watchDone }()
 			if mode == "write" {
 				dir := filepath.Join(cfg.VideoDir, ".swd-tmp")
-				if err := os.Remove(dir); err != nil {
-					t.Fatal(err)
-				}
 				if err := os.WriteFile(dir, nil, 0600); err != nil {
 					t.Fatal(err)
 				}

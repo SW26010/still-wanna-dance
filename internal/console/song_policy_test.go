@@ -105,6 +105,9 @@ func TestOfflineSongFavoritePrecedesStartupRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	partial := filepath.Join(cfg.VideoDir, ".swd-tmp", "download-block-1234.part")
+	if err := os.MkdirAll(filepath.Dir(partial), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(partial, []byte("previous run"), 0600); err != nil {
 		t.Fatal(err)
 	}

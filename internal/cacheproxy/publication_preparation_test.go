@@ -35,6 +35,9 @@ func (f *pausedPublicationFile) Close() error {
 
 func stagedPublicationFile(t *testing.T, cfg Config, body string) *os.File {
 	t.Helper()
+	if err := preparePublicationDirectory(cfg.VideoDir, cfg.publishDir()); err != nil {
+		t.Fatal(err)
+	}
 	file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
 	if err != nil {
 		t.Fatal(err)

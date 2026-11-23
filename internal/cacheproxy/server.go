@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -225,21 +226,14 @@ func newServer(cfg Config, initialRead string) (*Server, error) {
 			store.detach(s.binding)
 		}
 	}()
-	// Claim the engine before touching media work owned by its video lease.
-	if err := preparePublicationDirectory(cfg.VideoDir, cfg.publishDir()); err != nil {
-		return nil, err
-	}
 	if err := workfiles.CheckDir(cfg.Work.Path()); err != nil {
 		return nil, err
 	}
-	cleaned, entryErr, err := cleanMediaWorkFiles(cfg.publishDir(), cfg.Logger, publicationWork)
-	if err != nil {
-		return nil, fmt.Errorf("clean temporary media files: %w", err)
-	}
-	if entryErr != nil {
-		if err := workfiles.Probe(cfg.publishDir()); err != nil {
-			return nil, fmt.Errorf("视频发布暂存目录无法写入：%w", err)
-		}
+	// Reclaim abandoned stages under the video lease before any writers start.
+	// Playback can use the block workspace without preparing publication storage.
+	cleaned, _, err := cleanMediaWorkFiles(cfg.publishDir(), cfg.Logger, publicationWork)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		cfg.Logger.Warn("已跳过视频发布暂存清理", "event_name", "temporary_cleanup_failed", "path", cfg.publishDir(), "error", err)
 	}
 	if err := store.usage.start(cfg.RequestRetentionDays, cfg.RequestRetentionUnlimited); err != nil {
 		return nil, err

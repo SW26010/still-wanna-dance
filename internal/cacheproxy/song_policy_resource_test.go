@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -310,15 +308,7 @@ func TestPublicationRechecksChangedSongPolicy(t *testing.T) {
 			if err := s.Store.SetSongPolicy(ctx, 1, policy); err != nil {
 				t.Fatal(err)
 			}
-			file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.Remove(file.Name())
-			defer file.Close()
-			if _, err := io.WriteString(file, payload); err != nil {
-				t.Fatal(err)
-			}
+			file := stagedPublicationFile(t, cfg, payload)
 			if err := s.commitPublication(r, file, cfg.videoFile(v.key), v, f); !errors.Is(err, ErrNotRetained) {
 				t.Fatal(err)
 			}

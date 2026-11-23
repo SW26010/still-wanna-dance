@@ -99,7 +99,7 @@ func TestBoundedVolumeExhaustion(t *testing.T) {
 				}
 			} else {
 				entries, err := os.ReadDir(cfg.publishDir())
-				if err != nil || len(entries) != 0 {
+				if err != nil && !os.IsNotExist(err) || len(entries) != 0 {
 					t.Fatal("failed publication left staging files", entries, err)
 				}
 			}

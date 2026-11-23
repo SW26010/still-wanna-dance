@@ -114,6 +114,9 @@ func TestTemporaryMediaCrashChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	if err := preparePublicationDirectory(cfg.VideoDir, cfg.publishDir()); err != nil {
+		t.Fatal(err)
+	}
 	for _, item := range []struct{ dir, pattern string }{{cfg.tempDir(), "download-block-*.part"}, {cfg.publishDir(), "download-publish-*.part"}} {
 		f, err := os.CreateTemp(item.dir, item.pattern)
 		if err != nil {

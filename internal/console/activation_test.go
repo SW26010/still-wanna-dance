@@ -7,12 +7,35 @@ import (
 	"fmt"
 	"net"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"still-wanna-dance/internal/cacheproxy"
 )
+
+func TestActivationWithBlockedPublicationInZeroRetentionMode(t *testing.T) {
+	c := testConsole(t)
+	if c.settings.VideoStorageMode != "none" {
+		t.Fatal("expected zero retention in this fixture")
+	}
+	stage := filepath.Join(c.settings.VideoDir, ".swd-tmp")
+	const keep = "existing file blocking publication"
+	if err := os.WriteFile(stage, []byte(keep), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.enableAcceleration(func() HostsStatus { return HostsStatus{Ready: true} }, func(string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if !c.DesktopState().CDN || c.activation.Phase != "waiting" {
+		t.Fatal("gateway did not start", c.activation)
+	}
+	if content, err := os.ReadFile(stage); err != nil || string(content) != keep {
+		t.Fatal("gateway startup changed the blocked stage", err)
+	}
+}
 
 func TestActivationRecordsPlaybackArrivalOnResolutionFailure(t *testing.T) {
 	c := testConsole(t)

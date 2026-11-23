@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -178,15 +177,7 @@ func TestPublicationRechecksProtectionBeforeRename(t *testing.T) {
 				putRetained(t, cfg.videoFile(oldKey), len(payload))
 				s.runRetention(true)
 			}
-			file, err := os.CreateTemp(cfg.publishDir(), "download-publish-*.part")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.Remove(file.Name())
-			defer file.Close()
-			if _, err := io.WriteString(file, payload); err != nil {
-				t.Fatal(err)
-			}
+			file := stagedPublicationFile(t, cfg, payload)
 			s.retentionMu.Lock()
 			if s.protection == nil {
 				s.protection = make(map[string]map[int64]blockProtection)
@@ -207,11 +198,15 @@ func TestZeroBudgetStreamsWithoutWholeVideoVerificationOrPublication(t *testing.
 	// Correct response length with deliberately wrong MD5 proves that delivery
 	// remains independent of persistence-only verification.
 	body := strings.Repeat("x", len(payload))
+	const blockedStage = "not a directory"
 	s, cfg := setup(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		serveFixtureContent(w, r, body)
+	}, func(cfg *Config) {
+		cfg.CacheUnlimited = false
+		cfg.VideoBudgetBytes = 0
+		writeTestFile(t, cfg.publishDir(), blockedStage)
 	})
-	setRetentionLimit(t, s, 0)
 	for range 20 {
 		assertResponse(t, request(s, "GET", videoURL(payload), nil), 200, body)
 		s.wg.Wait()
@@ -225,6 +220,9 @@ func TestZeroBudgetStreamsWithoutWholeVideoVerificationOrPublication(t *testing.
 	}
 	if calls.Load() != 1 {
 		t.Fatal("manual preparation redownloaded retained blocks")
+	}
+	if got, err := os.ReadFile(cfg.publishDir()); err != nil || string(got) != blockedStage {
+		t.Fatal("streaming changed the blocked publication location", err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)

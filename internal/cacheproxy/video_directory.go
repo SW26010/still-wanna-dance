@@ -30,8 +30,8 @@ func lockVideoDirectory(path string) (func() error, error) {
 	return unlock, nil
 }
 
-// Only the disposable child may be created at engine startup. A missing video
-// root must remain missing so losing a disk cannot silently create an empty one.
+// Only the disposable child may be created when publishing or importing. A
+// missing video root must remain missing if the selected volume disappears.
 func preparePublicationDirectory(videoDir, stage string) error {
 	if _, err := CacheDirectory(videoDir); err != nil {
 		return err

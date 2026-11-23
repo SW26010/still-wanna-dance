@@ -147,7 +147,11 @@ func (s *Server) importSnapshotVideo(ctx context.Context, snapshot ImportFile, a
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	dir, err := os.MkdirTemp(s.cfg.publishDir(), "import-")
+	stageDir := s.cfg.publishDir()
+	if err := preparePublicationDirectory(s.cfg.VideoDir, stageDir); err != nil {
+		return nil, fmt.Errorf("准备视频导入暂存：%w", err)
+	}
+	dir, err := os.MkdirTemp(stageDir, "import-")
 	if err != nil {
 		return nil, err
 	}

@@ -339,7 +339,7 @@ func TestRoomLogLeaveFreezesQueueHeadBeforeClearingPlayback(t *testing.T) {
 			return view
 		}
 		at := time.Now().In(time.Local).Truncate(time.Second)
-		want := at.Add(5 * time.Minute).UnixMilli()
+		want := at.Add(5*time.Minute + 10*time.Second).UnixMilli()
 		before := appendLog(at.Format("2006.01.02 15:04:05") + " Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n" +
 			"[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":42}]\n")
 		id := queueKey + "/0"

@@ -211,7 +211,8 @@ func TestFormalClockChangeNotifiesDependentQueueResources(t *testing.T) {
 			assertNotification(t, changed, i < 2)
 		}
 		plan, _, _ := sessions[0].plan(time.Now())
-		if plan[0].need.ReadyAt(time.Now()) != end || protectionFor(s, "queue-a", 0).start != end.Add(-s.cfg.prepareAhead()) {
+		start := end.Add(queueSongGap)
+		if plan[0].need.ReadyAt(time.Now()) != start || protectionFor(s, "queue-a", 0).start != start.Add(-s.cfg.prepareAhead()) {
 			t.Fatal("queue download and protection failed to follow formal clock")
 		}
 		_, changed, _ := sessions[1].plan(time.Now())

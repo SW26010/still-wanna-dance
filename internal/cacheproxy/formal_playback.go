@@ -157,8 +157,9 @@ func (s *Server) updateFormalLocked(p *formalPlayback, now time.Time, allowExpan
 	}
 	s.formal = p
 	keys := []string{p.key}
-	if s.queueSchedule != queueFormal || !end.Equal(s.queueStart) {
-		s.queueSchedule, s.queueStart = queueFormal, end
+	queueStart := end.Add(queueSongGap)
+	if s.queueSchedule != queueFormal || !queueStart.Equal(s.queueStart) {
+		s.queueSchedule, s.queueStart = queueFormal, queueStart
 		keys = append(keys, s.retimeQueueLocked(now)...)
 	}
 	s.notifyUseChangedLocked(keys...)

@@ -159,7 +159,7 @@ func TestCompletedQueueRefetchWindowAndWithdrawal(t *testing.T) {
 				t.Fatal(err)
 			}
 			entry := time.Now().Add(300 * time.Millisecond)
-			setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-predecessor))
+			setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-predecessor-2*queueSongGap))
 			if err := s.UpdatePrefetchQueue([]int64{1, 42}, false); err != nil {
 				t.Fatal(err)
 			}

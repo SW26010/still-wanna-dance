@@ -97,7 +97,7 @@ func TestBlockedSongEntrancesPreserveQueueClockWithoutDemand(t *testing.T) {
 	}
 	s.mu.Lock()
 	q := s.prefetchSources["3"]
-	clockOK := q.position == 3 && q.startAt.Sub(s.queueStart) == typicalDuration+7*time.Minute
+	clockOK := q.position == 3 && q.startAt.Sub(s.queueStart) == typicalDuration+7*time.Minute+3*queueSongGap
 	empty := len(s.demands) == 0 && len(s.useBlocks) == 0 && len(s.flights) == 0
 	s.mu.Unlock()
 	if !clockOK || !empty || calls.Load() != 0 {

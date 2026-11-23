@@ -111,7 +111,7 @@ func TestBlockQueueOrderAndFiniteHandoff(t *testing.T) {
 		s.UpdatePrefetchQueue([]int64{2, 1}, false)
 		plan, _, _ = w.plan(now)
 		after, ok := plan[0]
-		if !ok || !after.need.ReadyAt(now).Equal(before.need.ReadyAt(now).Add(-typicalDuration)) {
+		if !ok || !after.need.ReadyAt(now).Equal(before.need.ReadyAt(now).Add(-typicalDuration-queueSongGap)) {
 			t.Fatal("queue reorder did not update deadline")
 		}
 		job, registered, _ := s.scheduler.Schedule("test", 1, func(ctx context.Context, p *blocksched.Progress) blocksched.Result {

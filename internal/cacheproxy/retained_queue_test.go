@@ -205,7 +205,7 @@ func TestRetainedQueueRefetchAfterEviction(t *testing.T) {
 				// Move the playback clock while retaining the queue source, then
 				// let time alone bring the already-evicted resource into range.
 				entry = time.Now().Add(500 * time.Millisecond)
-				setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration))
+				setFormalPlaybackEnd(t, s, entry.Add(s.cfg.prepareAhead()-typicalDuration-2*queueSongGap))
 			}
 			changed.Store(tc.changedAddress)
 			if !tc.timed {

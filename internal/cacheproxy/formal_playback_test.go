@@ -182,7 +182,7 @@ func TestFormalPlaybackLogLifecycle(t *testing.T) {
 	if !active {
 		t.Fatal("appended log not observed")
 	}
-	if want := at.Add(50 * time.Second); !queueStart.Equal(want) {
+	if want := at.Add(60 * time.Second); !queueStart.Equal(want) {
 		t.Fatalf("queue start=%v after sync, want %v", queueStart, want)
 	}
 	if err := os.Truncate(file, 0); err != nil {
@@ -265,7 +265,7 @@ func TestFormalPlaybackWithdrawsFromRoomLog(t *testing.T) {
 			active := s.formal != nil && s.formal.song == "1" && s.useBlocks[block] == 1
 			queueStart := s.queueClockLocked(s.prefetchSources["3"], time.Now()).at
 			s.mu.Unlock()
-			if !active || !queueStart.Equal(at.Add(100*time.Second)) {
+			if !active || !queueStart.Equal(at.Add(110*time.Second)) {
 				t.Fatalf("expected song 1 and its queue base before withdrawal, active=%t, queue start=%v", active, queueStart)
 			}
 
@@ -277,7 +277,7 @@ func TestFormalPlaybackWithdrawsFromRoomLog(t *testing.T) {
 			s.mu.Unlock()
 			wantStart := now
 			if tc.role == vrclog.Follower {
-				wantStart = at.Add(100 * time.Second)
+				wantStart = at.Add(110 * time.Second)
 			}
 			if !cleared || timeline.Anchor.SongID != 0 || !queueStart.Equal(wantStart) || timeline.Role != tc.role {
 				t.Fatalf("room log did not withdraw playback with the expected queue schedule: cleared=%t, anchor=%+v, queue start=%v, role=%v", cleared, timeline.Anchor, queueStart, timeline.Role)
@@ -288,7 +288,7 @@ func TestFormalPlaybackWithdrawsFromRoomLog(t *testing.T) {
 				s.mu.Lock()
 				defer s.mu.Unlock()
 				queueStart = s.queueClockLocked(s.prefetchSources["3"], time.Now()).at
-				if s.formal == nil || s.formal.song != "2" || !queueStart.Equal(syncAt.Add(98*time.Second)) {
+				if s.formal == nil || s.formal.song != "2" || !queueStart.Equal(syncAt.Add(108*time.Second)) {
 					t.Fatal("new song sync did not publish its formal clock and queue base", queueStart)
 				}
 			}
@@ -519,11 +519,12 @@ func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
 		waitForDatabaseWait(t, db, waiting)
 
 		oldEnd := previousStart.Add(100 * time.Second)
+		oldQueueStart := oldEnd.Add(10 * time.Second)
 		s.mu.Lock()
-		got := s.queueClockLocked(s.prefetchSources["2"], oldEnd.Add(time.Second)).at
+		got := s.queueClockLocked(s.prefetchSources["2"], oldQueueStart.Add(time.Second)).at
 		s.mu.Unlock()
-		if !got.Equal(oldEnd) {
-			t.Errorf("queue start while replacement is blocked = %v, want %v", got, oldEnd)
+		if !got.Equal(oldQueueStart) {
+			t.Errorf("queue start while replacement is blocked = %v, want %v", got, oldQueueStart)
 		}
 	}()
 
@@ -533,7 +534,7 @@ func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
 			starts = append(starts, entry["starts_at"])
 		}
 	}
-	want := at.Add(100 * time.Second).Format(time.RFC3339Nano)
+	want := at.Add(110 * time.Second).Format(time.RFC3339Nano)
 	if len(starts) != 1 || starts[0] != want {
 		t.Fatalf("published queue starts %v, want only %s", starts, want)
 	}
@@ -545,7 +546,7 @@ func TestFormalRestartPublishesOnlyReplacementQueueTiming(t *testing.T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
-	if s.formal != nil || !s.queueClockLocked(s.prefetchSources["2"], now).at.Equal(at.Add(100*time.Second)) {
+	if s.formal != nil || !s.queueClockLocked(s.prefetchSources["2"], now).at.Equal(at.Add(110*time.Second)) {
 		t.Fatal("rejected replacement lost the last published queue clock")
 	}
 }

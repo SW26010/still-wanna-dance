@@ -65,8 +65,9 @@ func reconcileSession(t *testing.T, w *downloadSession) {
 func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := demandLifecycleSession(t)
-		base := time.Now().Add(2 * time.Minute)
-		setFormalPlaybackEnd(t, s, base)
+		end := time.Now().Add(2 * time.Minute)
+		base := end.Add(queueSongGap)
+		setFormalPlaybackEnd(t, s, end)
 		s.UpdatePrefetchQueue([]int64{1, 2, 3}, false)
 		registerQueueResource(t, s, "2", w.v.key)
 		registerQueueResource(t, s, "3", w.v.key)
@@ -86,7 +87,7 @@ func TestQueueReorderUsesOneTimeBase(t *testing.T) {
 		raw, _ := testSourcePlan(s, w.v.key, time.Now())
 		s.mu.Unlock()
 		for source, p := range raw[0] {
-			if source.id == s.prefetchSources["3"] && p.need.ReadyAt(time.Now()) != base.Add(2*typicalDuration) {
+			if source.id == s.prefetchSources["3"] && p.need.ReadyAt(time.Now()) != base.Add(2*(typicalDuration+queueSongGap)) {
 				t.Fatal("unchanged third position retained previous epoch", p.need.Rolling)
 			}
 		}

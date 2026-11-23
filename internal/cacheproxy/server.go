@@ -81,7 +81,7 @@ type Server struct {
 	useTimer         *time.Timer // Earliest source expiry.
 	prefetchSources  map[string]*queueSource
 	prefetchOrder    []int64
-	queueStart       time.Time // Rolling base: the formal end, or a time at or before now.
+	queueStart       time.Time // Rolling base: estimated next start after formal playback, or a time at or before now.
 	queueSchedule    queueSchedule
 	selectedRoomSong int64                     // Accepted selection awaiting a verified formal clock or queue departure.
 	playbackChecks   map[string]*playbackCheck // protected by mu

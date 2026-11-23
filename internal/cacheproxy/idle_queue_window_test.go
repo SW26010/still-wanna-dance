@@ -182,7 +182,7 @@ func TestQueueFormalClockExpiryRetainsAbsoluteWindowEntry(t *testing.T) {
 		s.mu.Lock()
 		future := s.queueStart
 		s.mu.Unlock()
-		if future != base.Add(60*time.Second) {
+		if future != base.Add(70*time.Second) {
 			t.Fatal("future estimate was pulled forward", future)
 		}
 		// While the formal clock is active this offset stays outside the rolling window.
@@ -190,10 +190,10 @@ func TestQueueFormalClockExpiryRetainsAbsoluteWindowEntry(t *testing.T) {
 		if !plan[1].refetchAt().IsZero() {
 			t.Fatal("out-of-window resource retained an absolute refetch timer")
 		}
-		time.Sleep(6 * time.Second)
+		time.Sleep(16 * time.Second)
 		synctest.Wait()
 		plan, _, _ = w.plan(time.Now())
-		if plan[1].need.WindowClosed || plan[1].refetchAt() != base.Add(65*time.Second) ||
+		if plan[1].need.WindowClosed || plan[1].refetchAt() != base.Add(75*time.Second) ||
 			!protectionFor(s, w.v.key, 1).active(time.Now()) || plan[0].need.ReadyAt(time.Now()) != future {
 			t.Fatal("held schedule did not use the previous absolute deadlines")
 		}
@@ -237,7 +237,7 @@ func TestQueueHeadDepartureKeepsPreparedBlockAndDefersLaterBlock(t *testing.T) {
 			calls[0].Load() != 1 || calls[1].Load() != 0 || !protectionFor(s, key, 0).active(time.Now()) {
 			t.Fatalf("head departure altered the window or discarded ready data: status=%d calls=%d,%d", response.Code, calls[0].Load(), calls[1].Load())
 		}
-		time.Sleep(100*time.Second - time.Nanosecond)
+		time.Sleep(120*time.Second - time.Nanosecond)
 		synctest.Wait()
 		if calls[1].Load() != 0 {
 			t.Fatal("second block started before its original entry")

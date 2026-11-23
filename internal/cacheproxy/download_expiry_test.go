@@ -485,8 +485,8 @@ func TestDownloadExpiryKeepsFormalQueueClock(t *testing.T) {
 			d.flight = w.f
 		}
 		s.expireDownload(w.f, w.v.key, 0)
-		if got := s.prefetchSources["1"].startAt; got != end {
-			t.Fatal("GET expiry changed the formal queue clock", got, end)
+		if want := end.Add(queueSongGap); s.prefetchSources["1"].startAt != want {
+			t.Fatal("GET expiry changed the formal queue clock", s.prefetchSources["1"].startAt, want)
 		}
 	})
 }

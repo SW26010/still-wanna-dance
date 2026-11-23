@@ -16,6 +16,8 @@ const (
 	queueFixed                 // Keep absolute deadlines until the next valid room clock or stop.
 )
 
+const queueSongGap = 10 * time.Second
+
 type queueMetadata struct {
 	timing mediaTiming
 	title  string
@@ -117,7 +119,7 @@ func (s *Server) retimeQueueLocked(now time.Time) []string {
 				}
 			}
 		}
-		start = start.Add(duration)
+		start = start.Add(duration + queueSongGap)
 	}
 	return changed
 }
@@ -149,7 +151,7 @@ func (s *Server) holdPublishedQueueLocked(now time.Time) []string {
 func (s *Server) resetQueueScheduleLocked(now time.Time) {
 	s.queueSchedule, s.queueStart = queueRolling, now
 	if p := s.formal; p != nil {
-		s.queueSchedule, s.queueStart = queueFormal, p.clock.end()
+		s.queueSchedule, s.queueStart = queueFormal, p.clock.end().Add(queueSongGap)
 	}
 }
 
@@ -161,7 +163,7 @@ func (s *Server) extendHeldQueueLocked(now time.Time) []string {
 	for i, id := range s.prefetchOrder {
 		if q := s.prefetchSources[strconv.FormatInt(id, 10)]; q != nil && q.position == i && q.fixed.duration > 0 {
 			clock := q.clock()
-			tail = maxTime(tail, clock.end())
+			tail = maxTime(tail, clock.end().Add(queueSongGap))
 			lastFixed = i
 		}
 	}
@@ -170,19 +172,19 @@ func (s *Server) extendHeldQueueLocked(now time.Time) []string {
 		q := s.prefetchSources[strconv.FormatInt(id, 10)]
 		if q == nil {
 			if i > lastFixed {
-				tail = tail.Add(typicalDuration)
+				tail = tail.Add(typicalDuration + queueSongGap)
 			}
 			continue
 		}
 		if q.position != i {
 			if i > lastFixed {
-				tail = tail.Add(q.clock().media.duration)
+				tail = tail.Add(q.clock().media.duration + queueSongGap)
 			}
 			continue
 		}
 		if q.fixed.duration == 0 {
 			q.startAt, q.fixed = tail, q.timing
-			tail = tail.Add(q.fixed.duration)
+			tail = tail.Add(q.fixed.duration + queueSongGap)
 		}
 		keys = append(keys, q.use.key)
 	}

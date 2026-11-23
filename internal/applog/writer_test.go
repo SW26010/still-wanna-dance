@@ -1,6 +1,7 @@
 package applog
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -223,6 +224,46 @@ func TestSegmentsDoNotOverwriteExistingDates(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dir, name))
 	if err != nil || string(data) != "full" {
 		t.Fatal("overwrote a previous segment", err)
+	}
+}
+
+func TestOversizedSegmentsDoNotBlockStartup(t *testing.T) {
+	at := time.Date(2026, 11, 23, 12, 0, 0, 0, time.Local)
+	oversized := bytes.Repeat([]byte("x"), int(MaxBytes)+2313)
+	for _, tc := range []struct {
+		name, existing, next string
+		budget               int64
+		keep                 bool
+	}{
+		{"past_date", "20261122.log", "20261123.log", DefaultTotalBytes, true},
+		{"same_date", "20261123.log", "20261123-1.log", DefaultTotalBytes, true},
+		{"over_budget", "20261123.log", "20261123-1.log", 2 * MaxBytes, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			existing := filepath.Join(dir, tc.existing)
+			if err := os.WriteFile(existing, oversized, 0600); err != nil {
+				t.Fatal(err)
+			}
+			w, err := openWriter(dir, MaxBytes, tc.budget, nil, func() time.Time { return at })
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer w.Close()
+			if _, err := w.Write([]byte("new\n")); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := os.ReadFile(filepath.Join(dir, tc.next)); err != nil || string(got) != "new\n" {
+				t.Fatalf("expected new records in %s, got %q: %v", tc.next, got, err)
+			}
+			if tc.keep {
+				if got, err := os.ReadFile(existing); err != nil || !bytes.Equal(got, oversized) {
+					t.Fatalf("oversized segment changed: %v", err)
+				}
+			} else if _, err := os.Stat(existing); !os.IsNotExist(err) {
+				t.Fatalf("expected actual size to exceed the retention budget: %v", err)
+			}
+		})
 	}
 }
 

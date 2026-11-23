@@ -18,17 +18,6 @@ type segment struct {
 	info os.FileInfo
 }
 
-func validateSegment(file segment) error {
-	limit := MaxBytes
-	if legacyOrder(file.name) != 0 {
-		limit = 5 << 20
-	}
-	if !file.info.Mode().IsRegular() || file.info.Size() > limit {
-		return fmt.Errorf("invalid log file %s", file.name)
-	}
-	return nil
-}
-
 func segmentName(at time.Time, sequence uint64) string {
 	name := at.Format(segmentLayout)
 	if sequence != 0 {
@@ -99,11 +88,10 @@ func logSegments(root *os.Root) ([]segment, error) {
 		if err != nil {
 			return nil, err
 		}
-		file := segment{name: name, info: info}
-		if err := validateSegment(file); err != nil {
-			return nil, err
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("invalid log file %s", name)
 		}
-		files = append(files, file)
+		files = append(files, segment{name: name, info: info})
 	}
 	slices.SortFunc(files, func(a, b segment) int {
 		x, y := legacyOrder(a.name), legacyOrder(b.name)

@@ -108,16 +108,22 @@ func (w *Writer) open(reuse bool, at time.Time) error {
 		w.size = 0
 	}
 	// Reserve a full current segment, so ordinary appends need no directory scan.
-	total := w.limit
-	for _, file := range files {
-		if file.name != w.name {
-			total += file.info.Size()
+	remaining := w.budget - w.limit
+	// Find the newest files that fit without summing unbounded historical sizes.
+	firstRetained := 0
+	for i := len(files) - 1; i >= 0; i-- {
+		file := files[i]
+		if file.name == w.name {
+			continue
 		}
-	}
-	for _, file := range files {
-		if total <= w.budget {
+		size := file.info.Size()
+		if size > remaining {
+			firstRetained = i + 1
 			break
 		}
+		remaining -= size
+	}
+	for _, file := range files[:firstRetained] {
 		if file.name == w.name {
 			continue
 		}
@@ -126,7 +132,6 @@ func (w *Writer) open(reuse bool, at time.Time) error {
 			w.file = nil
 			return err
 		}
-		total -= file.info.Size()
 	}
 	return nil
 }

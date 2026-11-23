@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -38,6 +39,38 @@ func runtimeProcess(t *testing.T) bool {
 		t.Logf("%s", b)
 	}
 	return false
+}
+
+func TestRuntimeDialsWithoutDashboard(t *testing.T) {
+	if !runtimeProcess(t) {
+		return
+	}
+	var enabled atomic.Bool
+	enabled.Store(true)
+	data := fixtureConfiguration([]Config{{Parameters: groupExit(t, "fixture exit", "", &enabled)}})
+	r, err := newRuntime(data, RuntimeOptions{Home: t.TempDir(), DialTimeout: time.Second}, func() (*controller, error) {
+		return nil, errors.New("fixture dashboard failed")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/version", nil))
+	if r.DashboardAvailable() || w.Code != http.StatusServiceUnavailable {
+		t.Fatal("dashboard advertised as available", w.Code)
+	}
+	pool := &http.Transport{DialContext: r.DialContext}
+	defer pool.CloseIdleConnections()
+	response, err := (&http.Client{Transport: pool, Timeout: 3 * time.Second}).Get("http://business.invalid/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil || string(body) != "fixture exit" {
+		t.Fatal("business dial did not use the configured proxy", string(body), err)
+	}
 }
 
 func TestRuntimeGroupProtocolsAndGlobalBoundary(t *testing.T) {

@@ -11,16 +11,23 @@ import (
 	"still-wanna-dance/internal/dashboard"
 )
 
+const mihomoDashboardUnavailable = "代理仍在运行，暂时无法在面板切换节点。请重启 SWD 后再试。"
+
 func (c *Console) serveDashboard(w http.ResponseWriter, r *http.Request) {
 	c.mu.Lock()
 	var proxy *mihomoTransport
 	if c.client != nil {
 		proxy, _ = c.client.Transport.(*mihomoTransport)
 	}
-	ready := !c.closing && c.terms.valid() && proxy != nil && proxy.core != nil
+	running := !c.closing && c.terms.valid() && proxy != nil && proxy.core != nil
+	ready := running && proxy.core.DashboardAvailable()
 	c.mu.Unlock()
 	if !ready {
-		http.Error(w, "代理面板不可用，请启用内嵌 Mihomo 并重启应用", http.StatusServiceUnavailable)
+		message := "代理面板不可用，请启用内嵌 Mihomo 并重启应用"
+		if running {
+			message = mihomoDashboardUnavailable
+		}
+		http.Error(w, message, http.StatusServiceUnavailable)
 		return
 	}
 	w.Header().Set("Referrer-Policy", "no-referrer")

@@ -56,7 +56,7 @@ function MihomoDashboard() {
     return()=>{document.removeEventListener('visibilitychange',change);removeEventListener('pagehide',suspend);removeEventListener('pageshow',resume);};
   },[]);
   const available=!app.stopped&&!app.status.error&&status.proxyNodes?.dashboard;
-  const error=app.stopped?'后台程序已断开，代理面板已关闭。':app.status.error?'无法读取程序状态，请检查 SWD 是否仍在运行。':!status.proxyNodes?.dashboard?status.proxyNodes?.activeError||'代理面板不可用，请检查网络设置和日志，修复后重启程序。':'';
+  const error=app.stopped?'后台程序已断开，代理面板已关闭。':app.status.error?'无法读取程序状态，请检查 SWD 是否仍在运行。':!status.proxyNodes?.dashboard?status.proxyNodes?.dashboardError||status.proxyNodes?.activeError||'代理面板不可用，请检查网络设置和日志，修复后重启程序。':'';
   return <div ref={container} className="proxy-dashboard" role="region" aria-label="代理面板" tabIndex={-1}>
     <div className="toolbar spread"><Subtitle2 as="h2">代理面板</Subtitle2>{available&&<Link href="/proxy/" target="_blank" rel="noopener noreferrer">独立窗口打开</Link>}</div>
     <Feedback error>{error}</Feedback>

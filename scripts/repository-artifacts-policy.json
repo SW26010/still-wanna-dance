@@ -2278,6 +2278,13 @@
       "bytes": 1331352,
       "sha256": "6ff76dcff8b3170f043819d47aaef72853f65eff6be603a0c02d9855c8e3067a",
       "reason": "离线 WebUI 在常规设置报告文件日志不可用，并允许修正无效日志预算。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1331382,
+      "sha256": "b885eb456dc61d5120c9f028a71ee58266d2655a8359476c0752489e4e4e832c",
+      "reason": "离线 WebUI 在常规设置报告文件日志不可用，并在网络页原位报告 Mihomo 面板故障。"
     }
   ]
 }

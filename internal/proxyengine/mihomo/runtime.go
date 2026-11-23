@@ -61,6 +61,10 @@ type Runtime struct {
 }
 
 func NewRuntime(data []byte, options RuntimeOptions) (*Runtime, error) {
+	return newRuntime(data, options, startController)
+}
+
+func newRuntime(data []byte, options RuntimeOptions, startController func() (*controller, error)) (*Runtime, error) {
 	if options.Home == "" || !filepath.IsAbs(options.Home) || options.DialTimeout < 0 {
 		return nil, ErrConfig
 	}
@@ -153,14 +157,17 @@ func NewRuntime(data []byte, options RuntimeOptions) (*Runtime, error) {
 	})
 	r.controller, err = startController()
 	if err != nil {
-		_ = r.Close()
-		return nil, err
+		slog.Warn("Mihomo 代理面板不可用", "event_name", "mihomo_dashboard_unavailable", "error", err)
 	}
 	return r, nil
 }
 
 func (r *Runtime) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	return r.dial(ctx, network, address)
+}
+
+func (r *Runtime) DashboardAvailable() bool {
+	return r.controller != nil && r.controller.ctx.Err() == nil
 }
 
 // SelectionCacheAvailable reports whether the native cache opened at startup.

@@ -96,8 +96,8 @@ func (c *controller) close() {
 // Configuration, upgrades, restarts, raw logs and arbitrary file/storage access
 // stay outside the dashboard's authority.
 func (r *Runtime) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if r.controller == nil || r.controller.ctx.Err() != nil {
-		http.Error(w, "代理已停止", http.StatusServiceUnavailable)
+	if !r.DashboardAvailable() {
+		http.Error(w, "代理控制接口不可用", http.StatusServiceUnavailable)
 		return
 	}
 	p := strings.TrimSuffix(req.URL.Path, "/")

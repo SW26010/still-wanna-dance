@@ -82,6 +82,20 @@ test('a Mihomo draft does not change the network page and an unavailable core ha
   await expect(page.locator('iframe')).toHaveCount(0);
 });
 
+test('an unavailable dashboard leaves Mihomo diagnostics available',async({page})=>{
+  const api=await mockAPI(page);
+  Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:'mihomo'});
+  const dashboardError='代理仍在运行，暂时无法在面板切换节点。请重启 SWD 后再试。';
+  api.state.proxyNodes={dashboard:false,dashboardError};
+  const notice=page.getByText(dashboardError,{exact:true});
+  await page.goto('/#/settings');
+  await expect(notice).toHaveCount(0);
+  await navigate(page,'网络');
+  await expect(page.getByRole('region',{name:'代理面板'}).getByText(dashboardError,{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'开始连通性检测',exact:true})).toBeEnabled();
+  await expect(page.locator('iframe')).toHaveCount(0);
+});
+
 test('a short viewport keeps the embedded panel inside the themed page and reachable by scrolling',async({page},info)=>{
   const api=await mockAPI(page);
   Object.assign(api.state.activeSettings,{upstreamMode:'proxy',proxyBackend:'mihomo'});

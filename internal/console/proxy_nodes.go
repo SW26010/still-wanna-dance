@@ -39,12 +39,13 @@ type proxyImportResult struct {
 }
 
 type proxyNodeStatus struct {
-	Saved         int                     `json:"saved"`
-	Loaded        int                     `json:"loaded"`
-	Dashboard     bool                    `json:"dashboard"`
-	Error         string                  `json:"error,omitempty"`
-	ActiveError   string                  `json:"activeError,omitempty"`
-	Configuration *proxyConfigurationInfo `json:"configuration,omitempty"`
+	Saved          int                     `json:"saved"`
+	Loaded         int                     `json:"loaded"`
+	Dashboard      bool                    `json:"dashboard"`
+	DashboardError string                  `json:"dashboardError,omitempty"`
+	Error          string                  `json:"error,omitempty"`
+	ActiveError    string                  `json:"activeError,omitempty"`
+	Configuration  *proxyConfigurationInfo `json:"configuration,omitempty"`
 }
 
 func validateProxyNodeSelection(s Settings) error {
@@ -189,7 +190,10 @@ func (c *Console) proxyNodesStatusLocked() proxyNodeStatus {
 	status := c.editor.proxyNodesStatus()
 	if c.client != nil {
 		if tr, ok := c.client.Transport.(*mihomoTransport); ok {
-			status.Dashboard = tr.core != nil
+			status.Dashboard = tr.core != nil && tr.core.DashboardAvailable()
+			if tr.core != nil && !status.Dashboard {
+				status.DashboardError = mihomoDashboardUnavailable
+			}
 			if status.ActiveError == "" {
 				status.ActiveError = tr.startupError
 			}

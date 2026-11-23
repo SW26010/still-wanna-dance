@@ -363,7 +363,7 @@ func TestIndependentPathsResolveRelativeToConfigurationAfterTrimming(t *testing.
 	c := testConsole(t)
 	next := c.settings
 	next.DatabasePath, next.VideoDir = "  songs/library.sqlite  ", "  videos  "
-	resolved, err := c.editor.resolveSettings(next)
+	resolved, err := c.editor.resolveSettings(next, true)
 	if err != nil {
 		t.Fatal(err)
 	}

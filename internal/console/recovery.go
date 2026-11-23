@@ -174,9 +174,9 @@ func (r *Recovery) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if !r.allowSettings(w) {
 				return
 			}
-			loaded, err := decodeConfigFile(r.identity.Config)
+			loaded, err := loadConfigFile(r.identity.Config)
 			if err == nil {
-				_, err = c.resolveSettings(loaded.Settings)
+				_, err = c.resolveResourceSettings(loaded.Settings)
 			}
 			if err != nil {
 				if !writeSettingsValidation(w, err) {

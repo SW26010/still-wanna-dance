@@ -3,6 +3,32 @@ import {mockAPI} from './api';
 import {navigateSettings} from './navigation';
 import {saveSettings} from './settings-actions';
 
+test('paused file logs are reported in their settings and an invalid saved budget can be repaired',async({page})=>{
+  const api=await mockAPI(page);
+  api.state.settings.logBudgetBytes=api.state.activeSettings.logBudgetBytes=0;
+  api.state.fileLogError='配置文件中的 logBudgetBytes：程序日志大小上限至少为 1 MiB';
+  const notice=page.getByText(/程序日志暂不可用/);
+  await page.goto('/#/network');
+  await expect(notice).toBeAttached();
+  await expect(notice).toBeHidden();
+  await page.goto('/#/settings');
+  await expect(notice).toBeVisible();
+  const budget=page.getByRole('spinbutton',{name:'程序日志大小上限（MiB）',exact:true});
+  const open=page.getByRole('checkbox',{name:'启动程序时自动打开 WebUI',exact:true});
+  await open.uncheck();
+  await saveSettings(page,'待重启');
+  expect(api.state.settings.logBudgetBytes).toBe(0);
+  expect(api.state.settings.autoOpenWebUI).toBe(false);
+  await budget.fill('20');
+  await saveSettings(page,'待重启');
+  expect(api.state.settings.logBudgetBytes).toBe(20*1048576);
+  await expect(notice).toBeVisible();
+  api.state.fileLogError=undefined;
+  await page.reload();
+  await expect(budget).toHaveValue('20');
+  await expect(notice).toHaveCount(0);
+});
+
 test('program log settings share a row and stage changes until restart',async({page},testInfo)=>{
   const api=await mockAPI(page);
   const configuredBudget=20*1048576+1;

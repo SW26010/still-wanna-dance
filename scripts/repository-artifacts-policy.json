@@ -2271,6 +2271,13 @@
       "bytes": 1330487,
       "sha256": "66fd90305cc78d30b33e6ab10940593816dfeb07aedc9ae5ba7de4fb3fe7d76a",
       "reason": "离线 WebUI 在下载中的块详情显示当前上游 IP 或代理选路状态。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1331352,
+      "sha256": "6ff76dcff8b3170f043819d47aaef72853f65eff6be603a0c02d9855c8e3067a",
+      "reason": "离线 WebUI 在常规设置报告文件日志不可用，并允许修正无效日志预算。"
     }
   ]
 }

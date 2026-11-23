@@ -7,6 +7,10 @@ import (
 	"still-wanna-dance/internal/faults"
 )
 
+// SetFileLogStatus exposes a diagnostic issue without opening the browser.
+// The entry point installs it before the Console starts serving requests.
+func (c *Console) SetFileLogStatus(status func() string) { c.fileLogStatus = status }
+
 // SetFaultCenter connects existing application fault boundaries to the shared
 // desktop notifier. It does not change error reporting or persistence.
 func (c *Console) SetFaultCenter(center *faults.Center) {

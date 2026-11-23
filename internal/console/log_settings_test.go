@@ -80,7 +80,7 @@ func TestReadLogBudget(t *testing.T) {
 			t.Fatalf("logBudgetBytes=%s: level=%v budget=%d err=%v", tc.value, level, budget, err)
 		}
 		loaded, err := loadConfigFile(path)
-		if (err != nil) != (tc.want == 0) || (err == nil && loaded.Settings.LogBudgetBytes != tc.want) {
+		if err != nil || (tc.want != 0 && loaded.Settings.LogBudgetBytes != tc.want) || (tc.want == 0 && validateLogBudget(loaded.Settings.LogBudgetBytes) == nil) {
 			t.Fatalf("full config load disagrees for %s: %v", tc.value, err)
 		}
 	}
@@ -102,6 +102,51 @@ func TestRecoveryRepairsLogBudget(t *testing.T) {
 	}
 	if _, budget, err := ReadLogSettings(view.identity.Config); budget != applog.MaxBytes || err != nil {
 		t.Fatal(budget, err)
+	}
+}
+
+func TestOptionalInvalidPreferencesSurviveUnrelatedSaves(t *testing.T) {
+	c := testConsole(t)
+	invalid := map[string]string{"theme": `"unknown"`, "logBudgetBytes": `"invalid"`, "vrcxImportDismissed": `12`}
+	if err := updateConfigFile(c.configPath, func(fields map[string]json.RawMessage, _ bool) error {
+		for key, value := range invalid {
+			fields[key] = json.RawMessage(value)
+		}
+		fields["logLevel"] = json.RawMessage(`"off"`)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c = restartTestConsole(t, c)
+	if c.settings.Theme != "system" || c.vrcxImportDismissed || c.settings.LogBudgetBytes != 0 {
+		t.Fatal("invalid preferences did not degrade independently")
+	}
+	if err := c.editor.saveSettingsPatch([]byte(`{"autoOpenWebUI":false}`)); err != nil {
+		t.Fatal(err)
+	}
+	_, after, err := readConfigFile(c.configPath)
+	if err != nil || string(after["autoOpenWebUI"]) != "false" {
+		t.Fatal("unrelated setting was not saved", err)
+	}
+	for key, value := range invalid {
+		if string(after[key]) != value {
+			t.Fatal("unrelated save changed", key)
+		}
+	}
+	for _, patch := range []string{`{"logLevel":"info"}`, `{"logBudgetBytes":0}`} {
+		if err := c.editor.saveSettingsPatch([]byte(patch)); err == nil {
+			t.Fatal("accepted invalid log budget", patch)
+		}
+	}
+	if err := c.editor.saveSettingsPatch([]byte(`{"logLevel":"info","logBudgetBytes":1048576}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.editor.saveTheme("system"); err != nil {
+		t.Fatal(err)
+	}
+	_, after, err = readConfigFile(c.configPath)
+	if err != nil || string(after["theme"]) != `"system"` || string(after["logBudgetBytes"]) != `1048576` {
+		t.Fatal("explicit repairs were not persisted", err)
 	}
 }
 

@@ -58,7 +58,7 @@ func TestWebUIDocumentNavigationBootstrap(t *testing.T) {
 					}
 				}
 				if data.Page == "console" {
-					defaults, err := normalizeSettings(defaultSettings())
+					defaults, err := normalizeSettings(defaultSettings(), true)
 					if err != nil {
 						t.Fatal(err)
 					}

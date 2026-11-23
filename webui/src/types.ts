@@ -51,6 +51,7 @@ export interface Status {
   hosts: {ready: boolean; managed?: boolean; exitRestorePrepared?: boolean; authorizationID?: string; conflict?: boolean; message: string}; portOK: boolean; httpsPortOK: boolean;
   portOwner?: {name: string; pid: number}; httpsPortOwner?: {name: string; pid: number}; cdnError?: string;
   storageError?: string; storageConfirmation?: string; storageIssues?: Record<string,{message:string;severity:'error'|'warning';value:string}>; workError?: string; actionErrors?: Record<string,string>; batch: BatchJob; lastBatch: BatchJob; import: ImportJob;
+  fileLogError?: string;
   queue: {running?: boolean; desired?: boolean; current?: number; active?: number[]; blocked?: number[]; songs?: {songId: number}[]; titles?: Record<string,string>; file?: string; completed?: number; logError?: string; failures?: {id: number}[] | null};
   socks5PasswordSet?: boolean; socks5CredentialError?: string;
   socks5Service?: {checking:boolean;closed:boolean;state:string;error?:string;authenticated:boolean;latencyMS:number|null;observedAt:string;nextCheck:string};

@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +22,7 @@ import (
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/desktop"
 	"still-wanna-dance/internal/testlog"
+	"still-wanna-dance/internal/workfiles"
 )
 
 func startupWorkForTest(t *testing.T, config string) string {
@@ -37,7 +43,145 @@ func startupWorkForTest(t *testing.T, config string) string {
 	return workPath
 }
 
+func TestApplicationContinuesWithOptionalStartupFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name, settings, wantLogError, logBlock string
+	}{
+		{"blocked logs", `"theme":"invalid","vrcxImportDismissed":12`, "无法写入程序日志目录", "directory"},
+		{"unwritable current segment", `"logLevel":"info"`, "无法写入程序日志目录", "current segment"},
+		{"locked old segment", `"logBudgetBytes":1048576`, "无法写入程序日志目录", "old segment"},
+		{"invalid budget", `"logBudgetBytes":"invalid"`, "logBudgetBytes", ""},
+		{"disabled with invalid budget", `"logLevel":"off","logBudgetBytes":0`, "logBudgetBytes", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "config.json")
+			if err := os.WriteFile(config, []byte(`{"schemaVersion":8,`+tc.settings+`}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			startupWorkForTest(t, config)
+			p := apppaths.ForConfig(config)
+			blocked := filepath.Join(p.StateDir, workfiles.TempName(p.State("batch-last-attempt")), "keep")
+			if err := os.MkdirAll(filepath.Dir(blocked), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(blocked, []byte("keep"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			switch tc.logBlock {
+			case "directory":
+				if err := os.WriteFile(p.LogDir, nil, 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "current segment", "old segment":
+				if runtime.GOOS != "windows" {
+					t.Skip("Windows file permissions and sharing")
+				}
+				if err := os.Mkdir(p.LogDir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				name := "20010101.log"
+				if tc.logBlock == "current segment" {
+					name = time.Now().Format("20060102") + ".log"
+				}
+				segment := filepath.Join(p.LogDir, name)
+				if err := os.WriteFile(segment, []byte("keep"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if tc.logBlock == "current segment" {
+					if err := os.Chmod(segment, 0400); err != nil {
+						t.Fatal(err)
+					}
+					defer os.Chmod(segment, 0600)
+				} else {
+					hold, err := os.Open(segment)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer hold.Close()
+				}
+				t.Cleanup(func() {
+					if b, err := os.ReadFile(segment); err != nil || string(b) != "keep" {
+						t.Error("startup changed the disabled log segment", err)
+					}
+				})
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-config", config, "-listen", "127.0.0.1:0", "-no-tray", "-no-open")
+			cmd.Env = append(os.Environ(), "SWD_RESTART_TEST_APP=1")
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			configureRestartCommand(cmd)
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if cmd.ProcessState == nil {
+					cancel()
+					_ = cmd.Wait()
+				}
+			}()
+			scanner := bufio.NewScanner(stdout)
+			if !scanner.Scan() {
+				_ = cmd.Wait()
+				t.Fatal("missing WebUI address", scanner.Err(), stderr.String())
+			}
+			address := regexp.MustCompile(`http://127\.0\.0\.1:\d+`).FindString(scanner.Text())
+			if address == "" {
+				t.Fatal("missing WebUI address", scanner.Text())
+			}
+			client := &http.Client{Timeout: 3 * time.Second}
+			defer client.CloseIdleConnections()
+			request := func(method, path, token string) []byte {
+				t.Helper()
+				r, err := http.NewRequestWithContext(ctx, method, address+path, strings.NewReader(`{}`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				r.Header.Set("X-SWD-Token", token)
+				response, err := client.Do(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				body, err := io.ReadAll(response.Body)
+				if err != nil || response.StatusCode != 200 {
+					t.Fatal(path, response.StatusCode, string(body), err)
+				}
+				return body
+			}
+			home := request("GET", "/", "")
+			token := regexp.MustCompile(`name="swd-token"\s+content="([a-f0-9]+)"`).FindSubmatch(home)
+			if len(token) != 2 {
+				t.Fatal("normal WebUI did not provide a management token")
+			}
+			if !bytes.Contains(home, []byte(`"theme":"system"`)) {
+				t.Fatal("normal WebUI did not use the system theme")
+			}
+			if b, err := os.ReadFile(blocked); err != nil || string(b) != "keep" {
+				t.Fatal("startup changed an unsafe slot", err)
+			}
+			request("POST", "/api/exit", string(token[1]))
+			if err := cmd.Wait(); err != nil {
+				t.Fatal(err, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), tc.wantLogError) {
+				t.Fatal("startup did not report the log fault", stderr.String())
+			}
+		})
+	}
+}
+
 func TestApplicationCleansBlocksBeforeStartupFailure(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
 	for _, failure := range []string{"blocked_logs", "invalid_config"} {
 		t.Run(failure, func(t *testing.T) {
 			config, err := desktop.CanonicalPath(filepath.Join(t.TempDir(), "config.json"))
@@ -66,14 +210,14 @@ func TestApplicationCleansBlocksBeforeStartupFailure(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, os.Args[0], "-config", config, "-listen", "127.0.0.1:0", "-no-tray", "-no-open")
+			cmd := exec.CommandContext(ctx, os.Args[0], "-config", config, "-listen", listener.Addr().String(), "-no-tray", "-no-open")
 			cmd.Env = append(os.Environ(), "SWD_RESTART_TEST_APP=1")
 			configureRestartCommand(cmd)
 			output, err := cmd.CombinedOutput()
 			if err == nil {
 				t.Fatal("expected startup failure")
 			}
-			message := "无法创建程序日志"
+			message := listener.Addr().String()
 			if failure == "invalid_config" {
 				message = "读取程序配置"
 			}
@@ -113,9 +257,10 @@ func TestApplicationLogBudgetAtStartup(t *testing.T) {
 		{"default", `{"schemaVersion":8}`, listen, 2, 2, true},
 		{"custom", `{"schemaVersion":8,"logBudgetBytes":2097152}`, listen, 2, 1, true},
 		{"off", `{"schemaVersion":8,"logLevel":"off","logBudgetBytes":2097152}`, listen, 2, 2, false},
-		{"invalid_budget", `{"schemaVersion":8,"logBudgetBytes":0}`, "logBudgetBytes", 24, 24, false},
+		{"invalid_budget", `{"schemaVersion":8,"logBudgetBytes":0}`, listen, 24, 24, false},
+		{"off_invalid_budget", `{"schemaVersion":8,"logLevel":"off","logBudgetBytes":0}`, listen, 24, 24, false},
 		{"malformed_json", `{"schemaVersion":8,"logBudgetBytes":64 MiB}`, "读取程序配置", 24, 24, false},
-		{"invalid_other_setting", `{"schemaVersion":8,"logBudgetBytes":1048576,"theme":"invalid"}`, "主题必须为", 24, 24, false},
+		{"invalid_theme", `{"schemaVersion":8,"logBudgetBytes":1048576,"theme":"invalid"}`, listen, 24, 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "config.json")

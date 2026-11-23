@@ -4,7 +4,7 @@ import {useThemePreference} from './ui';
 import {useSettingsController} from './settings-controller';
 import type {Settings,Status} from './types';
 
-export type SettingsSnapshot = Pick<Status,'settings'|'restartRequired'|'defaultDatabasePath'|'defaultVideoDir'|'defaultBlockCacheDir'|'portableDir'|'defaultLogDir'|'proxyNodes'|'socks5CredentialError'|'actionErrors'|'storageConfirmation'|'storageIssues'> & {fields?:Record<string,string>};
+export type SettingsSnapshot = Pick<Status,'settings'|'restartRequired'|'defaultDatabasePath'|'defaultVideoDir'|'defaultBlockCacheDir'|'portableDir'|'defaultLogDir'|'proxyNodes'|'socks5CredentialError'|'actionErrors'|'storageConfirmation'|'storageIssues'|'fileLogError'> & {fields?:Record<string,string>};
 export type SettingsEditor = ReturnType<typeof useSettingsController> & {
  data:SettingsSnapshot;
  selectTab?:(anchor:string)=>void;

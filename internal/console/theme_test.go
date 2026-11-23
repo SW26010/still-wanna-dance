@@ -90,7 +90,7 @@ func TestThemeSaveFailureLeavesAppearanceAndFileUnchanged(t *testing.T) {
 }
 
 func TestThemeConfigDefaultAndValidation(t *testing.T) {
-	for _, value := range []string{"missing", "null", `"light"`, `"dark"`, `"system"`, `"invalid"`} {
+	for _, value := range []string{"missing", "null", `"light"`, `"dark"`, `"system"`, `"invalid"`, `false`} {
 		t.Run(value, func(t *testing.T) {
 			c := testConsole(t)
 			path := c.configPath
@@ -108,19 +108,12 @@ func TestThemeConfigDefaultAndValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 			loaded, err := newConsole(path, "127.0.0.1:18081", newFixtureDNS(), testWorkDirectory(t))
-			if value == `"invalid"` {
-				if err == nil {
-					loaded.Close()
-					t.Fatal("invalid theme accepted")
-				}
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer loaded.Close()
 			want := strings.Trim(value, `"`)
-			if value == "missing" || value == "null" {
+			if value == "missing" || value == "null" || value == `"invalid"` || value == `false` {
 				want = "system"
 			}
 			if loaded.settings.Theme != want {

@@ -1,12 +1,10 @@
 package console
 
-import "errors"
-
 // Theme changes persist only this preference, retaining all saved runtime
 // settings and any pending restart. Use the same atomic save lifecycle.
 func (c *settingsEditor) saveTheme(theme string) error {
-	if theme != "system" && theme != "light" && theme != "dark" {
-		return rejectRequest(errors.New("主题必须为 system、light 或 dark"))
+	if err := validateTheme(theme); err != nil {
+		return rejectRequest(err)
 	}
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
@@ -14,5 +12,6 @@ func (c *settingsEditor) saveTheme(theme string) error {
 	s := c.savedSettings
 	c.mu.Unlock()
 	s.Theme = theme
-	return c.saveSettingsLocked(s, true, nil)
+	s.themeFallback = false
+	return c.saveSettingsLocked(s, true, false, nil)
 }

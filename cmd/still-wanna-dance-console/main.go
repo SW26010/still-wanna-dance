@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -147,11 +149,8 @@ func run() (runErr error) {
 		return err
 	}
 	defer configLease.Close()
-	level, logBudget, configErr := console.ReadLogSettings(p)
-	startupSettings, settingsErr := console.ReadStartupSettings(p)
-	if configErr == nil {
-		configErr = settingsErr
-	}
+	level, logBudget, logSettingsErr := console.ReadLogSettings(p)
+	startupSettings, configErr := console.ReadStartupSettings(p)
 	// Reclaim disposable blocks before any log/configuration failure can abort
 	// startup. Cleanup respects the configured level before opening file logs.
 	// Retain the work lease until all consumers have stopped.
@@ -183,32 +182,51 @@ func run() (runErr error) {
 	}
 	logDir := apppaths.ForConfig(p).LogDir
 	var writer *applog.Writer
-	if level != applog.Off {
-		writer, err = applog.Open(logDir, applog.MaxBytes, logBudget, func(err error) {
-			message := fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
-			fmt.Fprintln(os.Stderr, message)
-		})
-		if err != nil {
-			return fmt.Errorf("无法创建程序日志（%s）：%w", logDir, err)
+	var fileLogError atomic.Pointer[string]
+	reportFileLogError := func(err error) {
+		if err == nil {
+			fileLogError.Store(nil)
+			return
 		}
-		if visibleErrors {
+		message := applog.SafeError(err).Error()
+		fileLogError.Store(&message)
+	}
+	var logOutput io.Writer = os.Stderr
+	if level != applog.Off {
+		if logSettingsErr == nil {
+			writer, err = applog.Open(logDir, applog.MaxBytes, logBudget, func(err error) {
+				fmt.Fprintf(os.Stderr, "程序日志写入失败（%s）：%v\n", logDir, err)
+			})
+			if err != nil {
+				logSettingsErr = fmt.Errorf("无法写入程序日志目录（%s）：%w", logDir, err)
+			}
+		}
+		if writer != nil {
+			logOutput = writer
 			writer.SetFaultObserver(func(err error) {
 				if err != nil {
 					err = fmt.Errorf("程序日志写入失败（%s）：%w", logDir, err)
 				}
-				incidentCenter.Set("logging", err)
+				reportFileLogError(err)
 			})
+		} else {
+			reportFileLogError(logSettingsErr)
 		}
 	}
+	if logSettingsErr != nil {
+		fmt.Fprintln(os.Stderr, logSettingsErr)
+	}
 	previousLogger := slog.Default()
-	slog.SetDefault(applog.New(writer, level))
+	slog.SetDefault(applog.New(logOutput, level))
 	defer func() {
 		if crash := recover(); crash != nil {
 			slog.Error("程序主流程发生 panic", "event_name", "application_panic", "panic", fmt.Sprint(crash), "stack", string(debug.Stack()))
 			if level == applog.Off {
 				runErr = fmt.Errorf("程序发生异常（程序日志已关闭）：%v", crash)
-			} else {
+			} else if writer != nil && fileLogError.Load() == nil {
 				runErr = fmt.Errorf("程序发生异常，详情见 %s：%v", logDir, crash)
+			} else {
+				runErr = fmt.Errorf("程序发生异常（文件日志不可用）：%v", crash)
 			}
 		}
 		var restart *restartRequest
@@ -219,8 +237,8 @@ func run() (runErr error) {
 		}
 		slog.SetDefault(previousLogger)
 		if writer != nil {
-			if err := writer.Close(); err != nil && (runErr == nil || restart != nil) {
-				runErr = fmt.Errorf("关闭日志失败：%w", err)
+			if err := writer.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "关闭日志失败：%v\n", err)
 			}
 		}
 	}()
@@ -247,6 +265,12 @@ func run() (runErr error) {
 		return err
 	}
 	c.SetFaultCenter(incidentCenter)
+	c.SetFileLogStatus(func() string {
+		if message := fileLogError.Load(); message != nil {
+			return *message
+		}
+		return ""
+	})
 	h := &http.Server{Handler: c, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelError)}
 	var closeOnce sync.Once
 	var background sync.WaitGroup

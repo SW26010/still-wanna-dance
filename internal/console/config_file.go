@@ -17,16 +17,18 @@ const configSchemaVersion = apppaths.ConfigVersion
 // Callers receive typed settings without decoding JSON or interpreting protected
 // payloads. Loading never prepares resources or rewrites the file.
 type loadedConfig struct {
-	Settings            Settings
-	VRCXImportDismissed bool
-	Exists              bool
-	UpstreamAuto        bool // Legacy disk value; never an executable mode.
+	Settings             Settings
+	VRCXImportDismissed  bool
+	Exists               bool
+	UpstreamAuto         bool // Legacy disk value; never an executable mode.
+	invalidVRCXDismissal bool
 }
 
 func loadConfigFile(path string) (loadedConfig, error) {
 	loaded, err := decodeConfigFile(path)
 	if err == nil {
-		loaded.Settings, err = resolveConfigSettings(loaded.Settings, path)
+		loaded.Settings = settingsWithThemeFallback(loaded.Settings)
+		loaded.Settings, err = resolveConfigSettings(loaded.Settings, path, false)
 	}
 	return loaded, err
 }
@@ -40,9 +42,18 @@ func decodeConfigFile(path string) (loadedConfig, error) {
 	}
 	loaded := loadedConfig{Settings: defaultSettings(), Exists: data != nil}
 	if data != nil {
-		if err := json.Unmarshal(data, &loaded.Settings); err != nil {
+		values := struct {
+			*Settings
+			Theme     json.RawMessage `json:"theme"`
+			LogBudget json.RawMessage `json:"logBudgetBytes"`
+		}{Settings: &loaded.Settings}
+		if err := json.Unmarshal(data, &values); err != nil {
 			return loaded, fmt.Errorf("读取程序配置：%w", err)
 		}
+		if values.Theme != nil && json.Unmarshal(values.Theme, &loaded.Settings.Theme) != nil {
+			loaded.Settings.themeFallback = true
+		}
+		loaded.Settings.LogBudgetBytes, _ = decodeLogBudget(values.LogBudget)
 		if loaded.Settings.UpstreamMode == "auto" {
 			loaded.Settings.UpstreamMode = "proxy"
 			loaded.UpstreamAuto = true
@@ -50,9 +61,7 @@ func decodeConfigFile(path string) (loadedConfig, error) {
 		loadProxySecret(fields, &loaded.Settings)
 		loadProxyNodes(fields, &loaded.Settings)
 		if raw := fields["vrcxImportDismissed"]; raw != nil {
-			if err := json.Unmarshal(raw, &loaded.VRCXImportDismissed); err != nil {
-				return loaded, fmt.Errorf("读取程序配置 vrcxImportDismissed：%w", err)
-			}
+			loaded.invalidVRCXDismissal = json.Unmarshal(raw, &loaded.VRCXImportDismissed) != nil
 		}
 	}
 	loaded.Settings = settingsWithDefaults(resolveConfigPaths(loaded.Settings, path))
@@ -66,19 +75,17 @@ func ReadStartupSettings(path string) (Settings, error) {
 	return loaded.Settings, err
 }
 
-func decodeLogBudget(data []byte) (int64, error) {
-	settings := struct {
-		LogBudgetBytes int64 `json:"logBudgetBytes"`
-	}{LogBudgetBytes: applog.DefaultTotalBytes}
-	if data != nil {
-		if err := json.Unmarshal(data, &settings); err != nil {
+func decodeLogBudget(raw json.RawMessage) (int64, error) {
+	budget := applog.DefaultTotalBytes
+	if raw != nil {
+		if err := json.Unmarshal(raw, &budget); err != nil {
 			return 0, fmt.Errorf("配置文件中的 logBudgetBytes 必须为整数字节数：%w", err)
 		}
 	}
-	if err := validateLogBudget(settings.LogBudgetBytes); err != nil {
-		return 0, fmt.Errorf("配置文件中的 logBudgetBytes：%w", err)
+	if err := validateLogBudget(budget); err != nil {
+		return budget, fmt.Errorf("配置文件中的 logBudgetBytes：%w", err)
 	}
-	return settings.LogBudgetBytes, nil
+	return budget, nil
 }
 
 // ReadLogSettings bootstraps logging before Console construction can emit events.
@@ -89,16 +96,17 @@ func ReadLogSettings(path string) (applog.Level, int64, error) {
 	if err != nil {
 		return applog.Info, 0, err
 	}
-	budget, budgetErr := decodeLogBudget(data)
 	var settings struct {
-		LogLevel string `json:"logLevel"`
+		LogLevel  string          `json:"logLevel"`
+		LogBudget json.RawMessage `json:"logBudgetBytes"`
 	}
 	if data != nil {
 		if err := json.Unmarshal(data, &settings); err != nil {
-			return applog.Info, 0, errors.Join(budgetErr, fmt.Errorf("读取程序日志级别：%w", err))
+			return applog.Info, 0, fmt.Errorf("读取程序日志级别：%w", err)
 		}
 	}
 	level, levelErr := applog.ParseLevel(settings.LogLevel)
+	budget, budgetErr := decodeLogBudget(settings.LogBudget)
 	if err := errors.Join(budgetErr, levelErr); err != nil {
 		return level, 0, err
 	}
@@ -223,6 +231,12 @@ func saveConfigSettingsWithCleanup(path string, s Settings, previousRoot *string
 		var settings map[string]json.RawMessage
 		if err := json.Unmarshal(data, &settings); err != nil {
 			return err
+		}
+		if s.themeFallback {
+			delete(settings, "theme")
+		}
+		if validateLogBudget(s.LogBudgetBytes) != nil {
+			delete(settings, "logBudgetBytes")
 		}
 		// encoding/json accepts case-insensitive struct field names. Remove those
 		// aliases as well, or they could override a canonical value on the next read.

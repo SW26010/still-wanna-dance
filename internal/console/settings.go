@@ -14,6 +14,7 @@ import (
 )
 
 type Settings struct {
+	themeFallback                bool // Keep the original file value until the theme is explicitly saved.
 	nodeSnapshot                 string
 	nodeInfo                     proxyConfigurationInfo
 	nodeSecret                   string
@@ -71,6 +72,8 @@ func (s Settings) retainFavoritesEnabled() bool {
 // while explicit false, zero and empty strings still reach normal validation.
 type settingsRequest struct {
 	Settings
+	Theme              *string                  `json:"theme"`
+	LogBudget          *int64                   `json:"logBudgetBytes"`
 	ProxyImportID      string                   `json:"proxyImportID"`
 	ConfirmVideoPolicy *videoPolicyConfirmation `json:"confirmVideoPolicy"`
 	Password           *string                  `json:"socks5Password"`
@@ -84,13 +87,20 @@ func decodeSettingsRequest(data []byte, saved Settings) (settingsRequest, error)
 	if input.Password != nil {
 		input.Settings.SOCKS5Password = *input.Password
 	}
+	if input.Theme != nil {
+		input.Settings.Theme = *input.Theme
+		input.Settings.themeFallback = false
+	}
+	if input.LogBudget != nil {
+		input.Settings.LogBudgetBytes = *input.LogBudget
+	}
 	input.Settings.nodeImportID = input.ProxyImportID
 	return input, nil
 }
 
 // Relative paths belong to the configuration, independent of the launch directory.
-func resolveConfigSettings(s Settings, configPath string) (Settings, error) {
-	return normalizeSettings(resolveConfigPaths(s, configPath))
+func resolveConfigSettings(s Settings, configPath string, checkLogBudget bool) (Settings, error) {
+	return normalizeSettings(resolveConfigPaths(s, configPath), checkLogBudget)
 }
 
 func resolveConfigPaths(s Settings, configPath string) Settings {
@@ -137,18 +147,20 @@ func settingsWithDefaults(s Settings) Settings {
 	return s
 }
 
-func normalizeSettings(s Settings) (Settings, error) {
+func normalizeSettings(s Settings, checkLogBudget bool) (Settings, error) {
 	s = settingsWithDefaults(s)
 	level, err := applog.ParseLevel(s.LogLevel)
 	if err != nil {
 		return s, invalidSetting(err, "logLevel")
 	}
 	s.LogLevel = level.String()
-	if err := validateLogBudget(s.LogBudgetBytes); err != nil {
-		return s, invalidSetting(err, "logBudgetBytes")
+	if checkLogBudget {
+		if err := validateLogBudget(s.LogBudgetBytes); err != nil {
+			return s, invalidSetting(err, "logBudgetBytes")
+		}
 	}
-	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
-		return s, invalidSetting(errors.New("主题必须为 system、light 或 dark"), "theme")
+	if err := validateTheme(s.Theme); err != nil {
+		return s, invalidSetting(err, "theme")
 	}
 	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" {
 		return s, invalidSetting(errors.New("上游连接必须是 direct 或 proxy"), "upstreamMode")
@@ -206,6 +218,21 @@ func normalizeSettings(s Settings) (Settings, error) {
 		}
 	}
 	return s, nil
+}
+
+func validateTheme(theme string) error {
+	if theme != "system" && theme != "light" && theme != "dark" {
+		return errors.New("主题必须为 system、light 或 dark")
+	}
+	return nil
+}
+
+func settingsWithThemeFallback(s Settings) Settings {
+	if validateTheme(s.Theme) != nil {
+		s.Theme = "system"
+		s.themeFallback = true
+	}
+	return s
 }
 
 func validateLogBudget(budget int64) error {

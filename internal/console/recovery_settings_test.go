@@ -260,10 +260,23 @@ func TestRecoveryAcknowledgesWinningShutdown(t *testing.T) {
 	}
 }
 
+func TestRecoveryCanRepairAndRestartWithInvalidOptionalPreferences(t *testing.T) {
+	view := recoveryFixture(t, `{"schemaVersion":8,"theme":"unknown","logBudgetBytes":0,"videoStorageMode":"limited","videoBudgetBytes":0}`)
+	if w := recoveryRequest(view, "POST", "/api/restart", `{}`); w.Code != 400 || !strings.Contains(w.Body.String(), "videoBudgetBytes") {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := recoveryRequest(view, "POST", "/api/settings", `{"videoBudgetBytes":1073741824}`); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := recoveryRequest(view, "POST", "/api/restart", `{}`); w.Code != 200 || !strings.Contains(w.Body.String(), `"action":"restart"`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+}
+
 func TestRecoveryResolvesDefaultSyntaxWhileRetainingInvalidValues(t *testing.T) {
 	view := recoveryFixture(t, `{"schemaVersion":8,"logLevel":"LOUD","theme":"","upstreamMode":"","proxyBackend":"","prepareAheadSeconds":0,"downloadGrowIntervalMS":0,"localProtectionGraceSeconds":0}`)
 	s := view.editor.savedSettings
-	defaults, _ := normalizeSettings(defaultSettings())
+	defaults, _ := normalizeSettings(defaultSettings(), true)
 	if s.LogLevel != "LOUD" || s.Theme != "system" || s.UpstreamMode != "direct" || s.ProxyBackend != "external-socks5" || s.PrepareAheadSeconds != defaults.PrepareAheadSeconds || s.DownloadGrowIntervalMS != 0 || s.LocalProtectionGraceSeconds != 0 {
 		t.Fatal("default or explicit zero semantics changed", s)
 	}

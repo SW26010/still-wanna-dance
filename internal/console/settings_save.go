@@ -7,8 +7,8 @@ import (
 )
 
 // Resource checks and preparation belong to the application, not file decoding.
-func (c *settingsEditor) resolveSettings(s Settings) (Settings, error) {
-	s, err := resolveConfigSettings(s, c.configPath)
+func (c *settingsEditor) resolveSettings(s Settings, checkLogBudget bool) (Settings, error) {
+	s, err := resolveConfigSettings(s, c.configPath, checkLogBudget)
 	if err != nil {
 		return s, err
 	}
@@ -41,7 +41,11 @@ func (c *settingsEditor) saveSettingsPatch(data []byte) error {
 	if err != nil {
 		return rejectRequest(err)
 	}
-	return c.saveSettingsLocked(input.Settings, input.Password == nil, input.ConfirmVideoPolicy)
+	if input.Theme == nil {
+		input.Settings = settingsWithThemeFallback(input.Settings)
+	}
+	checkLogBudget := input.LogBudget != nil || saved.LogLevel == "off" && input.Settings.LogLevel != "off"
+	return c.saveSettingsLocked(input.Settings, input.Password == nil, checkLogBudget, input.ConfirmVideoPolicy)
 }
 
 // An omitted password in the settings API preserves the stored secret. Merge
@@ -49,10 +53,10 @@ func (c *settingsEditor) saveSettingsPatch(data []byte) error {
 func (c *settingsEditor) saveSettings(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.lifecycleMu.Lock()
 	defer c.lifecycleMu.Unlock()
-	return c.saveSettingsLocked(s, preservePassword, confirmVideoPolicy)
+	return c.saveSettingsLocked(s, preservePassword, true, confirmVideoPolicy)
 }
 
-func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, confirmVideoPolicy *videoPolicyConfirmation) error {
+func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword, checkLogBudget bool, confirmVideoPolicy *videoPolicyConfirmation) error {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
@@ -64,6 +68,7 @@ func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, c
 	// overwrite a newer appearance choice from another page or browser.
 	if s.Theme == "" {
 		s.Theme = oldSettings.Theme
+		s.themeFallback = oldSettings.themeFallback
 	}
 	if preservePassword {
 		s.SOCKS5Password = oldSettings.SOCKS5Password
@@ -80,7 +85,7 @@ func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, c
 	}
 	importID := s.nodeImportID
 	s.nodeImportID = ""
-	s, err = c.resolveSettings(s)
+	s, err = c.resolveSettings(s, checkLogBudget)
 	if err != nil {
 		return err
 	}
@@ -118,6 +123,7 @@ func (c *settingsEditor) saveSettingsLocked(s Settings, preservePassword bool, c
 		c.savedSettings = s
 		c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
 		c.settings.Theme = s.Theme
+		c.settings.themeFallback = s.themeFallback
 		// Display metadata is saved immediately and does not require a core restart.
 		c.settings.nodeInfo = s.nodeInfo
 		c.savedNodeCount = nodeCount

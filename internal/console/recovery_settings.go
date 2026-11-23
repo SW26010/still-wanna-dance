@@ -57,7 +57,7 @@ func (r *Recovery) settingsSnapshot() map[string]any {
 		"defaultBlockCacheDir": defaultBlockCacheDir(c.identity.Executable), "portableDir": c.portableDir(), "defaultLogDir": defaultLogDir(),
 		"socks5CredentialError": s.proxySecretError, "proxyNodes": nodes, "actionErrors": actionErrors,
 	}
-	if _, err := c.resolveSettings(s); err != nil {
+	if _, err := c.resolveSettings(s, true); err != nil {
 		var validation *settingsValidationError
 		if errors.As(err, &validation) {
 			result["fields"] = validation.Fields

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useContext, type ReactNode, type Ref } fro
 import {flushSync} from 'react-dom';
 import { Button, Checkbox, Divider, Field, Input, Select, Text, Tooltip } from '@fluentui/react-components';
 import type {SettingsNumberField} from './bootstrap';
-import {hasProxyImport,maxLogBudgetMiB,settingsNumber,settingsNumberDefault,type Draft} from './settings-draft';
+import {draftFrom,hasProxyImport,maxLogBudgetMiB,settingsNumber,settingsNumberDefault,type Draft} from './settings-draft';
 import { useApp } from './hooks';
 import { Feedback, Panel, Progress } from './ui';
 import { CacheCapacityFields } from './cache-capacity';
@@ -81,6 +81,8 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
   const [invalidTarget,setInvalidTarget]=useState<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>();
   const save=(confirmedStorage?:Draft)=>editor.save(section,confirmedStorage);
   const discard=()=>{editor.discard();setInvalidTarget(undefined);};
+  const preserveLogBudget=d.logBudgetBytes===draftFrom(s.settings).logBudgetBytes
+    &&(d.logLevel==='off'||s.settings.logLevel!=='off');
   const storageIssues=Object.fromEntries(Object.entries(s.storageIssues||{}).filter(([name,issue])=>{
     const value=d[name as keyof Draft];
     return typeof value==='string'&&(value===issue.value||!!value&&!!issue.value&&samePath(value,issue.value));
@@ -107,6 +109,7 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
   }
   function validateBlur(target:EventTarget) {
     if(!isInput(target)||!target.name)return;
+    if(target.name==='logBudgetBytes'&&preserveLogBudget)return;
     // Backend/combined errors survive focus changes; only an edit or a new
     // validation result can clear them. Read-only paths have their own check.
     if(target instanceof HTMLInputElement&&target.readOnly)return;
@@ -123,12 +126,15 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
   useEffect(()=>editor.registerForm(section,{
     validate:()=>{
       const checked:Record<string,string>={};
-      for(const input of Array.from(formRef.current?.elements||[]))if(isInput(input)&&input.name){const error=inputError(input);if(error)checked[input.name]=error;}
+      for(const input of Array.from(formRef.current?.elements||[]))if(isInput(input)&&input.name){
+        if(input.name==='logBudgetBytes'&&preserveLogBudget)continue;
+        const error=inputError(input);if(error)checked[input.name]=error;
+      }
       return checked;
     },
     fieldError:name=>{const input=formRef.current?.elements.namedItem(name);return isInput(input)?inputError(input):'';},
     hasField:name=>!!formRef.current?.elements.namedItem(name),focus:focusInvalid,
-  }),[editor.registerForm,editor.selectTab,section]);
+  }),[editor.registerForm,editor.selectTab,section,preserveLogBudget]);
   const numberField = (key: SettingsNumberField, label: string, min: number, max: number, description: string, unit?: string) => <ValidationField className="settings-number-field" name={key} label={label} labelHint={description}>
     <Tooltip content={description} relationship="description">{({ref,...trigger})=><div {...trigger} ref={ref as Ref<HTMLDivElement>}>
       <NumberInput name={key} id={key} aria-label={unit ? `${label}（${unit}）` : label} aria-describedby={trigger['aria-describedby']} unit={unit} stepLabel={label} placeholder={String(settingsNumberDefault(key))} min={min} max={max} disabled={disabled} value={d[key]} onChange={value => update({[key]:value})} />
@@ -168,7 +174,7 @@ function SettingsForm({section='application',children,editor}:{editor:SettingsEd
           </Select>
         </ValidationField>
         {numberField('logBudgetBytes','程序日志大小上限',1,maxLogBudgetMiB,'启动和换片时按上限清理最旧的日志分片。','MiB')}
-      </div></>}
+      </div>{s.fileLogError&&<Feedback error>程序日志暂不可用。{s.fileLogError}</Feedback>}</>}
       {section==='network'&&<>      <fieldset aria-label="网络连接"><NetworkFields editor={editor} />
       </fieldset>
 </>}

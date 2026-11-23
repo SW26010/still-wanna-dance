@@ -6,12 +6,12 @@ import (
 )
 
 func TestSettingsStorageRoot(t *testing.T) {
-	if _, err := normalizeSettings(Settings{}); err == nil {
+	if _, err := normalizeSettings(Settings{}, true); err == nil {
 		t.Fatal("empty storage root accepted")
 	}
 	s := testConsole(t).settings
 	setTestLibraryPaths(&s, "data")
-	s, err := normalizeSettings(s)
+	s, err := normalizeSettings(s, true)
 	if err != nil || !filepath.IsAbs(testStorageRoot(s)) {
 		t.Fatal(s, err)
 	}

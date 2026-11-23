@@ -35,6 +35,7 @@ var assets embed.FS
 type Console struct {
 	editor                 *settingsEditor
 	faults                 atomic.Pointer[faults.Center]
+	fileLogStatus          func() string // Set before starting the HTTP service.
 	store                  *cacheproxy.Store
 	storageOpenError       error
 	storageConfirmation    *storageConfirmationRequired
@@ -163,6 +164,7 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 		defer c.mu.Unlock()
 		commit()
 		c.settings.Theme = s.Theme
+		c.settings.themeFallback = s.themeFallback
 		c.settings.RestoreHostsOnStopOrExit = s.RestoreHostsOnStopOrExit
 		c.settings.nodeInfo = s.nodeInfo
 	}
@@ -180,6 +182,12 @@ func newConsoleWithWorkError(configPath, address string, dns directResolver, wor
 	loaded, err := loadConfigFile(configPath)
 	if err != nil {
 		return nil, err
+	}
+	if loaded.Settings.themeFallback {
+		slog.Warn("主题设置无效，已跟随系统", "event_name", "theme_config_ignored")
+	}
+	if loaded.invalidVRCXDismissal {
+		slog.Warn("VRCX 导入提示的关闭标记无效", "event_name", "vrcx_dismissal_ignored")
 	}
 	c.videoImportSuggestion = !loaded.Exists
 	c.vrcxImportDismissed = loaded.VRCXImportDismissed
@@ -585,6 +593,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			StorageConfirmation   string                       `json:"storageConfirmation,omitempty"`
 			StorageIssues         map[string]storageFieldIssue `json:"storageIssues,omitempty"`
 			WorkError             string                       `json:"workError,omitempty"`
+			FileLogError          string                       `json:"fileLogError,omitempty"`
 			VRCXImportAvailable   bool                         `json:"vrcxImportAvailable"`
 			VideoImportSuggested  bool                         `json:"videoImportSuggested"`
 			ProxyModeMigrated     bool                         `json:"proxyModeMigrated,omitempty"`
@@ -650,6 +659,9 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		c.mu.Unlock()
+		if c.fileLogStatus != nil {
+			result.FileLogError = c.fileLogStatus()
+		}
 		result.DownloadRoutes = routes.Snapshot()
 		if c.workOpenError != nil {
 			result.WorkError = applog.SafeError(c.workOpenError).Error()

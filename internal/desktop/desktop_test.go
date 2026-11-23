@@ -40,8 +40,8 @@ func TestElectionWaitsForOwnerAndRecovers(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	if _, err := elect(ctx, func() (Lease, error) { return nil, nil }, func(context.Context) (bool, error) { return false, nil }, nil); err == nil {
-		t.Fatal("unready owner accepted")
+	if _, err := elect(ctx, func() (Lease, error) { return nil, nil }, func(context.Context) (bool, error) { return false, nil }, nil); !errors.Is(err, ErrInstanceDiscoveryTimeout) {
+		t.Fatal("unready owner should report discovery timeout", err)
 	}
 	if _, err := elect(context.Background(), func() (Lease, error) { return nil, nil }, func(context.Context) (bool, error) { return true, nil }, func() error { return errors.New("browser unavailable") }); err == nil {
 		t.Fatal("browser failure hidden")

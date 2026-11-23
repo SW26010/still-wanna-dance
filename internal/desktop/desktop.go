@@ -29,6 +29,9 @@ type Identity struct {
 
 var AppIdentity = Identity{App: "swd-console", Protocol: 1}
 
+// ErrInstanceDiscoveryTimeout leaves the existing desktop owner in control.
+var ErrInstanceDiscoveryTimeout = errors.New("已有 Still Wanna Dance 正在启动、退出或实例身份无法验证，暂时无法自动打开；请从托盘打开 WebUI 或稍后重试")
+
 type Lease interface{ Close() error }
 
 // elect waits for a starting owner, but can take over if that owner dies before
@@ -56,21 +59,18 @@ func elect(ctx context.Context, acquire func() (Lease, error), ready func(contex
 		}
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("已有 Still Wanna Dance 正在启动、退出或实例身份无法验证，暂时无法打开；请稍后重试")
+			return nil, ErrInstanceDiscoveryTimeout
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
 
 func AcquireOrActivate(ctx context.Context, identity Identity, openBrowser bool) (*Instance, error) {
-	path, err := instancePath()
-	if err != nil {
-		return nil, err
-	}
-	return acquireOrActivate(ctx, path, identity, func() (Lease, error) { return acquire(MutexName) }, openBrowser, OpenBrowser)
+	path, pathErr := instancePath()
+	return acquireOrActivate(ctx, path, pathErr, identity, func() (Lease, error) { return acquire(MutexName) }, openBrowser, OpenBrowser)
 }
 
-func acquireOrActivate(ctx context.Context, path string, identity Identity, acquireLease func() (Lease, error), openBrowser bool, browser func(string) error) (*Instance, error) {
+func acquireOrActivate(ctx context.Context, path string, pathErr error, identity Identity, acquireLease func() (Lease, error), openBrowser bool, browser func(string) error) (*Instance, error) {
 	if !identity.valid() {
 		return nil, errors.New("无效的 SWD 实例身份")
 	}
@@ -82,6 +82,9 @@ func acquireOrActivate(ctx context.Context, path string, identity Identity, acqu
 		open = func() error { return browser("http://" + address) }
 	}
 	lease, err := elect(ctx, acquireLease, func(ctx context.Context) (bool, error) {
+		if pathErr != nil {
+			return false, nil
+		}
 		record := readInstanceRecord(path)
 		if record == nil || !probe(ctx, record.Address, record.Identity) {
 			return false, nil
@@ -99,11 +102,10 @@ func acquireOrActivate(ctx context.Context, path string, identity Identity, acqu
 	if err != nil || lease == nil {
 		return nil, err
 	}
-	instance := &Instance{lease: lease, path: path, identity: identity}
-	// Clear crash leftovers before the new owner starts serving.
-	if err := instance.clear(); err != nil {
-		_ = lease.Close()
-		return nil, err
+	instance := &Instance{lease: lease, path: path, identity: identity, discoveryErr: pathErr}
+	if pathErr == nil {
+		// A blocked old slot must not be opened for writing by this owner.
+		instance.discoveryErr = instance.clear()
 	}
 	return instance, nil
 }

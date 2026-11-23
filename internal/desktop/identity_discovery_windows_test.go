@@ -62,7 +62,7 @@ func TestDiscoveryInstallationConflicts(t *testing.T) {
 			}
 			for _, open := range []bool{true, false} {
 				opens := 0
-				lease, err := acquireOrActivate(context.Background(), path, request, func() (Lease, error) { return nil, nil }, open, func(url string) error {
+				lease, err := acquireOrActivate(context.Background(), path, nil, request, func() (Lease, error) { return nil, nil }, open, func(url string) error {
 					opens++
 					if url != s.URL {
 						t.Error(url)
@@ -129,7 +129,7 @@ func TestDiscoveryRejectsReusedPIDAndForgedIdentity(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 			defer cancel()
-			if _, err := acquireOrActivate(ctx, path, id, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("activated forged owner"); return nil }); err == nil {
+			if _, err := acquireOrActivate(ctx, path, nil, id, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("activated forged owner"); return nil }); err == nil {
 				t.Fatal("forged record accepted")
 			}
 		})

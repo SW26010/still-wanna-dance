@@ -39,13 +39,13 @@ func TestDynamicConsoleDiscovery(t *testing.T) {
 	}
 	for _, shouldOpen := range []bool{true, false} {
 		opened := ""
-		lease, err := acquireOrActivate(context.Background(), path, identity, func() (Lease, error) { return nil, nil }, shouldOpen, func(url string) error { opened = url; return nil })
+		lease, err := acquireOrActivate(context.Background(), path, nil, identity, func() (Lease, error) { return nil, nil }, shouldOpen, func(url string) error { opened = url; return nil })
 		if err != nil || lease != nil || (shouldOpen && opened != s.URL) || (!shouldOpen && opened != "") {
 			t.Fatalf("activation: lease=%v error=%v opened=%q", lease, err, opened)
 		}
 	}
 	// A new mutex owner must discard a crash leftover, even if its address is live.
-	replacement, err := acquireOrActivate(context.Background(), path, identity, func() (Lease, error) { return fakeLease{}, nil }, true, func(string) error { t.Fatal("opened stale address"); return nil })
+	replacement, err := acquireOrActivate(context.Background(), path, nil, identity, func() (Lease, error) { return fakeLease{}, nil }, true, func(string) error { t.Fatal("opened stale address"); return nil })
 	if err != nil || replacement == nil {
 		t.Fatal("takeover failed", err)
 	}
@@ -63,6 +63,52 @@ func TestDynamicConsoleDiscovery(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("record retained after exit", err)
+	}
+}
+
+func TestDiscoveryFailureRetainsDesktopOwnership(t *testing.T) {
+	for _, beforeElection := range []bool{true, false} {
+		t.Run(fmt.Sprint(beforeElection), func(t *testing.T) {
+			identity, err := NewIdentity(filepath.Join(t.TempDir(), "config.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(t.TempDir(), "session.json")
+			child := filepath.Join(path, "keep.txt")
+			blockRecord := func() {
+				if err := os.Mkdir(path, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(child, []byte("keep"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if beforeElection {
+				blockRecord()
+			}
+			claim := func() (Lease, error) { return acquire(fmt.Sprintf(`Local\SWD.DiscoveryTest.%d`, os.Getpid())) }
+			owner, err := acquireOrActivate(t.Context(), path, nil, identity, claim, false, nil)
+			if err != nil || owner == nil {
+				t.Fatal("discovery prevented owner from starting", err)
+			}
+			defer owner.Close()
+			if !beforeElection {
+				blockRecord()
+			}
+			if err := owner.Publish("127.0.0.1:32123"); err == nil {
+				t.Fatal("blocked discovery record was published")
+			}
+			if duplicate, err := claim(); err != nil || duplicate != nil {
+				if duplicate != nil {
+					duplicate.Close()
+				}
+				t.Fatal("discovery failure released the desktop mutex", err)
+			}
+			_ = owner.Close()
+			if got, err := os.ReadFile(child); err != nil || string(got) != "keep" {
+				t.Fatal("discovery modified the blocked record", err)
+			}
+		})
 	}
 }
 
@@ -95,7 +141,7 @@ func TestDiscoveryRejectsInvalidAndForeignRecords(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := acquireOrActivate(ctx, path, identity, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("opened foreign service"); return nil }); err == nil {
+	if _, err := acquireOrActivate(ctx, path, nil, identity, func() (Lease, error) { return nil, nil }, true, func(string) error { t.Fatal("opened foreign service"); return nil }); err == nil {
 		t.Fatal("foreign service accepted")
 	}
 }

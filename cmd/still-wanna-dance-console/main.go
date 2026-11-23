@@ -282,7 +282,7 @@ func run() (runErr error) {
 	}()
 	if instance != nil {
 		if err := instance.Publish(l.Addr().String()); err != nil {
-			return fmt.Errorf("无法发布 WebUI 地址：%w", err)
+			slog.Warn("无法登记桌面实例", "event_name", "desktop_discovery_unavailable", "error", err)
 		}
 	}
 	done := make(chan error, 1)

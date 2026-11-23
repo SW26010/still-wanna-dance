@@ -323,7 +323,7 @@ SWD/                              # ZIP 内固定目录，不含版本号
 
 | 外部位置 | 所有权 / 生命周期 | 备份约定 |
 | --- | --- | --- |
-| Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属，退出删除本会话记录，异常退出后由新锁持有者清理；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
+| Windows `%LOCALAPPDATA%/SWD/console-session-<id>.json` | 托盘单实例发现；包含回环地址、SWD 协议身份、实际 EXE、配置、PID 和进程创建时间；激活前校验进程/端口归属。锁持有者尝试清理旧记录并登记当前会话，失败时仍由托盘打开 WebUI；无托盘模式不创建 | 不备份，可重新发现，不是用户配置 |
 | Windows `%SystemRoot%/System32/drivers/etc/hosts` 及 `hosts.swd-backup` | 手动或已授权的自动一键加速修改 hosts；首次备份保留。恢复精确移除托管映射，不覆盖整个 hosts；退出按已保存的 restoreHostsOnStopOrExit 策略恢复或保留 | 系统管理员管理，不自动删备份或覆盖其他映射 |
 | hosts 同目录 `.hosts.swd-<数字>` | 权限准备、接入与恢复共用的同卷暂存，完整写入并同步后安全替换，保留 Windows DACL | 不备份、不恢复为正式 hosts；本次操作结束清理，异常终止残留不跨实例扫删，见 [hosts 契约](console.md#hosts) |
 | VRChat 日志目录、用户选取的导入源、VRCX SQLite 历史源库 | 外部输入，不归 SWD 所有；VRCX 沿用 SQLite 正常只读 WAL 快照和锁协议 | 日志和 VRCX 只读；源视频仅可经[有效导入回执和明确确认](video-import.md)清理。不复制单独 SQLite 主文件冒充一致快照 |

@@ -64,7 +64,7 @@ func flagValue(name string) string {
 // The isolated server serves the same embedded WebUI without those resources.
 func recoverApplication(cause error) error {
 	var conflict *desktop.InstanceConflictError
-	if errors.As(cause, &conflict) {
+	if errors.As(cause, &conflict) || errors.Is(cause, desktop.ErrInstanceDiscoveryTimeout) {
 		return cause
 	}
 	ctx, cancel := context.WithCancel(context.Background())

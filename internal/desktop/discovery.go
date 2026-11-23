@@ -14,11 +14,12 @@ import (
 
 // Instance owns the discovery record for as long as it owns the desktop mutex.
 type Instance struct {
-	lease    Lease
-	path     string
-	once     sync.Once
-	err      error
-	identity Identity
+	lease        Lease
+	path         string
+	once         sync.Once
+	err          error
+	identity     Identity
+	discoveryErr error
 }
 
 type instanceRecord struct {
@@ -56,6 +57,9 @@ func readInstanceRecord(path string) *instanceRecord {
 }
 
 func (i *Instance) Publish(address string) error {
+	if i.discoveryErr != nil {
+		return i.discoveryErr
+	}
 	if !validAddress(address) || !i.identity.valid() {
 		return fmt.Errorf("无效的 WebUI 地址：%s", address)
 	}
@@ -81,7 +85,10 @@ func (i *Instance) clear() error {
 func (i *Instance) Close() error {
 	i.once.Do(func() {
 		// Remove the record before releasing ownership to the next instance.
-		i.err = errors.Join(i.clear(), i.lease.Close())
+		if i.discoveryErr == nil {
+			i.err = i.clear()
+		}
+		i.err = errors.Join(i.err, i.lease.Close())
 	})
 	return i.err
 }

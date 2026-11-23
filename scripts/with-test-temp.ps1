@@ -6,7 +6,9 @@ if (-not $Command) { throw 'Usage: with-test-temp.ps1 <command> [arguments...]' 
 
 # MXC's default TEMP can create files but reject rename (microsoft/mxc#1204).
 # Keep the workaround in the tool process, shared by Go, Node and browsers.
-$tempRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts/tmp'))
+# Go's ./... walk ignores underscore-prefixed directories, including while
+# another check has a patched dependency tree or source checkout here.
+$tempRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts/_tmp'))
 # A release checkout can contain another copy of this wrapper. Keep every
 # invocation beside its caller instead of repeatedly nesting checkout/artifacts.
 if ($env:SWD_TEST_TEMP_ROOT) {

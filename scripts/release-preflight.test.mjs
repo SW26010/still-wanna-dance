@@ -8,7 +8,7 @@ import { withTemp } from './release-source.mjs';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
 const ps = value => `'${value.replaceAll("'", "''")}'`;
-function preflight({ failProduct = false, failRace = false, raceShard, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.13' } = {}) {
+function preflight({ failBrowser = false, failGo = false, failRace = false, failCacheShard = false, raceShard, nodeVersion = 'v22.23.4', goVersion = 'go version go1.27.3 windows/amd64', pnpmVersion = '11.25.0', pythonVersion = 'Python 3.12.13' } = {}) {
   return withTemp(temp => {
     const root = path.join(temp, 'repo'), directory = path.join(root, 'scripts'); fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(root, '.node-version'), '22.23.4\n');
@@ -35,10 +35,15 @@ function global:node {
   if ($args[0] -like '*go-patches.mjs') {
     if ($args[1] -eq 'list') { 'still-wanna-dance/internal/cacheproxy'; 'still-wanna-dance/internal/console'; 'still-wanna-dance/internal/example' }
     if ($args -contains '-list') { 0..11 | ForEach-Object { "TestT$_" } }
-    if (${failProduct ? '$true' : '$false'} -and $args[1] -eq 'test' -and $args -contains './...') { $global:LASTEXITCODE = 17 }
+    if (${failGo ? '$true' : '$false'} -and $args[1] -eq 'test' -and $args -contains './...') { $global:LASTEXITCODE = 17 }
+    if (${failCacheShard ? '$true' : '$false'} -and $args -contains './internal/cacheproxy' -and $args -contains '-race' -and $args -notcontains '-list') { $global:LASTEXITCODE = 19 }
   }
 }
-function global:pnpm { $global:calls.Add(@('pnpm') + $args); $global:LASTEXITCODE = 0; if ($args[0] -eq '--version') { ${ps(pnpmVersion)} } }
+function global:pnpm {
+  $global:calls.Add(@('pnpm') + $args); $global:LASTEXITCODE = 0
+  if ($args[0] -eq '--version') { ${ps(pnpmVersion)} }
+  if (${failBrowser ? '$true' : '$false'} -and $args[-1] -eq 'test') { $global:LASTEXITCODE = 18 }
+}
 function global:uv { $global:calls.Add(@('uv') + $args); $global:LASTEXITCODE = 0; if ($args[0] -eq '--version') { 'uv 0.12.5' } elseif ($args[-1] -eq '--version') { ${ps(pythonVersion)} } }
 function global:go { if ($env:GOTOOLCHAIN -cne 'local') { throw 'Go probe allows automatic toolchain downloads' }; $global:LASTEXITCODE = 0; ${ps(goVersion)} }
 function global:gofmt { $global:LASTEXITCODE = 0 }
@@ -61,6 +66,7 @@ test('full preflight covers every race test once and builds delivery after all c
   assert.equal(result.error, '');
   assert.equal(result.record.status, 'passed');
   assert.deepEqual(result.record.passed, ['tools', 'repository', 'product', 'race', 'delivery']);
+  assert.deepEqual(result.record.failed, {});
   assert.equal(result.calls.at(-1)[0], 'delivery');
   const raceAll = result.calls.filter(call => call[0] === 'race-all');
   assert.equal(raceAll.length, 1); assert.match(raceAll[0][1], /release-preflight/);
@@ -89,12 +95,14 @@ test('full preflight covers every race test once and builds delivery after all c
   assert.equal(result.calls.filter(call => call.includes('still-wanna-dance/internal/example') && call.includes('-race')).length, 1);
 });
 
-test('race failure retains evidence and stops remaining packages and delivery', () => {
+test('race worker failure retains evidence and checks remaining packages before stopping delivery', () => {
   const result = preflight({ failRace: true });
-  assert.match(result.error, /fixture race failure/);
+  assert.match(result.error, /Preflight failures: race-shards/);
+  assert.match(result.record.failed['race-shards'], /fixture race failure/);
   assert.equal(result.record.status, 'failed');
   assert.deepEqual(result.record.passed, ['tools', 'repository', 'product']);
-  assert.equal(result.calls.some(call => call[0] === 'delivery' || call.includes('still-wanna-dance/internal/example')), false);
+  assert.equal(result.calls.some(call => call[0] === 'delivery'), false);
+  assert.equal(result.calls.filter(call => call.includes('still-wanna-dance/internal/example') && call.includes('-race')).length, 1);
   assert.equal(result.cgo, 'before'); assert.equal(result.ci, 'caller-ci');
 });
 
@@ -114,12 +122,26 @@ test('an explicit race shard runs only its group and shard zero checks other pac
   }
 });
 
-test('product failure stops later checks and delivery, retaining failure evidence and environment', () => {
-  const result = preflight({ failProduct: true });
-  assert.match(result.error, /failed \(17\)/);
+test('cacheproxy failure in shard zero still runs the Console and remaining packages', () => {
+  const result = preflight({ raceShard: 0, failCacheShard: true });
   assert.equal(result.record.status, 'failed');
-  assert.deepEqual(result.record.passed, ['tools', 'repository']);
-  assert.equal(result.calls.some(call => call[0] === 'delivery' || call.includes('-race') || call.includes('vet')), false);
+  assert.match(result.record.failed['race-shards'], /Race shard 0 failed: \.\/internal\/cacheproxy/);
+  assert.ok(result.calls.some(call => call.includes('./internal/console') && call.includes('-race') && call.includes('-run=^(TestT0|TestT6)$')));
+  assert.equal(result.calls.filter(call => call.includes('still-wanna-dance/internal/example') && call.includes('-race')).length, 1);
+});
+
+test('browser and Go failures are reported together after independent product and race checks', () => {
+  const result = preflight({ failBrowser: true, failGo: true });
+  assert.equal(result.error, 'Preflight failures: webui-browser, go-test');
+  assert.equal(result.record.status, 'failed');
+  assert.deepEqual(result.record.passed, ['tools', 'repository', 'race']);
+  assert.match(result.record.failed['webui-browser'], /failed \(18\)/);
+  assert.match(result.record.failed['go-test'], /failed \(17\)/);
+  assert.ok(result.calls.some(call => call.includes('-run=^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$')));
+  assert.ok(result.calls.some(call => call.includes('vet')));
+  assert.ok(result.calls.some(call => call.includes('build')));
+  assert.ok(result.calls.some(call => call[0] === 'race-all'));
+  assert.equal(result.calls.some(call => call[0] === 'delivery'), false);
   assert.equal(result.cgo, 'before'); assert.equal(result.toolchain, 'before');
   assert.equal(result.ci, 'caller-ci');
   assert.equal(result.settings, 'caller-settings'); assert.equal(result.hosts, 'caller-hosts');
@@ -133,7 +155,7 @@ test('toolchain mismatches stop before affected checks and restore the caller en
     [{ pnpmVersion: '11.24.0' }, /Use pnpm@11.25.0/],
   ]) {
     const result = preflight(options);
-    assert.match(result.error, expected);
+    assert.match(result.record.failed['webui-dependencies'] ?? result.error, expected);
     assert.equal(result.record.status, 'failed');
     assert.equal(result.calls.some(call => call.includes('install') || call[0] === 'delivery'), false);
     assert.equal(result.ci, 'caller-ci');

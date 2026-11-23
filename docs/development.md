@@ -99,7 +99,9 @@ Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflow
 ./scripts/release-preflight.ps1 -ReleaseTag v1.2.3-preflight -PreviousTag v1.2.2
 ```
 
-顺序为工具与仓库检查 → 产品检查 → 完整 race → 最终交付预演；遇到失败即停止，避免在基础错误后继续耗时构建。`-PreviousTag` 下载并校验实际公开的前一版本 ZIP，已有有效下载只复核哈希；也可用 `-PreviousZip` 指定本地真实旧包及其 SHA256。首发没有旧包时省略，不为覆盖升级额外构建同源码候选包。产物使用测试 tag，不上传、不发布。日志与 `result.json` 保留在忽略目录 `artifacts/release-preflight/`，失败记录也保留；状态只说明该次运行的实际范围，不作为 Actions 跳过测试的凭据。
+顺序为工具与仓库检查 → 产品检查 → 完整 race → 最终交付预演。基础环境、工具和仓库检查通过后，预检跑完各项可执行的独立检查。浏览器失败后继续真实 Console 和普通 Go 检查，产品检查失败后仍完成 race。前端依赖安装失败时只跳过依赖它的检查。全部通过才进行交付预演。
+
+`-PreviousTag` 下载并校验实际公开的前一版本 ZIP，已有有效下载只复核哈希。也可用 `-PreviousZip` 指定本地真实旧包及其 SHA256。首发可省略旧包。产物只留在本机并使用测试 tag。默认将 `checks.log`、汇总失败检查名和原因的 `result.json` 保存在 `artifacts/release-preflight/`。本机证据仅说明该次运行的实际范围，Actions 的结果复用按[打包说明](packaging.md)校验。
 
 | 范围 | 完成条件与现有入口 |
 | --- | --- |
@@ -109,7 +111,11 @@ Go、Node、pnpm、Edge 和 race GCC 与 [`check` 工作流](../.github/workflow
 | 正式包预演 | 按[打包入口](packaging.md)完成必要对应源码收集、全新缓存离线重建和实际 ZIP 启动；打包不再嵌套工具或业务全量测试 |
 | 历史版本升级 | 使用实际前一发行包和隔离持久数据验证覆盖升级；涉及数据库、配置或持久化格式变化时，另完成对应历史格式迁移验证。同源码的候选包不能证明历史格式兼容 |
 
-失败先归因并成组修复，按受影响阶段补验：`-Scope tools`、`-Scope repository`、`-Scope product`、`-Scope race` 或 `-Scope delivery -ReleaseTag ...`；`repository` 维护独立的产物策略及 Python 检查，避免与 Actions 工具作业重复。本机完整 race 默认同时启动全部六组，每组独立保存 `race-shard-N/checks.log` 和 `result.json`；等待六组全部结束后汇总，任一组失败则本阶段失败，保留其他组的实际结果。六组成功后，其余 Go 包只检查一次。定向复验可用 `-Scope race -RaceShard 0`（0～5），显式选择第 0 组时也检查其余包一次。`-Representative` 只供日常产品/race 检查，不能用于完整预检或正式交付预演。新增了业务行为或依赖变化时补全相应产品、浏览器和 race；仅修改交付脚本时补工具与交付预演，纯文档修改不触发业务全量重跑。需要额外真实 Console 联调时仍按本页受影响行为选择，统一入口不宣称覆盖全部按需场景。
+本机完整 race 默认同时启动全部六组，每组都检查 cacheproxy 和 Console，分别保留 `race-shard-N/checks.log` 和 `result.json`。六组结束后运行一次其余 Go 包的 race，包括有分组失败时。定向复验可用 `-Scope race -RaceShard 0`（0～5），选择第 0 组时也检查其余包。
+
+失败先归因并成组修复，按受影响阶段用 `-Scope tools`、`-Scope repository`、`-Scope product`、`-Scope race` 或 `-Scope delivery -ReleaseTag ...` 补验。`repository` 独立维护产物策略及 Python 检查。`-Representative` 只供日常产品和 race 检查。业务、测试或依赖变化时补齐受影响的检查，纯交付脚本补工具与交付预演，纯文档沿用仍适用的证据。真实 Console 联调按本页受影响行为选择。
+
+定版时核对各项本机结果对应的提交和检查范围。跨提交补验时，核对实际 diff，只沿用输入和验证规则均未变化的结果。Actions 出现本机漏过的失败时，对照提交、工具版本、测试参数及失败日志或 trace，再在本机固定触发条件。验证下载回收与发布时，显式控制尾块到达、取得发布快照和首块回收的顺序。排查 race 时，沿报告追踪共享对象的实际读写范围，包括值接收者隐式复制整个配置结构体的情况。验证浏览器通知时，可用夹具让可见通知和无障碍播报同时存在，并用角色定位可见通知。受控用例在旧代码上复现失败，修复后通过，再补验受影响范围。
 
 完成记录写明源码、实际工具版本、通过/失败/跳过范围和证据路径；skip 不算通过，缺少专用环境只限制对应结论。本机通过后，最终发行仍须由 GitHub Actions 构建、上传和回下载公开附件。本地成功不代替公开交付验证。Actions 内的完整业务结果复用与失败重试规则统一见[打包说明](packaging.md)，无需为每个版本复制工作流。
 
@@ -155,7 +161,7 @@ go fmt ./cmd/... ./internal/...
 node scripts/go-patches.mjs build -tags=no_easytier -o bin/SWD.exe ./cmd/still-wanna-dance-console
 ```
 
-Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也只需在原命令前加这个入口。它保持调用目录和参数，每次在忽略目录 `artifacts/tmp/<随机标识>` 创建独立临时目录，仅为本次命令及子进程设置 `TEMP`、`TMP`、`GOTMPDIR`；正常返回或命令报错后恢复环境并清理本次目录，原样返回命令退出码。无法清理时明确警告并保留路径，不影响测试失败的退出码。测试日志和需要保留的报告放在该临时目录之外。打包脚本的开发检查与正式发布准备也使用同一入口。
+Windows 测试统一通过 `scripts/with-test-temp.ps1` 运行，定向检查也只需在原命令前加这个入口。它保持调用目录和参数，每次在忽略目录 `artifacts/_tmp/<随机标识>` 创建独立临时目录，仅为本次命令及子进程设置 `TEMP`、`TMP`、`GOTMPDIR`。Go 的 `./...` 跳过下划线开头的目录，其他检查创建的临时依赖树和源码检出因此不会进入包枚举。正常返回或命令报错后恢复环境并清理本次目录，原样返回命令退出码。清理失败时警告并保留路径。持久日志和报告放在临时目录之外。打包脚本的开发检查与正式发布准备也使用同一入口。
 
 此入口避开 Windows MXC 默认 `sandbox.{GUID}/AC/Temp` 的重命名权限缺陷（[Microsoft 已确认的问题](https://github.com/microsoft/mxc/issues/1204)），不修改产品文件操作、用户/系统环境变量、ACL 或沙箱设置。换到工作区后 `os.Root.Rename`、硬链接、目录联接、浏览器及子进程仍可能受其他沙箱限制；保留失败证据，按实际权限要求验证，不能把所有失败都归为临时目录问题。强制结束 PowerShell 进程时可能来不及清理，残留目录不复用，也不自动清扫其他调用的目录。
 

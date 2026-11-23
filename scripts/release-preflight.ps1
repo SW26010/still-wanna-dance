@@ -18,11 +18,19 @@ function Invoke-Isolated([string[]]$CommandArgs) {
 function Invoke-Go([string[]]$CommandArgs) {
     Invoke-Isolated (@('node', "$PSScriptRoot/go-patches.mjs") + $CommandArgs)
 }
+function Invoke-PreflightCheck([string]$Name, [scriptblock]$Check) {
+    Write-Host "Checking $Name"
+    try { & $Check }
+    catch {
+        $record.failed[$Name] = $_.ToString()
+        Write-Host "Failed ${Name}: $_"
+    }
+}
 Push-Location (Split-Path -Parent $PSScriptRoot)
 $savedEnv = @{}
 foreach ($name in @('CI', 'CGO_ENABLED', 'GOTOOLCHAIN', 'SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name) }
 $transcript = $false
-$record = [ordered]@{ revision = ''; dirty = $false; scope = $Scope; representative = [bool]$Representative; raceShard = $RaceShard; environment = [ordered]@{ powershell = $PSVersionTable.PSVersion.ToString() }; passed = @(); status = 'failed' }
+$record = [ordered]@{ revision = ''; dirty = $false; scope = $Scope; representative = [bool]$Representative; raceShard = $RaceShard; environment = [ordered]@{ powershell = $PSVersionTable.PSVersion.ToString() }; passed = @(); failed = [ordered]@{}; error = ''; status = 'failed' }
 try {
     if (($Scope -eq 'all' -or $Scope -eq 'delivery') -and (!$ReleaseTag -or $Representative)) { throw 'Full local preflight/delivery requires ReleaseTag and full checks.' }
     if ($RaceShard -ne -1 -and $Scope -ne 'race') { throw 'RaceShard applies only to the race scope.' }
@@ -79,47 +87,71 @@ try {
         $record.passed += 'repository'
     }
     if ($Scope -in @('all', 'product')) {
-        $record.environment.pnpm = (& pnpm --version)
-        if ($LASTEXITCODE -ne 0) { throw 'Cannot read pnpm version.' }
-        $expectedPnpm = (Get-Content -Raw -LiteralPath webui/package.json | ConvertFrom-Json).packageManager
-        if ('pnpm@' + $record.environment.pnpm -cne $expectedPnpm) { throw "Use $expectedPnpm from webui/package.json; found pnpm@$($record.environment.pnpm)." }
-        Write-Host "pnpm: $($record.environment.pnpm)"
-        Invoke-Checked pnpm @('--dir', 'webui', 'install', '--frozen-lockfile')
-        Invoke-Checked pnpm @('--dir', 'webui', 'exec', 'playwright', 'install', '--no-shell', 'chromium')
-        Invoke-Checked pnpm @('--dir', 'webui', 'check')
-        if ($Representative) { Invoke-Isolated @('pnpm', '--dir', 'webui', 'exec', 'playwright', 'test', 'e2e/api-fixture.spec.ts', 'e2e/terms-consent.spec.ts', 'e2e/regressions.spec.ts', 'e2e/import-recovery.spec.ts', 'e2e/library-covers.spec.ts', 'e2e/monitor-details.spec.ts', 'e2e/request-timeline.spec.ts') }
-        else { Invoke-Isolated @('pnpm', '--dir', 'webui', 'test') }
-        try {
-            $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $evidence 'settings-browser'
-            $env:SWD_HOSTS_BROWSER_EVIDENCE = Join-Path $evidence 'hosts-browser'
-            Invoke-Go @('test', '-tags=no_easytier', './internal/console', '-run=^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$', '-count=1', '-v')
-        } finally {
-            foreach ($name in @('SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { [Environment]::SetEnvironmentVariable($name, $null) }
+        Invoke-PreflightCheck 'webui-dependencies' {
+            $record.environment.pnpm = (& pnpm --version)
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot read pnpm version.' }
+            $expectedPnpm = (Get-Content -Raw -LiteralPath webui/package.json | ConvertFrom-Json).packageManager
+            if ('pnpm@' + $record.environment.pnpm -cne $expectedPnpm) { throw "Use $expectedPnpm from webui/package.json; found pnpm@$($record.environment.pnpm)." }
+            Write-Host "pnpm: $($record.environment.pnpm)"
+            Invoke-Checked pnpm @('--dir', 'webui', 'install', '--frozen-lockfile')
         }
-        Invoke-Go @('test', '-tags=no_easytier', './...', '-count=1')
-        Invoke-Go @('vet', '-tags=no_easytier', './...')
-        Invoke-Go @('build', '-tags=no_easytier', './...')
-        $unformatted = @(& gofmt -l cmd internal)
-        if ($LASTEXITCODE -ne 0 -or $unformatted.Count -ne 0) { $unformatted; throw 'Go files require formatting.' }
-        $record.passed += 'product'
-    }
-    if ($Scope -in @('all', 'race')) {
-        $env:CGO_ENABLED = '1'
-        if (!$env:CC) { throw 'Set CC to the pinned Windows GCC used by check.yml before race checks.' }
-        Invoke-Checked $env:CC @('--version')
-        if ($Representative) {
-            $tests = '^(TestAnyTLSStreamConcurrentClose|TestVRChatExitWaitsWithoutPolling|TestVRChatExitWaitsForOtherInstancesAndRestart|TestVRChatExitObservationErrorsRecover|TestHTTPSeekDuringRangeInitialization|TestBlockDemandFollowsActualWaitAndIndependentReaders|TestNetworkConnectivityFullRunsThreeRequestsTogether|TestMixedDemandKeepsDeadlineAndOpportunisticAdmission)$'
-            Invoke-Go @('test', '-tags=no_easytier', '-race', './internal/blocksched', './internal/cacheproxy', './internal/console', './internal/desktop', './internal/proxyengine/mihomo', "-run=$tests", '-count=1')
-        } else {
-            if ($RaceShard -eq -1) { & "$PSScriptRoot/test-race-all.ps1" -EvidenceDirectory $evidence }
-            else { & "$PSScriptRoot/test-race-shard.ps1" -Shard $RaceShard -Shards 6 }
-            if ($RaceShard -in @(-1, 0)) {
-                $packages = @(& node scripts/go-patches.mjs list -tags=no_easytier ./... | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
-                if ($LASTEXITCODE -ne 0 -or $packages.Count -eq 0) { throw 'Could not enumerate remaining Go packages.' }
-                Invoke-Go (@('test', '-tags=no_easytier', '-race') + $packages + @('-count=1', '-timeout=45m'))
+        if (!$record.failed.Contains('webui-dependencies')) {
+            Invoke-PreflightCheck 'webui-check' { Invoke-Checked pnpm @('--dir', 'webui', 'check') }
+            Invoke-PreflightCheck 'webui-browser' {
+                Invoke-Checked pnpm @('--dir', 'webui', 'exec', 'playwright', 'install', '--no-shell', 'chromium')
+                if ($Representative) { Invoke-Isolated @('pnpm', '--dir', 'webui', 'exec', 'playwright', 'test', 'e2e/api-fixture.spec.ts', 'e2e/terms-consent.spec.ts', 'e2e/regressions.spec.ts', 'e2e/import-recovery.spec.ts', 'e2e/library-covers.spec.ts', 'e2e/monitor-details.spec.ts', 'e2e/request-timeline.spec.ts') }
+                else { Invoke-Isolated @('pnpm', '--dir', 'webui', 'test') }
+            }
+            Invoke-PreflightCheck 'console-browser' {
+                try {
+                    $env:SWD_SETTINGS_BROWSER_EVIDENCE = Join-Path $evidence 'settings-browser'
+                    $env:SWD_HOSTS_BROWSER_EVIDENCE = Join-Path $evidence 'hosts-browser'
+                    Invoke-Go @('test', '-tags=no_easytier', './internal/console', '-run=^(TestSettingsSeparateBrowsers|TestHostsPolicyBrowser)$', '-count=1', '-v')
+                } finally {
+                    foreach ($name in @('SWD_SETTINGS_BROWSER_EVIDENCE', 'SWD_HOSTS_BROWSER_EVIDENCE')) { [Environment]::SetEnvironmentVariable($name, $null) }
+                }
             }
         }
-        $record.passed += 'race'
+        Invoke-PreflightCheck 'go-test' { Invoke-Go @('test', '-tags=no_easytier', './...', '-count=1') }
+        Invoke-PreflightCheck 'go-vet' { Invoke-Go @('vet', '-tags=no_easytier', './...') }
+        Invoke-PreflightCheck 'go-build' { Invoke-Go @('build', '-tags=no_easytier', './...') }
+        Invoke-PreflightCheck 'go-format' {
+            $unformatted = @(& gofmt -l cmd internal)
+            if ($LASTEXITCODE -ne 0 -or $unformatted.Count -ne 0) { $unformatted; throw 'Go files require formatting.' }
+        }
+        if (!$record.failed.Count) { $record.passed += 'product' }
+    }
+    if ($Scope -in @('all', 'race')) {
+        $earlierFailures = $record.failed.Count
+        $env:CGO_ENABLED = '1'
+        Invoke-PreflightCheck 'race-compiler' {
+            if (!$env:CC) { throw 'Set CC to the pinned Windows GCC used by check.yml before race checks.' }
+            Invoke-Checked $env:CC @('--version')
+        }
+        if (!$record.failed.Contains('race-compiler')) {
+            if ($Representative) {
+                Invoke-PreflightCheck 'race-representative' {
+                    $tests = '^(TestAnyTLSStreamConcurrentClose|TestVRChatExitWaitsWithoutPolling|TestVRChatExitWaitsForOtherInstancesAndRestart|TestVRChatExitObservationErrorsRecover|TestHTTPSeekDuringRangeInitialization|TestBlockDemandFollowsActualWaitAndIndependentReaders|TestNetworkConnectivityFullRunsThreeRequestsTogether|TestMixedDemandKeepsDeadlineAndOpportunisticAdmission)$'
+                    Invoke-Go @('test', '-tags=no_easytier', '-race', './internal/blocksched', './internal/cacheproxy', './internal/console', './internal/desktop', './internal/proxyengine/mihomo', "-run=$tests", '-count=1')
+                }
+            } else {
+                Invoke-PreflightCheck 'race-shards' {
+                    if ($RaceShard -eq -1) { & "$PSScriptRoot/test-race-all.ps1" -EvidenceDirectory $evidence }
+                    else { & "$PSScriptRoot/test-race-shard.ps1" -Shard $RaceShard -Shards 6 }
+                }
+                if ($RaceShard -in @(-1, 0)) {
+                    Invoke-PreflightCheck 'race-other-packages' {
+                        $packages = @(Invoke-Go @('list', '-tags=no_easytier', './...') | Where-Object { $_ -notin @('still-wanna-dance/internal/cacheproxy', 'still-wanna-dance/internal/console') })
+                        if ($packages.Count -eq 0) { throw 'Could not enumerate remaining Go packages.' }
+                        Invoke-Go (@('test', '-tags=no_easytier', '-race') + $packages + @('-count=1', '-timeout=45m'))
+                    }
+                }
+            }
+        }
+        if ($record.failed.Count -eq $earlierFailures) { $record.passed += 'race' }
+    }
+    if ($record.failed.Count) {
+        throw ('Preflight failures: ' + ($record.failed.Keys -join ', '))
     }
     if ($Scope -in @('all', 'delivery')) {
         $env:CGO_ENABLED = '0'
@@ -133,6 +165,9 @@ try {
         $record.passed += 'delivery'
     }
     $record.status = 'passed'
+} catch {
+    $record.error = $_.ToString()
+    throw
 } finally {
     if ($transcript) {
         $record | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $evidence 'result.json') -Encoding utf8

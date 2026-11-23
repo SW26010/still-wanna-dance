@@ -74,6 +74,8 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 新正式版本优先从选定分支手动运行：在 `check` → `Run workflow` 选择分支，填写 `release_tag`（例如 `v1.2.3`）。此入口在完整检查与交付验证通过后，由 Actions 创建远端版本 tag 并发布；触发前不必推送正式 tag。当前工具无法触发手动入口时，应先解决触发方式，避免提前绑定版本后又因验证修正需要移动 tag。`release_tag` 留空只检查；工作流也支持直接检查已推送的版本 tag。已有 tag 必须指向本次提交，不移动已有 tag，也不覆盖已经发布的 Release。
 
+如需先确认 Actions 的完整检查结果，第一次手动运行留空 `release_tag`，让产品和六组 race 全部结束并收齐失败。检查成功后，核对将要发行的提交与成功运行的 SHA 一致，再填写 `release_tag` 和该次 `validation_run_id`。这条路径把完整检查做一次，正式交付单独运行。途中修改代码、测试或验证规则时，重新完成受影响的本机检查和新的完整 Actions 检查。
+
 版本更新与升级注意事项保存在 `docs/releases/<tag>.md`；存在对应文件时，打包作业将其附加到生成的 Release 正文。内容面向使用者，保留实际功能变化和升级影响。
 
 发布只构建一套正式 ZIP、对应源码、校验文件和清单，保留必要源码输入与许可、离线独立重建、实际 ZIP 冒烟和覆盖升级检查。源码交付范围以[对应源码说明](corresponding-source.md)为准，不增加与 SWD 交付无关的上游重建门槛。升级默认使用最近公开版本（含候选版）的实际 ZIP；`previous_tag` 可指定其他历史版本，通过公开清单与 SHA256 校验后下载，省去同一源码的 ci 候选构建。无历史发行时只做单包验证，不宣称跨版本升级通过。持久化格式变化仍须补相应旧格式数据迁移验证。

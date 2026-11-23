@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scripts = path.dirname(fileURLToPath(import.meta.url));
-const tempRoot = path.resolve(process.env.SWD_TEST_TEMP_ROOT || path.join(scripts, '../artifacts/tmp'));
+const tempRoot = path.resolve(process.env.SWD_TEST_TEMP_ROOT || path.join(scripts, '../artifacts/_tmp'));
 const windows = { skip: process.platform !== 'win32' };
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
 function powershell(source) {
@@ -129,6 +129,31 @@ test('a wrapper copied into a release checkout keeps nested temporary directorie
   assert.notEqual(result.outer, result.child.temp);
   assert.equal(existsSync(result.outer), false);
   assert.equal(existsSync(result.child.temp), false);
+});
+
+test('Go package discovery ignores packages in the default temporary directory', windows, () => {
+  const result = powershell(`
+    function Invoke-GoListFixture {
+      Set-Content -LiteralPath (Join-Path $env:TEMP 'probe.go') -Value 'package scratch'
+      go list ./...
+    }
+    function Invoke-CheckoutFixture {
+      $checkout = Join-Path $env:TEMP 'checkout'
+      New-Item -ItemType Directory -Path "$checkout/scripts" -Force | Out-Null
+      Copy-Item -LiteralPath ./with-test-temp.ps1 -Destination "$checkout/scripts"
+      Set-Content -LiteralPath "$checkout/go.mod" -Value @('module example.test/fixture', '', 'go 1.18')
+      Set-Content -LiteralPath "$checkout/fixture.go" -Value 'package fixture'
+      $env:SWD_TEST_TEMP_ROOT = $null
+      Push-Location $checkout
+      try {
+        $packages = @(& ./scripts/with-test-temp.ps1 Invoke-GoListFixture)
+        if ($LASTEXITCODE -ne 0) { throw 'Could not list fixture packages.' }
+        @{ packages = $packages } | ConvertTo-Json -Compress
+      } finally { Pop-Location }
+    }
+    & ./with-test-temp.ps1 Invoke-CheckoutFixture
+  `);
+  assert.deepEqual(result.packages, ['example.test/fixture']);
 });
 
 test('failed portable smoke retains extracted evidence after wrapper and checkout cleanup', windows, () => {

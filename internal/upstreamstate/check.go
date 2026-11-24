@@ -2,15 +2,17 @@ package upstreamstate
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
 // checkRoutes owns candidate discovery and the catalog -> playback -> resource
 // flow. Separate monitors own separate configuration and observation state.
-func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequest.Snapshot, record func(observation)) {
+func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequest.Snapshot, record func(observation), checkCatalog bool) {
 	kind := m.batchKind
 	started := time.Now()
 	provider := source.Candidates
@@ -54,34 +56,30 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 
 	var ids []int64
 	var catalogs []CatalogResponse
-	reusedSong := false
-	if !kind.includes(Catalog) {
-		if id := m.cachedSong(p); id > 0 {
-			ids = append(ids, id)
-			reusedSong = true
-		}
-	}
 	for _, route := range routeIDs(Catalog) {
-		if !kind.includes(Catalog) {
-			found := false
-			for _, id := range ids {
-				found = found || id > 0
-			}
-			if found {
-				break
-			}
-		}
-		if ctx.Err() != nil {
+		if !checkCatalog || ctx.Err() != nil {
 			break
 		}
 		cs := prepare(entry(Catalog, route))
 		samples := make([]int64, len(cs))
 		responses := make([]CatalogResponse, len(cs))
-		parallel(cs, 4, func(i int, c upstreamrequest.Candidate) {
-			o, id, response := probeCatalogResponse(ctx, requestClient(c.Transport), p, route)
-			responses[i] = response
-			samples[i] = id
-			publish(o, c)
+		m.sampleCatalog(ctx, route, cs, p.RequestTimeout, func(probeCtx context.Context, i int) bool {
+			c := cs[i]
+			r, id, response := upstreamcheck.ReadValidatedCatalog(probeCtx, []*http.Client{requestClient(c.Transport)}, probePolicy(p), route)
+			if probeCtx.Err() != nil {
+				return false
+			}
+			o := observed(r)
+			o.channel = c.ID
+			m.mu.Lock()
+			record(o)
+			if round := m.catalogRound; round != nil {
+				round.observe(r, id, response)
+			}
+			m.mu.Unlock()
+			// Sync consumes the cached parse error as well as valid catalogs.
+			responses[i], samples[i] = response, id
+			return r.State == "available"
 		})
 		ids = append(ids, samples...)
 		for _, response := range responses {
@@ -92,14 +90,14 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 	}
 
 	m.mu.Lock()
+	if round := m.catalogRound; round != nil {
+		round.finish(ctx.Err())
+	}
 	if m.refreshChannelLocked().Revision != source.Revision {
 		m.mu.Unlock()
 		return
 	}
 	for _, id := range ids {
-		if reusedSong {
-			break
-		}
 		if id > 0 {
 			m.songID, m.songAt = id, time.Now()
 			break
@@ -110,7 +108,10 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 	}
 	id := m.songID
 	m.mu.Unlock()
-	m.deliverCatalogs(ctx, source.Revision, catalogs)
+	// A demand-only check delivers its result to ReadCatalog; its caller owns sync.
+	if !m.catalogReadOnly() {
+		m.deliverCatalogs(ctx, source.Revision, catalogs)
+	}
 	if m.playbackSongCandidates != nil && ctx.Err() == nil && kind != CheckCatalog {
 		for _, sample := range m.playbackSongCandidates(ctx) {
 			if sample > 0 {

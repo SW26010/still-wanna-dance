@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"still-wanna-dance/internal/upstreamcheck"
 )
 
 func TestMonitorChecksOnlyUdonCatalog(t *testing.T) {
@@ -45,7 +47,8 @@ func TestCatalogResponseTimeIsIndependentOfObservationTime(t *testing.T) {
 				}
 				return response(200, tc.body), nil
 			}))
-			o, id, _ := probeCatalogResponse(context.Background(), client, DefaultPolicy(), tc.route)
+			measured, id, _ := upstreamcheck.ReadValidatedCatalog(context.Background(), []*http.Client{client}, probePolicy(DefaultPolicy()), tc.route)
+			o := observed(measured)
 			if o.state != "available" || id != 42 || o.catalogTime != tc.want || o.at.IsZero() {
 				t.Fatal(o, id)
 			}

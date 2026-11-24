@@ -53,7 +53,14 @@ func recommendable(r Result) bool {
 	if r.Operation == Resource {
 		return r.EstimatedSpeedBPS != nil || r.EstimatedLatencyMS != nil
 	}
-	return r.EstimatedLatencyMS != nil
+	return responseTime(r) != nil
+}
+
+func responseTime(r Result) *float64 {
+	if r.Operation == Catalog {
+		return r.ProbeDurationMS
+	}
+	return r.EstimatedLatencyMS
 }
 
 func score(r Result) float64 {
@@ -63,10 +70,10 @@ func score(r Result) float64 {
 		}
 		return 0
 	}
-	if r.EstimatedLatencyMS == nil {
-		return 0
+	if ms := responseTime(r); ms != nil {
+		return 1 / max(*ms, 0.001)
 	}
-	return 1 / max(*r.EstimatedLatencyMS, 0.001)
+	return 0
 }
 
 func preferred(a, b Result) bool {
@@ -77,7 +84,8 @@ func improves(best, current Result, threshold float64) bool {
 	if best.Operation == Resource {
 		return score(best) >= score(current)*(1+threshold)
 	}
-	return best.EstimatedLatencyMS != nil && current.EstimatedLatencyMS != nil && *best.EstimatedLatencyMS <= *current.EstimatedLatencyMS*(1-threshold)
+	bestMS, currentMS := responseTime(best), responseTime(current)
+	return bestMS != nil && currentMS != nil && *bestMS <= *currentMS*(1-threshold)
 }
 
 // Recommended is a pure read. The executable channel is the one that was
@@ -115,11 +123,18 @@ func (q Constraints) matches(r Result) bool {
 func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	source := m.refreshChannelLocked()
+	return m.selectionsLocked(m.refreshChannelLocked(), op, q)
+}
+
+func (m *Monitor) selectionsLocked(source upstreamrequest.Snapshot, op Operation, q Constraints) []Selection {
 	if m.closed || source.Candidates == nil {
 		return nil
 	}
 	results := m.candidateResultsLocked(op, source.Candidates, time.Now())
+	return m.selectResultsLocked(op, q, results, source.Candidates, len(results))
+}
+
+func (m *Monitor) selectResultsLocked(op Operation, q Constraints, results []Result, provider upstreamrequest.Candidates, limit int) []Selection {
 	var eligible []Result
 	for i := range results {
 		r := &results[i]
@@ -142,9 +157,12 @@ func (m *Monitor) Selections(op Operation, q Constraints) []Selection {
 	}
 	var selections []Selection
 	for _, r := range eligible {
-		for _, c := range source.Candidates.Current(r.Entry) {
+		for _, c := range provider.Current(r.Entry) {
 			if c.ID == r.ChannelID && c.Transport != nil {
 				selections = append(selections, Selection{Result: r, Channel: c})
+				if len(selections) == limit {
+					return selections
+				}
 				break
 			}
 		}
@@ -215,7 +233,17 @@ func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) 
 	// Refresh measurements before their own expiry. DNS leases only govern
 	// candidate eligibility; the resolver refreshes them and signals changes.
 	for _, op := range []Operation{Catalog, PlaybackURL} {
-		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
+		results := m.candidateResultsLocked(op, provider, time.Now())
+		// A sampled pool can intentionally leave healthy alternatives untouched.
+		// Scheduling each of their expirations would repeatedly wake the monitor.
+		if op == Catalog && len(results) > catalogParallel && m.experimentProbe == nil {
+			winner := m.selectResultsLocked(op, Constraints{}, results, provider, 1)
+			if len(winner) == 0 {
+				continue
+			}
+			results = []Result{winner[0].Result}
+		}
+		for _, r := range results {
 			if r.State != "available" {
 				continue
 			}

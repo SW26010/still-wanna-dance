@@ -27,7 +27,7 @@ func (d *testDNS) CurrentAddresses(string) []Address { return d.addresses }
 func (d *testDNS) DNSChanged() <-chan struct{}       { return d.changed }
 
 func TestDirectDiscoveryPreservesCachedPathsAndReportsFailure(t *testing.T) {
-	d := &testDNS{addresses: []Address{{"203.0.113.1", time.Now().Add(time.Minute)}}, err: errors.New("DNS unavailable")}
+	d := &testDNS{addresses: []Address{{IP: "203.0.113.1", Expires: time.Now().Add(time.Minute)}}, err: errors.New("DNS unavailable")}
 	p, err := NewPool(d)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 	defer server.Close()
 	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
 	target := "http://fixture.example:" + port + "/video"
-	fresh := func(ip string) []Address { return []Address{{ip, time.Now().Add(time.Minute)}} }
+	fresh := func(ip string) []Address { return []Address{{IP: ip, Expires: time.Now().Add(time.Minute)}} }
 	d := &refreshingTestDNS{refresh: func(context.Context) ([]Address, error) { return fresh("127.0.0.1"), nil }}
 	p, err := NewPool(d)
 	if err != nil {
@@ -103,7 +103,7 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 		t.Fatalf("removed pinned IP accepted: %v", err)
 	}
 	// Failed DNS must not resurrect the expired address.
-	d.addresses = []Address{{"127.0.0.1", time.Now().Add(-time.Second)}}
+	d.addresses = []Address{{IP: "127.0.0.1", Expires: time.Now().Add(-time.Second)}}
 	d.refresh = func(context.Context) ([]Address, error) { return nil, errors.New("DNS offline") }
 	if err := request(); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("failed refresh accepted: %v", err)
@@ -140,6 +140,42 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 	}
 }
 
+func TestPinnedAddressRespectsPresetPort(t *testing.T) {
+	dns := &testDNS{addresses: []Address{{IP: "2001:db8::1", Port: "443"}}}
+	dialErr := errors.New("fixed dial")
+	p, err := NewDirectPool(dns, func(_ context.Context, _, address string) (net.Conn, error) {
+		if address != "[2001:db8::1]:443" {
+			t.Errorf("unexpected dial address %q", address)
+		}
+		return nil, dialErr
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	const target = "https://example.com/list"
+	preset := p.Current(target)[0]
+	if got := p.Current("http://example.com/play"); len(got) != 0 {
+		t.Fatalf("preset leaked to HTTP playback: %+v", got)
+	}
+	for _, tc := range []struct {
+		url  string
+		want error
+	}{
+		{"http://example.com/play", ErrUnavailable},
+		{"https://example.com:8443/list", ErrUnavailable},
+		{target, dialErr},
+	} {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tc.url, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := preset.Transport.RoundTrip(req); !errors.Is(err, tc.want) {
+			t.Errorf("%s got %v, want %v", tc.url, err, tc.want)
+		}
+	}
+}
+
 func TestPinnedTLSHostExpiryAndConfigRetirement(t *testing.T) {
 	for _, ip := range []string{"127.0.0.1", "::1"} {
 		t.Run(ip, func(t *testing.T) { testPinnedTLSHostExpiryAndConfigRetirement(t, ip) })
@@ -165,7 +201,7 @@ func testPinnedTLSHostExpiryAndConfigRetirement(t *testing.T, ip string) {
 	name := cert.DNSNames[0]
 	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
 	target := "https://" + net.JoinHostPort(name, port) + "/test"
-	d := &testDNS{addresses: []Address{{ip, time.Now().Add(time.Minute)}}}
+	d := &testDNS{addresses: []Address{{IP: ip, Expires: time.Now().Add(time.Minute)}}}
 	p, _ := NewPool(d)
 	defer p.Close()
 	cs, _ := p.Candidates(context.Background(), target)

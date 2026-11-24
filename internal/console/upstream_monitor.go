@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
@@ -45,14 +47,43 @@ func (c *Console) startUpstreamServicesLocked() (resultErr error) {
 	if c.settings.UpstreamMode != "direct" {
 		return nil
 	}
+	m, err := c.ensureMonitorLocked()
+	if err != nil {
+		return err
+	}
+	return m.Start()
+}
+
+// A foreground catalog read can use the shared monitor before the scheduler starts.
+func (c *Console) directCatalogMonitor(source string) (*upstreamstate.Monitor, error) {
+	if source != catalogmeta.UdonURL {
+		return nil, nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.settings.UpstreamMode != "direct" {
+		return nil, nil
+	}
+	if c.closing {
+		return nil, context.Canceled
+	}
+	if c.monitor == nil {
+		if _, ok := c.client.Transport.(upstreamrequest.Candidates); !ok {
+			return nil, nil
+		}
+	}
+	return c.ensureMonitorLocked()
+}
+
+func (c *Console) ensureMonitorLocked() (*upstreamstate.Monitor, error) {
 	if c.monitor == nil {
 		m, err := c.newUpstreamMonitor(upstreamstate.Options{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		c.monitor = m
 	}
-	return c.monitor.Start()
+	return c.monitor, nil
 }
 
 func (c *Console) monitorSnapshotLocked() upstreamstate.Status {

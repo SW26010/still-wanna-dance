@@ -20,7 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/upstreamstate"
 )
 
 func relayListener(t *testing.T) net.Listener {
@@ -134,6 +136,88 @@ func TestHTTPSRelayPreservesTLSAndRange(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestHTTPSRelayUsesCatalogRecommendation(t *testing.T) {
+	const body = `{"time":"20261123000000","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`
+	ch := upstreamrequest.NewChannel()
+	revision := ch.Publish(monitorTestChannels{catalogTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})})
+	m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: ch})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if err := m.CheckSelected(t.Context(), upstreamstate.CheckCatalog); err != nil {
+		t.Fatal(err)
+	}
+	selection, ok := m.Recommended(upstreamstate.Catalog)
+	if !ok {
+		t.Fatal("catalog recommendation missing")
+	}
+	pinned := net.JoinHostPort(selection.Channel.IP, "443")
+	cert, roots := relayCertificate(t)
+	backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != catalogmeta.UdonHost || r.TLS.ServerName != catalogmeta.UdonHost || r.URL.Path != "/other" {
+			t.Errorf("host=%s SNI=%s path=%s", r.Host, r.TLS.ServerName, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	backend.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	backend.StartTLS()
+	defer backend.Close()
+
+	for _, tc := range []struct {
+		name, mode   string
+		fail, retire bool
+		want         string
+	}{
+		{name: "preferred", mode: "direct", want: pinned},
+		{name: "TCP failure", mode: "direct", fail: true, want: pinned + "," + udonHTTPSOrigin},
+		{name: "proxy", mode: "proxy", want: udonHTTPSOrigin},
+		{name: "retired recommendation", mode: "direct", retire: true, want: udonHTTPSOrigin},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.retire {
+				ch.Release(revision)
+			}
+			dials := make(chan string, 2)
+			c := &Console{monitor: m}
+			c.settings.UpstreamMode = tc.mode
+			c.upstreamDial = func(ctx context.Context, network, address string) (net.Conn, error) {
+				dials <- address
+				if tc.fail && address == pinned {
+					return nil, errors.New("preferred TCP failure")
+				}
+				return (&net.Dialer{}).DialContext(ctx, network, backend.Listener.Addr().String())
+			}
+			p := runTestRelay(t, c.dialHTTPSUpstream)
+			transport := &http.Transport{
+				TLSClientConfig: &tls.Config{RootCAs: roots},
+				DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+					return (&net.Dialer{}).DialContext(ctx, network, p.listener.Addr().String())
+				},
+			}
+			defer transport.CloseIdleConnections()
+			client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
+			resp, err := client.Get("https://" + catalogmeta.UdonHost + "/other")
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusNoContent || len(resp.TLS.VerifiedChains) == 0 {
+				t.Fatalf("unverified response: %s", resp.Status)
+			}
+			var got []string
+			for len(dials) > 0 {
+				got = append(got, <-dials)
+			}
+			if strings.Join(got, ",") != tc.want {
+				t.Fatalf("dial order=%v, want %s", got, tc.want)
+			}
+		})
 	}
 }
 

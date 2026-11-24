@@ -61,6 +61,23 @@ func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog,
 func (c *Console) fetchCatalogSource(ctx context.Context, source string) (cacheproxy.Catalog, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	m, err := c.directCatalogMonitor(source)
+	if err != nil {
+		return cacheproxy.Catalog{}, err
+	}
+	if m != nil {
+		r, _, response := m.ReadCatalog(ctx)
+		if r.Err != nil {
+			return cacheproxy.Catalog{}, applog.SafeError(r.Err)
+		}
+		if r.State != "available" {
+			if r.HTTP != 0 && r.HTTP != http.StatusOK {
+				return cacheproxy.Catalog{}, fmt.Errorf("清单接口返回 %d", r.HTTP)
+			}
+			return cacheproxy.Catalog{}, fmt.Errorf("清单读取失败（%s）", r.State)
+		}
+		return response.Parse()
+	}
 	clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: source})
 	return upstreamrequest.Fetch(ctx, source, clients, 30*time.Second, func(ctx context.Context, client *http.Client, target string) (cacheproxy.Catalog, error) {
 		return fetchCatalogResponse(ctx, client, target, source)

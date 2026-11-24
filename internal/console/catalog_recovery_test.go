@@ -84,10 +84,10 @@ func TestLiveEmptyCatalogRefreshAndReopen(t *testing.T) {
 	if !v.CoverageKnown || v.TotalSongs == 0 || v.Error != "" {
 		t.Fatalf("live empty catalog refresh failed: %+v", v)
 	}
-	if c.service != nil || c.monitor != nil {
+	if c.service != nil || c.monitor == nil || c.monitor.Snapshot().Scheduled {
 		t.Fatal("catalog check started unrelated services")
 	}
-	t.Logf("direct catalog refresh: songs=%d revision=%s elapsed=%s", v.TotalSongs, v.Catalog.Revision, time.Since(started))
+	t.Logf("direct catalog refresh: source=%s songs=%d revision=%s elapsed=%s", v.Catalog.Source, v.TotalSongs, v.Catalog.Revision, time.Since(started))
 	c = restartTestConsole(t, c)
 	got := c.localInventory()
 	if !got.CoverageKnown || got.TotalSongs != v.TotalSongs || got.Catalog.Revision != v.Catalog.Revision || got.Error != "" {

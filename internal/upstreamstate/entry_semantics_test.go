@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -39,7 +40,8 @@ func TestEntryFailureFeedbackBoundaries(t *testing.T) {
 					}
 					return nil, tc.err
 				}))
-				o, _, _ := probeCatalogResponse(context.Background(), client, DefaultPolicy(), "api")
+				measured, _, _ := upstreamcheck.ReadValidatedCatalog(context.Background(), []*http.Client{client}, probePolicy(DefaultPolicy()), "api")
+				o := observed(measured)
 				wantCalls := 1
 				if calls != wantCalls || o.state != tc.state || o.stage != stage || o.latency != 0 {
 					t.Fatalf("calls=%d observation=%+v", calls, o)

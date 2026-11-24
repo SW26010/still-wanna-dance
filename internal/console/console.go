@@ -304,7 +304,7 @@ func (c *Console) startLocked() (err error) {
 		c.mu.Unlock()
 		return fmt.Errorf("网页 HTTPS 转发启动失败：%w", desktop.PortError(c.httpsAddress, err))
 	}
-	relay := newHTTPSRelay(secure, c.upstreamDial)
+	relay := newHTTPSRelay(secure, c.dialHTTPSUpstream)
 	relay.beginResourceLoad = c.resources.BeginResourceLoad
 	relay.isResourceHost = c.resources.IsResourceDomain
 	c.videoListener, c.https = l, relay

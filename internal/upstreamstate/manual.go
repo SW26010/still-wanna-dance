@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+type selectedCheck struct {
+	done    chan struct{}
+	catalog *catalogRound
+}
+
 type CheckKind string
 
 const (
@@ -24,7 +29,7 @@ func ValidCheckKind(kind CheckKind) bool {
 // CheckSelected preempts automatic work and reserves the next batch for the
 // requested operation. Prerequisite lookups do not replace unrelated results.
 // Cancellation stops and drains the reserved work, leaving the Monitor reusable.
-func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
+func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) (err error) {
 	if !ValidCheckKind(kind) {
 		return errors.New("unknown monitor check kind")
 	}
@@ -36,11 +41,20 @@ func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
 		m.mu.Unlock()
 		return errors.New("monitor closed")
 	}
-	if m.manualDone != nil || (m.active != nil && m.batchManual) {
+	if m.manual != nil || (m.active != nil && m.batchManual) {
 		m.mu.Unlock()
 		return errors.New("manual check already running")
 	}
-	m.manualDone = make(chan struct{})
+	revision := m.refreshChannelLocked().Revision
+	reserved := &selectedCheck{done: make(chan struct{})}
+	if round := m.catalogRound; round != nil && round.requested && !round.done && round.revision == revision {
+		// Transfer the pending result along with its readers. The retiring
+		// worker can no longer publish or finish this catalog phase.
+		reserved.catalog, m.catalogRound = round, nil
+	} else if m.needsCatalogLocked(kind) {
+		reserved.catalog = newCatalogRound(revision)
+	}
+	m.manual = reserved
 	if m.active != nil {
 		m.batchCancel()
 	}
@@ -55,20 +69,19 @@ func (m *Monitor) CheckSelected(ctx context.Context, kind CheckKind) error {
 			<-done
 		}
 		m.mu.Lock()
-		close(m.manualDone)
-		m.manualDone = nil
+		// The caller may cancel the reservation before its batch starts.
+		if reserved.catalog != nil {
+			reserved.catalog.finish(err)
+		}
+		close(reserved.done)
+		m.manual = nil
 		m.mu.Unlock()
 	}()
 	return m.checkRequest(ctx, true, kind)
 }
 
-func (m *Monitor) cachedSong(p Policy) int64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if time.Now().Before(m.songAt.Add(p.SampleLifetime)) {
-		return m.songID
-	}
-	return 0
+func (m *Monitor) needsCatalogLocked(kind CheckKind) bool {
+	return kind.includes(Catalog) || m.songID == 0 || !time.Now().Before(m.songAt.Add(m.policy.SampleLifetime))
 }
 
 func (k CheckKind) includes(op Operation) bool {

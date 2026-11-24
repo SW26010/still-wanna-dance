@@ -11,17 +11,43 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/upstreamstate"
 )
+
+const udonHTTPSOrigin = catalogmeta.UdonHost + ":443"
 
 // Only the hosts managed by Still Wanna Dance are forwarded. Keep the original SNI
 // and encrypted bytes intact: certificates, HTTP and video remain end-to-end.
-// The console supplies the same active upstream dialer as its HTTP requests.
 func httpsOrigin(name string, isResource func(string) bool) string {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
-	if name == "api.udon.dance" || isResource != nil && isResource(name) {
+	if name == catalogmeta.UdonHost {
+		return udonHTTPSOrigin
+	}
+	if isResource != nil && isResource(name) {
 		return net.JoinHostPort(name, "443")
 	}
 	return ""
+}
+
+func (c *Console) dialHTTPSUpstream(ctx context.Context, network, origin string) (net.Conn, error) {
+	c.mu.Lock()
+	dial, mode, monitor := c.upstreamDial, c.settings.UpstreamMode, c.monitor
+	c.mu.Unlock()
+	if origin == udonHTTPSOrigin && mode == "direct" && monitor != nil {
+		selections := monitor.Selections(upstreamstate.Catalog, upstreamstate.Constraints{Entry: catalogmeta.UdonURL, Mode: mode})
+		if len(selections) > 0 {
+			// Reserve time for ordinary dial fallback before sending TLS bytes.
+			attempt, cancel := channelAttempt(ctx, 2*time.Second, 2)
+			conn, err := dial(attempt, network, net.JoinHostPort(selections[0].Channel.IP, "443"))
+			cancel()
+			if err == nil {
+				return conn, nil
+			}
+		}
+	}
+	return dial(ctx, network, origin)
 }
 
 type httpsRelay struct {
@@ -127,7 +153,7 @@ func (p *httpsRelay) forward(client net.Conn) error {
 	if origin == "" {
 		return errors.New("HTTPS SNI is not a managed video domain")
 	}
-	if origin != "api.udon.dance:443" && p.beginResourceLoad != nil {
+	if origin != udonHTTPSOrigin && p.beginResourceLoad != nil {
 		release := p.beginResourceLoad()
 		defer release()
 	}

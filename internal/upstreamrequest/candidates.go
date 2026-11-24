@@ -15,6 +15,7 @@ import (
 type Address struct {
 	IP      string
 	Expires time.Time // Zero for a built-in address without a DNS lease.
+	Port    string    // Empty for addresses available on any port.
 }
 type DNSPool interface {
 	Addresses(context.Context, string) ([]Address, error)
@@ -75,35 +76,51 @@ func NewPool(dns DNSPool) (*Pool, error) {
 	}
 	return &Pool{dns: dns, transports: make(map[string]*http.Transport)}, nil
 }
-func targetHost(target string) string {
+func targetEndpoint(target string) (host, port string) {
 	u, err := url.Parse(target)
 	if err != nil || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return ""
+		return "", ""
 	}
-	return strings.ToLower(u.Hostname())
+	return strings.ToLower(u.Hostname()), requestPort(u)
 }
+
+func requestPort(u *url.URL) string {
+	if port := u.Port(); port != "" {
+		return port
+	}
+	if u.Scheme == "https" {
+		return "443"
+	}
+	return "80"
+}
+
 func (p *Pool) Candidates(ctx context.Context, target string) ([]Candidate, error) {
-	host := targetHost(target)
+	host, port := targetEndpoint(target)
 	if host == "" {
 		return nil, errors.New("invalid channel target")
 	}
 	_, err := p.dns.Addresses(ctx, host)
-	return p.Current(target), err
+	return p.current(host, port), err
 }
 func (p *Pool) Changed() <-chan struct{} {
 	return p.dns.DNSChanged()
 }
 func (p *Pool) Current(target string) []Candidate {
-	host := targetHost(target)
+	host, port := targetEndpoint(target)
 	if host == "" {
 		return nil
 	}
+	return p.current(host, port)
+}
+
+func (p *Pool) current(host, port string) []Candidate {
+	addresses := p.dns.CurrentAddresses(host)
+	now := time.Now()
 	var cs []Candidate
 	{
 		var v4, v6 []Candidate
-		now := time.Now()
-		for _, a := range p.dns.CurrentAddresses(host) {
-			if a.valid(now) {
+		for _, a := range addresses {
+			if a.available(port, now) {
 				c := Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires}
 				if net.ParseIP(a.IP).To4() != nil {
 					v4 = append(v4, c)
@@ -129,7 +146,9 @@ func (p *Pool) Current(target string) []Candidate {
 	}
 	// Reclaim removed IP pools for this host without closing in-flight streams.
 	for id, tr := range p.transports {
-		if strings.Contains(id, "/"+host+"/") && !slices.ContainsFunc(cs, func(c Candidate) bool { return c.ID == id }) {
+		if strings.Contains(id, "/"+host+"/") && !slices.ContainsFunc(addresses, func(a Address) bool {
+			return id == "direct/"+host+"/"+a.IP && a.valid(now)
+		}) {
 			tr.CloseIdleConnections()
 			delete(p.transports, id)
 		}
@@ -143,7 +162,7 @@ func (p *Pool) Current(target string) []Candidate {
 				if err != nil || !strings.EqualFold(h, c.Host) {
 					return nil, errors.New("channel host mismatch")
 				}
-				if err := p.ensureUsable(ctx, c); err != nil {
+				if err := p.ensureUsable(ctx, c, port); err != nil {
 					return nil, err
 				}
 				if p.directDial != nil {
@@ -162,7 +181,11 @@ func (a Address) valid(now time.Time) bool {
 	return a.Expires.IsZero() || now.Before(a.Expires)
 }
 
-func (p *Pool) usable(c Candidate) bool {
+func (a Address) available(port string, now time.Time) bool {
+	return (a.Port == "" || a.Port == port) && a.valid(now)
+}
+
+func (p *Pool) usable(c Candidate, port string) bool {
 	p.mu.Lock()
 	closed := p.closed
 	p.mu.Unlock()
@@ -170,13 +193,15 @@ func (p *Pool) usable(c Candidate) bool {
 		return false
 	}
 	now := time.Now()
-	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool { return a.IP == c.IP && a.valid(now) })
+	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool {
+		return a.IP == c.IP && a.available(port, now)
+	})
 }
 
 // Revalidate the same IP through the shared resolver. A failed lookup does not
 // renew an expired DNS lease. A built-in IP can still be available.
-func (p *Pool) ensureUsable(ctx context.Context, c Candidate) error {
-	if p.usable(c) {
+func (p *Pool) ensureUsable(ctx context.Context, c Candidate, port string) error {
+	if p.usable(c, port) {
 		return nil
 	}
 	p.mu.Lock()
@@ -189,7 +214,7 @@ func (p *Pool) ensureUsable(ctx context.Context, c Candidate) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	if err != nil || !p.usable(c) {
+	if err != nil || !p.usable(c, port) {
 		return ErrUnavailable
 	}
 	return nil
@@ -207,7 +232,7 @@ func (t *candidateTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 	if !strings.EqualFold(r.URL.Hostname(), t.candidate.Host) {
 		return nil, ErrUnavailable
 	}
-	if err := t.pool.ensureUsable(r.Context(), t.candidate); err != nil {
+	if err := t.pool.ensureUsable(r.Context(), t.candidate, requestPort(r.URL)); err != nil {
 		return nil, err
 	}
 	if observer, ok := t.pool.dns.(candidateUseObserver); ok && r.Context().Err() == nil {

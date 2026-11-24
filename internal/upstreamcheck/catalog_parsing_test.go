@@ -3,10 +3,35 @@ package upstreamcheck
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
+
+func TestValidatedCatalogKeepsFieldErrorAfterFailedFallback(t *testing.T) {
+	bad := strings.Replace(catalogFixture, `"id":42`, `"id":42,"volume":"bad"`, 1)
+	invalid := requestClient(transportFunc(func(*http.Request) (*http.Response, error) { return response(200, bad), nil }))
+	offline := requestClient(transportFunc(func(*http.Request) (*http.Response, error) { return nil, io.EOF }))
+	feedback := 0
+	CheckConnectivity(t.Context(), ConnectivityAccess{
+		Catalog: func(ctx context.Context, route string) (Result, int64, CatalogResponse) {
+			if route == "api" {
+				return ReadValidatedCatalog(ctx, []*http.Client{invalid, offline}, DefaultPolicy(), route)
+			}
+			return ProbeCatalog(ctx, []*http.Client{offline}, DefaultPolicy(), route)
+		},
+	}, ConnectivityBusiness{OnCatalog: func(_ context.Context, responses []CatalogResponse) (bool, error) {
+		feedback++
+		if len(responses) != 1 || responses[0].parseErr == nil || string(responses[0].Body) != bad {
+			t.Fatal("lost invalid primary response")
+		}
+		return false, responses[0].parseErr
+	}}, Catalog, func(Result) {})
+	if feedback != 1 {
+		t.Fatalf("got %d sync feedback calls", feedback)
+	}
+}
 
 // Exercise the parsing stages of a successful probe, selection and sync,
 // without including network latency or database writes in the measurement.

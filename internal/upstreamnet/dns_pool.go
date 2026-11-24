@@ -7,10 +7,23 @@ import (
 	"sort"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
 const playUdonDanceHost = "play.udon.dance"
+
+var udonCatalogIPs = [...]string{
+	"104.21.112.1",
+	"104.21.48.1",
+	"104.21.96.1",
+	"104.21.32.1",
+	"104.21.16.1",
+	"104.21.64.1",
+	"104.17.243.18",
+	"2606:4700:20::681a:bde0",
+	"2606:4700:20::681a:e7b8",
+}
 
 var playUdonDanceIPs = [...]string{
 	"162.159.146.57",
@@ -36,16 +49,26 @@ func (d *Resolver) CurrentAddresses(host string) []upstreamrequest.Address {
 		return nil
 	}
 	result := d.dnsAddressesLocked(host)
-	if host == playUdonDanceHost && d.resourcePresets {
-		for _, ip := range playUdonDanceIPs {
-			if !slices.ContainsFunc(result, func(a upstreamrequest.Address) bool { return a.IP == ip }) {
-				result = append(result, upstreamrequest.Address{IP: ip})
-			}
-		}
-		// Vary the order of tied candidates beyond the attempt limit. The
-		// direct pool interleaves address families before callers select routes.
+	if !d.presets {
+		return result
+	}
+	switch host {
+	case playUdonDanceHost:
+		result = addPresets(result, playUdonDanceIPs[:], "")
+		// Give tied candidates beyond the attempt limit a chance to be used.
 		if len(result) > upstreamrequest.MaxOperationCandidates {
 			rand.Shuffle(len(result), func(i, j int) { result[i], result[j] = result[j], result[i] })
+		}
+	case catalogmeta.UdonHost:
+		result = addPresets(result, udonCatalogIPs[:], "443")
+	}
+	return result
+}
+
+func addPresets(result []upstreamrequest.Address, ips []string, port string) []upstreamrequest.Address {
+	for _, ip := range ips {
+		if !slices.ContainsFunc(result, func(a upstreamrequest.Address) bool { return a.IP == ip }) {
+			result = append(result, upstreamrequest.Address{IP: ip, Port: port})
 		}
 	}
 	return result

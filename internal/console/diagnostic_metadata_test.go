@@ -77,6 +77,8 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 			c.client.Transport = transport
 			if upstream == "proxy" {
 				c.client.Transport = noCandidatesTransport{transport}
+			} else {
+				c.requestRevision = c.requestChannel.Publish(&transport)
 			}
 			before := c.requestChannel.Snapshot()
 			// The completed middle ID leaves the set. Canceling the low ID keeps
@@ -123,8 +125,8 @@ func TestDiagnosticMetadataTraversalSurvivesRunsAndCancellation(t *testing.T) {
 				if round == 0 && resourceRequests != 0 || round != 0 && round != 2 && resourceRequests != 1 || round == 2 && resourceRequests > 1 {
 					t.Fatalf("round %d resource requests: %d", round, resourceRequests)
 				}
-				if c.monitor != nil {
-					t.Fatal("manual diagnostics created a monitor")
+				if c.monitor != nil && (upstream == "proxy" || c.monitor.Snapshot().Scheduled) {
+					t.Fatal("manual diagnostics started periodic checks or created a proxy monitor")
 				}
 			}
 			pending := c.metadataSongCandidates(context.Background())

@@ -20,10 +20,6 @@ func observed(r upstreamcheck.Result) observation {
 		latency: r.Latency, duration: r.Duration, transferDuration: r.TransferDuration, responded: r.Responded, bytes: r.Bytes, songID: r.SongID,
 		catalogTime: r.CatalogTime, resourceHost: r.ResourceHost, resourceSource: r.ResourceSource}
 }
-func probeCatalogResponse(ctx context.Context, client *http.Client, p Policy, route string) (observation, int64, CatalogResponse) {
-	o, id, r := upstreamcheck.ProbeCatalog(ctx, []*http.Client{client}, probePolicy(p), route)
-	return observed(o), id, r
-}
 func probePlaybackResponse(ctx context.Context, client *http.Client, p Policy, id int64, r route) (observation, *videoSample, PlaybackURLResponse) {
 	o, s, response := upstreamcheck.ProbePlayback(ctx, []*http.Client{client}, probePolicy(p), id, r)
 	if s == nil {

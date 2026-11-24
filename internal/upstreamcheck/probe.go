@@ -187,11 +187,35 @@ func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, ro
 // The diagnostic can select several IDs from this one validated response.
 // Business consumers validate full song metadata before accepting it.
 func probeCatalogData(parent context.Context, clients []*http.Client, p Policy, route string) (o observation, id int64, result CatalogResponse) {
+	return readCatalogData(parent, clients, p, route, false)
+}
+
+func readCatalogData(parent context.Context, clients []*http.Client, p Policy, route string, validate bool) (o observation, id int64, result CatalogResponse) {
+	var invalid CatalogResponse
+	var invalidObservation observation
 	o = probeRequests(parent, clients, p.RequestTimeout, entry(Catalog, route), func(ctx context.Context, client *http.Client, target string) observation {
 		var current observation
 		current, id, result = probeCatalogDataAt(ctx, client, p, route, target)
+		if validate && current.state == "available" {
+			if _, err := result.Parse(); err != nil {
+				current.state, id = "invalid", 0
+				invalid, invalidObservation = result, current
+			}
+		}
 		return current
 	})
+	// Report the complete response that explains the rejection, retaining
+	// the overall retry duration when a later path has no usable body.
+	if len(result.Body) == 0 && invalid.parseErr != nil && parent.Err() == nil && !localObservation(o.state) {
+		invalidObservation.duration = o.duration
+		o, result = invalidObservation, invalid
+	}
+	if validate && o.state == "invalid" {
+		o.err = result.parseErr
+		if o.err == nil {
+			o.err = errors.New("清单格式无效")
+		}
+	}
 	o.op, o.route = Catalog, route
 	return
 }

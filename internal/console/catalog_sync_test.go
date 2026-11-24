@@ -13,7 +13,30 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/upstreamrequest"
+	"still-wanna-dance/internal/upstreamstate"
 )
+
+func TestMonitorCatalogFieldErrorReachesSyncStatus(t *testing.T) {
+	c := testConsole(t)
+	body := `{"time":"20261123000000","groups":{"contents":[{"songInfos":[{"id":42,"volume":"bad"}]}]}}`
+	c.requestChannel.Publish(monitorTestChannels{catalogTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})})
+	m, err := c.newUpstreamMonitor(upstreamstate.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if err := m.CheckSelected(t.Context(), upstreamstate.CheckCatalog); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.Recommended(upstreamstate.Catalog); ok {
+		t.Fatal("invalid response supplied a recommendation")
+	}
+	if status := c.catalogSyncSnapshotLocked(); !strings.Contains(status.Error, "主来源 Udon") {
+		t.Fatalf("missing catalog validation error: %q", status.Error)
+	}
+}
 
 func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 	const missing int64 = 900001
@@ -119,7 +142,8 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 				{ID: "direct/fixture/::1", Mode: "direct", Transport: failed},
 				{ID: "direct/fixture/127.0.0.1", Mode: "direct", Transport: healthy},
 			}}
-			// Use the production application adapter without starting Monitor.
+			c.requestRevision = c.requestChannel.Publish(c.client.Transport.(upstreamrequest.Candidates))
+			// Only the primary catalog may sample. No periodic checks or playback probes.
 			c.mu.Lock()
 			n, err := c.networkDiagnosticsLocked()
 			if err == nil {
@@ -143,8 +167,8 @@ func TestCatalogSyncDirectFallbackPreservesMissingSong(t *testing.T) {
 			if resources.Load() != 1 {
 				t.Fatal("resource check did not reuse the resolved URL", resources.Load())
 			}
-			if c.monitor != nil || c.service != nil {
-				t.Fatal("metadata synchronization required Monitor or the media engine")
+			if c.monitor == nil || c.monitor.Snapshot().Scheduled || c.service != nil {
+				t.Fatal("metadata synchronization started periodic checks or the media engine")
 			}
 		})
 	}

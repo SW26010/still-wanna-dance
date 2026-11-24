@@ -19,7 +19,8 @@ type Options struct {
 	// Optional sample override retained for direct-path experiments. Business
 	// metadata traversal belongs to catalogsync and never calls this hook.
 	PlaybackSongCandidates func(context.Context) []int64
-	// OnCatalog receives successful responses once per batch, outside monitor locks.
+	// OnCatalog receives complete catalog responses with their full validation
+	// results (including field errors) once per batch, outside monitor locks.
 	// It must respect cancellation; Close waits for it to return.
 	OnCatalog func(context.Context, []CatalogResponse)
 	// OnPlaybackURL receives each valid API response outside monitor locks,
@@ -57,7 +58,7 @@ type Monitor struct {
 	batchKind              CheckKind
 	batchCtx               context.Context
 	batchCancel            context.CancelFunc
-	manualDone             chan struct{}
+	manual                 *selectedCheck
 	throughput             map[string]observation
 	batchManual            bool
 	mu                     sync.Mutex
@@ -72,10 +73,12 @@ type Monitor struct {
 	songAt                 time.Time
 	active                 chan struct{}
 	scheduler              chan struct{}
+	scheduleChanged        chan struct{}
 	closed                 bool
 	channel                *upstreamrequest.Channel
 	revision               uint64
 	batchRevision          uint64
+	catalogRound           *catalogRound
 	preferences            map[Operation]*preference
 }
 
@@ -172,7 +175,7 @@ func (m *Monitor) Snapshot() Status {
 	defer m.mu.Unlock()
 	m.refreshChannelLocked()
 	s := Status{
-		Manual:    m.manualDone != nil || (m.active != nil && m.batchManual),
+		Manual:    m.manual != nil || (m.active != nil && m.batchManual),
 		CheckKind: m.batchKind,
 		Checking:  m.active != nil,
 		Scheduled: m.scheduler != nil && !m.closed,
@@ -201,6 +204,7 @@ func (m *Monitor) Start() error {
 		return nil
 	}
 	m.scheduler = make(chan struct{})
+	m.scheduleChanged = make(chan struct{}, 1)
 	go func() {
 		defer close(m.scheduler)
 		var candidatesChanged <-chan struct{}
@@ -250,6 +254,8 @@ func (m *Monitor) Start() error {
 				return
 			case <-source.Changed:
 				timer.Stop()
+			case <-m.scheduleChanged:
+				timer.Stop()
 			case <-candidatesChanged:
 				timer.Stop()
 				candidatesChanged = source.Candidates.Changed()
@@ -285,8 +291,8 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 			m.mu.Unlock()
 			return errors.New("monitor closed")
 		}
-		if m.manualDone != nil && (!manual || kind == "") {
-			done := m.manualDone
+		if m.manual != nil && (!manual || kind == "") {
+			done := m.manual.done
 			m.mu.Unlock()
 			select {
 			case <-done:
@@ -304,25 +310,11 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 				m.mu.Unlock()
 				return upstreamrequest.ErrUnavailable
 			}
-			m.batchRevision = source.Revision
-			m.batchManual = manual
-			m.batchKind = kind
-			m.batchCtx, m.batchCancel = context.WithCancel(m.ctx)
-			m.active = make(chan struct{})
-			m.started = time.Now()
-			stopCaller := func() bool { return false }
-			if kind != "" {
-				// A selected check owns its reserved batch; canceling it must
-				// not require closing the monitor and losing traversal state.
-				stopCaller = context.AfterFunc(ctx, m.batchCancel)
-			}
-			go func(done chan struct{}) {
-				defer stopCaller()
-				m.check(done, source)
-			}(m.active)
+			m.startBatchLocked(ctx, source, manual, kind)
 		}
 		done := m.active
 		revision := m.batchRevision
+		joinedCatalogRead := joined && m.catalogReadOnly()
 		m.mu.Unlock()
 		select {
 		case <-ctx.Done():
@@ -330,7 +322,7 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 		case <-m.ctx.Done():
 			return m.ctx.Err()
 		case <-done:
-			if joined && kind != "" {
+			if joinedCatalogRead || (joined && kind != "") {
 				continue
 			}
 			if m.channel.Snapshot().Revision != revision {
@@ -340,6 +332,34 @@ func (m *Monitor) checkRequest(ctx context.Context, manual bool, selected ...Che
 		}
 	}
 }
+
+// Batch kind and ownership are fixed until the worker finishes.
+func (m *Monitor) catalogReadOnly() bool { return m.batchKind == CheckCatalog && !m.batchManual }
+
+func (m *Monitor) startBatchLocked(owner context.Context, source upstreamrequest.Snapshot, manual bool, kind CheckKind) {
+	if manual && m.manual != nil && m.manual.catalog != nil && m.manual.catalog.revision == source.Revision {
+		m.catalogRound = m.manual.catalog
+	} else if m.needsCatalogLocked(kind) {
+		m.catalogRound = newCatalogRound(source.Revision)
+	}
+	m.batchRevision = source.Revision
+	m.batchManual = manual
+	m.batchKind = kind
+	m.batchCtx, m.batchCancel = context.WithCancel(m.ctx)
+	m.active = make(chan struct{})
+	m.started = time.Now()
+	stopCaller := func() bool { return false }
+	if manual && kind != "" {
+		// A selected check owns its reserved batch; canceling it must
+		// not require closing the monitor and losing traversal state.
+		stopCaller = context.AfterFunc(owner, m.batchCancel)
+	}
+	go func(done chan struct{}, checkCatalog bool) {
+		defer stopCaller()
+		m.check(done, source, checkCatalog)
+	}(m.active, m.catalogRound != nil)
+}
+
 func (m *Monitor) Close() {
 	m.mu.Lock()
 	m.closed = true
@@ -357,7 +377,7 @@ func (m *Monitor) Close() {
 		<-scheduler
 	}
 }
-func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
+func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot, checkCatalog bool) {
 	// Check has verified the channel. Its snapshot belongs to this batch;
 	// channel changes cancel the batch instead of replacing its dependencies.
 	ctx, cancel := m.batchCtx, m.batchCancel
@@ -385,12 +405,21 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		m.active = nil
+		m.catalogRound = nil
 		if !m.closed && m.refreshChannelLocked().Revision == source.Revision {
 			m.finished = time.Now()
-			if m.scheduler != nil {
+			if m.scheduler != nil && !m.catalogReadOnly() {
+				previous := m.nextCheck
 				m.nextCheck = m.finished.Add(m.policy.Interval)
 				if source.Candidates != nil {
 					m.scheduleCandidatesLocked(source.Candidates)
+				}
+				// A manual check can move renewal ahead of the sleeping timer.
+				if m.batchManual && m.nextCheck.Before(previous) {
+					select {
+					case m.scheduleChanged <- struct{}{}:
+					default:
+					}
 				}
 			}
 		}
@@ -399,5 +428,5 @@ func (m *Monitor) check(done chan struct{}, source upstreamrequest.Snapshot) {
 	p := m.policy
 	defer m.publishProgress(ctx, "")
 	m.publishProgress(ctx, Catalog)
-	m.checkRoutes(ctx, p, source, record)
+	m.checkRoutes(ctx, p, source, record, checkCatalog)
 }

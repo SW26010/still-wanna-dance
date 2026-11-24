@@ -62,7 +62,15 @@ func (c *Console) connectivityAccess() upstreamcheck.ConnectivityAccess {
 		Catalog: func(ctx context.Context, route string) (upstreamcheck.Result, int64, upstreamcheck.CatalogResponse) {
 			ctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
 			defer cancel()
-			clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: catalogmeta.SourceURL(route)})
+			source := catalogmeta.SourceURL(route)
+			m, err := c.directCatalogMonitor(source)
+			if err != nil {
+				return upstreamcheck.CatalogFailure(route, err), 0, upstreamcheck.CatalogResponse{}
+			}
+			if m != nil {
+				return m.ReadCatalog(ctx)
+			}
+			clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: source})
 			return upstreamcheck.ProbeCatalog(ctx, clients, p, route)
 		},
 		Playback: func(ctx context.Context, id int64, route playbacksource.Entry) (upstreamcheck.Result, *upstreamcheck.Sample, upstreamcheck.PlaybackURLResponse) {

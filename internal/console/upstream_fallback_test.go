@@ -3,24 +3,121 @@ package console
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/upstreamstate"
 )
 
-// Like a cold DNS pool, candidates appear only after discovery. Discovery does
-// not make an HTTP request or supply a Monitor measurement.
 type coldBusinessChannels struct {
 	http.RoundTripper
 	channels []upstreamrequest.Candidate
 	ready    atomic.Bool
+}
+
+func TestPrimaryCatalogSharesFirstValidatedRead(t *testing.T) {
+	for _, winnerIsDNS := range []bool{false, true} {
+		synctest.Test(t, func(t *testing.T) {
+			const body = `{"time":"20261123000000","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`
+			release := make(chan struct{})
+			var calls atomic.Int32
+			var warm atomic.Bool
+			var allFailed atomic.Bool
+			p := &coldBusinessChannels{}
+			for i := range 2 {
+				path := upstreamrequest.Candidate{ID: []string{"winner", "challenger"}[i], Mode: "direct"}
+				if (i == 0) == winnerIsDNS {
+					path.ValidUntil = time.Now().Add(time.Hour)
+				}
+				path.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
+					calls.Add(1)
+					if allFailed.Load() {
+						return nil, io.EOF
+					}
+					if !warm.Load() {
+						if i == 1 {
+							select {
+							case <-r.Context().Done():
+								return nil, r.Context().Err()
+							case <-time.After(4 * time.Second):
+							}
+						} else {
+							select {
+							case <-release:
+							case <-r.Context().Done():
+								return nil, r.Context().Err()
+							}
+						}
+					} else if i == 0 {
+						return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(strings.Replace(body, `"id":42`, `"id":42,"volume":"bad"`, 1)))}, nil
+					}
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+				})
+				p.channels = append(p.channels, path)
+			}
+			channel := upstreamrequest.NewChannel()
+			channel.Publish(p)
+			m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: channel})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer m.Close()
+			c := &Console{client: &http.Client{Transport: p}, monitor: m}
+			c.settings.UpstreamMode = "direct"
+			read := make(chan error, 1)
+			go func() {
+				list, err := c.fetchCatalogSource(t.Context(), catalogmeta.UdonURL)
+				if err == nil && len(list.Songs) != 1 {
+					err = errors.New("missing song")
+				}
+				read <- err
+			}()
+			diagnostic := make(chan bool, 1)
+			go func() {
+				r, id, _ := c.connectivityAccess().Catalog(t.Context(), "api")
+				diagnostic <- r.State == "available" && id == 42
+			}()
+			ctx, cancel := context.WithCancel(t.Context())
+			canceled := make(chan error, 1)
+			go func() { r, _, _ := m.ReadCatalog(ctx); canceled <- r.Err }()
+			synctest.Wait()
+			cancel()
+			if err := <-canceled; !errors.Is(err, context.Canceled) {
+				t.Fatal(err)
+			}
+			close(release)
+			if err := <-read; err != nil {
+				t.Fatal(err)
+			}
+			if !<-diagnostic || calls.Load() != 2 || !m.Snapshot().Checking {
+				t.Fatalf("cold readers did not share the first of two in-flight probes: calls=%d", calls.Load())
+			}
+			time.Sleep(5 * time.Second)
+			synctest.Wait()
+			warm.Store(true)
+			// An additional unmeasured path must not enter the foreground retry list.
+			p.channels = append(p.channels, upstreamrequest.Candidate{ID: "unknown", Mode: "direct", Transport: catalogTransport(func(*http.Request) (*http.Response, error) {
+				t.Error("foreground tried an unmeasured path")
+				return nil, io.EOF
+			})})
+			if _, err := c.fetchCatalogSource(t.Context(), catalogmeta.UdonURL); err != nil || calls.Load() != 4 {
+				t.Fatalf("warm validation fallback: calls=%d err=%v", calls.Load(), err)
+			}
+			allFailed.Store(true)
+			if _, err := c.fetchCatalogSource(t.Context(), catalogmeta.UdonURL); err == nil || calls.Load() != 6 {
+				t.Fatalf("failed verified paths: calls=%d err=%v", calls.Load(), err)
+			}
+		})
+	}
 }
 
 // The real Pool sees an empty DNS cache until it requests address discovery.

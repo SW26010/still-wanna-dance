@@ -323,14 +323,18 @@ func stubNetworkDiagnostics(t *testing.T, c *Console) <-chan struct{} {
 	t.Helper()
 	started := make(chan struct{}, 16)
 	c.client.CloseIdleConnections()
-	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+	transport := catalogTransport(func(r *http.Request) (*http.Response, error) {
 		select {
 		case started <- struct{}{}:
 		default:
 		}
 		<-r.Context().Done()
 		return nil, r.Context().Err()
-	})}
+	})
+	c.client = &http.Client{Transport: &transport}
+	if c.settings.UpstreamMode == "direct" {
+		c.requestRevision = c.requestChannel.Publish(&transport)
+	}
 	c.networkDiagnostics = nil
 	return started
 }

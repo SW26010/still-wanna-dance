@@ -22,6 +22,7 @@ import (
 
 	"still-wanna-dance/internal/faults"
 	"still-wanna-dance/internal/upstreamcheck"
+	"still-wanna-dance/internal/upstreamrequest"
 )
 
 func TestConnectivityFaultsIgnoreRecoveredAndRetainedRoutes(t *testing.T) {
@@ -278,6 +279,7 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 	c.client.Transport = catalogTransport(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 503, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 	})
+	c.requestRevision = c.requestChannel.Publish(c.client.Transport.(upstreamrequest.Candidates))
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}
@@ -294,6 +296,7 @@ func TestNetworkConnectivityCancelRetainsCompletedResults(t *testing.T) {
 		<-r.Context().Done()
 		return nil, r.Context().Err()
 	})
+	c.requestRevision = c.requestChannel.Publish(c.client.Transport.(upstreamrequest.Candidates))
 	if err := c.controlNetworkConnectivity(false); err != nil {
 		t.Fatal(err)
 	}

@@ -13,15 +13,64 @@ import (
 
 	"golang.getoutline.org/sdk/transport"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamrequest"
 )
+
+func TestCatalogPresetSharesDNSMembershipOnPort443(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := NewDirectResolver()
+		defer d.Close()
+		d.setBackgroundEnabled(false)
+		p, err := upstreamrequest.NewPool(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer p.Close()
+
+		https := func() []upstreamrequest.Candidate { return p.Current(catalogmeta.UdonURL) }
+		http := func() []upstreamrequest.Candidate { return p.Current(catalogmeta.UdonHTTPURL) }
+		if got := https(); len(got) != len(udonCatalogIPs) || len(http()) != 0 {
+			t.Fatalf("unexpected cold candidates: HTTPS=%+v HTTP=%+v", got, http())
+		}
+
+		ctx := t.Context()
+		host := catalogmeta.UdonHost
+		overlap := udonCatalogIPs[len(udonCatalogIPs)-1]
+		if _, err := d.lookupShared(ctx, host, func(context.Context) ([]string, time.Duration, error) {
+			return []string{"192.0.2.1"}, time.Second, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if len(https()) != len(udonCatalogIPs)+1 || len(http()) != 1 {
+			t.Fatalf("expected distinct preset and DNS addresses: HTTPS=%+v HTTP=%+v", https(), http())
+		}
+		time.Sleep(2 * time.Second)
+		if _, err := d.lookupShared(ctx, host, func(context.Context) ([]string, time.Duration, error) {
+			return []string{overlap}, time.Second, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		got, plain := https(), http()
+		i := slices.IndexFunc(got, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
+		if len(got) != len(udonCatalogIPs) || len(plain) != 1 || i < 0 || got[i].ID != plain[0].ID || got[i].ValidUntil.IsZero() {
+			t.Fatalf("DNS overlap was not deduplicated with a shared lease: HTTPS=%+v HTTP=%+v", got, plain)
+		}
+		time.Sleep(2 * time.Second)
+		standalone := https()
+		i = slices.IndexFunc(standalone, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
+		if len(standalone) != len(udonCatalogIPs) || i < 0 || !standalone[i].ValidUntil.IsZero() || len(http()) != 0 {
+			t.Fatalf("expired DNS answer leaked across ports: HTTPS=%+v HTTP=%+v", standalone, http())
+		}
+	})
+}
 
 func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const host = playUdonDanceHost
 		overlap := playUdonDanceIPs[0]
 		const target = "http://" + host + "/video"
-		d := NewResourceResolver()
+		d := NewDirectResolver()
 		defer d.Close()
 		d.setBackgroundEnabled(false)
 		dialError := errors.New("fixture dial")
@@ -89,7 +138,7 @@ func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const target = "http://" + playUdonDanceHost + "/video"
-		d := NewResourceResolver()
+		d := NewDirectResolver()
 		defer d.Close()
 		var dnsDials atomic.Int32
 		d.dialer = transport.FuncStreamDialer(func(ctx context.Context, _ string) (transport.StreamConn, error) {

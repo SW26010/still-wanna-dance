@@ -97,6 +97,18 @@ func ProbeCatalog(ctx context.Context, clients []*http.Client, p Policy, route s
 	o, id, response := probeCatalogData(ctx, clients, p, route)
 	return o.result(), id, response
 }
+
+// ReadValidatedCatalog accepts a path only after full song metadata validation.
+func ReadValidatedCatalog(ctx context.Context, clients []*http.Client, p Policy, route string) (Result, int64, CatalogResponse) {
+	o, id, response := readCatalogData(ctx, clients, p, route, true)
+	return o.result(), id, response
+}
+
+// CatalogFailure describes a request that ended before a candidate supplied a response.
+func CatalogFailure(route string, err error) Result {
+	return Result{Operation: Catalog, Route: route, State: errorState(err), Err: err, ObservedAt: time.Now()}
+}
+
 func ProbePlayback(ctx context.Context, clients []*http.Client, p Policy, id int64, r playbacksource.Entry) (Result, *Sample, PlaybackURLResponse) {
 	o, s, response := probePlaybackPaths(ctx, clients, p, id, r)
 	if s == nil {

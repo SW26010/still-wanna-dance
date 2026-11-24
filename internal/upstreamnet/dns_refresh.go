@@ -140,7 +140,7 @@ func (d *Resolver) queryLocked(host string, s *dnsState) *dnsLookup {
 // NoteCandidateUse keeps discovery active for the configured resource host
 // while requests use fixed IPs. An idle query resumes without delaying the request.
 func (d *Resolver) NoteCandidateUse(host string) {
-	if !d.resourcePresets || host != playUdonDanceHost {
+	if !d.presets || host != playUdonDanceHost {
 		return
 	}
 	d.mu.Lock()

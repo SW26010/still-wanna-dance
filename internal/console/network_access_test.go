@@ -28,8 +28,11 @@ func TestConnectivityDiscoverySharesRequestDeadline(t *testing.T) {
 			return nil, r.Context().Err()
 		})}}}
 		c.settings.UpstreamMode = "direct"
+		c.requestChannel = upstreamrequest.NewChannel()
+		c.requestChannel.Publish(c.client.Transport.(upstreamrequest.Candidates))
 		started := time.Now()
 		result, _, _ := c.connectivityAccess().Catalog(t.Context(), "api")
+		c.monitor.Close()
 		if result.State != "timeout" || requests != 1 || time.Since(started) != 30*time.Second {
 			t.Fatalf("discovery and HTTP request received separate budgets: result=%+v requests=%d elapsed=%v", result, requests, time.Since(started))
 		}

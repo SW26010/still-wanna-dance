@@ -101,6 +101,61 @@ test('preview is lazy, uses the selected entry, and releases its native source',
   expect(await resourcePlayer!.evaluate(v=>v.getAttribute('src'))).toBeNull();
 });
 
+test('preview starts at half volume and remembers adjustments for the current program run',async({page,context})=>{
+  const storageKey='swd-library-preview-volume-run';
+  const sampleRate=8000;
+  const wav=Buffer.alloc(44+sampleRate*2);
+  wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);
+  wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
+  wav.writeUInt32LE(sampleRate,24);wav.writeUInt32LE(sampleRate*2,28);
+  wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);
+  wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
+  for(let sample=0;sample<sampleRate;sample++){
+    wav.writeInt16LE(Math.round(30000*Math.sin(2*Math.PI*440*sample/sampleRate)),44+2*sample);
+  }
+  const prepare=async(tab:Page)=>{
+    await libraryFixture(tab);
+    await tab.route('**/api/library/preview',route=>route.fulfill({json:{url:'/media/preview?volume'}}));
+    await tab.route('**/media/preview?volume',route=>route.fulfill({contentType:'audio/wav',body:wav}));
+    await tab.addInitScript(()=>document.addEventListener('playing',event=>{
+      if(event.target instanceof HTMLVideoElement)event.target.dataset.startVolume=String(event.target.volume);
+    },{capture:true}));
+    await tab.goto('/#/library');
+  };
+  const open=async(tab:Page,volume:number,table='曲库歌曲')=>{
+    await tab.getByRole('table',{name:table}).getByRole('button',{name:'预览',exact:true}).first().click();
+    const player=tab.getByLabel('曲库预览播放器');
+    await expect(player).toHaveAttribute('data-start-volume',String(volume));
+    return player;
+  };
+  const close=(tab:Page)=>tab.getByRole('button',{name:'关闭预览',exact:true}).click();
+
+  await prepare(page);
+  const player=await open(page,0.5);
+  await player.evaluate((video:HTMLVideoElement)=>{video.volume=0.18;});
+  await close(page);
+  await page.getByRole('tab',{name:'按资源',exact:true}).click();
+  await open(page,0.18,'曲库资源');
+  await page.reload();
+  await open(page,0.18,'曲库资源');
+  await page.close();
+
+  const reopened=await context.newPage();
+  await prepare(reopened);
+  const reopenedPlayer=await open(reopened,0.18);
+  await reopenedPlayer.evaluate((video:HTMLVideoElement)=>{video.volume=0;});
+  const other=await context.newPage();
+  await prepare(other);
+  await open(other,0);
+  await close(other);
+  await other.evaluate(key=>{
+    const saved=JSON.parse(localStorage.getItem(key)!);
+    localStorage.setItem(key,JSON.stringify({...saved,run:'previous-run'}));
+  },storageKey);
+  await other.reload();
+  await open(other,0.5);
+});
+
 for(const close of ['Escape','button','backdrop'])test(`preview restores focus after ${close} dismissal`,async({page})=>{
   await libraryFixture(page);
   await page.route('**/api/library/preview',route=>route.fulfill({json:{url:'/media/preview?focus'}}));

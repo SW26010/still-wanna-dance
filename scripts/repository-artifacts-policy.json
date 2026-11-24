@@ -7,6 +7,13 @@
     {
       "path": "internal/console/assets/webui/app.js",
       "kind": "large-text",
+      "bytes": 1331966,
+      "sha256": "51433414e6a09d6e29d8eb0d01b52c9e7ee4d628c5a212d77ccaaa499d48da2d",
+      "reason": "离线 WebUI 的曲库预览默认使用 50% 音量，并在本次程序运行期间沿用用户调整。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
       "bytes": 1331044,
       "sha256": "99efa007b59aaf496595a57873f82e67b57713f066d396e1c73dc19ebc8eace5",
       "reason": "离线 WebUI 使用 Fluent 数值输入在常规设置中管理程序日志大小上限。"

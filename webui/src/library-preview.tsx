@@ -1,15 +1,43 @@
 import {useEffect,useRef,useState} from 'react';
 import {Button,Dialog,DialogActions,DialogBody,DialogContent,DialogSurface,DialogTitle} from '@fluentui/react-components';
 import {APIError,request} from './api';
+import {bootstrap} from './bootstrap';
 import {Feedback} from './ui';
 
 export type PreviewSelection={songID?:string;resource?:string;label:string};
+
+const defaultPreviewVolume=0.5;
+const previewVolumeKey='swd-library-preview-volume-run';
+let unsavedPreviewVolume:number|undefined;
+
+function readPreviewVolume() {
+  if(unsavedPreviewVolume!==undefined)return unsavedPreviewVolume;
+  try {
+    const saved:{run?:unknown;volume?:unknown}|null=JSON.parse(localStorage.getItem(previewVolumeKey)??'null');
+    if(saved?.run===bootstrap.token&&typeof saved.volume==='number'&&saved.volume>=0&&saved.volume<=1)return saved.volume;
+  } catch { /* Start at the default if browser storage is unavailable. */ }
+  return defaultPreviewVolume;
+}
+
+function rememberPreviewVolume(volume:number) {
+  try {
+    localStorage.setItem(previewVolumeKey,JSON.stringify({run:bootstrap.token,volume}));
+    unsavedPreviewVolume=undefined;
+  } catch { unsavedPreviewVolume=volume; }
+}
 
 export function LibraryPreview({storageID,target,onClose}:{storageID:string;target:PreviewSelection;onClose:()=>void}) {
   const video=useRef<HTMLVideoElement>(null);
   const [loading,setLoading]=useState('正在准备预览…'),[error,setError]=useState(''),[playHint,setPlayHint]=useState('');
   useEffect(()=>{
     const media=video.current!,controller=new AbortController();
+    let volume=readPreviewVolume();
+    media.volume=volume;
+    const onVolumeChange=()=>{
+      if(media.volume===volume)return;
+      volume=media.volume;
+      rememberPreviewVolume(volume);
+    };
     let current=true,retries=0,resumeAt=0,retryAt=0,restoring=false,shouldPlay=true;
     let retryTimer:ReturnType<typeof setTimeout>|undefined;
     setLoading('正在准备预览…');setError('');setPlayHint('');
@@ -48,6 +76,7 @@ export function LibraryPreview({storageID,target,onClose}:{storageID:string;targ
     media.addEventListener('play',onPlay);
     media.addEventListener('pause',onPause);
     media.addEventListener('loadeddata',onLoaded);
+    media.addEventListener('volumechange',onVolumeChange);
     void (async()=>{
       try {
         const {url}=await request<{url:string}>('library/preview',{storageID,songID:target.songID,resource:target.resource},AbortSignal.any([controller.signal,AbortSignal.timeout(15000)]));
@@ -64,6 +93,8 @@ export function LibraryPreview({storageID,target,onClose}:{storageID:string;targ
       media.removeEventListener('play',onPlay);
       media.removeEventListener('pause',onPause);
       media.removeEventListener('loadeddata',onLoaded);
+      media.removeEventListener('volumechange',onVolumeChange);
+      onVolumeChange();
       media.pause();media.removeAttribute('src');media.load();
     };
   },[storageID,target]);

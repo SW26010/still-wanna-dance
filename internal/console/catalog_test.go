@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -26,6 +28,21 @@ func (f catalogTransport) Candidates(_ context.Context, target string) ([]upstre
 func (f catalogTransport) Current(target string) []upstreamrequest.Candidate {
 	u, _ := url.Parse(target)
 	return []upstreamrequest.Candidate{{ID: "direct/" + u.Hostname() + "/192.0.2.1", Host: u.Hostname(), Mode: "direct", IP: "192.0.2.1", Transport: f}}
+}
+
+func TestProxyPrimaryCatalogReportsOversizedResponse(t *testing.T) {
+	c := &Console{checksumURL: catalogmeta.UdonURL}
+	c.settings.UpstreamMode = "proxy"
+	c.client = &http.Client{Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != catalogmeta.UdonURL {
+			t.Fatalf("unexpected catalog URL: %s", r.URL)
+		}
+		body := strings.NewReader(strings.Repeat(" ", int(upstreamcheck.MaxCatalogBytes)+1))
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(body)}, nil
+	})}
+	if _, err := c.fetchCatalogSnapshot(t.Context()); err == nil || err.Error() != "清单过大" {
+		t.Fatalf("unexpected refresh error: %v", err)
+	}
 }
 
 func TestBackupCatalogUsesHTTPS(t *testing.T) {

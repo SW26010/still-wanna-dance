@@ -2,12 +2,39 @@ package upstreamcheck
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"still-wanna-dance/internal/catalogmeta"
 )
+
+func TestValidatedCatalogReportsOversizeAndTriesNextPath(t *testing.T) {
+	var body *countingBody
+	oversized := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
+		body = &countingBody{}
+		return &http.Response{StatusCode: http.StatusOK, Body: body}, nil
+	}))
+	ctx := t.Context()
+	policy := DefaultPolicy()
+	result, id, catalog := ReadValidatedCatalog(ctx, []*http.Client{oversized}, policy, catalogmeta.PrimarySourceID)
+	if result.State != "invalid" || !errors.Is(result.Err, ErrCatalogTooLarge) || id != 0 || len(catalog.Body) != 0 {
+		t.Fatalf("unexpected oversized catalog observation: %+v", result)
+	}
+	if got := body.read.Load(); got != MaxCatalogBytes+1 {
+		t.Fatalf("read %d bytes, want %d", got, MaxCatalogBytes+1)
+	}
+	valid := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusOK, catalogFixture), nil
+	}))
+	result, id, _ = ReadValidatedCatalog(ctx, []*http.Client{oversized, valid}, policy, catalogmeta.PrimarySourceID)
+	if result.State != "available" || result.Err != nil || id != 42 {
+		t.Fatalf("valid fallback did not supersede the oversized response: %+v", result)
+	}
+}
 
 func TestValidatedCatalogKeepsFieldErrorAfterFailedFallback(t *testing.T) {
 	bad := strings.Replace(catalogFixture, `"id":42`, `"id":42,"volume":"bad"`, 1)

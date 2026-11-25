@@ -59,14 +59,8 @@ func (c *Console) fetchCatalogSnapshot(ctx context.Context) (cacheproxy.Catalog,
 }
 
 func (c *Console) fetchCatalogSource(ctx context.Context, source string) (cacheproxy.Catalog, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	m, err := c.directCatalogMonitor(source)
-	if err != nil {
-		return cacheproxy.Catalog{}, err
-	}
-	if m != nil {
-		r, _, response := m.ReadCatalog(ctx)
+	if cacheproxy.IsPrimaryCatalog(source) {
+		r, _, response := c.readPrimaryCatalog(ctx)
 		if r.Err != nil {
 			return cacheproxy.Catalog{}, applog.SafeError(r.Err)
 		}
@@ -78,6 +72,8 @@ func (c *Console) fetchCatalogSource(ctx context.Context, source string) (cachep
 		}
 		return response.Parse()
 	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: source})
 	return upstreamrequest.Fetch(ctx, source, clients, 30*time.Second, func(ctx context.Context, client *http.Client, target string) (cacheproxy.Catalog, error) {
 		return fetchCatalogResponse(ctx, client, target, source)
@@ -101,12 +97,12 @@ func fetchCatalogResponse(ctx context.Context, client *http.Client, target, sour
 	if resp.StatusCode != http.StatusOK {
 		return cacheproxy.Catalog{}, fmt.Errorf("清单接口返回 %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, upstreamcheck.MaxCatalogBytes+1))
 	if err != nil {
 		return cacheproxy.Catalog{}, err
 	}
-	if len(body) > 16<<20 {
-		return cacheproxy.Catalog{}, fmt.Errorf("清单过大")
+	if int64(len(body)) > upstreamcheck.MaxCatalogBytes {
+		return cacheproxy.Catalog{}, upstreamcheck.ErrCatalogTooLarge
 	}
 	candidate, err := cacheproxy.ParseCatalog(body, source)
 	if err != nil {

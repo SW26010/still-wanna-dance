@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamcheck"
 	"still-wanna-dance/internal/upstreamrequest"
 )
@@ -49,7 +50,7 @@ func (r *catalogRound) finish(err error) {
 			if err == nil {
 				err = upstreamrequest.ErrUnavailable
 			}
-			r.result = upstreamcheck.CatalogFailure("api", err)
+			r.result = upstreamcheck.CatalogFailure(catalogmeta.PrimarySourceID, err)
 		}
 		r.done = true
 		close(r.ready)
@@ -60,7 +61,7 @@ func (r *catalogRound) finish(err error) {
 // no recent success joins a catalog check; only the monitor owns its probes.
 func (m *Monitor) ReadCatalog(ctx context.Context) (upstreamcheck.Result, int64, CatalogResponse) {
 	failure := func(err error) (upstreamcheck.Result, int64, CatalogResponse) {
-		return upstreamcheck.CatalogFailure("api", err), 0, CatalogResponse{}
+		return upstreamcheck.CatalogFailure(catalogmeta.PrimarySourceID, err), 0, CatalogResponse{}
 	}
 	for {
 		if err := ctx.Err(); err != nil {
@@ -79,7 +80,7 @@ func (m *Monitor) ReadCatalog(ctx context.Context) (upstreamcheck.Result, int64,
 			for _, path := range paths[:min(len(paths), catalogReadPaths)] {
 				clients = append(clients, requestClient(path.Channel.Transport))
 			}
-			return upstreamcheck.ReadValidatedCatalog(ctx, clients, probePolicy(m.policy), "api")
+			return upstreamcheck.ReadValidatedCatalog(ctx, clients, probePolicy(m.policy), catalogmeta.PrimarySourceID)
 		}
 		if m.active == nil && m.manual == nil {
 			kind := CheckCatalog

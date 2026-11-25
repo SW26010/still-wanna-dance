@@ -1,15 +1,16 @@
 package catalogmeta
 
 const (
-	UdonHost    = "api.udon.dance"
-	UdonURL     = "https://" + UdonHost + "/Api/Songs/list"
-	UdonHTTPURL = "http://" + UdonHost + "/Api/Songs/list"
-	KivaURL     = "https://x.kiva.moe/api/v2/wanna/songs"
-	WannaURL    = "https://wanna.kiva.moe/api/wannaInfo"
+	PrimarySourceID = "api"
+	UdonHost        = "api.udon.dance"
+	UdonURL         = "https://" + UdonHost + "/Api/Songs/list"
+	UdonHTTPURL     = "http://" + UdonHost + "/Api/Songs/list"
+	KivaURL         = "https://x.kiva.moe/api/v2/wanna/songs"
+	WannaURL        = "https://wanna.kiva.moe/api/wannaInfo"
 )
 
 var sources = [...]struct{ id, url string }{
-	{"api", UdonURL},
+	{PrimarySourceID, UdonURL},
 	{"api-http", UdonHTTPURL},
 	{"kiva", KivaURL},
 	{"wanna", WannaURL},

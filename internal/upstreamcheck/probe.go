@@ -24,6 +24,8 @@ import (
 
 const MaxCatalogBytes int64 = 16 << 20
 
+var ErrCatalogTooLarge = errors.New("清单过大")
+
 type videoSample struct {
 	url, host, checksum string
 	size                int64
@@ -141,6 +143,9 @@ func probeRequests(parent context.Context, clients []*http.Client, timeout time.
 	return last
 }
 func errorState(err error) string {
+	if errors.Is(err, ErrCatalogTooLarge) {
+		return "invalid"
+	}
 	if errors.Is(err, upstreamrequest.ErrCapacity) {
 		return "local_capacity"
 	}
@@ -177,7 +182,7 @@ func httpState(code int) string {
 }
 
 func probeCatalog(parent context.Context, client *http.Client, p Policy) (o observation, id int64) {
-	return probeCatalogRoute(parent, client, p, "api")
+	return probeCatalogRoute(parent, client, p, catalogmeta.PrimarySourceID)
 }
 
 func probeCatalogRoute(parent context.Context, client *http.Client, p Policy, route string) (o observation, id int64) {
@@ -211,7 +216,7 @@ func readCatalogData(parent context.Context, clients []*http.Client, p Policy, r
 		invalidObservation.duration = o.duration
 		o, result = invalidObservation, invalid
 	}
-	if validate && o.state == "invalid" {
+	if validate && o.state == "invalid" && o.err == nil {
 		o.err = result.parseErr
 		if o.err == nil {
 			o.err = errors.New("清单格式无效")
@@ -250,7 +255,7 @@ func probeCatalogDataAt(parent context.Context, client *http.Client, p Policy, r
 		return
 	}
 	if int64(len(body)) > MaxCatalogBytes {
-		o.state = "invalid"
+		o.state, o.err = "invalid", ErrCatalogTooLarge
 		return
 	}
 	result = CatalogResponse{Route: route, Source: entry(Catalog, route), Body: body}

@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"still-wanna-dance/internal/cacheproxy"
+	"still-wanna-dance/internal/catalogmeta"
 	"still-wanna-dance/internal/upstreamcheck"
 )
 
@@ -39,7 +40,7 @@ func (c *Console) syncCatalogs(ctx context.Context, responses []upstreamcheck.Ca
 		var v candidate
 		var err error
 		switch response.Route {
-		case "api", "api-http", "kiva", "wanna":
+		case catalogmeta.PrimarySourceID, "api-http", "kiva", "wanna":
 			var full cacheproxy.Catalog
 			full, err = response.Parse()
 			v.full, v.revision = &full, full.Revision

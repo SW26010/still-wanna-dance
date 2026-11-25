@@ -81,22 +81,35 @@ func (c *Console) cachedResourceForHost(ctx context.Context, host string, after 
 	return cacheproxy.MediaURL{}
 }
 
+// readPrimaryCatalog returns one fully validated response and its observation
+// within the caller's deadline. Direct mode can share an in-flight sample.
+func (c *Console) readPrimaryCatalog(ctx context.Context) (upstreamcheck.Result, int64, upstreamcheck.CatalogResponse) {
+	p := upstreamcheck.DefaultPolicy()
+	ctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
+	defer cancel()
+	monitor, err := c.directCatalogMonitor()
+	if err != nil {
+		return upstreamcheck.CatalogFailure(catalogmeta.PrimarySourceID, err), 0, upstreamcheck.CatalogResponse{}
+	}
+	if monitor != nil {
+		return monitor.ReadCatalog(ctx)
+	}
+	clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: catalogmeta.UdonURL})
+	return upstreamcheck.ReadValidatedCatalog(ctx, clients, p, catalogmeta.PrimarySourceID)
+}
+
 // Both triggers receive the same active access policy. Direct paths retain the
 // existing fallback; proxy requests receive only the configured proxy client.
 func (c *Console) connectivityAccess() upstreamcheck.ConnectivityAccess {
 	p := upstreamcheck.DefaultPolicy()
 	return upstreamcheck.ConnectivityAccess{
 		Catalog: func(ctx context.Context, route string) (upstreamcheck.Result, int64, upstreamcheck.CatalogResponse) {
+			if route == catalogmeta.PrimarySourceID {
+				return c.readPrimaryCatalog(ctx)
+			}
 			ctx, cancel := context.WithTimeout(ctx, p.RequestTimeout)
 			defer cancel()
 			source := catalogmeta.SourceURL(route)
-			m, err := c.directCatalogMonitor(source)
-			if err != nil {
-				return upstreamcheck.CatalogFailure(route, err), 0, upstreamcheck.CatalogResponse{}
-			}
-			if m != nil {
-				return m.ReadCatalog(ctx)
-			}
 			clients := c.operationClients(ctx, upstreamstate.Catalog, upstreamstate.Constraints{Entry: source})
 			return upstreamcheck.ProbeCatalog(ctx, clients, p, route)
 		},

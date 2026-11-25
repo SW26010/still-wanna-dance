@@ -4,6 +4,7 @@ package catalogsync
 
 import (
 	"context"
+	"maps"
 	"sync"
 	"time"
 )
@@ -62,15 +63,21 @@ func (s *Sync) rememberSampleLocked(id int64) {
 	s.songID, s.songAt = id, time.Now()
 }
 
-// SelectSong traverses current missing metadata in business priority order.
-// The traversal belongs to this business scope, including manual diagnostics.
-func (s *Sync) SelectSong(ctx context.Context, fallback int64) int64 {
-	return s.SelectSongExcept(ctx, fallback, nil)
+// SelectCatalogSong shares metadata traversal, limited to the accepted catalog.
+func (s *Sync) SelectCatalogSong(ctx context.Context, fallback int64, members map[int64]bool) int64 {
+	if len(members) == 0 {
+		return 0
+	}
+	return s.selectSong(ctx, fallback, nil, members)
 }
 
 // SelectSongExcept shares the traversal while excluding songs already held or
 // attempted by this caller. Exclusion does not count as a metadata attempt.
 func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded map[int64]bool) int64 {
+	return s.selectSong(ctx, fallback, excluded, nil)
+}
+
+func (s *Sync) selectSong(ctx context.Context, fallback int64, excluded, members map[int64]bool) int64 {
 	if ctx.Err() != nil {
 		return 0
 	}
@@ -83,10 +90,13 @@ func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded ma
 	if s.closed || ctx.Err() != nil {
 		return 0
 	}
-	if fallback > 0 {
+	eligible := func(id int64) bool { return members == nil || members[id] }
+	if fallback > 0 && eligible(fallback) {
 		s.rememberSampleLocked(fallback)
-	} else if time.Since(s.songAt) < 10*time.Minute {
+	} else if time.Since(s.songAt) < 10*time.Minute && eligible(s.songID) {
 		fallback = s.songID
+	} else {
+		fallback = 0
 	}
 	attempted := make(map[int64]bool, len(ids))
 	var first, selected int64
@@ -97,7 +107,7 @@ func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded ma
 		if s.attempted[id] {
 			attempted[id] = true
 		}
-		if excluded[id] {
+		if !eligible(id) || excluded[id] {
 			continue
 		}
 		if first == 0 {
@@ -109,7 +119,7 @@ func (s *Sync) SelectSongExcept(ctx context.Context, fallback int64, excluded ma
 	}
 	if selected == 0 && first != 0 {
 		selected = first
-		clear(attempted)
+		maps.DeleteFunc(attempted, func(id int64, _ bool) bool { return eligible(id) })
 	}
 	s.attempted = attempted
 	if selected == 0 {

@@ -23,7 +23,15 @@ func (c *Console) networkDiagnosticsLocked() (*networkDiagnostics, error) {
 		options := networkDiagnosticsOptions{
 			Client: c.client, Upstream: s.UpstreamMode, Access: c.connectivityAccess(),
 			Business: upstreamcheck.ConnectivityBusiness{
-				OnCatalog: c.syncCatalogs, RememberSample: metadata.RememberSample, SelectSong: metadata.SelectSong,
+				OnCatalog: c.syncCatalogs,
+				RememberSample: func(ctx context.Context, id int64) {
+					if c.connectivityCatalogHasSong(ctx, id) {
+						metadata.RememberSample(ctx, id)
+					}
+				},
+				SelectSong: func(ctx context.Context, fallback int64) int64 {
+					return metadata.SelectCatalogSong(ctx, fallback, c.connectivityCatalogMembers(ctx))
+				},
 				OnPlaybackURL: c.syncPlaybackURL, CachedResource: c.connectivityCachedResource,
 			},
 			CatalogReady: c.catalogReady, CachedSong: c.connectivityCachedSong,

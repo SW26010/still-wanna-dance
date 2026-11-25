@@ -68,6 +68,39 @@ func (s *Store) KnownSongIDs(ctx context.Context) (resultValue []int64, resultEr
 	return ids, rows.Err()
 }
 
+// CatalogMembers reads the membership of the last accepted catalog.
+func (s *Store) CatalogMembers(ctx context.Context) (resultValue map[int64]bool, resultErr error) {
+	if !s.beginRequest() {
+		return nil, context.Canceled
+	}
+	defer s.wg.Done()
+	defer func() { resultErr = s.storageError(resultErr) }()
+	rows, err := s.db.QueryContext(ctx, "SELECT song_id FROM catalog_members")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	members := make(map[int64]bool)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		members[id] = true
+	}
+	return members, rows.Err()
+}
+
+// CatalogHasSong checks a single ID against the last accepted catalog.
+func (s *Store) CatalogHasSong(ctx context.Context, id int64) (present bool, err error) {
+	if !s.beginRequest() {
+		return false, context.Canceled
+	}
+	defer s.wg.Done()
+	err = s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM catalog_members WHERE song_id=?)", id).Scan(&present)
+	return present, s.storageError(err)
+}
+
 // CatalogSampleSong returns the next current member, wrapping at the end.
 func (s *Store) CatalogSampleSong(ctx context.Context, after int64) (id int64, resultErr error) {
 	if !s.beginRequest() {

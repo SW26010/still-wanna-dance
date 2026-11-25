@@ -14,6 +14,33 @@ import (
 	"still-wanna-dance/internal/upstreamstate"
 )
 
+func (c *Console) connectivityCatalogMembers(ctx context.Context) map[int64]bool {
+	store, err := c.businessStore()
+	var members map[int64]bool
+	if err == nil {
+		members, err = store.CatalogMembers(ctx)
+	}
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Warn("连通性检测的清单成员读取失败", "event_name", "connectivity_catalog_members_failed", "error", applog.SafeError(err))
+		}
+		return nil
+	}
+	return members
+}
+
+func (c *Console) connectivityCatalogHasSong(ctx context.Context, id int64) bool {
+	store, err := c.businessStore()
+	var present bool
+	if err == nil {
+		present, err = store.CatalogHasSong(ctx, id)
+	}
+	if err != nil && ctx.Err() == nil {
+		slog.Warn("连通性检测的清单成员读取失败", "event_name", "connectivity_catalog_members_failed", "error", applog.SafeError(err))
+	}
+	return present
+}
+
 func (c *Console) connectivityCachedSong(ctx context.Context, previous int64) int64 {
 	store, err := c.businessStore()
 	var id int64

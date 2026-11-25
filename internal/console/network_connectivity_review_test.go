@@ -173,7 +173,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 	if candidates := c.metadataSongCandidates(ctx); len(candidates) != 0 {
 		t.Fatal("fixture must start with complete song metadata", candidates)
 	}
-	var catalogAvailable atomic.Bool
+	var catalogAvailable, staleCatalog atomic.Bool
 	var playback, resource atomic.Int32
 	var requestedSong atomic.Int64
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -190,6 +190,8 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 			resource.Add(1)
 		} else if !catalogAvailable.Load() {
 			resp.StatusCode = http.StatusServiceUnavailable
+		} else if staleCatalog.Load() && r.URL.Path == "/Api/Songs/list" {
+			resp.Body = io.NopCloser(strings.NewReader(`{"time":"20261029000000","groups":{"contents":[{"songInfos":[{"id":900003}]}]}}`))
 		}
 		return resp, nil
 	})}
@@ -214,6 +216,9 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 	if err != nil || status.Revision != "20261031000000" || playback.Load() != 1 {
 		t.Fatal("catalog-only check did not update the business catalog independently", status, err)
 	}
+	// A valid but older primary can return a song outside the accepted catalog.
+	staleCatalog.Store(true)
+	run(upstreamcheck.Catalog)
 	run(upstreamcheck.PlaybackURL)
 	id := requestedSong.Load()
 	if playback.Load() != 2 || !slices.Contains(ids, id) {
@@ -320,10 +325,7 @@ func TestConnectivityReviewCatalogOnlyDoesNotAdvanceTraversal(t *testing.T) {
 	if len(pending) < 2 || playback.Load() != 0 {
 		t.Fatal("fixture requires multiple unattempted metadata candidates", pending, playback.Load())
 	}
-	c.mu.Lock()
-	metadata := c.metadata
-	c.mu.Unlock()
-	if got := metadata.SelectSong(t.Context(), 0); got != pending[0] {
+	if got := c.networkDiagnostics.options.Business.SelectSong(t.Context(), 0); got != pending[0] {
 		t.Fatal("catalog-only check advanced metadata traversal", got, pending)
 	}
 }

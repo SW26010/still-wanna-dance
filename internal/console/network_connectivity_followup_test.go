@@ -34,6 +34,10 @@ func TestConnectivityCompleteCatalogRotatesPlaybackSamples(t *testing.T) {
 	c.settings.UpstreamMode = "proxy"
 	ctx := t.Context()
 	ids := []int64{900001, 900002}
+	const historical int64 = 900003
+	if err := c.store.SyncCatalog(ctx, cacheproxy.Catalog{Source: cacheproxy.UdonCatalogURL, Revision: "20261029000000", Songs: []cacheproxy.CatalogSong{{ID: historical}}}); err != nil {
+		t.Fatal(err)
+	}
 	if err := c.store.SyncCatalog(ctx, cacheproxy.Catalog{Source: cacheproxy.UdonCatalogURL, Revision: "20261030000000", Songs: []cacheproxy.CatalogSong{{ID: ids[0]}, {ID: ids[1]}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -43,8 +47,8 @@ func TestConnectivityCompleteCatalogRotatesPlaybackSamples(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if pending := c.metadataSongCandidates(ctx); len(pending) != 0 {
-		t.Fatal("fixture requires complete metadata", pending)
+	if pending := c.calibrationCandidates(ctx).SongIDs; !slices.Equal(pending, []int64{historical}) {
+		t.Fatal("historical song should remain a calibration candidate", pending)
 	}
 	var requested atomic.Int64
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -54,6 +58,9 @@ func TestConnectivityCompleteCatalogRotatesPlaybackSamples(t *testing.T) {
 			requested.Store(id)
 			if id == ids[0] {
 				resp.StatusCode = http.StatusServiceUnavailable
+				resp.Header.Del("Location")
+			} else if id == historical {
+				resp.StatusCode = http.StatusNotFound
 				resp.Header.Del("Location")
 			}
 		}
@@ -68,6 +75,42 @@ func TestConnectivityCompleteCatalogRotatesPlaybackSamples(t *testing.T) {
 		if row < 0 || (want == ids[0] && state.Results[row].State != "failed") || (want == ids[1] && state.Results[row].State != "available") {
 			t.Fatal("playback result did not reflect the selected song", state.Results)
 		}
+	}
+}
+
+func TestConnectivityUsesAcceptedCatalogWithBundledMappings(t *testing.T) {
+	c := testConsoleWithSeed(t, true)
+	c.settings.UpstreamMode = "proxy"
+	var catalogAvailable atomic.Bool
+	var requested atomic.Int64
+	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
+		resp := automaticConnectivityResponse(r)
+		switch {
+		case r.URL.Path == "/Api/Songs/play":
+			id, _ := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+			requested.Store(id)
+		case r.Header.Get("Range") == "" && !catalogAvailable.Load():
+			resp.StatusCode = http.StatusServiceUnavailable
+		}
+		return resp, nil
+	})}
+
+	state := runFollowupConnectivity(t, c)
+	if requested.Load() != 0 || !slices.ContainsFunc(state.Results, func(row networkConnectivityResult) bool {
+		return row.Operation == upstreamcheck.PlaybackURL && row.State == "skipped" && row.ObservedAt.IsZero()
+	}) {
+		t.Fatal("bundled mappings should leave playback without a new observation", requested.Load(), state.Results)
+	}
+	catalogAvailable.Store(true)
+	runFollowupConnectivity(t, c)
+	if id := requested.Load(); id != 900002 {
+		t.Fatal("first accepted catalog should supply the missing metadata candidate", id)
+	}
+	catalogAvailable.Store(false)
+	requested.Store(0)
+	runFollowupConnectivity(t, c)
+	if id := requested.Load(); id != 900001 {
+		t.Fatal("catalog failure should keep using current members", id)
 	}
 }
 

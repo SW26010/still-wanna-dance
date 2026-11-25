@@ -150,6 +150,8 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 	var mu sync.Mutex
 	var requested []int64
 	var calls, resourceCalls int
+	firstPlayback := make(chan struct{})
+	var playbackStarted sync.Once
 	transport := catalogTransport(func(r *http.Request) (*http.Response, error) {
 		mu.Lock()
 		calls++
@@ -160,12 +162,18 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 			resp.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"code":200,"data":{"time":"20261015000000","groups":[{"entries":[{"id":1981,"checksum":%q},{"id":5404,"checksum":%q}]}]}}`, keys[1981], keys[5404])))
 		case "/Api/Songs/list":
 			// The ordinary sample is deliberately absent from the local MD5 list.
+			select {
+			case <-firstPlayback:
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
 			resp.Body = io.NopCloser(strings.NewReader(`{"time":"20261015000000","groups":{"contents":[{"songInfos":[{"id":42}]}]}}`))
 		case "/Api/Songs/play":
 			id, _ := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
 			mu.Lock()
 			requested = append(requested, id)
 			mu.Unlock()
+			playbackStarted.Do(func() { close(firstPlayback) })
 			key := keys[id]
 			if key == "" {
 				key = strings.Repeat("c", 32)
@@ -215,9 +223,9 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 		t.Fatal(err)
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
-	assertRequests(5404, 2)
-	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{42}) {
-		t.Fatal("Udon-only song was not scheduled", pending)
+	assertRequests(42, 2)
+	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404}) {
+		t.Fatal("Udon-only song should be completed ahead of the historical song", pending)
 	}
 	requested = nil
 	if err := c.controlNetworkConnectivity(false); err != nil {
@@ -225,8 +233,8 @@ func TestMetadataBackfillIncludesUdonOnlySongWithConcurrentCatalogs(t *testing.T
 	}
 	<-connectivityDoneForTest(c.networkDiagnostics)
 	assertRequests(42, 3)
-	if pending := c.metadataSongCandidates(context.Background()); len(pending) != 0 {
-		t.Fatal("metadata still incomplete", pending)
+	if pending := c.metadataSongCandidates(context.Background()); !slices.Equal(pending, []int64{5404}) {
+		t.Fatal("historical song should remain eligible outside connectivity checks", pending)
 	}
 }
 

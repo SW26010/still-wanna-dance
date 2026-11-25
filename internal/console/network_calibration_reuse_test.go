@@ -137,7 +137,7 @@ func TestNetworkCalibrationSharesMetadataTraversal(t *testing.T) {
 	c.mu.Lock()
 	metadata := c.metadataLocked()
 	c.mu.Unlock()
-	if id := metadata.SelectSong(ctx, 0); id != ranked[0] {
+	if id := metadata.SelectCatalogSong(ctx, 0, c.connectivityCatalogMembers(ctx)); id != ranked[0] {
 		t.Fatal("unexpected monitoring selection", id, ranked)
 	}
 	started := make(chan int64, 6)
@@ -168,7 +168,7 @@ func TestNetworkCalibrationSharesMetadataTraversal(t *testing.T) {
 			t.Fatal("calibration restarted the monitoring traversal", ranked, seen)
 		}
 	}
-	if id := metadata.SelectSong(ctx, 0); id != ranked[5] {
+	if id := metadata.SelectCatalogSong(ctx, 0, c.connectivityCatalogMembers(ctx)); id != ranked[5] {
 		t.Fatal("calibration attempts did not advance shared progress", id, ranked)
 	}
 }

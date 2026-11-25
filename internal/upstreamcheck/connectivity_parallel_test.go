@@ -229,3 +229,31 @@ func TestConnectivityFullRetriesFailedCachedResourceWithFreshAddress(t *testing.
 		t.Fatal("cached failure did not fall back to the fresh address", urls, resourceStates)
 	}
 }
+
+func TestConnectivityResourceCancellationStopsBeforePlayback(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var probes int
+	access := ConnectivityAccess{
+		Resource: func(_ context.Context, _ int64, _ Sample) Result {
+			probes++
+			cancel()
+			return Result{Operation: Resource, State: "available"}
+		},
+	}
+	business := ConnectivityBusiness{
+		CachedResource: func(context.Context) string { return connectivityCachedURL },
+		SelectSong: func(context.Context, int64) int64 {
+			t.Error("selected a playback sample after cancellation")
+			return 0
+		},
+	}
+	CheckConnectivity(ctx, access, business, Resource, func(result Result) {
+		if result.State != "checking" {
+			t.Errorf("published a result after cancellation: %+v", result)
+		}
+	})
+	if probes != 1 {
+		t.Fatalf("got %d resource probes, want 1", probes)
+	}
+}

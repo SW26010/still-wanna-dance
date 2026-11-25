@@ -62,6 +62,42 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 	full := operation == ""
 	wantPlayback := full || operation == PlaybackURL
 	wantResource := full || operation == Resource
+
+	type attemptedResource struct {
+		url       string
+		available bool
+	}
+	seen := make(map[string]attemptedResource)
+	checkResource := func(id int64, sample Sample) bool {
+		if prior, ok := seen[sample.Host]; ok && (prior.available || prior.url == sample.URL) {
+			return prior.available
+		}
+		if ctx.Err() != nil {
+			return false
+		}
+		checking(Resource, sample.Host)
+		result := access.Resource(ctx, id, sample)
+		if ctx.Err() != nil {
+			return false
+		}
+		emit(result)
+		available := result.State == "available"
+		seen[sample.Host] = attemptedResource{sample.URL, available}
+		return available
+	}
+	checkCachedResource := func() bool {
+		if business.CachedResource == nil || ctx.Err() != nil {
+			return false
+		}
+		saved, err := parseSample(business.CachedResource(ctx))
+		return err == nil && checkResource(0, saved.sample())
+	}
+	// In a resource-only check, resolving a song is a fallback. The full check
+	// still resolves playback independently while the saved address is tested.
+	if operation == Resource && (checkCachedResource() || ctx.Err() != nil) {
+		return
+	}
+
 	catalogDone := make(chan catalogResult, 1)
 	samples := make(chan resourceSample, len(playbacksource.Entries()))
 	var workers sync.WaitGroup
@@ -76,33 +112,11 @@ func CheckConnectivity(ctx context.Context, access ConnectivityAccess, business 
 	}
 	if wantResource {
 		workers.Go(func() {
-			type attempted struct {
-				url       string
-				available bool
-			}
-			seen := make(map[string]attempted)
-			check := func(id int64, sample Sample) {
-				if prior, ok := seen[sample.Host]; ok && (prior.available || prior.url == sample.URL) {
-					return
-				}
-				if ctx.Err() != nil {
-					return
-				}
-				checking(Resource, sample.Host)
-				result := access.Resource(ctx, id, sample)
-				if ctx.Err() != nil {
-					return
-				}
-				emit(result)
-				seen[sample.Host] = attempted{sample.URL, result.State == "available"}
-			}
-			if full && business.CachedResource != nil {
-				if saved, err := parseSample(business.CachedResource(ctx)); err == nil {
-					check(0, saved.sample())
-				}
+			if full {
+				checkCachedResource()
 			}
 			for sample := range samples {
-				check(sample.id, sample.sample)
+				checkResource(sample.id, sample.sample)
 			}
 			if len(seen) == 0 && ctx.Err() == nil {
 				emit(Result{Operation: Resource, State: "skipped"})

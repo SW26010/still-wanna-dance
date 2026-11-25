@@ -1,6 +1,7 @@
 package console
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -160,6 +161,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 	c.settings.UpstreamMode = "proxy"
 	ctx := t.Context()
 	const oldMD5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const freshMD5 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	ids := []int64{900001, 900002}
 	if err := c.store.SyncCatalog(ctx, cacheproxy.Catalog{Source: cacheproxy.UdonCatalogURL, Revision: "20261030000000", Songs: []cacheproxy.CatalogSong{{ID: ids[0]}, {ID: ids[1]}}}); err != nil {
 		t.Fatal(err)
@@ -173,7 +175,7 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 	if candidates := c.metadataSongCandidates(ctx); len(candidates) != 0 {
 		t.Fatal("fixture must start with complete song metadata", candidates)
 	}
-	var catalogAvailable, staleCatalog atomic.Bool
+	var catalogAvailable, staleCatalog, staleResource atomic.Bool
 	var playback, resource atomic.Int32
 	var requestedSong atomic.Int64
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
@@ -184,10 +186,16 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 			_, _ = fmt.Sscan(r.URL.Query().Get("id"), &id)
 			requestedSong.Store(id)
 			if call == 3 {
-				resp.Header.Set("Location", fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&s=1234", id))
+				resp.Header.Set("Location", fmt.Sprintf("https://play.udon.dance/files/1/%d-video.mp4?e=%s&s=1234", id, freshMD5))
 			}
-		} else if r.Header.Get("Range") != "" {
+		} else if byteRange := r.Header.Get("Range"); byteRange != "" {
 			resource.Add(1)
+			if byteRange != "bytes=0-0" {
+				t.Errorf("unexpected resource range: %s", byteRange)
+			}
+			if staleResource.Load() && r.URL.Query().Get("e") != freshMD5 {
+				resp.StatusCode = http.StatusNotFound
+			}
 		} else if !catalogAvailable.Load() {
 			resp.StatusCode = http.StatusServiceUnavailable
 		} else if staleCatalog.Load() && r.URL.Path == "/Api/Songs/list" {
@@ -229,11 +237,21 @@ func TestConnectivityReviewCatalogSampleAndBusinessUpdates(t *testing.T) {
 		t.Fatal("playback observation did not update song/media mapping and URL", urls, err)
 	}
 	run(upstreamcheck.Resource)
-	if playback.Load() != 3 || resource.Load() != 2 {
-		t.Fatal("resource check did not reuse the sample and resolve its address", playback.Load(), resource.Load())
+	if playback.Load() != 2 || resource.Load() != 2 {
+		t.Fatal("resource check did not reuse the available saved address", playback.Load(), resource.Load())
+	}
+	staleResource.Store(true)
+	run(upstreamcheck.Resource)
+	if playback.Load() != 3 || resource.Load() != 4 {
+		t.Fatal("failed saved address did not fall back to a fresh address", playback.Load(), resource.Load())
+	}
+	if results := connectivitySnapshot(c).Results; !slices.ContainsFunc(results, func(row networkConnectivityResult) bool {
+		return row.Operation == upstreamcheck.Resource && row.State == "available" && !row.Retained
+	}) {
+		t.Fatal("fresh address did not replace the failed observation", results)
 	}
 	urls, err = c.store.SongURLs(ctx, id, "cf")
-	if err != nil || len(urls) != 1 || urls[0].MD5 != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+	if err != nil || len(urls) != 1 || urls[0].MD5 != freshMD5 {
 		t.Fatal("resource preparation did not reuse the playback metadata write", urls, err)
 	}
 }
@@ -262,15 +280,26 @@ func TestConnectivityReviewSkippedResourceRetainsObservedResult(t *testing.T) {
 		}
 	}
 	run("")
+	failPlayback.Store(true)
+	run("")
 	before := connectivitySnapshot(c)
 	i := slices.IndexFunc(before.Results, func(row networkConnectivityResult) bool {
-		return row.Operation == upstreamcheck.Resource && !row.ObservedAt.IsZero()
+		return row.Operation == upstreamcheck.Resource && row.State == "available" && !row.Retained
 	})
 	if i < 0 {
-		t.Fatal("fixture has no resource observation", before.Results)
+		t.Fatal("full check did not use the cached resource while playback failed", before.Results)
 	}
 	observed := before.Results[i]
-	failPlayback.Store(true)
+	// Remove saved addresses from the isolated library between rounds.
+	db, err := sql.Open("sqlite", libraryPaths(c.settings).DatabasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(t.Context(), "DELETE FROM media_urls")
+	closeErr := db.Close()
+	if err != nil || closeErr != nil {
+		t.Fatal(err, closeErr)
+	}
 	for _, operation := range []upstreamcheck.Operation{upstreamcheck.Resource, upstreamcheck.Resource} {
 		run(operation)
 		state := connectivitySnapshot(c)
@@ -283,13 +312,6 @@ func TestConnectivityReviewSkippedResourceRetainsObservedResult(t *testing.T) {
 		if old < 0 || !skipped || !state.Results[old].Retained {
 			t.Fatal("skipped check lost the previous observation or omitted the skipped result", operation, state.Results)
 		}
-	}
-	run("")
-	full := connectivitySnapshot(c)
-	if !slices.ContainsFunc(full.Results, func(row networkConnectivityResult) bool {
-		return row.Operation == upstreamcheck.Resource && row.State == "available" && !row.Retained
-	}) {
-		t.Fatal("full check did not use the cached resource while playback failed", full.Results)
 	}
 	failPlayback.Store(false)
 	run(upstreamcheck.Resource)

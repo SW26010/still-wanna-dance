@@ -385,7 +385,7 @@ func TestManualConnectivityItemSharesResultsWithoutDelayingAutomaticCheck(t *tes
 		}{
 			{upstreamcheck.Catalog, 4, 0, 0},
 			{upstreamcheck.PlaybackURL, 0, 1, 0},
-			{upstreamcheck.Resource, 0, 1, 1},
+			{upstreamcheck.Resource, 0, 0, 1},
 		} {
 			time.Sleep(time.Minute)
 			catalog.Store(0)

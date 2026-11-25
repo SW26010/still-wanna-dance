@@ -923,6 +923,36 @@ test('protection-only blocks are muted and translucent, and sparse demands keep 
   await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
 });
 
+test('demand rows use all nine non-gray tab10 colors in both themes', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 980 });
+  await page.emulateMedia({ colorScheme: 'light' });
+  const f = await setup(page, 0);
+  const songs = ['4201', '4209', '4202', '4203', '4204', '4205', '4206', '4207', '4208'];
+  const blocks = songs.map((songID, i) => block(i, f.at, { block: 0, songID, resource: `video-${i}`, state: 'available', totalBlocks: 1 }));
+  const demands = blocks.map((b, i) => demand(i + 1, [b], { kind: 'queue', position: i + 1, songID: b.songID, resource: b.resource }));
+  await f.emit({ blocks, demands });
+  const rows = f.panel.locator('.demand-row');
+  const borders = () => rows.evaluateAll(items => items.map(row => getComputedStyle(row).borderTopColor));
+  const tab10 = [
+    'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)', 'rgb(214, 39, 40)', 'rgb(148, 103, 189)',
+    'rgb(140, 86, 75)', 'rgb(227, 119, 194)', 'rgb(188, 189, 34)', 'rgb(23, 190, 207)',
+  ];
+  await expect(rows.first()).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect.poll(borders).toEqual(tab10);
+  const firstBlock = rows.first().locator('canvas');
+  await expect.poll(() => firstBlock.evaluate(el => {
+    const canvas = el as HTMLCanvasElement, ctx = canvas.getContext('2d')!;
+    return [...ctx.getImageData(Math.floor(canvas.width / 2), Math.round(20 * devicePixelRatio), 1, 1).data];
+  })).toEqual([31, 119, 180, 255]);
+  await f.panel.screenshot({ path: info.outputPath('tab10-light.png') });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(rows.first()).toHaveCSS('background-color', 'rgb(41, 41, 41)');
+  await expect.poll(borders).toEqual(tab10);
+  await f.panel.screenshot({ path: info.outputPath('tab10-dark.png') });
+  await page.emulateMedia({ forcedColors: 'active' });
+  await expect.poll(async () => new Set(await borders()).size).toBe(1);
+});
+
 test('video colors survive hidden handoff and reconnect with full video numbering', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -1136,15 +1166,17 @@ test('event updates preserve unchanged collections and immutable previous snapsh
   const capacity = applyBlockEvent(initial, { ...delta, open: 2 });
   expect(capacity.open).toBe(2);
   expect(capacity.blocks).toBe(initial.blocks); expect(capacity.demands).toBe(initial.demands);
+  expect(capacity.colorPool).toBe(initial.colorPool);
   const reordered = applyBlockEvent(capacity, { ...delta, demands: [{ ...row, position: 1, songID: '84' }] });
   expect(reordered.blocks).toBe(initial.blocks);
   expect(reordered.demands.get(row.id)?.position).toBe(1);
   expect(initial.demands.get(row.id)?.position).toBe(2);
-  expect(reordered.demands.get(row.id)?.colorKey).toBe(initial.demands.get(row.id)?.colorKey);
+  expect(reordered.colorPool).toBe(initial.colorPool);
   const downloaded = applyBlockEvent(reordered, { ...delta, blocks: [{ ...first, state: 'available' }] });
   expect(downloaded.demands).toBe(reordered.demands);
   expect(downloaded.blocks.get(first.id)?.state).toBe('available');
   expect(initial.blocks.get(first.id)?.state).toBe('waiting');
+  expect(downloaded.colorPool).toBe(initial.colorPool);
   const removed = applyBlockEvent(downloaded, { ...delta, removed: [first.id], removedDemands: [row.id] });
   expect(removed.blocks.size).toBe(0); expect(removed.demands.size).toBe(0);
   expect(downloaded.blocks.size).toBe(1); expect(downloaded.demands.size).toBe(1);
@@ -1154,8 +1186,32 @@ test('event updates preserve unchanged collections and immutable previous snapsh
   const formal = demand(2, [], { kind: 'formal', playback: { zeroAt: 1000, endAt: 61000 } });
   const room = applyBlockEvent(undefined, { ...event, blocks: [], demands: [formal] });
   const shared = applyBlockEvent(room, { ...delta, blocks: [{ ...first, songID: '84' }], demands: [formal] });
-  expect(shared.blocks.get(first.id)?.colorKey).toBe('42');
-  expect(shared.demands.get(formal.id)?.colorKey).toBe('42');
+  expect(shared.colorPool).toBe(room.colorPool);
+  expect(shared.colorPool.byResource.get(first.resource)).toBe(0);
+});
+
+test('the color pool rotates when full and only frees a color after its last resource leaves', () => {
+  const rows = Array.from({ length: 14 }, (_, i) => demand(i + 1, [], { kind: 'queue', resource: `video-${i}`, position: i + 1 }));
+  const event: BlockEvent = { at: 1000, running: true, reset: true, capacity: 4096, used: 0, active: 0, open: 1,
+    prepareAheadMS: 500000, downloadGraceMS: 30000, blocks: [], removed: [], demands: rows.slice(0, 9).reverse(), removedDemands: [] };
+  const initial = applyBlockEvent(undefined, event);
+  const delta = { ...event, reset: false, demands: [] };
+  const color = (snapshot: typeof initial, i: number) => snapshot.colorPool.byResource.get(rows[i].resource);
+  expect(rows.slice(0, 9).map((_, i) => color(initial, i))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+
+  const full = applyBlockEvent(initial, { ...delta, demands: rows.slice(9, 11) });
+  expect([color(full, 9), color(full, 10)]).toEqual([0, 1]);
+  const partial = applyBlockEvent(full, { ...delta, removedDemands: [rows[0].id], demands: [rows[11]] });
+  expect(color(partial, 9)).toBe(0);
+  expect(color(partial, 11)).toBe(2);
+
+  const olderRelease = applyBlockEvent(partial, { ...delta, removedDemands: [rows[9].id] });
+  const newerRelease = applyBlockEvent(olderRelease, { ...delta, removedDemands: [rows[4].id] });
+  const refilled = applyBlockEvent(newerRelease, { ...delta, demands: rows.slice(12) });
+  expect([color(refilled, 12), color(refilled, 13)]).toEqual([0, 4]);
+  expect(color(refilled, 1)).toBe(1);
+  expect(color(refilled, 8)).toBe(8);
+  expect(color(initial, 0)).toBe(0);
 });
 
 test('offscreen timeline stops painting while demand events continue and unchanged rows do not repaint', async ({ page }) => {

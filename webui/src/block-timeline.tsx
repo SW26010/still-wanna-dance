@@ -6,7 +6,7 @@ import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { Feedback, StatusBadge, useThemePreference } from './ui';
 import { useApp, useFocusRecovery, useRunToggle } from './hooks';
-import { absoluteTime, blockNeedByDisplay, blockNumber, blockStateNames, needByAt, sourceName, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
+import { absoluteTime, blockNeedByDisplay, blockNumber, blockStateNames, needByAt, sourceName, videoColorCount, videoLabel, type BlockView, type TimelineData } from './block-timeline-model';
 import { useBlockDetail, useBlockStream, useDocumentVisible } from './block-timeline-stream';
 import { blockY, drawTimeline, hitBlocks, indexTimed, timedBetween, timeScale, timelineClipRange, timelineLayout, timelineRange, untimedLayout, type TimelineFrame, type TimelinePalette } from './block-timeline-canvas';
 import { BlockDemandView } from './block-demand-view';
@@ -67,7 +67,7 @@ function readPalette(element: HTMLElement, previous?: TimelinePalette): Timeline
     blue: color('blue'), blueWash: color('blue-wash'), green: color('green'), amber: color('amber'), amberWash: color('amber-wash'),
     selected: color('selected'), onAccent: color('on-accent'),
   };
-  const fills = Array.from({ length: 8 }, (_, i) => color('video-' + i));
+  const fills = Array.from({ length: videoColorCount }, (_, i) => color('video-' + i));
   if (previous && (Object.keys(colors) as (keyof typeof colors)[]).every(key => colors[key] === previous[key]) &&
       fills.every((fill, i) => fill === previous.videos[i].fill)) return previous;
 

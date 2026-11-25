@@ -1,7 +1,7 @@
 export type BlockState = 'waiting' | 'downloading' | 'available' | 'protected' | 'stopping';
 interface RollingTime { rollingBase?: number; rollingOffset?: number }
 export interface BlockView extends RollingTime {
-  id: string; resource: string; songID: string; colorKey?: string; block: number; byteOffset: number; totalBlocks: number; bytes: number; title: string;
+  id: string; resource: string; songID: string; block: number; byteOffset: number; totalBlocks: number; bytes: number; title: string;
   at: number; timeBasis: 'need-by' | 'last-need-by' | 'ended' | 'untimed';
   needBy: number; deadline: number; protectionStart: number; protectionUntil: number;
   fixedNeedBy?: number;
@@ -20,7 +20,7 @@ export interface BlockAvailability {
 }
 export interface BlockDemand {
   id: string; sourceID: number; kind: BlockSource['kind']; songID: string; title: string;
-  position: number; resource: string; colorKey?: string; totalBlocks: number; blocks: string[];
+  position: number; resource: string; totalBlocks: number; blocks: string[];
   gameSongID?: string; playback?: PlaybackClock;
 }
 export interface BlockEvent {
@@ -33,36 +33,70 @@ export interface BlockEvent {
 export interface TimelineData extends Omit<BlockEvent, 'blocks' | 'removed' | 'reset' | 'demands' | 'removedDemands' | 'availability' | 'removedAvailability'> {
   blocks: Map<string, BlockView>; demands: Map<string, BlockDemand>; demandRows: BlockDemand[]; receivedAt: number;
   availability: Map<string, BlockAvailability>;
+  colorPool: VideoColorPool;
 }
-export function applyBlockEvent(previous: TimelineData | undefined, event: BlockEvent): TimelineData {
-  // Keep the first assigned color for each visible video, including reconnects
-  // and changes in its song/source metadata. No history outlives the view data.
-  let colors: Map<string, string> | undefined;
-  const colorKey = (video: { resource: string; songID: string }) => {
-    if (!colors) {
-      colors = new Map();
-      for (const demand of previous?.demands.values() || []) colors.set(demand.resource, demand.colorKey || demand.songID || demand.resource);
-      for (const block of previous?.blocks.values() || []) colors.set(block.resource, block.colorKey || block.songID || block.resource);
-    }
-    if (!colors.has(video.resource)) colors.set(video.resource, video.songID || video.resource);
-    return colors.get(video.resource)!;
+export const videoColorCount = 9;
+interface VideoColorPool {
+  order: readonly number[];
+  byResource: ReadonlyMap<string, number>;
+}
+const initialColorPool: VideoColorPool = {
+  order: Array.from({ length: videoColorCount }, (_, index) => index),
+  byResource: new Map(),
+};
+
+function updateColorPool(previous: VideoColorPool, rows: BlockDemand[], blocks: Iterable<BlockView>): VideoColorPool {
+  const resources = new Set(rows.map(row => row.resource));
+  for (const block of blocks) resources.add(block.resource);
+  if (resources.size === previous.byResource.size && [...resources].every(resource => previous.byResource.has(resource))) return previous;
+
+  const byResource = new Map(previous.byResource), order = [...previous.order];
+  const occupied = new Set<number>(), released = new Set<number>();
+  const moveToBack = (color: number) => {
+    order.splice(order.indexOf(color), 1);
+    order.push(color);
   };
+  for (const [resource, color] of byResource) {
+    if (resources.has(resource)) {
+      occupied.add(color);
+    } else {
+      byResource.delete(resource);
+      released.add(color);
+    }
+  }
+  // Preserve the prior order for colors released in the same snapshot.
+  for (const color of previous.order) {
+    if (released.has(color) && !occupied.has(color)) moveToBack(color);
+  }
+  for (const resource of resources) {
+    if (byResource.has(resource)) continue;
+    const color = order.find(index => !occupied.has(index)) ?? order[0];
+    byResource.set(resource, color);
+    occupied.add(color);
+    moveToBack(color);
+  }
+  return { order, byResource };
+}
+
+export function applyBlockEvent(previous: TimelineData | undefined, event: BlockEvent): TimelineData {
   const blocks = event.reset || !previous || event.blocks.length || event.removed.length
     ? new Map<string, BlockView>(event.reset ? undefined : previous?.blocks) : previous.blocks;
   for (const id of event.removed) blocks.delete(id);
-  for (const block of event.blocks) blocks.set(block.id, { ...block, colorKey: colorKey(block) });
+  for (const block of event.blocks) blocks.set(block.id, block);
   const demands = event.reset || !previous || event.demands?.length || event.removedDemands?.length
     ? new Map<string, BlockDemand>(event.reset ? undefined : previous?.demands) : previous.demands;
   for (const id of event.removedDemands || []) demands.delete(id);
-  for (const demand of event.demands || []) demands.set(demand.id, { ...demand, colorKey: colorKey(demand) });
+  for (const demand of event.demands || []) demands.set(demand.id, demand);
   const demandRows = previous && previous.demands === demands
     ? previous.demandRows : projectDemandRows(demands, previous?.demandRows);
+  const colorPool = previous && previous.blocks === blocks && previous.demandRows === demandRows
+    ? previous.colorPool : updateColorPool(previous?.colorPool ?? initialColorPool, demandRows, blocks.values());
   const availabilityUpdates = Object.entries(event.availability ?? {});
   const availability = event.reset || !previous || availabilityUpdates.length || event.removedAvailability?.length
     ? new Map(event.reset ? undefined : previous?.availability) : previous.availability;
   for (const resource of event.removedAvailability ?? []) availability.delete(resource);
   for (const [resource, view] of availabilityUpdates) availability.set(resource, view);
-  return { ...event, blocks, demands, demandRows, availability, receivedAt: performance.now() };
+  return { ...event, blocks, demands, demandRows, colorPool, availability, receivedAt: performance.now() };
 }
 
 function projectDemandRows(demands: Map<string, BlockDemand>, previous: BlockDemand[] | undefined) {

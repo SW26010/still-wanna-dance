@@ -2306,6 +2306,13 @@
       "bytes": 1332014,
       "sha256": "6c155f8834a3978d8cdae5fe7991a7beb30c878a8170e5c28492afbc7f875a13",
       "reason": "离线 WebUI 在需求行名称前显示已知歌曲 ID。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1332318,
+      "sha256": "00d81b49d42591cc9da67e3e3df8ea23d886c16b621019dd6f85643babb0729d",
+      "reason": "离线 WebUI 通过共享九色池为视频资源分配稳定的需求视图和时间轴颜色。"
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Caption1, ProgressBar, Text } from '@fluentui/react-components';
 import { demandLabel, videoLabel, type BlockAvailability, type BlockDemand, type BlockView, type PlaybackClock, type TimelineData } from './block-timeline-model';
-import { drawBlock, videoColor, type TimelinePalette } from './block-timeline-canvas';
+import { drawBlock, type TimelinePalette } from './block-timeline-canvas';
 import { useFocusRecovery } from './hooks';
 
 type Props = {
@@ -92,6 +92,7 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
   const pitch = Math.max(0, width - 24 - props.size) / Math.max(1, videoBlocks - 1);
   const inset = videoBlocks > 1 ? 12 : (width - props.size) / 2;
   const height = props.size + 18; // 12 px above for the reader dot, 6 px below for selection.
+  const videoIndex = props.data.colorPool.byResource.get(demand.resource)!;
   const title = demand.songID && demand.title ? `${demand.songID} · ${demand.title}` : videoLabel(demand);
   const playback = demand.playback;
   const availability = props.data.availability.get(demand.resource);
@@ -128,11 +129,11 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
       for (let i = blocks.length - 1; i >= 0; i--) {
         const block = blocks[i], x = inset + block.block * pitch;
-        drawBlock(ctx, block, x, 12, props.size, props.palette, block.id === props.selected);
+        drawBlock(ctx, block, videoIndex, x, 12, props.size, props.palette, block.id === props.selected);
       }
     };
     repaint.current(true);
-  }, [blocks, width, height, pitch, inset, props.size, props.palette, props.selected]);
+  }, [blocks, width, height, pitch, inset, videoIndex, props.size, props.palette, props.selected]);
   useLayoutEffect(() => { repaint.current(); });
   const pointer = (event: MouseEvent<HTMLCanvasElement>, pinned: boolean) => {
     if (!props.active) return;
@@ -142,7 +143,7 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
     props.onPick(hits, event.clientX, event.clientY, pinned, event.currentTarget);
   };
   return <div className="demand-row-slot" role="listitem" aria-posinset={position} aria-setsize={total}>
-    <div className="demand-row" data-demand-id={demand.id} style={{ borderColor: videoColor(demand, props.palette) }}>
+    <div className="demand-row" data-demand-id={demand.id} style={{ borderColor: props.palette.videos[videoIndex].fill }}>
       <div className="demand-row-heading">
         <Caption1 className="demand-source">{demandLabel(demand)}</Caption1>
         <div className="demand-video-heading">

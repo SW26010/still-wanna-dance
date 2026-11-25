@@ -92,7 +92,7 @@ function DemandRow({ demand, position, total, ...props }: Props & { demand: Bloc
   const pitch = Math.max(0, width - 24 - props.size) / Math.max(1, videoBlocks - 1);
   const inset = videoBlocks > 1 ? 12 : (width - props.size) / 2;
   const height = props.size + 18; // 12 px above for the reader dot, 6 px below for selection.
-  const title = videoLabel(demand);
+  const title = demand.songID && demand.title ? `${demand.songID} · ${demand.title}` : videoLabel(demand);
   const playback = demand.playback;
   const availability = props.data.availability.get(demand.resource);
   const percent = availability && Math.floor(100 * availability.availableBytes / availability.totalBytes);

@@ -2299,6 +2299,13 @@
       "bytes": 1331460,
       "sha256": "ab43d0648a16a1532ce80bb29eae85224ef713ae5c49c8205f841aa04ba84a6b",
       "reason": "离线 WebUI 在条款确认页报告同意记录读取失败，并保留确认重试入口。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1332014,
+      "sha256": "6c155f8834a3978d8cdae5fe7991a7beb30c878a8170e5c28492afbc7f875a13",
+      "reason": "离线 WebUI 在需求行名称前显示已知歌曲 ID。"
     }
   ]
 }

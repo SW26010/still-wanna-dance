@@ -285,6 +285,21 @@ test('removed demand rows restore focus to their region without stealing outside
   await expect(region.locator('canvas')).toHaveCount(0); await expect(outside).toBeFocused();
 });
 
+test('demand titles prefix the song ID and handle missing metadata', async ({ page }) => {
+  const f = await setup(page, 1);
+  await f.emit({ demands: [
+    demand(1, f.blocks, { kind: 'formal', playback: { zeroAt: f.at, endAt: f.at + 60000 } }),
+    demand(2, f.blocks, { songID: '', title: '直链视频', gameSongID: undefined }),
+    demand(3, f.blocks, { songID: '', title: '', gameSongID: undefined }),
+    demand(4, f.blocks, { kind: 'queue', position: 2, songID: '84' }),
+    demand(5, f.blocks, { kind: 'batch', title: '' }),
+  ] });
+  const titles = f.panel.locator('.demand-video-title');
+  await expect(titles).toHaveText(['42 · 星河 · 测试歌曲', '直链视频', '视频 fixture-reso', '84 · 星河 · 测试歌曲', '歌曲 42']);
+  await expect(titles.nth(3)).toHaveAttribute('title', '84 · 星河 · 测试歌曲');
+  await expect(f.panel.locator('.demand-block-canvas').nth(3)).toHaveAccessibleName(/^队列 #2，84 · 星河 · 测试歌曲，/);
+});
+
 test('demand rows hide handoffs and only suppress the same song at the queue head while GET is active', async ({ page }, info) => {
   const f = await setup(page);
   const queue = demand(1, f.blocks, { kind: 'queue', position: 1 });
@@ -842,7 +857,7 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`demand l
   await page.screenshot({ path: info.outputPath('page-scroll-demand-list.png') });
   // Removing most rows lets the browser shrink the page and restore its scroll.
   await f.emit({ removedDemands: [...rows.slice(3).map(row => row.id), previous!.id], used: 2 });
-  await expect(list.locator('.demand-row-heading')).toHaveText([/队列 #1\D/, /队列 #2\D/, /队列 #3\D/]);
+  await expect(list.locator('.demand-source')).toHaveText(['队列 #1', '队列 #2', '队列 #3']);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   const compact = await rowBounds();
   expect(compact.overflowing).toBe(false);

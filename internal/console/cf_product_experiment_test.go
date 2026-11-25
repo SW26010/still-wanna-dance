@@ -365,7 +365,7 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 			return []http.RoundTripper{historyTransport, base}
 		}
 		var trs []http.RoundTripper
-		for _, selected := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
+		for _, selected := range c.operationSelections(ctx, upstreamstate.Resource, upstreamstate.Constraints{Target: target}) {
 			trs = append(trs, selected.Channel.Transport)
 		}
 		if len(trs) == 0 {
@@ -393,7 +393,7 @@ func cfProductRun(ctx context.Context, network *cfNetwork, root string, s *cfPro
 			previousFiles = len(s.Tasks[len(s.Tasks)-1].Files)
 		}
 		r := cfProductTask{Song: song, Started: time.Now()}
-		for _, selected := range c.operationSelections(upstreamstate.Resource, upstreamstate.Constraints{Target: "https://" + cfexpHost}) {
+		for _, selected := range c.operationSelections(ctx, upstreamstate.Resource, upstreamstate.Constraints{Target: "https://" + cfexpHost}) {
 			r.Selections = append(r.Selections, selected.Channel.IP)
 		}
 		if historyTransport != nil {

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -140,8 +141,8 @@ func TestPinnedCandidateRefreshesExpiredDNSWithoutChangingIP(t *testing.T) {
 	}
 }
 
-func TestPinnedAddressRespectsPresetPort(t *testing.T) {
-	dns := &testDNS{addresses: []Address{{IP: "2001:db8::1", Port: "443"}}}
+func TestPinnedAddressRespectsPresetEndpoint(t *testing.T) {
+	dns := &testDNS{addresses: []Address{{IP: "2001:db8::1", Allows: func(u *url.URL) bool { return requestPort(u) == "443" && u.Path == "/list" }}}}
 	dialErr := errors.New("fixed dial")
 	p, err := NewDirectPool(dns, func(_ context.Context, _, address string) (net.Conn, error) {
 		if address != "[2001:db8::1]:443" {
@@ -164,6 +165,7 @@ func TestPinnedAddressRespectsPresetPort(t *testing.T) {
 	}{
 		{"http://example.com/play", ErrUnavailable},
 		{"https://example.com:8443/list", ErrUnavailable},
+		{"https://example.com/play", ErrUnavailable},
 		{target, dialErr},
 	} {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tc.url, nil)

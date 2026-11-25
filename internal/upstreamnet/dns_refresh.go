@@ -5,6 +5,8 @@ import (
 	"errors"
 	"slices"
 	"time"
+
+	"still-wanna-dance/internal/catalogmeta"
 )
 
 // DNSPolicy controls the existing resolver's refresh behavior, without changing
@@ -137,10 +139,10 @@ func (d *Resolver) queryLocked(host string, s *dnsState) *dnsLookup {
 	return call
 }
 
-// NoteCandidateUse keeps discovery active for the configured resource host
+// NoteCandidateUse keeps discovery active for the configured preset hosts
 // while requests use fixed IPs. An idle query resumes without delaying the request.
 func (d *Resolver) NoteCandidateUse(host string) {
-	if !d.presets || host != playUdonDanceHost {
+	if !d.presets || (host != playUdonDanceHost && host != catalogmeta.UdonHost) {
 		return
 	}
 	d.mu.Lock()

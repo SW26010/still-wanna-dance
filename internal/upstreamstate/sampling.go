@@ -12,10 +12,10 @@ import (
 // Internal probe budgets. Business request limits and recommendation thresholds
 // are independent of how the monitor gathers its observations.
 const (
-	catalogParallel       = 4
-	catalogAttempts       = 16
-	catalogSuccesses      = 3
-	catalogExploreTimeout = 7500 * time.Millisecond
+	probeParallel       = 4
+	probeAttempts       = 16
+	probeSuccesses      = 3
+	probeExploreTimeout = 7500 * time.Millisecond
 )
 
 type probeChoice struct {
@@ -24,14 +24,14 @@ type probeChoice struct {
 	timeout  time.Duration
 }
 
-func (m *Monitor) sampleCatalog(ctx context.Context, route string, cs []upstreamrequest.Candidate, timeout time.Duration, probe func(context.Context, int) bool) {
+func (m *Monitor) sampleRoutes(ctx context.Context, op Operation, route string, cs []upstreamrequest.Candidate, timeout time.Duration, probe func(context.Context, int) bool) {
 	var plan []probeChoice
 	target := len(cs)
-	if len(cs) > catalogParallel && m.experimentProbe == nil {
-		plan = m.catalogProbePlan(route, cs, timeout)
-		target = catalogSuccesses
+	if len(cs) > probeParallel && m.experimentProbe == nil {
+		plan = m.probePlan(op, route, cs, timeout)
+		target = probeSuccesses
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout+min(timeout, catalogExploreTimeout))
+		ctx, cancel = context.WithTimeout(ctx, timeout+min(timeout, probeExploreTimeout))
 		defer cancel()
 	} else {
 		// Small pools fit in one wave. Offline experiments compare every path.
@@ -39,7 +39,7 @@ func (m *Monitor) sampleCatalog(ctx context.Context, route string, cs []upstream
 			plan = append(plan, probeChoice{index: i, timeout: timeout})
 		}
 	}
-	runProbeSample(ctx, plan, catalogParallel, target, func(ctx context.Context, choice probeChoice) bool {
+	runProbeSample(ctx, plan, probeParallel, target, func(ctx context.Context, choice probeChoice) bool {
 		if choice.timeout < timeout {
 			// Ending exploration cancels this sample. Only a full attempt
 			// or an earlier transport failure provides a timeout observation.
@@ -54,7 +54,7 @@ func (m *Monitor) sampleCatalog(ctx context.Context, route string, cs []upstream
 // Generate a weighted permutation without replacement. Each candidate has an
 // exploration weight of one; fresh successes share an additional pool of equal
 // total weight in proportion to their measured speed.
-func (m *Monitor) catalogProbePlan(route string, cs []upstreamrequest.Candidate, timeout time.Duration) []probeChoice {
+func (m *Monitor) probePlan(op Operation, route string, cs []upstreamrequest.Candidate, timeout time.Duration) []probeChoice {
 	now := time.Now()
 	plan := make([]probeChoice, len(cs))
 	speeds := make([]float64, len(cs))
@@ -62,9 +62,9 @@ func (m *Monitor) catalogProbePlan(route string, cs []upstreamrequest.Candidate,
 	leader := -1
 	m.mu.Lock()
 	for i, c := range cs {
-		key := string(Catalog) + "/" + route + "/" + c.ID
-		r := m.resultKeyLocked(Catalog, route, key, now)
-		plan[i] = probeChoice{index: i, timeout: min(timeout, catalogExploreTimeout)}
+		key := string(op) + "/" + route + "/" + c.ID
+		r := m.resultKeyLocked(op, route, key, now)
+		plan[i] = probeChoice{index: i, timeout: min(timeout, probeExploreTimeout)}
 		if !recommendable(r) {
 			continue
 		}
@@ -73,7 +73,7 @@ func (m *Monitor) catalogProbePlan(route string, cs []upstreamrequest.Candidate,
 		// Give a previously successful path time to repeat its full read.
 		repeat := time.Duration(2 * *r.ProbeDurationMS * float64(time.Millisecond))
 		plan[i].timeout = max(plan[i].timeout, min(timeout, repeat))
-		if pref := m.preferences[Catalog]; pref != nil && pref.current == route+"/"+c.ID {
+		if pref := m.preferences[op]; pref != nil && pref.current == route+"/"+c.ID {
 			leader = i
 		}
 	}
@@ -89,7 +89,7 @@ func (m *Monitor) catalogProbePlan(route string, cs []upstreamrequest.Candidate,
 		}
 	}
 	sort.Slice(plan, func(i, j int) bool { return plan[i].priority < plan[j].priority })
-	plan = plan[:min(len(plan), catalogAttempts)]
+	plan = plan[:min(len(plan), probeAttempts)]
 	// Give two independent paths in the first wave a full read budget.
 	// When a leader exists it takes the first slot, leaving one for a fallback.
 	for i := range plan[:2] {

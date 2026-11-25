@@ -3,6 +3,7 @@ package upstreamrequest
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,8 +15,8 @@ import (
 
 type Address struct {
 	IP      string
-	Expires time.Time // Zero for a built-in address without a DNS lease.
-	Port    string    // Empty for addresses available on any port.
+	Expires time.Time           // Zero for a built-in address without a DNS lease.
+	Allows  func(*url.URL) bool `json:"-"` // Nil when eligible for every target on the host.
 }
 type DNSPool interface {
 	Addresses(context.Context, string) ([]Address, error)
@@ -76,12 +77,12 @@ func NewPool(dns DNSPool) (*Pool, error) {
 	}
 	return &Pool{dns: dns, transports: make(map[string]*http.Transport)}, nil
 }
-func targetEndpoint(target string) (host, port string) {
+func targetEndpoint(target string) *url.URL {
 	u, err := url.Parse(target)
-	if err != nil || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return "", ""
+	if err != nil || u.Hostname() == "" || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return nil
 	}
-	return strings.ToLower(u.Hostname()), requestPort(u)
+	return u
 }
 
 func requestPort(u *url.URL) string {
@@ -95,50 +96,62 @@ func requestPort(u *url.URL) string {
 }
 
 func (p *Pool) Candidates(ctx context.Context, target string) ([]Candidate, error) {
-	host, port := targetEndpoint(target)
-	if host == "" {
+	u := targetEndpoint(target)
+	if u == nil {
 		return nil, errors.New("invalid channel target")
 	}
-	_, err := p.dns.Addresses(ctx, host)
-	return p.current(host, port), err
+	_, err := p.dns.Addresses(ctx, strings.ToLower(u.Hostname()))
+	return p.current(u), err
 }
 func (p *Pool) Changed() <-chan struct{} {
 	return p.dns.DNSChanged()
 }
 func (p *Pool) Current(target string) []Candidate {
-	host, port := targetEndpoint(target)
-	if host == "" {
+	u := targetEndpoint(target)
+	if u == nil {
 		return nil
 	}
-	return p.current(host, port)
+	return p.current(u)
 }
 
-func (p *Pool) current(host, port string) []Candidate {
+// OrderByFamily interleaves candidates in place, starting with IPv6.
+// When sampling a subset, shuffle peers within each family first.
+func OrderByFamily(cs []Candidate, shuffle bool) {
+	var v6, v4 []Candidate
+	for _, c := range cs {
+		if net.ParseIP(c.IP).To4() != nil {
+			v4 = append(v4, c)
+		} else {
+			v6 = append(v6, c)
+		}
+	}
+	if shuffle {
+		for _, family := range [][]Candidate{v6, v4} {
+			rand.Shuffle(len(family), func(i, j int) { family[i], family[j] = family[j], family[i] })
+		}
+	}
+	ordered := cs[:0]
+	for i := 0; i < max(len(v6), len(v4)); i++ {
+		if i < len(v6) {
+			ordered = append(ordered, v6[i])
+		}
+		if i < len(v4) {
+			ordered = append(ordered, v4[i])
+		}
+	}
+}
+
+func (p *Pool) current(u *url.URL) []Candidate {
+	host := strings.ToLower(u.Hostname())
 	addresses := p.dns.CurrentAddresses(host)
 	now := time.Now()
 	var cs []Candidate
-	{
-		var v4, v6 []Candidate
-		for _, a := range addresses {
-			if a.available(port, now) {
-				c := Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires}
-				if net.ParseIP(a.IP).To4() != nil {
-					v4 = append(v4, c)
-				} else {
-					v6 = append(v6, c)
-				}
-			}
-		}
-		// Interleave both families for unmeasured requests.
-		for i := 0; i < max(len(v4), len(v6)); i++ {
-			if i < len(v6) {
-				cs = append(cs, v6[i])
-			}
-			if i < len(v4) {
-				cs = append(cs, v4[i])
-			}
+	for _, a := range addresses {
+		if a.available(u, now) {
+			cs = append(cs, Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires})
 		}
 	}
+	OrderByFamily(cs, false)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.closed {
@@ -162,7 +175,11 @@ func (p *Pool) current(host, port string) []Candidate {
 				if err != nil || !strings.EqualFold(h, c.Host) {
 					return nil, errors.New("channel host mismatch")
 				}
-				if err := p.ensureUsable(ctx, c, port); err != nil {
+				target, ok := ctx.Value(candidateTargetKey{}).(*url.URL)
+				if !ok || requestPort(target) != port {
+					return nil, ErrUnavailable
+				}
+				if err := p.ensureUsable(ctx, c, target); err != nil {
 					return nil, err
 				}
 				if p.directDial != nil {
@@ -181,11 +198,11 @@ func (a Address) valid(now time.Time) bool {
 	return a.Expires.IsZero() || now.Before(a.Expires)
 }
 
-func (a Address) available(port string, now time.Time) bool {
-	return (a.Port == "" || a.Port == port) && a.valid(now)
+func (a Address) available(u *url.URL, now time.Time) bool {
+	return (a.Allows == nil || a.Allows(u)) && a.valid(now)
 }
 
-func (p *Pool) usable(c Candidate, port string) bool {
+func (p *Pool) usable(c Candidate, u *url.URL) bool {
 	p.mu.Lock()
 	closed := p.closed
 	p.mu.Unlock()
@@ -194,14 +211,14 @@ func (p *Pool) usable(c Candidate, port string) bool {
 	}
 	now := time.Now()
 	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool {
-		return a.IP == c.IP && a.available(port, now)
+		return a.IP == c.IP && a.available(u, now)
 	})
 }
 
 // Revalidate the same IP through the shared resolver. A failed lookup does not
 // renew an expired DNS lease. A built-in IP can still be available.
-func (p *Pool) ensureUsable(ctx context.Context, c Candidate, port string) error {
-	if p.usable(c, port) {
+func (p *Pool) ensureUsable(ctx context.Context, c Candidate, u *url.URL) error {
+	if p.usable(c, u) {
 		return nil
 	}
 	p.mu.Lock()
@@ -214,11 +231,14 @@ func (p *Pool) ensureUsable(ctx context.Context, c Candidate, port string) error
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	if err != nil || !p.usable(c, port) {
+	if err != nil || !p.usable(c, u) {
 		return ErrUnavailable
 	}
 	return nil
 }
+
+// The shared host/IP transport rechecks the actual request target when dialing.
+type candidateTargetKey struct{}
 
 type candidateTransport struct {
 	pool      *Pool
@@ -232,13 +252,13 @@ func (t *candidateTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 	if !strings.EqualFold(r.URL.Hostname(), t.candidate.Host) {
 		return nil, ErrUnavailable
 	}
-	if err := t.pool.ensureUsable(r.Context(), t.candidate, requestPort(r.URL)); err != nil {
+	if err := t.pool.ensureUsable(r.Context(), t.candidate, r.URL); err != nil {
 		return nil, err
 	}
 	if observer, ok := t.pool.dns.(candidateUseObserver); ok && r.Context().Err() == nil {
 		observer.NoteCandidateUse(t.candidate.Host)
 	}
-	return t.transport.RoundTrip(r)
+	return t.transport.RoundTrip(r.WithContext(context.WithValue(r.Context(), candidateTargetKey{}, r.URL)))
 }
 func (p *Pool) CloseIdleConnections() {
 	p.mu.Lock()

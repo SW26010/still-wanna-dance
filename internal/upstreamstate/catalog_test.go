@@ -18,7 +18,7 @@ func TestColdCatalogKeepsFieldErrorForSync(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		bad := strings.Replace(catalogFixture, `"id":42`, `"id":42,"volume":"bad"`, 1)
 		ch := upstreamrequest.NewChannel()
-		ch.Publish(catalogTestPool{
+		ch.Publish(samplingTestPool{entry(Catalog, "api"): {
 			{ID: "invalid", Mode: "direct", Transport: transportFunc(func(*http.Request) (*http.Response, error) {
 				return response(200, bad), nil
 			})},
@@ -26,7 +26,7 @@ func TestColdCatalogKeepsFieldErrorForSync(t *testing.T) {
 				time.Sleep(time.Second)
 				return response(503, ""), nil
 			})},
-		})
+		}})
 		m, err := NewMonitor(Options{Channel: ch})
 		if err != nil {
 			t.Fatal(err)

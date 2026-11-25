@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -91,4 +93,53 @@ func TestResolverWithoutChannelsReturnsUnavailable(t *testing.T) {
 	if _, err := resolver.Resolve(context.Background(), 42); err == nil {
 		t.Fatal("accepted missing channels")
 	}
+}
+
+func TestResolverSlowValidPathSurvivesOtherCandidates(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const location = "https://play.udon.dance/files/1/42-video.mp4?e=00000000000000000000000000000000&s=1"
+		var active atomic.Int32
+		var attempts atomic.Int32
+		var paths []*http.Client
+		for i := range 6 {
+			paths = append(paths, client("test", func(r *http.Request) (*http.Response, error) {
+				active.Add(1)
+				defer active.Add(-1)
+				attempts.Add(1)
+				if i == 0 {
+					select {
+					case <-time.After(3 * time.Second):
+						return &http.Response{StatusCode: 302, Header: http.Header{"Location": {location}}, Body: http.NoBody}, nil
+					case <-r.Context().Done():
+						return nil, r.Context().Err()
+					}
+				}
+				<-r.Context().Done()
+				return nil, r.Context().Err()
+			}))
+		}
+		resolver := Resolver{MaxFileBytes: 1024, AttemptTimeout: 10 * time.Second, Clients: func(context.Context, string) []*http.Client { return paths }}
+		address, err := resolver.Resolve(t.Context(), 42)
+		if err != nil || address.URL != location || attempts.Load() != 2 || active.Load() != 0 {
+			t.Fatalf("err=%v attempts=%d active=%d", err, attempts.Load(), active.Load())
+		}
+	})
+}
+
+func TestResolverDiscoveryAndReadsShareDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		start := time.Now()
+		path := client("slow", func(r *http.Request) (*http.Response, error) {
+			<-r.Context().Done()
+			return nil, r.Context().Err()
+		})
+		resolver := Resolver{AttemptTimeout: 10 * time.Second, Clients: func(context.Context, string) []*http.Client {
+			time.Sleep(4 * time.Second)
+			return []*http.Client{path}
+		}}
+		_, err := resolver.Resolve(t.Context(), 42)
+		if !errors.Is(err, context.DeadlineExceeded) || time.Since(start) != resolver.AttemptTimeout {
+			t.Fatalf("elapsed=%s err=%v", time.Since(start), err)
+		}
+	})
 }

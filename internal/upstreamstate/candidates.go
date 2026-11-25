@@ -236,7 +236,7 @@ func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) 
 		results := m.candidateResultsLocked(op, provider, time.Now())
 		// A sampled pool can intentionally leave healthy alternatives untouched.
 		// Scheduling each of their expirations would repeatedly wake the monitor.
-		if op == Catalog && len(results) > catalogParallel && m.experimentProbe == nil {
+		if len(results) > probeParallel && m.experimentProbe == nil {
 			winner := m.selectResultsLocked(op, Constraints{}, results, provider, 1)
 			if len(winner) == 0 {
 				continue

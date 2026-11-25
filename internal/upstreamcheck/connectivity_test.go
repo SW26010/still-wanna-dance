@@ -2,6 +2,7 @@ package upstreamcheck
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -11,7 +12,30 @@ import (
 
 	"still-wanna-dance/internal/cacheproxy"
 	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/playbacksource"
 )
+
+func TestPlaybackDeadlineKeepsCompletedHTTPFailure(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		stalled := requestClient(transportFunc(func(req *http.Request) (*http.Response, error) {
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		}))
+		restricted := requestClient(transportFunc(func(*http.Request) (*http.Response, error) {
+			return response(http.StatusTooManyRequests, ""), nil
+		}))
+		policy := DefaultPolicy()
+		policy.RequestTimeout = 10 * time.Second
+		start := time.Now()
+		r, sample, address := ProbePlayback(t.Context(), []*http.Client{stalled, restricted}, policy, 42, playbacksource.Entries()[0])
+		if r.State != "restricted" || r.HTTP != http.StatusTooManyRequests || !r.Responded || r.Latency != 5*time.Second || !r.ObservedAt.Equal(start.Add(r.Latency)) {
+			t.Fatalf("lost completed HTTP response: %+v", r)
+		}
+		if !errors.Is(r.Err, context.DeadlineExceeded) || r.Duration != policy.RequestTimeout || sample != nil || address.URL != "" {
+			t.Fatalf("wrong query outcome: %+v", r)
+		}
+	})
+}
 
 func TestConnectivityCatalogParallelSelection(t *testing.T) {
 	for _, scenario := range []string{"primary", "backup-first", "primary-failed", "primary-invalid", "backup-tie", "all-failed", "local-error", "cancel"} {

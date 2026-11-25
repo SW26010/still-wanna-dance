@@ -3,11 +3,12 @@ package upstreamnet
 import (
 	"context"
 	"math/rand/v2"
-	"slices"
+	"net/url"
 	"sort"
 	"time"
 
 	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
@@ -23,6 +24,17 @@ var udonCatalogIPs = [...]string{
 	"104.17.243.18",
 	"2606:4700:20::681a:bde0",
 	"2606:4700:20::681a:e7b8",
+}
+
+// Playback API and download presets are maintained independently.
+var udonPlaybackIPs = [...]string{
+	"162.159.146.57",
+	"104.17.189.246",
+	"104.18.44.195",
+	"104.17.215.188",
+	"104.17.98.249",
+	"104.17.28.204",
+	"104.17.122.21",
 }
 
 var playUdonDanceIPs = [...]string{
@@ -54,21 +66,35 @@ func (d *Resolver) CurrentAddresses(host string) []upstreamrequest.Address {
 	}
 	switch host {
 	case playUdonDanceHost:
-		result = addPresets(result, playUdonDanceIPs[:], "")
+		result = addPresets(result, playUdonDanceIPs[:], nil)
 		// Give tied candidates beyond the attempt limit a chance to be used.
 		if len(result) > upstreamrequest.MaxOperationCandidates {
 			rand.Shuffle(len(result), func(i, j int) { result[i], result[j] = result[j], result[i] })
 		}
 	case catalogmeta.UdonHost:
-		result = addPresets(result, udonCatalogIPs[:], "443")
+		result = addPresets(result, udonCatalogIPs[:], func(u *url.URL) bool {
+			return u.Scheme == "https" && (u.Port() == "" || u.Port() == "443")
+		})
+		result = addPresets(result, udonPlaybackIPs[:], func(u *url.URL) bool {
+			return u.Scheme == "http" && (u.Port() == "" || u.Port() == "80") && u.EscapedPath() == playbacksource.Path
+		})
 	}
 	return result
 }
 
-func addPresets(result []upstreamrequest.Address, ips []string, port string) []upstreamrequest.Address {
+func addPresets(result []upstreamrequest.Address, ips []string, allows func(*url.URL) bool) []upstreamrequest.Address {
+	seen := make(map[string]bool, len(result)+len(ips))
+	for _, a := range result {
+		// A DNS lease covers every endpoint. A preset for a different
+		// endpoint leaves this IP eligible for the list being added.
+		if a.Allows == nil {
+			seen[a.IP] = true
+		}
+	}
 	for _, ip := range ips {
-		if !slices.ContainsFunc(result, func(a upstreamrequest.Address) bool { return a.IP == ip }) {
-			result = append(result, upstreamrequest.Address{IP: ip, Port: port})
+		if !seen[ip] {
+			result = append(result, upstreamrequest.Address{IP: ip, Allows: allows})
+			seen[ip] = true
 		}
 	}
 	return result

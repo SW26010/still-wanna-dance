@@ -13,28 +13,29 @@ import (
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-type catalogTestPool []upstreamrequest.Candidate
+type samplingTestPool map[string][]upstreamrequest.Candidate
 
-func (p catalogTestPool) Changed() <-chan struct{} { return nil }
-func (p catalogTestPool) Current(target string) []upstreamrequest.Candidate {
-	if target == entry(Catalog, "api") {
-		return p
-	}
-	return nil
+func (p samplingTestPool) Changed() <-chan struct{} { return nil }
+func (p samplingTestPool) Current(target string) []upstreamrequest.Candidate {
+	return p[target]
 }
-func (p catalogTestPool) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
+func (p samplingTestPool) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
 	return p.Current(target), nil
 }
 
-func sampledMonitor(t *testing.T, request func(int, *http.Request) (*http.Response, error)) *Monitor {
+func sampledMonitor(t *testing.T, request func(int, *http.Request) (*http.Response, error), extraTargets ...string) *Monitor {
 	t.Helper()
-	var pool catalogTestPool
+	var paths []upstreamrequest.Candidate
 	for i := range 100 {
-		pool = append(pool, upstreamrequest.Candidate{ID: strconv.Itoa(i), Mode: "direct", Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+		paths = append(paths, upstreamrequest.Candidate{ID: strconv.Itoa(i), Mode: "direct", Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
 			return request(i, r)
 		})})
 	}
 	channel := upstreamrequest.NewChannel()
+	pool := samplingTestPool{entry(Catalog, "api"): paths}
+	for _, target := range extraTargets {
+		pool[target] = paths
+	}
 	channel.Publish(pool)
 	m, err := NewMonitor(Options{Channel: channel})
 	if err != nil {
@@ -87,7 +88,7 @@ func TestCatalogSamplingPublishesEarlyAndRenewsWinner(t *testing.T) {
 			if err := <-done; err != nil {
 				t.Fatal(err)
 			}
-			if len(seen) < catalogSuccesses || len(seen) > catalogSuccesses+catalogParallel-1 || peak != catalogParallel || running != 0 {
+			if len(seen) < probeSuccesses || len(seen) > probeSuccesses+probeParallel-1 || peak != probeParallel || running != 0 {
 				t.Fatalf("round %d probed %d, peak %d, running %d", round, len(seen), peak, running)
 			}
 			if time.Since(started) > 4*time.Second {
@@ -123,7 +124,7 @@ func TestCatalogSamplingBoundsUnusablePool(t *testing.T) {
 						t.Fatalf("unexpected state %q", r.State)
 					}
 				}
-				if failures == 0 || failures > catalogAttempts || (!stalled && failures != catalogAttempts) {
+				if failures == 0 || failures > probeAttempts || (!stalled && failures != probeAttempts) {
 					t.Fatalf("unexpected number of failed candidates %d", failures)
 				}
 				if elapsed := time.Since(start); elapsed > 37500*time.Millisecond {
@@ -166,7 +167,7 @@ func TestCatalogSamplingPreservesObservationsUntilFullTimeout(t *testing.T) {
 		priorRead    time.Duration
 		fullTimeouts int
 	}{
-		{"round deadline", 16 * time.Second, catalogParallel},
+		{"round deadline", 16 * time.Second, probeParallel},
 		{"exploration deadline", time.Second, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -253,6 +254,49 @@ func TestPlaybackCheckRenewsCurrentCatalogRecommendation(t *testing.T) {
 		synctest.Wait()
 		if probes.Load() == 0 {
 			t.Fatal("scheduler slept past the current recommendation's renewal")
+		}
+	})
+}
+
+func TestPlaybackSamplingUsesItsOwnObservations(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var probes atomic.Int32
+		m := sampledMonitor(t, func(i int, r *http.Request) (*http.Response, error) {
+			probes.Add(1)
+			if r.URL.Scheme != "http" || r.URL.Query().Get("id") != "42" {
+				t.Errorf("wrong playback target %v", r.URL)
+			}
+			// The old playback leader now returns no usable URL.
+			if i == 1 {
+				return response(302, ""), nil
+			}
+			time.Sleep(time.Second)
+			return fixture(r)
+		}, entry(PlaybackURL, "cf"))
+		m.mu.Lock()
+		now := time.Now()
+		m.songID, m.songAt = 42, now
+		m.record(observation{op: Catalog, route: "api", channel: "1", state: "available", duration: time.Second, at: now})
+		m.record(observation{op: PlaybackURL, route: "cf", channel: "1", songID: 42, state: "available", duration: time.Second, at: now})
+		m.preferences = map[Operation]*preference{PlaybackURL: {current: "cf/1"}}
+		m.mu.Unlock()
+		if err := m.CheckSelected(t.Context(), CheckPlayback); err != nil {
+			t.Fatal(err)
+		}
+		winner, ok := m.Recommended(PlaybackURL)
+		if !ok || winner.Channel.ID == "1" || winner.Result.SampleSongID != 42 || winner.Result.Scheme != "http" {
+			t.Fatalf("wrong playback selection: %+v", winner)
+		}
+		if n := probes.Load(); n < probeSuccesses || n > probeSuccesses+probeParallel {
+			t.Fatalf("probed %d of 100", n)
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if got := m.resultKeyLocked(PlaybackURL, "cf", string(PlaybackURL)+"/cf/1", time.Now()); got.State != "unavailable" {
+			t.Errorf("invalid playback response: %+v", got)
+		}
+		if got := m.resultKeyLocked(Catalog, "api", string(Catalog)+"/api/1", time.Now()); got.State != "available" {
+			t.Errorf("playback changed catalog observation: %+v", got)
 		}
 	})
 }

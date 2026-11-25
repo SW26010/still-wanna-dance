@@ -22,25 +22,6 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 		defer m.mu.Unlock()
 		record(o)
 	}
-	// Limit concurrent transfers regardless of the number of DNS answers.
-	parallel := func(cs []upstreamrequest.Candidate, limit int, f func(int, upstreamrequest.Candidate)) {
-		sem := make(chan struct{}, limit)
-		var wg sync.WaitGroup
-		for i, c := range cs {
-			if ctx.Err() != nil {
-				break
-			}
-			select {
-			case sem <- struct{}{}:
-			case <-ctx.Done():
-				wg.Wait()
-				return
-			}
-			wg.Add(1)
-			go func(i int, c upstreamrequest.Candidate) { defer wg.Done(); defer func() { <-sem }(); f(i, c) }(i, c)
-		}
-		wg.Wait()
-	}
 	var preparedMu sync.Mutex
 	prepared := make(map[string]bool)
 	prepare := func(target string) []upstreamrequest.Candidate {
@@ -63,7 +44,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 		cs := prepare(entry(Catalog, route))
 		samples := make([]int64, len(cs))
 		responses := make([]CatalogResponse, len(cs))
-		m.sampleCatalog(ctx, route, cs, p.RequestTimeout, func(probeCtx context.Context, i int) bool {
+		m.sampleRoutes(ctx, Catalog, route, cs, p.RequestTimeout, func(probeCtx context.Context, i int) bool {
 			c := cs[i]
 			r, id, response := upstreamcheck.ReadValidatedCatalog(probeCtx, []*http.Client{requestClient(c.Transport)}, probePolicy(p), route)
 			if probeCtx.Err() != nil {
@@ -129,9 +110,12 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 				go func(r route) {
 					defer routes.Done()
 					cs := prepare(entry(PlaybackURL, r.ID))
-					// Bound parallel checks of the playback entry's API channels.
-					parallel(cs, 2, func(_ int, c upstreamrequest.Candidate) {
-						o, sample, response := probePlaybackResponse(ctx, requestClient(c.Transport), p, id, r)
+					m.sampleRoutes(ctx, PlaybackURL, r.ID, cs, p.RequestTimeout, func(probeCtx context.Context, i int) bool {
+						c := cs[i]
+						o, sample, response := probePlaybackResponse(probeCtx, requestClient(c.Transport), p, id, r)
+						if probeCtx.Err() != nil {
+							return false
+						}
 						publish(o, c)
 						m.deliverPlaybackURL(ctx, source.Revision, response)
 						if samples != nil && sample != nil {
@@ -140,6 +124,7 @@ func (m *Monitor) checkRoutes(ctx context.Context, p Policy, source upstreamrequ
 							case <-ctx.Done():
 							}
 						}
+						return o.state == "available"
 					})
 				}(r)
 			}

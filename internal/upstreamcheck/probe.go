@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 	"still-wanna-dance/internal/videometa"
 )
@@ -316,15 +317,48 @@ func probePlaybackResponse(parent context.Context, client *http.Client, p Policy
 	return probePlaybackPaths(parent, append([]*http.Client{client}, alternatives...), p, id, r)
 }
 
-func probePlaybackPaths(parent context.Context, clients []*http.Client, p Policy, id int64, r route) (o observation, sample *videoSample, result PlaybackURLResponse) {
-	target := entry(PlaybackURL, r.ID) + "&id=" + strconv.FormatInt(id, 10)
-	o = probeRequests(parent, clients, p.RequestTimeout, target, func(ctx context.Context, client *http.Client, target string) observation {
-		var current observation
-		current, sample, result = probePlaybackAt(ctx, client, p, id, r, target)
-		return current
+func probePlaybackPaths(parent context.Context, clients []*http.Client, p Policy, id int64, r route) (observation, *videoSample, PlaybackURLResponse) {
+	target := r.SongURL(apiBase, id)
+	type attempt struct {
+		observation observation
+		sample      *videoSample
+		response    PlaybackURLResponse
+	}
+	var firstHTTPFailure observation
+	var rememberHTTPFailure sync.Once
+	started := time.Now()
+	got, err := playbacksource.ReadPaths(parent, clients, p.RequestTimeout, func(ctx context.Context, client *http.Client) (attempt, error) {
+		offset := time.Since(started)
+		o, sample, response := probePlaybackAt(ctx, client, p, id, r, target)
+		if o.responded {
+			o.latency += offset
+		}
+		result := attempt{o, sample, response}
+		if o.state == "available" {
+			return result, nil
+		}
+		if o.http != 0 && ctx.Err() == nil {
+			rememberHTTPFailure.Do(func() { firstHTTPFailure = o })
+		}
+		if o.err != nil {
+			return result, o.err
+		}
+		return result, errors.New(o.state)
 	})
+	o := got.observation
+	if o.state == "" {
+		// ReadPaths has drained its workers. Report the received response
+		// alongside the overall deadline and elapsed time.
+		if firstHTTPFailure.http != 0 && errors.Is(err, context.DeadlineExceeded) {
+			o = firstHTTPFailure
+		} else {
+			o.state, o.at = errorState(err), time.Now()
+		}
+		o.err = err
+	}
 	o.op, o.route, o.songID = PlaybackURL, r.ID, id
-	return
+	o.duration = time.Since(started)
+	return o, got.sample, got.response
 }
 
 func probePlaybackAt(parent context.Context, client *http.Client, p Policy, id int64, r route, target string) (o observation, sample *videoSample, result PlaybackURLResponse) {

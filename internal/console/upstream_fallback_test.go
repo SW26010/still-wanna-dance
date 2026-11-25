@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -22,6 +23,58 @@ type coldBusinessChannels struct {
 	http.RoundTripper
 	channels []upstreamrequest.Candidate
 	ready    atomic.Bool
+}
+
+// Presets are visible immediately. Discovery adds the leased DNS path.
+type playbackDNSChannels struct{ coldBusinessChannels }
+
+func (p *playbackDNSChannels) Current(string) []upstreamrequest.Candidate {
+	if !p.ready.Load() {
+		return p.channels[1:]
+	}
+	return p.channels
+}
+
+func TestPlaybackUsesDNSAlongsideUnreachablePresets(t *testing.T) {
+	for _, dnsIP := range []string{"192.0.2.100", "2001:db8::1"} {
+		t.Run(dnsIP, func(t *testing.T) {
+			c := testConsole(t)
+			p := &playbackDNSChannels{}
+			var attempts atomic.Int32
+			var offline atomic.Bool
+			p.channels = append(p.channels, upstreamrequest.Candidate{
+				ID: "dns", IP: dnsIP, Mode: "direct", ValidUntil: time.Now().Add(time.Minute),
+				Transport: catalogTransport(func(r *http.Request) (*http.Response, error) {
+					attempts.Add(1)
+					if offline.Load() {
+						return nil, io.EOF
+					}
+					return automaticConnectivityResponse(r), nil
+				}),
+			})
+			for i := range 7 {
+				ip := fmt.Sprintf("192.0.2.%d", i+1)
+				p.channels = append(p.channels, upstreamrequest.Candidate{
+					ID: ip, IP: ip, Mode: "direct", Transport: catalogTransport(func(*http.Request) (*http.Response, error) {
+						attempts.Add(1)
+						return nil, io.EOF
+					}),
+				})
+			}
+			c.client.Transport = p
+			for i := range 64 {
+				attempts.Store(0)
+				if _, err := c.resolvePlayback(t.Context(), "42"); err != nil || !p.ready.Load() || attempts.Load() != 1 {
+					t.Fatalf("query %d: discovered=%t attempts=%d err=%v", i, p.ready.Load(), attempts.Load(), err)
+				}
+			}
+			offline.Store(true)
+			attempts.Store(0)
+			if _, err := c.resolvePlayback(t.Context(), "42"); err == nil || attempts.Load() != upstreamrequest.MaxOperationCandidates {
+				t.Fatalf("all failed: attempts=%d err=%v", attempts.Load(), err)
+			}
+		})
+	}
 }
 
 func TestPrimaryCatalogSharesFirstValidatedRead(t *testing.T) {

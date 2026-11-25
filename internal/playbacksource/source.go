@@ -16,7 +16,8 @@ import (
 )
 
 const DefaultBaseURL = "http://api.udon.dance"
-const DefaultAPI = DefaultBaseURL + "/Api/Songs/play"
+const Path = "/Api/Songs/play"
+const DefaultAPI = DefaultBaseURL + Path
 
 type Entry struct{ ID, Node string }
 
@@ -34,7 +35,7 @@ func Nodes() []string {
 }
 
 func (e Entry) Endpoint(base string) string {
-	return base + "/Api/Songs/play?node=" + e.Node
+	return base + Path + "?node=" + e.Node
 }
 
 func (e Entry) SongURL(base string, id int64) string {
@@ -53,7 +54,7 @@ type Address struct {
 type Resolver struct {
 	BaseURL      string
 	MaxFileBytes int64
-	// AttemptTimeout must be positive. The remaining caller deadline also bounds each attempt.
+	// AttemptTimeout bounds one entry query, including all candidate paths.
 	AttemptTimeout time.Duration
 	// Clients must supply API clients that stop before following resource redirects.
 	// An empty result is unavailable; the resolver never creates a fallback client.
@@ -73,11 +74,14 @@ func (r Resolver) Resolve(ctx context.Context, id int64) (Address, error) {
 		if err := ctx.Err(); err != nil {
 			return Address{}, err
 		}
-		clients := r.Clients(ctx, entry.Endpoint(base))
-		address, err := upstreamrequest.Fetch(ctx, entry.SongURL(base, id), clients, r.AttemptTimeout,
-			func(attempt context.Context, client *http.Client, target string) (Address, error) {
+		query, cancel := context.WithTimeout(ctx, r.AttemptTimeout)
+		clients := r.Clients(query, entry.Endpoint(base))
+		target := entry.SongURL(base, id)
+		address, err := ReadPaths(query, clients, r.AttemptTimeout,
+			func(attempt context.Context, client *http.Client) (Address, error) {
 				return fetch(attempt, client, base, entry, id, r.MaxFileBytes, target)
 			})
+		cancel()
 		if err == nil {
 			return address, nil
 		}
@@ -107,7 +111,7 @@ func fetch(ctx context.Context, client *http.Client, base string, entry Entry, i
 	if err != nil {
 		return Address{}, fmt.Errorf("playback source %s: %w", entry.ID, err)
 	}
-	address := Address{SongID: id, URL: u.String(), API: base + "/Api/Songs/play", Node: entry.Node, QueryStartedAt: started, ObservedAt: time.Now()}
+	address := Address{SongID: id, URL: u.String(), API: base + Path, Node: entry.Node, QueryStartedAt: started, ObservedAt: time.Now()}
 	if channel, ok := client.Transport.(interface{ ChannelID() string }); ok {
 		address.ChannelID = channel.ChannelID()
 	}

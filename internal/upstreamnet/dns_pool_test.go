@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -14,10 +15,11 @@ import (
 	"golang.getoutline.org/sdk/transport"
 
 	"still-wanna-dance/internal/catalogmeta"
+	"still-wanna-dance/internal/playbacksource"
 	"still-wanna-dance/internal/upstreamrequest"
 )
 
-func TestCatalogPresetSharesDNSMembershipOnPort443(t *testing.T) {
+func TestUdonPresetsShareDNSMembershipOnlyAtEligibleEndpoints(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := NewDirectResolver()
 		defer d.Close()
@@ -28,41 +30,66 @@ func TestCatalogPresetSharesDNSMembershipOnPort443(t *testing.T) {
 		}
 		defer p.Close()
 
-		https := func() []upstreamrequest.Candidate { return p.Current(catalogmeta.UdonURL) }
-		http := func() []upstreamrequest.Candidate { return p.Current(catalogmeta.UdonHTTPURL) }
-		if got := https(); len(got) != len(udonCatalogIPs) || len(http()) != 0 {
-			t.Fatalf("unexpected cold candidates: HTTPS=%+v HTTP=%+v", got, http())
+		play := playbacksource.Entries()[0].SongURL(playbacksource.DefaultBaseURL, 42)
+		check := func(dns ...string) {
+			t.Helper()
+			for target, presets := range map[string][]string{
+				catalogmeta.UdonURL:      udonCatalogIPs[:],
+				play:                     udonPlaybackIPs[:],
+				catalogmeta.UdonHTTPURL:  nil,
+				"http://api.udon.dance/": nil,
+				"http://api.udon.dance:8080/Api/Songs/play": nil,
+				"http://api.udon.dance/Api/Songs/%70lay":    nil,
+			} {
+				// DNS membership grants access to every endpoint until expiry.
+				wantLease := make(map[string]bool)
+				for _, ip := range presets {
+					wantLease[ip] = false
+				}
+				for _, ip := range dns {
+					wantLease[ip] = true
+				}
+				for _, c := range p.Current(target) {
+					leased, ok := wantLease[c.IP]
+					hasLease := !c.ValidUntil.IsZero()
+					if !ok || leased != hasLease {
+						t.Fatalf("%s: unexpected or duplicate candidate %+v", target, c)
+					}
+					delete(wantLease, c.IP)
+				}
+				if len(wantLease) != 0 {
+					t.Fatalf("%s: missing candidates %v", target, wantLease)
+				}
+			}
 		}
-
-		ctx := t.Context()
-		host := catalogmeta.UdonHost
-		overlap := udonCatalogIPs[len(udonCatalogIPs)-1]
-		if _, err := d.lookupShared(ctx, host, func(context.Context) ([]string, time.Duration, error) {
-			return []string{"192.0.2.1"}, time.Second, nil
+		check()
+		answers := []string{"192.0.2.1", udonCatalogIPs[0], udonPlaybackIPs[0]}
+		if _, err := d.lookupShared(t.Context(), catalogmeta.UdonHost, func(context.Context) ([]string, time.Duration, error) {
+			return answers, time.Second, nil
 		}); err != nil {
 			t.Fatal(err)
 		}
-		if len(https()) != len(udonCatalogIPs)+1 || len(http()) != 1 {
-			t.Fatalf("expected distinct preset and DNS addresses: HTTPS=%+v HTTP=%+v", https(), http())
-		}
+		check(answers...)
 		time.Sleep(2 * time.Second)
-		if _, err := d.lookupShared(ctx, host, func(context.Context) ([]string, time.Duration, error) {
-			return []string{overlap}, time.Second, nil
-		}); err != nil {
-			t.Fatal(err)
-		}
-		got, plain := https(), http()
-		i := slices.IndexFunc(got, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
-		if len(got) != len(udonCatalogIPs) || len(plain) != 1 || i < 0 || got[i].ID != plain[0].ID || got[i].ValidUntil.IsZero() {
-			t.Fatalf("DNS overlap was not deduplicated with a shared lease: HTTPS=%+v HTTP=%+v", got, plain)
-		}
-		time.Sleep(2 * time.Second)
-		standalone := https()
-		i = slices.IndexFunc(standalone, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
-		if len(standalone) != len(udonCatalogIPs) || i < 0 || !standalone[i].ValidUntil.IsZero() || len(http()) != 0 {
-			t.Fatalf("expired DNS answer leaked across ports: HTTPS=%+v HTTP=%+v", standalone, http())
-		}
+		check()
 	})
+}
+
+func TestOverlappingPresetListsRetainBothScopes(t *testing.T) {
+	ips := []string{"192.0.2.1"}
+	addresses := addPresets(nil, ips, func(u *url.URL) bool { return u.Scheme == "https" })
+	addresses = addPresets(addresses, ips, func(u *url.URL) bool { return u.Scheme == "http" })
+	for _, scheme := range []string{"https", "http"} {
+		matches := 0
+		for _, a := range addresses {
+			if a.IP == ips[0] && a.Allows(&url.URL{Scheme: scheme}) {
+				matches++
+			}
+		}
+		if matches != 1 {
+			t.Fatalf("%s has %d matching presets, want one", scheme, matches)
+		}
+	}
 }
 
 func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {

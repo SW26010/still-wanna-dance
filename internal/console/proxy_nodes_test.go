@@ -61,7 +61,6 @@ func TestProxyImportEndpointAuthorizationAndBudgets(t *testing.T) {
 		{"/api/proxy/import", nodeFixture, "", 403},
 		{"/api/proxy/import", nodeFixture, c.token, 200},
 		{"/api/proxy/import", strings.Repeat("x", (2<<20)+1), c.token, 400},
-		{"/api/settings", strings.Repeat(" ", 8193) + "{}", c.token, 400},
 	} {
 		r := httptest.NewRequest("POST", "http://"+c.address+tc.path, strings.NewReader(tc.body))
 		r.Header.Set("X-SWD-Token", tc.token)

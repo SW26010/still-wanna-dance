@@ -144,10 +144,9 @@ var playbackRoutes = playbacksource.Entries()
 const apiBase = playbacksource.DefaultBaseURL
 
 func (m *Monitor) resourceIDsLocked() []string {
-	m.pruneResourceSourcesLocked(time.Now())
 	seen := make(map[string]bool)
 	for _, source := range m.resourceSources {
-		if source.resourceHost != "" && time.Now().Before(source.at.Add(m.policy.SampleLifetime)) {
+		if source.resourceHost != "" {
 			seen[source.resourceHost] = true
 		}
 	}
@@ -271,7 +270,6 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 	if o, ok := m.diagnostics[key]; ok && now.Before(o.at.Add(m.policy.FailureLifetime)) {
 		r.LocalDiagnostic, r.LocalObservedAt = o.state, o.at
 	}
-	r.Sources = m.sourcesLocked(op, id, now)
 	defer func() {
 		if op != Resource {
 			return
@@ -346,9 +344,4 @@ func (m *Monitor) resultKeyLocked(op Operation, id, key string, now time.Time) (
 		r.EstimatedSpeedBPS = &speed
 	}
 	return r
-}
-
-// resultsLocked preserves route definition order, regardless of measurements.
-func (m *Monitor) resultsLocked(op Operation, now time.Time) []Result {
-	return m.candidateResultsLocked(op, m.channel.Snapshot().Candidates, now)
 }

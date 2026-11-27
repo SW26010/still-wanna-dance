@@ -20,15 +20,13 @@ type preference struct {
 
 func resultID(r Result) string { return r.Route + "/" + r.ChannelID }
 
-func (m *Monitor) candidateResultsLocked(op Operation, provider upstreamrequest.Candidates, now time.Time) []Result {
+func (m *Monitor) candidateResultsLocked(op Operation, view *upstreamrequest.CandidateView, now time.Time) []Result {
 	var out []Result
 	for _, route := range m.routeIDsLocked(op) {
-		var cs []upstreamrequest.Candidate
-		if provider != nil {
-			cs = provider.Current(entry(op, route))
-		}
+		cs := view.Current(entry(op, route))
+		sources := m.sourcesLocked(op, route)
 		if len(cs) == 0 {
-			r := Result{Operation: op, Route: route, Entry: entry(op, route), State: "unknown", Reason: "no_channel", Sources: m.sourcesLocked(op, route, now)}
+			r := Result{Operation: op, Route: route, Entry: entry(op, route), State: "unknown", Reason: "no_channel", Sources: sources}
 			if m.closed {
 				r.State, r.Reason = "closed", ""
 			}
@@ -37,6 +35,7 @@ func (m *Monitor) candidateResultsLocked(op Operation, provider upstreamrequest.
 		}
 		for _, c := range cs {
 			r := m.resultKeyLocked(op, route, string(op)+"/"+route+"/"+c.ID, now)
+			r.Sources = sources
 			r.ChannelID, r.Mode, r.IP = c.ID, c.Mode, c.IP
 			if !c.ValidUntil.IsZero() && (r.ValidUntil.IsZero() || c.ValidUntil.Before(r.ValidUntil)) {
 				r.ValidUntil = c.ValidUntil
@@ -130,11 +129,13 @@ func (m *Monitor) selectionsLocked(source upstreamrequest.Snapshot, op Operation
 	if m.closed || source.Candidates == nil {
 		return nil
 	}
-	results := m.candidateResultsLocked(op, source.Candidates, time.Now())
-	return m.selectResultsLocked(op, q, results, source.Candidates, len(results))
+	now := time.Now()
+	view := m.candidateViewLocked(source.Candidates, now)
+	results := m.candidateResultsLocked(op, view, now)
+	return m.selectResultsLocked(op, q, results, view, len(results))
 }
 
-func (m *Monitor) selectResultsLocked(op Operation, q Constraints, results []Result, provider upstreamrequest.Candidates, limit int) []Selection {
+func (m *Monitor) selectResultsLocked(op Operation, q Constraints, results []Result, view *upstreamrequest.CandidateView, limit int) []Selection {
 	var eligible []Result
 	for i := range results {
 		r := &results[i]
@@ -157,13 +158,10 @@ func (m *Monitor) selectResultsLocked(op Operation, q Constraints, results []Res
 	}
 	var selections []Selection
 	for _, r := range eligible {
-		for _, c := range provider.Current(r.Entry) {
-			if c.ID == r.ChannelID && c.Transport != nil {
-				selections = append(selections, Selection{Result: r, Channel: c})
-				if len(selections) == limit {
-					return selections
-				}
-				break
+		if c, ok := view.Find(r.Entry, r.ChannelID); ok && c.Transport != nil {
+			selections = append(selections, Selection{Result: r, Channel: c})
+			if len(selections) == limit {
+				return selections
 			}
 		}
 	}
@@ -172,6 +170,8 @@ func (m *Monitor) selectResultsLocked(op Operation, q Constraints, results []Res
 
 // Only completed checks count toward hysteresis; UI polling cannot cause switches.
 func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, since time.Time, kind CheckKind) {
+	now := time.Now()
+	view := m.candidateViewLocked(provider, now)
 	if m.preferences == nil {
 		m.preferences = make(map[Operation]*preference)
 	}
@@ -180,7 +180,7 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 			continue
 		}
 		var available []Result
-		for _, r := range m.candidateResultsLocked(op, provider, time.Now()) {
+		for _, r := range m.candidateResultsLocked(op, view, now) {
 			if r.Mode == "direct" && recommendable(r) {
 				available = append(available, r)
 			}
@@ -230,14 +230,16 @@ func (m *Monitor) updatePreferencesLocked(provider upstreamrequest.Candidates, s
 }
 
 func (m *Monitor) scheduleCandidatesLocked(provider upstreamrequest.Candidates) {
+	now := time.Now()
+	view := m.candidateViewLocked(provider, now)
 	// Refresh measurements before their own expiry. DNS leases only govern
 	// candidate eligibility; the resolver refreshes them and signals changes.
 	for _, op := range []Operation{Catalog, PlaybackURL} {
-		results := m.candidateResultsLocked(op, provider, time.Now())
+		results := m.candidateResultsLocked(op, view, now)
 		// A sampled pool can intentionally leave healthy alternatives untouched.
 		// Scheduling each of their expirations would repeatedly wake the monitor.
 		if len(results) > probeParallel && m.experimentProbe == nil {
-			winner := m.selectResultsLocked(op, Constraints{}, results, provider, 1)
+			winner := m.selectResultsLocked(op, Constraints{}, results, view, 1)
 			if len(winner) == 0 {
 				continue
 			}

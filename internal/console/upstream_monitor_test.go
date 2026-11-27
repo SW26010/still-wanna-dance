@@ -21,6 +21,40 @@ import (
 
 type monitorTestChannels struct{ http.RoundTripper }
 
+type statusReadChannels struct {
+	monitorTestChannels
+	onRead func()
+}
+
+func (p statusReadChannels) Current(target string) []upstreamrequest.Candidate {
+	p.onRead()
+	return p.monitorTestChannels.Current(target)
+}
+
+func TestStatusReadsMonitorOutsideConsoleLock(t *testing.T) {
+	c := testConsole(t)
+	reads := 0
+	ch := upstreamrequest.NewChannel()
+	ch.Publish(statusReadChannels{onRead: func() {
+		reads++
+		if !c.mu.TryLock() {
+			t.Error("status held the console lock while reading candidates")
+			return
+		}
+		c.mu.Unlock()
+	}})
+	m, err := upstreamstate.NewMonitor(upstreamstate.Options{Channel: ch})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.monitor = m
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, httptest.NewRequest("GET", "http://"+c.address+"/api/status", nil))
+	if w.Code != http.StatusOK || reads == 0 {
+		t.Fatalf("status=%d candidate reads=%d", w.Code, reads)
+	}
+}
+
 func (p monitorTestChannels) Changed() <-chan struct{} { return nil }
 func (p monitorTestChannels) Candidates(_ context.Context, target string) ([]upstreamrequest.Candidate, error) {
 	return p.Current(target), nil
@@ -38,7 +72,7 @@ func waitMonitor(t *testing.T, c *Console) upstreamstate.Status {
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		c.mu.Lock()
-		s := c.monitorSnapshotLocked()
+		s := monitorSnapshot(c.monitor, c.monitorManual)
 		c.mu.Unlock()
 		if !s.Checking && !s.Finished.IsZero() {
 			return s
@@ -288,7 +322,7 @@ func TestObsoleteThroughputIntervalSettingIsIgnored(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer loaded.Close()
-			if loaded.settings != c.settings || loaded.monitorSnapshotLocked().Policy.ThroughputInterval != 20*time.Minute {
+			if loaded.settings != c.settings || monitorSnapshot(loaded.monitor, loaded.monitorManual).Policy.ThroughputInterval != 20*time.Minute {
 				t.Fatal("obsolete interval changed settings or monitor policy")
 			}
 			afterLoad, err := os.ReadFile(c.configPath)

@@ -115,9 +115,10 @@ func (m *Monitor) refreshChannelLocked() upstreamrequest.Snapshot {
 			// Retain unchanged direct paths. Proxy configurations have distinct
 			// opaque identities, so replaced credentials cannot inherit samples.
 			valid := make(map[string]bool)
+			view := m.candidateViewLocked(s.Candidates, time.Now())
 			for _, op := range operations {
 				for _, route := range m.routeIDsLocked(op) {
-					for _, c := range s.Candidates.Current(entry(op, route)) {
+					for _, c := range view.Current(entry(op, route)) {
 						valid[string(op)+"/"+route+"/"+c.ID] = true
 					}
 				}
@@ -167,13 +168,14 @@ func validatePolicy(p Policy) error {
 func (m *Monitor) Results(op Operation) []Result {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.refreshChannelLocked()
-	return m.resultsLocked(op, time.Now())
+	source := m.refreshChannelLocked()
+	now := time.Now()
+	return m.candidateResultsLocked(op, m.candidateViewLocked(source.Candidates, now), now)
 }
 func (m *Monitor) Snapshot() Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.refreshChannelLocked()
+	source := m.refreshChannelLocked()
 	s := Status{
 		Manual:    m.manual != nil || (m.active != nil && m.batchManual),
 		CheckKind: m.batchKind,
@@ -187,9 +189,10 @@ func (m *Monitor) Snapshot() Status {
 		Results:   make([]Result, 0, len(operations)),
 	}
 	now := time.Now()
+	view := m.candidateViewLocked(source.Candidates, now)
 	for _, op := range operations {
 		if op != Resource || m.experimentProbe != nil {
-			s.Results = append(s.Results, m.resultsLocked(op, now)...)
+			s.Results = append(s.Results, m.candidateResultsLocked(op, view, now)...)
 		}
 	}
 	return s

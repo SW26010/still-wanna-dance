@@ -633,14 +633,14 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProxyNodes:            c.proxyNodesStatusLocked(),
 			Activation:            c.activation, DefaultLogDir: defaultLogDir(),
 			DefaultDatabasePath: c.editor.defaultDatabasePath(), DefaultVideoDir: c.editor.defaultVideoDir(), DefaultBlockCacheDir: defaultBlockCacheDir(c.identity.Executable), PortableDir: c.editor.portableDir(),
-			UpstreamMonitor: c.monitorSnapshotLocked(),
-			CatalogSync:     c.catalogSyncSnapshotLocked(),
-			Update:          c.updateSnapshotLocked(),
+			CatalogSync: c.catalogSyncSnapshotLocked(),
+			Update:      c.updateSnapshotLocked(),
 		}
 		result.Settings.SOCKS5Password = ""
 		result.ActiveSettings.SOCKS5Password = ""
 		result.Queue.Desired = c.queueDesired
 		routes := c.downloadRoutes
+		monitor, monitorManual := c.monitor, c.monitorManual
 		service, vrcxDismissed := c.service, c.vrcxImportDismissed
 		result.ActionErrors = make(map[string]string, len(c.actionErrors))
 		for source, message := range c.actionErrors {
@@ -659,6 +659,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		c.mu.Unlock()
+		result.UpstreamMonitor = monitorSnapshot(monitor, monitorManual)
 		if c.fileLogStatus != nil {
 			result.FileLogError = c.fileLogStatus()
 		}

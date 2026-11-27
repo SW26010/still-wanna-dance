@@ -15,6 +15,47 @@ import (
 
 type samplingTestPool map[string][]upstreamrequest.Candidate
 
+type countingPool struct {
+	samplingTestPool
+	reads map[string]int
+}
+
+func (p countingPool) Current(target string) []upstreamrequest.Candidate {
+	p.reads[target]++
+	return p.samplingTestPool.Current(target)
+}
+
+func TestLargePoolReadsEachEndpointOnce(t *testing.T) {
+	catalog, playback := entry(Catalog, "api"), entry(PlaybackURL, "cf")
+	p := countingPool{samplingTestPool: make(samplingTestPool), reads: make(map[string]int)}
+	for i := range 1000 {
+		path := upstreamrequest.Candidate{ID: strconv.Itoa(i), Mode: "direct", Transport: transportFunc(fixture)}
+		for _, target := range []string{catalog, playback} {
+			p.samplingTestPool[target] = append(p.samplingTestPool[target], path)
+		}
+	}
+	ch := upstreamrequest.NewChannel()
+	ch.Publish(p)
+	m, err := NewMonitor(Options{Channel: ch})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	for _, path := range p.samplingTestPool[playback][:3] {
+		m.record(observation{op: PlaybackURL, route: "cf", channel: path.ID, state: "available", at: time.Now(), latency: time.Millisecond,
+			resourceSource: upstreamrequest.ResourceSource{API: playback, ResourceURL: videoFixture}})
+	}
+	results := m.Snapshot().Results
+	if len(results) != 2000 || len(results[0].Sources) != 0 || len(results[1999].Sources) != 3 || p.reads[catalog] != 1 || p.reads[playback] != 1 {
+		t.Fatalf("snapshot rows=%d, endpoint reads=%v", len(results), p.reads)
+	}
+	clear(p.reads)
+	paths := m.Selections(PlaybackURL, Constraints{})
+	if len(paths) != 3 || p.reads[playback] != 1 {
+		t.Fatalf("selections=%d, endpoint reads=%v", len(paths), p.reads)
+	}
+}
+
 func (p samplingTestPool) Changed() <-chan struct{} { return nil }
 func (p samplingTestPool) Current(target string) []upstreamrequest.Candidate {
 	return p[target]

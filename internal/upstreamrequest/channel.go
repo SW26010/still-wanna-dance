@@ -2,10 +2,7 @@
 // the legacy direct-IP channel. Proxies use only the shared request mechanisms.
 package upstreamrequest
 
-import (
-	"errors"
-	"time"
-)
+import "errors"
 
 var ErrUnavailable = errors.New("upstream request channel is not ready")
 
@@ -23,7 +20,7 @@ type Channel struct {
 
 func NewChannel() *Channel {
 	c := &Channel{Resources: NewResources(), changed: make(chan struct{})}
-	c.sourceActive = func(s ResourceSource, now time.Time) bool { return ResourceSourceActive(s, c.candidates, now) }
+	c.sourceCandidates = func() Candidates { return c.candidates }
 	return c
 }
 func (c *Channel) Snapshot() Snapshot {

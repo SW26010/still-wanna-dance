@@ -18,7 +18,7 @@ type Resources struct {
 	resourceDomains map[string]resourceObservation
 	resources       resourceActivity
 	// Only legacy direct channels filter evidence by pinned route validity.
-	sourceActive func(ResourceSource, time.Time) bool
+	sourceCandidates func() Candidates
 }
 
 func NewResources() *Resources        { return &Resources{revision: 1} }
@@ -178,27 +178,11 @@ func (c *Resources) ResourceSources(domain string) []ResourceSource {
 	return sources
 }
 
-// ResourceSourceActive uses only current candidate state, never DNS I/O. A
-// retired issuing channel cannot authorize a resource until it resolves again.
-func ResourceSourceActive(s ResourceSource, provider Candidates, now time.Time) bool {
-	if !now.Before(s.ValidUntil) {
-		return false
-	}
-	if s.APIChannelID == "" {
-		return true
-	}
-	if provider == nil {
-		return false
-	}
-	for _, candidate := range provider.Current(s.API) {
-		if candidate.ID == s.APIChannelID && (candidate.ValidUntil.IsZero() || now.Before(candidate.ValidUntil)) {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *Resources) pruneResourceSourcesLocked(now time.Time) {
+	var view *CandidateView
+	if c.sourceCandidates != nil {
+		view = NewCandidateView(c.sourceCandidates())
+	}
 	for key, observation := range c.resourceDomains {
 		if !now.Before(observation.until) {
 			delete(c.resourceDomains, key)
@@ -210,7 +194,7 @@ func (c *Resources) pruneResourceSourcesLocked(now time.Time) {
 		var sources []ResourceSource
 		var hosts []string
 		for _, s := range observation.sources {
-			if now.Before(s.ValidUntil) && (c.sourceActive == nil || c.sourceActive(s, now)) {
+			if now.Before(s.ValidUntil) && (view == nil || view.SourceActive(s, now)) {
 				sources = append(sources, s)
 				hosts = append(hosts, s.Domain)
 			}

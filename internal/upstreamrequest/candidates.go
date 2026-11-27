@@ -145,10 +145,17 @@ func (p *Pool) current(u *url.URL) []Candidate {
 	host := strings.ToLower(u.Hostname())
 	addresses := p.dns.CurrentAddresses(host)
 	now := time.Now()
+	prefix := "direct/" + host + "/"
+	live := make(map[string]bool, len(addresses))
 	var cs []Candidate
 	for _, a := range addresses {
-		if a.available(u, now) {
-			cs = append(cs, Candidate{ID: "direct/" + host + "/" + a.IP, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires})
+		if !a.valid(now) {
+			continue
+		}
+		id := prefix + a.IP
+		live[id] = true // An address for another endpoint still owns its transport.
+		if a.allowsTarget(u) {
+			cs = append(cs, Candidate{ID: id, Host: host, Mode: "direct", IP: a.IP, ValidUntil: a.Expires})
 		}
 	}
 	OrderByFamily(cs, false)
@@ -159,9 +166,7 @@ func (p *Pool) current(u *url.URL) []Candidate {
 	}
 	// Reclaim removed IP pools for this host without closing in-flight streams.
 	for id, tr := range p.transports {
-		if strings.Contains(id, "/"+host+"/") && !slices.ContainsFunc(addresses, func(a Address) bool {
-			return id == "direct/"+host+"/"+a.IP && a.valid(now)
-		}) {
+		if strings.HasPrefix(id, prefix) && !live[id] {
 			tr.CloseIdleConnections()
 			delete(p.transports, id)
 		}
@@ -198,8 +203,8 @@ func (a Address) valid(now time.Time) bool {
 	return a.Expires.IsZero() || now.Before(a.Expires)
 }
 
-func (a Address) available(u *url.URL, now time.Time) bool {
-	return (a.Allows == nil || a.Allows(u)) && a.valid(now)
+func (a Address) allowsTarget(u *url.URL) bool {
+	return a.Allows == nil || a.Allows(u)
 }
 
 func (p *Pool) usable(c Candidate, u *url.URL) bool {
@@ -211,7 +216,7 @@ func (p *Pool) usable(c Candidate, u *url.URL) bool {
 	}
 	now := time.Now()
 	return slices.ContainsFunc(p.dns.CurrentAddresses(c.Host), func(a Address) bool {
-		return a.IP == c.IP && a.available(u, now)
+		return a.IP == c.IP && a.valid(now) && a.allowsTarget(u)
 	})
 }
 

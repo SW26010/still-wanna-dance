@@ -156,8 +156,12 @@ func TestPinnedAddressRespectsPresetEndpoint(t *testing.T) {
 	defer p.Close()
 	const target = "https://example.com/list"
 	preset := p.Current(target)[0]
+	shared := p.transports[preset.ID]
 	if got := p.Current("http://example.com/play"); len(got) != 0 {
 		t.Fatalf("preset leaked to HTTP playback: %+v", got)
+	}
+	if p.transports[preset.ID] != shared {
+		t.Fatal("reading another endpoint discarded a live transport")
 	}
 	for _, tc := range []struct {
 		url  string
@@ -175,6 +179,10 @@ func TestPinnedAddressRespectsPresetEndpoint(t *testing.T) {
 		if _, err := preset.Transport.RoundTrip(req); !errors.Is(err, tc.want) {
 			t.Errorf("%s got %v, want %v", tc.url, err, tc.want)
 		}
+	}
+	dns.addresses[0].Expires = time.Now().Add(-time.Second)
+	if len(p.Current(target)) != 0 || p.transports[preset.ID] != nil {
+		t.Fatal("expired address retained its transport")
 	}
 }
 

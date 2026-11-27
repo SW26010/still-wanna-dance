@@ -82,13 +82,13 @@ func (c *Console) ensureMonitorLocked() (*upstreamstate.Monitor, error) {
 	return c.monitor, nil
 }
 
-func (c *Console) monitorSnapshotLocked() upstreamstate.Status {
-	if c.monitor == nil {
+func monitorSnapshot(m *upstreamstate.Monitor, manual bool) upstreamstate.Status {
+	if m == nil {
 		return upstreamstate.Status{Policy: upstreamstate.DefaultPolicy(), Results: []upstreamstate.Result{}}
 	}
-	s := c.monitor.Snapshot()
-	s.Checking = s.Checking || c.monitorManual
-	s.Manual = s.Manual || c.monitorManual
+	s := m.Snapshot()
+	s.Checking = s.Checking || manual
+	s.Manual = s.Manual || manual
 	return s
 }
 func (c *Console) requestMonitorCheck(selected ...upstreamstate.CheckKind) error {

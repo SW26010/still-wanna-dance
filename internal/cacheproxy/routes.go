@@ -222,7 +222,9 @@ func (s *Server) resourceResponse(r *http.Request, attempts *resourceAttempts) (
 		if observation != nil && observation.reserved && remaining > 1 {
 			timeout = min(timeout, alternateIPLimit)
 		}
-		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, timeout, remaining, attempts.fallbackDeadline)
+		// Reserve time for a bounded number of fallbacks without shortening the retry cursor.
+		headerShares := min(remaining, upstreamrequest.MaxOperationCandidates)
+		ctx, attemptClient, cancel := upstreamrequest.NewAttempt(r.Context(), &client, timeout, headerShares, attempts.fallbackDeadline)
 		if observation != nil && observation.history.direct && !observation.reserved {
 			ctx = observation.trace(ctx, s.notifyBlockObservation)
 		}

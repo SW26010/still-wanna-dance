@@ -78,7 +78,7 @@ func (h *DownloadRoutes) entry(k routeKey, now time.Time) *routeEntry {
 			var victim routeKey
 			var oldest time.Time
 			for key, v := range h.entries {
-				if v.inFlight == 0 && (oldest.IsZero() || v.touched.Before(oldest)) {
+				if v.inFlight == 0 && !v.retry.until.After(now) && (oldest.IsZero() || v.touched.Before(oldest)) {
 					victim, oldest = key, v.touched
 				}
 			}
@@ -154,6 +154,7 @@ func (h *DownloadRoutes) chooseForAttempt(host string, candidates []upstreamrequ
 	}
 	var measured []measuredCandidate
 	var best *routeEntry
+	var unobserved routeEntry
 	var selected upstreamrequest.Candidate
 	count := 0
 	hasValid := false
@@ -166,7 +167,11 @@ func (h *DownloadRoutes) chooseForAttempt(host string, candidates []upstreamrequ
 		}
 		hasValid = true
 		key := routeKey{host, c.IP}
-		e := h.entry(key, now)
+		e := h.entries[key]
+		if e == nil {
+			// Merely considering an unused preset must not evict another host's history.
+			e = &unobserved
+		}
 		if attempts.persistent && e.retry.until.After(now) {
 			attempts.retryAt = earlier(attempts.retryAt, e.retry.until)
 			continue
@@ -178,6 +183,7 @@ func (h *DownloadRoutes) chooseForAttempt(host string, candidates []upstreamrequ
 			continue
 		}
 		if c.ValidUntil.After(e.lease) {
+			e = h.entry(key, now)
 			e.repeated = !e.lease.IsZero()
 			e.lease = c.ValidUntil
 		}

@@ -192,6 +192,57 @@ func TestHeaderBudgetKeepsOtherRoutesHealthy(t *testing.T) {
 	}
 }
 
+func TestPersistentBlockHeaderBudgetWithLargePool(t *testing.T) {
+	for _, failed := range []int{0, 1, 6} {
+		t.Run(fmt.Sprintf("failed_%d", failed), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s := testSessionServer(t, blocksched.Config{SoftLimit: 1})
+				s.cfg = DefaultConfig()
+				s.cfg.DownloadRoutes = NewDownloadRoutes(true, "")
+				calls := 0
+				var paths routeFixture
+				for i := range 1000 {
+					tr := resourceTransportFunc(func(r *http.Request) (*http.Response, error) {
+						calls++
+						if calls <= failed {
+							if failed == 1 {
+								<-r.Context().Done() // A stalled leader yields its turn.
+								return nil, r.Context().Err()
+							}
+							return nil, io.ErrUnexpectedEOF
+						}
+						select {
+						case <-time.After(250 * time.Millisecond):
+							return fixtureRangeResponse(r, payload), nil
+						case <-r.Context().Done():
+							return nil, r.Context().Err()
+						}
+					})
+					paths = append(paths, upstreamrequest.Candidate{Host: "play.udon.dance", Mode: "direct", IP: fmt.Sprintf("2001:db8::%x", i+1), Transport: tr})
+				}
+				s.cfg.DirectCandidates = paths
+				ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+				defer cancel()
+				req, err := http.NewRequestWithContext(ctx, "GET", videoURL(payload), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set("Range", fmt.Sprintf("bytes=0-%d", len(payload)-1))
+				attempts := &resourceAttempts{persistent: true, paths: make(map[methodKey]retryBackoff)}
+				resp, err := s.resourceResponse(req, attempts)
+				if err != nil {
+					t.Fatalf("no response after %d attempts: %v", calls, ctx.Err())
+				}
+				defer resp.Body.Close()
+				body, err := io.ReadAll(resp.Body)
+				if err != nil || string(body) != payload || calls != failed+1 {
+					t.Fatalf("got %d bytes after %d calls, err=%v", len(body), calls, err)
+				}
+			})
+		})
+	}
+}
+
 func TestInvalidRedirectKeepsIPHealthy(t *testing.T) {
 	cfg := DefaultConfig()
 	h := NewDownloadRoutes(true, "")
@@ -376,6 +427,29 @@ func TestUrgentUnmeasuredRoutesDistributeWithinDNSBaseline(t *testing.T) {
 		if got.IP != want {
 			t.Fatalf("got %s want %s", got.IP, want)
 		}
+	}
+}
+
+func TestLargePresetPoolsPreserveActiveRouteBackoff(t *testing.T) {
+	h := NewDownloadRoutes(true, "")
+	const origin = "video.example"
+	const alternate = "alternate.example"
+	failed := routeKey{origin, "2001:db8::1"}
+	until := h.record(failed, "download", 0, true, time.Second)
+	var paths routeFixture
+	for i := range 1000 {
+		paths = append(paths, upstreamrequest.Candidate{IP: fmt.Sprintf("2001:db8::%x", i+1), Mode: "direct", Transport: http.DefaultTransport})
+	}
+	for _, host := range []string{origin, alternate, origin} {
+		for i := range paths {
+			paths[i].Host = host
+		}
+		attempts := &resourceAttempts{persistent: true}
+		selected, count, _ := h.chooseForAttempt(host, paths, nil, time.Time{}, attempts, nil)
+		if count == 0 || host == origin && (count != 999 || selected.IP == failed.ip || !attempts.retryAt.Equal(until)) {
+			t.Fatalf("host=%s selected=%s eligible=%d next retry=%v", host, selected.IP, count, attempts.retryAt)
+		}
+		h.release(routeKey{host, selected.IP})
 	}
 }
 

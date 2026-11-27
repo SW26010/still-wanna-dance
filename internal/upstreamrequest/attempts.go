@@ -61,7 +61,8 @@ func AttemptError(ctx context.Context, err error) error {
 // NewAttempt gives headers a share of the remaining deadline while preserving
 // the full timeout for the request and body. When another route is available,
 // fallbackDeadline can supply the latest source estimate for reserving its turn.
-// remaining includes this candidate. The caller owns cancellation through close.
+// remaining is the number of header-budget shares, including this candidate.
+// The caller owns cancellation through close.
 func NewAttempt(ctx context.Context, source *http.Client, timeout time.Duration, remaining int, fallbackDeadline func() time.Time) (context.Context, *http.Client, context.CancelFunc) {
 	bounded, stop := context.WithTimeout(ctx, timeout)
 	client := *source

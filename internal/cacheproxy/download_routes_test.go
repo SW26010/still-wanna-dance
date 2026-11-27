@@ -744,6 +744,24 @@ func TestSampleFailureSteersPrefetchAndCachedBlockIsStillSampled(t *testing.T) {
 	}
 }
 
+func TestDirectSnapshotRanksObservedRoutesAcrossHosts(t *testing.T) {
+	routes := NewDownloadRoutes(true, "")
+	routes.entry(routeKey{"unused.example", "192.0.2.5"}, time.Now())
+	failed := routeKey{"a.example", "192.0.2.1"}
+	routes.record(failed, "sample", DefaultBlockSize, false, time.Millisecond)
+	routes.record(failed, "download", 0, true, time.Millisecond)
+	routes.record(routeKey{"a.example", "192.0.2.2"}, "download", 128, false, time.Millisecond)
+	routes.record(routeKey{"a.example", "192.0.2.3"}, "sample", DefaultBlockSize, false, time.Second)
+	routes.record(routeKey{"z.example", "192.0.2.4"}, "download", DefaultBlockSize, false, 100*time.Millisecond)
+	var ips []string
+	for _, row := range routes.Snapshot() {
+		ips = append(ips, row.IP)
+	}
+	if !slices.Equal(ips, []string{"192.0.2.4", "192.0.2.3", "192.0.2.2", "192.0.2.1"}) {
+		t.Fatal(ips)
+	}
+}
+
 func TestRouteSamplingAndRestart(t *testing.T) {
 	data := strings.Repeat("x", 2*int(DefaultBlockSize))
 	cfg := DefaultConfig()

@@ -24,7 +24,7 @@ export interface ImportJob extends Job {
 }
 export interface HealthResult {
   operation: string; route: string; mode: string; entry: string; state: string; channelID?: string; ip?: string;
-  reason?: string; localDiagnostic?: string; localObservedAt?: string; estimatedLatencyMS?: number; estimatedSpeedBPS?: number;
+  reason?: string; localDiagnostic?: string; localObservedAt?: string; estimatedLatencyMS?: number; estimatedSpeedBPS?: number; probeDurationMS?: number;
   observedAt?: string; validUntil?: string; catalogTime?: string; sampleSongID?: number; http?: number;
   throughputSongID?: number; throughputObservedAt?: string; transferDurationMS?: number; transferredBytes?: number;
   sources?: {api: string; node: string; apiChannelID?: string}[];

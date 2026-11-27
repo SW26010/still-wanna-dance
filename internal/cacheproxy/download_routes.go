@@ -297,8 +297,9 @@ func (h *DownloadRoutes) Snapshot() []RouteObservation {
 	}
 	h.mu.Unlock()
 	slices.SortFunc(rows, func(a, b RouteObservation) int {
-		if n := cmp.Compare(a.Host, b.Host); n != 0 {
-			return n
+		hostOrder := cmp.Compare(a.Host, b.Host)
+		if !h.direct && hostOrder != 0 {
+			return hostOrder
 		}
 		aCooling, bCooling := a.Failed && now.Sub(a.ObservedAt) < time.Minute, b.Failed && now.Sub(b.ObservedAt) < time.Minute
 		if aCooling != bCooling {
@@ -315,6 +316,9 @@ func (h *DownloadRoutes) Snapshot() []RouteObservation {
 		}
 		if n := cmp.Compare(a.BlockDuration, b.BlockDuration); n != 0 {
 			return n
+		}
+		if hostOrder != 0 {
+			return hostOrder
 		}
 		return cmp.Compare(a.IP, b.IP)
 	})

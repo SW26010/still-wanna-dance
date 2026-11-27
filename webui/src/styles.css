@@ -368,6 +368,8 @@ form.actions { align-items: flex-end; }
 /* Fit the Fluent text button's 64px minimum width and both cell paddings. */
 .health-table th:last-child { width: calc(64px + 2 * var(--spacingHorizontalS)); }
 .health-section h3 { margin: 0; }
+.health-section .table-region { max-height: min(24rem, 50dvh); overflow: auto; }
+.health-section th { position: sticky; top: 0; z-index: 1; background: var(--colorNeutralBackground1); }
 .file-results { margin-top: var(--spacingVerticalL); }
 .file-results table { table-layout: fixed; }
 .file-results td { overflow-wrap: anywhere; }

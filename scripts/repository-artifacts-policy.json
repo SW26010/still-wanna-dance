@@ -2320,6 +2320,13 @@
       "bytes": 1333303,
       "sha256": "adf7ed38139ede7a2c2898152ff6b66f57447437c715b428d9c3b50afaa89eeb",
       "reason": "离线 WebUI 可在网络设置中编辑直连候选 IP 并恢复内置列表。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1333721,
+      "sha256": "ed891ad39e307f4edfc745720f0e39cbacc96fa38234c979ded7e6d9f1c0bf60",
+      "reason": "离线 WebUI 的直连观测表仅展示已有检测数据的线路，并按各项检测耗时排序。"
     }
   ]
 }

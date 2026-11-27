@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 )
 
 type Song struct {
@@ -17,6 +18,7 @@ type Event struct {
 	QueueReset bool // Invalid input clears the queue while retaining the playback timeline.
 	Songs      []Song
 	Playback   *PlaybackEvent
+	queueAt    time.Time // Log second of a queue snapshot, when present.
 }
 
 func roomReset(line string) bool {

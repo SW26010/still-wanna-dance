@@ -2,6 +2,7 @@ package vrclog
 
 import (
 	"encoding/json"
+	"hash/maphash"
 	"math"
 	"net/url"
 	"regexp"
@@ -17,6 +18,7 @@ type PlaybackEvent struct {
 	At       time.Time `json:"at"`
 	Kind     string    `json:"kind"`
 	SongID   int64     `json:"songID,omitempty"`
+	external uint64    // Process-local identity. Never retain or serialize the URL.
 	Owner    *bool     `json:"owner,omitempty"`
 	Position float64   `json:"position,omitempty"`
 	Playing  *bool     `json:"playing,omitempty"`
@@ -25,7 +27,7 @@ type PlaybackEvent struct {
 var roomEndAction = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?` +
 	`(?:OnUSharpVideoEnd:\s+PlayNextVideo\(\)|OnUSharpVideoStop:\s+I am owner,\s+QueueChanged\(\))(?:\s|<|$)`)
 var roomStopButton = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?StopVideo Button Clicked(?:\s|<|$)`)
-var roomSelectionData = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?(?:PlayQueueVideo|PlayRandomVideo):.*?\buserData\s*=`)
+var roomSelectionData = regexp.MustCompile(`\[VideoQueueManager\]\s+(?:\[\d{2}:\d{2}:\d{2}\]\s*:\s*)?(?:PlayQueueVideo:(?:\s*index\s*=\s*(\d+)\s*,)?|PlayRandomVideo:).*?\buserData\s*=`)
 var previewSong = regexp.MustCompile(`\[VideoListManager\]\s+PreviewVideo:\s+(\d+)(?:\s|$)`)
 var playerPosition = regexp.MustCompile(`(Syncing video to|SeekTo: call SyncVideo\(\) since newTargetTime is) ([0-9]+(?:\.[0-9]+)?)(?:,|\s|$)`)
 var syncThreshold = regexp.MustCompile(`\bthreshold\s*=\s*(0\.4999999|0\.5|0\.85)(?:\s|<|$)`)
@@ -36,17 +38,25 @@ var ownerPlaying = regexp.MustCompile(`ownerPlaying = (True|False),`)
 // Preview markers let the timeline exclude callbacks from the local preview player.
 func ParseWithPlayback(line string) (Event, bool, error) {
 	if event, ok, err := Parse(line); ok || err != nil {
+		if event.Songs != nil {
+			event.queueAt = logTime(line)
+		}
 		return event, ok, err
 	}
 	return parsePlayerFact(line)
 }
 
-func parsePlayerFact(line string) (Event, bool, error) {
+func logTime(line string) time.Time {
 	if len(line) < 19 {
-		return Event{}, false, nil
+		return time.Time{}
 	}
-	at, err := time.ParseInLocation("2006.01.02 15:04:05", line[:19], time.Local)
-	if err != nil {
+	at, _ := time.ParseInLocation("2006.01.02 15:04:05", line[:19], time.Local)
+	return at
+}
+
+func parsePlayerFact(line string) (Event, bool, error) {
+	at := logTime(line)
+	if at.IsZero() {
 		return Event{}, false, nil
 	}
 	e := &PlaybackEvent{At: at}
@@ -79,12 +89,15 @@ func parsePlayerFact(line string) (Event, bool, error) {
 			}
 			break
 		}
-		match := roomSelectionData.FindStringIndex(line)
+		match := roomSelectionData.FindStringSubmatchIndex(line)
 		var song Song
-		if match == nil || json.NewDecoder(strings.NewReader(line[match[1]:])).Decode(&song) != nil || song.ID <= 0 {
+		if match == nil || json.NewDecoder(strings.NewReader(line[match[1]:])).Decode(&song) != nil || song.ID == 0 || song.ID < -1 {
 			return Event{}, false, nil
 		}
 		e.Kind, e.SongID = "room-selection", song.ID
+		if song.ID == -1 && (match[2] < 0 || line[match[2]:match[3]] != "0") {
+			e.SongID = 0 // An external choice, but no identifiable queue head.
+		}
 	case strings.Contains(line, "[VideoListManager]"):
 		m := previewSong.FindStringSubmatch(line)
 		if m == nil {
@@ -143,29 +156,37 @@ func parsePlayerFact(line string) (Event, bool, error) {
 				}
 			}
 		}
-		e.SongID = playbackSong(line)
+		e.SongID, e.external = playbackMedia(line)
 	default:
 		return Event{}, false, nil
 	}
 	return Event{Playback: e}, true, nil
 }
 
-func playbackSong(line string) int64 {
+var externalMediaSeed = maphash.MakeSeed()
+
+func playbackMedia(line string) (int64, uint64) {
+	var external uint64
 	for _, word := range strings.Fields(line) {
 		if !strings.HasPrefix(word, "http://") && !strings.HasPrefix(word, "https://") {
 			continue
 		}
-		u, err := url.Parse(strings.TrimRight(word, ",;"))
-		if err != nil {
+		word = strings.TrimRight(word, ",;")
+		u, err := url.Parse(word)
+		if err != nil || u.Hostname() == "" {
 			continue
 		}
 		if u.Hostname() != "api.udon.dance" || u.Path != "/Api/Songs/play" {
+			// LoadRoutedURL can include both the source and its redirect.
+			if external == 0 {
+				external = maphash.String(externalMediaSeed, word) | 1
+			}
 			continue
 		}
 		id, err := strconv.ParseInt(u.Query().Get("id"), 10, 64)
 		if err == nil && id > 0 {
-			return id
+			return id, 0
 		}
 	}
-	return 0
+	return 0, external
 }

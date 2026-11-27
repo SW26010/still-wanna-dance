@@ -38,16 +38,16 @@ func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Ev
 	for _, e := range events {
 		role, anchor := t.Role, t.Anchor
 		change := t.Observe(e, now)
-		if change.SelectedSong != 0 {
+		if change.SelectedSong != nil {
 			s.mu.Lock()
-			s.selectedRoomSong = change.SelectedSong
+			s.selectedRoomSong = *change.SelectedSong
 			s.mu.Unlock()
 		}
 		anchorChanged := anchor != t.Anchor
 		if !anchorChanged && role == t.Role && !e.Reset && !change.Stopped {
 			continue
 		}
-		s.cfg.Logger.Debug("正式播放日志更新", "event_name", "playback_timeline", "role", t.Role.String(), "song_id", t.Anchor.SongID, "anchor", t.Anchor.At, "target_seconds", t.Anchor.Position, "catalog_start", t.Anchor.CatalogStart)
+		s.cfg.Logger.Debug("正式播放日志更新", "event_name", "playback_timeline", "role", t.Role.String(), "song_id", t.Anchor.SongID, "external", t.Anchor.IsExternal(), "anchor", t.Anchor.At, "target_seconds", t.Anchor.Position, "catalog_start", t.Anchor.CatalogStart)
 		if e.Reset || change.Stopped {
 			s.endPlaybackFromLog(t.Role)
 			continue
@@ -89,6 +89,18 @@ func (s *Server) applyPlaybackTimeline(t vrclog.PlayerTimeline, anchorChanged bo
 	now := time.Now()
 	s.refreshUseSourcesLocked(now)
 	a := t.Anchor
+	if a.IsExternal() {
+		var keys []string
+		if p := s.formal; p != nil {
+			keys = append(keys, p.key)
+			s.dropFormalLocked(now)
+		}
+		s.selectedRoomSong = 0
+		s.queueSchedule, s.queueStart = queueExternal, a.Started.Add(typicalDuration+queueSongGap)
+		keys = append(keys, s.retimeQueueLocked(now)...)
+		s.notifyUseChangedLocked(keys...)
+		return
+	}
 	if a.SongID == 0 {
 		s.withdrawFormalLocked(now)
 		return
@@ -187,7 +199,7 @@ func (s *Server) clearFormalLocked(now time.Time) {
 func (s *Server) withdrawFormalLocked(now time.Time) {
 	p := s.formal
 	s.dropFormalLocked(now)
-	keys := s.holdPublishedQueueLocked(now)
+	keys := s.retireQueueClockLocked(now)
 	if p != nil {
 		keys = append(keys, p.key)
 	}
@@ -231,7 +243,7 @@ func (s *Server) expireFormalLocked(now time.Time) []string {
 	}
 	if end := p.clock.end(); !now.Before(end) {
 		s.dropFormalLocked(end)
-		return s.holdPublishedQueueLocked(end)
+		return s.retireQueueClockLocked(end)
 	}
 	return nil
 }

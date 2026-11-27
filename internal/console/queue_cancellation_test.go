@@ -86,12 +86,12 @@ func TestQueueInvalidationReplacesSourcesDuringHandoff(t *testing.T) {
 			updating, allowUpdate, updated := make(chan struct{}), make(chan struct{}), make(chan struct{})
 			finishUpdate := sync.OnceFunc(func() { close(allowUpdate) })
 			defer finishUpdate()
-			q.updateSources = func(ids []int64, reset bool) {
+			q.updateSources = func(ids []int64, reset bool, routedSong int64) {
 				if len(ids) > 0 && ids[0] == 3 {
 					close(updating)
 					<-allowUpdate
 				}
-				updateSources(ids, reset)
+				updateSources(ids, reset, routedSong)
 			}
 			q.mu.Unlock()
 			go func() { q.setQueueSongs(next, false); close(updated) }()

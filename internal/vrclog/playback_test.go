@@ -35,6 +35,48 @@ func TestPlaybackParserSelectsFormalFacts(t *testing.T) {
 	}
 }
 
+func TestQueueRoomSongUsesFollowingRoomRoute(t *testing.T) {
+	const stamp = "2026.11.26 20:48:48"
+	const player = " [USharpVideo (WannaDance)] "
+	const song = "http://api.udon.dance/Api/Songs/play?id=6459"
+	parse := func(line string) Event {
+		t.Helper()
+		e, ok, err := ParseWithPlayback(line)
+		if err != nil || !ok {
+			t.Fatal(line, err)
+		}
+		return e
+	}
+	queue := parse(stamp + " [VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [{\"songId\":6460}]")
+	load := parse(stamp + player + "LoadRoutedURL: " + song)
+	route := parse(stamp + player + "Playing synced " + song)
+	later := parse("2026.11.26 20:48:49" + player + "Playing synced " + song)
+	for _, tc := range []struct {
+		name      string
+		following []Event
+		want      int64
+	}{
+		{"room route", []Event{route}, 6459},
+		{"intervening local load", []Event{load, route}, 6459},
+		{"queue alone", nil, 0},
+		{"local load alone", []Event{load}, 0},
+		{"next log second", []Event{later}, 0},
+		{"superseded snapshot", []Event{queue, route}, 0},
+		{"room reset", []Event{{Reset: true}, route}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var p PlayerTimeline
+			at := route.Playback.At
+			if got := p.QueueRoomSong(queue, tc.following, at.Add(time.Second)); got != tc.want {
+				t.Fatalf("room song = %d, want %d", got, tc.want)
+			}
+			if got := p.QueueRoomSong(queue, tc.following, at.Add(5*time.Second)); got != 0 {
+				t.Fatalf("late route supplied a queue handoff: %d", got)
+			}
+		})
+	}
+}
+
 func TestTailReadsQueueAndPlaybackInFileOrder(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "output_log_2000-01-01_00-00-00.txt")

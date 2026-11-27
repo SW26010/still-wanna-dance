@@ -43,7 +43,7 @@ type queueTask struct {
 	generation    uint64
 	waiters       map[int64]*queueWaiter
 	prepared      map[int64]bool
-	updateSources func([]int64, bool)
+	updateSources func([]int64, bool, int64)
 	cancel        context.CancelFunc
 	done          chan struct{}
 	logFault      func(error) // protected by mu; observes retry results only
@@ -158,12 +158,12 @@ func (q *queueTask) setQueueSongs(songs []vrclog.Song, reset bool) {
 	q.setSongs(songs, reset)
 	updateSources := q.updateSources
 	q.mu.Unlock()
-	updateQueueSources(updateSources, songs, reset)
+	updateQueueSources(updateSources, songs, reset, 0)
 }
 
-func updateQueueSources(updateSources func([]int64, bool), songs []vrclog.Song, reset bool) {
+func updateQueueSources(updateSources func([]int64, bool, int64), songs []vrclog.Song, reset bool, routedSong int64) {
 	if updateSources != nil {
-		updateSources(queueSongIDs(songs), reset)
+		updateSources(queueSongIDs(songs), reset, routedSong)
 	}
 }
 
@@ -380,7 +380,7 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 				q.setSongs(e.Songs, reset)
 				updateSources := q.updateSources
 				q.mu.Unlock()
-				updateQueueSources(updateSources, e.Songs, reset)
+				updateQueueSources(updateSources, e.Songs, reset, timeline.QueueRoomSong(e, updates[i+1:], received))
 				// Freeze any departing queue head on the old room clock.
 				if fromLog && e.Reset {
 					engine.ObservePlaybackLog(&timeline, updates[i:i+1], received)
@@ -403,8 +403,8 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 func (q *queueTask) queueWorker(ctx context.Context, engine *cacheproxy.Server, wake chan struct{}) {
 	q.updateMu.Lock()
 	q.mu.Lock()
-	q.updateSources = func(ids []int64, reset bool) {
-		if err := engine.UpdatePrefetchQueue(ids, reset); err != nil {
+	q.updateSources = func(ids []int64, reset bool, routedSong int64) {
+		if err := engine.UpdatePrefetchQueueWithRoute(ids, reset, routedSong); err != nil {
 			slog.Warn("队列播放时间推算失败", "event_name", "queue_timing_failed", "error", err)
 		}
 		select {

@@ -49,7 +49,7 @@ func TestQueueProtectionWaitReleasesStateLockAndPreservesResetOrder(t *testing.T
 		reset bool
 	}
 	calls := make(chan update, 2)
-	c.queue.updateSources = func(ids []int64, reset bool) {
+	c.queue.updateSources = func(ids []int64, reset bool, _ int64) {
 		calls <- update{ids, reset}
 		if len(ids) > 0 && ids[0] == 1 {
 			close(entered)
@@ -108,7 +108,7 @@ func TestQueueProtectionWaitAllowsStopCancellation(t *testing.T) {
 	defer cancel()
 	c.queue.cancel = cancel
 	entered, done := make(chan struct{}), make(chan struct{})
-	c.queue.updateSources = func([]int64, bool) { close(entered); <-ctx.Done() }
+	c.queue.updateSources = func([]int64, bool, int64) { close(entered); <-ctx.Done() }
 	go func() { c.queue.setQueueSongs([]vrclog.Song{{ID: 1}}, false); close(done) }()
 	<-entered
 	stopped := make(chan error, 1)
@@ -138,7 +138,7 @@ func TestGatewayStopWaitsForQueueWithdrawal(t *testing.T) {
 		queueDone := make(chan struct{})
 		c := &Console{
 			queueDesired: true,
-			queue: queueTask{cancel: cancel, done: queueDone, updateSources: func(ids []int64, reset bool) {
+			queue: queueTask{cancel: cancel, done: queueDone, updateSources: func(ids []int64, reset bool, _ int64) {
 				if len(ids) != 0 || !reset {
 					t.Errorf("unexpected withdrawal: %v, reset=%v", ids, reset)
 				}

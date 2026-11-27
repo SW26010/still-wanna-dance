@@ -103,6 +103,11 @@ func (e *sourceExit) active(ctx context.Context) bool {
 }
 
 func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
+	return s.UpdatePrefetchQueueWithRoute(ids, reset, 0)
+}
+
+// routedSong is the catalog ID confirmed by the room alongside this snapshot.
+func (s *Server) UpdatePrefetchQueueWithRoute(ids []int64, reset bool, routedSong int64) error {
 	if !s.beginRequest() {
 		return context.Canceled
 	}
@@ -126,7 +131,14 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	}
 	selected := s.selectedRoomSong
 	selectedDeparted := selected != 0 && slices.Contains(s.prefetchOrder, selected) && !slices.Contains(ids, selected)
-	holdIdleSchedule := !reset && len(ids) > 0 && s.queueSchedule == queueRolling && selectedDeparted && s.prefetchOrder[0] == selected
+	if selected == -1 && len(s.prefetchOrder) > 0 && s.prefetchOrder[0] == -1 {
+		// Other external entries have the same ID. Removing the
+		// head can leave more placeholders in the new snapshot.
+		selectedDeparted = selectedDeparted || slices.Equal(s.prefetchOrder[1:], ids)
+	}
+	routedHeadDeparted := routedSong > 0 && len(s.prefetchOrder) > 0 && s.prefetchOrder[0] == routedSong && !slices.Contains(ids, routedSong)
+	selectedHeadDeparted := selectedDeparted && s.prefetchOrder[0] == selected
+	holdSuccessors := !reset && len(ids) > 0 && s.queueSchedule == queueRolling && (selectedHeadDeparted || routedHeadDeparted)
 	if reset || selectedDeparted {
 		s.selectedRoomSong = 0
 	}
@@ -159,10 +171,10 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 			changed = true
 		}
 	}
-	if holdIdleSchedule {
-		// Preserve the surviving slots at the instant before the selected head
+	if holdSuccessors {
+		// Preserve the surviving slots at the instant before the head
 		// departed. Newly added sources receive their slots after the old tail.
-		s.holdQueueScheduleLocked(now, next)
+		s.holdQueueScheduleLocked(maxTime(s.queueStart, now), next)
 	}
 	for song, source := range next {
 		metadata, ok := timings[song]
@@ -177,7 +189,9 @@ func (s *Server) UpdatePrefetchQueue(ids []int64, reset bool) error {
 	}
 	s.prefetchSources = next
 	s.prefetchOrder = append([]int64(nil), ids...)
-	if reset || len(ids) == 0 && s.queueSchedule == queueFixed {
+	// A queue-only reset can occur during external playback. The room's
+	// independent stop/reset event clears its clock.
+	if s.queueSchedule != queueExternal && (reset || len(ids) == 0) {
 		s.resetQueueScheduleLocked(now)
 	}
 	changedKeys = append(changedKeys, s.retimeQueueLocked(now)...)

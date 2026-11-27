@@ -9,6 +9,8 @@ import (
 // The current preview keeps its identity until a lifecycle event replaces it.
 const previewLogWindow = 90 * time.Second
 
+const playbackFreshness = 4 * time.Second
+
 type PlayerRole uint8
 
 const (
@@ -32,11 +34,24 @@ func (r PlayerRole) String() string {
 // supplies an absolute media position, including for late joiners.
 type PlaybackAnchor struct {
 	SongID       int64
+	external     uint64
 	At           time.Time
 	Started      time.Time // Identity of the first start/sync in this playback.
 	Position     float64
 	CatalogStart bool
 }
+
+// IsExternal reports a start-only queue estimate without exposing media identity.
+func (a PlaybackAnchor) IsExternal() bool { return a.external != 0 }
+
+type mediaID struct {
+	song     int64
+	external uint64
+}
+
+func (m mediaID) known() bool { return m.song != 0 || m.external != 0 }
+
+func (a PlaybackAnchor) media() mediaID { return mediaID{a.SongID, a.external} }
 
 type previewAssociation struct {
 	songID int64
@@ -47,7 +62,7 @@ type previewAssociation struct {
 type PlayerTimeline struct {
 	Role                 PlayerRole
 	Anchor               PlaybackAnchor
-	route                int64
+	route                mediaID
 	lastEvent, lastStart time.Time
 	naturalTransitionAt  time.Time
 	selectionPending     bool
@@ -59,8 +74,30 @@ type PlayerTimeline struct {
 }
 
 type PlaybackChange struct {
-	SelectedSong int64 // A newly observed room selection.
-	Stopped      bool  // The room stopped without continuing into a selection.
+	SelectedSong *int64 // nil: no selection event; zero: no identifiable queue member.
+	Stopped      bool   // The room stopped without continuing into a selection.
+}
+
+// QueueRoomSong returns the catalog route following this snapshot in the
+// same read. A local load may separate them but cannot confirm a room choice.
+func (p *PlayerTimeline) QueueRoomSong(snapshot Event, following []Event, received time.Time) int64 {
+	at := snapshot.queueAt
+	if at.IsZero() || at.Before(p.lastEvent) || at.After(received) || received.Sub(at) > playbackFreshness {
+		return 0
+	}
+	for _, event := range following {
+		e := event.Playback
+		if e == nil || !e.At.Equal(at) {
+			break
+		}
+		if e.Kind == "room-route" {
+			return e.SongID
+		}
+		if e.Kind != "route" {
+			break
+		}
+	}
+	return 0
 }
 
 // Observe is called in file order by the single log reader. Route lines
@@ -75,6 +112,7 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 		return
 	}
 	previousAnchor := p.Anchor
+	media := mediaID{e.SongID, e.external}
 	// A local seek can identify a following sync even if it omits the threshold.
 	// A sync with the room threshold keeps its source independently of the seek.
 	seek := p.previewSeek
@@ -96,7 +134,7 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 	case "room-selection":
 		delete(p.previews, e.SongID)
 		p.selectionPending = true
-		change.SelectedSong = e.SongID
+		change.SelectedSong = &e.SongID
 		return
 	case "room-stop-request":
 		p.selectionPending = false
@@ -108,7 +146,7 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 		}
 	}
 	// A stop in file order still ends playback after a delayed read.
-	if e.Kind != "end" && e.Kind != "stop" && e.Kind != "room-end" && e.Kind != "room-stop" && received.Sub(e.At) > 4*time.Second {
+	if e.Kind != "end" && e.Kind != "stop" && e.Kind != "room-end" && e.Kind != "room-stop" && received.Sub(e.At) > playbackFreshness {
 		if e.Owner != nil && (*e.Owner != (p.Role == Owner)) {
 			p.Role = UnknownRole
 		}
@@ -116,11 +154,14 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 		case "route", "room-route":
 			// An untrusted route cannot identify the next anonymous sync.
 			// The established room clock continues until a playback fact replaces it.
-			p.route, p.lastStart, p.synced = 0, time.Time{}, false
+			p.route, p.lastStart, p.synced = mediaID{}, time.Time{}, false
 		case "start":
-			p.Anchor = PlaybackAnchor{}
-			p.route, p.lastStart, p.synced = e.SongID, e.At, false
 			p.lastEvent = e.At
+			if e.external != 0 && media == p.Anchor.media() {
+				return // A duplicate cannot invalidate the trusted first start.
+			}
+			p.Anchor = PlaybackAnchor{}
+			p.route, p.lastStart, p.synced = mediaID{song: e.SongID}, e.At, false
 		}
 		return
 	}
@@ -133,74 +174,87 @@ func (p *PlayerTimeline) Observe(event Event, received time.Time) (change Playba
 			p.Anchor = PlaybackAnchor{}
 		}
 	}
+	current := p.Anchor.media()
 	switch e.Kind {
 	case "route", "room-route":
 		if e.Kind == "room-route" {
 			delete(p.previews, e.SongID)
-			if e.SongID > 0 && e.SongID != p.Anchor.SongID {
+			if media.known() && media != current {
 				p.Anchor = PlaybackAnchor{}
 			}
 		}
 		p.lastStart, p.synced = time.Time{}, false
-		p.route = e.SongID
-		if e.SongID > 0 {
+		// A local external load (possibly a retry) cannot select a new room video.
+		if e.Kind == "route" && e.external != 0 {
+			media.external = p.route.external
+		}
+		p.route = media
+		if e.SongID > 0 || (e.Kind == "room-route" && e.external != 0) {
 			p.previewCallbacks = nil
 		}
 	case "start":
+		if e.external != 0 {
+			if media != current {
+				p.Anchor = PlaybackAnchor{external: e.external, Started: e.At, At: e.At}
+			}
+			p.route, p.lastStart, p.synced = media, e.At, false
+			break
+		}
 		if e.SongID == 0 {
 			p.Anchor = PlaybackAnchor{}
-			p.route, p.lastStart, p.synced = 0, time.Time{}, false
+			p.route, p.lastStart, p.synced = mediaID{}, time.Time{}, false
 			return
 		}
 		p.previewCallbacks = nil
-		if p.route == e.SongID && p.lastStart.Equal(e.At) && (p.Anchor.SongID != 0 || p.Role != Owner) {
+		if p.route == media && p.lastStart.Equal(e.At) && (p.Anchor.SongID != 0 || p.Role != Owner) {
 			return
 		}
-		if p.route == e.SongID && p.synced && (p.lastStart.IsZero() || p.Anchor.At.Equal(e.At)) {
+		if p.route == media && p.synced && (p.lastStart.IsZero() || p.Anchor.At.Equal(e.At)) {
 			if !p.lastStart.IsZero() {
 				p.Anchor.Started = e.At
 			}
 			p.lastStart = e.At
 			return
 		}
-		p.route, p.lastStart, p.synced = e.SongID, e.At, false
+		p.route, p.lastStart, p.synced = media, e.At, false
 		p.Anchor = PlaybackAnchor{}
 		if p.Role == Owner {
 			p.Anchor = PlaybackAnchor{SongID: e.SongID, Started: e.At, At: e.At, CatalogStart: true}
 		}
 	case "sync", "room-sync", "local-sync":
-		if p.route <= 0 {
+		if p.route.song <= 0 {
 			return
 		}
 		started := p.Anchor.Started
-		if p.Anchor.SongID != p.route || started.IsZero() || (p.lastStart.IsZero() && !p.synced) {
+		if p.Anchor.SongID != p.route.song || started.IsZero() || (p.lastStart.IsZero() && !p.synced) {
 			started = e.At
 		}
 		p.synced = true
-		p.Anchor = PlaybackAnchor{Started: started, SongID: p.route, At: e.At, Position: e.Position}
+		p.Anchor = PlaybackAnchor{Started: started, SongID: p.route.song, At: e.At, Position: e.Position}
 	case "end", "stop", "room-end", "room-stop":
-		if e.SongID == 0 || e.SongID == p.Anchor.SongID {
+		if !media.known() || media == current {
 			if e.Kind == "stop" || e.Kind == "room-stop" {
 				// The old player's stop callback can cross a log second after
 				// natural end or selection of the next song.
 				age := e.At.Sub(p.naturalTransitionAt)
-				continuedNaturalEnd := e.Kind == "room-stop" && p.Anchor.SongID == 0 && age >= 0 && age <= time.Second
+				continuedNaturalEnd := e.Kind == "room-stop" && !current.known() && age >= 0 && age <= time.Second
 				change.Stopped = !p.selectionPending && !continuedNaturalEnd
-			} else if p.Anchor.SongID != 0 {
+			} else if current.known() {
 				p.naturalTransitionAt = e.At
 			}
 			p.Anchor = PlaybackAnchor{}
-		} else if e.Kind == "stop" && e.SongID == p.route && p.Anchor.SongID == 0 {
+		} else if e.Kind == "stop" && media == p.route && !current.known() {
 			change.Stopped = !p.selectionPending
 		}
-		if e.SongID == 0 || e.SongID == p.route {
-			p.route, p.lastStart, p.synced = 0, time.Time{}, false
+		if !media.known() || media == p.route {
+			p.route, p.lastStart, p.synced = mediaID{}, time.Time{}, false
 		}
 	}
-	if p.Anchor.SongID != 0 || change.Stopped {
+	active := p.Anchor.media().known()
+	if active || change.Stopped {
 		p.naturalTransitionAt = time.Time{}
 	}
-	newPlayback := p.Anchor.SongID != 0 && (p.Anchor.SongID != previousAnchor.SongID || p.Anchor.Started != previousAnchor.Started)
+	newPlayback := active && (p.Anchor.media() != previousAnchor.media() || p.Anchor.Started != previousAnchor.Started)
 	if change.Stopped || newPlayback {
 		p.selectionPending = false
 	}
@@ -234,9 +288,12 @@ func (p *PlayerTimeline) consumePreviewCallback(e *PlaybackEvent) bool {
 		// The local threshold also occurs during some room-player starts.
 		return p.activePreview != nil || p.previewApplies(p.previewCallbacks, e.At)
 	}
-	// A sync or stop with no song ID cannot be attributed to the room
-	// while the most recent identified player is the preview.
+	// A named external callback can belong to the selected or playing room
+	// video. Unattributed callbacks still follow the most recent preview.
 	if e.SongID == 0 {
+		if e.external != 0 && (e.external == p.route.external || e.external == p.Anchor.external) {
+			return false
+		}
 		return p.previewApplies(p.previewCallbacks, e.At)
 	}
 	preview := p.previews[e.SongID]
@@ -252,7 +309,7 @@ func (p *PlayerTimeline) consumePreviewCallback(e *PlaybackEvent) bool {
 		// An ordinary same-song end could belong to either player.
 		// A confirmed room end is handled independently of this preview.
 		if !e.At.Before(preview.until.Add(-previewLogWindow)) &&
-			e.SongID != p.Anchor.SongID && e.SongID != p.route {
+			e.SongID != p.Anchor.SongID && e.SongID != p.route.song {
 			preview.ended = true
 			if p.activePreview == preview {
 				p.activePreview = nil

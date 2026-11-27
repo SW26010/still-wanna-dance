@@ -86,6 +86,170 @@ func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	})
 }
 
+func TestExternalPlaybackKeepsQueuedBlocksThroughHandoff(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		played   time.Duration
+		selected bool
+		routed   int64
+	}{
+		{"early end with selected head", 166 * time.Second, true, 0},
+		{"overrun with selected head", 332 * time.Second, true, 0},
+		{"overrun with queue snapshots only", 332 * time.Second, false, 0},
+		{"room routed the departing head", 332 * time.Second, false, 6459},
+		{"room routed another song", 332 * time.Second, false, 6460},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.Logger = slog.Default()
+				now := time.Now()
+				timeline := vrclog.PlayerTimeline{Anchor: vrclog.PlaybackAnchor{SongID: 9, At: now}}
+				logLine := func(body string) {
+					t.Helper()
+					at := time.Now()
+					e, ok, err := vrclog.ParseWithPlayback(at.In(time.Local).Format("2006.01.02 15:04:05") +
+						" Debug - [USharpVideo (WannaDance)] " + body)
+					if !ok || err != nil {
+						t.Fatal(body, err)
+					}
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{e}, at)
+				}
+				end := now.Add(time.Minute)
+				setFormalPlaybackEnd(t, s, end)
+				s.UpdatePrefetchQueue([]int64{-1, 6459, -1, 6460}, false)
+				registerQueueResource(t, s, "6459", w.v.key)
+				step := typicalDuration + queueSongGap
+				expected := end.Add(queueSongGap + step)
+				checkHead := func(want time.Time) {
+					t.Helper()
+					plan, _, _ := w.plan(time.Now())
+					if n, ok := plan[0]; !ok || !n.need.ReadyAt(time.Now()).Equal(want) {
+						t.Fatalf("queued block 0 present=%t, need-by=%v, want %v", ok, n.need.ReadyAt(time.Now()), want)
+					}
+				}
+				time.Sleep(time.Until(end))
+				logLine("OnVideoEnd: Video http://api.udon.dance/Api/Songs/play?id=9 ended")
+				s.UpdatePrefetchQueue([]int64{6459, -1, 6460}, false)
+				checkHead(expected)
+				const external = "https://example.invalid/video"
+				logLine("Playing synced " + external)
+				time.Sleep(queueSongGap)
+				logLine("OnVideoStart: Started video: " + external + " since owner is playing")
+				checkHead(expected)
+				time.Sleep(tc.played)
+				synctest.Wait()
+				base := maxTime(expected, time.Now())
+				checkHead(base)
+				s.mu.Lock()
+				later := s.queueClockLocked(s.prefetchSources["6460"], time.Now()).at
+				s.mu.Unlock()
+				if !later.Equal(base.Add(2 * step)) {
+					t.Fatalf("later queue slot=%v", later)
+				}
+				logLine("OnVideoEnd: Video " + external + " ended")
+				time.Sleep(sourceGrace + time.Second)
+				synctest.Wait()
+				atHandoff := maxTime(expected, time.Now())
+				checkHead(atHandoff)
+				if tc.selected {
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{
+						{Playback: &vrclog.PlaybackEvent{Kind: "room-selection", SongID: 6459, At: time.Now()}},
+					}, time.Now())
+				}
+				if err := s.UpdatePrefetchQueueWithRoute([]int64{-1, 6460}, false, tc.routed); err != nil {
+					t.Fatal(err)
+				}
+				h := snapshotUseHandoffs(s)
+				if len(h) != 1 || h[0].span.first != 0 || !h[0].clock.at.Equal(atHandoff) {
+					t.Fatalf("head handoff lost its prefix or rolling deadline: %+v", h)
+				}
+				time.Sleep(time.Second)
+				s.mu.Lock()
+				later = s.queueClockLocked(s.prefetchSources["6460"], time.Now()).at
+				s.mu.Unlock()
+				want := maxTime(expected, time.Now()).Add(step) // Only the external placeholder remains ahead.
+				if tc.selected || tc.routed == 6459 {
+					want = atHandoff.Add(2 * step)
+				}
+				if !later.Equal(want) {
+					t.Fatalf("successor slot after departure = %v, want %v", later, want)
+				}
+			})
+		})
+	}
+}
+
+func TestDeletingExternalQueueHeadAdvancesSuccessor(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		end := time.Now().Add(time.Minute)
+		setFormalPlaybackEnd(t, s, end)
+		s.UpdatePrefetchQueue([]int64{-1, 2}, false)
+		registerQueueResource(t, s, "2", w.v.key)
+		s.UpdatePrefetchQueue([]int64{2}, false)
+		plan, _, _ := w.plan(time.Now())
+		if got := plan[0].need.ReadyAt(time.Now()); !got.Equal(end.Add(queueSongGap)) {
+			t.Fatalf("deleting the placeholder left its time in the queue: %v", got)
+		}
+	})
+}
+
+func TestExternalHeadFromIdle(t *testing.T) {
+	for _, tc := range []struct {
+		name, selection string
+		before, after   []int64
+		hold            bool
+	}{
+		{"play head", "PlayQueueVideo: index = 0,", []int64{-1, 2}, []int64{2}, true},
+		{"play head with more links", "PlayQueueVideo: index = 0,", []int64{-1, 2, -1}, []int64{2, -1}, true},
+		{"remove and append with more links", "PlayQueueVideo: index = 0,", []int64{-1, 2, -1}, []int64{2, -1, 3}, false},
+		{"manual deletion", "", []int64{-1, 2}, []int64{2}, false},
+		{"selected another link", "PlayQueueVideo: index = 2,", []int64{-1, 2, -1}, []int64{2, -1}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				w, s := testSession(t)
+				s.cfg.Logger = slog.Default()
+				var timeline vrclog.PlayerTimeline
+				logLine := func(line string) {
+					t.Helper()
+					at := time.Now()
+					e, ok, err := vrclog.ParseWithPlayback(at.In(time.Local).Format("2006.01.02 15:04:05") + " Debug - " + line)
+					if !ok || err != nil {
+						t.Fatalf("parse: ok=%v err=%v", ok, err)
+					}
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{e}, at)
+				}
+				s.UpdatePrefetchQueue(tc.before, false)
+				registerQueueResource(t, s, "2", w.v.key)
+				check := func(want time.Time) {
+					t.Helper()
+					plan, _, _ := w.plan(time.Now())
+					if n := plan[0].need.ReadyAt(time.Now()); !n.Equal(want) {
+						t.Fatalf("head need-by=%v, want %v", n, want)
+					}
+				}
+				now := time.Now()
+				step := typicalDuration + queueSongGap
+				check(now.Add(step))
+				if tc.selection != "" {
+					logLine("[VideoQueueManager] " + tc.selection + ` userData = {"songId":-1}`)
+				}
+				s.UpdatePrefetchQueue(tc.after, false)
+				if tc.hold {
+					check(now.Add(step))
+					time.Sleep(queueSongGap)
+					logLine("[USharpVideo (WannaDance)] Started video: https://example.invalid/a")
+					check(time.Now().Add(step))
+				} else {
+					check(now)
+				}
+			})
+		})
+	}
+}
+
 func TestQueueHoldsFormalScheduleAcrossGETAndClockExpiry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, s := testSession(t)

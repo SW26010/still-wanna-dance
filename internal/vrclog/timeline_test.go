@@ -206,21 +206,121 @@ func TestRoomClockUnidentifiedStartPreservesRoleAndClearsRoute(t *testing.T) {
 	at := time.Now().Truncate(time.Second)
 	observePlayerLine(t, &p, at, 0, "Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner")
 	anchor := p.Anchor
-	const unknown = "Started video: https://example.invalid/video"
+	const unknown = "Started video:"
 	for _, delta := range []time.Duration{-time.Second, time.Hour} {
-		observePlayerLine(t, &p, at.Add(delta), -delta, unknown+", since owner is playing")
+		observePlayerLine(t, &p, at.Add(delta), -delta, unknown+" since owner is playing")
 		if p.Anchor != anchor || p.Role != Owner {
 			t.Fatal("untrusted start reset the room", p)
 		}
 	}
 	observePlayerLine(t, &p, at.Add(time.Second), 0, unknown)
 	observePlayerLine(t, &p, at.Add(2*time.Second), 0, "Syncing video to 18.5")
-	if p.Role != Owner || p.Anchor.SongID != 0 {
+	if p.Role != Owner || p.Anchor != (PlaybackAnchor{}) {
 		t.Fatal("unidentified start lost owner or retained old song", p)
 	}
-	observePlayerLine(t, &p, at.Add(3*time.Second), 0, unknown+", since owner is playing")
-	if p.Role != Follower || p.Anchor.SongID != 0 {
+	observePlayerLine(t, &p, at.Add(3*time.Second), 0, unknown+" since owner is playing")
+	if p.Role != Follower || p.Anchor != (PlaybackAnchor{}) {
 		t.Fatal("unidentified start lost its explicit role", p)
+	}
+}
+
+func TestExternalStartFollowsRoomPlayback(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const external = "https://example.invalid/video"
+	const catalog = "http://api.udon.dance/Api/Songs/play?id=2"
+	at := time.Now().Truncate(time.Second)
+	var p PlayerTimeline
+	read := func(offset int, line string) {
+		observeTimelineLine(t, &p, at.Add(time.Duration(offset)*time.Second), 0, line)
+	}
+	read(0, "[VideoListManager] PreviewVideo: 3")
+	read(0, player+"Playing synced "+external)
+	observeTimelineLine(t, &p, at.Add(time.Second), 5*time.Second, player+"Started video: "+external)
+	if p.Anchor.IsExternal() {
+		t.Fatal("late start established an external clock")
+	}
+	read(10, player+"Started video: "+external+" since owner is playing")
+	read(12, player+"Started video: "+external+" since owner is playing")
+	observeTimelineLine(t, &p, at.Add(13*time.Second), 5*time.Second, player+"Started video: "+external)
+	read(19, player+"Syncing video to 1.5")
+	if !p.Anchor.IsExternal() || !p.Anchor.Started.Equal(at.Add(10*time.Second)) {
+		t.Fatal("external start changed during the same playback", p.Anchor)
+	}
+	read(20, player+"Playing synced "+catalog)
+	read(21, player+"OnVideoEnd: Video "+external+" ended")
+	read(22, player+"Syncing video to 0.25")
+	if p.Anchor.SongID != 2 || p.Anchor.Position != 0.25 || p.Role != Follower {
+		t.Fatal("external end disrupted the new catalog clock or role", p.Anchor, p.Role)
+	}
+}
+
+func TestExternalRoomCallbackAttribution(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const a = "https://example.invalid/play?id=1"
+	const b = "https://example.invalid/play?id=2"
+	at := time.Now().Truncate(time.Second)
+	type line struct {
+		seconds int
+		text    string
+	}
+	for _, tc := range []struct {
+		name string
+		log  []line
+		want int
+	}{
+		{"local reload", []line{
+			{0, player + "Playing synced " + a}, {1, player + "Started video: " + a},
+			{98, player + "LoadRoutedURL: " + a}, {100, player + "Started video: " + a},
+		}, 1},
+		{"old end after room switch", []line{
+			{0, player + "Playing synced " + a}, {1, player + "Started video: " + a},
+			{60, player + "Playing synced " + b}, {70, player + "Started video: " + b},
+			{71, player + "OnVideoEnd: Video " + a + " ended"},
+		}, 70},
+		{"same URL after end", []line{
+			{0, player + "Started video: " + a}, {60, player + "OnVideoEnd: Video " + a + " ended"},
+			{70, player + "Started video: " + a},
+		}, 70},
+		{"room start during preview", []line{
+			{0, player + "Playing synced " + a}, {1, "[VideoListManager] PreviewVideo: 3"},
+			{10, player + "Started video: " + a}, {11, player + "Started video: " + b},
+			{12, player + "StopVideo"},
+		}, 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var p PlayerTimeline
+			for _, l := range tc.log {
+				observeTimelineLine(t, &p, at.Add(time.Duration(l.seconds)*time.Second), 0, l.text)
+			}
+			if !p.Anchor.IsExternal() || !p.Anchor.Started.Equal(at.Add(time.Duration(tc.want)*time.Second)) {
+				t.Fatalf("external start = %v, want T+%ds", p.Anchor.Started, tc.want)
+			}
+		})
+	}
+}
+
+func TestCatalogRouteAndSyncAfterExternalRestart(t *testing.T) {
+	const player = "[USharpVideo (WannaDance)] "
+	const external = "https://example.invalid/a"
+	const catalog = "http://api.udon.dance/Api/Songs/play?id=2"
+	at := time.Now().Truncate(time.Second)
+	var p PlayerTimeline
+	read := func(offset int, line string) {
+		observeTimelineLine(t, &p, at.Add(time.Duration(offset)*time.Second), 0, line)
+	}
+	read(0, player+"Started video: "+external+" since owner is playing")
+	read(1, `[VideoQueueManager] PlayQueueVideo: index = 0, userData = {"songId":2}`)
+	read(2, player+"OnVideoEnd: Video "+external+" ended")
+	read(3, player+"Started video: "+external+" since I'm the owner")
+	read(4, player+"LoadRoutedURL: "+catalog)
+	read(5, player+"Syncing video to 0.25")
+	if p.Anchor.SongID != 2 || p.Anchor.Position != 0.25 {
+		t.Fatal("selected song did not acquire its clock", p.Anchor)
+	}
+	read(6, player+"OnVideoEnd: Video "+catalog+" ended")
+	read(7, player+"Started video: "+external)
+	if !p.Anchor.IsExternal() {
+		t.Fatal("finished selection blocked a subsequent external start")
 	}
 }
 

@@ -11,9 +11,10 @@ import (
 type queueSchedule uint8
 
 const (
-	queueRolling queueSchedule = iota
-	queueFormal                // The published formal clock supplies queueStart.
-	queueFixed                 // Keep absolute deadlines until the next valid room clock or stop.
+	queueRolling  queueSchedule = iota
+	queueFormal                 // The published formal clock supplies queueStart.
+	queueExternal               // A confirmed external start supplies the rolling queue estimate.
+	queueFixed                  // Keep absolute deadlines until the next valid room clock or stop.
 )
 
 const queueSongGap = 10 * time.Second
@@ -135,8 +136,15 @@ func (s *Server) holdQueueScheduleLocked(base time.Time, sources map[string]*que
 	s.queueSchedule = queueFixed
 }
 
-// Retiring a formal clock holds its published deadlines until replacement.
-func (s *Server) holdPublishedQueueLocked(now time.Time) []string {
+func (s *Server) retireQueueClockLocked(now time.Time) []string {
+	if s.queueSchedule == queueExternal {
+		// The queued songs keep their rolling base until playback provides a new clock.
+		s.queueSchedule = queueRolling
+		if len(s.prefetchOrder) == 0 {
+			s.queueStart = now
+		}
+		return nil
+	}
 	if s.queueSchedule != queueFormal {
 		return nil
 	}

@@ -8,11 +8,15 @@ const bytesPerMiB = 2 ** 20;
 export const maxLogBudgetMiB = 2 ** 43 - 1; // Largest whole MiB that fits in an int64 byte count.
 type NumberField = typeof numeric[number];
 export interface ProxyReport { id: string; nodes: number; groups: number; name: string; importedAt?: string }
-export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'theme'> & Record<NumberField, string> & CapacityDraft & { theme?: Settings['theme']; proxyImportID: string; proxyImportText: string; proxyImportName: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
+export type Draft = Omit<Settings, NumberField | 'videoBudgetBytes' | 'directPresetIPs' | 'theme'> & Record<NumberField, string> & CapacityDraft & { directPresetIPs: string; theme?: Settings['theme']; proxyImportID: string; proxyImportText: string; proxyImportName: string; proxyImportSource: 'config'|'url'|'base64'; proxyReport?: ProxyReport };
 export function draftFrom(s: Settings): Draft {
   const {videoBudgetBytes, theme: _theme, ...values} = s;
   // The backend supplies complete, normalized settings; drafts only format them.
   return { ...values, socks5Password: '',
+    // Recovery can also display malformed file entries so they can be cleared.
+    directPresetIPs: Array.isArray(s.directPresetIPs)
+      ? s.directPresetIPs.map(ip=>typeof ip==='string'&&ip.trim()&&!/[\r\n]/.test(ip)?ip:JSON.stringify(ip)).join('\n')
+      : JSON.stringify(s.directPresetIPs) ?? '',
     requestRetentionDays: String(s.requestRetentionDays),
     prepareAheadSeconds: String(s.prepareAheadSeconds),
     downloadConcurrencySoftLimit: String(s.downloadConcurrencySoftLimit), downloadGrowIntervalMS: String(s.downloadGrowIntervalMS),
@@ -22,12 +26,13 @@ export function draftFrom(s: Settings): Draft {
     videoBudgetGiB: String(videoBudgetBytes / 1073741824), proxyImportID: '', proxyImportText: '', proxyImportName: '', proxyImportSource: 'config' };
 }
 export function settingsPayload(d: Draft) {
-  const { videoStorageMode, videoBudgetGiB, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
+  const { videoStorageMode, videoBudgetGiB, directPresetIPs, proxyImportText: _text, proxyImportName: _name, proxyReport: _report, proxyImportSource: _source, socks5Password, ...values } = d;
   const numbers = numeric.map(key => {
     const value = key === 'requestRetentionDays' ? Number(d[key]) : settingsNumber(d, key);
     return [key, key === 'logBudgetBytes' ? value * bytesPerMiB : value] as const;
   });
   return { ...values, ...Object.fromEntries(numbers), ...capacityPayload({videoStorageMode, videoBudgetGiB}),
+    ...(d.upstreamMode==='direct'?{directPresetIPs:directPresetIPs.split('\n').map(line=>line.trim()).filter(Boolean)}:{}),
     ...(socks5Password || !d.socks5Username ? {socks5Password: socks5Password || ''} : {}) };
 }
 export function settingsNumberDefault(key: SettingsNumberField) {

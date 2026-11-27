@@ -27,9 +27,17 @@ try {
   expect(errors).toEqual([]);
   expect(statusReads).toEqual([]);
   await page.goto(baseURL+'/#/settings');
-  if(fixture==='contradictory'||fixture==='fields') {
+  if(fixture==='contradictory'||fixture==='fields'||fixture==='preset-newline') {
     const budget=page.getByRole('spinbutton',{name:'视频存储预算（GiB）',exact:true});
-    if(fixture==='contradictory') {
+    if(fixture==='preset-newline') {
+      await page.getByRole('tab',{name:'网络',exact:true}).click();
+      const presets=page.getByRole('textbox',{name:'直连候选 IP',exact:true});
+      const save=page.getByRole('button',{name:'保存设置',exact:true});
+      await expect(presets).toHaveValue(JSON.stringify('1.1.1.1\n8.8.8.8'));
+      await expect(save).toBeDisabled();
+      await presets.fill('1.1.1.1\n8.8.8.8');
+      await expect(save).toBeEnabled();
+    } else if(fixture==='contradictory') {
       await page.getByRole('tab',{name:'存储',exact:true}).click();
       await expect(budget).toHaveValue('0');
       await expect(page.getByRole('button',{name:'视频存储预算（GiB）：错误',exact:true})).toBeVisible();

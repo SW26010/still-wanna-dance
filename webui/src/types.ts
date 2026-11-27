@@ -7,6 +7,7 @@ export interface Settings {
   databasePath: string; videoDir: string; blockCacheDir: string; videoBudgetBytes: number; videoStorageMode: 'none' | 'limited' | 'unlimited'; requestRetentionMode: 'none' | 'limited' | 'unlimited'; requestRetentionDays: number;
   prepareAheadSeconds: number; downloadConcurrencySoftLimit: number; downloadGrowIntervalMS: number; localProtectionGraceSeconds: number; upstreamMode: string;
   proxyBackend: string; socks5Address: string; socks5Username: string; socks5Password?: string;
+  directPresetIPs?: string[];
   autoAccelerate: boolean; autoOpenWebUI: boolean; exitWithVRChat: boolean; restoreHostsOnStopOrExit: boolean; vrchatLogDir: string;
 }
 export interface Job {

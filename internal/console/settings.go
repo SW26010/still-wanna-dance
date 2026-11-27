@@ -1,8 +1,10 @@
 package console
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,31 +24,69 @@ type Settings struct {
 	nodeImportID                 string // transient request only; cleared before publish
 	proxySecret                  string
 	proxySecretError             string
-	RequestRetentionDays         int    `json:"requestRetentionDays"`
-	RequestRetentionMode         string `json:"requestRetentionMode"`
-	AutoAccelerate               bool   `json:"autoAccelerate"`
-	AutoOpenWebUI                bool   `json:"autoOpenWebUI"`
-	ExitWithVRChat               bool   `json:"exitWithVRChat"`
-	Theme                        string `json:"theme"`
-	LogLevel                     string `json:"logLevel"`
-	LogBudgetBytes               int64  `json:"logBudgetBytes"`
-	RestoreHostsOnStopOrExit     bool   `json:"restoreHostsOnStopOrExit"`
-	PrepareAheadSeconds          int    `json:"prepareAheadSeconds"`
-	DownloadConcurrencySoftLimit int    `json:"downloadConcurrencySoftLimit"`
-	DownloadGrowIntervalMS       int    `json:"downloadGrowIntervalMS"`
-	LocalProtectionGraceSeconds  int    `json:"localProtectionGraceSeconds"`
-	UpstreamMode                 string `json:"upstreamMode"`
-	ProxyBackend                 string `json:"proxyBackend"`
-	SOCKS5Address                string `json:"socks5Address"`
-	SOCKS5Username               string `json:"socks5Username"`
-	SOCKS5Password               string `json:"socks5Password,omitempty"`
-	VideoBudgetBytes             int64  `json:"videoBudgetBytes"`
-	VideoStorageMode             string `json:"videoStorageMode"`
-	RetainFavorites              bool   `json:"retainFavorites"`
-	DatabasePath                 string `json:"databasePath"`
-	VideoDir                     string `json:"videoDir"`
-	BlockCacheDir                string `json:"blockCacheDir"` // empty uses the executable's work directory
-	VRChatLogDir                 string `json:"vrchatLogDir"`  // empty follows the current user's default
+	RequestRetentionDays         int          `json:"requestRetentionDays"`
+	RequestRetentionMode         string       `json:"requestRetentionMode"`
+	AutoAccelerate               bool         `json:"autoAccelerate"`
+	AutoOpenWebUI                bool         `json:"autoOpenWebUI"`
+	ExitWithVRChat               bool         `json:"exitWithVRChat"`
+	Theme                        string       `json:"theme"`
+	LogLevel                     string       `json:"logLevel"`
+	LogBudgetBytes               int64        `json:"logBudgetBytes"`
+	RestoreHostsOnStopOrExit     bool         `json:"restoreHostsOnStopOrExit"`
+	PrepareAheadSeconds          int          `json:"prepareAheadSeconds"`
+	DownloadConcurrencySoftLimit int          `json:"downloadConcurrencySoftLimit"`
+	DownloadGrowIntervalMS       int          `json:"downloadGrowIntervalMS"`
+	LocalProtectionGraceSeconds  int          `json:"localProtectionGraceSeconds"`
+	UpstreamMode                 string       `json:"upstreamMode"`
+	DirectPresetIPs              presetIPList `json:"directPresetIPs,omitempty"`
+	ProxyBackend                 string       `json:"proxyBackend"`
+	SOCKS5Address                string       `json:"socks5Address"`
+	SOCKS5Username               string       `json:"socks5Username"`
+	SOCKS5Password               string       `json:"socks5Password,omitempty"`
+	VideoBudgetBytes             int64        `json:"videoBudgetBytes"`
+	VideoStorageMode             string       `json:"videoStorageMode"`
+	RetainFavorites              bool         `json:"retainFavorites"`
+	DatabasePath                 string       `json:"databasePath"`
+	VideoDir                     string       `json:"videoDir"`
+	BlockCacheDir                string       `json:"blockCacheDir"` // empty uses the executable's work directory
+	VRChatLogDir                 string       `json:"vrchatLogDir"`  // empty follows the current user's default
+}
+
+// Compact JSON keeps settings snapshots immutable and comparable by value.
+// The original entries remain editable, including an invalid file in recovery.
+type presetIPList string
+
+func (p *presetIPList) UnmarshalJSON(data []byte) error {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, data); err != nil {
+		return err
+	}
+	switch value := compact.String(); value {
+	case "null": // A partial settings request preserves the saved value.
+	case "[]":
+		*p = ""
+	default:
+		*p = presetIPList(value)
+	}
+	return nil
+}
+
+func (p presetIPList) MarshalJSON() ([]byte, error) {
+	if p == "" {
+		return []byte("[]"), nil
+	}
+	return []byte(p), nil
+}
+
+func (p presetIPList) addresses() ([]string, error) {
+	if p == "" {
+		return nil, nil
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(p), &values); err != nil {
+		return nil, fmt.Errorf("directPresetIPs 必须为 IP 字符串数组：%w", err)
+	}
+	return upstreamnet.NormalizePresetIPs(values)
 }
 
 // Decode files over these defaults so null/missing scalars retain their defaults,
@@ -164,6 +204,11 @@ func normalizeSettings(s Settings, checkLogBudget bool) (Settings, error) {
 	}
 	if s.UpstreamMode != "direct" && s.UpstreamMode != "proxy" {
 		return s, invalidSetting(errors.New("上游连接必须是 direct 或 proxy"), "upstreamMode")
+	}
+	if s.UpstreamMode == "direct" {
+		if _, err := s.DirectPresetIPs.addresses(); err != nil {
+			return s, invalidSetting(err, "directPresetIPs")
+		}
 	}
 	if s.ProxyBackend != "external-socks5" && s.ProxyBackend != "mihomo" {
 		return s, invalidSetting(errors.New("代理后端必须是 external-socks5 或 mihomo"), "proxyBackend")

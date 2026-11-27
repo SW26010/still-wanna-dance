@@ -170,6 +170,13 @@ func updateConfigFile(path string, update func(fields map[string]json.RawMessage
 	if err := update(fields, exists); err != nil {
 		return err
 	}
+	// Non-settings writes also omit an empty override.
+	if raw := fields["directPresetIPs"]; raw != nil {
+		var ips []string
+		if json.Unmarshal(raw, &ips) == nil && len(ips) == 0 {
+			delete(fields, "directPresetIPs")
+		}
+	}
 	// Retired overrides are ignored on load and removed only on a successful write.
 	for key := range fields {
 		if strings.EqualFold(key, "aggressiveBlockReclamation") || strings.EqualFold(key, "queueWithGateway") {
@@ -240,9 +247,9 @@ func saveConfigSettingsWithCleanup(path string, s Settings, previousRoot *string
 		}
 		// encoding/json accepts case-insensitive struct field names. Remove those
 		// aliases as well, or they could override a canonical value on the next read.
-		// The password is the only omitempty field and may be absent when cleared.
+		// Optional fields may be absent from settings when cleared.
 		for key := range fields {
-			if strings.EqualFold(key, "downloadUpstream") || strings.EqualFold(key, "throughputIntervalMinutes") || strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
+			if strings.EqualFold(key, "directPresetIPs") || strings.EqualFold(key, "downloadUpstream") || strings.EqualFold(key, "throughputIntervalMinutes") || strings.EqualFold(key, "socks5Password") || strings.EqualFold(key, "proxySecret") || strings.EqualFold(key, "proxyNodes") {
 				delete(fields, key)
 				continue
 			}

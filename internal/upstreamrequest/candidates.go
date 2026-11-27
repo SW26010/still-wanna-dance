@@ -15,7 +15,7 @@ import (
 
 type Address struct {
 	IP      string
-	Expires time.Time           // Zero for a built-in address without a DNS lease.
+	Expires time.Time           // Zero for a preset address without a DNS lease.
 	Allows  func(*url.URL) bool `json:"-"` // Nil when eligible for every target on the host.
 }
 type DNSPool interface {
@@ -221,7 +221,7 @@ func (p *Pool) usable(c Candidate, u *url.URL) bool {
 }
 
 // Revalidate the same IP through the shared resolver. A failed lookup does not
-// renew an expired DNS lease. A built-in IP can still be available.
+// renew an expired DNS lease. A preset IP can still be available.
 func (p *Pool) ensureUsable(ctx context.Context, c Candidate, u *url.URL) error {
 	if p.usable(c, u) {
 		return nil

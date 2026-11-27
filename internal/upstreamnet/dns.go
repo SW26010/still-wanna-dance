@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,8 +24,8 @@ import (
 type Resolver struct {
 	// Optional transport dependency, set before the resolver is used. DNS,
 	// including provider bootstrap, and resolved TCP connections share it.
-	dialer  transport.StreamDialer
-	presets bool
+	dialer    transport.StreamDialer
+	presetIPs []string
 
 	mu            sync.Mutex
 	cache         map[string]dnsEntry
@@ -54,10 +55,35 @@ func NewResolver(dialer transport.StreamDialer) *Resolver {
 	return &Resolver{dialer: dialer}
 }
 
-// NewDirectResolver supplies built-in candidates alongside DNS for
-// the application's direct upstream. Ordinary DNS dialing still uses DoH.
-func NewDirectResolver() *Resolver {
-	return &Resolver{presets: true}
+// NewDirectResolver uses the built-in list when no override is configured.
+// Ordinary DNS dialing still uses DoH.
+func NewDirectResolver(presetIPs []string) *Resolver {
+	if len(presetIPs) == 0 {
+		presetIPs = defaultDirectPresetIPs
+	}
+	return &Resolver{presetIPs: slices.Clone(presetIPs)}
+}
+
+// NormalizePresetIPs validates file overrides using the direct DNS address policy.
+func NormalizePresetIPs(values []string) ([]string, error) {
+	var ips []string
+	seen := make(map[string]bool, len(values))
+	for i, value := range values {
+		ip := net.ParseIP(strings.TrimSpace(value))
+		if !usableDirectIP(ip) {
+			return nil, fmt.Errorf("directPresetIPs 第 %d 项 %q 必须为可用的公网 IPv4 或 IPv6 地址", i+1, value)
+		}
+		address := ip.String()
+		if !seen[address] {
+			seen[address] = true
+			ips = append(ips, address)
+		}
+	}
+	return ips, nil
+}
+
+func usableDirectIP(ip net.IP) bool {
+	return ip != nil && ip.IsGlobalUnicast() && !ip.IsPrivate()
 }
 
 type dnsEntry struct {
@@ -286,7 +312,7 @@ func dnsAddresses(answer dnsAnswer) ([]string, time.Duration, error) {
 			continue
 		}
 		ip := net.ParseIP(a.Data)
-		if ip == nil || (a.Type == int(dnsTypeA)) != (ip.To4() != nil) || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsPrivate() {
+		if !usableDirectIP(ip) || (a.Type == int(dnsTypeA)) != (ip.To4() != nil) {
 			continue
 		}
 		ips = append(ips, ip.String())

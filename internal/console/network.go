@@ -41,7 +41,11 @@ func (c *Console) networkFor(s Settings) (upstreamDialFunc, *http.Client, error)
 		dial = upstreamDialFunc(proxyDial)
 	} else {
 		if c.dns == nil {
-			c.dns = upstreamnet.NewDirectResolver()
+			ips, err := s.DirectPresetIPs.addresses()
+			if err != nil {
+				return nil, nil, err
+			}
+			c.dns = upstreamnet.NewDirectResolver(ips)
 		}
 		dial = c.dns.DialContext
 	}

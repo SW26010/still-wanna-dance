@@ -282,6 +282,7 @@ func TestFailureUITrayFollowsCommittedTheme(t *testing.T) {
 func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 	for _, fixture := range []struct{ name, contents, reason string }{
 		{"malformed", `{"schemaVersion":8,`, "读取程序配置"},
+		{"preset-newline", `{"schemaVersion":8,"autoOpenWebUI":false,"directPresetIPs":["1.1.1.1\n8.8.8.8"]}`, "directPresetIPs"},
 		{"contradictory", `{"schemaVersion":8,"autoOpenWebUI":false,"videoStorageMode":"limited","videoBudgetBytes":0}`, "视频存储预算"},
 		{"fields", `{"schemaVersion":8,"autoOpenWebUI":false,"logLevel":"LOUD","theme":"unknown","proxyBackend":"unknown","downloadConcurrencySoftLimit":65,"requestRetentionDays":-1,"videoBudgetBytes":-1}`, "日志级别"},
 	} {
@@ -370,6 +371,11 @@ func TestApplicationRecoveryAfterInvalidConfiguration(t *testing.T) {
 				settings, readErr := console.ReadStartupSettings(config)
 				if readErr != nil || settings.DownloadConcurrencySoftLimit != 8 || settings.VideoBudgetBytes != 0 {
 					t.Fatal("field repair was not persisted", readErr)
+				}
+			} else if fixture.name == "preset-newline" && os.Getenv("SWD_RECOVERY_BROWSER_EVIDENCE") != "" {
+				settings, readErr := console.ReadStartupSettings(config)
+				if readErr != nil || settings.DirectPresetIPs != `["1.1.1.1","8.8.8.8"]` {
+					t.Fatal("recovery did not persist two separate IP entries", readErr, settings.DirectPresetIPs)
 				}
 			} else if err != nil || string(data) != fixture.contents {
 				t.Fatalf("configuration was changed: %q %v", data, err)

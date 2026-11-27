@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"net/url"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -21,7 +20,7 @@ import (
 
 func TestUdonPresetsShareDNSMembershipOnlyAtEligibleEndpoints(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		d := NewDirectResolver()
+		d := NewDirectResolver(nil)
 		defer d.Close()
 		d.setBackgroundEnabled(false)
 		p, err := upstreamrequest.NewPool(d)
@@ -34,8 +33,8 @@ func TestUdonPresetsShareDNSMembershipOnlyAtEligibleEndpoints(t *testing.T) {
 		check := func(dns ...string) {
 			t.Helper()
 			for target, presets := range map[string][]string{
-				catalogmeta.UdonURL:      udonCatalogIPs[:],
-				play:                     udonPlaybackIPs[:],
+				catalogmeta.UdonURL:      defaultDirectPresetIPs,
+				play:                     defaultDirectPresetIPs,
 				catalogmeta.UdonHTTPURL:  nil,
 				"http://api.udon.dance/": nil,
 				"http://api.udon.dance:8080/Api/Songs/play": nil,
@@ -63,7 +62,7 @@ func TestUdonPresetsShareDNSMembershipOnlyAtEligibleEndpoints(t *testing.T) {
 			}
 		}
 		check()
-		answers := []string{"192.0.2.1", udonCatalogIPs[0], udonPlaybackIPs[0]}
+		answers := []string{"192.0.2.1", defaultDirectPresetIPs[0], defaultDirectPresetIPs[1]}
 		if _, err := d.lookupShared(t.Context(), catalogmeta.UdonHost, func(context.Context) ([]string, time.Duration, error) {
 			return answers, time.Second, nil
 		}); err != nil {
@@ -75,29 +74,12 @@ func TestUdonPresetsShareDNSMembershipOnlyAtEligibleEndpoints(t *testing.T) {
 	})
 }
 
-func TestOverlappingPresetListsRetainBothScopes(t *testing.T) {
-	ips := []string{"192.0.2.1"}
-	addresses := addPresets(nil, ips, func(u *url.URL) bool { return u.Scheme == "https" })
-	addresses = addPresets(addresses, ips, func(u *url.URL) bool { return u.Scheme == "http" })
-	for _, scheme := range []string{"https", "http"} {
-		matches := 0
-		for _, a := range addresses {
-			if a.IP == ips[0] && a.Allows(&url.URL{Scheme: scheme}) {
-				matches++
-			}
-		}
-		if matches != 1 {
-			t.Fatalf("%s has %d matching presets, want one", scheme, matches)
-		}
-	}
-}
-
 func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const host = playUdonDanceHost
-		overlap := playUdonDanceIPs[0]
+		overlap := defaultDirectPresetIPs[0]
 		const target = "http://" + host + "/video"
-		d := NewDirectResolver()
+		d := NewDirectResolver(nil)
 		defer d.Close()
 		d.setBackgroundEnabled(false)
 		dialError := errors.New("fixture dial")
@@ -111,7 +93,7 @@ func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer p.Close()
-		if len(p.Current(target)) != len(playUdonDanceIPs) {
+		if len(p.Current(target)) != len(defaultDirectPresetIPs) {
 			t.Fatal("presets should be available before DNS discovery")
 		}
 		ctx := context.Background()
@@ -128,7 +110,7 @@ func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 		}
 		cs := p.Current(target)
 		i := slices.IndexFunc(cs, func(c upstreamrequest.Candidate) bool { return c.IP == overlap })
-		if len(cs) != len(playUdonDanceIPs)+1 || i < 0 || cs[i].ValidUntil.IsZero() || cs[0].IP != "2001:db8::1" {
+		if len(cs) != len(defaultDirectPresetIPs)+1 || i < 0 || cs[i].ValidUntil.IsZero() || net.ParseIP(cs[0].IP).To4() != nil {
 			t.Fatalf("expected one candidate for the overlapping IP with its DNS lease: %+v", cs)
 		}
 
@@ -146,7 +128,7 @@ func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 				t.Errorf("candidate %s should rely on the preset alone", c.IP)
 			}
 		}
-		want := slices.Clone(playUdonDanceIPs[:])
+		want := slices.Clone(defaultDirectPresetIPs)
 		slices.Sort(ips)
 		slices.Sort(want)
 		if !slices.Equal(ips, want) {
@@ -165,7 +147,7 @@ func TestResourcePresetsSupplementDNSWithoutExtendingLeases(t *testing.T) {
 func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const target = "http://" + playUdonDanceHost + "/video"
-		d := NewDirectResolver()
+		d := NewDirectResolver(nil)
 		defer d.Close()
 		var dnsDials atomic.Int32
 		d.dialer = transport.FuncStreamDialer(func(ctx context.Context, _ string) (transport.StreamConn, error) {
@@ -218,7 +200,7 @@ func TestFixedResourceRequestsStartAndResumeDNS(t *testing.T) {
 
 		time.Sleep(4 * time.Second)
 		synctest.Wait()
-		if got := pool.Current(target); len(got) != len(playUdonDanceIPs) {
+		if got := pool.Current(target); len(got) != len(defaultDirectPresetIPs) {
 			t.Errorf("idle DNS cleanup removed configured candidates: got %d", len(got))
 		}
 		if dnsActive() || dnsDials.Load() != before {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"sync"
 
@@ -106,6 +107,7 @@ func (c *settingsEditor) initializeSettings(s Settings) {
 // required by the normal application but not for repairing configuration.
 func (c *settingsEditor) settingsHandler(path string, requireTerms bool) http.HandlerFunc {
 	var handler http.HandlerFunc
+	bodyLimit := int64(8 << 10)
 	switch path {
 	case "/api/proxy/import":
 		// Import owns its larger body limit.
@@ -114,13 +116,17 @@ func (c *settingsEditor) settingsHandler(path string, requireTerms bool) http.Ha
 		handler = func(w http.ResponseWriter, r *http.Request) { c.servePathPickerAuthorized(w, r, requireTerms) }
 	case "/api/storage/check", "/api/storage/validate-location", "/api/storage/create-database", "/api/storage/prepare-database":
 		handler = c.serveStorage
-	case "/api/settings", "/api/settings/theme", "/api/proxy/import/discard":
+	case "/api/settings":
+		// Editing a preset submits the whole list; 1,000 full IPv6 literals fit.
+		bodyLimit = 64 << 10
+		handler = c.serveSettingsEdit
+	case "/api/settings/theme", "/api/proxy/import/discard":
 		handler = c.serveSettingsEdit
 	default:
 		return nil
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, 8192)
+		r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
 		handler(w, r)
 	}
 }
@@ -130,8 +136,10 @@ func (c *settingsEditor) serveSettingsEdit(w http.ResponseWriter, r *http.Reques
 	source := "settings"
 	switch r.URL.Path {
 	case "/api/settings":
-		var input json.RawMessage
-		if err = decodeRequest(json.NewDecoder(r.Body), &input); err == nil {
+		input, readErr := io.ReadAll(r.Body)
+		if readErr != nil {
+			err = rejectRequest(readErr)
+		} else {
 			err = c.saveSettingsPatch(input)
 		}
 	case "/api/settings/theme":

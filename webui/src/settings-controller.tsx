@@ -57,6 +57,7 @@ export function useSettingsController(s:SettingsSnapshot,loadedRevision:number|u
       }
       if('proxyImportID' in patch||'proxyImportSource' in patch||'proxyImportText' in patch)delete next.proxyImportText;
       if('upstreamMode' in patch||'proxyBackend' in patch)for(const name of ['socks5Address','socks5Username','socks5Password','proxyImportText'])delete next[name];
+      if('upstreamMode' in patch)delete next.directPresetIPs;
       if('requestRetentionMode' in patch)delete next.requestRetentionDays;
       if('videoStorageMode' in patch)delete next.videoBudgetBytes;
       return next;
@@ -92,6 +93,7 @@ export function useSettingsController(s:SettingsSnapshot,loadedRevision:number|u
       const patch = Object.fromEntries(Object.entries(values).filter(([key,value]) => {
         // Preserve the exact file value unless the displayed field was edited.
         if (key === 'logBudgetBytes') return ready.logBudgetBytes !== savedDraft.logBudgetBytes && value !== s.settings.logBudgetBytes;
+        if (key === 'directPresetIPs') return ready.directPresetIPs !== savedDraft.directPresetIPs;
         return value !== saved[key as keyof typeof saved];
       }));
       const pendingDatabase=confirmedStorage&&!s.settings.databasePath?values.databasePath:locationValidation.pendingDatabase;

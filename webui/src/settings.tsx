@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useContext, type ReactNode, type Ref } from 'react';
 import {flushSync} from 'react-dom';
-import { Button, Checkbox, Divider, Field, Input, Select, Text, Tooltip } from '@fluentui/react-components';
+import { Button, Checkbox, Divider, Field, Input, Select, Text, Textarea, Tooltip } from '@fluentui/react-components';
 import type {SettingsNumberField} from './bootstrap';
 import {draftFrom,hasProxyImport,maxLogBudgetMiB,settingsNumber,settingsNumberDefault,type Draft} from './settings-draft';
 import { useApp } from './hooks';
@@ -35,6 +35,11 @@ function NetworkFields({editor}:{editor:SettingsEditor}) {
     })}>
       {!['direct','proxy'].includes(d.upstreamMode)&&<option value={d.upstreamMode}>无效值：{d.upstreamMode||'空'}</option>}
       <option value="direct">直连</option><option value="proxy">代理</option></Select></ValidationField>
+
+    {d.upstreamMode==='direct' && <ValidationField name="directPresetIPs" label="直连候选 IP" hint="每行一个公网 IPv4 或 IPv6 地址，留空使用内置列表。歌曲主清单、播放地址解析和视频下载共用。">
+      <Textarea name="directPresetIPs" rows={4} resize="vertical" disabled={locked} spellCheck={false}
+        value={d.directPresetIPs} onChange={(_,v)=>update({directPresetIPs:v.value})} placeholder="使用内置列表" />
+    </ValidationField>}
 
     {(d.upstreamMode && d.upstreamMode !== 'direct'||!['external-socks5','mihomo'].includes(d.proxyBackend)) && <>
       <ValidationField name="proxyBackend" label="代理后端"><Select name="proxyBackend" disabled={locked} value={d.proxyBackend} onChange={(_, v) => update({proxyBackend: v.value})}>{!['external-socks5','mihomo'].includes(d.proxyBackend)&&<option value={d.proxyBackend}>无效值：{d.proxyBackend||'空'}</option>}<option value="mihomo">Mihomo (Clash)</option><option value="external-socks5">外部 SOCKS5</option></Select></ValidationField>

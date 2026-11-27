@@ -2313,6 +2313,13 @@
       "bytes": 1332318,
       "sha256": "00d81b49d42591cc9da67e3e3df8ea23d886c16b621019dd6f85643babb0729d",
       "reason": "离线 WebUI 通过共享九色池为视频资源分配稳定的需求视图和时间轴颜色。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1333303,
+      "sha256": "adf7ed38139ede7a2c2898152ff6b66f57447437c715b428d9c3b50afaa89eeb",
+      "reason": "离线 WebUI 可在网络设置中编辑直连候选 IP 并恢复内置列表。"
     }
   ]
 }

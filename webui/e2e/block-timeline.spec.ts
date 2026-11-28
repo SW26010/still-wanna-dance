@@ -259,8 +259,8 @@ test('hidden page preserves pinned details until an explicit close', async ({ pa
   await setPageHidden(page, false);
   await expect(popup).toContainText('块 1/?'); await expect.poll(f.totalStreams).toBe(2);
   // Pinned details can cover nearby controls; keyboard access keeps the selection open.
-  const layered = f.panel.getByRole('switch', { name: '分层显示' });
-  await layered.focus(); await layered.press('Space'); await expect(layered).toBeChecked();
+  const layered = f.panel.getByRole('button', { name: '分层显示' });
+  await layered.focus(); await layered.press('Space'); await expect(layered).toHaveAttribute('aria-pressed', 'true');
   await expect(popup).toContainText('块 1/?');
   await popup.getByRole('button', { name: '关闭块详情' }).focus();
   await page.keyboard.press('Escape');
@@ -280,7 +280,7 @@ test('removed demand rows restore focus to their region without stealing outside
   await expect(region).toBeFocused(); await expect(region.locator('canvas')).toHaveCount(0);
   await f.emit({ demands: [rows[0]] });
   await region.locator('canvas').focus();
-  const outside = f.panel.getByRole('switch', { name: '分层显示' });
+  const outside = f.panel.getByRole('button', { name: '分层显示' });
   await outside.focus(); await f.emit({ removedDemands: [rows[0].id] });
   await expect(region.locator('canvas')).toHaveCount(0); await expect(outside).toBeFocused();
 });
@@ -621,7 +621,7 @@ test('zoom preserves the follow cutoff or fixed center, dragging fixes the view 
   await f.canvas.focus(); await f.canvas.press('+');
   await expect(f.viewport).toHaveAttribute('data-follow', 'false');
   expect(Math.abs(await center() - fixedCenter)).toBeLessThanOrEqual(1000);
-  await f.panel.getByRole('button', { name: '回到现在' }).click();
+  await f.panel.getByRole('button', { name: '跟随现在', pressed: false }).click();
   const current = Date.now(), currentBlock = block(100, current);
   await f.detail(currentBlock); await f.emit({ at: current, reset: true, blocks: [currentBlock], used: 1 });
   await expect(f.canvas).toHaveAccessibleName(/1 个块/);
@@ -642,6 +642,37 @@ test('zoom preserves the follow cutoff or fixed center, dragging fixes the view 
   await expect(f.panel.getByRole('button', { name: '放大时间轴' })).toBeDisabled();
 });
 
+test('follow and layers toggle independently while zoom buttons act once per click', async ({ page }) => {
+  const f = await setup(page); await f.open();
+  const follow = f.panel.getByRole('button', { name: '跟随现在' });
+  const layers = f.panel.getByRole('button', { name: '分层显示' });
+  const zoomOut = f.panel.getByRole('button', { name: '缩小时间轴' });
+  const zoomIn = f.panel.getByRole('button', { name: '放大时间轴' });
+  await expect(follow).toHaveAttribute('aria-pressed', 'true');
+  await expect(layers).toHaveAttribute('aria-pressed', 'false');
+  await follow.click();
+  await expect(follow).toHaveAttribute('aria-pressed', 'false');
+  await expect(f.viewport).toHaveAttribute('data-follow', 'false');
+  const fixed = await f.axis();
+  await f.emit({ at: f.at + 60000, used: 17 });
+  await expect(f.panel.locator('.block-demand-capacity')).toContainText('17 /');
+  await layers.click();
+  await expect(layers).toHaveAttribute('aria-pressed', 'true');
+  await zoomOut.click();
+  await expect(f.viewport).toHaveAttribute('data-span', String(Math.round(fixed.span * 1.5)));
+  await zoomIn.click();
+  await expect(f.viewport).toHaveAttribute('data-span', String(fixed.span));
+  expect((await f.axis()).center).toBe(fixed.center);
+  for (const button of [zoomOut, zoomIn]) expect(await button.getAttribute('aria-pressed')).toBeNull();
+  await follow.press('Space');
+  await expect(follow).toHaveAttribute('aria-pressed', 'true');
+  await expect(f.viewport).toHaveAttribute('data-follow', 'true');
+  expect((await f.axis()).center).toBe(f.at + 60000 - 30000 + fixed.span / 2);
+  await expect(layers).toHaveAttribute('aria-pressed', 'true');
+  await layers.click();
+  await expect(layers).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('horizontal wheel pans without zooming or changing mode and releases its listener when paused', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -658,7 +689,7 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await page.mouse.wheel(-80, 0);
   await expect.poll(center).toBeLessThan(shiftedCenter + 10000);
   await expect(f.viewport).toHaveAttribute('data-follow', 'true');
-  await f.panel.getByRole('button', { name: '回到现在' }).click();
+  await f.panel.getByRole('button', { name: '跟随现在', pressed: false }).click();
   const restoredCenter = f.at + 10000 - 30000 + Number(span) / 2;
   expect(Math.abs(await center() - restoredCenter)).toBeLessThanOrEqual(1);
   // Shift+wheel uses the same horizontal gesture on mice without a tilt wheel.
@@ -683,10 +714,10 @@ test('horizontal wheel pans without zooming or changing mode and releases its li
   await expect(f.viewport).toHaveAttribute('data-span', span!);
   await setPageHidden(page, false);
   await expect(f.panel.getByText('状态展示：更新中', { exact: true })).toBeVisible();
-  await f.panel.getByRole('button', { name: '回到现在' }).click();
-  await f.panel.getByRole('switch', { name: '分层显示' }).check();
+  await f.panel.getByRole('button', { name: '跟随现在', pressed: false }).click();
+  await f.panel.getByRole('button', { name: '分层显示' }).click();
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 80); await page.mouse.wheel(rect.width / 2 - 10, 0);
-  await expect(f.panel.getByRole('button', { name: '回到现在' })).toBeVisible();
+  await expect(f.panel.getByRole('button', { name: '跟随现在', pressed: false })).toBeVisible();
   await f.panel.screenshot({ path: info.outputPath('transparent-lane-labels.png') });
 });
 
@@ -756,7 +787,7 @@ test('fixed squares, three state layers and demand memberships share selection a
   const borders = await rows.evaluateAll(els => els.map(el => getComputedStyle(el).borderLeftColor));
   expect(borders[0]).toBe(borders[2]); expect(borders[0]).not.toBe(borders[1]);
   await expect.poll(f.totalStreams).toBe(1);
-  await f.panel.getByRole('switch', { name: '分层显示' }).check();
+  await f.panel.getByRole('button', { name: '分层显示' }).click();
   await expect(f.viewport).toHaveAttribute('data-layers', '3');
   const popup = page.getByRole('group', { name: '块需求详情' });
   const rect = (await f.canvas.boundingBox())!;
@@ -1146,7 +1177,7 @@ for (const theme of ['light', 'dark', 'contrast'] as const) test(`timeline is re
   await page.emulateMedia({ colorScheme: theme === 'dark' ? 'dark' : 'light', forcedColors: theme === 'contrast' ? 'active' : 'none', reducedMotion: 'reduce' });
   const f = await setup(page); await f.open();
   await f.emit({ demands: [demand(1, f.blocks.filter(b => b.inUse)), demand(2, f.blocks.filter(b => b.inUse), { kind: 'queue', position: 1 })] });
-  await f.panel.getByRole('switch', { name: '分层显示' }).check();
+  await f.panel.getByRole('button', { name: '分层显示' }).click();
   await expect(f.canvas).toHaveAccessibleName(/三层/);
   await expect(f.panel.locator('.timeline-help')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -1347,24 +1378,24 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
   await f.detail(timed[0]);
   await f.emit({ reset: true, blocks: timed, used: 3 }); await f.open();
   expect(await f.panel.locator('.timeline-legend').evaluate(el => getComputedStyle(el).fontSize)).toBe(caption.fontSize);
-  const layered = f.panel.getByRole('switch', { name: '分层显示' });
+  const layered = f.panel.getByRole('button', { name: '分层显示' });
   await expect(f.panel.locator('#block-timeline-content').getByRole('slider')).toHaveCount(0);
   await expect(f.panel.locator('.timeline-help')).toHaveCount(0);
-  const windowBounds = await f.panel.locator('.timeline-window-key').first().boundingBox(), switchBounds = await layered.boundingBox();
+  const windowBounds = await f.panel.locator('.timeline-window-key').first().boundingBox(), layerButtonBounds = await layered.boundingBox();
   const title = f.panel.getByText('时间轴视图', { exact: true });
   await expect(title).toBeVisible();
   const titleBounds = (await title.boundingBox())!;
   expect(titleBounds.x + titleBounds.width).toBeLessThan(windowBounds!.x);
   expect(titleBounds.y).toBeLessThan(windowBounds!.y + windowBounds!.height);
   expect(titleBounds.y + titleBounds.height).toBeGreaterThan(windowBounds!.y);
-  expect(switchBounds!.y).toBeLessThan(windowBounds!.y + windowBounds!.height);
-  expect(switchBounds!.y + switchBounds!.height).toBeGreaterThan(windowBounds!.y);
+  expect(layerButtonBounds!.y).toBeLessThan(windowBounds!.y + windowBounds!.height);
+  expect(layerButtonBounds!.y + layerButtonBounds!.height).toBeGreaterThan(windowBounds!.y);
   for (const untimed of [false, true]) {
     await f.emit({ reset: true, blocks: untimed ? [...timed, ...timed.map((b, i) => ({ ...b, id: `untimed/${i}`, at: 0, needBy: 0, timeBasis: 'untimed' as const }))] : timed, used: untimed ? 6 : 3 });
     if (untimed) await f.panel.getByRole('button', { name: '放大时间轴' }).click();
     let singleBands: number[] = [];
     for (const layers of [false, true]) {
-      await layered.setChecked(layers);
+      if (await layered.getAttribute('aria-pressed') !== String(layers)) await layered.click();
       await f.canvas.scrollIntoViewIfNeeded();
       if (layers) {
         await f.canvas.press('Home');
@@ -1448,10 +1479,10 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
   await f.canvas.dispatchEvent('wheel', { deltaX: 35 });
   await expect.poll(async () => lanePills(await readPaint())).toHaveLength(0);
   expect(readLaneLabels(await readPaint()).map(label => [label.text, label.x])).toEqual([['待下载', 12], ['下载中', 12], ['本地', 12]]);
-  await f.panel.getByRole('button', { name: '回到现在' }).click();
+  await f.panel.getByRole('button', { name: '跟随现在', pressed: false }).click();
   await expect.poll(async () => lanePills(await readPaint())).toHaveLength(3);
 
-  await layered.uncheck();
+  await layered.click();
   const older = block(9, f.at - 45000, { state: 'available' });
   await f.detail(older);
   await f.emit({ reset: true, blocks: [older, ...timed], used: 4 });
@@ -1467,13 +1498,13 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
 });
 
 test('empty and untimed-only states stay compact and restore timed controls with focus intact', async ({ page }, info) => {
-  const f = await setup(page, 1), layered = f.panel.getByRole('switch', { name: '分层显示' });
-  await f.open(); await layered.check();
+  const f = await setup(page, 1), layered = f.panel.getByRole('button', { name: '分层显示' });
+  await f.open(); await layered.click();
   await layered.focus();
   await f.emit({ reset: true, blocks: [], demands: [], used: 0, active: 0 });
   await expect(f.canvas).toBeHidden();
-  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
-  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.timeline-controls')).toBeHidden();
+  await expect(f.panel.locator('.timeline-legend')).toBeHidden();
   await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   await expect(f.panel.locator('.demand-empty')).toHaveCount(1);
   await expect(f.panel.locator('.demand-empty')).toBeVisible();
@@ -1488,7 +1519,9 @@ test('empty and untimed-only states stay compact and restore timed controls with
   await f.emit({ blocks: [untimed], demands: [demand(1, [untimed], { kind: 'batch' })], used: 1 });
   await expect(f.canvas).toHaveAccessibleName(/1 个块，单层/);
   await expect(f.canvas).toBeVisible();
-  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(f.panel.locator('.timeline-legend')).toBeVisible();
+  await expect(f.panel.locator('.timeline-window-key.ahead')).toBeHidden();
+  await expect(f.panel.locator('.timeline-controls')).toBeHidden();
   expect(await f.canvas.evaluate(c => c.clientHeight)).toBeLessThan(80);
   await f.panel.screenshot({ path: info.outputPath('only-untimed-compact.png') });
   await f.canvas.press('Home');
@@ -1496,12 +1529,12 @@ test('empty and untimed-only states stay compact and restore timed controls with
   await f.canvas.press('Escape');
 
   await f.emit({ blocks: [block(2, f.at)] });
-  await expect(f.panel.locator('.timeline-toolbar')).toBeVisible();
-  await expect(layered).toBeChecked();
+  await expect(f.panel.locator('.timeline-controls')).toBeVisible();
+  await expect(layered).toHaveAttribute('aria-pressed', 'true');
   await expect(f.canvas).toHaveAccessibleName(/2 个块，三层/);
   await toggle.focus();
   await f.emit({ removed: ['resource/2'] });
-  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(f.panel.locator('.timeline-controls')).toBeHidden();
   await expect(toggle).toBeFocused();
   await f.canvas.focus();
   await f.emit({ reset: true, blocks: [], demands: [], used: 0 });
@@ -1514,7 +1547,7 @@ for (const layers of [false, true]) test(`untimed dragging moves its row without
   const f = await setup(page, 0), untimed = Array.from({ length: 200 }, (_, i) => block(i, 0, { state: 'available', totalBlocks: 200 }));
   for (const b of [untimed[0], untimed[10]]) await f.detail(b);
   await f.emit({ reset: true, blocks: [block(1000, f.at), ...untimed], used: 201 }); await f.open();
-  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(layers);
+  if (layers) await f.panel.getByRole('button', { name: '分层显示' }).click();
   const rect = (await f.canvas.boundingBox())!, y = timelineLayout(layers, true, true, 16).untimedY + 8;
   const drag = async (atY: number, dx: number) => {
     await page.mouse.move(rect.x + rect.width / 2, rect.y + atY); await page.mouse.down();
@@ -1558,9 +1591,9 @@ for (const layers of [false, true]) test(`untimed blocks stay in one row with ho
   const f = await setup(page, 1), blocks = Array.from({ length: 200 }, (_, i) => block(i, 0, { state: (['waiting', 'downloading', 'available'] as const)[i % 3], totalBlocks: 200 }));
   for (const b of [...blocks.slice(0, 3), blocks[199]]) await f.detail(b);
   await f.open();
-  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(layers);
+  if (layers) await f.panel.getByRole('button', { name: '分层显示' }).click();
   await f.emit({ reset: true, blocks, used: 200 });
-  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(f.panel.locator('.timeline-controls')).toBeHidden();
   const before = await f.viewport.getAttribute('data-center'), rect = (await f.canvas.boundingBox())!, y = timelineLayout(layers, false, true, 16).untimedY + 8;
   const popup = page.getByRole('group', { name: '块需求详情' });
   for (let i = 0; i < 3; i++) {
@@ -1577,10 +1610,10 @@ for (const layers of [false, true]) test(`untimed blocks stay in one row with ho
   await popup.getByRole('button', { name: '关闭块详情' }).click();
   const timed = block(200, f.at);
   await f.emit({ blocks: [timed] });
-  await expect(f.panel.locator('.timeline-toolbar')).toBeVisible();
-  await f.panel.getByRole('switch', { name: '分层显示' }).setChecked(!layers);
+  await expect(f.panel.locator('.timeline-controls')).toBeVisible();
+  await f.panel.getByRole('button', { name: '分层显示' }).click();
   await f.emit({ removed: [timed.id] });
-  await expect(f.panel.locator('.timeline-toolbar')).toBeHidden();
+  await expect(f.panel.locator('.timeline-controls')).toBeHidden();
   await f.canvas.click({ position: { x: rect.width - 28, y: timelineLayout(!layers, false, true, 16).untimedY + 8 } });
   await expect(popup).toContainText('块 200/200');
   await popup.getByRole('button', { name: '关闭块详情' }).click();

@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Badge, Button, Caption1, Card, CardHeader, CardPreview, Popover, PopoverSurface, Spinner, Subtitle2, Switch, Text, Tooltip } from '@fluentui/react-components';
-import { Add16Regular, Subtract16Regular, ArrowSync16Regular, ChevronDown20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, Pin20Regular } from '@fluentui/react-icons';
+import { Badge, Button, Caption1, Card, CardHeader, CardPreview, Popover, PopoverSurface, Spinner, Subtitle2, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
+import { ArrowStepInRight16Regular, ChevronDown20Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss20Regular, LayerDiagonal16Regular, Pin20Regular, ZoomIn16Regular, ZoomOut16Regular } from '@fluentui/react-icons';
 import { scaleLinear } from 'd3-scale';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
@@ -107,7 +107,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   const animation = useRef(0), repaint = useRef<(force?: boolean) => void>(() => {}), interacting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const controls = useRef({ zoom: (_factor: number) => {}, home: () => {}, pan: (_center: number) => {} });
+  const controls = useRef({ zoom: (_factor: number) => {}, setFollow: (_follow: boolean) => {}, pan: (_center: number) => {} });
   const now = () => {
     const current = latest.current;
     if (current.active) frozenNow.current = current.data.at + performance.now() - current.data.receivedAt;
@@ -283,10 +283,13 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
     synchronize(latest.current.view);
     controls.current = {
       zoom: zoomBy,
-      home: () => synchronize({ ...latest.current.view, follow: true, offset: 0 }),
+      setFollow: follow => {
+        const current = viewAt(latest.current.view, now(), latest.current.data.downloadGraceMS);
+        synchronize({ ...current, follow, offset: 0 });
+      },
       pan: center => synchronize({ ...latest.current.view, follow: false, center, offset: 0 }),
     };
-    return () => { target.on('.zoom', null).on('.timeline', null); interacting.current = false; controls.current = { zoom: () => {}, home: () => {}, pan: () => {} }; };
+    return () => { target.on('.zoom', null).on('.timeline', null); interacting.current = false; controls.current = { zoom: () => {}, setFollow: () => {}, pan: () => {} }; };
   }, [active, expanded, width, defaultSpan, data.downloadGraceMS]);
 
   const showBlocks = (blocks: BlockView[], x: number, y: number, pinned: boolean) => {
@@ -362,16 +365,36 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
 
   const empty = !data.blocks.size && !data.demands.size;
   const { center, span } = viewAt(view, data.at, data.downloadGraceMS);
+  const followingNow = view.follow && view.offset === 0;
   return <div {...focus} tabIndex={-1} className="block-timeline" data-follow={view.follow} data-span={Math.round(span)} data-center={Math.round(center)} data-block-size={blockSize} data-layers={layers ? 3 : 1}>
-    <div className="block-demand-controls" hidden={!expanded || !data.blocks.size}><div className="timeline-legend">{(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) => <span key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>)}<span><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span></div>
-    </div>
     <div id="block-timeline-content" hidden={!expanded}>
-    <div className="timeline-toolbar" hidden={!timed.length}><div className="timeline-window-keys"><Text weight="semibold" size={300}>时间轴视图</Text><span className="timeline-window-key grace">需求截止</span><span className="timeline-window-key ahead">提前准备 {data.prepareAheadMS / 1000} 秒</span></div><div className="timeline-controls">
-      <Switch size="small" label={{ children: '分层显示', size: 'small' }} checked={layers} onChange={(_, value) => setLayers(value.checked)} />
-      <Button size="small" icon={<Subtract16Regular />} aria-label="缩小时间轴" disabled={!active || span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
-      <Button size="small" icon={<Add16Regular />} aria-label="放大时间轴" disabled={!active || span <= minimumViewSpan(view.follow, data.downloadGraceMS)} onClick={() => controls.current.zoom(1.5)} />
-      <Button size="small" icon={<ArrowSync16Regular />} appearance={view.follow && !view.offset ? 'subtle' : 'primary'} disabled={!active} onClick={() => controls.current.home()}>{view.follow && !view.offset ? '跟随现在' : '回到现在'}</Button>
-    </div></div>
+    <div className="timeline-toolbar" hidden={!data.blocks.size}>
+      <div className="timeline-legend">
+        {timed.length > 0 && <>
+          <Text weight="semibold" size={300}>时间轴视图</Text>
+          <span className="timeline-window-key grace">需求截止</span>
+          <span className="timeline-window-key ahead">提前准备</span>
+        </>}
+        {(Object.entries(summary) as [keyof typeof summary, number][]).filter(([state, count]) => state !== 'stopping' || count > 0).map(([state, count]) =>
+          <span className="timeline-legend-item" key={state}><i className={'timeline-swatch ' + state} aria-hidden="true" />{blockStateNames[state]} <strong>{count}</strong></span>
+        )}
+        <span className="timeline-legend-item"><i className="timeline-swatch blocking" aria-hidden="true" />读取急需</span>
+      </div>
+      <div className="timeline-controls" hidden={!timed.length}>
+        <Tooltip content="跟随现在" relationship="label">
+          <ToggleButton size="small" icon={<ArrowStepInRight16Regular />} checked={followingNow} disabledFocusable={!active} onClick={() => controls.current.setFollow(!followingNow)} />
+        </Tooltip>
+        <Tooltip content="分层显示" relationship="label">
+          <ToggleButton size="small" icon={<LayerDiagonal16Regular />} checked={layers} onClick={() => setLayers(value => !value)} />
+        </Tooltip>
+        <Tooltip content="缩小时间轴" relationship="label">
+          <Button size="small" icon={<ZoomOut16Regular />} disabledFocusable={!active || span >= maximumSpan} onClick={() => controls.current.zoom(1 / 1.5)} />
+        </Tooltip>
+        <Tooltip content="放大时间轴" relationship="label">
+          <Button size="small" icon={<ZoomIn16Regular />} disabledFocusable={!active || span <= minimumViewSpan(view.follow, data.downloadGraceMS)} onClick={() => controls.current.zoom(1.5)} />
+        </Tooltip>
+      </div>
+    </div>
     <canvas ref={canvas} hidden={!data.blocks.size} className="timeline-canvas" style={{ height: timelineLayout(layers, !!timed.length, !!untimed.length, blockSize).height }} tabIndex={0} role="group" aria-label={`块需求${timed.length ? '时间轴' : '列表'}，${data.blocks.size} 个块，${timed.length && layers ? '三层' : '单层'}。左右键选择块，Home 和 End 跳到首尾，${timed.length ? '加减号缩放，' : ''}Escape 关闭详情。`} onPointerMove={event => pointer(event)} onPointerLeave={scheduleClose} onClick={event => pointer(event, true)} onKeyDown={navigate} />
     </div>
     {palette && <BlockDemandView showHeading={expanded && !empty} data={data} size={blockSize} palette={palette} active={active} reducedMotion={reducedMotion} selected={selectedID} onLeave={scheduleClose} onPick={(blocks, x, y, pinned, target) => {

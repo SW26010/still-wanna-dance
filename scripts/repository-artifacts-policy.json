@@ -2327,6 +2327,13 @@
       "bytes": 1333721,
       "sha256": "ed891ad39e307f4edfc745720f0e39cbacc96fa38234c979ded7e6d9f1c0bf60",
       "reason": "离线 WebUI 的直连观测表仅展示已有检测数据的线路，并按各项检测耗时排序。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1321502,
+      "sha256": "0fa65b0ed993e2bcca01062a72d03e1a096c0a58b5a6c3c0d767782a9fa76fb2",
+      "reason": "离线 WebUI 将块状态图例并入时间轴工具栏，并提供紧凑的跟随、分层和缩放按钮。"
     }
   ]
 }

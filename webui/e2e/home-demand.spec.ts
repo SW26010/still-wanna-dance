@@ -45,7 +45,7 @@ test('home uses live demands and unique block counts without download polling or
   await expect(f.panel.getByText('GET → 短期交接', { exact: false })).toHaveCount(0);
   await expect(f.panel.getByRole('button', { name: '展开时间轴视图' })).toHaveAttribute('aria-expanded', 'false');
   await expect(f.panel.locator('.timeline-canvas')).toBeHidden();
-  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.timeline-legend')).toBeHidden();
   await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   for (const label of ['等待下载', '正在下载', '本地可用', '延续保护']) await expect(f.panel.locator('.timeline-legend')).toContainText(label + ' 1');
   const percentages = f.panel.locator('.demand-progress');
@@ -154,17 +154,25 @@ test('timeline arrow has a tooltip and keyboard control and opens the axis above
   const collapse = f.panel.getByRole('button', { name: '收起时间轴视图', exact: true });
   await expect(collapse).toHaveAttribute('aria-expanded', 'true');
   await expect(f.panel.locator('.timeline-canvas')).toBeVisible();
-  await expect(f.panel.locator('.block-demand-controls')).toBeVisible();
+  await expect(f.panel.locator('.timeline-legend')).toBeVisible();
   await expect(f.panel.getByRole('slider')).toHaveCount(0);
   await expect(f.panel.locator('.demand-view-heading')).toBeVisible();
   await expect(f.panel.locator('.demand-view-heading')).toHaveText('需求视图2 项需求');
   expect(await f.panel.evaluate(panel => panel.querySelector('#block-timeline-content')!.compareDocumentPosition(panel.querySelector('.block-demand-view')!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  const controls = f.panel.locator('.timeline-controls');
+  const buttons = controls.getByRole('button');
+  await expect(buttons).toHaveText(['', '', '', '']);
+  for (const [index, name] of ['跟随现在', '分层显示', '缩小时间轴', '放大时间轴'].entries()) {
+    await expect(buttons.nth(index)).toHaveAccessibleName(name);
+    await buttons.nth(index).hover();
+    await expect(page.getByRole('tooltip')).toHaveText(name);
+  }
   await f.panel.focus(); await page.mouse.move(0, 0);
   await expect(page.getByRole('tooltip')).toBeHidden();
   await f.panel.screenshot({ path: info.outputPath('compact-timeline-and-demands.png') });
   await collapse.focus(); await page.keyboard.press('Space');
   await expect(f.panel.locator('.timeline-canvas')).toBeHidden();
-  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.timeline-legend')).toBeHidden();
   await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   await expect(f.panel.locator('.demand-row')).toHaveCount(2);
   await expect.poll(f.streams).toBe(1);
@@ -237,7 +245,7 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
   await expect(eventStatus.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   const statusStyle = (el: Element) => { const s = getComputedStyle(el); return [s.backgroundColor, s.color, s.fontSize, s.borderRadius, el.getBoundingClientRect().height]; };
   for (const name of ['后台程序', '游戏连接']) expect(await eventStatus.evaluate(statusStyle)).toEqual(await page.getByRole('status', { name, exact: true }).evaluate(statusStyle));
-  await expect(f.panel.locator('.block-demand-controls')).toBeHidden();
+  await expect(f.panel.locator('.timeline-legend')).toBeHidden();
   await expect(f.panel.locator('.demand-view-heading')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expectFlushEdges();
@@ -257,7 +265,23 @@ for (const [width, height] of [[320, 900], [390, 900], [1280, 800], [1366, 768]]
   }
   await page.screenshot({ path: info.outputPath('home-demand.png'), fullPage: true, animations: 'disabled' });
   await f.panel.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
-  await expect(f.panel.locator('.block-demand-controls')).toBeVisible();
+  await expect(f.panel.locator('.timeline-legend')).toBeVisible();
+  const ahead = (await f.panel.getByText('提前准备', { exact: true }).boundingBox())!;
+  const rightGap = await f.panel.locator('.timeline-toolbar').evaluate(toolbar => {
+    const lastButton = toolbar.querySelector('.timeline-controls button:last-of-type')!;
+    return toolbar.getBoundingClientRect().right - lastButton.getBoundingClientRect().right - parseFloat(getComputedStyle(toolbar).paddingRight);
+  });
+  expect(Math.abs(rightGap)).toBeLessThanOrEqual(1);
+  const items = await f.panel.locator('.timeline-legend-item').evaluateAll(items => items.map(item => item.getBoundingClientRect().toJSON()));
+  if (width >= 1280) {
+    expect(items[0].left).toBeGreaterThanOrEqual(ahead.x + ahead.width);
+    for (const item of items) {
+      expect(item.top).toBeLessThan(ahead.y + ahead.height);
+      expect(item.bottom).toBeGreaterThan(ahead.y);
+    }
+  } else {
+    expect(items.at(-1)!.top).toBeGreaterThanOrEqual(ahead.y + ahead.height);
+  }
   await expect(f.panel.getByRole('slider')).toHaveCount(0);
   await expect(f.panel.locator('.demand-view-heading')).toBeVisible();
   await expect(f.panel.locator('.demand-row')).toHaveCount(2);

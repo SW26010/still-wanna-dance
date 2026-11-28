@@ -145,7 +145,7 @@ try {
   await expect(page.locator('.demand-row').first().getByRole('group')).toHaveAccessibleName(/需要 28 个块，视频共 40 块/);
   await page.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
   await expect(page.locator('.timeline-canvas')).toBeVisible();
-  await expect(page.getByRole('switch', { name: '分层显示', exact: true })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: '分层显示', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.timeline-canvas')).toHaveAccessibleName(/208 个块，单层/);
   await page.getByRole('button', { name: '缩小时间轴', exact: true }).click();
   await expect(page.getByRole('button', { name: /^总下载速度：/ })).toHaveText('6.10 MiB/s');

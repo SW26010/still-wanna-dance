@@ -8,7 +8,7 @@
 
 ## 复现与根因
 
-用户提供的 `natural-sorted-read-writes-6m.log` 保留原 600 万条失败：歌曲／资源排序触发原 2 秒查询超时，同时 collector 的三项批次提交报 `SQLITE_BUSY`，关闭重开后新增请求和需求行均为 0。它证明固定负载下的漏写，不证明日常发生频率。
+用户提供的 `natural-sorted-read-writes-6m.log` 保留原 600 万条失败：歌曲／资源排序触发原 2 秒查询超时，同时 collector 的三项批次提交报 `SQLITE_BUSY`，关闭重开后新增请求和需求行均为 0。上述负载可复现漏写。
 
 本轮先建立 `TestUsageRecoversLockedBatchAndPersistsAfterReopen`：保持生产 `busy_timeout=1000` 和单次写入 2 秒预算，独立 SQLite 事务持有真实读锁；只有日志确认实际锁冲突后才释放，不以固定 sleep 猜测失败点。修改前约 1.59 秒失败，关闭报告 BUSY，重开后请求明细为 0、需求行缺失。原 worker 在 `write(batch)` 失败后即释放该批次，后续事务即使恢复也不能补回它。
 
@@ -52,7 +52,7 @@
 | 默认过滤精确计数（复用副本） | 4.841 秒 |
 | 首正文汇总（600 万个密集窗口样本） | 2.005 秒，原扫描预算返回 `context deadline exceeded` |
 
-实际计划分别 `SEARCH ... USING INDEX request_events_history_song_time` 和 `request_events_resource_time`，关联下一条 GET 仍走时间索引；`USE TEMP B-TREE FOR ORDER BY` 只作用于两组有限候选，不再排序完整历史。这些耗时不设 CI 阈值，也不外推其他数据分布、硬件或日常发生频率。
+实际计划分别 `SEARCH ... USING INDEX request_events_history_song_time` 和 `request_events_resource_time`，关联下一条 GET 仍走时间索引；`USE TEMP B-TREE FOR ORDER BY` 只作用于两组有限候选，不再排序完整历史。这些耗时不设 CI 阈值。
 
 首轮探索使用持续写入直到读取返回的负载，冷复制约 1.451 秒因备份步骤 BUSY 失败；随后恢复查询，重开仍保留该轮全部 111 条新增明细和需求。该失败促成本轮备份步骤的期限内重试；最终用有界 32 笔突发复验，两个负载不同，不作为严格性能配对。原始失败保存在 `large-6m-first.log`，通过批次在 `large-6m-final.log`，均位于忽略目录 `artifacts/history-write-isolation/`。SQLite 的独立连接持续写入可能令在线备份反复重启，官方也明确这一[完成边界](https://www.sqlite.org/backup.html#file_and_database_connection_locking)。
 
@@ -82,7 +82,7 @@ $env:SWD_HISTORY_LARGE_EVIDENCE='1'
 
 证据根目录 `artifacts/history-write-isolation/` 还包含 `targeted.log`、`packages.log`、`race.log`、`race-monitor-reconnect.log`、真实浏览器日志与截图。初次代码整理中的未使用局部变量及缺少 `time` 导入导致编译失败，修正声明与导入后定向检查通过。
 
-本轮解决历史长读阻塞写入和短暂锁冲突的观察漏写，不承诺磁盘耗尽、永久锁持有、进程崩溃或满队列时仍能保存所有观察。极大库首次复制／索引仍有磁盘、临时空间与响应成本；密集首正文统计仍可能超时，但失败只影响统计，未扩大本次范围去优化分位数算法。没有新增必须依赖 VRC 的验收项；本轮没有启动游戏或修改 hosts。
+本轮解决历史长读阻塞写入和短暂锁冲突的观察漏写，磁盘耗尽、永久锁持有、进程崩溃或队列已满时仍可能丢失观察记录。极大库首次复制／索引仍有磁盘、临时空间与响应成本；密集首正文统计仍可能超时，但失败只影响统计，未扩大本次范围去优化分位数算法。没有新增必须依赖 VRC 的验收项；本轮没有启动游戏或修改 hosts。
 
 ## 大库持续刷新优化补充
 
@@ -95,7 +95,7 @@ $env:SWD_HISTORY_LARGE_EVIDENCE='1'
 - Store 按已经成功提交的明细变化失效；包含 HEAD 和保留期清理，回滚及纯需求摘要不失效。沿用现有 usage 提交回调，同时保持 GET-only SSE 的外部行为。独立文件 reader 仍检测 `data_version`，原监测连接重建测试改用该入口，保留对任意外部提交和连接计数器重置的检查。
 - 歌曲索引只在歌曲排序时准备；来源、计数、资源排序和导出不需要它。当前歌名按当页有限 ID 读取，不用旧副本中的名称冒充当前曲库。首正文单独准备有效样本的覆盖索引，以精确计数和有序排名查询取 P50/P95，保持原始筛选、最近 72 小时及 nearest-rank 语义；没有增加 2 秒扫描预算。
 - 每代只缓存来源、最近一次计数条件和最近一次首正文窗口结果，合并并发计算；失败、取消不缓存。首正文按最早已纳入样本与下一未来样本判断窗口边界，回拨重新计算，不以 TTL 近似窗口。返回的分位数指针复制给调用方，避免调用方修改污染缓存。
-- 私有库 WAL 允许租用中的扫描／导出与按需索引共存；只在私有库建索引，业务库的结构、日志模式、写入期限和复制的短步读锁保持不变。实际明细提交仍可能触发全库换代，本轮未实现增量复制，也不承诺首次准备恒定耗时。
+- 私有库 WAL 允许租用中的扫描／导出与按需索引共存；只在私有库建索引，业务库的结构、日志模式、写入期限和复制的短步读锁保持不变。实际明细提交仍可能触发全库换代，本轮未实现增量复制，首次准备耗时随库规模和磁盘条件变化。
 
 ### 自动验证
 
@@ -135,7 +135,7 @@ Windows 定向 race 首批 292.222 秒未报告数据竞争，但新增取消测
 
 本节保留 `c0870123` 的实现与验证；随后合并历史导入的有序 worker 操作时，通用 `synchronize(ctx, apply)` 已由 `flush(ctx)` 与共用控制入队替代，取消和提交结果边界以[#28 合并记录](issue-28-validation.md#2026-11-15合并后的观测同步与导入结果)及[现行存储契约](../storage.md#打开失败与未来升级)为准。下文的旧 interface 名称不作为当前实现要求。
 
-跟进 P1：状态页为判断 VRCX 导入提示调用 `SongUsageCount`，原实现强制 `flush`。数据库连接占用且 1024 项观测队列满时，屏障发送持有 GET 也需要的互斥锁；已经取消的状态请求仍等待队列，新的 GET 观测随之阻塞。原探针在释放数据库后两者均返回，证明特定积压条件下的阻塞，不证明日常必现或永久卡死。
+跟进 P1：状态页为判断 VRCX 导入提示调用 `SongUsageCount`，原实现强制 `flush`。数据库连接占用且 1024 项观测队列满时，屏障发送持有 GET 也需要的互斥锁；已经取消的状态请求仍等待队列，新的 GET 观测随之阻塞。原探针在释放数据库后两者均返回，证明特定积压条件下的阻塞，日常发生频率与阻塞持续时间需在运行中观测。
 
 `TestCanceledSongUsageCountDoesNotBlockGET` 固定占用真实应用数据库连接，等待实际 worker 的连接排队后填满观测队列，不替换 worker 或其锁。修复前连续两次失败：取消的状态查询和新 GET 观测都无法在数据库释放前返回，第二轮约 0.70 秒；原探针及回归失败分别保留在 `status-flush-probe.log`、`status-flush-regression-before.log`。
 
@@ -158,4 +158,4 @@ Windows 定向 race 首批 292.222 秒未报告数据竞争，但新增取消测
 ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^(TestCanceledSongUsageCountDoesNotBlockGET|TestUsageSynchronizationCancellationDoesNotBlockGET|TestUsageImportAppliesBetweenEarlierAndLaterGET|TestSongUsageCountReadsCommittedStateWithoutFlushing)$' -count=3 -v
 ```
 
-本阶段证据位于忽略目录 `artifacts/architecture-review-storage-20261115/`，未覆盖原始失败。检查只使用隔离 SQLite 和受控请求；数据库查询自身仍可能等待连接，满队列也仍可能丢失观测，不将本项解释为所有数据库负载下的 GET 延迟保证。没有新增 VRC 专属验收项。
+本阶段的首轮失败和复测结果均保存在 `artifacts/architecture-review-storage-20261115/`。测试使用隔离 SQLite 和受控请求。数据库查询仍可能等待连接，队列满时也可能丢失观测。上述回归覆盖的是统计处理与 GET 的隔离，本轮无需新增 VRC 实机项。

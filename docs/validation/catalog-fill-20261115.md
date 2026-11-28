@@ -12,7 +12,7 @@
 
 ## 隔离基准
 
-Windows amd64、Go 1.27.3、AMD Ryzen 7 9850X3D；使用真实 SQLite 和临时数据库，合成 10,575 首不同 ID／MD5，预先完成清单同步，确保映射完整。歌曲只含 ID／MD5，不代表真实上游正文及其全部资料字段。
+Windows amd64、Go 1.27.3、AMD Ryzen 7 9850X3D；使用真实 SQLite 和临时数据库，合成 10,575 首不同 ID／MD5，预先完成清单同步，确保映射完整。夹具为每首歌提供 ID 和 MD5，以隔离测量资源映射补缺的成本。
 
 `BenchmarkSyncCatalogComplete` 测量完整 `SyncCatalog`，包含防御性归一化、候选编码与提交，使用可取消的 benchmark context；不含建库、首次同步或网络／解析。`BenchmarkSyncCatalogFavoriteWait` 占住唯一数据库连接，使同步在已经取得共同锁后等待连接，再发起真实 `SetSongPolicy`，释放连接后测到收藏写入完成；该项排除同步前的归一化和候选编码，包含剩余同步事务与收藏写入本身。它用于观察共同锁竞争，不是普通用户操作的固定延迟。
 

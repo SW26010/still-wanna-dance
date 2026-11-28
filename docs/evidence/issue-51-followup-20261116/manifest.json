@@ -10,8 +10,8 @@
   "files": [
     {
       "path": "docs/research/issue-51-retry-handoff-followup-20261116.md",
-      "bytes": 12764,
-      "sha256": "72bf82e9f0f3a8eba371273a34c78d1e3442178b87d3388e75274291427b7055",
+      "bytes": 12838,
+      "sha256": "8c410a13a50bdee44c946f110f5f058eef669a81f7c6a43bc5ab9de6db6b4d20",
       "source": "Scoped source review and attributed observation summaries; proposal excluded",
       "sanitization": "No player or room identities, private paths, absolute event times, credentials or full raw logs"
     },

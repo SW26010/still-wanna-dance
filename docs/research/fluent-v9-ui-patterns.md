@@ -83,6 +83,6 @@ Dialog 用于需要专注完成的任务或重要确认；普通补充上下文�
 - **MessageBar 留给需要理解或处理的消息。** 官方把它用于产品或当前区域的重要信息，并要求 warning/error 提供解决入口；页面级消息应放在正文中、命令区下方，不放到侧栏上方。无需把四项常驻状态各做成一条 MessageBar；实际故障说明和操作可继续用 MessageBar 或原有清晰入口。[MessageBar 使用原则](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage)
 - **状态文字始终可见。** 颜色不能成为唯一辨识方式；保留 Fluent 对比度和主题处理。[颜色无障碍](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)、[Fluent 可访问性](https://fluent2.microsoft.design/accessibility) 本地图标包 2.0.344 对没有 `title / aria-label / aria-labelledby` 的图标自动设置 `aria-hidden=true`，与文字同义的装饰图标无需重复命名。[图标默认语义](https://github.com/microsoft/fluentui-system-icons/blob/main/packages/react-icons/src/core/useBaseIconState.ts) Badge 默认不抢焦点，也没有 live region；需要变化播报时显式使用 `role="status" aria-atomic="true"`，将“名称：状态”放在同一容器内。status 已隐含 polite，无需再加一套重复播报区域。[Badge 默认结构](https://github.com/microsoft/fluentui/blob/master/packages/react-components/react-badge/library/src/components/Badge/useBadge.ts)、[W3C ARIA22](https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA22)
 
-以上仅是官方资料与锁定安装包核对，不代表实现或浏览器验收已完成。
+以上仅是官方资料与锁定安装包核对，实施与浏览器验收按对应版本另行记录。
 
 随后已按此依据落实四项 Badge；初版使用 filled，用户反馈实心过于醒目后统一改用原生 `tint`：组件通过主题 tokens 提供浅色背景、描边和语义色文字，无需自定义透明度或样式覆盖。`informative` 中性灰仍表示未启用／待确认，`brand` 表示连接或启动中。实现及浏览器结果见[开发验证](../validation/webui-validation.md#2026-10-25-四项运行状态统一)。

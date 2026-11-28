@@ -35,7 +35,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 - 代理业务与后台同步注入禁止候选访问的 Transport，并检查 Monitor 未创建、DNS 查询为零。外部 SOCKS5 通过本地真实协议服务验证原域名请求和取消；Mihomo 通过 SS、VLESS、VMess、AnyTLS、Hysteria2 真实回环协议夹具验证请求和关闭。
 - 曲库退避采用虚拟时间验证 5、10、20、40、60 秒及一分钟上限，存储拒绝不算成功；已有清单沿用普通周期。歌曲选择检查共享业务遍历、缺失元数据优先和失败后的推进，额外初始化重试只取清单，不下载视频正文。
 - 手动检测验证实际五项请求、仅本轮结果、合法响应入真实临时 SQLite、失败与取消时间、SSE 重连、互斥、条款和退出。失败后的结果不会混入上一轮成功；取消保留前次完整结果。
-- 真实检测页使用实际 Console/API/SSE、内嵌 WebUI 及受控 HTTP 上游，检查无代理“当前连接”、无上游选择器、空对象启动、五项结果和完成时间、曲库更新，以及 390px 无横向溢出。截图 `live-browser/active-proxy.png` 已检查；这不代表访问了公网业务源。
+- 真实检测页使用实际 Console/API/SSE、内嵌 WebUI 及受控 HTTP 上游，检查无代理“当前连接”、无上游选择器、空对象启动、五项结果和完成时间、曲库更新，以及 390px 无横向溢出。截图 `live-browser/active-proxy.png` 已检查；业务源由受控服务提供。
 - 真实 Mihomo/原版 zashboard 联调检查控制接口、代理面板与诊断导航、手机布局和主题。测试主动阻断外网，保留面板七次 GitHub 更新检查的 `Failed to fetch`；这些是已识别的上游联网行为，没有作为产品接口错误隐藏。
 
 可选真实浏览器入口：设置 `SWD_DASHBOARD_BROWSER_EVIDENCE`、`SWD_UPSTREAM_BROWSER_EVIDENCE` 为各自证据目录后，运行 `go test -tags=no_easytier ./internal/console -run '^Test(MihomoDashboardAndConsent|NetworkConnectivityReusesResponsesToInitializeStorage)$' -count=1`。驱动使用测试创建的隔离服务，不启动桌面程序或修改 hosts。
@@ -65,7 +65,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 
 ## 曲库直连容错与清单定义收尾
 
-需求审查发现后台同步直接使用普通直连客户端，TCP 成功后的 TLS/HTTP 失败不会继续另一候选；Monitor 的抽样不能保证补齐指定缺项。修复前复跑受控 TCP/TLS 实验，目标歌曲 `900001` 连续三轮均未补齐，当前 Monitor 三轮只采样 `42`，原候选流程则三轮均补齐目标；结果保留在 `artifacts/review-spec-fallback/recheck-confirmed-20261031.log`。同目录 overlay 使用修复前接口，仅作历史复现；第一次复跑的 PowerShell 参数解析错误另保留在 `recheck-20261031.log`。
+需求审查发现后台同步直接使用普通直连客户端，TCP 成功后的 TLS/HTTP 失败不会继续另一候选；Monitor 按次抽样，指定缺项可能未被选中。修复前复跑受控 TCP/TLS 实验，目标歌曲 `900001` 连续三轮均未补齐，当前 Monitor 三轮只采样 `42`，原候选流程则三轮均补齐目标；结果保留在 `artifacts/review-spec-fallback/recheck-confirmed-20261031.log`。同目录 overlay 使用修复前接口，仅作历史复现；第一次复跑的 PowerShell 参数解析错误另保留在 `recheck-20261031.log`。
 
 现在 Console 通过原有 `operationClients` 为后台同步提供请求路径，直连沿用既有推荐及未测候选容错，Monitor 未启动也能完成指定缺项。`catalogsync` 只接收客户端提供函数，`upstreamcheck` 对调用方提供的路径共用一个既有 Session；候选发现和请求共用总期限，协议回退不重置尝试预算。代理及手动诊断仍只提供当前生效客户端，没有增加后台选路策略、历史或重试层。
 
@@ -96,7 +96,7 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 
 本阶段保留的失败与修正：首次虚拟时间用例跨 bubble 共用全局 Channel 通知，导致测试运行时拒绝关闭；改为各 bubble 独立测试 Channel 并在 Console 清理后恢复。故障恢复用例最初试图在同一实例清除已锁存的存储错误，与既有存储契约不符；现分别验证持续存储故障与普通网络恢复，不改变产品故障规则。见 `automatic-schedule-tests.log`、`automatic-schedule-tests-after.log`。首次 race 指出新测试计数器未建立与后续计时器写入的同步，改用原子计数及锁保护记录；见 `automatic-race.log`。整包首次仅两处旧测试仍断言自动轮次没有资源读取，现明确允许并验证一个 byte 的 Range 请求；见 `automatic-packages.log`。这些修正未放宽请求预算或业务断言。首次窄屏截图的时间文字与结果挤在同一行，改为每项结果下方的次级文字；前后截图分别留在 `automatic-live-browser/` 与 `automatic-live-browser-final/`。
 
-本阶段使用隔离数据库、受控网络和本地浏览器，不代表公网代理性能或 VRC 播放体验；未启动游戏、修改系统 hosts、部署。
+本阶段使用隔离数据库、受控网络和本地浏览器，公网代理性能和 VRC 播放体验须在实际出口与游戏中测量；未启动游戏、修改系统 hosts、部署。
 
 ## 提交审查收口：HTTPS 验证入口与说明
 
@@ -106,4 +106,4 @@ Go 命令统一经 `scripts/with-test-temp.ps1` 使用隔离临时目录；Windo
 - 开启 `SWD_LIVE_UPSTREAM=1` 和 `SWD_LIVE_DUALSTACK=1`，两个可选公网入口实际通过：强制 IPv6、强制 IPv4、普通双栈、本地 TLS relay 及 CF HTTPS 资源转发均验证证书并取得 206／1024 bytes；`review-closeout-live-https.log`，合计 8.173 秒。仅访问公开业务源并读取小段 Range，不改变系统 hosts，不启动网关或游戏，不下载完整视频。
 - Console `go vet`、Go 格式与 `git diff --check` 通过，`review-closeout-vet.log`。相关 helper 的所有调用均已显式提供资源集合，未残留全局 `Default.IsResourceDomain` 校验。
 
-以上公网结果仅证明该时段的连通、证书与转发行为，不是代理性能或 VRC 体验验证。未新增产品构建、部署、提交或推送；前一节 Windows 产物仍为现有验证构建。
+本轮在上述公网窗口核对了实际连接、证书和转发结果。未新增产品构建、部署、提交或推送；前一节 Windows 产物仍为现有验证构建。

@@ -16,15 +16,17 @@
 | 64 槽饱和与取消 | 64 条热流全部到达服务器后再保持至少 100 ms。准入 `occupied=64 / openConnections=64 / pending=0`；额外拨号立即 `dial-capacity`，不新增后台工作。取消后 64 个调用者均在 1 秒门槛内结束；不释放门闩，服务端 held 和本层占用均归零。 |
 | 取消后恢复 | 正常请求在同一 QUIC peer 上成功；重新进入受控等待并显式放行后也成功。不是通过更换节点或重启掩盖恢复失败。 |
 | 带在途热流退役 | 同样扣住 64 条响应，关闭 Pool 和完整运行时；调用者均在 1 秒门槛内结束，双方等待/占用归零，旧 Dial 拒绝再请求。新进程代次可对同一夹具成功请求；没有声称已退役对象可复活或同进程可卸载重建。 |
-| QUIC 流额度耗尽 | 服务端 `MaxIncomingStreams=2`，实际持有 2 条流后下一次 Dial 在 500 ms 门槛内失败，没有排队。关闭持有流后双方排空；额度传播期间恢复探测第 3 次成功，仍为同一 peer。**不能声称释放后首个请求必成功**，工具记录恢复尝试次数。 |
+| QUIC 流额度耗尽 | 服务端 `MaxIncomingStreams=2`，实际持有 2 条流后下一次 Dial 在 500 ms 门槛内失败，没有排队。关闭持有流后双方排空；额度传播期间恢复探测第 3 次成功，仍为同一 peer。首次恢复所需的尝试次数随会话状态变化，工具记录恢复尝试次数。 |
 
-取消及退役轮次各自的 64 条流都已从原生 Dial 返回；这验证的是**热流延迟握手响应中的阻塞与恢复**，不是声称制造了一个不存在的 OpenStream 等待路径。当前实现没有对核心私有互斥锁设置可控阻塞点，所以不把这组结果外推为任意内部锁竞争都可取消。计时采用 Windows 本地时钟，零/亚毫秒记录不代表精确瞬时完成；通过依据是明确的状态屏障和宽松的上限。
+取消及退役轮次各自的 64 条流都已从原生 Dial 返回；这验证的是**热流延迟握手响应中的阻塞与恢复**，不是声称制造了一个不存在的 OpenStream 等待路径。当前实现没有对核心私有互斥锁设置可控阻塞点，所以不把这组结果外推为任意内部锁竞争都可取消。计时采用 Windows 本地时钟，零或亚毫秒读数受时钟分辨率影响；通过依据是明确的状态屏障和宽松的上限。
 
-### 有界不等于必然恢复
+<a id="有界不等于必然恢复"></a>
+
+### 资源上限与恢复条件
 
 新增 `TestAdmissionBoundedDoesNotImplyRecovery`（release / retire 两个子例）让 4 个上游函数明确忽略 Context，并在可控屏障等待。调用者取消、20 ms 拨号预算到期及额外 50 ms 观察后，4 个 pending/槽位仍占用；健康新请求因容量不足被拒绝。退役可以拒绝新工作，但同样不能强行结束这些函数。只有释放上游屏障、实际返回后，4 个迟到连接才关闭、槽位归零；未退役代次恢复请求，已退役代次保持不可用。
 
-这是**不配合取消的上游函数模型**，不是本轮发现 Hysteria2 有永久挂起故障。它明确了通用封装的保证范围：限制任务增长和迟到连接所有权，不保证不返回的任意 Go 函数可被终止。若未来实际协议存在这种长期不收敛，不能通过提前归还槽位、不断创建新任务来“恢复”；应保留失败并据真实故障讨论上游修复或更大故障域的恢复。本文不据此决定 B2/C。
+这是**不配合取消的上游函数模型**，不是本轮发现 Hysteria2 有永久挂起故障。它明确了通用封装的保证范围：限制任务增长和迟到连接所有权，底层 Go 函数持续不返回时仍会占用受限的任务槽位。若未来实际协议存在这种长期不收敛，不能通过提前归还槽位、不断创建新任务来“恢复”；应保留失败并据真实故障讨论上游修复或更大故障域的恢复。本文不据此决定 B2/C。
 
 ### 收尾复核发现及修正
 
@@ -48,13 +50,13 @@
 | HTTP 100 ms 超时、peer 扣住握手 | HTTP 返回后仍有 1 个核心任务；约 5.031 秒后核心及 peer 归零 | HTTP 返回后仍有 1 个 pending；实验拨号预算统一设 5 秒，约 5.031 秒后排空 |
 | 预取消请求 | peer 未收到拨号 | peer 未收到拨号；另直接传入原生 Dial 的 100 ms Context 能结束本轮慢握手，pending 归零 |
 
-代码依据：[Mihomo tunnel 的 `retry` / `handleTCPConn`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/tunnel/tunnel.go)、[`proxydialer.New`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/component/proxydialer/proxydialer.go)、[`socks5.ClientHandshake`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/transport/socks5/socks5.go)。B1 的循环最多 10 次，共用 `DefaultTCPTimeout=5s`，退避间隔带抖动；特定 resolver/loopback 错误直接停止。B2 不经过这层循环，但仍包含各协议自身的实现。此处的 10 次是一次受控结果，不外推为所有协议、所有错误都重试 10 次。
+代码依据：[Mihomo tunnel 的 `retry` / `handleTCPConn`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/tunnel/tunnel.go)、[`proxydialer.New`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/component/proxydialer/proxydialer.go)、[`socks5.ClientHandshake`](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/transport/socks5/socks5.go)。B1 的循环最多 10 次，共用 `DefaultTCPTimeout=5s`，退避间隔带抖动；特定 resolver/loopback 错误直接停止。B2 不经过这层循环，但仍包含各协议自身的实现。此处的 10 次是一次受控结果。
 
-发现了必须保留的语义差异：固定版本原生 SOCKS `ClientHandshake` 读取 `VER/REP/RSV` 后未检查 REP，继续读取绑定地址。夹具完整返回 REP=5 后关闭，原生 Dial 已认为成功，随后 HTTP 失败，因而不能触发上述 Dial 错误重试。首次实验错误地预期它会触发 B1 重试，得到 **10/12**；该反例与初次脚本变量遮蔽的启动失败均保存在 [history.json](../evidence/issue14-directed-20261013/retry/history.json)。随后增加明确的握手 EOF 对照，没有为通过检查更改上游协议。这个结果也再次表明不能以 Dial/GotConn 成功给节点记业务成功。它不证明历史 backlog 的差异来自重试。
+发现了必须保留的语义差异：固定版本原生 SOCKS `ClientHandshake` 读取 `VER/REP/RSV` 后未检查 REP，继续读取绑定地址。夹具完整返回 REP=5 后关闭，原生 Dial 已认为成功，随后 HTTP 失败，因而不能触发上述 Dial 错误重试。首次实验错误地预期它会触发 B1 重试，得到 **10/12**；该反例与初次脚本变量遮蔽的启动失败均保存在 [history.json](../evidence/issue14-directed-20261013/retry/history.json)。随后增加明确的握手 EOF 对照，没有为通过检查更改上游协议。这个结果也再次表明不能以 Dial/GotConn 成功给节点记业务成功。历史 backlog 差异的原因仍待单独定位。
 
 ### 本轮核对后的职责约定
 
-以下是后续接入任一候选时应遵守的边界，不代表本轮已迁移 B2 或建设另一套请求/协议引擎。
+以下是后续接入任一候选时应遵守的边界，本轮研究输出为接入约束，B2 迁移与请求引擎建设均未实施。
 
 | 所有者 | 保留职责与预算 |
 | --- | --- |

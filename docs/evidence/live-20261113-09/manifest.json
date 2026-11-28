@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261113-09.md",
-      "bytes": 7259,
-      "sha256": "f7a8b897ad947896a645c2a7974fdecc1970703529f2e2a61877093660af8914",
+      "bytes": 7256,
+      "sha256": "ff3a89f89c87d01c0ee7534ab0906f90de85d94cda769342789362becb06deea",
       "source": "Operator report and scoped interpretation",
       "sanitization": "Relative event times; no player/room identity, private paths, credentials or signed URLs"
     },

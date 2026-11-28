@@ -2,7 +2,7 @@
 
 当前项目的集中 VRC 验收遵循[实机验收机制](../live-acceptance-process.md)：先由 agent 完成开发验证，只从[台账](../live-acceptance-backlog.md)选择仍必须在游戏中判断的场景，合并操作并复用已有证据；实际开测后使用[报告模板](../live-acceptance-report-template.md)。下文历史操作仅供参考，不是每轮必跑清单，实际接入与配置以当前实现为准。
 
-> 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射，也不保证这些域名持续存在。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](../resource-domains.md)。原始证据保持原样。
+> 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](../resource-domains.md)。原始证据保持原样。
 
 当时仓库提供独立命令行服务，见[历史服务手册](command-line-service-20261103.md)；该入口已移除。下面描述原版黑盒测试环境与验收方法；原版程序、视频及测试工具需在本地另行准备。
 
@@ -46,7 +46,7 @@ curl.exe --noproxy "*" --max-time 15 -sS -D - -o NUL "http://api.udon.dance/Api/
 curl.exe --noproxy "*" --max-time 15 -sS -D - -o NUL -w "received=%{size_download} time=%{time_total}\n" -H "Host: play.udon.dance" -H "Range: bytes=20000000-20001023" "http://ud-play.kiva.moe/files/2403/1343-660524b4eb86f.mp4?e=REDACTED&s=REDACTED"
 ```
 
-预期为 206、正确 Content-Range、received=1024。分别检查公开视频域名和原版回源域名，不能互相替代。`--noproxy "*"` 只排除 curl 显式代理，不能保证绕过透明代理或 TUN。
+预期为 206、正确 Content-Range、received=1024。分别检查公开视频域名和原版回源域名，不能互相替代。`--noproxy "*"` 只排除 curl 显式代理，透明代理和 TUN 仍可能接管流量。
 
 当前复测必须分别查询 API 并使用真实返回 URL；不得把 node=nya 推导为 nya.xin.moe，也不得手工换 Host 或沿用历史回源别名。SHA 独立检查 139.196.46.195 的 TCP 51886；保持 TLS 验证，不用不明的成功/失败结果外推视频响应。
 
@@ -77,7 +77,7 @@ URL 中的 Host 仍是播放域名。真实 TLS 透传测试也必须保留原�
 
 ## Windows 操作经验
 
-- 本机普通权限绑定 80/443 曾成功，不能据此保证所有机器都相同；hosts 修改仍需要管理员权限。
+- 本机普通权限绑定 80/443 曾成功，其他机器的绑定权限取决于本机环境；hosts 修改仍需要管理员权限。
 - 隐藏启动后台服务，记录 PID 和进程路径；清理时核对路径，不能按宽泛进程名结束用户的其他程序。
 - Windows PowerShell 5 的 Invoke-WebRequest 不允许直接通过 Headers 设置 Range；测试工具曾改用 HttpWebRequest.AddRange。
 - UAC 辅助程序必须将失败与退出码反馈给调用端；退出码 0 不足以替代对实际 hosts 状态的检查。

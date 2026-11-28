@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261116-02.md",
-      "bytes": 9674,
-      "sha256": "66200a65cc3a375ff896fa3d56d684c61dae51b8403d92ccefd16aa03d053bcb",
+      "bytes": 9751,
+      "sha256": "6d158ce5e368efdc9bc856852654a146bc41a259db54a6f404ef7979938bfa96",
       "source": "Recorded experiment or fixture source",
       "sanitization": "Relative sample times; no private identity, personal paths, credentials, media or raw game logs"
     },

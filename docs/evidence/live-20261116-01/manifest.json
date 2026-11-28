@@ -12,7 +12,7 @@
     {
       "path": "docs/acceptance/live-acceptance-20261116-01.md",
       "bytes": 14722,
-      "sha256": "49257b7216ceafe48824472a7e7ec5767e3682403f1d91fa453fb68c946c02fc",
+      "sha256": "b18eee0d2342e36237f80e9355d4ca22a8561b2d2112190b849cc3c4af657075",
       "source": "Operator observations and scoped server/game evidence",
       "sanitization": "Per-sample relative seconds; player/room identities, private paths, credentials and full raw logs omitted"
     },

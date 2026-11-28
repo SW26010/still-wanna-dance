@@ -74,8 +74,8 @@
     },
     {
       "path": "docs/research/video-metadata-20261015.md",
-      "bytes": 18388,
-      "sha256": "28467c58175e7e72f1663a58baa734ab1f547106a3c0700ce204670334043198"
+      "bytes": 18431,
+      "sha256": "2c326a50fe469c1e577767eed337fc877fd1adbd66e031525bf95ff54fdf51a6"
     },
     {
       "path": "scripts/video-metadata-study/analyze.py",

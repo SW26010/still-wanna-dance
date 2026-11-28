@@ -23,7 +23,7 @@ Windows amd64，Go 1.27.3，桌面相关 Go 命令使用 `-tags=no_easytier`。W
 | `TestCalibrationHoldsSingleThenUsesNaturalGrowthAndCancels -count=100` | 虚拟时钟下 100 次通过；修改后 upstreamstate 整包再次通过 |
 | Edge `task-errors.spec.ts`、`ui-layout.spec.ts` | 12/12，通过本地模拟 API 验证 |
 | `pnpm --dir webui build` | 类型检查及资源生成通过；JS/CSS 内容未变，仅声明副本和清单更新 |
-| Node `release-notices.test.mjs`、`release-source.test.mjs` | 9/9；源码重建用例只覆盖临时夹具，不代表实际产品离线重建 |
+| Node `release-notices.test.mjs`、`release-source.test.mjs` | 9/9；源码重建用例只覆盖临时夹具，实际产品的离线重建需使用对应源码包检查 |
 | 现有 `build-desktop.ps1` 构建开发 EXE | 通过，使用 Go 1.27.3 和生产构建参数，未发布 |
 | `release-notices.mjs` 检查该 EXE | 112 个实际链接模块全部有已复核声明 |
 | `go mod verify` | 全部模块校验通过 |

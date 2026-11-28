@@ -4,7 +4,7 @@
 
 这是固定批次的历史记录。后续持续监测和最新复核统一见[三个清单入口的连接观测](../validation/kiva-connectivity-20261029.md)：Udon HTTPS 在 10-29 10:16–10:31 仍全部失败，但 11:42–11:43 的 curl 与原 Node 客户端双栈复核均完整成功。因此，本文的失败不能用于断言 HTTPS 持续不可用。清单来源改造目标另见[待实施决策](udon-catalog-decision-draft-20261029.md)；长期协议策略需另行确定，不由本批次观测直接推导。
 
-**不能把全部业务上游统一改成纯 HTTP。** Udon 歌曲列表和抽样播放链路可直接通过 HTTP 使用；Kiva 与 WannaInfo 的 HTTP 入口返回 301，要求继续访问 HTTPS。视频资源域名由播放 API 动态提供，本次成功的样本不能证明未来返回的所有域名均支持 HTTP。
+**不能把全部业务上游统一改成纯 HTTP。** Udon 歌曲列表和抽样播放链路可直接通过 HTTP 使用；Kiva 与 WannaInfo 的 HTTP 入口返回 301，要求继续访问 HTTPS。视频资源域名由播放 API 动态提供，HTTP 可用性按 API 当次返回的域名实测。
 
 ## 入口与结果
 
@@ -40,4 +40,4 @@ Kiva 同期 HTTPS 对照出现 500，独立 curl 固定 IPv4 复核仍为 500；
 
 ## 历史证据边界
 
-[2026-10-22 浏览器调查](browser-https-upgrades-20261022.md)曾确认 `play.udon.dance` 的 HTTP/HTTPS 1 KiB Range 均返回 206；[同日 CF 对照](issue-21-cf-triad-20261022.md)的两个窗口中，DNS 基线的七条路径均完成 HTTP 与 HTTPS 2 MiB 读取。它们支持当时对应视频可通过 HTTP 访问，不代替本次 API 核对，也不能保证其他时间、网络或后续动态资源域名的行为。
+[2026-10-22 浏览器调查](browser-https-upgrades-20261022.md)曾确认 `play.udon.dance` 的 HTTP/HTTPS 1 KiB Range 均返回 206；[同日 CF 对照](issue-21-cf-triad-20261022.md)的两个窗口中，DNS 基线的七条路径均完成 HTTP 与 HTTPS 2 MiB 读取。它们支持当时对应视频可通过 HTTP 访问，不代替本次 API 核对，后续网络和动态域名按当次连接结果判断。

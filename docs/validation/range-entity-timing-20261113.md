@@ -4,7 +4,7 @@
 
 ## 复现与根因
 
-用例在服务端 Flush 前缀响应头后关闭 `prefix` 通道，随即启动四个尾部 reader，并要求所有非零块请求都携带 `If-Match: "stable"`。该信号只证明服务端已发送头，不证明客户端已收到响应并执行 `acceptEntity`。
+用例在服务端 Flush 前缀响应头后关闭 `prefix` 通道，随即启动四个尾部 reader，并要求所有非零块请求都携带 `If-Match: "stable"`。该信号只证明服务端已发送头，客户端收到响应并执行 `acceptEntity` 是后续阶段。
 
 在请求构造与实体接受处临时记录 `[DEBUG-range-entity]`，30 轮有 7 轮失败。失败顺序为：块 0 构造请求时没有 ETag → 块 2 构造请求时仍没有 ETag、未带 If-Match → 块 0 接受响应并记录 ETag → 服务端检查块 2 请求并报错。此时 `prefix_headers_sent=true`；随后块 1 的请求已携带正确条件。见忽略目录 `artifacts/range-entity-20261113/trace-before.log`。
 

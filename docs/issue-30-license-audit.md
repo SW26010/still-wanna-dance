@@ -12,7 +12,7 @@
 
 该澄清解决了当前固定实现的许可版本选项问题；GPL-2.0-or-later 允许选择 GPLv3，依据见 [GNU 兼容性说明](https://www.gnu.org/licenses/gpl-faq.en.html#v2v3Compatibility)。固定依赖版本、模块 ZIP 和原 LICENSE.gpl 保留，上游澄清作为补充授权依据随本文进入对应源码。新发行不再生成 go-lzo 的「已接受风险」记录。
 
-此前审计漏纳了该回复，因而 Beta 1、Beta 2 的发布说明和产物元数据仍沿用过时结论。2026-10-30 更正现行说明与生成器；已发布附件保持原始字节和校验值，其历史记录不代表当前仍存在该疑点。新验证器兼容读取原有准确记录，以便继续核验旧发行。
+此前审计漏纳了该回复，因而 Beta 1、Beta 2 的发布说明和产物元数据仍沿用过时结论。2026-10-30 更正现行说明与生成器；已发布附件保持原始字节和校验值，本轮复核已澄清该历史疑点。新验证器兼容读取原有准确记录，以便继续核验旧发行。
 
 ### 历史判断与原始证据（已由上述澄清替代）
 
@@ -35,6 +35,6 @@
 | 现有桌面 `cmd/still-wanna-dance-console` | 无 Mihomo/go-lzo | 17,122 个函数中无上述包 | `1834c3c6d199e4b9ca3607542816354e8a95a4d846e3bb1a6552abffb38a58d3` |
 | 调用现有 SWD Mihomo `New/Proxy/Close` 的隔离探针 | 包含两者 | 保留 5 个 go-lzo 函数及 OpenVPN 解压包装函数 | `00db62c783c82360dcc3c04888efb865decefe1e5c151e8d2aca326441e9c863` |
 
-直接使用 Go `debug/pe` 与 `debug/gosym` 解析去符号 EXE 的 runtime pclntab，检查函数范围落入 `.text`。`Decompress1X` 位于 `0x140b1dc00`，范围 3,872 字节。仅去掉 `-s` 的辅助构建通过 `go tool nm -size` 交叉检查：5 个 LZO 函数和 OpenVPN 包装函数地址、大小、指令字节一致；整段 `.text` 有 40 字节不同，不声称整包可重现。临时探针从参数读取配置，有合法格式节点 ID 和返回错误的 DNS 回调；只构建、不执行。
+直接使用 Go `debug/pe` 与 `debug/gosym` 解析去符号 EXE 的 runtime pclntab，检查函数范围落入 `.text`。`Decompress1X` 位于 `0x140b1dc00`，范围 3,872 字节。仅去掉 `-s` 的辅助构建通过 `go tool nm -size` 交叉检查：5 个 LZO 函数和 OpenVPN 包装函数地址、大小、指令字节一致；整段 `.text` 有 40 字节不同。临时探针从参数读取配置，有合法格式节点 ID 和返回错误的 DNS 回调；只构建、不执行。
 
-这说明仅在 UI 不开放 OpenVPN 不能保证裁剪该代码。探针不是正式桌面接入产物，#14 接入后应保存实际构建依赖、EXE 模块和相关二进制记录；记录到该依赖不自动拒绝发布。原始本地证据在忽略目录 `artifacts/issue30/check-20261012/`；关键结论和哈希同步在 [#30](https://github.com/SW26010/still-wanna-dance/issues/30)。没有向上游发送消息。
+裁剪这段代码需在构建依赖层处理。探针不是正式桌面接入产物，#14 接入后应保存实际构建依赖、EXE 模块和相关二进制记录；记录到该依赖不自动拒绝发布。原始本地证据在忽略目录 `artifacts/issue30/check-20261012/`；关键结论和哈希同步在 [#30](https://github.com/SW26010/still-wanna-dance/issues/30)。没有向上游发送消息。

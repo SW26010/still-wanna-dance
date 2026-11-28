@@ -1,8 +1,8 @@
 # 全局块调度开发记录
 
-本页按实现先后保留开发与自动检查记录，各节只描述当时的实现、结果和限制。
+本页按实现先后记录调度器的开发检查。各节给出构建、负载和可复现的结果，游戏中的卡顿、恢复与音画反馈见对应实机批次。
 
-**现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段。早期同期限任务的 Owner 轮转已由任务登记顺序取代。各次检查只覆盖当时的实现。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。
+**现行规则见[下载需求与资源管理设计](../download-resource-design.md)，实现解释及参数见[设计说明](../block-scheduler-design.md)与[运行规则](../download-concurrency.md)。** 当前采用固定 M，已删除动态 T 和暂停／恢复。下文的 T+M、目标并发反推、两秒追赶、500 ms 采样、无收益回退及竞争暂停均为历史阶段。早期同期限任务的 Owner 轮转已由任务登记顺序取代。剩余游戏场景统一见[台账](../live-acceptance-backlog.md)。
 
 第 38 节修正 GET 的覆盖范围并删除固定读取窗口，替代第 27/37 节中“越过起点的块立即到期”“GET 覆盖全部缺块”“当前块及后面两块独立登记”的历史规则。游戏剩余场景及状态以现行[台账](../live-acceptance-backlog.md)为准。
 
@@ -30,7 +30,7 @@
 
 `scheduled_download.go` 负责有限窗口、来源、实际 Read 等待与交接；`scheduled_range.go` 执行分块并复用既有部分文件、通道候选、强 ETag 及最终 MD5 边界。首请求与顺序回退也通过同一个调度器。原视频等级、按视频抢占以及固定 3+1 worker 已删除，文件会话只负责初始化/校验/发布和存储边界。参数及未知媒体时长的启发式决定见[当前并发规则](../download-concurrency.md)。
 
-新需求测试覆盖 GET 不等于 Blocking、多读者独立撤销、有限窗口、Seek、取消不续期、队列重排、固定交接与来源互不覆盖。旧 `demand_test`、`playback_grace_test`、`range_resume_startup_test` 的视频等级/固定 worker 断言由上述模型测试和 blocksched 的租约/公平/调度测试替代；原真实响应校验、正文关闭、部分前缀、失败通道、重定向及文件清理回归继续执行。整会话暂停测试改为明确触发暂停，验证存储契约，不再以“抢视频席位”作为前提；Seek 竞争夹具显式维持读取阻塞后再检查让位，不要求瞬时无条件取消。
+新需求测试覆盖 GET 与实际等缺块时的 Blocking、多读者独立撤销、有限窗口、Seek、取消不续期、队列重排、固定交接与来源互不覆盖。旧 `demand_test`、`playback_grace_test`、`range_resume_startup_test` 的视频等级/固定 worker 断言由上述模型测试和 blocksched 的租约/公平/调度测试替代；原真实响应校验、正文关闭、部分前缀、失败通道、重定向及文件清理回归继续执行。整会话暂停测试改为明确触发暂停，验证存储契约，不再以“抢视频席位”作为前提；Seek 竞争夹具显式维持读取阻塞后再检查让位，不要求瞬时无条件取消。
 
 接入中发现并修正：取得共享流后提前释放需求；执行上下文遗漏下载总期限导致多通道无法分配超时预算；完成块的工作退出事件与最后需求撤销并发时误判无人需要；暂停收尾的存储错误被取消状态遮蔽。新增/保留对应回归。
 
@@ -283,7 +283,7 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 
 加入标准 1 MiB 块从获准执行到通过检查并可读的测量，初始 T=1 秒，历史样本权重按 30 秒半衰期衰减，只有完成事件更新平均值。范围执行在完整块写入及完成登记后标记 Ready，正文/资源收尾仍须全部结束才能释放 active。尾块、部分续传、失败/暂停与顺序 200 不贡献标准块样本；完整块成功重试的全部连接与传输等待计入，正常慢样本不会被筛掉。此提交先建立测量和日志，窗口准入在后续提交替换旧供数控制。
 
-虚拟时间回归覆盖排队/清理排除、重复 Ready 不延长采样、失败/暂停排除、慢样本与同批权重、半衰期和长期空闲。调度核心全部单元测试通过；调度及 Range/顺序/完成边界定向 race 结果见本地 block-duration-focused-race.log。LA-040 增补采样的实机步骤和证据，LA-041 保留；没有启动游戏或修改 hosts。
+虚拟时间回归覆盖排队/清理排除、重复 Ready 不延长采样、失败/暂停排除、慢样本与同批权重、半衰期和长期空闲。调度核心全部单元测试通过；调度及 Range/顺序/完成边界定向 race 结果见本地 block-duration-focused-race.log。LA-040 增补采样的实机步骤和证据，LA-041 保留。
 
 ## 32. 事件驱动的启动窗口与按需缓增
 
@@ -325,7 +325,7 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 
 回归覆盖新配置落盘、旧 v3 配置缺字段回退、API 合法边界/非法类型与越界拒绝、失败不改文件、保存与运行快照分离、仅启停网关不应用、重启持久化、引擎向调度器传递短窗口，以及默认 ReadyBy 前 503 秒的启动等号边界。未来任务夹具改为 15 分钟或显式 M=30 秒，保留窗口外等待、补齐需求撤销、调度等待不消耗执行预算的原验证目的；慢样本窗口跟随新默认平移。T 初值、样本口径、250 ms 缓增、普通软上限和 Blocking 规则不变。
 
-开发检查（不代表实机通过）：
+开发检查：
 
 - `go test -tags=no_easytier ./internal/blocksched ./internal/cacheproxy ./internal/console -count=1 -timeout=180s`：三个包完整回归通过，原始输出仅本地 `artifacts/prepare-ahead-checks/go-tests.log`。初次沙箱执行因 Windows 拒绝原子重命名造成存储/配置测试失败；正常权限下使用测试临时配置与缓存重跑通过。
 - `node --test scripts/refresh.test.mjs scripts/setup.test.mjs scripts/navigation.test.mjs`：222 项通过，包含新设置默认值、草稿保护、放弃、保存数字及待重启提示；原始输出仅本地 `artifacts/prepare-ahead-ui-tests.log`。
@@ -341,14 +341,14 @@ HTTP 在地址解析前记录的到达时刻随 Range 起点一起传给 GET 需
 
 新增 `scheduled_candidates_test.go` 覆盖三种来源的完整候选、初始化门禁与已完成块过滤、跨资源第 8 块以后的期限顺序、生产下载路径单视频升到 16 路且普通请求不超限、全部分块只请求一次及完整内容发布，以及全局容量拒绝后的任务回收。原读取窗口测试改为检查读取来源本身的撤销，避免把独立 GET 仍需的块误判为旧 Seek 残留；Blocking 超限夹具不再引用被删除的窗口常量。
 
-开发检查（全部使用隔离夹具，不代表实机通过）：
+开发检查（全部使用隔离夹具，游戏结果另见实机报告）：
 
 - 旧产品文件通过 Go overlay 接入新增回归，GET/队列/补齐均只生成 8 个候选，跨资源排序在 `content/8` 处被 `later/0` 抢先；四处预期失败保留于本地 `artifacts/remove-resource-window/before-regression.log`，工作区产品文件未回退。
 - 新增回归及相关读取/Blocking 定向检查通过（`focused.log`，5.088 s）。真实回环 HTTP 的 20 MiB 单视频在未触发额外 Read/Seek 时达到 16 路，仍阻止第 17 个普通请求；释放响应后完成全部内容及最终校验发布。
 - `go test -tags=no_easytier -race ./internal/cacheproxy ./internal/blocksched -count=1 -timeout=180s` 完整通过，分别 38.499 s / 1.131 s，无 race 报告（`packages-race-normal.log`）。首轮沙箱日志保留为 `packages-race.log`：硬链接/junction 权限拒绝及 ThreadSanitizer 异常退出，未作为通过证据；正常 Windows 权限重跑成功。
 - 两个相关包的 `go vet -tags=no_easytier` 通过（`vet.log`）；正式源码目录 `./cmd/... ./internal/... ./data/... ./experiments/...` 的 `CGO_ENABLED=0 go build -tags=no_easytier` 通过（`build.log`）。日志均位于上述本地忽略目录。
 
-LA-040 更新本次步骤、预期和证据需求，新版本待实机验收；历史失败和报告保留，本次不宣称已解决历史卡顿/Seek 根因。未启动游戏、修改 hosts，未执行 Git commit/push；工作区其他并行变更保持原样。
+LA-040 更新本次步骤、预期和证据需求，新版本待实机验收；历史失败和报告保留。未启动游戏、修改 hosts，未执行 Git commit/push；工作区其他并行变更保持原样。
 
 ## 38. GET 仅覆盖请求区间，移除固定读取窗口
 
@@ -356,7 +356,7 @@ LA-040 更新本次步骤、预期和证据需求，新版本待实机验收；�
 
 GET 时钟携带规范化请求结束位置，只为与实际响应区间相交的块建立播放需求；保留块内起点的零偏移截断，有限结束位置不改变整部媒体预计播完时间。无 Range、开放末尾、后缀和 If-Range 回退沿用 HTTP 语义。完整块仍是下载、共享和校验单位。取消固定三块读取窗口及其游标、回调、来源和交接处理；实际 Read 等待继续独立贡献当前块的 Blocking，普通准备统一由 GET 区间期限表达。队列与独立批量补齐保持原覆盖范围，不由局部 GET 隐式创建补齐来源。
 
-冷 Range 的首次上游请求直接选择涉及的块，不先下载第 0 块；响应头前保持单个共享初始化请求，初始化结束后各 GET 恢复自身区间，不给临时初始化依赖产生交接。上游顺序 200 回退保留。区间完成但 GET 仍存活时，会话继续供读者消费已下载字节；没有缺块不等于没有读者。来源退出后的暂停检查点、复用、完整文件校验与发布保持原机制，局部 Range 不发布不完整文件。
+冷 Range 的首次上游请求直接选择涉及的块，不先下载第 0 块；响应头前保持单个共享初始化请求，初始化结束后各 GET 恢复自身区间，不给临时初始化依赖产生交接。上游顺序 200 回退保留。区间完成但 GET 仍存活时，会话继续供读者消费已下载字节；所有块就绪后仍可有活动读者。来源退出后的暂停检查点、复用、完整文件校验与发布保持原机制，局部 Range 不发布不完整文件。
 
 开发验证使用隔离数据库和回环 HTTP：
 
@@ -365,7 +365,7 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 - `go test -tags=no_easytier ./cmd/... ./internal/console ./data/... ./experiments/... -count=1 -timeout=180s` 通过（`callers.jsonl`）；正式源码目录 `./cmd/... ./internal/... ./data/... ./experiments/...` 的 `go vet` 与 `go build` 使用同一 tag 通过（`vet.log`、`build.log`）。全部原始日志仅保留在上述本地忽略目录。
 - 提交前复核将顺序 200 回退的 `w.demand` 参数统一为 `block * rangeBlockSize`，保持字节偏移契约；共享初始化和从非零块开始的顺序回退定向 race 各三轮通过（`review-units-race.log`、`review-sequential-race.log`）。
 
-本问题及请求区间边界已由开发验证直接确认，不新增 VRC 验收条目。已有 LA-040 的实际慢网 Seek/卡顿失败仍保留，不能据此断言历史游戏问题全部解决。本轮未启动游戏、修改 hosts 或 push。
+本问题及请求区间边界已由开发验证直接确认，不新增 VRC 验收条目。已有 LA-040 的实际慢网 Seek/卡顿失败仍保留，历史游戏问题按各自实机记录跟进。本轮未启动游戏、修改 hosts 或 push。
 
 ## 39. 顺序响应取消期间的新 GET 接入
 
@@ -410,7 +410,7 @@ GET 时钟携带规范化请求结束位置，只为与实际响应区间相交�
 - 缓存整包最终通过（get-cache-final.log，28.116 s）；定向 GET 来源、部分块、短写、冷热 HTTP、取消、If-Range 和校验失败测试通过。新受控测试在本地校验额度全部占用时确认完整 GET 先交付，释放额度后独立校验发布，重复三轮通过。
 - 最终消费、HTTP 共享、独立发布、Seek 与清理定向 Windows race 连续三轮通过（get-final-race.log，10.697 s），未报告数据竞争。缓存包 go vet 通过。
 - 初轮整包暴露 GET 返回早于发布的旧测试假设，以及消费结束取消顺序发布的问题；后者已修复，持久化断言改为明确等待发布/清理，未把这些等待放回 GET 路径。各轮失败日志仍保留。
-- 上一步共享 Seek 失败在旧调度 overlay 整包中未复现，不能断言是旧代码问题。本步允许已经可读的内容先于会话收尾错误交付后，整包及三轮相关 race 通过；仅按这些检查覆盖范围收尾，不外推游戏慢网体验。
+- 上一步共享 Seek 失败在旧调度 overlay 整包中未复现，不能断言是旧代码问题。本步允许已经可读的内容先于会话收尾错误交付后，整包及三轮相关 race 通过；仅按这些检查覆盖范围收尾。
 
 本地块保护、唯一块容量和独立块文件仍待下一阶段落实。真实游戏剩余风险沿用 LA-040/041/047，不为这些可控断言新增游戏操作。
 
@@ -587,15 +587,15 @@ spoolReader 对返回、错误和上下文取消使用一次性清理；客户�
 
 失败与修复证据：首轮默认临时目录的重命名被 Windows 沙箱拒绝；改用工作区隔离临时目录后，硬链接、目录联接及进程测试仍受沙箱限制，见 cacheproxy.log，随后在沙箱外用同一隔离目录完成整包验证。该日志还保留 GET/队列交接夹具对旧协调器 retiring 标记的失败；现改为确认普通贡献确实撤销、调度任务实际完成取消，而不是将“没有普通需求”直接视为整个任务终止。新增容量回归防止普通登记失败误取消读取任务。
 
-本次变更可由受控协议、调度时序和 Windows 文件测试判断，不新增 VRC 台账项目，不把已有 LA-040/041/047 的游戏剩余风险宣称为通过；未启动游戏或修改 hosts。
+本次变更可由受控协议、调度时序和 Windows 文件测试判断，不新增 VRC 台账项目，不把已有 LA-040/041/047 的游戏剩余风险宣称为通过。
 
 ## 59. 保护窗口约定与顺序 200 兼容边界
 
 2026-10-19：按审查后的最小必要决策，正常配置与验收约定有效本地保护提前量不小于下载提前量；LocalProtectAhead=0 继续跟随有效 PrepareAhead。初版曾将该关系加入配置校验，复审后撤掉：程序仍接受 0～24 小时的值，不拒绝或自动抬高较短保护窗口。默认配置及常规保护夹具遵守约定，配置边界测试明确验证较短值仍可接受并按原值生效。
 
-顺序 200 保留尽力兼容：它可一次下载窗口外的后续块，零预算按原规则回收；已结束会话的旧 reader 读到缺块时明确失败，沿用 HTTP 正文前 502／正文后中断。读取错误补充缺失块号并保留 ErrNotRetained 错误链，没有新增整包自动重试、跨会话恢复或额外保护。第 58 项的“真实读取重取”限于仍在运行的会话，不保证旧 reader 自动建立新会话。同步 canonical、运行规则、服务和队列说明中的相关过期约定。
+顺序 200 保留尽力兼容：它可一次下载窗口外的后续块，零预算按原规则回收；已结束会话的旧 reader 读到缺块时明确失败，沿用 HTTP 正文前 502／正文后中断。读取错误补充缺失块号并保留 ErrNotRetained 错误链，没有新增整包自动重试、跨会话恢复或额外保护。第 58 项的“真实读取重取”限于仍在运行的会话，旧 reader 在会话结束后需由新的请求重新接入。同步 canonical、运行规则、服务和队列说明中的相关过期约定。
 
-回归覆盖默认跟随、相等、更长、更短及配置边界，以及 4 MiB／4 分钟顺序正文在零预算下的两种结果：保护提前量 120 秒时，等待下载完成再读取可获得前三块并明确报告最后一块不可用；保护提前量 240 秒时完整读取成功。两种情况都只有一次上游请求。该夹具直接使用 obtain/spoolReader，不等同于真实播放器恢复验证。
+回归覆盖默认跟随、相等、更长、更短及配置边界，以及 4 MiB／4 分钟顺序正文在零预算下的两种结果：保护提前量 120 秒时，等待下载完成再读取可获得前三块并明确报告最后一块不可用；保护提前量 240 秒时完整读取成功。两种情况都只有一次上游请求。该夹具直接使用 obtain/spoolReader，真实播放器恢复按游戏实测记录。
 
 初版 `go test -tags=no_easytier ./internal/cacheproxy -count=1 -timeout=2m` 整包通过（33.831 s），同包 go vet 与 diff 检查通过。日志在忽略目录 artifacts/download-resource/minimal-range-compat-20261019/：cache-suite-full-access.log、vet.log。首轮定向检查遇到沙箱默认临时目录的重命名拒绝；改用仓库隔离临时目录后，整包仍遇到硬链接、目录联接及子进程测试限制，分别保留 directed.log、cache-suite.log；随后在沙箱外使用同一隔离目录完成整包检查。撤掉两字段关系的运行时校验后，保护窗口与顺序 200 边界定向回归通过（0.928 s，window-convention.log），包含默认配置符合约定、较短值接受且不被抬高；diff 检查通过，未重复扩大整包矩阵。原始审查复现仍保存在 commit-review-20261019/，顺序 200 的复现现在作为明确接受的兼容边界，不将其改写为无缝恢复成功。
 
@@ -605,7 +605,7 @@ spoolReader 对返回、错误和上下文取消使用一次性清理；客户�
 
 2026-10-19：acquireLocalResource 只校验资源身份并获取引用；当前地址仅在创建新 flight、执行器启动前更新 host/path/query，身份字段保持不变。迟到的旧 GET 经 localBlockReader 读取保留块时不再覆盖新会话地址，避免与执行器无锁读取地址发生竞争。完整块共享、引用释放和下载选路规则不变。
 
-新增受控上游回归：保留首块，新会话用新地址下载第二块时暂停响应，旧 GET 获取并读取本地块后再放行，确认第三块仍使用新 host/path/query 并正常发布。通过 Go overlay 对照原代码，确定性捕获后续请求回退旧地址；该失败证据不等同于 race 检测器报错。修复后，本回归及本地资源生命周期、停止重建、完整块复用和发布相关 Windows race 检查通过（3.289 s），cacheproxy 的 go vet 与 diff 检查通过。原代码对照、通过结果和静态检查日志保存在忽略目录 artifacts/local-resource-reader-20261019/。本次不新增 VRC 待验场景。
+新增受控上游回归：保留首块，新会话用新地址下载第二块时暂停响应，旧 GET 获取并读取本地块后再放行，确认第三块仍使用新 host/path/query 并正常发布。通过 Go overlay 对照原代码，确定性捕获后续请求回退旧地址，由回归断言报错。修复后，本回归及本地资源生命周期、停止重建、完整块复用和发布相关 Windows race 检查通过（3.289 s），cacheproxy 的 go vet 与 diff 检查通过。原代码对照、通过结果和静态检查日志保存在忽略目录 artifacts/local-resource-reader-20261019/。本次不新增 VRC 待验场景。
 
 ## 61. 零预算下当前有效需求的缺块重取
 
@@ -615,7 +615,7 @@ spoolReader 对返回、错误和上下文取消使用一次性清理；客户�
 
 新增回归覆盖实际消费后回收、新 GET/队列重新具备下载资格、本地完整块复用、入窗与撤销，以及受控 Range 执行在尚未 Read 时主动重取、等待入窗期间保持原会话。用 Go overlay 仅替换为修复前的 scheduled_download.go，对照确定性复现三项新测试失败（含 GET/队列、立即/延后入窗分支）；失败证据保留。修复后定向检查通过（directed.log，1.162 s），缓存/调度整包通过（full-suite.log，37.019 s / 0.562 s），两包完整 Windows race 通过（race-full.log，48.604 s / 1.157 s），相关 go vet（vet.log）与 diff 检查通过。
 
-原始日志和对照文件保存在本地忽略目录 artifacts/download-resource/refetch-current-use-20261019/。测试使用工作区隔离临时目录；完整 Windows 文件测试在沙箱外执行。本次可由受控协议与时序验证，不新增 VRC 台账条目；未启动游戏、修改 hosts、提交或 push。
+原始日志和对照文件保存在本地忽略目录 artifacts/download-resource/refetch-current-use-20261019/。测试使用工作区隔离临时目录；完整 Windows 文件测试在沙箱外执行。本次可由受控协议与时序验证，不新增 VRC 台账条目。
 
 ## 62. TEMP 后继续协调队列缺块重取
 
@@ -635,7 +635,7 @@ Range 临时准备完成后，按资源保留一份轻量使用协调，直接�
 
 首轮定向检查的默认临时目录重命名被沙箱拒绝；改用工作区隔离目录后，完整检查仍遇到硬链接、目录联接、原子替换和子进程限制。沙箱内 race 还报告 ThreadSanitizer failed to restore address，未产生可定位的 DATA RACE 报告。上述失败分别保留在 directed.log、full-suite.log、race-full.log；随后在同一隔离目录以沙箱外权限完成整包及 race 检查，不将环境失败改写为通过。
 
-本次由受控 Range、时序与文件验证覆盖，不新增 VRC 待验条目，不外推真实播放器体验；未启动游戏或修改 hosts。
+本次由受控 Range、时序与文件验证覆盖，不新增 VRC 待验条目。
 
 ## 63. 正式缓存命中及发布后继续协调缺块重取
 
@@ -651,7 +651,7 @@ Range 临时准备完成后，按资源保留一份轻量使用协调，直接�
 - cmd/internal 完整运行中其余包通过（full-suite.log，console 76.767 s）；cacheproxy 首次发现离线删除关闭空通知通道的问题，修复后以整包 Windows race 重新验证通过。cacheproxy / blocksched 的最终完整 race 为 66.904 s / 1.144 s（race-final.log），使用仓库已有 GCC 和工作区隔离临时目录，在沙箱外完成 Windows 文件测试。
 - cmd/internal 的 go vet、构建及 diff 检查通过（vet-final.log、build.log）。首轮新夹具因误按完整 URL 区分 HTTP/HTTPS 而返回错误正文，修正为按资源标识匹配；directed.log 和上述首次整包失败日志保留，未改写为通过。
 
-本次验证可由受控协议、时序及文件测试完成，不新增 VRC 台账条目，既有游戏体验风险仍按原场景积攒；未启动游戏或修改 hosts。
+本次验证可由受控协议、时序及文件测试完成，不新增 VRC 台账条目，既有游戏体验风险仍按原场景积攒。
 
 ## 64. 不限容量模式维护正式文件库存
 
@@ -661,7 +661,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 
 新增 TestUnlimitedRestartQueueHitDoesNotRefetch，覆盖真实引擎重启、已有视频及歌曲映射、队列 HIT、无额外会话/上游请求和退出后文件仍保留；已有外部新增、删除和大小变化的库存核对测试扩展为有限/不限两种模式。定向回归通过（directed.log，1.005 s），cacheproxy 整包 Windows race 通过（cache-race.log，57.076 s），同包 go vet 与 diff 检查通过。日志位于忽略目录 artifacts/unlimited-inventory-fix-20261019/；测试使用工作区隔离临时目录，完整 Windows 文件及竞态测试在沙箱外执行。
 
-本次修复不改变下载窗口、保护或预算语义，不新增 VRC 台账项目；未启动游戏、修改 hosts。
+本次修复不改变下载窗口、保护或预算语义，不新增 VRC 台账项目。
 
 ## 65. 换地址实体条件与已完成队列的截止恢复
 
@@ -675,7 +675,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - cmd/internal 范围的 go vet、构建及 diff 检查通过（vet.log、build.log）。
 - 首轮新增测试的复合字面量语法错误已修正，保留 directed.log；修正后缓存定向检查通过，控制台配置原子替换被 Windows 沙箱拦截，保留 directed-fixed.log。后续以上述完整 race 验证最终代码，不将前两次失败改写为通过。
 
-本次问题由受控协议、时序与文件生命周期测试验证，不新增 VRC 台账条目；未验证实际游戏体验，未启动游戏或修改 hosts。
+本次问题由受控协议、时序与文件生命周期测试验证，不新增 VRC 台账条目；未验证实际游戏体验。
 
 ## 66. 无 GET 时滚动修正未消费队列的预计时间
 
@@ -695,7 +695,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 
 收尾时将共享计时器安排统一到来源变更的通知出口，移除交接建立、队列时间计算和定时回调各自的重复安排，不新增状态、标志或抽象；仅含未知占位、没有有效成员的队列不安排滚动计时。复用既有检查并补充占位边界，相关定向 Windows race 通过（`timer-cleanup-race.log`，5.257 s），覆盖队列滚动、固定 GET 时钟、交接、到期与重取、容量和本地保护。收尾后的缓存包 go vet、cmd/internal 构建及 diff 检查通过（`timer-cleanup-vet.log`、`timer-cleanup-build.log`）。
 
-本次边界可由自动测试判断，不新增 VRC 台账项；未验证实际游戏体验，未启动游戏、修改 hosts。
+本次边界可由自动测试判断，不新增 VRC 台账项；未验证实际游戏体验。
 
 ## 67. 滚动队列按相对距离入窗，消除边界重复重取
 
@@ -743,7 +743,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 | 14:12:38 | 1500 ms | 88 / 0 | 22.505 秒 | 16 |
 | 14:21:43 | 250 ms | 354 / 6 | 4.180 秒 | 17 |
 
-60 次额度增长均只增加一路，时间间隔不短于对应配置；530 次普通启动均满足 active≤open。1500 ms 段每次增路的实测间隔为 1500.089～1500.817 ms。14:13:13.881 的 finished 将 active 降至 11，紧随其后的 started 恢复至 12，open 始终为 12，属于已有额度复用。最后一段的 6 次 Blocking 启动均为 active=17、open=16，符合实际读取的既有例外。没有发现本次运行违反缓增或普通额度的证据。用户对异常是否重现表示不确定；这些数据不能追溯证明此前无逐块日志的那次情况，也不等同于游戏体验或 UI 每帧显示验收。
+60 次额度增长均只增加一路，时间间隔不短于对应配置；530 次普通启动均满足 active≤open。1500 ms 段每次增路的实测间隔为 1500.089～1500.817 ms。14:13:13.881 的 finished 将 active 降至 11，紧随其后的 started 恢复至 12，open 始终为 12，属于已有额度复用。最后一段的 6 次 Blocking 启动均为 active=17、open=16，符合实际读取的既有例外。没有发现本次运行违反缓增或普通额度的证据。用户对异常是否重现表示不确定；这些数据不能追溯证明此前无逐块日志的那次情况，本次记录块调度轨迹，游戏音画和 UI 逐帧呈现未采集。
 
 原始私密日志及分析工具保留在忽略目录 `artifacts/block-growth-investigation/live-05mbps-20261020/`，脱敏摘要为 `summary.json`、`timing-evidence.json`；原始快照 SHA256 为 `da32df7e3dedf1f93ad3f61726827d66fb08c2ced2a3a02799f45586988f071c`。本次只读取已有运行结果并补充验证记录，未调整用户配置、启动游戏或修改 hosts；不新增实机台账项。
 
@@ -775,7 +775,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - 使用仓库 Windows 临时目录入口和既有 GCC，运行 `go test -tags=no_easytier -race ./internal/cacheproxy ./internal/blocksched ./internal/console -count=1 -timeout=180s`。首轮沙箱内出现硬链接/目录联接拒绝、配置原子替换的无效句柄及 `ThreadSanitizer: failed to restore address`，保留 `affected-race.log`，未据此修改产品行为。
 - 同一命令在沙箱外完整通过：缓存 59.706 秒、调度器 1.145 秒、控制台 82.710 秒，无 race 报告，见 `affected-race-unrestricted.log`。此前权限和检测器错误未再出现。
 
-九笔观测均来自正常网络、SWD 已预缓存条件，支持此次策略收敛但不证明所有接手均在 2 秒内；need-by 平移统一属于调度策略选择。历史报告与失败记录保留，缩短交接后的实际慢网接手影响合并到既有 LA-040/041 下一轮操作，不新增台账编号或重复正常网络样本。本次未启动游戏、修改 hosts 或运行配置。
+九笔观测均来自正常网络、SWD 已预缓存条件，支持此次 2 秒交接策略，其他网络的接手时间需按实际请求记录；need-by 平移统一属于调度策略选择。历史报告与失败记录保留，缩短交接后的实际慢网接手影响合并到既有 LA-040/041 下一轮操作，不新增台账编号或重复正常网络样本。本次未启动游戏、修改 hosts 或运行配置。
 
 ## 73. 本地块资源生命周期封装
 
@@ -807,7 +807,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 
 ## 76. 资源通知隔离与稳定租约发布
 
-2026-10-24：确认 GET 跨块消费会重算全部资源保护、广播全局容量事件，并使无关资源因 `now + 30 秒` 租约变化重复发布需求。基线 `9c0e8c0` 的 overlay 探针覆盖普通消费、共享块未释放唯一容量和固定时钟对照：无关资源均被通知，推进时钟时四个未变块均重复发布；固定时钟下无重复发布。每组重复三次，失败保留在忽略目录 `artifacts/download-notify-probe/` 的 `baseline.txt`、`controls.txt`。这证明源码链路与可复现开销，不证明已造成游戏卡顿。
+2026-10-24：确认 GET 跨块消费会重算全部资源保护、广播全局容量事件，并使无关资源因 `now + 30 秒` 租约变化重复发布需求。基线 `9c0e8c0` 的 overlay 探针覆盖普通消费、共享块未释放唯一容量和固定时钟对照：无关资源均被通知，推进时钟时四个未变块均重复发布；固定时钟下无重复发布。每组重复三次，失败保留在忽略目录 `artifacts/download-notify-probe/` 的 `baseline.txt`、`controls.txt`。该开销可在上述源码路径和受控负载下复现。
 
 修复按资源订阅来源、可用性和会话变化，保护重算只覆盖受影响资源；GET 增减与队列计时变化仍通知依赖的队列资源，资源身份替换同时通知旧、新身份。唯一使用块实际释放才唤醒全局容量等待；待准入同时监听本资源，以响应新增 GET 的共享资格。订阅随协调退出释放，快照检查与旧会话清理同步改用资源事件及会话完成信号。下载发布沿用 30 秒租约与 10 秒确认节奏，确认间使用固定上限，普通事件不延长租约，绝对续租期限不被事件风暴推迟；固定交接截止及本地保护尾期保持原规则。现行依据见 [canonical 资源协调](../download-resource-design.md#1-实时块需求的整合与动态维护)。未增加逐块增量索引。
 
@@ -857,7 +857,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 - `go vet -tags=no_easytier ./cmd/... ./internal/...` 和 `go build -mod=readonly -tags=no_easytier ./cmd/...` 通过，分别见 `vet.txt`、`build.txt`。
 - 静态比对确认 Range 与顺序正文实现除接收者及参数衔接外保持原样，见 `extraction-check.txt`；格式化与差异检查通过。
 
-本轮结果验证抽取后的协议、存储和并发生命周期，不构成新的公网性能或 VRC 播放结论；未新增游戏专属待验项，未启动游戏、修改 hosts。
+本轮结果验证抽取后的协议、存储和并发生命周期，不构成新的公网性能或 VRC 播放结论；未新增游戏专属待验项。
 
 ## 2026-10-27：无期限手动准备集中排序
 
@@ -895,7 +895,7 @@ trimCachePass 现在在全部预算模式执行所需的目录核对，不限容
 
 完整 GitHub Actions `check` [第 10 次运行](https://github.com/SW26010/still-wanna-dance/actions/runs/40676825409)在 Ubuntu 的 `TestManualPreparationConcentratesRangesAndPublishesFirstResource` 失败：`scattered ranges after 1/8 first-resource blocks`；此前 326 个浏览器测试及 Node 工具测试通过，Windows 因矩阵 fail-fast 被取消，不能记作通过。本地原用例重复 100 次共 8 次失败：7 次在第 1/8 块边界，1 次在第 7/8 块边界。
 
-夹具在首个 HTTP 请求到达后立即启动后续准备，不能保证首个资源已完成初始化并登记全部缺块；末尾两个已启动块的 HTTP 到达顺序也不等于调度准入顺序。现先等待首个资源全部块登记，再登记竞争来源，通过已有 `ObserveBlockSchedule` 断言首个资源八个块的准入顺序。最后一块刻意等后续资源的 HTTP 请求先到达，固定覆盖合法的尾部并发；后续正文仍等待首个资源完成真实 MD5 校验、Sync、发布及字节核对。未修改生产调度、并发或准入规则，也未增加延时或放宽结果断言。
+夹具在首个 HTTP 请求到达后立即启动后续准备，此时首个资源可能仍在初始化或登记缺块；已启动块的 HTTP 请求到达先后还会受传输时序影响。现先等待首个资源全部块登记，再登记竞争来源，通过已有 `ObserveBlockSchedule` 断言首个资源八个块的准入顺序。最后一块刻意等后续资源的 HTTP 请求先到达，固定覆盖合法的尾部并发；后续正文仍等待首个资源完成真实 MD5 校验、Sync、发布及字节核对。未修改生产调度、并发或准入规则，也未增加延时或放宽结果断言。
 
 固定尾部乱序后，旧断言稳定失败于第 7/8 块；修正后的用例连续 100 次通过（5.925 秒），相关 `go vet` 与 `git diff --check` 通过。原始失败与修复后输出保留在忽略目录 `artifacts/ci-fix-20261028/`。这些验证不产生新的 VRC 专属待验项。
 
@@ -931,7 +931,7 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 
 新增冷启动顺序 200 多读者用例，并复用已有顺序块先开放的用例：两个读者等待不同块，取消其中一个后，另一个仍可从同一执行完成读取。首次定向运行时，新增用例的夹具没有配置播放地址解析，预览返回 502（`saved URL refresh`）并等待超时；补齐解析夹具后两项各连续三次通过。该失败及修正均发生在测试准备中。
 
-本机沙箱创建进程时报 `CreateProcessSecurityEnvironment`、`0x8007000A`，故经审批以正常 Windows 用户权限使用 `with-test-temp.ps1` 和依赖补丁入口验证。16 项初始化、读取、顺序响应、取消和重入定向回归通过（8.588 秒）；其中 12 项各重复三次 Windows race 通过（231.717 秒），包含两个初始化回归及新旧顺序多读者用例。缓存和块调度两包完整测试通过（169.477／0.206 秒），两包 `go vet` 通过。受控测试不证明真实 VRC 播放体验；未启动 VRC 或修改 hosts。
+本机沙箱创建进程时报 `CreateProcessSecurityEnvironment`、`0x8007000A`，故经审批以正常 Windows 用户权限使用 `with-test-temp.ps1` 和依赖补丁入口验证。16 项初始化、读取、顺序响应、取消和重入定向回归通过（8.588 秒）；其中 12 项各重复三次 Windows race 通过（231.717 秒），包含两个初始化回归及新旧顺序多读者用例。缓存和块调度两包完整测试通过（169.477／0.206 秒），两包 `go vet` 通过。本轮验证使用受控上游与读者；未启动 VRC 或修改 hosts。
 
 ## 2026-11-12：冷资源直接调度 Range，移除顺序回退
 
@@ -970,7 +970,7 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - 发布、保留、偏好／映射串行、零预算、完整性及冷热读取的 51 项顶层定向测试通过（15.676 秒，无 skip）；缓存包 `go vet`、相关文件 gofmt 和 `git diff --check` 通过。结果在 `regression.log`、`vet.log`，首次修复后检查在 `after.log`。
 - Go 1.27.3、GCC 16.2.0 下，8 项发布准备、资格复核与写入串行定向 Windows race 测试在普通用户权限下通过（87.354 秒，无 skip），结果在 `race-native.log`。首次沙箱运行被 `ThreadSanitizer: failed to restore address` 中止，没有可定位的数据竞争报告；失败保留在 `race.log`，不计为通过。
 
-以上证据使用真实 Store 写入及文件发布，通过通道注入同步／关闭等待，不代表已测真实慢盘延迟或实际播放收益。本轮未启动 VRC、修改 hosts、替换运行实例或执行 commit／push。
+以上证据使用真实 Store 写入及文件发布，通过通道注入同步／关闭等待，真实慢盘延迟与播放收益未在本轮测量。本轮未启动 VRC、修改 hosts、替换运行实例或执行 commit／push。
 
 ## 2026-11-12：响应头等待为备用通道保留期限
 
@@ -985,7 +985,7 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - Console 的 Catalog／Checksum／UpstreamFallback／PlaybackSource 关联选择范围在沙箱初始化夹具时遇到 `renameat: The handle is invalid`；同一选择范围在普通用户环境通过（16.955 秒）。开发说明已记录此 `os.Root.Rename` 限制。
 - Go 1.27.3、GCC 16.2.0 下，缓存、调度、共用请求机制共 8 项顶层定向 Windows race 检查各连续三次通过；六个受影响包的 `go vet`、相关 Go 文件格式检查和 `git diff --check` 通过。
 
-失败摘录及检查结果位于忽略目录 `artifacts/header-budget-20261112/`：`failure-summary.txt` 明确为工具输出摘录，`regression.log` 保留缓存整包失败及其他四包结果，`cache-native.log`、`console-native.log`、`race.log` 保存对应复验。虚拟时间与受控传输证明预算、回退、正文和取消边界，不外推为真实公网耗时或游戏音画收益。本轮验证未启动 VRC、修改 hosts 或替换运行实例，不新增 VRC 专属待验项。
+失败摘录及检查结果位于忽略目录 `artifacts/header-budget-20261112/`：`failure-summary.txt` 明确为工具输出摘录，`regression.log` 保留缓存整包失败及其他四包结果，`cache-native.log`、`console-native.log`、`race.log` 保存对应复验。虚拟时间与受控传输证明预算、回退、正文和取消边界。本轮验证未启动 VRC、修改 hosts 或替换运行实例，不新增 VRC 专属待验项。
 
 ## 2026-11-12：普通文件打开不再等待整文件发布额度
 
@@ -997,11 +997,11 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - 读取、句柄共享和释放、校验取消与失败、发布预留和复核、独立发布期限及零预算的 27 项顶层回归通过（10.935 秒，无 skip）；缓存包 `go vet` 通过。结果在 `regression.log`、`vet.log`。
 - Go 1.27.3、GCC 16.2.0 下，8 项读取／句柄生命周期与发布额度的定向 Windows race 测试在普通用户权限下通过（72.012 秒，无 skip），结果在 `race-native.log`；相关 Go 文件格式和 `git diff --check` 通过。
 
-本轮检查使用真实文件及受控回环上游，从 `ServeHTTP` 验证阻塞与交付边界，不外推为真实慢盘吞吐或游戏播放收益。未启动 VRC、修改 hosts、替换运行实例或执行 commit／push，无需新增 VRC 专属待验项。
+本轮检查使用真实文件及受控回环上游，从 `ServeHTTP` 验证阻塞与交付边界。未启动 VRC、修改 hosts、替换运行实例或执行 commit／push，无需新增 VRC 专属待验项。
 
 ## 移除只被测试调用的本地扫描链
 
-移除前核对所有跟踪 Go 源码：`LocalChecker`、`LocalReceipt`、`CheckLocal`／`CheckLocalReceipt` 和 `ReuseLocalSong` 均无生产调用；强制哈希仅由 `TestConcurrentFullScanChecksSharedVideoOnce` 触发。生产读取调用 `validateLocalFile` 时固定传入 `force=false`，只检查普通文件及属性。因此这是维护冗余，不能据此证明当前播放被慢哈希阻塞。
+移除前核对所有跟踪 Go 源码：`LocalChecker`、`LocalReceipt`、`CheckLocal`／`CheckLocalReceipt` 和 `ReuseLocalSong` 均无生产调用；强制哈希仅由 `TestConcurrentFullScanChecksSharedVideoOnce` 触发。生产读取调用 `validateLocalFile` 时固定传入 `force=false`，只检查普通文件及属性。本轮定位的是维护路径中重复的文件检查。
 
 删除 `inspect.go`、扫描状态与回执、强制哈希及其专用测试。普通文件检查收回 `verifiedFile`，继续保留共享句柄、独立读取位置、取消与最后引用释放；下载发布和导入的 MD5 校验保持原流程。同进程检查锁原本用于协调独立扫描器；生产读取已持有资源引用，删除由 `beginVideoRemovalLocked` 预留，离线删除另有独占存储锁，因此一起移除这套扫描锁及其删除保护分支。发布额度 `localChecks`、库存扫描和正式资源引用继续沿用现有机制。现行接口见[本地资源管理](../download-resource-design.md#6-本地资源管理接口与所有权)。
 
@@ -1011,7 +1011,7 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 - 缓存与 Console 整包普通回归通过（分别 179.269／164.026 秒），使用普通用户权限执行以避开已记录的 Windows 沙箱文件操作限制。
 - 9 项顶层定向 Windows race 检查通过（88.119 秒，无 skip），覆盖句柄共享／释放／路径替换、取消、删除保护、跨重启不可变文件复用，以及发布额度占满时本地 GET／Range／HEAD 和冷 GET 的交付。
 
-原始引用核对、移除前基线和普通／race 回归日志保存在忽略目录 `artifacts/legacy-local-scan-cleanup/`；vet 无诊断输出。这些检查不代表真实慢盘或 VRC 播放性能测量；本轮未启动游戏、修改 hosts、替换运行实例或执行 commit／push。
+原始引用核对、移除前基线和普通／race 回归日志保存在忽略目录 `artifacts/legacy-local-scan-cleanup/`；vet 无诊断输出。测量对象为开发夹具，真实慢盘与 VRC 播放性能未采集；本轮未启动游戏、修改 hosts、替换运行实例或执行 commit／push。
 
 ## 2026-11-13：分离来源 need-by 与实际读取等待
 
@@ -1019,7 +1019,7 @@ TestGETArrivingAfterIdleSnapshotKeepsFlight
 
 - 修复前，新增 T+60 need-by／T+5 实际读取的回归复现 T+35 提前截止；无有限 need-by 的等待也在 30 秒后被错误拒绝登记。原始失败保留在 `artifacts/download-handoff/clock-before.log`。
 - 修复后，前者 T+5 立即突破软额度启动、T+35 继续、T+90 截止；后者直到最后读者撤销才取消。多读者等待时间、独立撤销、普通缓增和下次唤醒断言同时更新，旧等待混合时钟断言已替换。
-- 调度器整包通过；缓存包读取与响应头备用预算定向回归、两包 vet 通过。结果在同目录 `clock-package.log`、`clock-after.log`、`clock-vet.log`。后续 GET 截止隔离和统一交接尚未由本步证明；本轮未启动游戏或修改 hosts。
+- 调度器整包通过；缓存包读取与响应头备用预算定向回归、两包 vet 通过。结果在同目录 `clock-package.log`、`clock-after.log`、`clock-vet.log`。后续 GET 截止隔离和统一交接尚未由本步证明。
 
 ## 2026-11-13：统一交接运行语义
 
@@ -1036,7 +1036,7 @@ GET 客户端关闭及队首退出均继承原 N、固定 E+2 秒，所有交接
 | 两种时钟及预算 | 调度器的 T+60／T+5 回路在 T+90 截止，无有限 N 不从等待制造截止；实际 Read 不缩短响应头候选预算，事件和观察区分 WaitSince／ReadyBy。见 reads_test、observation_test、attempt_timeout_test。 |
 | 统一交接与容量 | 客户端和队首原 N、固定 E+2 秒；在途继续、排队不启动、完成释放 active、独立来源立即接手。完整未消费引用含可读块，4096／2867 唯一块容量及保护不另设豁免。见 usage_plan_test、block_demands_test、demand_capacity_test。 |
 | 截止资格及固定 E | 多 GET 分别按范围、自身时钟、所附 flight 选择；唯一 GET 的部分交付、N<E、N=E、N>E、未启动和已可读范围；E+15 秒停止无其他依据的执行。通知延迟后仍按原 E 筛选，重放和新 GET 不续期，到期保留独立来源。见 download_expiry_test。 |
-| 真实 GET 与在途复用 | ServeHTTP 真实登记后在来源输入边界预置已等待的时钟，由真实调度计时触发 504 和 expired 请求历史。另一块已传部分字节时保持同一次 Run，新 GET 共享；等待闭准入更新事件后，同一 Run 可执行有界正文重试。见 download_expiry_continuation_test。此夹具不证明真实播放器自动重连。 |
+| 真实 GET 与在途复用 | ServeHTTP 真实登记后在来源输入边界预置已等待的时钟，由真实调度计时触发 504 和 expired 请求历史。另一块已传部分字节时保持同一次 Run，新 GET 共享；等待闭准入更新事件后，同一 Run 可执行有界正文重试。见 download_expiry_continuation_test。真实播放器自动重连按游戏侧请求与恢复记录确认。 |
 | 清理与其他错误 | GET 退出与 flight 完成同时可见时保留来源原因；手动来源在旧响应清理完成后，于同一协调器重新执行过期块并发布。取消、队列自身截止、上游终止及请求历史回归保留。见 download_expiry_test、scheduled_cancel_test、request_outcome_test。 |
 | 旧特判清理 | 删除 GET 覆盖扫描、plannedNeed.source、失效来源枚举及 N+2 秒平移。交接整合和执行不按来源、退出理由或普通／新交接区分，通用 WindowClosed、有效期、截止和资源保护继续各司其职。 |
 
@@ -1061,7 +1061,7 @@ GET 客户端关闭及队首退出均继承原 N、固定 E+2 秒，所有交接
 - 调度器与缓存的读取、Blocking、闭准入、截止、未来交接及取消定向回归通过，缓存包 13.093 秒；包含真实 GET／在途复用和 Run 内正文重试回路（`admission-regression.log`）。
 - 调度器整包 Windows race 通过，1.243 秒（`admission-race.log`）；调度器与缓存两包 vet 通过，无诊断输出（`admission-vet.log`）。以上 Go 检查均经隔离临时目录及依赖补丁入口执行。
 
-此前失败和修复结果按各自覆盖的取消时点保留；本次只补准入前取消的缺口，不外推为真实播放器重连或黑屏恢复已验证。没有新增 VRC 待验项，未启动游戏、修改 hosts 或替换运行实例。
+此前失败和修复结果按各自覆盖的取消时点保留；本次只补准入前取消的缺口。没有新增 VRC 待验项。
 
 ## 2026-11-15：需求直接汇总与消费范围内的保护更新
 
@@ -1088,7 +1088,7 @@ Go 1.27.3、Windows amd64、Ryzen 7 9850X3D；Go 检查均使用临时目录与�
 - 缓存与调度整包普通回归通过（195.190／0.329 秒，`packages.log`），覆盖真实 HTTP、不同块尺寸、队列计时、容量、来源退出与观测；修改文件 gofmt 和 `git diff --check` 通过。
 - 缓存与调度两包 vet 通过；GCC 16.2.0 下，消费、共享、保护、交接、截止及观测的定向 Windows race 通过（53.763 秒，`race.log`）。文件相关整包与 race 使用普通用户环境，沿用仓库已确认的沙箱限制处理方式。
 
-累计分配不是峰值内存。基准只测消费状态推进，未包含被唤醒的下载协调器、完整 HTTP 传输或后台回收工作，不证明普通歌曲播放卡顿或实际游戏性能收益。没有新增游戏专属验收项；本轮未启动 VRC、修改 hosts 或运行配置，未执行 commit／push。
+累计分配不是峰值内存。基准只测消费状态推进，未包含被唤醒的下载协调器、完整 HTTP 传输或后台回收工作。没有新增游戏专属验收项；本轮未启动 VRC、修改 hosts 或运行配置，未执行 commit／push。
 
 ## 2026-11-16：GET 截止交接统一为 2 秒
 

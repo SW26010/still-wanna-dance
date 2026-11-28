@@ -9,8 +9,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261029-01.md",
-      "bytes": 6995,
-      "sha256": "8721420f1f13efb01c5a2f56d8a2929c523dc29353b009841fa3f7c8b8fb61db",
+      "bytes": 6970,
+      "sha256": "30ebc955148476bb79543808c842e87762eb1f14d99063c3b811dcd678654e8e",
       "source": "Operator report and scoped interpretation",
       "sanitization": "Relative event time, anonymous process labels, public song IDs and content hashes; no user/room identity, private paths, signed URLs, credentials or raw hosts."
     },

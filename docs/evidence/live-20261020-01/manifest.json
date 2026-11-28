@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261020-01.md",
-      "bytes": 7187,
-      "sha256": "ae0d62b1032bd84cc4d42bd9479da815711f75702b7c9868ed20801e991069bb",
+      "bytes": 7154,
+      "sha256": "dcef0f6553c360baa0199e8cd17ce1626b63454d09864762feedce627d8ada98",
       "source": "Report and interpretation",
       "sanitization": "Relative session time and allowlisted fields; no private source content"
     },

@@ -6,11 +6,11 @@
 
 ## 当前请求链与历史证据
 
-现有 WannaDance 网页的歌曲链接指向 `https://api.udon.dance/Api/Songs/play?id=1`。直连 API 的默认请求及模拟浏览器导航请求均得到 `302 Location: http://play.udon.dance/files/...mp4`；独立在 Chrome 打开同一 API，最终地址却为 HTTPS 资源。HTTP、HTTPS 资源各取 1 KiB Range 均返回 206，抽样响应没有 HTTP→HTTPS 服务端重定向，也没有 HSTS/CSP 响应头。请求头 `Upgrade-Insecure-Requests: 1` 不等于响应中的 CSP 指令，不能仅凭它判定原因。
+现有 WannaDance 网页的歌曲链接指向 `https://api.udon.dance/Api/Songs/play?id=1`。直连 API 的默认请求及模拟浏览器导航请求均得到 `302 Location: http://play.udon.dance/files/...mp4`；独立在 Chrome 打开同一 API，最终地址却为 HTTPS 资源。HTTP、HTTPS 资源各取 1 KiB Range 均返回 206，抽样响应没有 HTTP→HTTPS 服务端重定向，也没有 HSTS/CSP 响应头。请求头 `Upgrade-Insecure-Requests: 1` 表示客户端偏好，CSP 指令由服务器在响应中提供，不能仅凭它判定原因。
 
 这证明“API 返回 HTTP”与“浏览器最终使用 HTTPS”可以同时成立。没有完整浏览器网络轨迹，尚未区分这次真实导航的具体内部升级来源：普通 HTTPS Upgrades、DNS HTTPS 记录、动态 HSTS 或已有重定向状态。[协议与浏览器观测摘要](browser-https-upgrades-20261022/protocol-summary.json)保留了这个边界。
 
-`<原版调查目录>/测试记录.txt` 的 2026-03-29 记录包含明确对照：资源域名映射到本地时，HTTPS API 跳到 HTTP 资源，原版记录歌曲 3114 的 `[HIT]`；只映射 API 时，同样跳到 HTTP 资源，但没有本地命中。原版启动日志同时存在资源域名的 443 SNI 透传。因此，过去本地播放成功是有证据的，但记录没有浏览器版本、升级设置及异常名单，不能推断当时成功是因为“拒绝了 HTTPS”。
+`<原版调查目录>/测试记录.txt` 的 2026-03-29 记录包含明确对照：资源域名映射到本地时，HTTPS API 跳到 HTTP 资源，原版记录歌曲 3114 的 `[HIT]`；只映射 API 时，同样跳到 HTTP 资源，但没有本地命中。原版启动日志同时存在资源域名的 443 SNI 透传。因此，过去本地播放成功是有证据的，但记录没有浏览器版本、升级设置及异常名单，当时 HTTPS 处理方式与成功之间的因果关系未知。
 
 当前 [`hosts.go`](../../internal/console/hosts.go) 仅管理 API 域名；[`https.go`](../../internal/console/https.go) 转发原始 TLS，不解密视频内容。即使补上资源域名映射，HTTPS 透传本身仍不会读取本地 HTTP 缓存。
 
@@ -44,7 +44,7 @@
 
 ### Chrome 155 的尝试性升级
 
-核对与安装版本一致的源码：`kHttpsUpgrades` 默认启用；自动尝试升级与失败后是否显示警告是独立逻辑。因此关闭“始终使用安全连接”不等于关闭所有自动升级。实际设置、企业策略、站点状态及功能分组还会影响行为，本次没有读取或调整这些设置。[功能默认值](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/common/chrome_features.cc)
+核对与安装版本一致的源码：`kHttpsUpgrades` 默认启用；自动尝试升级与失败后是否显示警告是独立逻辑。因此关闭“始终使用安全连接”后，其他自动升级机制仍可生效。实际设置、企业策略、站点状态及功能分组还会影响行为，本次没有读取或调整这些设置。[功能默认值](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/common/chrome_features.cc)
 
 [`HttpsUpgradesInterceptor`](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/chrome/browser/ssl/https_upgrades_interceptor.cc) 在导航及每个重定向目标上检查，符合条件时合成 307，原因标记为 `HttpsUpgrades`。主要边界如下：
 
@@ -64,9 +64,9 @@
 | `nya.xin.moe` | 父域 `xin.moe` 为 `force-https`，包含全部子域 | 未返回 HTTPS RR | 默认 HSTS 约束下，拒绝 HTTPS 无法迫使浏览器使用 HTTP |
 | `api.udon.dance` | 未找到本域或父域匹配 | 存在，含 `alpn=h3,h2` | 网页入口本来就是明确 HTTPS；拒绝其 TLS 会使入口失败 |
 
-HSTS 表来自同版本的[预加载源文件](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/http/transport_security_state_static.json)。没有预加载匹配，并不证明用户配置中没有动态 HSTS；本次抽样响应未发送 HSTS，也不能清除浏览器此前保存的父域或本域规则。[HSTS 机制](https://www.chromium.org/hsts/)
+HSTS 表来自同版本的[预加载源文件](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/http/transport_security_state_static.json)。没有预加载匹配，用户配置中仍可能存在动态 HSTS；本次抽样响应未发送 HSTS，也不能清除浏览器此前保存的父域或本域规则。[HSTS 机制](https://www.chromium.org/hsts/)
 
-DNS 结果是当次 Google DoH 公网查询快照，不能证明当前 Chrome 实际使用了它。在同版本网络代码中，兼容的 HTTPS 记录可产生 `ERR_DNS_NAME_HTTPS_ONLY`，随后合成原因为 `DNS` 的 307。源码中的 `allow_fallback=false` 是**禁止改用不查询 HTTPS 记录的 DNS 回退**，不能误读成一条涵盖所有浏览器导航的回退结论。[DNS 处理](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_dns_task.cc)、[合成重定向](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/url_request/url_request_http_job.cc)
+DNS 结果是当次 Google DoH 公网查询快照，Chrome 当时实际使用的解析器未采集。在同版本网络代码中，兼容的 HTTPS 记录可产生 `ERR_DNS_NAME_HTTPS_ONLY`，随后合成原因为 `DNS` 的 307。源码中的 `allow_fallback=false` 是**禁止改用不查询 HTTPS 记录的 DNS 回退**，不能误读成一条涵盖所有浏览器导航的回退结论。[DNS 处理](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_dns_task.cc)、[合成重定向](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/url_request/url_request_http_job.cc)
 
 对于 hosts 方案，同版本解析器先执行本地解析任务，hosts 命中可直接返回地址，不再走公网 DNS 任务；缓存检查也可能先发生。因此不能说“公网有 HTTPS RR，就必定绕过 hosts”，也不能只改 A 记录就假定 HTTPS RR 已消失。hosts、DNS 应答替换、浏览器缓存及已有连接是不同条件。此处为[解析器源码](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.85/net/dns/host_resolver_manager.cc)推导，未修改真实域名的 hosts 做现场对照。
 
@@ -88,7 +88,7 @@ HTTPS API → 302 HTTP 资源 → 尝试 HTTPS 失败 → 回退 HTTP → 本地
 
 仅凭 ClientHello/SNI，服务端没有可靠标记区分“浏览器从 HTTP 自动升级”与“调用者明确请求 HTTPS”。因此不能仅靠同一个域名的 SNI 分流，同时保证前者拒绝以促回退、后者成功透传。API 与资源域名可以分开处理，但资源域名内部的两种 HTTPS 来源不能这样区分。
 
-当前证据支持保留“HTTPS 透传保障可访问”的语义，同时明确它不保证浏览器命中 HTTP 缓存；不支持将所有资源 443 一律拒绝作为透明兼容方案。若继续验证拒绝策略，应只针对选定资源域名，保留 HTTPS API，并以浏览器内部重定向原因、本地 80 请求和实际视频播放共同判定成功。这个判断是方案评估，没有新增配置或改变默认行为。
+当前证据支持保留“HTTPS 透传保障可访问”的语义，浏览器采用 HTTPS 时走透传，HTTP 缓存用于 HTTP 播放；不支持将所有资源 443 一律拒绝作为透明兼容方案。若继续验证拒绝策略，应只针对选定资源域名，保留 HTTPS API，并以浏览器内部重定向原因、本地 80 请求和实际视频播放共同判定成功。这个判断是方案评估，没有新增配置或改变默认行为。
 
 ## 复核与证据边界
 

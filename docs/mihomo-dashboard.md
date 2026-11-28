@@ -28,7 +28,7 @@ Mihomo 按原始显示名保存／恢复选择，SWD 不再为节点增加身份
 
 ## 监测与界面
 
-SWD 的曲库同步、URL 落库与资源成员登记不依赖 Monitor，复用统一上游检测取得的响应。代理模式不启用 SWD DNS、Channel 或 Monitor；自动和手动轻量检测均使用当前生效客户端，包含读取一个资源正文 byte 的可访问性检查。下载速度测试仅手动触发，不保存直连 Monitor 的通道吞吐样本；自动周期、初始化退避与结果时间统一见[上游检测与测速](upstream-channels.md#上游检测与测速)。核心选择和长连接复用可能使测速覆盖不同节点，不能据此为节点排名。
+SWD 的曲库同步、URL 落库与资源成员登记不依赖 Monitor，复用统一上游检测取得的响应。代理模式不启用 SWD DNS、Channel 或 Monitor；自动和手动轻量检测均使用当前生效客户端，包含读取一个资源正文 byte 的可访问性检查。下载速度测试仅手动触发，不保存直连 Monitor 的通道吞吐样本；自动周期、初始化退避与结果时间统一见[上游检测与测速](upstream-channels.md#上游检测与测速)。核心选择和长连接复用可能使测速覆盖不同节点，节点排名需要固定节点分别测试。
 
 设置中的配置摘要显示已保存或本次导入的配置，实际生效仍遵循保存与重启的生命周期。网络页常驻连通性检测与下载速度测试，直连另显示当前连接；外部 SOCKS5 另显示[服务协商与认证检查](upstream-channels.md#上游检测与测速)；Mihomo 在检测下方显示 zashboard。未保存草稿和已保存但尚未重启的配置不提前切换页面或测试对象。
 
@@ -56,7 +56,7 @@ zashboard 的原版固定静态包内嵌在 EXE，通过 `/proxy/ui/` 提供，�
 
 发行使用未修改的 zashboard v3.30.0 `dist-no-fonts.zip`；版本、提交及 SHA256 由 [release.json](../internal/dashboard/release.json) 固定。面板和核心随 SWD 更新。静态资源不依赖 CDN；上游面板仍会检查 GitHub 新版本，部分可选 IP/地理功能会联网。断网不影响本地选择、状态与连接控制；上游的更新检查可能留下 fetch 失败记录。不能将面板概览中的浏览器外网测试当成 SWD 出口测试。
 
-zashboard 本体为 MIT；地球纹理、旗帜字体和依赖有各自许可。SWD 自有新贡献使用 GPL-3.0-only，历史 MIT 授权保留。no-fonts 仍含 Noto/Twemoji 旗帜字体。完整声明见 [ZASHBOARD-NOTICES.txt](licenses/ZASHBOARD-NOTICES.txt) 和[补充来源](licenses/zashboard/README.md)，应用「关于」及发行包都提供原文。正式对应源码附固定上游源码、锁定 npm 包与离线构建脚本。面板应用可从源码重建；不声称静态资源逐字节重现，也不声称重建上游字体制作链。
+zashboard 本体为 MIT；地球纹理、旗帜字体和依赖有各自许可。SWD 自有新贡献使用 GPL-3.0-only，历史 MIT 授权保留。no-fonts 仍含 Noto/Twemoji 旗帜字体。完整声明见 [ZASHBOARD-NOTICES.txt](licenses/ZASHBOARD-NOTICES.txt) 和[补充来源](licenses/zashboard/README.md)，应用「关于」及发行包都提供原文。正式对应源码附固定上游源码、锁定 npm 包与离线构建脚本。面板应用可从源码重建；静态资源以分发包内的校验值为准，字体作为上游成品随包交付。
 
 原固定节点 B2 评估/五节点集成报告只说明历史实现；本设计取代其中的活跃子集、固定出口、每节点测速与身份恢复规则。测试和本次边界见[实施验证](validation/mihomo-dashboard-20261030.md)。
 

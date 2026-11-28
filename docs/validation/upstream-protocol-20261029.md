@@ -49,4 +49,4 @@
 | 播放地址 | HTTPS/IPv6 返回合法 302，按原始 Location 解析资源 |
 | 资源片段 | HTTPS/IPv6 返回 206，Content-Range 与 1,024 bytes 校验通过 |
 
-原始两轮记录和带 `ignore` 构建标记的复跑程序位于 `artifacts/protocol-policy-live/`。最终短测无需触发 HTTP 回退；受控服务验证其行为。这些结果只证明本机当时的直连样本，不是长期可用率、代理实网或完整播放验收。未启动 VRC、未改 hosts、未修改日常实例配置及数据，也未新增必须交由游戏验证的台账项。
+原始两轮记录和带 `ignore` 构建标记的复跑程序位于 `artifacts/protocol-policy-live/`。最终短测无需触发 HTTP 回退；受控服务验证其行为。这些结果记录了本机在该时段通过直连访问所选样本的情况。未启动 VRC、未改 hosts、未修改日常实例配置及数据，也未新增必须交由游戏验证的台账项。

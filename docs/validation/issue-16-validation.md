@@ -53,7 +53,7 @@
 
 定向自动回归覆盖普通/多候选两种执行路径、连续两轮完整清单检查、回调和请求计数、一字节资源/吞吐冷却、空库资料/MD5/双节点 URL/大小入库、无媒体文件、清单阶段取消不建库、SSE/条款/代理草稿/取消恢复，以及存量清单与播放元数据规则。沙箱内 Console 测试因临时配置原子重命名权限失败，沙箱外定向回归与便携 GCC 的 race 回归通过。首次完整回归发现普通 Transport 的资源提前探测被阶段串行化阻塞，已恢复原并行行为并通过该项定向 race。
 
-首轮 `CGO_ENABLED=1`、已有便携 GCC 下运行 `go test -race -tags=no_easytier ./internal/upstreamstate ./internal/console -count=1 -timeout=180s`，两包完整通过（22.398 s / 88.511 s，无 race 报告）；默认环境 `CGO_ENABLED=0` 无法启动 race 的首次尝试不计为测试结果。两包 `go vet -tags=no_easytier`、控制台 `go build -tags=no_easytier -o bin/SWD-setup-monitor.exe ./cmd/still-wanna-dance-console` 及 `git diff --check` 通过。首轮仍漏接缺项选歌且每次重建引导实例，这些结果不能证明连续多轮补全正确。
+首轮 `CGO_ENABLED=1`、已有便携 GCC 下运行 `go test -race -tags=no_easytier ./internal/upstreamstate ./internal/console -count=1 -timeout=180s`，两包完整通过（22.398 s / 88.511 s，无 race 报告）；默认环境 `CGO_ENABLED=0` 无法启动 race 的首次尝试不计为测试结果。两包 `go vet -tags=no_easytier`、控制台 `go build -tags=no_easytier -o bin/SWD-setup-monitor.exe ./cmd/still-wanna-dance-console` 及 `git diff --check` 通过。首轮仍漏接缺项选歌且每次重建引导实例，连续多轮补全需在保留同一实例时验证。
 
 后续补齐统一创建入口与实例生命周期：后台、引导直连及代理均注入同一组业务回调；引导保留直连和最近代理身份的 Monitor，相同代理草稿重测复用，身份变化才替换。`CheckSelected` 的取消排空当前批次而不关闭 Monitor，完整共享 Check 的取消语义保持。每轮清理闲置连接/未使用拨号，退出释放全部实例；进度只汇总 Started 之后的观测，历史成功不能冒充本轮成功。代码依据增加 `internal/console/{upstream_monitor,setup_network,setup_monitor_test}.go` 及 `internal/upstreamstate/manual_test.go`。
 

@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "docs/validation/issue-21-vrchaturllogger-20261021.md",
-      "bytes": 14575,
-      "sha256": "ac2be7b37bd8d87e405f61c506e37bea0e6adc2580379dc3d0677398880f3672"
+      "bytes": 14529,
+      "sha256": "c65c4393d6cf8a2166fb7457e3f011f8050e05da8fc0fee2bc25e5cf64292380"
     },
     {
       "path": "docs/evidence/vrchaturllogger-20261021/cleanup.json",

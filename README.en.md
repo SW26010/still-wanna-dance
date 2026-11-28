@@ -54,7 +54,7 @@ A **[global block scheduler driven by playback timing](docs/block-scheduler-desi
 
 </details>
 
-These screenshots show the current WebUI with public song metadata and available covers for top-ranked songs in the bundled default scores. Missing covers use the app's bundled category artwork. The Network screenshot uses IPs from the bundled Cloudflare list. Timings, speeds, download progress, favorites, and local availability are sample data, not benchmark results. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
+These screenshots show the current WebUI with public song metadata and available covers for top-ranked songs in the bundled default scores. Missing covers use the app's bundled category artwork. The Network screenshot uses IPs from the bundled Cloudflare list. Timings, speeds, download progress, favorites, and local availability use sample data. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
 
 ## Quick start
 
@@ -72,17 +72,17 @@ Closing the browser leaves acceleration and queue preloading running. Reopen the
 
 ## Common questions
 
-**Does it accelerate all playback?** SWD currently targets WannaDance's in-game HTTP playback. SHA is not supported. HTTPS playback remains encrypted pass-through and does not use local videos or block caching. See [supported scope](docs/scope.md) for compatibility details.
+**Which CDN should I select in the game?** Choose **Auto, CF, or HKG** in WannaDance to use preloading and local video reuse for in-game HTTP playback. SHA is unsupported. HTTPS video streams pass through as encrypted connections to the origin. See [supported scope](docs/scope.md) for compatibility details.
 
-**Can I play completely offline?** If a song mapping and usable local file already exist, SWD can serve the video locally. This is not a complete offline mode; missing videos and other game functions may still need the network.
+**Which videos can play from my PC?** When SWD has a usable local video and knows which song it belongs to, it can serve the video directly. Missing videos need a network connection, and other game features have their own network requirements.
 
 **How can I confirm the game is using SWD?** Request a song in the game, then click Recent request (`最近请求`) on the Acceleration page to open History. Look for a new entry matching the time and song. Video Demands (`视频需求`) also lists songs being preloaded from the room queue. The backend connection badge shows whether the WebUI can reach SWD. The game connection badge shows whether routing is configured. If no new request appears, check that the room CDN is set to Auto, CF, or HKG, then try rejoining the world or restarting VRChat. If requests arrive but downloads are slow, run a speed test on the Network page.
 
-**Is the video budget a hard disk limit?** No. It governs retention of complete videos, including favorites. When priority retention is enabled, favorites are kept first within the same budget but can still be removed when space is insufficient. Temporary blocks, the database, and videos in use can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
+**Which files count toward the video budget?** The budget governs retention of complete videos, including favorites. When priority retention is enabled, favorites are kept first within the same budget but can still be removed when space is insufficient. Temporary blocks, the database, and videos in use can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
 
-**How much space should I allocate?** Choose a budget that fits your disk. Once retention is enabled, frequently requested songs will build up over time. The [historical storage study](docs/research/cache-priority.md) explores capacity and coverage; its coverage figures are not measured playback speedups.
+**How much space should I allocate?** Choose a budget that fits your disk. With retention enabled, SWD gives frequently requested videos priority so they can play locally next time. In a backtest on historical song requests, scoring with a 60-day half-life covered about 51% of each day’s distinct songs on average at 20 GiB, and about 68% at 50 GiB. [See results for other budgets](docs/research/cache-priority.md)
 
-[Game validation records](docs/live-acceptance-backlog.md) cover cold and local playback, queue handoffs, multiplayer synchronization, and routing restoration on exit. SWD reduces waiting through preloading and local reuse. Downloading new videos depends on available network bandwidth and upstream delivery; decoding and in-game playback controls belong to the player.
+In a game test with upstream bandwidth capped at 1 Mbps, the player took over the existing download while the next song was still preloading. The song changed and played normally. Game tests also cover cold playback, local hits, multiplayer synchronization, and routing restoration on exit. [Queue handoff test](docs/acceptance/live-acceptance-20261028-01.md) · [Game validation records](docs/live-acceptance-backlog.md)
 
 ## Help and contribute
 

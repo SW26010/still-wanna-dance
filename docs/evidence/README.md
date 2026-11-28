@@ -4,9 +4,9 @@
 
 实际开展 VRC 验收时，由 agent 按[实机验收机制](../live-acceptance-process.md)准备简明报告及 `live-YYYYMMDD-NN/` 必要脱敏证据（含 `manifest.json`），在本索引增加入口并更新[台账](../live-acceptance-backlog.md)。同一证据可支持多个场景，不要求逐旧编号重复采集；普通开发检查不套用整轮 LIVE 交付。历史证据保持原样，不补造缺失数据或将历史通过外推到当前构建。下方旧记录中的待验编号按[2026-10-16 分流](../live-acceptance-backlog.md#旧编号去向2026-10-16)解释，不自动恢复为当前游戏要求。
 
-这里保存精简、脱敏后的测试证据，使仓库不依赖旧对话即可理解已验证的结论。它们不是完整网络抓包，包含原版调查、StepStash 历史构建和 SWD 各阶段的验证；每项只证明索引所列的构建、范围与条件。证据文件名和观测内容保留采集时的名称与记录。
+这里保存精简、脱敏后的测试证据，使仓库不依赖旧对话即可理解已验证的结论。索引涵盖原版调查、StepStash 历史构建和 SWD 各阶段的验证。每项列出被测构建与环境，可据此找到对应报告和测量记录。证据文件名和观测内容保留采集时的名称与记录。
 
-Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](../fluent-ui-migration.md#验证与待验收)。游戏报告归入 `docs/acceptance/`，开发报告归入 `docs/validation/`；历史证据清单中的源码路径仍指采样时快照。直接收录报告正文的清单随报告移动更新路径与 Git blob 哈希，测量数据、构建身份与结论不变。
+Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](../fluent-ui-migration.md#验证与待验收)。游戏报告归入 `docs/acceptance/`，开发报告归入 `docs/validation/`；历史证据清单中的源码路径仍指采样时快照。直接收录报告正文的清单随报告修订更新字节数与 Git blob 内容哈希，移动时同步路径，测量数据、构建身份与结论不变。
 
 ## 文件索引
 
@@ -46,11 +46,11 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 
 2026-11-13 [GET 主动截止专项](../acceptance/live-acceptance-20261113-03.md)：[清单](live-20261113-03/manifest.json)、[need-by 与 504 时间线](live-20261113-03/deadline.json)。1343 在自身 need-by+30 秒后返回 `504 / expired`，播放器自动再请求；界面没有明确错误提示，解除限速后音画自行恢复。与客户端约 20 秒取消、旧歌曲残留请求分别记录。
 
-2026-11-13 [追加末段拖动验收](../acceptance/live-acceptance-20261113-02.md)：[清单与哈希](live-20261113-02/manifest.json)、[缺块等待与恢复](live-20261113-02/seek.json)。1344 拖动后等待未完成块约 24.250 秒，在仍限速时自行继续且保留后段进度；实际是部分缓存目标，没有 Seek 504，不外推为全冷目标截止后恢复。
+2026-11-13 [追加末段拖动验收](../acceptance/live-acceptance-20261113-02.md)：[清单与哈希](live-20261113-02/manifest.json)、[缺块等待与恢复](live-20261113-02/seek.json)。1344 拖动后等待未完成块约 24.250 秒，在仍限速时自行继续且保留后段进度；实际是部分缓存目标，没有 Seek 504。
 
 2026-11-13 [慢网截止恢复验收](../acceptance/live-acceptance-20261113-01.md)：[清单与哈希](live-20261113-01/manifest.json)、[请求与游戏时间线](live-20261113-01/playback.json)。新构建 6254 CF 预览在 GET 截止后自动重请求，解除限速后音画正常，关闭重开正常；准备工具失败、既有 hosts 映射保留及性能边界见报告。
 
-#14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及有界但不保证恢复的通用模型，见[报告](../validation/issue-14-directed-validation.md)。仅开发测试，不代表实机通过。
+#14 B2 后续定向验证：[热流取消/排空/恢复清单](issue14-directed-20261013/hot/manifest.json)，24 项真实回环检查及通用模型的资源上限和恢复条件，见[报告](../validation/issue-14-directed-validation.md)。仅开发测试，实机结果按游戏批次记录。
 
 同轮[重试/失败反馈清单](issue14-directed-20261013/retry/manifest.json)：19 项受控入口检查、3 包定向回归、初轮反例与沙箱失败；明确本地容量/退役分类仍有接入缺口，不提前决定 B2/C。
 
@@ -78,7 +78,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 | [live-20261014-01/manifest.json](live-20261014-01/manifest.json) | 真实 VRChat GET 限速观测：前四档顺序播放、128 KiB/s 混合探索、256/64 KiB/s 独立正式播放；保留模式不明和切档重连干扰，hosts/进程/监听已恢复。[报告](../acceptance/live-acceptance-20261014-01.md)，LA-008/037 未结项 |
 | [cf-cpu-followup-20261014/manifest.json](cf-cpu-followup-20261014/manifest.json) | #20 无 VRC 的等速 CPU 与完整缓存竞争补测：独立本地 TLS 上游、五轮 105 组、零公网流量；含冷/热连接、首读/Seek、内存、取消后关闭、ETW 和 42 组独立 xperf 校核。一次 UAC 的受限助手已退出；见[报告](../validation/issue-20-cf-cpu-followup-20261014.md)。仅实验，默认值未改，LA-037 待验收 |
 | [cf-cpu-20261014/manifest.json](cf-cpu-20261014/manifest.json) | #20 单 IP、最高 32 路的 CPU 调度实验：同时启动、每 250 ms 加一路、逐档增加，三轮共 45 组、13,406 个校验通过的请求；包含逐线程/逻辑处理器证据、峰值及独立 xperf 校核，保留流量上限失败和干扰重测历史。见[报告](../validation/issue-20-cf-cpu-20261014.md)；未运行游戏，LA-037 待验收 |
-| [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../validation/issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，不代表最优默认值；LA-037 待验收 |
+| [cf-high-concurrency-20261014/manifest.json](cf-high-concurrency-20261014/manifest.json) | #20 固定单 IP、新资源 96 MiB 区间的 8/12/16/24/32 路五轮位置平衡对照；26 组、2,401 请求、2,496 MiB，全部保留，见[报告](../validation/issue-20-cf-high-concurrency-20261014.md)。32 路仍有收益，默认并发值还需结合前台等待和 CPU 开销选择；LA-037 待验收 |
 | [cf-multi-ip-20261014/manifest.json](cf-multi-ip-20261014/manifest.json) | #20 三个 DNS IPv4 单独及合用的 4/6/8/12 路同总并发对照；三轮共 54 组、1,446 请求、1,620 MiB，全部保留，见[报告](../validation/issue-20-cf-multi-ip-20261014.md)。仅开发实验，默认设置及 LA-037 待验收状态不变 |
 | [cf-concurrency-20261014/manifest.json](cf-concurrency-20261014/manifest.json) | #20 固定 CF 资源/直连地址、30 MiB 区间的 1/2/3/4 路及长 Range 对照；保存全部 27 组、607 请求、首轮干扰排除和补测，主分析四个配对。仅上游吞吐开发实验，不改默认、不替代 LA-037，见[报告](../validation/issue-20-cf-concurrency-20261014.md) |
 | [issue20-development/development-checks.json](issue20-development/development-checks.json) | #20 最终源码身份、Windows race、构建检查及[同一回环内容的 Range 并发 A/B](issue20-development/benchmark-final.txt)，保留[旧版基线](issue20-development/benchmark-baseline.txt)和[初版等待退化](issue20-development/benchmark-initial-parallel.txt)；边界见[验证记录](../validation/issue-20-validation.md)，真实线路与游戏仍待 LA-037 |
@@ -100,7 +100,7 @@ Fluent UI 迁移已替代旧引导布局；浏览器验证记录见[UI 验证](.
 | [live-round1-requests.json](live-round1-requests.json) | 第一轮游戏请求，含故障和客户端已有缓存的干扰 |
 | [live-round2-requests.json](live-round2-requests.json) | 第二轮实机完整下载及 HKG/Auto 命中 |
 | [api-node-behavior.json](api-node-behavior.json) | 原版 API 热/冷缓存对 node 的处理 |
-| [candidate-cdn-api.json](candidate-cdn-api.json) | 候选参数试验，不等于 UI 选项映射 |
+| [candidate-cdn-api.json](candidate-cdn-api.json) | 候选参数试验，界面选项映射另行核对 |
 | [sha-endpoint-probe.json](sha-endpoint-probe.json) | SHA IP 入口的独立超时样本 |
 | [generated-metadata-1343.json](generated-metadata-1343.json) | 自动冷缓存生成的元数据 |
 | [generated-metadata-1344.json](generated-metadata-1344.json) | 实机冷缓存生成的元数据 |

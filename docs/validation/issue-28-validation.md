@@ -4,7 +4,7 @@
 
 ## 2026-11-15：导入与完整缓存播放隔离
 
-旧实现跨越屏障和整个导入事务持有 GET 登记锁，并占用唯一数据库连接。新增 TestHistoricalUsageImportAllowsCachedPlayback 在真实 SQLite 插入触发器中暂停导入，经回环 HTTP 请求完整缓存歌曲：修复前连续两次在 1 秒客户端期限内收不到响应头，释放事务才结束等待，见 artifacts/vrcx-import-playback-before.log。这证明事务耦合，不代表日常导入必然造成同样等待。
+旧实现跨越屏障和整个导入事务持有 GET 登记锁，并占用唯一数据库连接。新增 TestHistoricalUsageImportAllowsCachedPlayback 在真实 SQLite 插入触发器中暂停导入，经回环 HTTP 请求完整缓存歌曲：修复前连续两次在 1 秒客户端期限内收不到响应头，释放事务才结束等待，见 artifacts/vrcx-import-playback-before.log。本轮通过固定事务条件复现了等待，确认两个操作共用事务时序。
 
 最终实现将导入作为统计 module 的有序队列操作，前序观察先写入、替换原子提交或回滚、后序 GET 再累计；等待控制操作的队列空间时也释放 GET 登记锁。闲置库复用同一 worker 执行替换，但不启用采集或清理。Store 保留唯一写连接，另持有播放短读的只读连接；直接视频 URL 的已验证 HIT 先识别相同媒体大小，避免无变化登记等待写连接。导入仅在固定写连接上临时关闭 cache_spill，防止长写入期间提前取得排他锁，结束后恢复原值；保留原日志模式与存储故障机制。脏页内存和正常提交阶段的锁边界见[存储契约](../storage.md)，未改 schema 或配置版本。
 
@@ -12,7 +12,7 @@
 
 最终定向 Windows race 通过（161.368 秒，artifacts/vrcx-import-final-race.log），包括导入／GET、满队列、闲置导入与采集启用、并发计分、锁冲突恢复、读写连接关闭及事务缓存参数恢复。缓存、Console、VRCX 三包 vet、gofmt 和差异检查通过，见 artifacts/vrcx-import-final-vet.log。
 
-最终三包完整回归通过：cacheproxy 244.138 秒、console 208.906 秒、vrcx 1.492 秒，见 artifacts/vrcx-import-final-packages.log。使用普通 Windows 权限和原有存储故障夹具，命令为 `test -tags=no_easytier ./internal/cacheproxy ./internal/console ./internal/vrcx -count=1`；包含恢复后的冻结数据库、回滚日志、历史可读及存储故障锁存检查。受控 HTTP 只证明服务端交付与统计时序，不声称验证真实播放器体验或任意磁盘条件下的起播耗时。
+最终三包完整回归通过：cacheproxy 244.138 秒、console 208.906 秒、vrcx 1.492 秒，见 artifacts/vrcx-import-final-packages.log。使用普通 Windows 权限和原有存储故障夹具，命令为 `test -tags=no_easytier ./internal/cacheproxy ./internal/console ./internal/vrcx -count=1`；包含恢复后的冻结数据库、回滚日志、历史可读及存储故障锁存检查。受控 HTTP 只证明服务端交付与统计时序。
 
 评审补充：修复已提交结果与请求取消的返回竞态。`TestHistoricalUsageCommittedResultSurvivesCancellation` 包装真实 SQLite 的 Commit，在提交成功后取消请求并暂停回传，用 synctest 确认调用仍在等待 worker；修复前稳定返回 `context canceled`，见 `artifacts/vrcx-import-result-before.log`，修复后按 worker 的成功结果返回。已入队操作继续通过原 context 取消 SQL，只有入队前的等待可直接返回取消。Console 原有导入／重试用例增加已完成覆盖令牌的重试，确认后续新增需求仍保留。
 
@@ -32,7 +32,7 @@
 
 定向同步、导入期间真实 HTTP HIT 和提交后取消检查通过（`artifacts/merge-workspaces-20261115/synchronization.log`）；曲库受控 Edge 回归 42 项通过，真实 Console／引擎／Edge 的 `TestLibraryBrowser` 通过（9.010 秒，`library-browser.log` 与 `library-browser/`）。三包 vet 和桌面开发构建通过；本轮未启动构建后的 EXE、VRC 或修改系统 hosts。
 
-首轮合并检查的 cacheproxy 编译失败保留在 `focused-go.log`：新回归仍使用旧进度回调类型。Console 同轮回归通过，cacheproxy 的失败不计为通过；适配后另行执行下述合并回归。此前各工作区的失败与验证范围保持原记录，不外推为本轮全仓库、完整 race 或游戏体验结论。
+首轮合并检查的 cacheproxy 编译失败保留在 `focused-go.log`：新回归仍使用旧进度回调类型。Console 同轮回归通过，cacheproxy 的失败不计为通过；适配后另行执行下述合并回归。此前各工作区的失败与验证范围保持原记录。
 
 三包完整执行记录为 `packages.log`：VRCX 通过（1.897 秒），cacheproxy 276.346 秒内仅两项决策互斥回归失败，Console 222.858 秒内仅便携目录改名出现一次 `Access is denied`。两项互斥回归定向连续复现（`failures-repro.log`）；原因是既有夹具没有真实 worker，只设置 `started`，没有同步新增的 `running`，使 `flush` 在到达原屏障前返回。仅补齐合成运行状态及清理，不改变生产实现、等待期限或互斥断言，原用例连续两轮通过（0.820 秒，`retention-fixture-after.log`）。其余 cacheproxy 检查复用本次完整执行结果，未为测试夹具状态调整重复整包。
 
@@ -64,7 +64,7 @@
 | URL、时间与评分 | 严格主机/路径/ID、参数顺序、HTTP(S)/节点变体、无效/未来时间、乱序、同歌 29.999/30 秒边界、跨歌曲、60 天衰减及当前查询通过；历史累计值与原生 GET 写入逐字段一致 |
 | 只读源与失败边界 | 读取已提交 WAL，同时存在未提交写事务；主库/WAL 哈希不变；独占锁、缺库/表/列、视图冒充表、损坏、取消均安全失败；1 万条记录及注入较低行数上限验证完整读取/拒绝截断 |
 | 替换及后续使用 | 空/非空权限、整表删除未重合旧统计、占位歌曲、保留媒体映射和视频、触发器失败回滚、空结果拒绝、预览后新增需求、并发重复提交、令牌失效、重启、真实 HTTP GET 后续累计、共享资源汇总及按分数淘汰通过 |
-| SQLite 写入失败 | 限制 `max_page_count` 触发真实 `SQLITE_FULL`，以及阻止占位插入触发 `SQLITE_CONSTRAINT_FOREIGNKEY`；两种失败都保留旧统计/歌曲，且无半份新数据。`artifacts/issue28-rollback.txt`；不声称模拟过物理磁盘断电 |
+| SQLite 写入失败 | 限制 `max_page_count` 触发真实 `SQLITE_FULL`，以及阻止占位插入触发 `SQLITE_CONSTRAINT_FOREIGNKEY`；两种失败都保留旧统计/歌曲，且无半份新数据。`artifacts/issue28-rollback.txt` |
 | 审查跟进：失联库保护 | 引导、VRCX 预览与提交共用存储检查。12 个组合覆盖重启恢复的库存覆盖、批量结果及已结束尝试证据，分别在预览前或提交前移走库、保留空根或缺失整根；均返回 409，不建库、不改证据或原库。另选新目标及原有首次初始化回归通过。VRCX、引导和已有扫描失联保护回归通过：`artifacts/issue28-storage-guard-final.txt`；定向 race 通过：`artifacts/issue28-storage-guard-race.txt`；console `go vet`、gofmt 与差异检查通过 |
 | 浏览器内存接口 | 25 项 Edge 场景通过，含预览前不读取、直接导入、二次确认/取消、409 后重新预览、缺库/空结果/失败、自定义目标、原引导与设置草稿、帮助文案和 390/1280px 深浅主题；`artifacts/issue28-browser-final.txt`，布局截图已检查 |
 | 真实 Console + 浏览器 | 合成 VRCX SQLite、真实 HTTP handler 和独立持久库，完成预览→导入→刷新→再次预览→取消覆盖→确认替换；核对数据库保持两首，未启动资源引擎；`artifacts/issue28-live-browser-final.txt`、`artifacts/issue28-live-browser/`。最终截图关闭过渡动画后已检查 |
@@ -81,6 +81,6 @@ Windows 测试统一使用 `scripts/with-test-temp.ps1`；需要原生文件替�
 - 最初回滚夹具添加触发器后再次从正式入口开库，被冻结 schema 校验正确拒绝；改为在已打开的测试连接上注入事务失败，保留正式开库校验。输出保存在 `artifacts/issue28-core-first.txt`。
 - 初版闲置库导入只初始化数据库，随后普通存储检查因缺少 `videos` 目录拒绝该库。已在新库初始化时建立标准空目录，并补入引导存储检查回归；不创建或修改视频文件。首轮结果保留在 `artifacts/issue28-backend.txt`，最终包回归通过。
 - 浏览器两轮暴露取消覆盖后按钮焦点丢失。调整请求锁定时机后仍不足，最终使用 Fluent `useRestoreFocusTarget` 标准机制修复；`artifacts/issue28-browser-first.txt`、`artifacts/issue28-browser-verified.txt` 保留失败，最终 25 项与真实后端联调通过。
-- 源 WAL 的并发语义由合成运行库验证，本机快照只证明该时刻的数据兼容。行数上限用较低限额注入验证，不声称执行过 200 万条压力测试。原生文件选择器的真实 PowerShell/COM 定义加载、DPI 恢复及请求取消/串行化回归通过；本轮未人工操作原生文件选择窗口，也未重新覆盖屏幕阅读器和系统 DPI 全矩阵。
+- 源 WAL 的并发语义由合成运行库验证，本机快照只证明该时刻的数据兼容。行数上限用较低限额注入验证。原生文件选择器的真实 PowerShell/COM 定义加载、DPI 恢复及请求取消/串行化回归通过；本轮未人工操作原生文件选择窗口，也未重新覆盖屏幕阅读器和系统 DPI 全矩阵。
 
 这是本地历史读取、统计事务与界面功能；剩余平台边界不依赖 VRC，不新增游戏待验项。

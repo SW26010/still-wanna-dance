@@ -80,7 +80,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 保留首轮失败：定向测试曾缺少 `strings` 导入；旧夹具仍写 media 三列、读取 source_path，或制造不存在的 song_urls 资源外键，均已按新契约修正。沙箱内硬链接用例被 Windows 拒绝，沙箱外隔离回归通过。整套回归曾有一次配置目录移动报拒绝访问，单独复查和后续整包回归均通过，未改生产代码掩盖该失败。
 
-范围限制：升级演练使用合成后继格式，不等于正式升级链、断电或磁盘满验证；2026-10-26 的受限卷结果仍仅证明当时 v5 构建。本轮没有重做最终打包、用户数据迁移或 VRC 验收，不新增游戏台账项。截图另见桌面长 MD5 链接挤入相邻结果列的布局问题；前端本轮未变，该问题留作独立 UI 修复，不把此次浏览器集成通过表述为完整视觉验收。
+范围限制：升级演练使用合成后继格式，正式升级链、断电与磁盘满另需对应条件验证；2026-10-26 的受限卷结果仍仅证明当时 v5 构建。本轮没有重做最终打包、用户数据迁移或 VRC 验收，不新增游戏台账项。截图另见桌面长 MD5 链接挤入相邻结果列的布局问题；前端本轮未变，该问题留作独立 UI 修复，不把此次浏览器集成通过表述为完整视觉验收。
 
 ## 2026-10-26 目录归位与状态命名
 
@@ -91,7 +91,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 - 同步帮助、存储与升级说明、发行脚本和测试。默认备份 config.json + data，state 可排除，外置资源按实际位置另行保管；升级保留全部用户目录。
 - 已验证首次启动、已有资料保护、两份任务结果命名与清理、多配置隔离、便携相对路径和移动、真实 EXE/浏览器的实际位置与升级保留；具体范围见下表。
 
-本轮验证使用隔离夹具和开发包，没有操作用户正在使用的资料、真实 hosts 或 VRC。两份 EXE 均使用本次目录布局，验证的是该布局下覆盖升级的保留行为，不代表旧布局自动迁移。下载发布、数据库格式和跨卷算法未改动，未重复上一轮真实磁盘耗尽和跨卷验证；VRC 实机验收仍未进行。
+本轮验证使用隔离夹具和开发包，没有操作用户正在使用的资料、真实 hosts 或 VRC。两份 EXE 均使用本次目录布局，验证的是该布局下覆盖升级的保留行为，旧布局仍需按原有路径约定处理。下载发布、数据库格式和跨卷算法未改动，未重复上一轮真实磁盘耗尽和跨卷验证；VRC 实机验收仍未进行。
 
 | 验证 | 结果与本地证据 |
 | --- | --- |
@@ -110,7 +110,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 复审发现四项实际缺口，已修复；目录划分、数据库 v5、配置 v7 和快照格式均不变：
 
-- 共同建库入口在取得数据库锁后、创建主文件和连接 SQLite 前拒绝任何同名 WAL、SHM、journal 目录项，检查错误同样拒绝，保留原资料并释放锁。真实 SQLite journal 和模拟 WAL/SHM 的[原复现](../artifacts/outgoing-review/confirmation-20261026.txt)会删除或接受伴随文件；[修复后复现](../artifacts/outgoing-review/confirmation-fixed.txt)全部拒绝且字节不变。此证据不承诺孤立伴随文件一定能恢复数据库。
+- 共同建库入口在取得数据库锁后、创建主文件和连接 SQLite 前拒绝任何同名 WAL、SHM、journal 目录项，检查错误同样拒绝，保留原资料并释放锁。真实 SQLite journal 和模拟 WAL/SHM 的[原复现](../artifacts/outgoing-review/confirmation-20261026.txt)会删除或接受伴随文件；[修复后复现](../artifacts/outgoing-review/confirmation-fixed.txt)全部拒绝且字节不变。此证据验证孤立伴随文件受到保护，数据库可恢复性需另行检查。
 - 旧布局保护与明确接入共用已知位置集合。程序目录取已验证的启动身份；只对现存的已知旧资料提供接入例外，仍验证数据库和视频目录、要求保留策略确认，不放宽旧位置新建或任意程序内目录。回归覆盖默认、实例根、自定义配置三种布局的检查、保存、重开及收藏／视频保留，以及缺失、损坏、其它文件名／目录和新建拒绝。
 - 数据库选择请求使用与 VRCX 一致的可取消等待，保留后端 5 分钟上限；普通请求和新建请求继续使用原超时。浏览器覆盖等待 16 秒后成功选中、取消后保留草稿并重试；未实际打开原生选择窗口。
 - 两份 README 同步备份范围、配置 v7、已有 v5 接入及交付文件清单；相关现行契约已同步。
@@ -145,7 +145,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | 原计划问题 | 代码核实与影响 | 修订结论 |
 | --- | --- | --- |
 | 将 `catalog_checks` 改为仅内存，并为此升级数据库 | [清单提交](../internal/cacheproxy/catalog.go)将成功检查与清单接纳放在同一事务；[读取](../internal/cacheproxy/catalog_snapshot.go)和[回归](../internal/cacheproxy/catalog_snapshot_test.go)覆盖重启、旧版本响应、冲突和失败回滚。当前写入者只维护 `songs` 一行，不累积检查历史 | 撤回移出、删表及其格式升级。保留全部 14 张表和 v5；减少一行状态没有证明足以抵消业务改动、升级与回退成本 |
-| 把 `.json.d` 当成旧配置兼容推导一并删除 | [ForConfig](../internal/apppaths/paths.go)与[隔离测试](../internal/apppaths/paths_test.go)表明它是当前不同配置文件的辅助文件、锁和默认库隔离规则 | 保留现行能力；不兼容旧配置字段不等于取消自定义配置实例隔离 |
+| 把 `.json.d` 当成旧配置兼容推导一并删除 | [ForConfig](../internal/apppaths/paths.go)与[隔离测试](../internal/apppaths/paths_test.go)表明它是当前不同配置文件的辅助文件、锁和默认库隔离规则 | 保留现行能力；自定义配置实例继续隔离 |
 | 把条款等已有文件再次集中搬位置 | [路径入口](../internal/apppaths/paths.go)已经为 `terms.json`、`channel.key`、`state/`、`logs/` 规定位置；不同文件有不同保存及失效语义 | 保留文件、位置和格式；不增加搬迁步骤、合并容器或空的“辅助资料”目录 |
 | 将所有个人数据入口笼统视为依赖引擎 | [收藏](../internal/cacheproxy/song_policy.go)、[VRCX](../internal/console/vrcx.go)已有离线入口；但 [openOfflineStorage](../internal/cacheproxy/storage_database.go)仍锁混合根、可隐式建库并创建 `videos`。清单和地址观察仍通过 `ensureEngine()` | 复用现有 SQL 与离线能力，解除实际耦合，不重写全部入口；搬连接时必须保留与淘汰、映射更新的串行关系 |
 | 把拆分生命周期描述成关闭时绝不丢统计 | [usageStore](../internal/cacheproxy/usage.go)已有有限队列、满队列丢弃与批次写失败只记日志；[流量统计](https://github.com/SW26010/still-wanna-dance/blob/9cc27069bce5ada5db7431a4823d671dfcb614a5/internal/cacheproxy/stats.go)已有单独错误字段 | 保留当前采集口径和有限队列，正常关闭排空已接受工作、公开写入失败；不借本轮新增持久队列或承诺故障下零丢失 |
@@ -163,10 +163,10 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | `config.json` 中的用户设置 | 必改：一个 `StorageDir` 改为独立数据库文件和视频目录字段；其他配置语义保留 | [resolveSettings / saveSettingsLocked](../internal/console/console.go)、[格式读写](../internal/console/config_file.go)：保留 saved/active、相对路径基准及重启；目前普通设置保存也探测旧存储可写性，需解除。`LogDir` 是外部 VRChat 日志输入，不是应用日志路径 |
 | `config.proxySecret` | 保留密文、原位置和配套连接设置的一次提交 | [config_file.go](../internal/console/config_file.go)：省略保留、明确替换、解密失败保留原值；拆文件会增加地址与密码错配风险，无收益 |
 | `config.proxyNodes` | 保留为配置，不拆成辅助资料 | [proxy_nodes.go](../internal/console/proxy_nodes.go)：预览在内存，一次设置保存原子提交，失败保留原值、重启生效；导入集合有大小和节点数限制，无需第二存储 |
-| `channel.key` | 保留原位置和独立文件；仅收拢为实例准备一次并共享 | [proxy_identity.go](../internal/console/proxy_identity.go)、[network_mihomo.go](../internal/console/network_mihomo.go)、[诊断入口](../internal/console/network_diagnostics.go)都可读／建同一 key；写或 Sync 失败后其他调用可再次读取。统一本实例结果可避免身份与失败状态不一致；不宣称发现死锁，不新增密钥格式或用户备份要求 |
+| `channel.key` | 保留原位置和独立文件；仅收拢为实例准备一次并共享 | [proxy_identity.go](../internal/console/proxy_identity.go)、[network_mihomo.go](../internal/console/network_mihomo.go)、[诊断入口](../internal/console/network_diagnostics.go)都可读／建同一 key；写或 Sync 失败后其他调用可再次读取。统一本实例结果可避免身份与失败状态不一致，不新增密钥格式或用户备份要求 |
 | `terms.json` | 保留现位置、独立确认语义与格式；无搬动必要 | [terms.go](../internal/console/terms.go)：DPAPI、条款版本、成功保存才确认、自动加速门禁。丢失／失效可重新确认 |
 | `state/throughput.json` | 迁移当时保留的旧 Monitor 观测，现已停用 | 现行块采样器与业务下载共用 [download-routes.json](download-upstream-routing.md)，旧文件可留在原位置。 |
-| `state/inventory.json`、`batch.json`、`attempt.json` | 保留各自最近一份；必须改归属与失败反馈 | [snapshots.go](../internal/console/snapshots.go)已有共用机制；[storage_usage.go](https://github.com/SW26010/still-wanna-dance/blob/a4b4c41d3523e56bb014d3e9bd2a8a93a5ce28c8/internal/console/storage_usage.go)把恢复结果用于建库判断，须移除该依赖。[inventory.go](../internal/console/inventory.go)和 [batch.go](../internal/console/batch.go)部分内存结果仅在保存成功后发布，须解耦。数量有界不等于字节固定，失败列表随一次批量规模增长；本轮不增加历史库或压缩框架 |
+| `state/inventory.json`、`batch.json`、`attempt.json` | 保留各自最近一份；必须改归属与失败反馈 | [snapshots.go](../internal/console/snapshots.go)已有共用机制；[storage_usage.go](https://github.com/SW26010/still-wanna-dance/blob/a4b4c41d3523e56bb014d3e9bd2a8a93a5ce28c8/internal/console/storage_usage.go)把恢复结果用于建库判断，须移除该依赖。[inventory.go](../internal/console/inventory.go)和 [batch.go](../internal/console/batch.go)部分内存结果仅在保存成功后发布，须解耦。文件数有上限，字节数随内容变化，失败列表随一次批量规模增长；本轮不增加历史库或压缩框架 |
 | `storage.sqlite` 及 SQLite 必要伴随文件 | 必改定位、打开和所有者；保留 v5 数据模型 | [storage_database.go](../internal/cacheproxy/storage_database.go)、[server.go](../internal/cacheproxy/server.go)：现由引擎打开并由统计 worker 关闭；普通写打开用 `rwc`，缺库判断还查看 `videos`。迁移后不依赖视频盘，不将伴随文件当垃圾清理 |
 | `videos/{md5}.mp4` | 必改为独立目录，直接使用所选位置；保留现有文件和策略 | [storage.go](../internal/cacheproxy/storage.go)、[retention.go](../internal/cacheproxy/retention.go)、[manage.go](../internal/cacheproxy/manage.go)：路径、收藏保护、文件身份和删除校验均依赖旧根；引擎初始化即执行淘汰，接入旧视频前必须明确保留策略 |
 | `tmp/download-block-*.part` | 必改到 EXE 旁 `data/work/` 的实例区；不增加设置 | [local_resource.go](../internal/cacheproxy/local_resource.go)、[local_blocks.go](../internal/cacheproxy/local_blocks.go)、[block_reclamation.go](../internal/cacheproxy/block_reclamation.go)：只有运行期引用与 pin，没有重启恢复；保留回收和活动读取保护 |
@@ -206,7 +206,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 ### 第三方依赖核实范围
 
 - [go.mod](../go.mod)锁定 `modernc.org/sqlite v1.40.1`，当前连接使用 `foreign_keys(1)`、`busy_timeout(1000)` 及单连接限制。现有事务、严格 DDL 校验和驱动可以继续使用；本轮没有引入 ORM、第二数据库或升级驱动的依据。路径、连接生命周期和应用级排他规则仍须由本程序处理，SQLite 锁不能替代视频淘汰与业务所有权。
-- Mihomo 为 `v1.19.32`。核对该版本 `hub/executor/executor.go`、`component/profile/cachefile/cache.go`、`component/fakeip/pool.go` 和 provider 调用：`cache.db` 的 bbolt 打开是按需发生；当前适配器禁用的功能不能被当作已经生成文件的证据。2026-10-26 用当前适配器、隔离 Home 和一个本地 SOCKS5 节点仅启动／关闭，无请求；两次枚举 Home 都为 **0 个子项**。因此保留约定目录，不臆造必须保留的 cache.db，也不新增删除规则。此探测未覆盖各协议实际传输、所有异常路径或 Home 外文件事件，不能外推为第三方永不落盘；若未来要清理具体依赖文件，先补对应场景证据。
+- Mihomo 为 `v1.19.32`。核对该版本 `hub/executor/executor.go`、`component/profile/cachefile/cache.go`、`component/fakeip/pool.go` 和 provider 调用：`cache.db` 的 bbolt 打开是按需发生；当前适配器禁用的功能不能被当作已经生成文件的证据。2026-10-26 用当前适配器、隔离 Home 和一个本地 SOCKS5 节点仅启动／关闭，无请求；两次枚举 Home 都为 **0 个子项**。因此保留约定目录，不臆造必须保留的 cache.db，也不新增删除规则。此探测未覆盖各协议实际传输、所有异常路径或 Home 外文件事件；若未来要清理具体依赖文件，先补对应场景证据。
 - [workfiles](../internal/workfiles/atomic.go)、现有 OS 锁和日志轮转已有明确职责。复用它们即可；块的引用保护及发布、导入的同卷约束不能用一个通用“临时目录”抽象抹平。
 
 ## 现有数据的迁移与回退
@@ -220,7 +220,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 正式执行顺序为：正常退出并确认资源关闭 → 保留完整可恢复备份 → 在隔离副本验证新入口及文件落点 → 设置新的独立位置，仅在确需换盘时移动文件 → 新配置指向已验证的数据并明确视频保留策略 → 检查收藏、历史、累计值和歌曲关联 → 启用视频管理并检查本地复用。数据库若仍依赖 SQLite 伴随文件，备份按完整恢复集合处理。
 
-接入或移动失败不发布成功状态、不以空库继续，原文件与备份保留。本轮没有 DB 格式回退步骤；旧程序仍要求旧配置和旧路径布局，v5 格式相同不代表任意新布局或新旧进程并行可用。回退使用配套旧配置及已核对的数据位置／备份，并停止另一版本。实际用户数据的执行范围在实施任务中明确，本计划不直接执行搬移或原地改库。
+接入或移动失败不发布成功状态、不以空库继续，原文件与备份保留。本轮没有 DB 格式回退步骤；回退到旧程序时，使用配套旧配置与旧路径布局，并先退出新版进程。回退使用配套旧配置及已核对的数据位置／备份，并停止另一版本。实际用户数据的执行范围在实施任务中明确，本计划不直接执行搬移或原地改库。
 
 ## 执行前决策状态
 
@@ -262,7 +262,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 主要入口：[引擎](../internal/cacheproxy/server.go)、[统计写入](../internal/cacheproxy/usage.go)、[监测清单](https://github.com/SW26010/still-wanna-dance/blob/9056d4a39d9abae714085084722f699225eb6a56/internal/console/monitor_catalog.go)、[地址观察](https://github.com/SW26010/still-wanna-dance/blob/9056d4a39d9abae714085084722f699225eb6a56/internal/console/monitor_playback_url.go)。
 
-完成条件：没有视频引擎或视频目录失联时，个人数据查询和适当写入仍可工作；数据库写失败真实返回或显示，不假报成功；正常关闭先排空已接受的统计工作，再关闭 DB 和释放锁，失败须报告。保留有限队列及现有采集口径，不承诺 I/O 故障、队列饱和或强杀时零丢失，不新增磁盘队列、重试日志或另一套统计。
+完成条件：没有视频引擎或视频目录失联时，个人数据查询和适当写入仍可工作；数据库写失败真实返回或显示，不假报成功；正常关闭先排空已接受的统计工作，再关闭 DB 和释放锁，失败须报告。保留有限队列及现有采集口径，I/O 故障、队列饱和或强杀可能造成记录丢失，不新增磁盘队列、重试日志或另一套统计。
 
 ## 阶段三 分开定位和创建 打开流程
 
@@ -289,9 +289,9 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 - `catalog_checks`、`song_urls` 及其他 v5 表原样保留；本阶段不改数据库结构，不编写升级分支，不在业务查询时补结构。
 - 保留三个快照的共用读写机制，调整到数据库与视频组合的归属校验，删除由快照推断初始化的依赖。扫描／任务结果更新不依赖落盘成功；重启仅展示匹配的上次结果及时间，缺失或失效则显示未知或无历史结果，不伪装成零库存、当前检查或已恢复任务。不新增格式迁移、长期历史、目录登记或用户管理入口。
 - 将块残留清理放在对应工作区所有权下，早于需要成功写文件日志或恢复数据库的步骤。确认工作区归属不依赖视频盘在线或完整 DB 可写打开；不能用猜测补足归属，也不能为清理损坏库而触碰 SQLite 伴随文件。
-- 保留已有引用保护、发布／导入清理、安全文件删除和未知项保留规则；停止生成旧状态不意味着扫描并删除原测试文件。
+- 保留已有引用保护、发布／导入清理、安全文件删除和未知项保留规则；原测试文件继续按原归属保留。
 
-完成条件：新生成文件符合职责清单；不为减少文件数而新增 DB 表或重复配置状态，数据库归属有业务关系、规模和访问方式上的依据；坏辅助文件不损坏个人数据。可用的测速文件继续恢复冷却，写失败抑制自动大流量；缺失／损坏不承诺恢复已丢失的冷却时间，不为此增设另一份记录。快照缺失本身不新增整库网络任务；新实例只清理属于自己的已知残留。
+完成条件：新生成文件符合职责清单；不为减少文件数而新增 DB 表或重复配置状态，数据库归属有业务关系、规模和访问方式上的依据；坏辅助文件不损坏个人数据。可用的测速文件继续恢复冷却，写失败抑制自动大流量；缺失或损坏时，先前的冷却时间可能丢失，不为此增设另一份记录。快照缺失本身不新增整库网络任务；新实例只清理属于自己的已知残留。
 
 ## 阶段五 接通界面 备份说明与发行入口
 
@@ -360,17 +360,17 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 
 - 2026-10-26 数据与交付验收：在现有 v5 二进制样本副本补齐四张空表，十四张表均有样本；正常关闭后复制数据库及存在的 SQLite 伴随文件，再在中文含空格的新位置还原。核对所有列和值、原结构和版本、integrity_check、foreign_key_check；视频位置尚不存在时仍可读个人偏好，另置视频目录并启停引擎后数据不变。原库与备份逐字一致，证据 `backup-restore-1.txt`。C、D 为独立 NTFS 卷；以跨卷硬链接返回 ERROR_NOT_SAME_DEVICE 证明测试落点确实不同，块引用仍有效时发布完整视频成功，发布暂存与视频同卷，跨卷导入为独立副本且无暂存残留；已有跨卷导入／回执删除／淘汰用例一并通过。证据 `cross-volume-1.txt`、`cross-volume-environment.json`，D 盘本次随机目录已清理。
 
-- 两个实际开发版 EXE `dev-persistence-paths-20261026` 与 `dev-persistence-explicit-20261026` 的覆盖升级通过默认、外置库和自定义配置三种布局；验证进程身份、实际设置、同用户凭据解密、快照、数据库与视频哈希、日志延续和退出后重开，所有测试进程已退出。二者均为带 dirty 标记的开发构建，完整身份和 SHA256 见 `delivery-upgrade-1.txt`；新 EXE 构建输出为 `delivery-final-build-1.txt`。两个版本均使用 v7 配置和 v5 数据库，此项不证明旧配置迁移、正式发布版本升级或跨用户解密。以上证据位于 `artifacts/persistence-implementation-20261026/`。
+- 两个实际开发版 EXE `dev-persistence-paths-20261026` 与 `dev-persistence-explicit-20261026` 的覆盖升级通过默认、外置库和自定义配置三种布局；验证进程身份、实际设置、同用户凭据解密、快照、数据库与视频哈希、日志延续和退出后重开，所有测试进程已退出。二者均为带 dirty 标记的开发构建，完整身份和 SHA256 见 `delivery-upgrade-1.txt`；新 EXE 构建输出为 `delivery-final-build-1.txt`。两个版本均使用 v7 配置和 v5 数据库，旧配置迁移、正式发布版本升级和跨用户解密均在本次演练范围之外。以上证据位于 `artifacts/persistence-implementation-20261026/`。
 
 - 受限盘初始环境核对：本机有 Hyper-V 虚拟磁盘命令，但原令牌不是管理员，WSL 未安装；当时尚未创建、挂载或填充虚拟磁盘。已有 SQLITE_FULL 页数限制回滚及 I/O 故障注入证据未被当作真实卷耗尽；后续通过有界脚本及用户确认 UAC 补齐实测，没有安装 WSL 或填满日常磁盘。
 
 - 2026-10-26 核心旧入口清理完成：删除 Config.StorageDir、New 的隐式建库／混合根分支、旧数据库打开函数、mixedWork 清理及引擎自行关闭数据库的分支。全部入口和夹具明确准备 Store、VideoDir、Work。持久化回归真实关闭并重开数据库；强杀恢复分别重新取得工作区和视频所有权，块、发布和导入残留按各自位置清理，未知旧文件及完整视频保留。核心整包通过（`legacy-core-tests-4.jsonl`），桌面整包通过（`legacy-console-tests-4.jsonl`），CLI／桌面命令包通过；最终定向回归、相关 race 和 vet 通过（`legacy-core-targeted-6.txt`、`legacy-core-race-1.txt`、`legacy-core-vet-1.txt`）。证据均在 `artifacts/persistence-implementation-20261026/`。保留首次编译及测试失败记录：旧夹具试图替换含持有锁的工作目录，失败后工作 goroutine 未返回；模拟时钟夹具不应构造全局网络对象；延迟统计测试曾在后台清理仍运行时更改保留期，现先停止采集再按固定时点验证。未据这些检查宣称真实跨卷、受限盘或用户数据迁移通过。
 
-- 核心旧入口清理第一步：删除未使用的混合目录 `InspectStorage` 和“缺库即空状态”读取助手；统计 worker 不再自行打开／关闭数据库，去掉 ownDB 分支，测试改为明确创建夹具。低级只读根助手仅留在测试文件中。统计、历史、缓存管理、应用所有权和目录联接创建拒绝的定向回归通过，相关 race 与 vet 通过；证据为 `legacy-readers-targeted-2.txt`、`legacy-readers-race.txt`、`legacy-readers-vet.txt`。原测试把明确建库留下的锁文件误当成引擎启动，已改为核对视频引擎资源未生成，首次失败记录保留。Config.StorageDir 与核心 New 的混合根适配尚待移除，此步骤不等于旧入口全部清完。
+- 核心旧入口清理第一步：删除未使用的混合目录 `InspectStorage` 和“缺库即空状态”读取助手；统计 worker 不再自行打开／关闭数据库，去掉 ownDB 分支，测试改为明确创建夹具。低级只读根助手仅留在测试文件中。统计、历史、缓存管理、应用所有权和目录联接创建拒绝的定向回归通过，相关 race 与 vet 通过；证据为 `legacy-readers-targeted-2.txt`、`legacy-readers-race.txt`、`legacy-readers-vet.txt`。原测试把明确建库留下的锁文件误当成引擎启动，已改为核对视频引擎资源未生成，首次失败记录保留。Config.StorageDir 与核心 New 的混合根适配尚待移除。
 
 - 2026-10-26 桌面独立位置（历史验证；其中手动首次建库流程已被后续首次使用修正替代）：配置 v7 使用 databasePath/videoDir，初始均为空，不自动接管已有默认库；相对路径仍基于配置父目录，状态、条款和自定义实例归属不变。创建 API 只建库，重复创建不覆盖；新视频位置在保存时可创建，失联但未变的视频位置不因其他保存而重建。接入已有视频或更换数据库复用视频，保存前须确认当前保留策略，确认不入配置。无效／旧配置保留原文件。后端整包及相关命令入口通过；60 项浏览器回归通过，窄屏截图已检查。真实 Go 服务与 Edge 验证首次新建、保存、重开后两个独立位置生效，以及拒绝覆盖已有库，未启动视频引擎。输出位于 `artifacts/persistence-implementation-20261026/desktop-paths-*`、`storage-live/`。早期旧夹具自动建库假设、JSON 样本转换丢失大整数及浏览器误用 alert 选择器的失败均已修正，原日志保留；当前 v5 数据结构和历史样本未改。真实跨卷、受限盘耗尽和完整数据恢复验证尚未完成。
 
-- 桌面阶段补充：位置创建／保存／重开、配置缺失不接管已有默认库、空视频位置不回落旧目录及路径空白处理的定向 `-race` 通过。打包规定的全部 `cmd/...`、`internal/...` 测试及 `go vet` 通过，10 项验收请求协议测试通过；布局顺序调整后的 8 项浏览器回归通过。真实开发 ZIP 冒烟通过首次启动、条款门禁、同包覆盖、整包移动、默认工作区身份稳定、两个外置自定义配置各自持锁且 work 仍在 EXE 旁。证据为 `desktop-paths-race-4.txt`、`desktop-paths-package-2.txt`、`desktop-paths-script-tests-2.txt`、`desktop-paths-browser-2.txt`、`desktop-paths-portable-smoke-2.txt`；原始失败记录保留，包括新增测试未遵守内部锁前置条件、删除旧探测函数后的未使用导入、旧 Portable 清单遗漏 work。此处 Portable 为同包覆盖，不声称跨版本或真实游戏通过。
+- 桌面阶段补充：位置创建／保存／重开、配置缺失不接管已有默认库、空视频位置不回落旧目录及路径空白处理的定向 `-race` 通过。打包规定的全部 `cmd/...`、`internal/...` 测试及 `go vet` 通过，10 项验收请求协议测试通过；布局顺序调整后的 8 项浏览器回归通过。真实开发 ZIP 冒烟通过首次启动、条款门禁、同包覆盖、整包移动、默认工作区身份稳定、两个外置自定义配置各自持锁且 work 仍在 EXE 旁。证据为 `desktop-paths-race-4.txt`、`desktop-paths-package-2.txt`、`desktop-paths-script-tests-2.txt`、`desktop-paths-browser-2.txt`、`desktop-paths-portable-smoke-2.txt`；原始失败记录保留，包括新增测试未遵守内部锁前置条件、删除旧探测函数后的未使用导入、旧 Portable 清单遗漏 work。此处 Portable 为同包覆盖。
 
 - 2026-10-26 快照格式 2：分别记录数据库与视频位置，任一位置变化时忽略旧结果；相对位置随整包移动恢复，旧格式拒绝读取。实际占用原子写槽模拟保存失败：扫描、成功批次及最近任务仍发布本次内存结果，磁盘旧快照逐字保持，重启只读取已保存结果且不续跑任务。定向检查和相关 `-race` 通过，输出为 `artifacts/persistence-implementation-20261026/snapshot-v2-*.txt`。首次新增夹具因同版本清单更改内容被现有保护拒绝，修正其版本后通过，失败记录保留。
 
@@ -380,7 +380,7 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 - 验证：下载核心、Console 与 CLI 整包通过；独立目录所有权、旧锁冲突、旧删除凭据、离线读取、发布／导入及扫描保护的定向检查和 `-race` 通过，相关 `go vet` 与前端构建通过。曲库浏览器回归原有 27 项通过，新增视频不可用用例修正文本定位后通过；截图已检查。真实 CLI EXE 在中文含空格隔离路径明确建库成功，重复创建拒绝且数据库逐字保持，未生成视频／块文件；未接受条款或启动服务。输出见 `artifacts/persistence-implementation-20261026/paths-*.txt` 与 `cli-probe/creation-report.json`。首次沙箱回归的文件操作限制、两处仍使用旧扫描锁键的测试夹具，以及浏览器定位失败均保留为历史失败；最终针对修正点复核通过。尚未验证真实跨卷、磁盘耗尽或桌面新设置流程。
 
 - 2026-10-26 工作区实现：`cacheproxy`、`console`、`apppaths` 和两应用入口整包通过；新增分离写入／发布目录故障／导入、队列临时块保护、工作区所有权、移动与路径冲突的定向 `-race` 通过，相关 `go vet` 通过。隔离桌面 EXE 先以坏配置退出，再人为阻止日志文件创建；第二次启动仍先删除本实例块残留，未知文件、独立放置的数据库和完整视频夹具逐字保留。进程均已退出，未接受条款、启动游戏或改 hosts。报告在 `artifacts/persistence-implementation-20261026/startup-probe/report.json`，测试输出在同级 `work-*.txt`。此探测证明启动次序与保护范围，尚未覆盖真实跨卷、受限盘耗尽或完整新版 Portable 流程。
-- 2026-10-26 阶段二核心实现：新增无引擎业务读写、引擎借用／归还数据库、关闭后拒绝工作、重复引擎不清理活动块，以及后台只读／事务失败可见的回归。`internal/cacheproxy` 与 `internal/console` 整包在沙箱外通过；共享存储、清单、歌曲 URL、元数据候选、收藏、需求统计及导入的定向 `-race` 通过。沙箱内整包曾在硬链接、目录联接与进程终止夹具处失败，故使用同一临时目录包装器在沙箱外复核；早期回归还发现了事务失败标记遗漏及无存储诊断夹具的空指针，均修复后重跑。原始成功输出在忽略目录 `artifacts/persistence-implementation-20261026/`。这些结果只覆盖当前核心拆分，尚不证明新路径、桌面接线或界面已完成。
+- 2026-10-26 阶段二核心实现：新增无引擎业务读写、引擎借用／归还数据库、关闭后拒绝工作、重复引擎不清理活动块，以及后台只读／事务失败可见的回归。`internal/cacheproxy` 与 `internal/console` 整包在沙箱外通过；共享存储、清单、歌曲 URL、元数据候选、收藏、需求统计及导入的定向 `-race` 通过。沙箱内整包曾在硬链接、目录联接与进程终止夹具处失败，故使用同一临时目录包装器在沙箱外复核；早期回归还发现了事务失败标记遗漏及无存储诊断夹具的空指针，均修复后重跑。原始成功输出在忽略目录 `artifacts/persistence-implementation-20261026/`。这些结果只覆盖当前核心拆分，新路径、桌面接线与界面不在该阶段的验证范围内。
 - 基线源码无产品改动。通过临时目录包装器执行 `go test -tags=no_easytier`、`-count=1`：`internal/cacheproxy` 的 `LocalCatalogChecksAndSnapshot`、`CatalogCheckStatusSurvivesRestart`、`CatalogCheckMigrationAndRollback`、`LoadCatalogStatusRejectsMissingTrackingSchema`、`SongURL.*`、`SongMetadataCandidates.*` 用例通过；`internal/apppaths` 的 `LayoutIsLazyAndSeparatesSiblingConfigurations`、`ReservedCompanionsCannotBeConfigurations` 通过（名称均带 `Test` 前缀）。
 - `internal/console` 的 `StorageEntryPointsRejectLostLibrary`、`InventoryPersistsAndKeepsLastSuccessOnFailure`、`ScanOnlyPersistsSuccessAcrossFailureAndCancellation` 在沙箱内于夹具配置保存阶段报 `renameat ... The handle is invalid`，未达到业务断言；通过相同包装器在沙箱外复核后全部通过。保留这次失败及其范围，不将其当作业务失败或省略不报。
 
@@ -400,11 +400,11 @@ Edge 内存夹具回归 100 项通过，覆盖新曲库链接、旧地址回退�
 | 三份最近结果与身份／条款／测速／凭据；阶段一第 2 项、四 | 快照 v2 按 DB+视频归属，旧格式忽略；占用工作槽时本次内存结果仍发布、旧磁盘结果逐字保持。`proxy_identity_test.go` 验证实例一致性与坏 key 局部降级；条款写失败不授予同意、代理密文原子保存与自动测速冷却回归保留 | 已验证；不恢复任务、选择或删除授权，不新增用户维护步骤 |
 | 块、发布和导入落点及安全清理；阶段三、四、六 | `work_directory_test.go`、`temp_crash_test.go` 覆盖所有权、未知项与强杀恢复；启动故障探测证明清块早于日志及 DB。`cross-volume-1.txt` 以 `ERROR_NOT_SAME_DEVICE` 验证 C/D 真跨卷，发布暂存仍与视频同卷、导入为独立副本，引用块保持 | 已验证；未将临时块并入完整视频 |
 | 已有视频接入与保存生效；阶段五 | `inspectLibrarySelection` 与保存时复查、`storage_api_test.go`、`storage-locations.spec.ts` 覆盖换 DB 复用视频、保留策略确认、取消不落盘、不保留模式可改位置及失联视频不阻止无关保存。确认不写入配置 | 已验证；不自动搬移或静默接管旧视频 |
-| UI、真实服务与发行使用；阶段五、六 | 60 项浏览器回归及最终布局 8 项回归；真实 Go 服务与 Edge 的 configure/reopened 结果无页面错误；实际 ZIP 首启、覆盖、移动和多配置，以及两个开发版 EXE 三种布局升级通过。发行检查和 notices 校验通过 | 已验证对应构建与同用户范围；不声称正式版本／旧配置升级或游戏通过 |
+| UI、真实服务与发行使用；阶段五、六 | 60 项浏览器回归及最终布局 8 项回归；真实 Go 服务与 Edge 的 configure/reopened 结果无页面错误；实际 ZIP 首启、覆盖、移动和多配置，以及两个开发版 EXE 三种布局升级通过。发行检查和 notices 校验通过 | 已验证对应构建与同用户范围 |
 | v5 接入、停机备份还原与回退说明；阶段一第 6 项、六 | `storage_backup_test.go` 对实际 v5 二进制样本的 14 表全部列值、结构、完整性及关系逐项比较；关闭后复制主文件和存在的伴随文件，新位置／独立视频启动后数据不变。备份说明区分核心优先、视频按需及完整媒体库；旧程序回退要求配套旧配置和布局 | 已验证隔离副本；未操作用户原资料 |
 | 可丢弃受限卷真实耗尽；阶段六 | `storage_full_windows_test.go`、`scripts/test-storage-full.ps1` 在新建固定 128 MiB VHD 上实际执行，三场景都写至零可用空间；错误、关闭、十四表数据保持、重开写入与安全清理全部通过，镜像及挂载独立复核已清除 | 已验证；真实操作系统耗尽，未以 SQLITE_FULL 注入替代 |
 
-本轮实现与非游戏验收已完成。真实 VRC 播放、日志交接和多人体验继续按既有实机台账安排，不为此次文件归属整理另增机械测试项；这不等于本轮已测游戏。
+本轮实现与非游戏验收已完成。真实 VRC 播放、日志交接和多人体验继续按既有实机台账安排，不为此次文件归属整理另增机械测试项；本轮检查在开发环境完成。
 
 - Mihomo 隔离启动探测见上文；探测源码位于忽略目录 `artifacts/persistence-review-20261026/mihomo-files.go`，临时 Home 随包装器清理。没有读取用户配置、使用真实节点、启动游戏或改 hosts。
 - 初始复核时尚未实现新目录布局，未验证该布局、跨卷、磁盘耗尽和升级后界面；这些缺口已由前述分阶段实测补齐。资源锁交接、提交与淘汰协调、固定 work 实例归属及早期清理的要求保留，验证依据见逐项表。实际用户资料搬迁没有执行，隔离备份还原不被称作用户资料已经迁移。

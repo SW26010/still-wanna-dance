@@ -12,7 +12,7 @@
 | `x.kiva.moe/api/v2/wanna/songs` | 10-28 固定 IPv4 返回 301，转向同地址 HTTPS | 10-29 两次 15 分钟窗口：IPv4 10/159 完整成功，主要为 500/1101；IPv6 0/159。10:08–10:09 短对照 IPv4 2/6、IPv6 0/6 | 成功响应为 `20261028232411`，10,470 首 |
 | `wanna.kiva.moe/api/wannaInfo` | 10-28 固定 IPv4 返回 301，转向同地址 HTTPS | 10-29 10:08–10:09 短对照：IPv4 6/6 完整成功、IPv6 0/6；没有对它做同等 15 分钟监测 | `20260215004959`，10,076 首，属于旧版本 |
 
-三个入口均观察到 Cloudflare 前置服务，但不代表同一个 Worker 或后端。Kiva 的 1101/1102 响应明确涉及 Worker；仅凭 WannaInfo 的 `server: cloudflare` 与 CF-Ray 不能确认其业务也由 Worker 执行。Kiva/WannaInfo 的地址族差异明显；Udon 的结果则同时随协议和观测时段改变。
+三个入口均观察到 Cloudflare 前置服务，其 Worker 与业务后端可能不同。Kiva 的 1101/1102 响应明确涉及 Worker；仅凭 WannaInfo 的 `server: cloudflare` 与 CF-Ray 不能确认其业务也由 Worker 执行。Kiva/WannaInfo 的地址族差异明显；Udon 的结果则同时随协议和观测时段改变。
 
 清单字段、版本和业务用途另见[清单来源核对](../research/catalog-sources-20261029.md)，后续曲库改造目标见[已确认决策](../research/udon-catalog-decision-draft-20261029.md)。本文记录连接证据，没有实施协议降级、禁用 IPv6、重试策略或曲库来源变更。
 
@@ -42,9 +42,9 @@ Kiva 两个窗口的原始 `completedRounds=31` 都多含结束边界的一条�
 | 日常安装目录 | `dev-20261028-47aae6ad`；Go 1.27.3；源码 `47aae6ad8d626d1a0987f323c104ab70f3ae10c6`，clean | 10-28 23:18:31，曲库更新 `EOF`，沿用已有清单 | 23:24:16 接纳版本 `20261028232411` |
 | `video-import-toast-test` | `dev-video-import-toast-20261029`；Go 1.27.3；源码 `0faea79b23cad2651ec04e4739fad5cc5d9946ec`，dirty | 10-29 01:15:05，更新 `EOF`，本地已有 `20261028232411` | 00:36:51 已接纳该版；01:29:47 的后续检查清除错误 |
 
-日常 EXE SHA-256 为 `3d856bb543ac1916e611a51c51acce461be114fe8e8532051a7eeb53850df549`；测试 EXE 为 `f98b61ba49196ce40d830871e587da19307cc634074b42c40c9495c2b82b055b`。两个源码版本的 `catalog_checksums.go`、`upstream_selection.go`、`network.go`、`upstreamnet`、`upstreamrequest` 无差异。测试版带未提交修改，VCS 标记不代表全部构建输入；没有证据把连接错误归因于导入提示界面改动。
+日常 EXE SHA-256 为 `3d856bb543ac1916e611a51c51acce461be114fe8e8532051a7eeb53850df549`；测试 EXE 为 `f98b61ba49196ce40d830871e587da19307cc634074b42c40c9495c2b82b055b`。两个源码版本的 `catalog_checksums.go`、`upstream_selection.go`、`network.go`、`upstreamnet`、`upstreamrequest` 无差异。测试版的构建输入包括所记录的提交和工作区修改；没有证据把连接错误归因于导入提示界面改动。
 
-`inventory.json` 是扫描时快照，数据库 `catalog_checks` 是后续状态。后续成功不否定原快照失败，旧 EOF 也不代表此后始终没有更新成功。历史快照缺少具体候选 IP 和失败阶段，无法精确归因昨晚每次错误。
+`inventory.json` 是扫描时快照，数据库 `catalog_checks` 是后续状态。后续成功不否定原快照失败，此后的更新情况按各次运行记录判断。历史快照缺少具体候选 IP 和失败阶段，无法精确归因昨晚每次错误。
 
 ### 正式组件与业务函数复现
 
@@ -111,7 +111,7 @@ Kiva 两个窗口的原始 `completedRounds=31` 都多含结束边界的一条�
 | 09:47:57.719 | `172.67.75.64` | 503/1102 | `a51e83d7bb096aba-HKG` |
 | 10:01:27.864 | `104.26.15.167` | 500/1101 | `a51e97a04e5c11cf-HKG` |
 
-这些 5xx 已经通过 HTTPS 返回，和 TLS EOF 是不同阶段的失败。Worker 异常不证明 Cloudflare 平台整体故障；客户端 EOF 本身也不能确定由边缘、链路还是本机网络组件关闭连接。
+这些 5xx 已经通过 HTTPS 返回，和 TLS EOF 是不同阶段的失败。故障记录定位到该 Worker，平台整体情况未在本轮测量；客户端 EOF 本身也不能确定由边缘、链路还是本机网络组件关闭连接。
 
 ## Kiva 与 WannaInfo 同 IP 对照
 
@@ -126,7 +126,7 @@ Kiva 第一轮在 `104.26.14.167`、`172.67.75.64` 成功，第二轮三个 IPv4
 
 全部取得 HTTP 响应的样本有 `server: cloudflare` 和 CF-Ray，后缀为 HKG；WannaInfo 还有 `CF-Cache-Status: DYNAMIC`。Kiva 错误正文是包含 1101 类型的结构化 JSON，与此前纯文本错误分别保留；请求的 Accept 包含 `application/json`，不把正文格式差异计为新的错误类型。
 
-候选切换有时能取得一次成功，但三个 IPv4 都有大量失败，没有一个持续可靠。Cloudflare 共享 Anycast 地址，更换 IP 不保证切换到另一机房或业务后端；本次没有测试 DNS 返回集合之外的任意“优选 IP”。[Cloudflare 地址机制](https://developers.cloudflare.com/fundamentals/concepts/cloudflare-ip-addresses/)，2026-10-29 查阅。
+候选切换有时能取得一次成功，但三个 IPv4 都有大量失败，没有一个持续可靠。Cloudflare 共享 Anycast 地址，不同 IP 可能仍路由至同一机房或业务后端；本次没有测试 DNS 返回集合之外的任意“优选 IP”。[Cloudflare 地址机制](https://developers.cloudflare.com/fundamentals/concepts/cloudflare-ip-addresses/)，2026-10-29 查阅。
 
 ## Udon HTTP 和 HTTPS 双栈监测
 
@@ -178,7 +178,7 @@ curl 有一次完整读取超过 12 秒，但原 Node 客户端在原期限内�
 | `artifacts/kiva-monitor-smoke-20261029/` | 两轮冒烟记录：一轮无候选，一次 500/1101，不混入正式窗口 |
 | `artifacts/kiva-monitor-20261029-0925/`、`artifacts/kiva-monitor-20261029-0946/` | 两次 Kiva 的 `samples.jsonl`、`summary.json`、进程与构建信息 |
 | `artifacts/kiva-endpoint-comparison-20261029/` | 同 IP 两接口短对照及 DNS 结果 |
-| `artifacts/udon-monitor-20261029-1019/` | Udon 四组持续监测；目录后缀不代表开始时刻，以日志的 10:16:58 为准 |
+| `artifacts/udon-monitor-20261029-1019/` | Udon 四组持续监测，以日志的 10:16:58 为准 |
 | `artifacts/udon-https-recheck-20261029-1141/` | curl 原始指标、响应头、完整正文与汇总，实际请求在 11:42 |
 | `artifacts/udon-node-recheck-20261029-1142/` | 原 Node 请求函数复核，实际请求在 11:43 |
 | `scripts/` | `monitor-kiva.go`、`compare-kiva-endpoints.mjs`、`monitor-udon.mjs`、`recheck-udon-curl.mjs`、`recheck-udon-node.mjs` |

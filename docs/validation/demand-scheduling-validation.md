@@ -1,6 +1,6 @@
 # 需求调度验证（issue #22）
 
-2026-10-11 起的 Windows 本地自动化验证记录。各节保留对应版本的行为；当前实现范围和运行语义见[队列预缓存](../queue-prefetch.md#资源需求与优先级)，2026-10-14 的 GET 宽限和等级顺延见本文末节。这些结果不代表当前构建已完成 VRChat 实机验收。
+2026-10-11 起的 Windows 本地自动化验证记录。各节保留对应版本的行为；当前实现范围和运行语义见[队列预缓存](../queue-prefetch.md#资源需求与优先级)，2026-10-14 的 GET 宽限和等级顺延见本文末节。当前构建的 VRChat 实机结果按对应批次记录。
 
 ## 自动化结果
 
@@ -114,7 +114,7 @@ go test -race ./internal/cacheproxy -run 'TestWholeFlight|TestRepeatedPreemption
 go test -race ./internal/cacheproxy -run 'TestResumedForeground|TestWholeFlight|TestRepeatedPreemption|TestPreemptionDoesNotTrust|TestSeekYields|TestParallelRange|TestRangeScheduling|TestPreemptionWaits|TestGETReattaches|TestQueueDemandPreemption' -count=20 -timeout=180s
 ```
 
-验证中保留两类失败记录。首次沙箱定向 race 遇到 Windows ThreadSanitizer `failed to restore address` 中止，未计为通过；普通测试权限下重跑成功。随后缓存包全量暴露已有 `TestQueueCancellationDoesNotCancelJoinedRangePlayback` 夹具的偶发问题：Seek 合法让位后重试首块，重复 `close(prefix)` 导致上游 panic，且将 HTTP 请求数不等于 2 误判为创建了另一个下载任务。用修复前的 `range_work.go` 作 Go overlay，对原夹具无延迟复查 120 次未复现；仅在该用例的尾块正文前加入 25 ms 延迟后 5 次均复现。`song_load_test.go` 改为一次性通知首块开始，并直接检查前后共享的 flight 对象；保留相同延迟的对照在修正后 20 次 race 通过（2.985 秒）。延迟仅在忽略目录的定位探针内，未加入正式测试或产品。此夹具修正不改变产品行为，不另增实机项。
+验证中保留两类失败记录。首次沙箱定向 race 遇到 Windows ThreadSanitizer `failed to restore address` 中止，未计为通过；普通测试权限下重跑成功。随后缓存包全量暴露已有 `TestQueueCancellationDoesNotCancelJoinedRangePlayback` 夹具的偶发问题：Seek 合法让位后重试首块，重复 `close(prefix)` 导致上游 panic，且误用 HTTP 请求数偏离 2 作为创建另一下载任务的判据。用修复前的 `range_work.go` 作 Go overlay，对原夹具无延迟复查 120 次未复现；仅在该用例的尾块正文前加入 25 ms 延迟后 5 次均复现。`song_load_test.go` 改为一次性通知首块开始，并直接检查前后共享的 flight 对象；保留相同延迟的对照在修正后 20 次 race 通过（2.985 秒）。延迟仅在忽略目录的定位探针内，未加入正式测试或产品。此夹具修正不改变产品行为，不另增实机项。
 
 原始开发日志保留在忽略目录 `artifacts/seat-preemption-check/`：`startup-before-fix.log`、`startup-owner-before-fix.log`、`startup-after-fix-race.log`、`startup-final-race.log`、`startup-final-cache-race.log`、`startup-existing-fixture-baseline.log`、`startup-existing-fixture-baseline-100.log`、`startup-existing-fixture-latency-baseline.log`、`startup-fixture-fixed-race.log`、`startup-final-cache-race-fixed-fixture.log`。首块责任与尾读验收步骤已补入 **LA-038，仍待实机验收**；没有启动游戏、修改 hosts 或执行 commit/push。
 
@@ -164,4 +164,4 @@ go test -race ./internal/cacheproxy -run 'TestPlaybackGrace|TestDemandRanks|Test
 
 首次定向 race 发现新增完整下载测试误传空上游 handler，导致夹具 panic/502；修正为返回测试正文后重跑通过，没有 DATA RACE 报告。失败日志 `targeted-race.log` 保留，不计为通过。最终全仓 race 在普通测试权限下运行，以覆盖需要 Windows 文件链接及子进程的已有夹具。其余原始日志为 `targeted.log`、`targeted-race-final.log`、`full-race.log`、`vet.log`；定向十轮之后的产品收尾修改由最终全仓 race 覆盖。
 
-**开发完成，LA-039 待实机验收，联动 LA-038 的抢占续传验证。** 历史 LIVE-20261014-02 只记录旧版本 GET 行为，不作为本次宽限策略的通过依据。本次没有启动游戏或修改 hosts。
+**本批完成了调度与抢占续传的开发验证。** LIVE-20261014-02 记录的是旧版本的 GET 行为。本轮收尾时，宽限策略与抢占续传分别登记为 LA-039 和 LA-038，后续已合并到[慢网恢复与队列交接场景](../live-acceptance-backlog.md)。

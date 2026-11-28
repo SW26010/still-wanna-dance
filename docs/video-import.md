@@ -50,4 +50,4 @@
 
 ## 验证
 
-文件与重启规则通过真实 Go 实现、隔离子进程强杀和浏览器连接隔离 Console 验证。纯浏览器夹具只覆盖按钮、确认和展示；进程强杀不等同于真实断电或磁盘耗尽。原 JSON 版本的验证见[恢复验证](validation/video-import-recovery-20261030.md)，按项持久化、旧状态迁移及写入规模见[增量保存验证](validation/video-import-progress-20261112.md)，没有需要 VRC 判断的新增场景。
+文件与重启规则通过真实 Go 实现、隔离子进程强杀和浏览器连接隔离 Console 验证。纯浏览器夹具只覆盖按钮、确认和展示；进程强杀测试验证中断恢复，断电与磁盘耗尽各按其实际故障条件验证。原 JSON 版本的验证见[恢复验证](validation/video-import-recovery-20261030.md)，按项持久化、旧状态迁移及写入规模见[增量保存验证](validation/video-import-progress-20261112.md)，没有需要 VRC 判断的新增场景。

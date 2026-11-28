@@ -2,7 +2,7 @@
 
 2026-10-11，针对 [issue #14](https://github.com/SW26010/still-wanna-dance/issues/14) 的第一道验证门槛。
 
-**结论：可以继续开发进程内薄适配层。不能把原始 Proxy 直接视为无状态、可随意关闭重用的 Dialer。** 本目录是独立实验模块，尚未把 Mihomo 加入正式应用的依赖或发行包，也不代表 issue #14 已完成。
+**结论：可以继续开发进程内薄适配层。不能把原始 Proxy 直接视为无状态、可随意关闭重用的 Dialer。** 本目录是独立实验模块，尚未把 Mihomo 加入正式应用的依赖或发行包，issue #14 的进展另见相应集成记录。
 
 ## 实际运行结果
 
@@ -20,15 +20,15 @@
 
 服务端位于独立进程，通过真实 loopback TCP/UDP socket 交换协议数据；不是 mock 或 net.Pipe。服务端仅允许转发到实验 HTTP origin 和指定链式父节点目标。证书临时生成并以指纹校验，没有跳过证书校验。
 
-会话计数来自服务端 TCP Accept / UDP 源地址计数。顺序复用检查使用 net/http 编解码并同步关闭每条业务连接，再开始下一次请求。早期使用 HTTP Transport 的紧密循环出现过 AnyTLS 3 次请求建立 2 条会话：Transport 的连接关闭与返回响应不同步，不能据此要求始终恰好一条会话。这里验证的是连接归还后的协议会话复用，不是 HTTP keepalive。
+会话计数来自服务端 TCP Accept / UDP 源地址计数。顺序复用检查使用 net/http 编解码并同步关闭每条业务连接，再开始下一次请求。早期使用 HTTP Transport 的紧密循环出现过 AnyTLS 3 次请求建立 2 条会话：Transport 的连接关闭与返回响应不同步，会话数可随关闭与响应的先后短暂变化。这里验证的是连接归还后的协议会话复用，不是 HTTP keepalive。
 
 ## 发现的必要适配边界
 
-1. **初始化不能省略。** 单独导入 adapter 后，SystemResolver 已初始化，但 ProxyServerHostResolver 和 DefaultResolver 为 nil。实验显式安装只解析 `proxy.invalid` 的代理服务器 resolver，并用拒绝型 resolver 拦截默认/系统查询，禁用系统 hosts。真实请求使用业务域名 `business.invalid`，未触发本地业务或系统 DNS 查询。此结果验证了这些路径可注入 resolver，不代表已验证生产 DNS 服务或全部特殊协议路径。
+1. **初始化不能省略。** 单独导入 adapter 后，SystemResolver 已初始化，但 ProxyServerHostResolver 和 DefaultResolver 为 nil。实验显式安装只解析 `proxy.invalid` 的代理服务器 resolver，并用拒绝型 resolver 拦截默认/系统查询，禁用系统 hosts。真实请求使用业务域名 `business.invalid`，未触发本地业务或系统 DNS 查询。此结果验证了这些路径可注入 resolver，生产 DNS 与其他协议路径各按实际配置验证。
 2. **原始取消语义不一致。** 热会话下 AnyTLS、Hysteria2 对已取消 context 仍可能返回连接；VLESS 返回含 `context canceled` 的错误，但 `errors.Is(err, context.Canceled)` 不成立。实验 gate 在拨号前后检查 context，并统一错误归因。
-3. **Close 不等于永久退役。** SS、VLESS、Hysteria2 在 Close 后还能完成业务。尤其 parser 包装的 `autoCloseProxyAdapter` 只执行一次 Close，而 Hysteria2 可重新建立会话；再次 Close 无法回收它。独立的原始生命周期探针观察到了残留 QUIC socket 和 goroutine，直到进程结束。正式适配层必须禁止退役后的新拨号。
+3. **退役前须封闭新拨号。** SS、VLESS、Hysteria2 在 Close 后还能完成业务。尤其 parser 包装的 `autoCloseProxyAdapter` 只执行一次 Close，而 Hysteria2 可重新建立会话；再次 Close 无法回收它。独立的原始生命周期探针观察到了残留 QUIC socket 和 goroutine，直到进程结束。正式适配层必须禁止退役后的新拨号。
 4. **资源属于节点生命周期。** 实验 gate 登记在途拨号和已建立连接，退役时取消拨号、关闭自有连接，再关闭 Proxy。四种协议均通过预取消、冷 DNS 100ms 超时、退役关闭活跃流、退役拒绝新拨号检查；业务无响应时 200ms 超时也通过。gate 是验证原型，尚非可直接投产的刷新/并发关闭实现。
-5. **链式依赖需绑定对象。** 无 tunnel 环境下，裸 `dialer-proxy` 名称不能工作。移除名称并以 `WithDialerForAPI(proxydialer.New(parent, false))` 绑定 SS 父对象后，VLESS 子节点的真实 HTTP 请求成功。这只覆盖 SS → VLESS 的 TCP 链，不证明任意链或 QUIC 链成立。
+5. **链式依赖需绑定对象。** 无 tunnel 环境下，裸 `dialer-proxy` 名称不能工作。移除名称并以 `WithDialerForAPI(proxydialer.New(parent, false))` 绑定 SS 父对象后，VLESS 子节点的真实 HTTP 请求成功。这只覆盖 SS → VLESS 的 TCP 链，其他 TCP 链与 QUIC 链需按各自传输方式核对。
 
 上述行为可在固定版本的源码核对：`adapter/parser.go`、`adapter/outbound/base.go` 的 autoCloseProxyAdapter、`transport/anytls/session/client.go`、`component/resolver`，以及固定 sing-quic 依赖的 `hysteria2/client.go`。
 
@@ -36,9 +36,9 @@
 
 正常运行对客户端 PID 采样，没有 TCP Listen；QUIC 需要出站 UDP socket，最后三次客户端仍存活的采样中 UDP socket 已清空。原始 Close 后重拨探针单独运行，不用于声称资源释放通过。
 
-执行前后比较 Windows 用户代理设置、WinHTTP 代理、hosts 文件哈希、网卡列表和路由表，均未变化。服务端 fixture 自己的 loopback 监听与客户端 PID 分开核对。采样不能证明没有极短暂监听，也未覆盖每一个系统设置。
+执行前后比较 Windows 用户代理设置、WinHTTP 代理、hosts 文件哈希、网卡列表和路由表，均未变化。服务端 fixture 自己的 loopback 监听与客户端 PID 分开核对。两次采样之间可能存在短暂监听，也未覆盖每一个系统设置。
 
-导入库仍会启动少量全局后台 goroutine，例如统计和 observable；AnyTLS 清理循环可能在 Close 后等待其 30 秒 sleep 才退出。因此不能声称“导入没有任何全局副作用”或“Close 后立即零 goroutine”。
+导入库仍会启动少量全局后台 goroutine，例如统计和 observable；AnyTLS 清理循环可能在 Close 后等待其 30 秒 sleep 才退出。导入会建立进程级状态，部分 goroutine 在 Close 后按自身周期退出。
 
 ## 复现
 
@@ -58,7 +58,7 @@ Set-Location experiments/mihomo
 
 ## 依赖与验证范围
 
-实验没有继承 Mihomo go.mod 的 protobuf replace，当前选择 `google.golang.org/protobuf v1.34.2`，上述构建和协议路径通过。不能据此推断所有协议都不需要上游替换项。正式引入仍需审查实际依赖图、许可证与构建信息，不能把实验编译成功视作发行条件已满足。
+实验没有继承 Mihomo go.mod 的 protobuf replace，当前选择 `google.golang.org/protobuf v1.34.2`，上述构建和协议路径通过。其他协议的上游替换项按各自依赖核查。正式引入仍需审查实际依赖图、许可证与构建信息，不能把实验编译成功视作发行条件已满足。
 
 未验证公网节点、第三方服务端互操作、VRChat、Reality/WS/ECH、混淆/端口跳跃、任意订阅导入、UDP 业务、复杂链、长时间重连、刷新竞争、规模测量和 race detector。服务端也使用固定 Mihomo 协议实现，互操作覆盖有限。实验 gate 采用立即关闭在途连接的策略，生产刷新是否宽限仍需明确。
 

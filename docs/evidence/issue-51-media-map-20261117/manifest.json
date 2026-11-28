@@ -46,8 +46,8 @@
   "files": [
     {
       "path": "docs/research/issue-51-media-time-map-20261117.md",
-      "bytes": 10254,
-      "sha256": "29a49e493c9565b9b1409a8fd6853819d0e8dd698f0a3d4b209a8c270855fd1c"
+      "bytes": 10248,
+      "sha256": "1eeca51f9e4d4fc1b5c01a8e522e6400c97d20068c8805f090614bffa42ee973"
     },
     {
       "path": "experiments/playback-model/media-map.mjs",

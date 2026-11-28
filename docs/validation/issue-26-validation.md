@@ -1,6 +1,6 @@
 # #26 Portable 交付收口与覆盖升级
 
-本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；本地开发包及合成数据检查不等于正式公开 Release 已完成。
+本文汇总 Portable 交付与覆盖升级证据。现行流程以[打包说明](../packaging.md)为准，可靠性与交付结果分别由 [#5](https://github.com/SW26010/still-wanna-dance/issues/5) 和 [#26](https://github.com/SW26010/still-wanna-dance/issues/26) 汇总；正式公开 Release 按实际发布附件验收。
 
 ## 2026-11-02 beta.4 公开交付
 
@@ -8,9 +8,9 @@
 
 此轮并非一次全绿：[首次产品任务](https://github.com/SW26010/still-wanna-dance/actions/runs/41337327688/job/124939806734)的完整浏览器检查为 **401 通过、1 失败**；[PR #43](https://github.com/SW26010/still-wanna-dance/pull/43)记录失败 trace 中 `app.js` 加载报 `net::ERR_NO_BUFFER_SPACE`、应用根节点为空，本机原用例连续 10 次通过后，仅重跑产品任务。重跑的产品检查通过 Edge **402/402**、Node 工具 **63/63**、真实 Console 设置联调及 Go test/vet；复用首次已通过的六组完整 Windows race、其余 Go 包与正式打包结果。历史失败和 trace 保留，不把重跑通过当作已查明所有偶发原因。
 
-正式包完成完整对应源码收集、全新缓存离线独立重建、实际 ZIP 身份与启动检查，以及默认存储、外置库、自定义配置三种布局的持久数据覆盖升级。独立 release job 公开回下载 ZIP、源码、两个校验文件及发行清单，核对与已验证交付的身份、字节数和 SHA256；自动流程复用同一源码附件在打包阶段已完成的独立重建，不声称在公开下载后再次重建或 EXE 逐字节可复现。
+正式包完成完整对应源码收集、全新缓存离线独立重建、实际 ZIP 身份与启动检查，以及默认存储、外置库、自定义配置三种布局的持久数据覆盖升级。独立 release job 公开回下载 ZIP、源码、两个校验文件及发行清单，核对与已验证交付的身份、字节数和 SHA256；自动流程复用同一源码附件在打包阶段已完成的独立重建。
 
-PR #43 另记录：用已发布 beta.3、实际公开 beta.4 ZIP 和隔离 v8 数据完成升级，确认 v9，并逐表保持歌曲及媒体关联各 **10,471** 行，以及偏好、使用、清单成员、媒体访问和请求事件。该结果按记录的隔离数据与构建适用，不代表使用了个人数据库或覆盖全部游戏体验。以下本机预演及首轮失败继续保留其当时范围。
+PR #43 另记录：用已发布 beta.3、实际公开 beta.4 ZIP 和隔离 v8 数据完成升级，确认 v9，并逐表保持歌曲及媒体关联各 **10,471** 行，以及偏好、使用、清单成员、媒体访问和请求事件。本轮结果适用于上述构建与隔离数据。以下本机预演及首轮失败继续保留其当时范围。
 
 ## 2026-11-02 beta.4 本机完整预演
 
@@ -40,7 +40,7 @@ Windows amd64 正常用户权限、Go 1.27.3 下，`cmd` 和 `internal` 完整 G
 
 合并提交 `f14486be52504b9924923ec766cbab37200a6d6d` 的全历史产物扫描检查了 **6,659** 个 blob，零错误，保留 35 条既有体积提醒。首次沙箱 Go 检查出现原子重命名、硬链接、junction 和进程发现等失败；正常用户权限下同范围回归通过，不抹去首次失败。Node 首轮因本机默认 Go 1.27.1 被工具链要求拒绝，指定已安装的 1.27.3 后通过；沙箱还拒绝 pnpm 目录链接，浏览器验证使用隔离检出中指向已有依赖的目录联接。原始日志保存在忽略目录 `artifacts/beta3-merge-20261101/artifacts/integration-checks/`。
 
-此轮未重新执行 Linux 全量 race、正式源码包／公开发行或真实版本间 Portable 覆盖升级；[v9 验证](storage-v9-20261101.md)及下方 beta.3 发布证据各按原构建适用，不外推为本次新合并的正式发行验收。未启动 VRC 或修改系统 hosts。
+此轮未重新执行 Linux 全量 race、正式源码包／公开发行或真实版本间 Portable 覆盖升级；[v9 验证](storage-v9-20261101.md)及下方 beta.3 发布证据各按原构建适用。未启动 VRC 或修改系统 hosts。
 
 ## 2026-11-01 beta.3 公开交付
 
@@ -100,9 +100,9 @@ Windows amd64 正常用户权限、Go 1.27.3 下，`cmd` 和 `internal` 完整 G
 
 共同原因是干净检出中的 `with-test-temp.ps1` 再次按自身路径创建 `artifacts/tmp`，使已缩短的补丁目录重新落入更深的临时根。现在最外层包装器临时传递共同根，子包装器核对其与调用者临时目录的关系后创建并列的独占目录；环境恢复、退出码和只清理自身目录的规则不变。复制包装器到临时检出的回归修复前失败、修复后通过；全部发布工具 **58/58** 通过。
 
-保留同一对实际 EXE，在重新导出的嵌套源码检出中仅应用包装器修复，重放升级驱动；vet 和默认存储、外置库、自定义配置 **3/3** 均通过，退出码为 0。起点为 `ci-beta3-local-1`（`9bdddb0f`，EXE SHA256 `1a46447cd5b3c7fe192948fcef54757ff8fdfbc05e80d48b761c0a10b7da4205`），终点为上述正式候选（EXE SHA256 `35318a8b2487f57f8b8b1b462c0463fb3f814b47e298c6c33b22136fe273a67e`）；不外推为公开 Beta 2 升级验证。复用已通过的源码重建和 ZIP 冒烟证据，最终提交仍由远端完整流程重新生成、校验并公开附件。
+保留同一对实际 EXE，在重新导出的嵌套源码检出中仅应用包装器修复，重放升级驱动；vet 和默认存储、外置库、自定义配置 **3/3** 均通过，退出码为 0。起点为 `ci-beta3-local-1`（`9bdddb0f`，EXE SHA256 `1a46447cd5b3c7fe192948fcef54757ff8fdfbc05e80d48b761c0a10b7da4205`），终点为上述正式候选（EXE SHA256 `35318a8b2487f57f8b8b1b462c0463fb3f814b47e298c6c33b22136fe273a67e`）。复用已通过的源码重建和 ZIP 冒烟证据，最终提交仍由远端完整流程重新生成、校验并公开附件。
 
-原始证据：`artifacts/release-v1.0.0-beta.3/local-formal-fixed.log`、`nested-temp-red.log`、`nested-temp-green.log`、`nested-upgrade-fixed.log`、`tools-nested-fixed.log`；失败升级的完整日志和实际 EXE 保留于 `artifacts/portable-upgrade/dab3d9c3a78d427f923e7e37947f4aec/`。本节不声称本地产物已经公开。
+原始证据：`artifacts/release-v1.0.0-beta.3/local-formal-fixed.log`、`nested-temp-red.log`、`nested-temp-green.log`、`nested-upgrade-fixed.log`、`tools-nested-fixed.log`；失败升级的完整日志和实际 EXE 保留于 `artifacts/portable-upgrade/dab3d9c3a78d427f923e7e37947f4aec/`。
 
 启动 [check #30](https://github.com/SW26010/still-wanna-dance/actions/runs/41213518252) 后，追加实际嵌套检出的完整工具套件检查，发现三项旧测试仍按脚本自身目录计算临时根。本机复现 **55 通过、3 失败**，主动取消该轮 CI，未等待其后续打包，未创建 Release。测试现在按同一继承契约确定预期根，保留目录隔离、环境恢复及清理断言；相同嵌套检出中的全部 **58/58** 通过。失败与成功日志分别为 `nested-tools-red.log`、`nested-tools-green.log`；这次只修正测试预期，没有再次改动产品或包装器行为。
 
@@ -132,7 +132,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 ### 2026-11-01 本机完整交付预检
 
-`af72f0529fe0fef9bf50baa5f40dd6a3b44d6ea8` 的本机正式流程一次完成，退出码为 0：干净检出检查、完整源码生成/解包、正式 EXE 构建及许可/补丁身份校验、全新缓存的前端/zashboard/Go 重建、实际 ZIP 单包与覆盖冒烟，以及默认存储、外置库、自定义配置 **3/3** 持久化升级全部通过。升级起点继续为已保留的 `ci-beta3-local-1`，不外推为历史配置迁移或公开 Beta 2 的升级结果。独立 Python `tarfile` 读取器另逐项校验新源码归档的 **89,658 个文件**，名称、字节数与 SHA256 均匹配清单。
+`af72f0529fe0fef9bf50baa5f40dd6a3b44d6ea8` 的本机正式流程一次完成，退出码为 0：干净检出检查、完整源码生成/解包、正式 EXE 构建及许可/补丁身份校验、全新缓存的前端/zashboard/Go 重建、实际 ZIP 单包与覆盖冒烟，以及默认存储、外置库、自定义配置 **3/3** 持久化升级全部通过。升级起点继续为已保留的 `ci-beta3-local-1`。独立 Python `tarfile` 读取器另逐项校验新源码归档的 **89,658 个文件**，名称、字节数与 SHA256 均匹配清单。
 
 | 本地正式候选 | 字节数 | SHA256 |
 | --- | ---: | --- |
@@ -145,7 +145,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 同一对真实正式附件随后通过与 `verify-published` 共用的 `verifyRelease` 入口：资产哈希、源码/EXE 绑定、ZIP 解包及另一轮全新缓存的前端/zashboard/Go 重建全部通过，退出码 0，返回 `verified=true`，提交与 EXE 哈希保持上述值。完整日志为 `local-delivery-verify.log`。这次复核使用收口后的统一归档入口；附件本身仍准确标识 `af72f052`，不将后续入口修复冒充该附件已包含的源码。
 
-本节仍是本地证据，不声称附件已经公开；最终发布须重新构建最终提交，并通过公开下载验证。
+本节仍是本地证据；最终发布须重新构建最终提交，并通过公开下载验证。
 
 ### 第八轮 CI：相同时间戳下的下载速率
 
@@ -163,7 +163,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 ### 第九轮 CI：测量窗口与来源耗尽分开验证
 
-[check #35](https://github.com/SW26010/still-wanna-dance/actions/runs/41226317970) 的 Linux 浏览器及工具测试通过，但 Go 的 `TestCalibrationUsesActiveClientAcrossResourceHosts` 只观察到一个域名而失败；该轮不会发布。测速在测量窗口完成时可以立即停止，准备了多个视频并不保证每个来源都已被调度。另一项完整测速测试同样假定短窗口内至少用到三个视频。将假视频延长至在窗口中不会耗尽后，两项均稳定复现失败；完整测速本身已正常完成、峰值并发和终态均满足要求。
+[check #35](https://github.com/SW26010/still-wanna-dance/actions/runs/41226317970) 的 Linux 浏览器及工具测试通过，但 Go 的 `TestCalibrationUsesActiveClientAcrossResourceHosts` 只观察到一个域名而失败；该轮不会发布。测速在测量窗口完成时可以立即停止，测量窗口可能在部分已准备的视频来源被调度前结束。另一项完整测速测试同样假定短窗口内至少用到三个视频。将假视频延长至在窗口中不会耗尽后，两项均稳定复现失败；完整测速本身已正常完成、峰值并发和终态均满足要求。
 
 现在完整测速用虚拟时钟验证两个测量阶段、16 路峰值、速率、取消及去重；双域名共用客户端以两个各一块的视频运行到来源耗尽，明确断言两个域名各使用一次。已有的 12 视频／192 个不同 Range 耗尽测试补充断言 12 个不同资源且不请求清单，不新增重复的三视频测试。另一项只检查耗尽的短视频测试也固定为不会先完成测速窗口。生产测速和调度逻辑未变；固定长来源的同一窗口已从失败转为通过，多域名回归重复 50 次通过，受影响四项成组重复 5 次、race 重复 10 次通过。完整测速包及 vet 通过。
 
@@ -189,7 +189,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 用该运行的实际源码附件复现：包内容存储可复用全部 149 个安装包，但清空 pnpm 元数据缓存后，169 条锁文件供应链校验报 `ERR_PNPM_NO_OFFLINE_META`。构建 job 的热缓存掩盖了缺失材料。仅复制默认 fetch 的缓存仍失败，因为在线校验可能使用未保留的发布时间证明。修复通过独立缓存和 pnpm `no-downgrade` 检查收集完整元数据，归档元数据输入而非校验结果，并在重建时明确使用包内缓存；同时保留 pnpm 原始错误输出。
 
-修复验证：缺失元数据回归先失败后通过，全部 Node 工具测试 **47/47** 通过，actionlint 通过；实际附件源码调用修复后的收集与重建入口，通过全新缓存离线安装、类型检查及前端产物字节比较。另一次仅复制元数据、不复制 `lockfile-verified.jsonl` 的独立安装，重新校验 **169 条**供应链记录、复用 **149 包**且下载 **0 包**。证据位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-24-evidence/` 的 `offline-isolation-01.log`、`metadata-regression-before.log`、`metadata-regression-after.log`、`trust-metadata-offline-native.log`、`frontend-fixed-repro.log` 和 `tool-tests-after.log`。这些证明修复后的前端离线路径，不代表修复版已完成远程正式发布。
+修复验证：缺失元数据回归先失败后通过，全部 Node 工具测试 **47/47** 通过，actionlint 通过；实际附件源码调用修复后的收集与重建入口，通过全新缓存离线安装、类型检查及前端产物字节比较。另一次仅复制元数据、不复制 `lockfile-verified.jsonl` 的独立安装，重新校验 **169 条**供应链记录、复用 **149 包**且下载 **0 包**。证据位于忽略目录 `artifacts/release-v1.0.0-beta.1/ci-24-evidence/` 的 `offline-isolation-01.log`、`metadata-regression-before.log`、`metadata-regression-after.log`、`trust-metadata-offline-native.log`、`frontend-fixed-repro.log` 和 `tool-tests-after.log`。这些证明修复后的前端离线路径，修复版的远程发布状态以正式发布记录为准。
 
 ### v1.0.0-beta.1 公开交付完成
 
@@ -197,7 +197,7 @@ Windows 源码 ZIP/TAR 处理现统一使用 PowerShell 7.3+ 自带的 .NET `Zip
 
 两平台各 **345 项浏览器测试通过**；Windows 工具回归 **47/47**，Linux **39 通过、8 项 Windows 专属测试跳过**，无失败。Go 测试、vet、编译与 Linux race/gofmt 通过。最终正式包完成源码独立重建、单包冒烟，以及 `ci-25` → Beta 的默认存储、外置库、自定义配置 **3/3** 覆盖升级，持久化数据检查通过。
 
-Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后发布。全新 release runner 使用无凭据公共 URL 下载 Portable 与源码包，验证哈希、源码/EXE 身份并独立重建；最终输出 `verified=true`，提交为 `ad0559c4b79e36c73069be02dc166dccf677b50c`，发行 EXE SHA256 为 `dc23a009a4de7c2b7eb51183e892041e1c7e0a67c88321b48d411325862a6cd4`。公开发行清单与两份 SHA256 文件也已下载核对。仍不承诺 EXE 逐字节可复现。
+Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后发布。全新 release runner 使用无凭据公共 URL 下载 Portable 与源码包，验证哈希、源码/EXE 身份并独立重建；最终输出 `verified=true`，提交为 `ad0559c4b79e36c73069be02dc166dccf677b50c`，发行 EXE SHA256 为 `dc23a009a4de7c2b7eb51183e892041e1c7e0a67c88321b48d411325862a6cd4`。公开发行清单与两份 SHA256 文件也已下载核对。本轮核对交付文件的哈希，重建 EXE 的字节一致性未列入判据。
 
 | 正式附件 | 字节数 | SHA256 |
 | --- | ---: | --- |
@@ -214,7 +214,7 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 
 两平台各 **355 项浏览器测试通过**；Windows 工具回归 **48/48**，Linux **40 通过、8 项 Windows 专属测试跳过**。Go 测试、vet、编译及 Linux race/gofmt 通过。正式包的源码独立重建、Portable 冒烟及 `ci-26` → Beta 2 的默认存储、外置库、自定义配置 **3/3** 覆盖升级通过；此处升级起点是同提交候选包，不将结果扩大为已验证公开 Beta 1 → Beta 2。
 
-独立 release runner 从无凭据公共 URL 下载 Portable 和完整源码，核对哈希及源码/EXE 身份，使用全新缓存重建成功，输出 `verified=true`。发行 EXE SHA256 为 `7256ef32cd6a59295649e33ff051ed794325a5dec5862c56dcc760cc7576cb98`。五个附件的大小与 GitHub SHA256 一致；公开发行清单及两份校验文件也已下载核对。不承诺 EXE 逐字节可复现。
+独立 release runner 从无凭据公共 URL 下载 Portable 和完整源码，核对哈希及源码/EXE 身份，使用全新缓存重建成功，输出 `verified=true`。发行 EXE SHA256 为 `7256ef32cd6a59295649e33ff051ed794325a5dec5862c56dcc760cc7576cb98`。五个附件的大小与 GitHub SHA256 一致；公开发行清单及两份校验文件也已下载核对。本轮核对交付文件的哈希，重建 EXE 的字节一致性未列入判据。
 
 | 正式附件 | 字节数 | SHA256 |
 | --- | ---: | --- |
@@ -227,9 +227,9 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 
 核对基线为 `41e49e09feddf159c15b5680c6458b4cf3f3cb11`。本节引用已有验证，没有重新执行产品测试；下方 2026-10-19 的包身份、失败和通过记录保留当时适用范围。
 
-- 四步引导已移除，首次使用保留条款确认，默认自动准备配置、数据库与视频目录。当前配置 v7、数据库 v5、快照 v2，路径和升级边界见[存储契约](../storage.md)；不承诺旧配置或旧目录自动迁移，已有受支持数据库可明确接入。
+- 四步引导已移除，首次使用保留条款确认，默认自动准备配置、数据库与视频目录。当前配置 v7、数据库 v5、快照 v2，路径和升级边界见[存储契约](../storage.md)；旧配置或旧目录需要按实际布局处理，已有受支持数据库可明确接入。
 - [2026-10-26 目录与存储验证](../persistence-migration-plan.md#2026-10-26-目录归位与状态命名)已覆盖真实 Console/浏览器首次使用、真实开发 ZIP 的生成/覆盖/搬迁、多配置隔离，以及两份同布局 EXE 在默认、外置和自定义配置下的数据保留；后续复审补齐 SQLite 伴随文件保护、旧资料明确接入和数据库文件别名拒绝。原开发包不包含其后全部复审修复，最终候选仍须重新打包验证。
-- [同日持久化证据](../persistence-migration-plan.md#本轮已取得的验证证据)已补真实跨卷发布/导入、v5 全数据备份还原和受限 NTFS 卷真实耗尽/恢复。它们不代表真实断电、跨用户解密或全部文件系统已验证。
+- [同日持久化证据](../persistence-migration-plan.md#本轮已取得的验证证据)已补真实跨卷发布/导入、v5 全数据备份还原和受限 NTFS 卷真实耗尽/恢复。真实断电、跨用户解密及其他文件系统均在本组测试范围之外。
 - 该提交的 [repository-artifacts 检查通过](https://github.com/SW26010/still-wanna-dance/actions/runs/40291909228)，仅证明仓库产物策略；核对时该提交尚无完整 `check` 结果，也未生成并公开正式产品 Release。旧临时验证 tag 的完整对应源码重建继续作为工具链证据，不能代替当前候选。
 
 剩余交付工作按[正式流程](../packaging.md)执行：选定提交的完整检查、正式 tag/打包、最终 ZIP 与同布局前一候选包的覆盖升级、对应源码独立重建，以及同 Release 附件公开下载验证。Windows 原生交互、条款变更确认与跨用户凭据边界统一在[非 VRC 验证跟进](../validation-followups.md)维护；只有游戏能回答的剩余场景见 [VRC 台账](../live-acceptance-backlog.md)。退出恢复按当前已保存的设置执行、默认开启，不再沿用旧的独立恢复按钮或“退出不会恢复 hosts”验收预期。
@@ -241,7 +241,7 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 - ZIP 固定 `SWD/`，仅包含 `SWD.exe` 和六个许可证/对应源码文件。`scripts/portable-files.json` 是精确白名单；校验和、额外文件、空数据目录及未知路径在运行 EXE 前检查。未实现按白名单删除安装目录里的未知文件。
 - 构建身份通过 `internal/buildinfo` 共用于关于页、启动日志和 `-build-info`。版本/UTC 时间经共用 linker 参数注入，正式 EXE 的 revision/dirty 取真实 Go VCS；对应源码重建明确标为 rebuild。正式校验保留 EXE 模块/源码绑定，在 Windows 额外读取运行时身份和条款导出。
 - 删除外置 README、构建信息 JSON 和派生条款副本，保留全部软件许可和对应源码说明。帮助修正零容量、手动网络检测及升级说明；首次引导提供新窗口帮助，未确认条款也可只读访问，业务门禁继续生效。
-- 增加两个 ZIP 的覆盖启动入口，以及实际 EXE 的持久化集成检查。开发和正式打包均接受可选 `-PreviousZip`；未提供时不声称已验证跨版本。
+- 增加两个 ZIP 的覆盖启动入口，以及实际 EXE 的持久化集成检查。开发和正式打包均接受可选 `-PreviousZip`；未提供前版 ZIP 时检查同包覆盖。
 
 ## 2026-10-19 已执行
 
@@ -264,7 +264,7 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 在独立本地克隆中，从干净提交 `a52af7a6037be7f4a0f6c6a04413b9867ebeaf49` 创建临时验证 tag `v0.0.0-issue26-validation.2`，完整运行正式打包并传入 `dev-issue26-c` 的 ZIP。该 tag 仅存在于忽略目录中的验证克隆；未在工作仓库创建发布 tag，也未推送或发布。后续 `6fbbc08` 及本记录只修改测试/文档，不改变该产物的应用和打包实现。
 
 - 干净检出的 Node 工具测试、Go 测试及 vet 通过。完整源码清单含 **61,805 个文件、548,659,746 字节、225 条模块记录**；实际 EXE 含 110 个第三方 Go 模块，许可声明和对应源码绑定校验通过。EXE 类型为 formal、dirty=false，目标 windows/amd64，工具链 go1.27.1。
-- 从最终源码附件独立重建通过：前端离线重建及嵌入资源一致性检查、全新 Go 缓存和仅包内 file GOPROXY 的 EXE 编译、模块身份比较均通过。不承诺二进制逐字节可复现；发行清单明确记录 `independentRebuild.verified=true`、`bitReproducible=false`。
+- 从最终源码附件独立重建通过：前端离线重建及嵌入资源一致性检查、全新 Go 缓存和仅包内 file GOPROXY 的 EXE 编译、模块身份比较均通过。重建按编译和模块身份验收；发行清单明确记录 `independentRebuild.verified=true`、`bitReproducible=false`。
 - 最终 ZIP 的单包冒烟通过；`dev-issue26-c` → 临时验证正式包的真实同目录覆盖及默认存储、外置库、自定义配置持久化 **3/3** 通过。嵌套 PowerShell 的条款中文比较也在完整入口中通过。
 - 输出目录 `artifacts/issue26/formal-output-2/` 包含 ZIP、对应源码、两个 SHA256、发行清单及说明；再次核对复制后的两个附件大小/哈希与清单一致。正式 EXE SHA256 为 `3d9551c941dd1a88d32bbe7752a10c9f32ba6d06a8f2e74289dd3d7892a8d71f`；独立重建 EXE 为 `e7c4b2bb748f8c78e24818835e7db5db70b47b8056f83f00dc624bdf6d005926`。
 
@@ -283,4 +283,4 @@ Actions 自动上传五个正式附件，核对 GitHub 的大小与 SHA256 后�
 - 全套浏览器首轮 **42 通过 / 2 失败**：历史文案快照仍要求本轮已替换的帮助说明，另有既有提前准备时间下限从 1 改为 120 秒后未同步的预期。核对实现后仅更新测试预期，未为通过测试改变产品行为；最终 44 项通过。首轮日志及截图保留于 `artifacts/issue26/browser-all-before.log`、`artifacts/issue26/browser-baseline-failure/`。
 - 真实浏览器探测首次被既有临时目录包装器的单参数拆分问题阻止；使用两个实际 Node 参数后通过，失败输出保留，未修改产品逻辑绕过。一次 Edge 测试退出后有 BITS 临时文件仍占用，包装器明确保留其目录；不将该清理警告记成产品失败或强删其它进程文件。
 - 本轮没有操作真实托盘菜单、UAC/hosts、第二 Windows 用户/独立机器或游戏。已有单用户 DPAPI/损坏/格式保护回归按覆盖复用；真实跨用户解密边界、条款变化后的用户确认体验和系统交互仍需对应 Windows 环境，不能用合成回执代替。
-- 尚未创建本仓库的正式发布 tag、运行远程 CI、上传 Release 或核验公开下载。正式版本必须重新运行完整对应源码及独立重建流程，并按实际版本保留证据；本地检查不证明公开资产存在。游戏专属剩余场景继续使用既有 VRC 台账，不为本次打包改动新增游戏项目。
+- 尚未创建本仓库的正式发布 tag、运行远程 CI、上传 Release 或核验公开下载。正式版本必须重新运行完整对应源码及独立重建流程，并按实际版本保留证据；公开资产以 Release 附件逐项核对。游戏专属剩余场景继续使用既有 VRC 台账，不为本次打包改动新增游戏项目。

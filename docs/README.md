@@ -2,7 +2,7 @@
 
 公开文档保存使用说明、稳定契约、技术依据和必要的验证结论。开发对话、个人偏好、逐轮操作日志及提交授权记录保留在本地，不纳入仓库或发行附件。
 
-`docs/` 根目录维护现行使用说明、设计和开发约定；按下表选择入口。历史报告只证明其记录的构建和条件，不能作为当前默认值或验收要求。
+`docs/` 根目录维护现行使用说明、设计和开发约定；按下表选择入口。历史报告记录当时的构建、条件和结果，当前默认值和验收要求以现行文档为准。
 
 ## 使用与现行设计
 
@@ -53,10 +53,10 @@
 | 播放器重试与下载交接证据 | [等待与交接实测](acceptance/live-acceptance-20261116-01.md)、[提前 504 与手动刷新](acceptance/live-acceptance-20261116-02.md)、[跨歌曲预读 504 重复观察](acceptance/live-acceptance-20261116-03.md)；[证据复核](research/issue-51-retry-handoff-followup-20261116.md)汇总请求、交接与原始时间线的记录和复算 |
 | 正常响应头与刷新观察 | [owner 正常响应头](acceptance/live-acceptance-20261117-03.md)记录无 504 仍回零及手动跳过永久缺块；[重复与非 owner 三组对照](acceptance/live-acceptance-20261117-04.md)区分实测事实、工程推断和未来计划，包含三首 owner 成功样本、过早刷新失败及非 owner 自动／手动恢复比较 |
 | 正式播放与请求入口 | [日志模型依据](research/issue-51-request-admission-proposal.md)、[默认播放契约](download-resource-design.md#正式播放需求与-get-入口)与[历史 canary 验证](validation/issue-51-canary.md)；[首轮实机](acceptance/live-acceptance-20261117-01.md)记录受阻恢复、预读放行和临界放行限制；[owner A/B](acceptance/live-acceptance-20261117-02.md)记录提前 504 的回零代价及后半段正式截止对照；[文件位置与模型余量](research/issue-51-media-time-map-20261117.md)分析线性误差和余量代价 |
-| 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，不代表后续实现 |
+| 清单内容与使用核对 | [Udon/Kiva/WannaInfo 内容核对](research/catalog-sources-20261029.md)记录固定批次的字段、版本及采样时业务用途，各来源的现行用途见[曲库设计](song-catalog-design.md) |
 | 子类别封面来源 | [类别图片与映射核对](research/category-cover-sources-20261112.md)记录 50 类映射、官方来源、原图／母版归档、4:3 受控导出与运行素材体积预算，并保留此前日志、缓存及旧套图调查的边界 |
 | 曲库改造决策 | [Udon 曲库与资源映射决策](research/udon-catalog-decision-draft-20261029.md)保存目标、实施边界及验证；现行规则回到[曲库设计](song-catalog-design.md)，预置维护见[资源快照](../data/media-seed/README.md) |
-| 上游连接观测 | [三个清单入口的连接与更新排查](validation/kiva-connectivity-20261029.md)汇总各窗口、错误阶段和 Udon HTTPS 后续成功；[10 月 28 日 HTTP 批次](research/upstream-http-20261028.md)保留清单、播放与视频片段的原始结论。均为固定条件下的历史观测，不代表永久可用性或协议选型 |
+| 上游连接观测 | [三个清单入口的连接与更新排查](validation/kiva-connectivity-20261029.md)汇总各窗口、错误阶段和 Udon HTTPS 后续成功；[10 月 28 日 HTTP 批次](research/upstream-http-20261028.md)保留清单、播放与视频片段的原始结论。均为固定条件下的历史观测，现行协议见[上游通道](upstream-channels.md#业务请求的协议策略) |
 | 上游职责与协议实施 | [固定协议验证](validation/fixed-upstream-protocol-20261031.md)、[模块收敛验证](validation/upstream-separation-20261031.md)、[历史 HTTPS 优先验证](validation/upstream-protocol-20261029.md)，现行规则见[上游请求、检测与直连通道](upstream-channels.md) |
 | Wi-Fi 上游与 IP 优选 | [初始故障窗口](validation/upstream-window-20261029.md)、[连续观察及多路对照](validation/upstream-wifi-windows-20261029.md)、[329 地址单路优选](validation/wifi-ip-selection-20261029.md)：保留失败、中断和独立六轮验证；同 IP 协议对照单列，未接入产品 |
 | [evidence/](evidence/README.md) | 脱敏证据和清单；大附件的下载、校验及保留规则见[证据存储](evidence-storage.md) |

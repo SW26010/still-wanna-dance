@@ -10,7 +10,7 @@
 
 导入仅提取节点，原生转换和 `ParseProxy` 校验不调用 `ApplyConfig`。跨协议能力门禁拒绝链式出口、动态组、文件/接口/路由能力、overlay/IP stack，以及可在原生解析失败时遗留 base adapter 的可选 smux 包装。v1.19.32 的普通 stream adapter 构造不拨号；AnyTLS 可创建空闲维护 worker，校验后立即 `Close`。升级核心须重新审核这些副作用；不维护协议字段白名单。
 
-Mihomo 使用的 logrus 输出在包初始化时永久丢弃，转换前即生效；不订阅其含原始参数的事件。应用自身继续使用 slog 固定诊断。显示名不进入节点数据；不改写凭据，不承诺所有跨格式/默认值语义等价节点都合并。连接参数有变化可以保守重测，不能错误继承另一出口。
+Mihomo 使用的 logrus 输出在包初始化时永久丢弃，转换前即生效；不订阅其含原始参数的事件。应用自身继续使用 slog 固定诊断。显示名不进入节点数据；不改写凭据，跨格式或默认值差异可能让语义等价的节点分别保留。连接参数有变化可以保守重测，不能错误继承另一出口。
 
 自动检查与各批结果在后续提交中补充。该批原生路径尚未接入产品，不新增实机编号；LA-034/035/036 保持待验收。
 
@@ -30,7 +30,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 新增 `NewRuntime`：受控 `ParseWithBytes → ApplyConfig`，仅传入活跃节点，捕获固定对象后调用 `proxydialer.New(proxy,true)`。每进程只允许一次完整初始化，失败或退役后不能重新启动。目录由调用方传入绝对应用路径；配置无代理入站、TUN、订阅规则或自动更新；核心使用不读 hosts 的证书校验 DoH，标准库默认 resolver/transport 和 SWD 直连解析器保持独立。
 
-每节点 32 个准入槽，分别覆盖未完成拨号、HTTP 空闲/活跃连接及其实际关闭；它与 K=5 无关，也不是性能最优值。默认拨号预算 10 秒，调用者取消不归还仍被后台占用的槽。连接 Close 的单次后台清理也占槽，避免迟到连接关闭卡住时无限增长。关闭立即拒绝新拨号，取消在途工作，整个连接/adapter/provider 关闭与排空共享 3 秒等待预算；超预算返回固定错误，依赖进程退出，不声称完整卸载全局状态。
+每节点 32 个准入槽，分别覆盖未完成拨号、HTTP 空闲/活跃连接及其实际关闭；它与 K=5 无关，也不是性能最优值。默认拨号预算 10 秒，调用者取消不归还仍被后台占用的槽。连接 Close 的单次后台清理也占槽，避免迟到连接关闭卡住时无限增长。关闭立即拒绝新拨号，取消在途工作，整个连接/adapter/provider 关闭与排空共享 3 秒等待预算；超预算返回固定错误，依赖进程退出，全局状态随进程退出释放。
 
 第二批自动检查：`go test -tags=no_easytier ./internal/proxyengine/mihomo` 通过；补充 `TestAdmission|TestRuntime` 定向检查通过（含阻塞 Close、未响应取消、成功/取消竞争、不同节点容量隔离、四协议固定出口、名称重绑和初始化失败不可重试）。完整核心测试使用独立测试进程，无重置生产单例后门。`scripts/build-desktop.ps1 -Output artifacts/issue14-b2/SWD-stage2.exe` 成功；新增完整核心依赖已通过 `go mod tidy` 固定。产品接线尚未切换，本批不新增实机项，既有台账继续积攒。
 
@@ -38,7 +38,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 第四批删除旧 A 的 Node、协议字段表、DNS/socket 所有权桥和相应旧测试。保留原实验目录与历史证据；依赖旧 API 的 managed-mihomo/probe 标为 historical_a，仅在原提交重现，不作为第二条产品路径。原生导入恢复唯一的 Import/Normalize 入口，说明和设置页同步原生节点范围。增加实际 VMess/WS 回环服务，覆盖它经过 Console 和生产固定对象的执行，而不只证明导入接受。
 
-准入交付进一步统一由调用者收尾拨号 context，接收端复查本层 deadline，防止原生成功与超时竞争时交付迟到连接。新增回归验证迟到成功关闭并归还额度。核心 DNS 使用 AliDNS 与 Cloudflare 两个独立供应商的 literal-IP DoH，证书校验保持启用，无系统 hosts/UDP bootstrap；本地请求 AliDNS 的公开 example.com 查询得到 200，未使用私人节点。这项端点取样不承诺其他网络可达性，也不是实机验收。
+准入交付进一步统一由调用者收尾拨号 context，接收端复查本层 deadline，防止原生成功与超时竞争时交付迟到连接。新增回归验证迟到成功关闭并归还额度。核心 DNS 使用 AliDNS 与 Cloudflare 两个独立供应商的 literal-IP DoH，证书校验保持启用，无系统 hosts/UDP bootstrap；在本机测试网络上通过 AliDNS 查询公开域名 example.com，收到 HTTP 200。
 
 新增实际链接模块及 Wintun 原始源码/签名文件来源核对见[第三方声明](../licenses/README.md)。111 项复核清单保留旧记录；签名 DLL 的独立条款与 GPLv2 驱动源码、MIT Go 绑定分别保存。没有更换核心、关闭校验或省略源码输入以绕过发行检查。
 
@@ -48,7 +48,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 第五协议补充：包含 VMess/WS 的完整核心测试通过，60 秒十个 worker 共 26,757 次正常请求，每十次穿插一次取消，最终全部准入槽与拨号 worker 归零；Console 五协议冷请求专项通过。没有使用原始私人订阅或公网代理。
 
-本机没有已安装 C 编译器；仅在忽略目录解压官方 Zig 0.17.0，补充 Windows 系统同步库后 Go 1.25/1.27 的 race 二进制可链接，但 ThreadSanitizer 启动时均报地址分配失败（错误 87），固定映像基址复查也未解决。**不声称 race 通过**；现有 Linux CI race 检查仍保留，本轮不 push、不触发远端 CI。该限制不等同发现业务数据竞争。
+本机没有已安装 C 编译器；仅在忽略目录解压官方 Zig 0.17.0，补充 Windows 系统同步库后 Go 1.25/1.27 的 race 二进制可链接，但 ThreadSanitizer 启动时均报地址分配失败（错误 87），固定映像基址复查也未解决。本轮 race 检查受工具链阻塞；现有 Linux CI race 检查仍保留，本轮不 push、不触发远端 CI。该限制不等同发现业务数据竞争。
 
 ## 最终开发验证与提交
 
@@ -56,7 +56,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 最终干净副本 `56c9967` 使用 Go **1.25.0**、CGO=0 完成 `go test -tags=no_easytier ./...`、`go vet -tags=no_easytier ./...` 和 Linux amd64 桌面入口交叉构建。不是 Linux 执行验证。结构化[开发检查及失败范围](../evidence/issue14-b2/development-checks.json)与[证据哈希清单](../evidence/issue14-b2/manifest.json)保存了失败、复测和未覆盖项；完整原始工具日志仅在忽略目录中。
 
-实际发行链绑定 **`5af35b4806a85d1e36049e443072a1cf7380c6e5`**（后续仅历史工具/本报告变化，产品代码未变），Go 1.25.0 / Windows amd64 / CGO=0 / no_easytier：真实桌面 EXE、109 个实际链接模块的声明、109 份完整模块 ZIP、195 个模块图条目的元数据及 SQLite/Wintun 原始输入全部核对。导出的源码无 Git 和本地 artifacts，无 EasyTier 模块或其已知 WASM。空缓存、仅 file GOPROXY 的独立重建通过，不承诺逐字节相同；真实 Portable ZIP 的隔离条款门禁、实例身份和搬迁 smoke 通过，未进入游戏或修改 hosts。见[发行证据](../evidence/issue14-b2/release-validation.json)。
+实际发行链绑定 **`5af35b4806a85d1e36049e443072a1cf7380c6e5`**（后续仅历史工具/本报告变化，产品代码未变），Go 1.25.0 / Windows amd64 / CGO=0 / no_easytier：真实桌面 EXE、109 个实际链接模块的声明、109 份完整模块 ZIP、195 个模块图条目的元数据及 SQLite/Wintun 原始输入全部核对。导出的源码无 Git 和本地 artifacts，无 EasyTier 模块或其已知 WASM。空缓存、仅 file GOPROXY 的独立重建通过，字节一致性未列入重建判据；真实 Portable ZIP 的隔离条款门禁、实例身份和搬迁 smoke 通过，未进入游戏或修改 hosts。见[发行证据](../evidence/issue14-b2/release-validation.json)。
 
 本地包保留在 `artifacts/issue14-b2/release-check/`：Portable ZIP 19,362,806 字节，对应源码 194,582,359 字节。EXE SHA256 为 `7af46bcbe3ed80079cd5ac5e1ea0499bb354498ad916e182c5dfece5a29da5de`，包哈希与源码哈希见证据。`v0.0.0-issue14-b2-validation` 只存在于忽略目录内的本地验证副本；未给主仓库创建标签、未发布 GitHub Release、未 push。包内生成的发布 URL 是待发布占位链接，并非可下载的远端资产。
 
@@ -68,7 +68,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 原生导入仅在提供 `port` 时执行通用规范化和范围校验，必填字段、替代字段和互斥关系交由 Mihomo 原生解析器判断。Mieru 仅含合法 `port-range` 的节点可接受，不补造单端口；单端口字符串仍规范化，同时提供两者、缺少两者和反向范围仍拒绝，没有新增逐协议字段规则。
 
-本轮自动检查使用 Go **1.25.0 / Windows amd64 / CGO=0**：`go test -count=1 -tags=no_easytier ./internal/proxyengine/mihomo ./internal/upstreamstate ./internal/upstreamrequest` 三包通过，相同三包的 `go vet -tags=no_easytier` 通过，覆盖原生导入、错误分类、历史观测保留与候选过期/关闭；`node --test scripts/refresh.test.mjs` **128/128** 通过，包含直连通道失效与真实运行时退出的不同文案，以及已有延迟/吞吐仍可见。Mieru 此处只验证本地导入语义，不声称真实服务端连通。
+本轮自动检查使用 Go **1.25.0 / Windows amd64 / CGO=0**：`go test -count=1 -tags=no_easytier ./internal/proxyengine/mihomo ./internal/upstreamstate ./internal/upstreamrequest` 三包通过，相同三包的 `go vet -tags=no_easytier` 通过，覆盖原生导入、错误分类、历史观测保留与候选过期/关闭；`node --test scripts/refresh.test.mjs` **128/128** 通过，包含直连通道失效与真实运行时退出的不同文案，以及已有延迟/吞吐仍可见。Mieru 此处只验证本地导入语义。
 
 台账 **LA-034/035** 已补充范围端口导入、保存/重启和通道诊断步骤，联合 LA-036 核对界面；状态继续待验收。上述旧发行链及 `5af35b4` 包不包含本次产品修复，本轮未重新构建发行包、启动游戏或修改 hosts；原有 race 未覆盖范围继续保留。
 
@@ -82,7 +82,7 @@ Console 持有一个 Runtime，仍以现有 `Proxy{ID,Dial}` / `NewMultiPool` �
 
 最终修复提交为 **`2ec1b062502659185a1d71e19cba5de0ab0e03c8`**。全仓 race 在提交前的候选树运行；与该提交的 664 个受版本控制文件逐一比较，仅本报告增加完成结果，产品、测试及依赖输入全部一致。15 项跳过包括 6 项交互/公网 opt-in、7 项缺少 Windows symlink 权限、1 项未配置第二卷、1 项另行运行的 soak；不计入通过。随后在该提交的干净副本单独运行五协议 60 秒 race 负载，10 个 worker 完成 **26,675** 次正常请求，每十次插入一次 20 ms 取消，关闭后全部准入槽与拨号 worker 归零。运行时测试及隔离子进程均带 race 检测器，夹具服务器为普通构建。未执行 Linux race，不将 Windows 已覆盖路径的通过解释为所有路径无竞争。
 
-该提交使用 Go **1.25.0 / Windows amd64 / CGO=0** 的完整发行链通过：脚本测试、cmd/internal Go 测试与 vet、正式桌面 EXE、109 份实际链接模块完整 ZIP、195 个模块图条目、SQLite/Wintun 对应源码及声明均核对；独立重建使用空缓存和仅 file GOPROXY，Portable ZIP 的条款门禁、实例身份和搬迁 smoke 通过。实际产物二次检查通过，确认链接 SQLite v1.40.1，源码不含 Git/artifacts，EXE 与模块 ZIP 无所检查的 EasyTier/WASM 内容；不承诺重建 EXE 逐字节相同。
+该提交使用 Go **1.25.0 / Windows amd64 / CGO=0** 的完整发行链通过：脚本测试、cmd/internal Go 测试与 vet、正式桌面 EXE、109 份实际链接模块完整 ZIP、195 个模块图条目、SQLite/Wintun 对应源码及声明均核对；独立重建使用空缓存和仅 file GOPROXY，Portable ZIP 的条款门禁、实例身份和搬迁 smoke 通过。实际产物二次检查通过，确认链接 SQLite v1.40.1，源码不含 Git/artifacts，EXE 与模块 ZIP 无所检查的 EasyTier/WASM 内容；重建按构建与模块身份验收，EXE 字节一致性未列入判据。
 
 最终本地产物位于 `artifacts/issue14-windows-final/release-fixed/`：Portable ZIP **19,379,909** 字节，SHA256 `1baa82c16c7633eb7a06ac00f5c43fb25308389204a13767541ed44de33c4583`；对应源码 **194,596,267** 字节，SHA256 `abb719797566021fd0deafbeb1ccfb57af929ee91d8e6ba6ae8ab711a8c83fee`。EXE SHA256 为 `d94c308313477f977652896b53da7b92ec46b910773d9949be50a354456e22c3`。标签 `v0.0.0-issue14-windows-fixed` 仅在忽略目录的验证副本中；没有主仓库标签、push、公开 Release 或 `verify-published`，包内发布 URL 仍为占位链接。
 

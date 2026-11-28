@@ -30,7 +30,7 @@ SWD/
 
 产物暂存于 `artifacts/still-wanna-dance-<版本>-windows-amd64-portable/SWD/`，ZIP 和 SHA-256 文件位于 artifacts 根。不指定版本时采用 `dev-日期-时间`；`-OutputDir` 可指定输出目录。遇到同名产物报错，不覆盖已有包。
 
-「关于」、启动日志和 `SWD.exe -build-info` 的 JSON 输出共用 EXE 内的包类型、版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。机器出口在读取配置、选举实例、创建数据目录或启动服务之前返回；GUI 子系统 EXE 在 PowerShell 中可用 `& ./SWD.exe -build-info | Out-String` 读取。开发/正式构建共用 `scripts/build-info.mjs` 注入版本与时间，revision/dirty 来自实际 Go VCS 标记；缺失或 dirty 不显示为正式发行。对应源码重建独立标为 rebuild 并记录源码清单的提交，不冒充官方发行。`-Version dev-* / ci-*` 允许本地未提交代码，类型明确为 development，不声称存在正式源码下载。形如 `1.2.3`/`v1.2.3` 的版本必须改用 `-ReleaseTag`，禁止把 dirty 开发包冒充正式版本。
+「关于」、启动日志和 `SWD.exe -build-info` 的 JSON 输出共用 EXE 内的包类型、版本、提交 SHA、dirty 状态、UTC 构建时间、Go 版本及目标平台。机器出口在读取配置、选举实例、创建数据目录或启动服务之前返回；GUI 子系统 EXE 在 PowerShell 中可用 `& ./SWD.exe -build-info | Out-String` 读取。开发/正式构建共用 `scripts/build-info.mjs` 注入版本与时间，revision/dirty 来自实际 Go VCS 标记；缺失或 dirty 不显示为正式发行。对应源码重建独立标为 rebuild 并记录源码清单的提交，不冒充官方发行。`-Version dev-* / ci-*` 允许本地未提交代码，类型明确为 development，正式源码入口只在发行构建中提供。形如 `1.2.3`/`v1.2.3` 的版本必须改用 `-ReleaseTag`，禁止把 dirty 开发包冒充正式版本。
 
 正式包同时生成独立的 `*-corresponding-source.tar.gz` 及 SHA256、`*-release.json` 和可用作 Release 正文的 `*-release-notes.md`。完整源码不放进 Portable。`licenses/SOURCE.txt` 给出该 tag 的准确源码附件 URL、提交、校验及构建入口；`SOURCE.json` 将 EXE 哈希与源码哈希绑定，发行清单再绑定 ZIP/源码资产哈希和实际 EXE 模块。详见[完整对应源码](corresponding-source.md)。
 
@@ -66,7 +66,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 2026-10-19：发布与临时目录定向回归 7/7 通过。使用缺少 EXE 的 ZIP 验证默认位置，以及临时检出配合显式证据目录两种入口：冒烟失败退出后，包装器临时目录已删除，解压材料仍可读取。日志保存在本地忽略目录 `artifacts/windows-test-temp/release-smoke-retention-final.log`；本次未执行完整正式发布构建。
 
-`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，不代表跨版本验收。此脚本保持条款门禁，不生成有效同意；首次启动会自动准备默认数据库和视频目录，但不导入或下载媒体。有内容的持久化数据另由下面的集成检查覆盖，不能用首次空库的覆盖结果代替。
+`-PreviousZip <前一版本ZIP>` 可在同一安装目录验证两个不同版本；两包都需匹配的 SHA256 和当前精确白名单，版本和 EXE 字节必须不同。未指定时仍为同包覆盖冒烟，跨版本验收需指定相应的旧包。此脚本保持条款门禁，不生成有效同意；首次启动会自动准备默认数据库和视频目录，但不导入或下载媒体。有内容的持久化数据另由下面的集成检查覆盖，不能用首次空库的覆盖结果代替。
 
 启动发行工作流前，先完成[发布前本机 Windows 完整预检](development.md#发布前本机-windows-完整预检)；本节维护产物与公开交付规则。
 
@@ -78,7 +78,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 
 版本更新与升级注意事项保存在 `docs/releases/<tag>.md`；存在对应文件时，打包作业将其附加到生成的 Release 正文。内容面向使用者，保留实际功能变化和升级影响。
 
-发布只构建一套正式 ZIP、对应源码、校验文件和清单，保留必要源码输入与许可、离线独立重建、实际 ZIP 冒烟和覆盖升级检查。源码交付范围以[对应源码说明](corresponding-source.md)为准，不增加与 SWD 交付无关的上游重建门槛。升级默认使用最近公开版本（含候选版）的实际 ZIP；`previous_tag` 可指定其他历史版本，通过公开清单与 SHA256 校验后下载，省去同一源码的 ci 候选构建。无历史发行时只做单包验证，不宣称跨版本升级通过。持久化格式变化仍须补相应旧格式数据迁移验证。
+发布只构建一套正式 ZIP、对应源码、校验文件和清单，保留必要源码输入与许可、离线独立重建、实际 ZIP 冒烟和覆盖升级检查。源码交付范围以[对应源码说明](corresponding-source.md)为准，不增加与 SWD 交付无关的上游重建门槛。升级默认使用最近公开版本（含候选版）的实际 ZIP；`previous_tag` 可指定其他历史版本，通过公开清单与 SHA256 校验后下载，省去同一源码的 ci 候选构建。无历史发行时只做单包验证。持久化格式变化仍须补相应旧格式数据迁移验证。
 
 产品和全量 race 全部通过，或完成下面的严格复用校验后，才进入交付构建。独立发布 job 只取得该次 Actions 已验证的五个正式附件并获得 `contents: write`，上传草稿后核对 GitHub 返回的大小与 SHA256。最终 Release 的附件始终来自 Actions。
 
@@ -101,9 +101,9 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 1. 正常退出整个应用。优先备份所选数据库及恢复所需的 SQLite 伴随文件，建议保留主配置；完整视频按需备份。完整媒体库备份才包含全部视频。可重建状态、日志及临时文件无需日常备份；外置资源按各自位置保管。
 2. 校验新版 ZIP 的 SHA256，解压到临时位置，将 `SWD/` 内的 `SWD.exe` 和整个 `licenses/` 覆盖到原安装目录，保留 config.json、data、videos、logs、work、外置资源与未知文件。从原目录启动，避免误用新目录的空配置。
 3. 核对「关于」版本及「使用帮助」中的当前路径。条款不变时，同用户有效确认和凭据应保留；条款变化要求重确认。跨用户/普通跨机器无法解密时保留原密文和其它数据，重新确认或配置，不隐式切换直连。
-4. 遇到损坏或未来格式停止并按诊断处理，不手改版本号或删除数据库。无版本及不受支持的旧配置、旧布局不迁移，支持范围以[统一存储契约](storage.md#portable-文件契约与生命周期)为准；首发前未公开构建不承诺跨全部历史布局升级，也不自动扫描删除旧文件。
+4. 遇到损坏或未来格式停止并按诊断处理，不手改版本号或删除数据库。无版本及不受支持的旧配置、旧布局不迁移，支持范围以[统一存储契约](storage.md#portable-文件契约与生命周期)为准；首发前的未公开构建须按各自的目录布局核对升级路径，也不自动扫描删除旧文件。
 
-新增或移除交付文件须同步白名单、两条打包入口、验证脚本和说明；未来正式版之间若废弃文件需要清理，单独明确其所有权及安全处理，不按新白名单删除未知文件。停用或卸载时，确认「停止加速或退出时恢复游戏直连」已开启并成功保存，再正常退出，核对本程序管理的 hosts 映射已恢复并备份所需数据。退出复用已准备的权限助手，不在退出时申请 UAC；未准备权限、助手故障或强制终止时不能保证恢复，按 [hosts 契约](console.md#hosts)处理。删除 Portable 不会自动恢复系统 hosts 或删除外置媒体。
+新增或移除交付文件须同步白名单、两条打包入口、验证脚本和说明；未来正式版之间若废弃文件需要清理，单独明确其所有权及安全处理，不按新白名单删除未知文件。停用或卸载时，确认「停止加速或退出时恢复游戏直连」已开启并成功保存，再正常退出，核对本程序管理的 hosts 映射已恢复并备份所需数据。退出复用已准备的权限助手，不在退出时申请 UAC；缺少权限、助手故障或强制终止可能中断恢复，按 [hosts 契约](console.md#hosts)处理。删除 Portable 不会自动恢复系统 hosts 或删除外置媒体。
 
 跨版本入口：
 
@@ -111,7 +111,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 ./scripts/test-portable-upgrade.ps1 -PreviousZip artifacts/previous-portable.zip -Zip artifacts/current-portable.zip
 ```
 
-`test-portable-upgrade.ps1` 先验证两个真实 ZIP 的门禁、精确白名单、SHA256 和覆盖启动，再在默认目录、外置媒体、自定义配置三种布局上运行两个实际 EXE。集成测试隔离生成当前格式的配置、同用户 DPAPI 测试凭据/条款回执、通道密钥、任务快照、真实 SQLite 和通过导入入口发布的合成媒体；检查两个进程读取成功、持久文件哈希保持以及日志追加。它不读取个人数据、不接入游戏或修改 hosts。合成回执仅用于集成测试，不证明用户已阅读条款，也不替代跨用户环境或真实视频播放验收。
+`test-portable-upgrade.ps1` 先验证两个真实 ZIP 的门禁、精确白名单、SHA256 和覆盖启动，再在默认目录、外置媒体、自定义配置三种布局上运行两个实际 EXE。集成测试隔离生成当前格式的配置、同用户 DPAPI 测试凭据/条款回执、通道密钥、任务快照、真实 SQLite 和通过导入入口发布的合成媒体；检查两个进程读取成功、持久文件哈希保持以及日志追加。它不读取个人数据、不接入游戏或修改 hosts。合成回执仅用于集成测试，真实用户的条款确认按实际操作记录，也不替代跨用户环境或真实视频播放验收。
 
 开发包与正式包均可加 `-PreviousZip` 在输出前执行此检查；正式流程在独立干净检出中执行，证据输出至原仓库的 `artifacts/portable-upgrade/`。有历史发行时使用其实际公开 ZIP；无前一包时只完成单包验证，不能宣称连续版本已验收。格式迁移范围仍按存储契约验证。历史交付结果见 [#26 验证记录](validation/issue-26-validation.md)。
 
@@ -127,7 +127,7 @@ node scripts/release.mjs verify-published --manifest artifacts/still-wanna-dance
 - `test-portable.ps1` 对该 ZIP 实测通过：固定 SWD/ 交付、按需生成目录、独立工作目录、条款门禁、配置锁、重复实例拒绝、进程终止后重启、同格式覆盖时用户数据哈希保持、整体移动、同父目录自定义配置并发隔离、旧布局拒绝。实际 app.log 的时间为 UTC Z。
 - 自动化回归另覆盖固定 SQLite/配置/快照样本、缺表/索引/新增列拒绝、未来/旧版本拒绝、缺失数据库不重建、事务失败回滚、纳秒查询竞争及时间回拨、CurrentUser DPAPI 同用户移动、篡改/未知封套保留、强制代理失败而非直连、显式凭据重配及保存失败不丢原密文。
 
-Windows 受限沙箱中的临时文件重命名曾返回 Access denied；最终结果来自正常用户权限的本地测试，并非忽略那些失败。跨用户/普通跨机器的真实 DPAPI 环境、真实断电/磁盘耗尽、VRChat 音画、托盘交互及 UAC 联合测试本轮未执行。旧试验配置/数据库无迁移，便携覆盖验证不代表跨格式升级支持；#15 法律凭据防伪及 #24–#26 各自剩余范围仍独立推进。
+Windows 受限沙箱中的临时文件重命名曾返回 Access denied；最终结果来自正常用户权限的本地测试，并非忽略那些失败。跨用户/普通跨机器的真实 DPAPI 环境、真实断电/磁盘耗尽、VRChat 音画、托盘交互及 UAC 联合测试本轮未执行。旧试验配置/数据库无迁移，便携覆盖验证针对本次测试的格式；#15 法律凭据防伪及 #24–#26 各自剩余范围仍独立推进。
 
 ### Fluent UI 构建检查
 

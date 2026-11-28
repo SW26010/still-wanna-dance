@@ -48,9 +48,9 @@
     },
     {
       "path": "docs/evidence/wifi-ip-selection-20261029/README.md",
-      "bytes": 3084,
-      "sha256": "febe6ab8bb5c8bfc71a954cdaad66e6523d746d5827817c21b921c400a375739",
-      "gitBlob": "7a65d476dfe475ef168a7f560d470504dfe4d564"
+      "bytes": 3099,
+      "sha256": "ee0876c3445c6a6bb8a58463cf4a213bbcebf6ff2210330f3b93dae436235fff",
+      "gitBlob": "1a2b3590fadcef2c279caef42e0bb125d2f02695"
     },
     {
       "path": "docs/evidence/wifi-ip-selection-20261029/selection.json",
@@ -72,9 +72,9 @@
     },
     {
       "path": "docs/validation/wifi-ip-selection-20261029.md",
-      "bytes": 9634,
-      "sha256": "287895ded804256b0ce1645fa15fe7eafe437442410f0badf39200bac50fc819",
-      "gitBlob": "806250d22a189ca646f1e490d77b38b68a64e3fd"
+      "bytes": 9577,
+      "sha256": "4f85fc4c0dfbf795226bf1dc4690b401af5f7705a754c3eacc39737752358c10",
+      "gitBlob": "d329d49732caa5ad263aa4dd43365542c9f2f2b9"
     },
     {
       "path": "docs/validation/upstream-wifi-windows-20261029.md",
@@ -90,9 +90,9 @@
     },
     {
       "path": "experiments/upstream-wifi/README.md",
-      "bytes": 1637,
-      "sha256": "6f76b3a9c6a707cb3e8c504a516fe21df3e2bcf9e0f0f4e15da125881723c225",
-      "gitBlob": "2883a8c2ed64338c37806e5545d3f06155cdb029"
+      "bytes": 1631,
+      "sha256": "bd70e04c0a3fa38251d0631db6c32d8350c0e31404a1ff10bd2bca5a710238c9",
+      "gitBlob": "18389cf565ae6fdf303b3ef87324255ad50c43f3"
     }
   ],
   "archivedFiles": [

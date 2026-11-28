@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261116-03.md",
-      "bytes": 5312,
-      "sha256": "8b9d0c13aa5abd567056225d96e8cb0a519e6030528d405a469adbedfb078e3c",
+      "bytes": 5321,
+      "sha256": "f10cb61983d7a2ccd349814cc4f94ec5e3db3cf624b33a3ef39af8caab083ed0",
       "source": "Selected experiment events, operator feedback and verified fixture identity",
       "sanitization": "Relative sample times; identities, paths, hosts, raw log lines and media omitted"
     },

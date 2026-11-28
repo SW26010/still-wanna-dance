@@ -7,7 +7,7 @@
 - 上次实机被测代码：`8b522c526818b578c78e9b7c7b554a2d2b48fbf0`，依据[原报告](../acceptance/live-acceptance-20261007.md)。提交报告的 `b9d79b2` 不是被测代码版本。
 - 当前核对终点：`cf6d733ed2c168fd56488f8c9cb3f84690e51e0a`。核对 `git log 8b522c5..cf6d733` 全部提交、相关源码与测试、功能契约及已有验证记录。终点之后的新实现仍按机制持续登记。
 - 2026-10-12 通过 GitHub connector 分别检索本仓库 `is:issue is:closed` 与 `is:issue is:open`，共 16 个关闭、13 个开放 Issue；读取关闭项正文和全部评论，核对完成范围及移交的实机责任。检索结果的 state 字段为空，关闭/开放分类以明确状态限定的查询结果为据。
-- 本轮保留已补全的 LA-009；将原 12 项扩充至 28 项。Issue 的规划不直接当成已实现功能；历史实机通过也不外推到修改后的版本。
+- 本轮保留已补全的 LA-009；将原 12 项扩充至 28 项。Issue 的规划不直接当成已实现功能；各批结果对应各自记录的构建。
 
 ## 已关闭 Issue 的验收去向
 
@@ -26,10 +26,10 @@
 | [#12 UI 重构](https://github.com/SW26010/still-wanna-dance/issues/12#issuecomment-6035363697) | 有前端与浏览器复审，需当前真实业务联动；关闭评论保留 DPI/高对比度/辅助技术边界 | LA-002、LA-021、LA-028 |
 | [#13 存储故障](https://github.com/SW26010/still-wanna-dance/issues/13#issuecomment-6032755651) | 自动抑制实现完成；历史满盘发生在修复之前，不是修复验收。必须修复存储并重启应用，不是热恢复 | LA-010 |
 | [#15 条款 DPAPI](https://github.com/SW26010/still-wanna-dance/issues/15#issuecomment-6110843782) | 代码和同用户测试已完成，真实跨用户/机器及条款生命周期见专项步骤 | LA-009、LA-003 |
-| [#22 需求优先级](https://github.com/SW26010/still-wanna-dance/issues/22#issuecomment-6110868156) | 明确以代码回归完成关闭，真实 VRChat 与 Linux race/CI 未宣称通过 | LA-008、LA-020；race 另属自动检查 |
+| [#22 需求优先级](https://github.com/SW26010/still-wanna-dance/issues/22#issuecomment-6110868156) | 明确以代码回归完成关闭，真实 VRChat 与 Linux race/CI 分别看对应环境的执行记录 | LA-008、LA-020；race 另属自动检查 |
 | [#23 Portable 路径](https://github.com/SW26010/still-wanna-dance/issues/23#issuecomment-6108429713) | 路径契约与旧包 smoke 完成；失联库、最终包、跨用户及真实桌面待验证 | LA-003、LA-013～LA-017、LA-022 |
 | [#24 SWD 身份](https://github.com/SW26010/still-wanna-dance/issues/24#issuecomment-6110518242) | 单实例/hosts 恢复基础代码已结项；最后硬链接修复后的真实包、冲突提示、托盘/UAC/注销未覆盖 | LA-006、LA-018、LA-022、LA-025 |
-| [#25 生命周期与清理](https://github.com/SW26010/still-wanna-dance/issues/25#issuecomment-6110518614) | 自动和隔离强杀不等于真实游戏中断、物理断电；未知文件保留、有界回收需最终环境证据 | LA-004、LA-007、LA-010、LA-012、LA-013、LA-016、LA-018、LA-027 |
+| [#25 生命周期与清理](https://github.com/SW26010/still-wanna-dance/issues/25#issuecomment-6110518614) | 自动与隔离强杀检查覆盖进程被终止的路径，真实游戏中断与物理断电另验；未知文件保留、有界回收需最终环境证据 | LA-004、LA-007、LA-010、LA-012、LA-013、LA-016、LA-018、LA-027 |
 | [#27 schema/时间契约](https://github.com/SW26010/still-wanna-dance/issues/27#issuecomment-6108430267) | 冻结 SQLite v2/配置 v3/吞吐 v1，不提供旧试验格式迁移；跨环境、最终包、故障恢复尚待验证 | LA-003、LA-013～LA-017、LA-023、LA-026、LA-027 |
 
 ## 基线之后的提交覆盖

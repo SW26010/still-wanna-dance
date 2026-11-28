@@ -2,7 +2,7 @@
 
 [单路报告](../../validation/wifi-ip-selection-20261029.md)、[前序窗口](../../validation/upstream-wifi-windows-20261029.md)和[最初排查](../../validation/upstream-window-20261029.md)分别保留各批次条件与失败，不混算分母。
 
-Git 保存 `summary.json`、`legacy-summary.json`、冻结 `plan.json` / `selection.json`、`verification.json`、`protocol-comparison.json` 与清单。完整脱敏逐请求记录和历史采样源码放在版本化附件 `wifi-ip-selection-20261029-v2.zip`，清单见 [manifest.json](manifest.json)。附件仅在本机和外部备份校验，**尚未发布**；索引中的 Release URL 是预定发布地址，当前不能据此下载。v2 统一初始窗口时间脱敏并去除本机编号、私有日志指纹和与 Git 重复的摘要；v1 仅作本地修订记录，不作为待发布材料。
+Git 保存 `summary.json`、`legacy-summary.json`、冻结 `plan.json` / `selection.json`、`verification.json`、`protocol-comparison.json` 与清单。完整脱敏逐请求记录和历史采样源码放在版本化附件 `wifi-ip-selection-20261029-v2.zip`，清单见 [manifest.json](manifest.json)。附件仅在本机和外部备份校验，**尚未发布**；索引中的 Release URL 是预定发布地址，待附件发布后可从该地址下载。v2 统一初始窗口时间脱敏并去除本机编号、私有日志指纹和与 Git 重复的摘要；v1 仅作本地修订记录，不作为待发布材料。
 
 本机附件位于仓库忽略目录 `artifacts/evidence-archives/`，外部调查目录保留相同副本。离线获取和核验：
 

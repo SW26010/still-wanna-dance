@@ -45,7 +45,7 @@ Windows 删除语义参考 [Microsoft DeleteFile 文档](https://learn.microsoft
 
 [PR #38](https://github.com/SW26010/still-wanna-dance/pull/38)整合主线 `f1cacec7` 的 14 个新提交后合并为 `b48abd0a`。本地 Edge **340/340**、跟踪目录 Go 测试、vet 与前端一致性通过；工具测试首次因子进程使用旧 Go 而失败，显式选择已安装的 Go 1.27.3 后 **46/46** 通过。完整历史检查一次补齐三个旧 WebUI bundle 的遗漏登记，各自字节与原提交构建清单一致；主线资源检查通过。
 
-在 `b48abd0a` 上使用仅本地标签 `v0.0.0-ci-validation.20261029`，正式打包入口完整通过：干净检出的工具/Go 测试及 vet、完整对应源码、离线前端重建、全新缓存与包内 file GOPROXY 的独立 EXE 重建、实际 ZIP 便携包验证。输出复制后的大小和哈希再次核对通过。Portable 为 20,891,689 字节，SHA256 `ef91437eb69af250687af314d101ff91f4d8a43cf1e8db9ab04a47f93de9b41f`；对应源码为 299,831,638 字节，SHA256 `a1a1c4470a031f58f1eea79bff35bad5469fcacf1e554cc799c4bc7b40fdd60d`。未推送标签、发布 Release 或验证公共下载；本轮未指定前一 ZIP，不代表跨版本覆盖验收。
+在 `b48abd0a` 上使用仅本地标签 `v0.0.0-ci-validation.20261029`，正式打包入口完整通过：干净检出的工具/Go 测试及 vet、完整对应源码、离线前端重建、全新缓存与包内 file GOPROXY 的独立 EXE 重建、实际 ZIP 便携包验证。输出复制后的大小和哈希再次核对通过。Portable 为 20,891,689 字节，SHA256 `ef91437eb69af250687af314d101ff91f4d8a43cf1e8db9ab04a47f93de9b41f`；对应源码为 299,831,638 字节，SHA256 `a1a1c4470a031f58f1eea79bff35bad5469fcacf1e554cc799c4bc7b40fdd60d`。未推送标签、发布 Release 或验证公共下载；本轮未指定前一 ZIP，本轮验证的是同包覆盖安装。
 
 同一提交的 [`check` #18](https://github.com/SW26010/still-wanna-dance/actions/runs/40847203331)收齐两个独立失败：Windows 浏览器 **339 通过、1 失败**，后续步骤未执行；Ubuntu 浏览器、工具、普通 Go、vet 和 build 通过，race 阶段的真实进程重启测试等待首次启动超过 15 秒。此次修正集中在测试的完成条件与验证范围，产品和打包代码不变：
 

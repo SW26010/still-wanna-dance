@@ -17,16 +17,16 @@
 
 继续复用 [owner 回零](../acceptance/live-acceptance-20261113-05.md)和[加载中刷新](../acceptance/live-acceptance-20261113-09.md)的原始结论：
 
-- owner 样本中，正文中途截止后 WMF 按非零位置续读；恢复供数后 HTTP 仍非零续读。WD 重载时进入 owner 分支，重设起播基准并记录 `Syncing video to 0.00`。进度重置发生的位置有直接日志依据；SWD 的截止可触发播放器错误恢复，但触发恢复不等于错误地重置播放进度。
+- owner 样本中，正文中途截止后 WMF 按非零位置续读；恢复供数后 HTTP 仍非零续读。WD 重载时进入 owner 分支，重设起播基准并记录 `Syncing video to 0.00`。进度重置发生的位置有直接日志依据；SWD 的截止可触发播放器错误恢复，播放进度是否回零由播放器的恢复行为决定。
 - 加载窗口出现按钮点击但没有重载回调，正常播放／刚卡顿对照能触发回调；没有证据说明内部是哪条条件拒绝刷新。
 
 本轮运行以下现有测试，**5 个顶层用例全部通过，4.771 秒**：`TestRequestTerminalFailureHistory`、`TestExpiredGETKeepsFutureBlockExecution`、`TestExpiredGETBeforeHeadersFailsWithoutUpstream`、`TestStreamResponsePreservesCancellationDuringSeek`、`TestRangeFailureStatusPreservesRootCause`。
 
-检查覆盖响应开始前的到期／超时／上游失败映射、响应开始后的中断及历史结果、后续需求重新接入与在途块共享。普通上游失败和到期在已提交正文后均走中断响应路径；未提交时错误状态按原因区分。部分用例直接调用生产 HTTP 处理函数和响应记录器，**不是 WMF、WD 或真实 TCP 客户端的等价对照**；到期历史用例注入错误原因，真实调度交接另由 continuation 用例覆盖。不能据此声称普通上游故障也必然让 owner 回零。
+检查覆盖响应开始前的到期／超时／上游失败映射、响应开始后的中断及历史结果、后续需求重新接入与在途块共享。普通上游失败和到期在已提交正文后均走中断响应路径；未提交时错误状态按原因区分。部分用例直接调用生产 HTTP 处理函数和响应记录器，**不是 WMF、WD 或真实 TCP 客户端的等价对照**；到期历史用例注入错误原因，真实调度交接另由 continuation 用例覆盖。普通上游故障下的 owner 进度需结合对应实机事件判断。
 
 ### 世界内部实现的调查边界
 
-本地源码、`local/`、`experiments/`、`artifacts/` 和备份目录中未找到对应的 `USharpVideo`／播放器／刷新按钮源码。通过 GitHub connector 搜索 `owner not relaoding` 和 `ReloadVideo Button Clicked`，分别只得到本仓库的 3 和 4 条报告／证据记录，没有得到世界实现；WannaDance 仓库名与网页搜索也未取得可确认属于目标世界版本的工程。搜索结果不证明不存在非公开或未索引源码。用户确认没有对应源码或工程地址。
+本地源码、`local/`、`experiments/`、`artifacts/` 和备份目录中未找到对应的 `USharpVideo`／播放器／刷新按钮源码。通过 GitHub connector 搜索 `owner not relaoding` 和 `ReloadVideo Button Clicked`，分别只得到本仓库的 3 和 4 条报告／证据记录，没有得到世界实现；WannaDance 仓库名与网页搜索也未取得可确认属于目标世界版本的工程。非公开或未被索引的源码超出此次搜索范围。用户确认没有对应源码或工程地址。
 
 因此未能建立可无人运行、直接判断“owner 保持原进度”和“加载中刷新触发重载”的世界内部反馈回路。该限制不构成 SWD 的验证欠账。本轮结束 SWD 侧专项跟进，保留实际观察，不把世界进度回零改写成保持进度通过；不修改 N+30 秒或交接策略。
 

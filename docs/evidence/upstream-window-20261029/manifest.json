@@ -24,9 +24,9 @@
     },
     {
       "path": "docs/validation/upstream-window-20261029.md",
-      "bytes": 8664,
-      "sha256": "306b2ec525edb00e8a74de1077a41b0dcf05da5a3bc589553e2cc701f4616f03",
-      "gitBlob": "4048c661792d9a1ccc9f6a5b42bd02f297457b15"
+      "bytes": 8715,
+      "sha256": "388dd6d107abb50a3675a27ed76a8ba4095b71162098e298de2579fc3aab3ccd",
+      "gitBlob": "a7b70f04ae7137b4a0d39b5f385c3240afcc0720"
     }
   ],
   "archivedFiles": [

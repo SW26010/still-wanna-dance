@@ -21,7 +21,7 @@
 | 真实 Edge／Console | `TestMihomoConfigurationBrowser` 通过文件、Base64、URL 的核心校验、原文 DPAPI 保存、待重启、刷新后清空来源和重新加载。390/1280 像素无横向溢出、无页面错误。最后复验见 `final-targeted.log`、`browser-final/result.json` 及本机截图；现有 `TestSettingsValidationBrowser` 同时通过 |
 | 浏览器夹具回归 | 30 项通过，覆盖草稿失败重试／释放、文件大小／重选、字段校验、窄屏及相关恢复流程。记录 `browser-fixtures-after.log`。夹具结果只证明前端交互；持久化结论使用上一行真实服务结果 |
 | Windows race | 复用固定 w64devkit 2.10.0，归档 SHA256 与 CI 一致（18D0A4C…C6325E），GCC 16.2.0。`TestOriginalGroupSelectionUsesDedicatedNodeDNS`、`TestConfigurationNativeValidationIsolatedAndPrivate`、`TestStrategyGroupSwitchFallbackAndPersistence` 通过；包括并发选择、序列化、健康检查、实际拨号和进程重启。记录 `native-race.log` |
-| 私人原配置 | 使用先前移除无效空 hosts 项的本机副本，经新原生检查通过：45 个内置节点、29 个原有代理组。原名称和重复连接配置均保留，因此数量不同于旧提取器的 42 接受／3 去重。没有拨号私人节点，不外推为机场连通性或视频播放通过。只保留数量结果 `private-native-check.log`；配置、路径、URL 和凭据不入库 |
+| 私人原配置 | 使用先前移除无效空 hosts 项的本机副本，经新原生检查通过：45 个内置节点、29 个原有代理组。原名称和重复连接配置均保留，因此数量不同于旧提取器的 42 接受／3 去重。没有拨号私人节点。只保留数量结果 `private-native-check.log`；配置、路径、URL 和凭据不入库 |
 | 静态与构建 | 受影响包 `go vet`、桌面入口开发构建、`pnpm --dir webui build/check`、`git diff --check` 通过；内嵌产物和构建清单更新并按仓库要求登记。开发 EXE 位于忽略目录 `artifacts/mihomo-configuration/SWD.exe`，未替换或启动现有程序 |
 
 ## 保留的失败与修正

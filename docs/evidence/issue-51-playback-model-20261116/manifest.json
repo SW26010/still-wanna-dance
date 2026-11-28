@@ -41,8 +41,8 @@
     },
     {
       "path": "docs/research/issue-51-request-admission-proposal.md",
-      "bytes": 23344,
-      "sha256": "b7ac916de74d418bc1577c5f5883cce07f9db6b7fda14941b16e6a64342898df",
+      "bytes": 23685,
+      "sha256": "8bbf86e7c836ebc4a672bba35525796b2424de1e980749856153143da15c2a05",
       "source": "Experimental implementation, documentation or development check",
       "sanitization": "No player identities, private filesystem paths, credentials, original game logs or media; evidence uses relative sample times"
     },

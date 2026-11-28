@@ -8,13 +8,13 @@
 
 在 Go 1.27.3 与真实 modernc.org/sqlite v1.40.1 上建立更小的回归：固定一个独立只读事务，在写连接仅将 `busy_timeout` 设为 0，确保失败点是 COMMIT 而非业务写入。修改前 `TestStorageFailedCommitReleasesTransaction` 稳定失败，断言发现未提交收藏、后续历史／偏好无法开启事务、重开结果缺失。
 
-本机源码核对：SQLite COMMIT 遇到读锁可保留原事务；Go `database/sql` 先将 `sql.Tx` 标记 done，再调用驱动 Commit。失败后 defer 的 `tx.Rollback()` 只返回 `sql.ErrTxDone`，底层连接仍可归还池。将孤立的 defer 再调用一次或增大等待时间均不能保证清理。
+本机源码核对：SQLite COMMIT 遇到读锁可保留原事务；Go `database/sql` 先将 `sql.Tx` 标记 done，再调用驱动 Commit。失败后 defer 的 `tx.Rollback()` 只返回 `sql.ErrTxDone`，底层连接仍可归还池。清理需要在持有物理连接的阶段完成；重复 defer 或延长等待仍可能留下事务。
 
 ## 修复边界
 
 - `storage_transaction.go` 统一固定事务物理连接；COMMIT 失败保留原错误，并通过 `sql.Conn.Raw` 返回 `driver.ErrBadConn` 淘汰该连接，让 SQLite 关闭并清理遗留事务。普通错误先回滚；回滚本身失败同样淘汰。连接清理在归还池之前完成。
 - 偏好／映射、请求记录／清理、历史导入、建库及 v8→v9 迁移共用此机制。迁移保留其现有固定连接和外键恢复顺序；读取事务保持原边界。
-- 导出先调用已有 adapter 的 SQLite [在线备份 API](https://www.sqlite.org/backup.html)，每步最多 128 页，在各步间释放业务库读锁；完成后关闭源连接，再从系统临时目录的一致副本查询、JSON 编码和 ZIP 压缩。复制期间仍允许短暂锁竞争，不承诺任何磁盘条件下绝对无等待。取消按步骤检查，复制失败按既有来源错误反馈。
+- 导出先调用已有 adapter 的 SQLite [在线备份 API](https://www.sqlite.org/backup.html)，每步最多 128 页，在各步间释放业务库读锁；完成后关闭源连接，再从系统临时目录的一致副本查询、JSON 编码和 ZIP 压缩。复制期间仍允许短暂锁竞争，等待时间与实际磁盘条件有关。取消按步骤检查，复制失败按既有来源错误反馈。
 - 在线备份可能复制整个业务库，临时空间随库大小增长；ZIP 仍只包含所选请求明细。副本的正常和失败清理覆盖其伴随文件，进程强杀后可能残留。没有改业务库 journal/WAL 模式、生产等待上限、数据库／配置格式或偏好通知语义。
 
 ## 已验证

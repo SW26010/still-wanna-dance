@@ -4,7 +4,7 @@
 
 ## 复现与根因
 
-原始架构检查两轮各 100 次冷 HEAD，分别产生 37／11 次上游 Range 尝试；上游未交付正文，因此只证明额外网络尝试，不证明整视频下载。后台已有 2848 个唯一使用块时，另一个 45 块视频的 HEAD 返回 503。原始探针及结果保留在忽略目录 `artifacts/architecture-review-head-20261115/` 的 `probe.go`、`result.log`、`result-with-get-control.log`。
+原始架构检查两轮各 100 次冷 HEAD，分别产生 37／11 次上游 Range 尝试；这些尝试均在上游交付正文前结束。后台已有 2848 个唯一使用块时，另一个 45 块视频的 HEAD 返回 503。原始探针及结果保留在忽略目录 `artifacts/architecture-review-head-20261115/` 的 `probe.go`、`result.log`、`result-with-get-control.log`。
 
 最小回归 `TestHEADDoesNotRequireDownloadCapacity` 仅占满后台使用额度，再发送一个已知大小的冷 HEAD。修复前稳定返回 `503 / block usage demand capacity reached`；无需真实网络或游戏环境即可判断此故障。
 

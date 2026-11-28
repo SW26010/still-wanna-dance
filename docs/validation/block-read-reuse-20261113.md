@@ -23,7 +23,7 @@ Windows amd64、Go 1.27.3、Ryzen 7 9850X3D。`BenchmarkBlockRead` 创建 64 个
 ./scripts/with-test-temp.ps1 node scripts/go-patches.mjs test -tags=no_easytier ./internal/cacheproxy -run '^$' -bench '^BenchmarkBlockRead$' -benchtime=5x -count=3
 ```
 
-原始结果保留在忽略目录 `artifacts/block-read-reuse/benchmark-before.log` 和 `benchmark-final.log`。这是系统热缓存下的本地读取开销，不代表冷磁盘、网络或游戏首帧收益。
+原始结果保留在忽略目录 `artifacts/block-read-reuse/benchmark-before.log` 和 `benchmark-final.log`。这是系统热缓存下的本地读取开销，冷磁盘、网络和游戏首帧未在这组基准中测量。
 
 ## 回归与保留的失败
 
@@ -39,7 +39,7 @@ Windows amd64、Go 1.27.3、Ryzen 7 9850X3D。`BenchmarkBlockRead` 创建 64 个
 
 首轮整包在沙箱内受到硬链接、目录联接及相关子进程限制，记录在 `packages-after.log`；最终定向 race 的沙箱运行也遇到 `ThreadSanitizer: failed to restore address`，记录在 `race-final.log`。随后依照开发约定在普通用户权限下执行同一隔离目录入口，文件系统限制解除，定向 race 通过；整包仍保留上述 Range 用例失败。
 
-针对 Range 失败，当前源码连续 20 次有 2 次失败，见 `range-tail-recheck.log`。另用 `git archive` 从未修改的 `157e2512b15e` 导出隔离检出，连续 50 次有 6 次相同失败，见 `range-tail-baseline.log`；因此它在本次改动前已存在。用例以服务端发送前缀响应头作为同步点，不能保证客户端已记录 ETag；这解释了实体条件断言存在时序窗口，后续修正应明确同步客户端实体建立。此次保持该用例及下载策略原样，保留既有失败，不通过跳过或放宽断言取得整包通过。
+针对 Range 失败，当前源码连续 20 次有 2 次失败，见 `range-tail-recheck.log`。另用 `git archive` 从未修改的 `157e2512b15e` 导出隔离检出，连续 50 次有 6 次相同失败，见 `range-tail-baseline.log`；因此它在本次改动前已存在。用例以服务端发送前缀响应头作为同步点，此时客户端可能尚未记录 ETag；这解释了实体条件断言存在时序窗口，后续修正应明确同步客户端实体建立。此次保持该用例及下载策略原样，保留既有失败，不通过跳过或放宽断言取得整包通过。
 
 后续状态：句柄复用已提交为 `a8681a61`。同日的[Range 实体条件与测试同步验证](range-entity-timing-20261113.md)进一步固定复现并修正了测试的实体建立前提，完成整包与定向 race；该记录替代本项未解决状态，上述旧构建失败及数据继续保留。
 

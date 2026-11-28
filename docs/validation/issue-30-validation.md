@@ -102,7 +102,7 @@ Portable smoke 实测包含同意前 API 428、条款文本一致、固定交付
 | 无 Git、空缓存独立重建 EXE | — | `2c7dfcdc3e6844956cdf54ba51d91235a105f0df185902809bcc022ba977e195` |
 
 - 源码包较旧包 115,091,522 字节减少 38,698,288 字节（33.62%）。清单仍为 194 个模块图记录、11 个完整模块 ZIP；交付文件 1,067 项（不含清单自身）。补充的 SQLite 生成器档案实测仅四个文件：LICENSE 与 `vendor_libsqlite3` 的 main.go/go.mod/go.sum，共 20,480 字节的 tar。
-- 干净检出的全部 Node 测试、Go `./cmd/... ./internal/...` 测试及 vet 通过。生产构建与独立重建都使用同一 `no_easytier` 标签、新建 Go 模块/编译缓存和仅包内 file GOPROXY；11 个 EXE 模块身份相同。Go 的 downloading 日志此时读取包内文件，不是联网下载。不声称 EXE 比特相同。
+- 干净检出的全部 Node 测试、Go `./cmd/... ./internal/...` 测试及 vet 通过。生产构建与独立重建都使用同一 `no_easytier` 标签、新建 Go 模块/编译缓存和仅包内 file GOPROXY；11 个 EXE 模块身份相同。Go 的 downloading 日志此时读取包内文件，不是联网下载。
 - 真实 Portable ZIP 隔离检查通过，覆盖同意前门禁、身份、覆盖升级、移动、锁和旧布局拒绝；未接受条款、启动游戏、操作托盘或修改 hosts。
 - 对最终落盘附件另核对文件大小/SHA256、解压后的所有源码文件校验、EXE 与 SOURCE/声明的对应关系。EXE 记录 `-tags=no_easytier`，无 EasyTier 模块，未包含已知 WASM 完整字节；逐一检查源码包内部 ZIP，也无 WASM 文件或 WASM 文件头。
 - 实际归档确认无 `source/experiments/`、`source/docs/evidence/`、旧整份 SQLite tar；内置图表的研究数据和绘图脚本仍在，原模块 ZIP 和 SQLite C 原稿保留。当前桌面仍未接入 Mihomo；未来集成的排除证据来自前述实际 adapter 探针，#14 接入后仍复验桌面产物。

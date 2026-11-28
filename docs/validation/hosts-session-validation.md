@@ -25,13 +25,13 @@
 
 浏览器截图已检查；最初退出截图截到了 Fluent 弹窗过渡，改为禁用截图动画后重新采集，最终对话框、背景遮罩及窄屏换行正常。没有因此修改产品动画。
 
-审查后修正帮助页「连接恢复说明」遗留的“退出不会恢复”表述，明确停止网关保留接入、正常退出按当前生效设置处理，系统注销/关机/断电或强制终止不保证恢复。前端重新 build/check、差异检查及 settings-help/copy 两组 9 项浏览器回归通过。首次沙箱内 Edge 启动因 `TransactNamedPipe` 失败，尚未执行页面断言；保留 `review-copy-sandbox-failure.md` 后在沙箱外以普通用户运行相同隔离回归通过。
+审查后修正帮助页「连接恢复说明」遗留的“退出不会恢复”表述，明确停止网关保留接入、正常退出按当前生效设置处理，系统注销、关机、断电或强制终止均可能中断恢复。前端重新 build/check、差异检查及 settings-help/copy 两组 9 项浏览器回归通过。首次沙箱内 Edge 启动因 `TransactNamedPipe` 失败，尚未执行页面断言；保留 `review-copy-sandbox-failure.md` 后在沙箱外以普通用户运行相同隔离回归通过。
 
 ## 失败记录与边界
 
 初次沙箱内定向测试出现已有的 `renameat ... The handle is invalid` 配置原子替换错误，以及命名管道 `Access is denied`。沿用仓库临时目录包装器，在普通 Windows 用户权限下执行同一组隔离测试后通过；没有修改产品文件写入或安全策略绕过沙箱。
 
-本轮没有修改系统 hosts、启动游戏、请求真实 UAC 或更改用户设置。真实 UAC 同意/取消、使用另一管理员账户凭据、交互托盘、注销/关机及断电仍未验证，属于 Windows 环境边界，不新增 VRC 台账项。主端管道断开测试证明助手在仍存活时的清理行为，不等于系统同时终止两个进程或断电也能恢复。
+本轮没有修改系统 hosts、启动游戏、请求真实 UAC 或更改用户设置。真实 UAC 同意/取消、使用另一管理员账户凭据、交互托盘、注销/关机及断电仍未验证，属于 Windows 环境边界，不新增 VRC 台账项。主端管道断开测试证明助手在仍存活时的清理行为，同时终止两个进程和断电均未在本轮测试。
 
 本地日志、截图和隔离开发构建保存在忽略目录 `artifacts/hosts-session-validation/`：`go-targeted.txt`、`go-console.txt`、`go-race.txt`、`browser.txt`、`live-browser*.txt`、`live-browser/`、`build.txt`。运行路径和原始资料不入 Git。
 
@@ -44,7 +44,7 @@
 - Edge 四组定向回归共 24 项通过：`hosts-notice`、`settings-help`、`acceleration`、`settings-structure`。新增覆盖成功状态的后台通知、取消后重试成功、操作结果并存、刷新去重、新授权再次提示、320px 深色与 1280px 浅色、跨设置标签定位/焦点与未保存草稿保持；截图已检查。
 - `TestHostsPolicyBrowser` 真实 Console 联调通过：HTTP 未模拟，私有 hosts 助手成功建立后展示 Toast，点击直达设置，保存、刷新、重新创建 Console 及两种退出策略均通过；390px 截图已检查。
 
-首次沙箱内 Edge 因 `TransactNamedPipe` 失败而未进入页面断言，Go 回归出现 `renameat ... The handle is invalid` 及命名管道 `Access is denied`。停止本轮残留的测试服务器后，在普通用户环境执行相同隔离检查通过。失败摘要、浏览器原始失败、重试日志及联调截图保存在忽略目录 `artifacts/hosts-notice-validation/`。本轮未启动游戏、修改系统 hosts 或请求真实 UAC；隔离助手成功连接与浏览器联调不等同于新一轮原生 UAC 实测，原生授权路径沿用文首所引既有证据。
+首次沙箱内 Edge 因 `TransactNamedPipe` 失败而未进入页面断言，Go 回归出现 `renameat ... The handle is invalid` 及命名管道 `Access is denied`。停止本轮残留的测试服务器后，在普通用户环境执行相同隔离检查通过。失败摘要、浏览器原始失败、重试日志及联调截图保存在忽略目录 `artifacts/hosts-notice-validation/`。本轮未启动游戏、修改系统 hosts 或请求真实 UAC；本轮验证隔离助手连接与浏览器联调，原生授权路径沿用文首所引既有证据。
 
 同日收敛复验：独立授权标识与公共通知复用完成后，前端 `build` / `check`、上述 Go 定向回归（含真实 Console 浏览器联调）及 24 项 Edge 回归再次通过。额外核对不同助手会话的授权标识不同、复用时保持不变，以及关闭 Toast 后状态轮询不重复展示；联调截图布局保持一致。记录位于 `artifacts/hosts-notice-validation/refinement/`，前次失败和验证记录保留。
 
@@ -118,4 +118,4 @@
 
 补充验证复现了新助手授权成功、随后准备或实际恢复失败时误显示「可在退出后保留游戏接入」的情况。助手创建现在统一复用同一入口，卸载恢复创建的助手不发布接入授权通知 ID；正常接入与权限修复仍发布，复用助手不产生新事件。两个新增后端场景先失败、修正后通过；`TestHostsUninstallFailureBrowser` 在真实 Console／Edge 中分别注入准备和恢复失败，核对 hosts 保留、网关状态和失败 Toast，刷新后仍不显示保留接入建议。原卸载成功、取消／重试、助手复用及恢复权限修复联调、相关 Go 回归与 vet 通过。
 
-本轮未修改系统 hosts、请求真实 UAC 或启动游戏。新入口的授权启动与原生取消识别复用既有实现；此次授权取消由受控启动器注入，不声称重新验收了 Windows UAC 窗口。
+本轮未修改系统 hosts、请求真实 UAC 或启动游戏。新入口的授权启动与原生取消识别复用既有实现；此次授权取消由受控启动器注入。

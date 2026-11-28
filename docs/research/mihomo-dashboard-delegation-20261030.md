@@ -1,6 +1,6 @@
 # Mihomo 面板与代理节点管理委托研究
 
-2026-10-30。本文是可行性研究和设计建议，**不改变现行规范，也不代表已实现或完成运行验证**。项目固定核心为 `v1.19.32`；核心细节核对本机该版本模块源码，在线文档和面板 README 为查阅时版本。现行规则仍见[上游通道](../upstream-channels.md)。
+2026-10-30。本文是可行性研究和设计建议，**不改变现行规范，实施情况以对应版本的运行记录为准**。项目固定核心为 `v1.19.32`；核心细节核对本机该版本模块源码，在线文档和面板 README 为查阅时版本。现行规则仍见[上游通道](../upstream-channels.md)。
 
 ## 结论与建议边界
 
@@ -21,9 +21,9 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 ## 策略语义与故障边界
 
 - `select` 交给用户选择，可包含单个节点或自动组。外层手动选中单个节点时，不会因同组另有 fallback 就自动切到它；选择自动组才使用该组策略。[官方 select 配置](https://wiki.metacubex.one/en/config/proxy-groups/select/)、[v1.19.32 selector 实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/selector.go)
-- `fallback` 按配置顺序选健康节点，适合“优先这条，坏了换下一条”；`url-test` 依测试 URL 的延迟与 tolerance 选节点，适合自动延迟优选。后者不保证视频吞吐最高。[fallback 文档](https://wiki.metacubex.one/en/config/proxy-groups/fallback/)、[url-test 文档](https://wiki.metacubex.one/en/config/proxy-groups/url-test/)、[v1.19.32 延迟选择实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/urltest.go)
-- 固定版本的 fallback 自身还支持 API 手动固定一个成员；该成员对测试 URL 不健康时会释放固定并回到自动选择。这与外层 select 固定普通节点不同，面板是否清楚呈现此交互应实际检查。所有成员不健康时，固定版本实现仍返回首个成员尝试，不保证每次请求必定成功。[v1.19.32 fallback 实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/fallback.go)
-- 核心 URLTest 使用 HTTP HEAD，记录指定 URL 的可达性、状态与延迟。它不能证明真实资源的正文、Range、版本或持续吞吐正常。fallback/url-test 拨号失败会按条件触发健康检查；组方法本身返回该次拨号结果，没有遍历全部节点并重放应用 HTTP 的逻辑。真实 HTTP 5xx、正文断流等仍需 SWD 的业务错误处理。[v1.19.32 URLTest](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/adapter.go)、[组失败处理](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/groupbase.go)
+- `fallback` 按配置顺序选健康节点，适合“优先这条，坏了换下一条”；`url-test` 依测试 URL 的延迟与 tolerance 选节点，适合自动延迟优选。该模式按延迟选择节点，视频吞吐另行测量。[fallback 文档](https://wiki.metacubex.one/en/config/proxy-groups/fallback/)、[url-test 文档](https://wiki.metacubex.one/en/config/proxy-groups/url-test/)、[v1.19.32 延迟选择实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/urltest.go)
+- 固定版本的 fallback 自身还支持 API 手动固定一个成员；该成员对测试 URL 不健康时会释放固定并回到自动选择。这与外层 select 固定普通节点不同，面板是否清楚呈现此交互应实际检查。所有成员不健康时，固定版本实现仍返回首个成员尝试，请求能否成功取决于所尝试成员的实际连通情况。[v1.19.32 fallback 实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/fallback.go)
+- 核心 URLTest 使用 HTTP HEAD，记录指定 URL 的可达性、状态与延迟。真实视频的正文、Range、版本和持续吞吐需用资源请求检查。fallback/url-test 拨号失败会按条件触发健康检查；组方法本身返回该次拨号结果，没有遍历全部节点并重放应用 HTTP 的逻辑。真实 HTTP 5xx、正文断流等仍需 SWD 的业务错误处理。[v1.19.32 URLTest](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/adapter.go)、[组失败处理](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/adapter/outboundgroup/groupbase.go)
 - 修改选择影响后续建连，不会把已建 TCP/HTTP 连接迁移到新节点。切换 API 只改选择和缓存；关闭连接是独立 API。SWD 的连接池可能继续复用旧连接，因此不能承诺点击后所有请求立即换出口。强制关闭连接会打断在途下载，需要按业务重试规则处理。[v1.19.32 切换 API](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/hub/route/proxies.go)、[连接 API](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/hub/route/connections.go)
 - `profile.store-selected: true` 保存 API 选择，核心应用配置时恢复。它以组名/成员名保存，故应保持稳定命名；目前 SWD 明确关闭此选项。[配置说明](https://wiki.metacubex.one/en/config/general/)、[v1.19.32 选择缓存](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/component/profile/cachefile/cache.go)、[恢复入口](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/hub/executor/executor.go)
 
@@ -59,7 +59,7 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 
 ## 已授权实施的固定输入
 
-以下是实施准备，不覆盖前文的历史研究结论，也不证明产品改造或运行验收已完成。2026-10-30 通过 GitHub connector 查询 `releases/latest` 和 tag ref，最新正式版为 **v3.30.0**，发布于北京时间 2026-10-29 11:22:41，`draft=false`、`prerelease=false`。tag 与 release 的目标提交一致为 **`bf4f00bb8d905f8a78f627af7cf84457c4db53c4`**。发行记录标记 `immutable=false`，因此下载仍须校验下列哈希，不以浮动 main、gh-pages 或 latest 地址作为产品输入。[Release](https://github.com/Zephyruso/zashboard/releases/tag/v3.30.0)、[tag ref](https://api.github.com/repos/Zephyruso/zashboard/git/ref/tags/v3.30.0)
+以下是实施准备，不覆盖前文的历史研究结论，产品改造和运行验收另按实施记录判断。2026-10-30 通过 GitHub connector 查询 `releases/latest` 和 tag ref，最新正式版为 **v3.30.0**，发布于北京时间 2026-10-29 11:22:41，`draft=false`、`prerelease=false`。tag 与 release 的目标提交一致为 **`bf4f00bb8d905f8a78f627af7cf84457c4db53c4`**。发行记录标记 `immutable=false`，因此下载仍须校验下列哈希，不以浮动 main、gh-pages 或 latest 地址作为产品输入。[Release](https://github.com/Zephyruso/zashboard/releases/tag/v3.30.0)、[tag ref](https://api.github.com/repos/Zephyruso/zashboard/git/ref/tags/v3.30.0)
 
 | 输入 | 固定值与来源 |
 | --- | --- |
@@ -70,7 +70,7 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 | 根许可证 | [LICENSE](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/LICENSE)：MIT，Git blob `4e20e4192e2dc9a98858879c2feb2a662011a3d1` |
 | 静态资产声明 | [public/THIRD_PARTY_NOTICES.md](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/public/THIRD_PARTY_NOTICES.md)，Git blob `15f5075c7e20aad0d5892d97a823ba670f07e684` |
 
-上游 [release-dist 工作流](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/.github/workflows/deploy.yml) 用 `FONT=none` 环境运行 `pnpm i`、`pnpm run build`，再执行 `zip -r dist-no-fonts.zip dist`，归档内有 `dist/` 顶层目录。Node setup 未固定 node-version。自行重建应固定可用 Node 与 packageManager，使用冻结锁文件安装；PowerShell 设置 `FONT` 后运行 `pnpm run build`，不直接执行含 Unix 环境赋值语法的 `build:no-fonts`。不承诺与上游 zip 逐字节相同。[Vite 配置](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/vite.config.ts) 使用相对资源基址 `./` 并构建 PWA；[字体入口](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/src/assets/load-fonts.ts) 在 `none` 分支不加载字体。
+上游 [release-dist 工作流](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/.github/workflows/deploy.yml) 用 `FONT=none` 环境运行 `pnpm i`、`pnpm run build`，再执行 `zip -r dist-no-fonts.zip dist`，归档内有 `dist/` 顶层目录。Node setup 未固定 node-version。自行重建应固定可用 Node 与 packageManager，使用冻结锁文件安装；PowerShell 设置 `FONT` 后运行 `pnpm run build`，不直接执行含 Unix 环境赋值语法的 `build:no-fonts`。产物按本次构建的哈希标识。[Vite 配置](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/vite.config.ts) 使用相对资源基址 `./` 并构建 PWA；[字体入口](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/src/assets/load-fonts.ts) 在 `none` 分支不加载字体。
 
 ### 保持原包的集成边界
 
@@ -82,15 +82,15 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 
 ### 兼容性、依赖和工具边界
 
-节点/组操作使用 `/version`、`/proxies`、`PUT /proxies/{name}`、节点 `/delay`、`/group/{name}/delay` 与 `/providers/proxies`，这些路由在固定 Mihomo v1.19.32 中存在；面板通过版本字符串识别 Mihomo，未看到这些基本操作的更高最低版本要求。因此具备开展联调的源码依据，**不宣称全部面板功能已兼容或运行通过**。[固定面板 API](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/src/api/clash.ts)、[固定核心 router](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/hub/route/server.go)
+节点/组操作使用 `/version`、`/proxies`、`PUT /proxies/{name}`、节点 `/delay`、`/group/{name}/delay` 与 `/providers/proxies`，这些路由在固定 Mihomo v1.19.32 中存在；面板通过版本字符串识别 Mihomo，未看到这些基本操作的更高最低版本要求。因此具备开展联调的源码依据。[固定面板 API](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/src/api/clash.ts)、[固定核心 router](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/hub/route/server.go)
 
-无字体不等于仅含 MIT 代码。上游声明中的地球纹理是 Solar System Scope 素材的修改版，要求保留 **CC BY 4.0** 署名和修改说明；Three.js 示例派生部分是 MIT。声明还解释 DB-IP City Lite 为用户显式下载的 CC BY 4.0 数据、未随包附带。应保留该完整声明、根 LICENSE，并从固定依赖图生成最终 JS/CSS 依赖许可清单；不能把不包含字体外推为已完成全部依赖审计。[上游资产声明](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/public/THIRD_PARTY_NOTICES.md)
+无字体构建仍包含采用其他许可证的素材。上游声明中的地球纹理是 Solar System Scope 素材的修改版，要求保留 **CC BY 4.0** 署名和修改说明；Three.js 示例派生部分是 MIT。声明还解释 DB-IP City Lite 为用户显式下载的 CC BY 4.0 数据、未随包附带。应保留该完整声明、根 LICENSE，并从固定依赖图生成最终 JS/CSS 依赖许可清单；不能把不包含字体外推为已完成全部依赖审计。[上游资产声明](https://github.com/Zephyruso/zashboard/blob/bf4f00bb8d905f8a78f627af7cf84457c4db53c4/public/THIRD_PARTY_NOTICES.md)
 
 本轮可用 GitHub connector 能取 release 元数据、完整提交、树、锁文件和文本源码；其 `fetch` 明确拒绝非 UTF-8/超大响应，**不能下载 ZIP 二进制**，没有可用的 release-asset 二进制下载专用工具。这里已给出精确资源入口、大小和上游 SHA256，静态包字节保存、校验以及源码归档保存仍由实施阶段的可用下载能力完成。本研究未下载或运行用户节点，未做浏览器联调。
 
 ## 实际发行包许可核对补充
 
-后续实施已将源码与依赖安装在 `artifacts/mihomo-dashboard/source/Zephyruso-zashboard-bf4f00b/`，发行文件在 `artifacts/mihomo-dashboard/release/dist/`。本小节只读核对这些材料，不代表全部发布检查通过。
+后续实施已将源码与依赖安装在 `artifacts/mihomo-dashboard/source/Zephyruso-zashboard-bf4f00b/`，发行文件在 `artifacts/mihomo-dashboard/release/dist/`。本小节只读核对这些材料，完整发布检查另按发行流程执行。
 
 **修正先前仅据 README 的“无字体”理解：`dist-no-fonts` 仍包含旗帜字体。** `src/assets/styles/theme/fonts.css` 无条件引用两个字体，源码和实际 dist 的字节相同。原 `public/THIRD_PARTY_NOTICES.md` 只列地球纹理、Three.js 示例和可选下载 DB-IP，没有列出这两个字体；SWD 应补充声明，不能仅沿用根 MIT 与该原有 notices。
 
@@ -105,6 +105,6 @@ Monitor 不能直接整体删除：它的 `OnCatalog`、`OnPlaybackURL` 还交�
 | ECharts 6.1.0 的嵌入 d3.js | `node_modules/.pnpm/echarts@6.1.0/node_modules/echarts/licenses/LICENSE-d3`：BSD-3-Clause；还需 ECharts 根 `LICENSE` 和 `NOTICE`，不能只读取 package.json 的 Apache-2.0 |
 | vuedraggable 4.1.0 的预打包代码 | 包内 `dist/vuedraggable.umd.min.js.map` 明列 core-js、@soda/get-current-script、@babel/runtime helpers 和 Vue CLI 运行片段；其中 core-js 自报 3.6.5，当前锁文件只有 core-js-compat 3.49.0，不能代替其许可 |
 
-两字体及预打包代码的补充许可已保存在 [docs/licenses/zashboard/](../licenses/zashboard/README.md)，附固定来源、文本 blob、SHA256 与版本不确定范围。Google 内嵌提交对应的原厂字体与 zashboard 文件并非同一 blob；源码中没有子集/字体压缩配方，因此只承诺保留实际输入，不能声称从原始图形完整重建字体。独立 OFL/CC/Apache 资源的上述许可不自行要求交付字体生成工具链；最小可维护交付是随固定 zashboard 源码保留精确字体、声明、身份及来源记录，未来修改字体时再补可复跑配方。
+两字体及预打包代码的补充许可已保存在 [docs/licenses/zashboard/](../licenses/zashboard/README.md)，附固定来源、文本 blob、SHA256 与版本不确定范围。Google 内嵌提交对应的原厂字体与 zashboard 文件并非同一 blob；源码中没有子集/字体压缩配方，因此只承诺保留实际输入，字体按实际分发文件核对。独立 OFL/CC/Apache 资源的上述许可不自行要求交付字体生成工具链；最小可维护交付是随固定 zashboard 源码保留精确字体、声明、身份及来源记录，未来修改字体时再补可复跑配方。
 
 通知收集建议以**实际交付的 JS/CSS、worker、service worker、懒加载 chunk 和静态资产**为依据；保守收集全锁定 npm 包许可也可行，但应标明是扩大覆盖范围。该方式仍要包含包内 `licenses/`、`NOTICE`、许可旁车及已预打包的外部代码，避免依赖图遗漏。`mmdb-lib@3.0.3` 虽在 devDependencies，却被 `src/` 运行时导入，不能只按 dependencies 字段排除；反过来 lightningcss 的 MPL-2.0、构建期 caniuse-lite 的 CC BY 4.0 或未选用文本字体的许可，不能仅因已安装就断言在生产 JS 中使用。实际包原有 notices 应原样保留，再把补充材料统一进入 SWD 发行通知；本轮未声称完成所有包的逐模块产物追踪。

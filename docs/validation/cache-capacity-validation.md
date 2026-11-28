@@ -18,7 +18,7 @@
 
 ## 自动检查
 
-以下为 2026-10-16 的开发检查，当时默认不限、容量输入预填 40 GiB；不代表真实游戏、托盘或跨进程重启场景通过。
+以下为 2026-10-16 的开发检查，当时默认不限、容量输入预填 40 GiB；游戏、托盘和跨进程重启另有对应场景。
 
 | 命令 / 范围 | 结果与覆盖 |
 | --- | --- |
@@ -39,7 +39,7 @@
 
 首轮 `go test -tags=no_easytier ./internal/cacheproxy ./internal/console ./cmd/still-wanna-dance -count=1 -timeout=180s` 中，缓存引擎与命令行包通过；控制台的覆盖率重算、导入清理、共享资源扫描和扫描快照 4 项因隐含依赖默认保留视频而失败。已在这些夹具中显式启用不限，继续验证其原有业务目的；控制台整包按相同参数重跑通过（58.553 秒）。默认配置与零预算回收仍由首次启动持久化和零容量测试覆盖，已有 0/正数/不限保存与重新加载回归通过。
 
-`pnpm --dir webui build`、`node scripts/check-webui.mjs` 与相关三包的 `go vet -tags=no_easytier` 通过；`node --check scripts/acceptance.mjs` 通过，未执行公网验收脚本。Edge 的 `e2e/cache-capacity.spec.ts` 和 `e2e/setup.spec.ts` 共 9 项通过，覆盖恢复零值、保存与刷新、已有不限设置、非法输入和引导提交。首次沙箱运行因 Edge 临时配置替换失败而未进入页面测试，正常权限重跑通过。浏览器使用内存 API，不代表真实进程重启或游戏体验。
+`pnpm --dir webui build`、`node scripts/check-webui.mjs` 与相关三包的 `go vet -tags=no_easytier` 通过；`node --check scripts/acceptance.mjs` 通过，未执行公网验收脚本。Edge 的 `e2e/cache-capacity.spec.ts` 和 `e2e/setup.spec.ts` 共 9 项通过，覆盖恢复零值、保存与刷新、已有不限设置、非法输入和引导提交。首次沙箱运行因 Edge 临时配置替换失败而未进入页面测试，正常权限重跑通过。浏览器检查通过内存 API 验证了上述设置流程。
 
 ## 下一轮实机验收
 
@@ -102,7 +102,7 @@
 - 使用仓库已有独立 GCC 工具链执行 cacheproxy 的回收、重取与发布定向 go test -race 通过；相关 Go 包的 go vet、前端 build/check、浏览器测试源码严格类型检查、验收脚本语法检查及 git diff --check 通过。
 - Edge 内存夹具的 cache-reclamation、cache-capacity、setup 共 13 项通过。覆盖自动联动、手动选择保留、放弃草稿、保存重载、引导恢复默认与最终核对载荷。已查看 390px 深色设置和浅色引导截图，无横向溢出。
 - 首轮沙箱 Go 配置写入遇到已有 Windows 原子替换限制（The handle is invalid），Edge 在页面操作前失败且未正常结束，已中止；同一隔离入口在沙箱外通过。原始失败保留在 artifacts/cache-reclamation-{go-initial,webui-initial}.log，成功证据为同目录的 go、webui、race、vet 日志。
-- 独立新构建实际启动了隔离控制台，禁用网关和队列自动启动，仅复制既有条款凭据。凭据早于当前条款版本，/api/status 正确返回 428，未执行同意操作，因此真实浏览器保存与实际进程重启未验证。测试实例通过退出接口关闭，result.json 记录 cleanup=true；原配置未修改。失败证据在忽略目录 artifacts/cache-reclamation-real-browser.log 及 artifacts/cache-reclamation/runtime-*/。Go 的实际文件与服务集成结果不外推为此项浏览器通过。
+- 独立新构建实际启动了隔离控制台，禁用网关和队列自动启动，仅复制既有条款凭据。凭据早于当前条款版本，/api/status 正确返回 428，未执行同意操作，因此真实浏览器保存与实际进程重启未验证。测试实例通过退出接口关闭，result.json 记录 cleanup=true；原配置未修改。失败证据在忽略目录 artifacts/cache-reclamation-real-browser.log 及 artifacts/cache-reclamation/runtime-*/。浏览器项保留当时的执行状态。
 
 未启动 VRC、修改 hosts 或操作用户视频库；保护规则未改变，本次不新增 VRC 专属待验场景。当前缺口仅为使用有效的现行条款凭据补做上述隔离进程浏览器检查。
 
@@ -112,7 +112,7 @@
 
 前端 build/check、浏览器测试源码严格类型检查及差异格式检查通过。通过隔离临时目录运行 Edge 的 cache-reclamation、cache-capacity、setup 共 16 项内存 API 场景，全部通过；覆盖 auto/on/off 的隐藏字段保留、恢复默认、预算切换、前后导航、校验与应用载荷、待生效策略核对，以及原设置页交互。已查看 390px 浅色引导和深色设置截图，无横向溢出。首轮沙箱内 Edge 启动时报管道关闭，未进入页面断言且测试进程未正常结束，已中止；沙箱外同组检查通过。原始日志为 `artifacts/setup-reclamation-removal-browser-initial.log`、`artifacts/setup-reclamation-removal-browser.log`，错误上下文与截图在 `artifacts/setup-reclamation-removal/`。
 
-本轮仅调整前端入口、草稿恢复与核对展示，不改后端配置或回收机制；内存 API 结果不外推为真实进程保存／重启验证，上方既有环境缺口保持原状态。本次无需新增 VRC 待验场景。
+本轮仅调整前端入口、草稿恢复与核对展示，不改后端配置或回收机制，上方既有环境缺口保持原状态。本次无需新增 VRC 待验场景。
 
 ## 2026-11-08 移除独立回收配置
 
@@ -132,7 +132,7 @@
 
 确认旧实现取得发布预留和正式文件重命名前均无条件加载全库评分，空间充足时也构造并排序候选。现在两个阶段共用同一选择入口，先检查屏蔽策略，再使用已有库存字节数和按 MD5 去重的发布预留判断是否超预算；仅在预算竞争时加载评分和排序，不增加评分缓存或累计预留状态。现行契约见[持久化准入](../download-resource-design.md#6-本地资源管理的存储与外部契约)。
 
-Windows / AMD Ryzen 7 9850X3D，`BenchmarkPublicationAdmissionSpareBudget`，`-benchtime=10x -count=1`，2 万条合成映射、有限且空闲的预算：单次预留修复前约 12.12 ms / 8,615,906 B / 160,045 次分配，修复后约 0.205 ms / 2,305 B / 40 次分配。这里只测预留，不含合并、MD5 和文件同步，不代表实际播放收益。
+Windows / AMD Ryzen 7 9850X3D，`BenchmarkPublicationAdmissionSpareBudget`，`-benchtime=10x -count=1`，2 万条合成映射、有限且空闲的预算：单次预留修复前约 12.12 ms / 8,615,906 B / 160,045 次分配，修复后约 0.205 ms / 2,305 B / 40 次分配。这里只测预留，不含合并、MD5 和文件同步。
 
 分配回归先在旧实现失败：空库约 139 次，2,000 条映射约 15,746 次；修复后通过，并覆盖准入和真实文件提交、恰好填满预算及已发布预留的去重。已有低分预留替换、收藏预算、零预算和保护回归通过，补充了空闲准入后库存增加、提交时重新拒绝的场景。首轮定向检查中，一项旧并发测试依赖无条件统计排空而失败；夹具已明确制造预算竞争，继续用原屏障验证策略读取后的互斥。
 
@@ -148,7 +148,7 @@ Windows / AMD Ryzen 7 9850X3D，`BenchmarkPublicationAdmissionSpareBudget`，`-b
 
 上述整包失败另行定向排查，确认均为测试前提与现行行为不一致，本次只修改测试，不调整产品的响应完成、映射提交或实体校验规则。
 
-- `TestPlaybackAPIStreamsAndReusesVideoCache`：修改前重复 60 次失败 4 次。注入的解析器只返回地址，歌曲映射由共享下载结束后的独立记录保存；HTTP 正文交付完成不保证映射已提交。临时测试用日志门阻塞 `cache_task_finished` 后的收尾，固定得到“正文已交付、映射尚不存在、切换无效地址后返回 502”；释放后等待后台完成，映射可读且同一请求返回 200，连续 3 次一致。正式用例在切换无效地址前等待后台工作并断言歌曲映射，随后仍验证已知歌曲返回正确正文、未知歌曲拒绝无效地址及下载次数不增加；重复 60 次通过。
+- `TestPlaybackAPIStreamsAndReusesVideoCache`：修改前重复 60 次失败 4 次。注入的解析器只返回地址，歌曲映射由共享下载结束后的独立记录保存；映射可能在 HTTP 正文交付完成后才提交。临时测试用日志门阻塞 `cache_task_finished` 后的收尾，固定得到“正文已交付、映射尚不存在、切换无效地址后返回 502”；释放后等待后台完成，映射可读且同一请求返回 200，连续 3 次一致。正式用例在切换无效地址前等待后台工作并断言歌曲映射，随后仍验证已知歌曲返回正确正文、未知歌曲拒绝无效地址及下载次数不增加；重复 60 次通过。
 - `TestStoppedSessionReusesOnlyCompleteBlocks/valid`：修改前连续 2 次在等待部分正文事件时失败，下载实际已因 `upstream entity address changed between ranges` 结束。夹具让前三块使用原地址、第 4 块重定向至另一地址，却对所有块给出相同强 ETag，与强校验器绑定最终地址的契约冲突。强 ETag 场景改为使用同一地址，重定向游标重置仍由弱 ETag 场景验证并保留两次重定向断言。全部 8 种场景各重复 3 次通过；完整块复用、未完成块从头下载、实体变化／错误范围／错误正文拒绝及关闭清理断言保留。
 
 复现、受控探针及验证日志保存在忽略目录 `artifacts/legacy-cache-failures-20261112/`：`playback-before.log`、`stopped-before.log`、`playback-mapping-probe.log`、`playback-after.log` 和 `stopped-after.log`；探针源码另存为 `playback-mapping-probe.go.txt`，已从测试包移除。历史失败日志继续保留。本次没有新增必须依赖 VRC 的剩余事项，没有启动游戏或修改 hosts。

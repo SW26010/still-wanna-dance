@@ -42,7 +42,7 @@ python experiments/cf-concurrency/plot_cpu.py docs/evidence/cf-cpu-20261014
 python experiments/cf-concurrency/report_followup.py --chart-only
 ```
 
-多 IP 与高并发图可由 `analyze_sweep.chart(summary, destination)` 使用 Git 中的 `summary.json` 重绘。SVG 使用固定 hashsalt 且不写当前日期，同一绘图库版本与输入下可检查重复生成结果；不声称不同 Matplotlib 版本字节完全相同。
+多 IP 与高并发图可由 `analyze_sweep.chart(summary, destination)` 使用 Git 中的 `summary.json` 重绘。SVG 使用固定 hashsalt 且不写当前日期，同一绘图库版本与输入下可检查重复生成结果；图片字节以指定 Matplotlib 版本及相同输入为准。
 
 ## 清单与发布
 

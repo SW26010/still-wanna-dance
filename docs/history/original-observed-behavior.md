@@ -1,6 +1,6 @@
 # 原版已知协议与行为
 
-> 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射，也不保证这些域名持续存在。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](../resource-domains.md)。原始证据保持原样。
+> 历史记录说明（2026-10-06）：文中的 CF/HKG 是当时的界面、日志标签或 API 参数称呼。域名、IP 及地理位置只属于当次观测，不构成节点到域名的固定映射。当前实现以有效 API 返回的域名集合为准，见[资源域名规则](../resource-domains.md)。原始证据保持原样。
 
 状态词：**已实测**表示有请求、文件或游戏日志证据；**推测**表示与证据相符但未证明；**待验证**表示不能写成兼容承诺。
 
@@ -69,9 +69,9 @@ User-Agent: NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457
 | `/files/...mp4` 缺少 e 或 s | 400，`BadToken` |
 | HEAD `/files/...mp4`，带 e、s，命中 | 200，有 Content-Length，无正文 |
 
-热缓存视频响应有 `Content-Type: video/mp4`、`Accept-Ranges: bytes`。原版在完整 200 响应上也发出全文件 `Content-Range`。API 的 auth 每次可不同；NO_AUTH=true 并不意味着不生成 auth，验证范围和有效期未知。
+热缓存视频响应有 `Content-Type: video/mp4`、`Accept-Ranges: bytes`。原版在完整 200 响应上也发出全文件 `Content-Range`。API 的 auth 每次可不同；启用 NO_AUTH=true 时仍可生成 auth，验证范围和有效期未知。
 
-一个 `/files/` 样本即使使用 `Host: api.udon.dance` 也命中；这不足以证明任意 Host 均可接受。
+一个 `/files/` 样本即使使用 `Host: api.udon.dance` 也命中。
 
 ## Range 异常，不视为推荐实现
 
@@ -96,7 +96,7 @@ User-Agent: NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457
 4. 完整成功后出现 `songs/<id>/video.mp4` 和 `metadata.json`，临时缓存路径消失。
 5. 后续请求记录 HIT；CF 下载的 1344 可在 HKG/Auto 下复用。
 
-最终文件状态不能证明内部一定用了原子重命名。文件系统轮询看到的临时文件大小也不能替代完整请求及落盘验证。
+这次观察记录了最终文件，原子重命名需用文件操作轨迹确认。文件系统轮询看到的临时文件大小也不能替代完整请求及落盘验证。
 
 原版代理下载生成的是简化元数据，例如：
 
@@ -123,6 +123,6 @@ User-Agent: NSPlayer/12.00.26100.9457 WMFSDK/12.00.26100.9457
 ## TLS 与进度同步
 
 - Node HTTPS 客户端连接原版本地 18443，SNI/Host=`api.udon.dance`，保持证书验证，成功取得上游 302；已证明该配置的 TLS 透传可工作。
-- 本机 curl 的一次 TLS 测试报 Schannel `SEC_E_NO_CREDENTIALS`，不代表上游或原版 TLS 失败。
+- 本机 curl 的一次 TLS 测试报 Schannel `SEC_E_NO_CREDENTIALS`，失败发生在本机凭据阶段。
 - 旧游戏日志有中途进入后跳到 176.57 秒的样本；本次切换 HKG 后实际恢复至 94.66 秒并正常播放。
-- 这些证据不能代替独立的多人中途加入验收。
+- 后续 SWD 的[多人中途加入实测](../acceptance/live-acceptance-20261028-01.md)记录了非房主追上房间进度并持续播放的过程。

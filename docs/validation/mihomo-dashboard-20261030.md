@@ -43,7 +43,7 @@
 
 - **节点隐私与选择恢复**：复审发现早期实现将面板名称直接存入原生选择缓存，名称和无名节点的默认文案都可能包含地址。隔离回归在修复前重现两处明文（`review-privacy-red.log`）。现在选择请求先转换为完整 HMAC 身份，Mihomo 仍执行选择和保存；恢复时转换回当前名称。测试逐个扫描实际缓存，验证名称和地址不出现、摘要确实写入；重启、节点改名和临时身份下不覆盖原选择均通过。只在下次启动 Mihomo 时安全删除旧测试版的确定缓存文件；不安全入口不会被删除，也不会启动核心。旧选择重置；未启用核心前旧缓存可能仍存在。
 - **身份密钥异常**：恢复界面提示；损坏或不可读的密钥保留原文件，本次使用临时身份并禁用原生选择缓存的读取和写入。`review-selection-and-identity.log` 与 `review-race-browser-final.log` 包含相关回归。
-- **跨平台面板源码输入**：上游 workspace 未声明多平台架构，原 Windows store 只收集了 Windows x64 原生包；原结论仅证明 Windows 重建，不能外推。收集时在临时 workspace 指定 Windows/Linux/macOS x64/arm64 和 Linux glibc/musl，保留未修改的上游源码与锁文件。全新 store 实际包含 22 个 esbuild、Rolldown、Tailwind 原生包；八个目标的 pnpm 离线安装与链接检查通过（`review-cross-platform-installs.log`），完整新收集和 Windows 实际离线 Vite 构建通过（`review-dashboard-source-final.log`）。本机没有 Linux/macOS 运行环境，这不是目标系统上的实际构建验证。第一次手工收集使用了相对路径，因 pnpm 在暂存目录解析该路径而失败（`review-cross-platform-collect.log`）；正式收集和复验使用绝对路径。
+- **跨平台面板源码输入**：上游 workspace 未声明多平台架构，原 Windows store 只收集了 Windows x64 原生包；原结论仅证明 Windows 重建。收集时在临时 workspace 指定 Windows/Linux/macOS x64/arm64 和 Linux glibc/musl，保留未修改的上游源码与锁文件。全新 store 实际包含 22 个 esbuild、Rolldown、Tailwind 原生包；八个目标的 pnpm 离线安装与链接检查通过（`review-cross-platform-installs.log`），完整新收集和 Windows 实际离线 Vite 构建通过（`review-dashboard-source-final.log`）。本机没有 Linux/macOS 运行环境，这不是目标系统上的实际构建验证。第一次手工收集使用了相对路径，因 pnpm 在暂存目录解析该路径而失败（`review-cross-platform-collect.log`）；正式收集和复验使用绝对路径。
 - **审查副本影响**：本轮曾以 SQLite 只读方式查看既有审查副本的 store 索引结构，`v11/index.db-shm` 的修改时间随后发生变化；主索引的大小与写入时间未变，WAL 仍为空，这些时间与大小不是逐字节未变证明。没有删除原副本文件；后续检查使用新建副本。审查会话中删除校验缓存的操作曾被自动审批拒绝，本轮未重新尝试。
 - **面板偏好**：当时默认桌面端口随机，zashboard 的浏览器偏好按完整来源隔离，重启后可能重置；同来源内刷新才保留。节点选择与浏览器来源无关。上游代码的 IPv6 检测可能把节点显示名保存在浏览器本地存储，此数据不受 SWD 的 DPAPI 保护。现行端口规则及站点数据边界见[现行设计](../mihomo-dashboard.md)。
 - **测试与构建**：修正后 `go test -p 1 -tags=no_easytier -mod=readonly ./cmd/... ./internal/... -count=1` 全部通过（`review-go-final.log`）；真实浏览器和选择/缓存并发 race 通过（`review-race-browser-final.log`），Node 发布工具 50 项及最终产物规则检查通过。完整 WebUI 测试首轮 355 项通过、1 项失败（`review-webui-tests-final.log`）：测试只推进 2.5 秒，晚于动作刷新到达的新样本需等 5 秒轮询。冻结时钟可重现（`review-monitor-deterministic-red.log`）；改为等待实际状态请求后，同文件双用例并发重复 5 次均通过（`review-monitor-repeat-fixed.log`），完整套件复跑 356 项通过（`review-webui-suite-rerun.log`）。第一次重复检查还暴露测试新增的 `pauseAt` 与墙钟竞争（`review-monitor-repeat.log`），改为固定虚拟起点与未来时间后通过。
@@ -92,7 +92,7 @@
 - **界面和配置生命周期**：相关浏览器回归覆盖草稿／已保存配置不提前切换、原有诊断、导航焦点和布局。首轮 36 项中 35 项通过，一项错误提示同时匹配隐藏设置与当前面板；限定所属区域后通过。新增极矮视口用例与最终 3 项面板用例通过（`browser-fixtures.log`、`browser-fixtures-fixed.log`、`browser-short-fixed.log`）；全部覆盖共 37 个不同用例，没有将重复复核计作新用例。
 - **真实服务与安全边界**：Go 隔离真实 Console、原生 Mihomo 和固定 zashboard 的 race 联调通过，包含 8 个本地夹具节点、缓存不可用时的告警和面板选点、原生选择恢复、自动组切换、过期 token 更新、独立窗口、键盘进入与退出、同源加载及跨源嵌入拒绝（`real-race-verified.log`、`browser-verified/result.json`、`browser-warning-verified/result.json`）。受控触发页面可见性事件后，浏览器实际数据订阅全部关闭；SPA 进入诊断同样验证关闭事件，选择仍由核心保留。后台隐藏使用受控浏览器事件验证，没有以它替代真实系统最小化或休眠验收。
 - **测试观察修正**：早期联调断言同时匹配 Tooltip 和设置正文，随后连接计数包含被拒绝的日志握手；整页刷新还会使 Playwright 1.64.1 清空旧 WebSocket 映射而不补发所有 close 事件。计数现只跟踪当前文档中实际收到数据的连接，hash 导航及 iframe 移除仍必须收到真实关闭事件。键盘进入 iframe 可能恢复此前选中节点的焦点，改为沿原生反向 Tab 顺序验证能返回 SWD。相关失败保留在 `real-race.log`、`real-race-fixed.log`、`real-race-streams.log`，没有为这些观察差异修改产品核心。
-- **布局**：真实浏览器检查 320／390／800／1280 像素宽度、深色与 forced-colors，并检查 640×360、320×180 的小 CSS 视口。初版固定页面高度导致极矮视口下背景不能覆盖溢出内容，`browser-final/dashboard-short.png` 和 `browser-short-layout.log` 保留失败证据；最终使用自然撑高的最小视口高度，定向回归通过。小 CSS 视口覆盖缩放时的布局约束，不等同于真实浏览器缩放、Windows DPI 或屏幕阅读器验收。面板原生的可选外部更新查询仍在测试中主动阻断，相关 `Failed to fetch` 不外推为节点控制失败。
+- **布局**：真实浏览器检查 320／390／800／1280 像素宽度、深色与 forced-colors，并检查 640×360、320×180 的小 CSS 视口。初版固定页面高度导致极矮视口下背景不能覆盖溢出内容，`browser-final/dashboard-short.png` 和 `browser-short-layout.log` 保留失败证据；最终使用自然撑高的最小视口高度，定向回归通过。小 CSS 视口覆盖缩放时的布局约束，真实浏览器缩放、Windows DPI 和屏幕阅读器须在各自环境另验。面板原生的可选外部更新查询仍在测试中主动阻断，该 `Failed to fetch` 对应测试主动阻断的外部更新请求。
 - **构建**：TypeScript、嵌入资源一致性、Console `go vet` 与 `git diff --check` 通过。最终验证构建为 `embedded-network/SWD.exe`，59,422,208 字节，SHA256 `4a10691f7396d1883e5d4772162e04a32630244d1a7bca3ff1921406f710f072`；114 个实际链接 Go 模块的声明核对通过。没有运行或部署该 EXE，没有提交或推送；之前各阶段构建及失败日志保留原适用范围。
 
 ### 审查修正（2026-10-31）
@@ -117,4 +117,4 @@ Console `go vet`、嵌入资源校验和桌面构建通过。验证程序 `embed
 
 没有使用私人订阅、公网代理或游戏，不能据本地夹具推断线路速度、可用性或 VRC 播放体验。本次不新增机械式 VRC 台账项；已有实机规则继续有效。
 
-没有生成带 tag 的正式 Portable/对应源码成对发行，也没有验证公开下载或发布。当前验证覆盖新增面板的完整源码收集/离线重建、发布工具回归及桌面编译/许可；正式发行仍需对选定干净提交走现有发布链。固定上游 ZIP 未修改，不声称重建输出与官方 ZIP 逐字节一致，也不声称从原始图形重建旗帜字体。
+没有生成带 tag 的正式 Portable/对应源码成对发行，也没有验证公开下载或发布。当前验证覆盖新增面板的完整源码收集/离线重建、发布工具回归及桌面编译/许可；正式发行仍需对选定干净提交走现有发布链。固定上游 ZIP 未修改，旗帜字体直接使用上游成品。

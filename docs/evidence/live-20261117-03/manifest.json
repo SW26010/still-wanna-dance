@@ -7,8 +7,8 @@
   "files": [
     {
       "path": "docs/acceptance/live-acceptance-20261117-03.md",
-      "bytes": 5698,
-      "sha256": "48bbb861dc2c59ef156f1d406ef9911a627f350204928f1d06f5e8e2c7c0030d"
+      "bytes": 5653,
+      "sha256": "a12ce3a4c03b21b76000234ecd588c0b979f7408669346c8b47be80380217c8f"
     },
     {
       "path": "docs/evidence/live-20261117-03/headers-calibration.json",

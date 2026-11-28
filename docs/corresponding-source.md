@@ -1,8 +1,8 @@
 # 完整对应源码
 
-正式 Windows amd64 发行必须将 Portable ZIP 与独立的完整对应源码包放在**同一个 GitHub Release**。GitHub 自动生成的 Source code ZIP/TAR 不含依赖源码，不能替代本包。源码入口、工具链、构建参数和所有依赖固定到同一版本，不承诺逐字节可复现 EXE。
+正式 Windows amd64 发行必须将 Portable ZIP 与独立的完整对应源码包放在**同一个 GitHub Release**。GitHub 自动生成的 Source code ZIP/TAR 不含依赖源码，不能替代本包。源码入口、工具链、构建参数和所有依赖固定到同一版本，重建结果按构建参数和模块身份核对，EXE 字节一致性超出此项校验范围。
 
-正式交付使用 `scripts/package-portable.ps1 -ReleaseTag v1.2.3`，它会生成、重建并验证成对的二进制/源码；下面的 `create` 是只生成源码的低层命令，单独执行不代表已经完成发行校验。完整流程与公开附件检查见[打包说明](packaging.md)。
+正式交付使用 `scripts/package-portable.ps1 -ReleaseTag v1.2.3`，它会生成、重建并验证成对的二进制/源码；下面的 `create` 是只生成源码的低层命令，发行校验由打包入口完成。完整流程与公开附件检查见[打包说明](packaging.md)。
 
 源码包由干净工作区的版本标签生成：
 
@@ -20,7 +20,7 @@ Windows 使用 PowerShell 7.3+ 自带的 .NET ZIP/TAR 标准库创建、列举�
 
 完整模块 ZIP 也不自动证明“首选修改形式”齐全：SQLite Go 模块省略嵌套的 `vendor_libsqlite3` 生成工具，实际 SQLite C 原稿也需另取。因此 `docs/licenses/source-inputs.json` 固定补充输入的版本、提交、选定路径和哈希：只从 modernc SQLite 固定 Git 提交导出 `vendor_libsqlite3/` 三个文件及 `LICENSE`，另保留对应的 SQLite 3.50.4 原始源码 ZIP。源码包 `upstream/` 保存这两个档案，不再重复交付整个 modernc SQLite 仓库。导出关闭 Git 换行转换，避免 Windows/Linux 生成不同归档。Go 模块 ZIP 内已有 Makefile、生成代码和条件参数；修改 SQLite 原稿时结合补充的生成辅助程序参考这些命令，需另装相应通用 C/Go 生成工具。普通桌面重建使用已交付的 Go 输入，不需要重新生成 SQLite。
 
-Mihomo 已接入桌面节点导入及单一策略组出口；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取不等于源码未公开。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。
+Mihomo 已接入桌面节点导入及单一策略组出口；[issue #14 验证记录](validation/issue-14-validation.md#实际桌面发行链)记录了实际桌面 EXE 的依赖、对应源码与离线重建证据，以及后续修复的验证范围。桌面生产构建、依赖收集和离线重建统一使用官方 `-tags=no_easytier`，排除 SWD 不支持的 EasyTier 及其 WASM，无需 Fork。发行检查同时核对 EXE 的构建标签和模块身份，每次发布仍须按实际版本重新验证。若将来确需启用 EasyTier，仍须另行核实并交付对应源码；指定 Git SHA 不可读取时，仍须单独核对上游源码发布情况。其他内嵌 `.wasm/.syso/.a/.dll` 的原始源码交付仍须复核，见[专项记录](licenses/README.md)。
 
 产物 `still-wanna-dance-v1.2.3-corresponding-source.tar.gz` 解压为：
 
@@ -33,7 +33,7 @@ SWD-source/
   upstream/                生成/嵌入代码的额外原始源码和脚本
 ```
 
-清单记录提交、标签、工具链、目标、参数、模块版本及 Go h1 校验、补充原始源码来源，每个文件的字节数与 SHA256。清单不记录自身哈希，整个归档另有 SHA256。原始模块 ZIP 不修改。源码和 EXE 对应检查另读取 EXE 的真实 Go build info；Windows 上还执行无配置副作用的 `-build-info` 和 `-show-terms`，核对内置身份和条款与源码一致。其它系统只覆盖静态 EXE 身份和源码重建，不代表 Windows 运行出口已验证。校验不接受只写在外部 JSON 的版本声明；EXE 中的模块必须有实际完整 ZIP，只有元数据不够。
+清单记录提交、标签、工具链、目标、参数、模块版本及 Go h1 校验、补充原始源码来源，每个文件的字节数与 SHA256。清单不记录自身哈希，整个归档另有 SHA256。原始模块 ZIP 不修改。源码和 EXE 对应检查另读取 EXE 的真实 Go build info；Windows 上还执行无配置副作用的 `-build-info` 和 `-show-terms`，核对内置身份和条款与源码一致。其它系统只覆盖静态 EXE 身份和源码重建，Windows 运行出口由 Windows 构建环境验证。校验不接受只写在外部 JSON 的版本声明；EXE 中的模块必须有实际完整 ZIP，只有元数据不够。
 
 安装 BUILD.txt 中记录的 Go 版本、Node.js 22+、固定 pnpm，以及 Windows 上的 PowerShell 7.3+（其它系统为 tar）后，从解压目录执行：
 
@@ -63,4 +63,4 @@ pnpm v11 的 `projects/` 仅保存构建机项目链接，归档前清除；包�
 
 上游 `package.json` 声明 pnpm 11.20.0，而本发行的 `rebuildPackageManager` 固定为 11.25.0。收集先检查实际 pnpm 版本，并显式让 pnpm 不按上游声明下载或切换版本；使用 Corepack 时也禁用项目版本切换和工具下载，要求事先安装所需版本。该设置对源码收集的子进程生效，不依赖宿主封装器或热缓存。上游源码和锁文件保持原样。
 
-SWD 使用按哈希核对的未修改 no-fonts ZIP，重建 SWD 时直接嵌入该归档。完整固定上游源码、锁文件、npm 包、构建入口和许可仍随源码包提供，供修改面板时按上游流程构建；发行门禁不再额外运行上游 Vite 构建，不承诺跨宿主环境离线复刻第三方面板或取得相同 chunk 字节。字体是独立许可的原样资源，保留成品、来源、哈希及许可，不声称复现上游的字体子集生成链。更新面板时重新运行 scripts/dashboard-notices.mjs，并审阅运行模块、PWA/CSS、预打包内联代码与字体/纹理声明。
+SWD 使用按哈希核对的未修改 no-fonts ZIP，重建 SWD 时直接嵌入该归档。完整固定上游源码、锁文件、npm 包、构建入口和许可仍随源码包提供，供修改面板时按上游流程构建；发行门禁不再额外运行上游 Vite 构建，跨宿主重建直接使用按哈希核对的上游面板归档。字体是独立许可的原样资源，保留成品、来源、哈希及许可，字体直接使用上游成品。更新面板时重新运行 scripts/dashboard-notices.mjs，并审阅运行模块、PWA/CSS、预打包内联代码与字体/纹理声明。

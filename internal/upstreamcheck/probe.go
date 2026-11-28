@@ -334,7 +334,7 @@ func probePlaybackPaths(parent context.Context, clients []*http.Client, p Policy
 	started := time.Now()
 	got, err := playbacksource.ReadPaths(parent, clients, p.RequestTimeout, func(ctx context.Context, client *http.Client) (attempt, error) {
 		offset := time.Since(started)
-		o, sample, response := probePlaybackAt(ctx, client, p, id, r, target)
+		o, sample, response := probePlaybackAt(ctx, client, id, r, target)
 		if o.responded {
 			o.latency += offset
 		}
@@ -366,10 +366,9 @@ func probePlaybackPaths(parent context.Context, clients []*http.Client, p Policy
 	return o, got.sample, got.response
 }
 
-func probePlaybackAt(parent context.Context, client *http.Client, p Policy, id int64, r route, target string) (o observation, sample *videoSample, result PlaybackURLResponse) {
+// ReadPaths owns the request deadline shared by all playback probes.
+func probePlaybackAt(ctx context.Context, client *http.Client, id int64, r route, target string) (o observation, sample *videoSample, result PlaybackURLResponse) {
 	o = observation{op: PlaybackURL, route: r.ID, songID: id}
-	ctx, cancel := context.WithTimeout(parent, p.RequestTimeout)
-	defer cancel()
 	started := time.Now()
 	resp, t, err := doProbeRequest(ctx, client, target, "")
 	defer func() {

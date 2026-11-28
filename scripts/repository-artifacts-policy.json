@@ -2348,6 +2348,20 @@
       "bytes": 1321144,
       "sha256": "b3289a749c873fe7d125c6c962357c23b19c57a6c8e51567c824d5a2ef644489",
       "reason": "离线 WebUI 的首页时间轴提供块状态图例、视图控制按钮和可点击外部关闭的块详情浮层。"
+    },
+    {
+      "path": "docs/images/webui-acceleration.png",
+      "kind": "readme-screenshot",
+      "bytes": 82820,
+      "sha256": "2b25f844fa2ee9b2121727fedf0c908e202b631378746c429c2e214d0d20204d",
+      "reason": "中英文 README 加速页预览。2026-11-28 以公开歌曲资料和示例活动截取，展示紧凑时间轴工具栏、正式播放进度、歌曲 ID 和三首队列歌曲。"
+    },
+    {
+      "path": "docs/images/webui-network.png",
+      "kind": "readme-screenshot",
+      "bytes": 61034,
+      "sha256": "0fe60eea06f44a9c5ca9ec21c8942bcae8fa14b4d4f20882d82ec6cb23252ae7",
+      "reason": "中英文 README 的当前连接卡片预览。2026-11-28 使用内置 CF IP 和示例耗时、速度展示三组直连线路。"
     }
   ]
 }

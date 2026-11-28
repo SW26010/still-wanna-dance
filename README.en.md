@@ -32,41 +32,43 @@ A **[global block scheduler driven by playback timing](docs/block-scheduler-desi
 
 - **Prepare videos ahead of time**: preload the room queue and stream while downloading.
 - **Manage your library**: search, preview, favorite, or block songs; import existing videos and download missing ones.
-- **Plan your storage**: prioritize frequent picks within a budget, retain favorites, and import preferences from VRCX history.
-- **See and control downloads**: check speed, progress, and request history; choose direct connections, external SOCKS5, or embedded Mihomo nodes and inspect their connection status.
+- **Plan your storage**: give frequent picks and favorites priority within your budget. You can also use your VRCX playback history to prioritize videos for download and retention.
+- **Flexible connections**: by default, SWD dynamically selects CF IP addresses and downloads in parallel, which works for most use cases. You can also switch to built-in Mihomo (Clash) or an external SOCKS5 service.
 
 ## A look inside
 
 **Acceleration: connection status, download progress, and upcoming video demands.**
 
-![Dark WebUI acceleration page showing upstream and game connections, a single-layer block timeline, current playback, and queue preloading progress](docs/images/webui-acceleration.png)
+![Dark WebUI acceleration page showing game connection status, a video block timeline, the current song ID and room playback progress, and preloading for the next three songs](docs/images/webui-acceleration.png)
 
 <details>
-<summary>More screenshots: library and history</summary>
+<summary>More screenshots: library and network</summary>
 
 **Library: browse song covers, search, manage favorites, preview videos, and manage local files.**
 
 ![Dark WebUI library page showing the default cover view, song search, favorites, and per-song action menus](docs/images/webui-library.png)
 
-**History: look up playback requests, delivery results, response sources, and time to first video data.**
+**Network: the Current connection card shows direct routes for the song catalog, playback URL resolution, and video downloads.**
 
-![Dark WebUI history page showing response source shares, response time statistics, time filters, and sample playback requests for real songs](docs/images/webui-history.png)
+![Three route lists on the Current connection card showing full catalog fetch time, time to first byte for playback URLs, and time to download a full 1 MiB video block](docs/images/webui-network.png)
 
 </details>
 
-These screenshots show the current WebUI with public song metadata and available covers for top-ranked songs in the bundled default scores. Missing covers use the app's bundled category artwork. Speeds, progress, requests and statistics, favorites, and local availability are sample data, not benchmark results. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
+These screenshots show the current WebUI with public song metadata and available covers for top-ranked songs in the bundled default scores. Missing covers use the app's bundled category artwork. The Network screenshot uses IPs from the bundled Cloudflare list. Timings, speeds, download progress, favorites, and local availability are sample data, not benchmark results. The interface supports light, dark, and system themes. Screenshots and detailed guides are currently in Chinese.
 
 ## Quick start
 
 1. **Download and run.** Get the Windows x64 portable ZIP from [Releases](https://github.com/SW26010/still-wanna-dance/releases), extract the whole package to a writable folder, and run `SWD.exe`.
 2. **Read and accept the terms.** The app opens the WebUI by default and prepares your configuration, database, and video folders automatically.
-3. **Start acceleration.** Click `加速 → 开始加速`, complete Windows authorization when prompted, then enter WannaDance and request a song. Check connection and download status in the WebUI.
+3. **Start acceleration and request a song.** Click `加速 → 开始加速` and approve the Windows prompt if it appears. Enter WannaDance, set the CDN to **Auto, CF, or HKG** in the room settings, then request a song.
 
 **Why does it need administrator permission?** SWD modifies the Windows hosts file to route WannaDance playback requests through your PC. By default, stopping acceleration or exiting normally restores the routing SWD configured; restoration failures are reported. See [game routing and restoration](docs/console.md#hosts).
 
 **Want to keep videos for next time?** By default, SWD uses temporary blocks without retaining ordinary complete videos. You can choose a storage budget or unlimited retention under Settings → Storage (`设置 → 存储`), save, and restart when prompted. You can try acceleration with the defaults first.
 
-Closing the browser leaves acceleration and queue preloading running. Reopen the WebUI from the tray, or choose `退出程序` to exit. If you disabled automatic routing restoration, enable and save it again before disabling or uninstalling SWD, then exit normally and check the result. See the [user guide](docs/console.md#hosts) for the setting.
+Closing the browser leaves acceleration and queue preloading running. Reopen the WebUI from the tray, or choose `退出程序` to exit.
+
+**How do I restore the game's direct connection?** Before you stop using or uninstall SWD, open About → Help → Backups and upgrades (`关于 → 使用帮助 → 备份与升级`) and click Restore direct connection (`恢复游戏直连`). This stops acceleration and works even if you disabled automatic restoration. Exit the app once it confirms that routing was restored or that no restoration was needed. See [game routing and restoration](docs/console.md#hosts).
 
 ## Common questions
 
@@ -74,7 +76,7 @@ Closing the browser leaves acceleration and queue preloading running. Reopen the
 
 **Can I play completely offline?** If a song mapping and usable local file already exist, SWD can serve the video locally. This is not a complete offline mode; missing videos and other game functions may still need the network.
 
-**How can I confirm the game is using SWD?** Start acceleration, request a song in the game, and look for its playback requests in Video Demands or History. Backend connection status means the WebUI can reach SWD; game connection status means routing is configured. If no request arrives, try rejoining the world or restarting VRChat to refresh DNS. If requests arrive but downloading is slow, check the upstream connection on the Network page.
+**How can I confirm the game is using SWD?** Request a song in the game, then click Recent request (`最近请求`) on the Acceleration page to open History. Look for a new entry matching the time and song. Video Demands (`视频需求`) also lists songs being preloaded from the room queue. The backend connection badge shows whether the WebUI can reach SWD. The game connection badge shows whether routing is configured. If no new request appears, check that the room CDN is set to Auto, CF, or HKG, then try rejoining the world or restarting VRChat. If requests arrive but downloads are slow, run a speed test on the Network page.
 
 **Is the video budget a hard disk limit?** No. It governs retention of complete videos, including favorites. When priority retention is enabled, favorites are kept first within the same budget but can still be removed when space is insufficient. Temporary blocks, the database, and videos in use can take disk usage above that budget. “Do not retain” still permits temporary disk writes.
 

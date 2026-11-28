@@ -81,9 +81,9 @@ Web UI 的 `app.js` 是离线构建所需的生成产物。`pnpm --dir webui bui
 
 `docs/images/` 保存中英文 README 直接引用的产品展示素材。`logo-dark.svg` 从 `internal/branding/logo.svg` 生成，只将已有暗色配色固定启用，品牌图形仍以原文件为准。
 
-三个 PNG（`webui-acceleration.png`、`webui-library.png`、`webui-history.png`）是当前生产 WebUI 在暗色模式下的浏览器截图，曲库使用默认封面视图，以完整一页 50 首歌填满视口。歌曲按内置默认分数降序选取；真实歌曲资料来自公开 Udon 清单 `20261028232411`，`webui/test-support/readme-songs.json` 仅保留展示字段和源摘要，与 `data/media-seed/media-seed.json` 核对；分数、资源映射和大小读取仓库内置数据。歌曲封面沿用产品的公开来源 `https://aya.kiva.moe/images/small<ID>.jpg`，首次采集下载到忽略目录 `artifacts/readme-refresh/covers/`，后续复用。路径、速度、进度、请求、收藏与本地保存状态等仍为示例；历史页的响应来源和响应时间统计由同一组示例请求计算，不读取个人历史。不含私人资料，不作为性能或游戏验收证据。为使仓库首页可直接显示，按精确路径、字节数与 SHA256 登记为 `readme-screenshot` 例外；每张不得超过 256 KiB，不放宽其他图片或实验附件的归档规则。已移除的设置截图只保留历史版本的精确登记，供 Git 历史检查。
+三个 PNG（`webui-acceleration.png`、`webui-library.png`、`webui-network.png`）是当前生产 WebUI 在暗色模式下的浏览器截图，曲库使用默认封面视图，以完整一页 50 首歌填满视口。歌曲按内置默认分数降序选取；真实歌曲资料来自公开 Udon 清单 `20261028232411`，`webui/test-support/readme-songs.json` 仅保留展示字段和源摘要，与 `data/media-seed/media-seed.json` 核对；分数、资源映射和大小读取仓库内置数据。歌曲封面沿用产品的公开来源 `https://aya.kiva.moe/images/small<ID>.jpg`，首次采集下载到忽略目录 `artifacts/readme-refresh/covers/`，后续复用。路径、速度、进度、请求、收藏与本地保存状态等仍为示例。网络图截取「当前连接」整张卡片，三组列表的 IP 选自内置 CF IP 列表，耗时和速度为示例值。不含私人资料，不作为性能或游戏验收证据。为使仓库首页可直接显示，按精确路径、字节数与 SHA256 登记为 `readme-screenshot` 例外；每张不得超过 256 KiB，不放宽其他图片或实验附件的归档规则。已移除的历史页和设置截图只保留历史版本的精确登记，供 Git 历史检查。
 
-加速页截图采用 1440 × 880 视口，展开单层时间轴，展示当前读取与三首队列歌曲，不加入无期限手动任务；只调整展示状态与示例数据，产品仍默认收起时间轴。
+加速页截图采用 1440 × 880 视口，展开默认收起的单层时间轴。正式播放行展示歌曲 ID、房间播放进度和本地可用比例，下方三行展示队列歌曲的预加载情况。
 
 安装 `webui` 依赖并确认前端构建产物为当前版本后，从仓库根目录执行（Node.js 22.18+，本机 Edge，18473 端口未被占用）：
 
@@ -92,6 +92,6 @@ Web UI 的 `app.js` 是离线构建所需的生成产物。`pnpm --dir webui bui
 pnpm --package=sharp-cli@5.2.0 dlx sharp -i artifacts/readme-refresh/webui-library.raw.png -o docs/images/webui-library.png --palette --colors 256 --dither 0 --effort 6 --quality 90
 ```
 
-脚本复用浏览器夹具，输出 Logo、加速页、历史页及忽略目录 `artifacts/readme-refresh/` 中的曲库原始截图和采集结果；封面返回 404 时沿用产品内置类别封面，不跳过歌曲。第二条命令用固定版本的临时工具将曲库图编码为 256 色 PNG，控制体积，不修改项目依赖。首次采集需联网下载公开歌曲封面及压缩工具，不启动程序、游戏或修改 hosts。更新后人工检查图像及示例数据，追加新截图的精确例外，保留历史版本登记供提交历史检查。
+脚本复用浏览器夹具，输出 Logo、加速页、当前连接卡片及忽略目录 `artifacts/readme-refresh/` 中的曲库原始截图和采集结果；封面返回 404 时沿用产品内置类别封面，不跳过歌曲。第二条命令用固定版本的临时工具将曲库图编码为 256 色 PNG，控制体积，不修改项目依赖。首次采集需联网下载公开歌曲封面及压缩工具，不启动程序、游戏或修改 hosts。更新后人工检查图像及示例数据，追加新截图的精确例外，保留历史版本登记供提交历史检查。
 
 内嵌代理面板的唯一归档例外为 internal/dashboard/assets/zashboard.zip：固定原版发布包供 EXE 离线服务，必须匹配精确路径、字节数、SHA256，并随发行附许可与固定源码/依赖。此产品资源不允许任意 ZIP、实验结果或私人配置借用例外。版本更新须同时审阅 release.json、声明和对应源码输入。

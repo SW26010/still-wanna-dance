@@ -22,7 +22,7 @@ try {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   const api = await mockAPI(page);
-  const at = Date.UTC(2026, 10, 15, 12);
+  const at = Date.UTC(2026, 10, 28, 12);
   await page.clock.setFixedTime(at);
   const observedAt = new Date(at - 60000).toISOString();
   const connectivityResults = [
@@ -73,33 +73,9 @@ try {
     return route.fulfill(cover ? { contentType: 'image/jpeg', body: cover } : { status: 404, body: '暂无封面' });
   });
   await page.route('**/api/inventory', route => route.fulfill({ json: { totalSongs: songs.length, coveredSongs: songs.filter(song => resources[song.resource].local).length, coverageKnown: true, updated: new Date(at).toISOString() } }));
-  const readyFirstBodyMS = [.4, .6, .8, 1, 1.2, 1.2, 1.6, 2.4, 3.2, 4.1];
-  let readyIndex = 0;
-  const history = songs.map((song, i) => {
-    const bytes = resources[song.resource].size;
-    const sources = i % 4 === 0 ? { downloadBytes: Math.floor(bytes * .6), cacheBytes: bytes - Math.floor(bytes * .6), localBytes: 0 }
-      : i % 4 === 1 ? { downloadBytes: 0, cacheBytes: bytes, localBytes: 0 }
-      : i % 4 === 2 ? { downloadBytes: 0, cacheBytes: 0, localBytes: bytes }
-      : { downloadBytes: bytes, cacheBytes: 0, localBytes: 0 };
-    const firstBodyBlocking = sources.downloadBytes > 0;
-    const firstBodyMS = firstBodyBlocking ? 180 + (i % 9) * 135 : readyFirstBodyMS[readyIndex++ % readyFirstBodyMS.length];
-    const elapsedMS = firstBodyMS + (firstBodyBlocking ? 8500 + i * 123 : 600 + i * 17);
-    const received = at - 220000 - i * 420000;
-    return { id: songs.length - i, at: received, completedAt: received + elapsedMS, resource: song.resource, songID: song.id, songTitle: song.title, method: 'GET', range: 'bytes=0-', elapsedMS, firstBodyNS: firstBodyMS * 1e6, firstBodyBlocking, bytes, responseBytes: bytes, sources, status: 206, outcome: 'completed' };
-  });
-  const responseSources = history.reduce((total, record) => {
-    for (const key of ['downloadBytes', 'cacheBytes', 'localBytes']) total[key] += record.sources[key];
-    return total;
-  }, { downloadBytes: 0, cacheBytes: 0, localBytes: 0 });
-  const latencyGroup = blocking => {
-    const values = history.filter(record => record.firstBodyBlocking === blocking).map(record => record.firstBodyNS / 1e6).sort((a, b) => a - b);
-    return { samples: values.length, p50MS: values[Math.ceil(values.length * .5) - 1], p95MS: values[Math.ceil(values.length * .95) - 1] };
-  };
-  expect(latencyGroup(false)).toMatchObject({ p50MS: 1.2, p95MS: 4.1 });
-  await page.route('**/api/requests?*', route => route.fulfill({ json: { storageID: 'fixture', requests: history.slice(0, 1), hasMore: false } }));
-  await page.route('**/api/history?*', route => route.fulfill({ json: { storageID: 'fixture', requests: history, hasMore: false, nextCursor: '' } }));
-  await page.route('**/api/history/stats*', route => route.fulfill({ json: { from: at - 72 * 3600000, to: at, oldestAt: history.at(-1)?.at ?? null, limit: 10000, requests: history.length, sourceSamples: history.length, sources: responseSources, blocking: latencyGroup(true), ready: latencyGroup(false) } }));
-  const blocks = [], demands = [];
+  const recentRequest = { at: at - 220000, songID: songs[0].id, songTitle: songs[0].title, method: 'GET', status: 206, outcome: 'completed' };
+  await page.route('**/api/requests?*', route => route.fulfill({ json: { storageID: 'fixture', requests: [recentRequest], hasMore: false } }));
+  const blocks = [], demands = [], availability = {};
   const prepareAheadMS = 500000, open = 16;
   const consumedBlocks = 12;
   // Earlier timed work is ready; only five blocks at the window edge need
@@ -117,7 +93,17 @@ try {
       // remains visible during the configured 300-second protection tail.
       blocks.push({ id, resource: s.resource, songID: s.id, title: s.title, block: i, byteOffset: i * 1048576, totalBlocks: count, bytes: 1048576, at: needBy, needBy: consumed ? 0 : needBy, deadline: consumed ? 0 : needBy + 30000, timeBasis: consumed ? 'ended' : 'need-by', protectionStart: consumed ? needBy : 0, protectionUntil: consumed ? needBy + 300000 : 0, protected: consumed, inUse: !consumed, sources: consumed ? 0 : 1, readers: 0, state, windowClosed: false, eligible: !consumed });
     }
-    demands.push({ id: `${row + 1}/${s.resource}`, sourceID: row + 1, kind: row ? 'queue' : 'get', songID: s.id, title: s.title, position: row, resource: s.resource, totalBlocks: count, blocks: ids });
+    const totalBytes = count * 1048576;
+    const availableBytes = blocks.filter(block => block.resource === s.resource && ['protected', 'available'].includes(block.state)).length * 1048576;
+    availability[s.resource] = { totalBytes, availableBytes };
+    const demand = { id: `${row + 1}/${s.resource}`, sourceID: row + 1, kind: row ? 'queue' : 'get', songID: s.id, title: s.title, position: row, resource: s.resource, totalBlocks: count, blocks: ids };
+    if (row === 0) {
+      const zeroAt = at - 60000;
+      availability[s.resource].availableRanges = [{ start: 0, end: availableBytes }];
+      demands.push({ ...demand, id: `5/${s.resource}`, sourceID: 5, kind: 'formal', playback: { zeroAt, endAt: zeroAt + s.duration * 1000 } });
+      demand.gameSongID = s.id;
+    }
+    demands.push(demand);
   }
   const ready = blocks.filter(b => b.state === 'waiting' && b.needBy <= at + prepareAheadMS)
     .sort((a, b) => a.needBy - b.needBy);
@@ -130,7 +116,7 @@ try {
   expect(demands[0].blocks).toHaveLength(demands[0].totalBlocks - consumedBlocks);
   expect(blocks.filter(b => !b.inUse && b.state === 'protected')).toHaveLength(consumedBlocks);
   const emit = (kind, state) => page.request.post('/__fixture/events', { data: { id: api.fixtureID, kind, state } });
-  await emit('blocks', { at, running: true, reset: true, capacity: 4096, used: blocks.filter(b => b.inUse).length, active: active.length, open, prepareAheadMS, downloadGraceMS: 30000, blocks, demands, removed: [], removedDemands: [] });
+  await emit('blocks', { at, running: true, reset: true, capacity: 4096, used: blocks.filter(b => b.inUse).length, active: active.length, open, prepareAheadMS, downloadGraceMS: 30000, blocks, demands, availability, removed: [], removedDemands: [] });
   await emit('download-speed', { bytesPerSecond: 6400000 });
   await emit('block-cache', { bytes: blocks.filter(b => b.state === 'available' || b.state === 'protected').length * 1048576 });
   await mkdir('docs/images', { recursive: true });
@@ -142,7 +128,9 @@ try {
   await writeFile('docs/images/logo-dark.svg', logo.replace(darkStyle, '<style>'));
   await page.goto('/#/home');
   await expect(page.locator('.demand-row')).toHaveCount(4);
-  await expect(page.locator('.demand-row').first().getByRole('group')).toHaveAccessibleName(/需要 28 个块，视频共 40 块/);
+  const playbackRow = page.locator('.demand-row').first();
+  await expect(playbackRow.getByRole('group')).toHaveAccessibleName(/正式播放，3119 · Dynamite，游戏读取与交接 28 个块，视频共 40 块/);
+  await expect(playbackRow.getByRole('progressbar', { name: /房间播放进度/ })).toBeVisible();
   await page.getByRole('button', { name: '展开时间轴视图', exact: true }).click();
   await expect(page.locator('.timeline-canvas')).toBeVisible();
   await expect(page.getByRole('button', { name: '分层显示', exact: true })).toHaveAttribute('aria-pressed', 'false');
@@ -166,15 +154,35 @@ try {
   await expect(page.locator('.library-cover-card').nth(17)).toBeInViewport();
   await page.mouse.move(0, 0);
   await page.screenshot({ path: 'artifacts/readme-refresh/webui-library.raw.png', animations: 'disabled' });
-  await page.goto('/#/timeline');
-  const historyTable = page.getByRole('table', { name: '请求历史列表', exact: true });
-  await expect(historyTable.getByRole('row')).toHaveCount(history.length + 1);
-  await expect(historyTable.getByRole('row').nth(1)).toContainText(songs[0].title);
-  await expect(page.getByRole('region', { name: '响应来源统计' })).toContainText('本地视频');
-  await expect(page.getByRole('region', { name: '响应时间', exact: true })).toContainText('P95');
-  await expect(page.getByRole('button', { name: '查询历史', exact: true })).toBeVisible();
+  // Addresses from defaultDirectPresetIPs in internal/upstreamnet/dns_pool.go; timings are illustrative.
+  const routes = [
+    { ip: '104.21.112.1', catalogMS: 186, playbackMS: 71, blockMS: 148, source: 'download' },
+    { ip: '104.17.243.18', catalogMS: 214, playbackMS: 58, blockMS: 173, source: 'sample' },
+    { ip: '162.159.146.57', catalogMS: 259, playbackMS: 86, blockMS: 206, source: 'download' },
+  ];
+  const sampleCatalogBytes = 1024 * 1024;
+  const observation = { mode: 'direct', state: 'available', observedAt, validUntil: new Date(at + 600000).toISOString() };
+  api.state.upstreamMonitor = {
+    finished: observedAt,
+    results: routes.flatMap(({ ip, catalogMS, playbackMS }) => [
+      { ...observation, ip, operation: 'catalog', route: 'api', entry: 'https://api.udon.dance/Api/Songs/list', http: 200, catalogTime: snapshot.catalogRevision, probeDurationMS: catalogMS,
+        estimatedSpeedBPS: sampleCatalogBytes * 1000 / catalogMS, transferredBytes: sampleCatalogBytes, transferDurationMS: catalogMS, throughputObservedAt: observedAt },
+      { ...observation, ip, operation: 'playback_url', route: 'cf', entry: 'http://api.udon.dance/Api/Songs/play?node=cf', http: 302, sampleSongID: Number(songs[0].id), estimatedLatencyMS: playbackMS },
+    ]),
+  };
+  api.state.downloadRoutes = routes.map(({ ip, blockMS, source }) => ({
+    ip, host: 'play.udon.dance', source, observedAt, blockAt: observedAt, blockDurationNs: blockMS * 1e6,
+  }));
+  await page.goto('/#/network');
+  const connections = page.locator('#network');
+  await expect(connections.getByRole('heading', { level: 3 })).toHaveText(['歌曲列表', '播放地址解析', '视频资源加载']);
+  for (const name of ['线路检测：catalog', '线路检测：playback_url', '资源下载线路']) {
+    const rows = connections.getByRole('table', { name, exact: true }).locator('tbody tr');
+    await expect(rows).toHaveCount(routes.length);
+    await expect(rows.last()).toBeVisible();
+  }
   await page.mouse.move(0, 0);
-  await page.screenshot({ path: 'docs/images/webui-history.png', animations: 'disabled' });
+  await connections.screenshot({ path: 'docs/images/webui-network.png', animations: 'disabled' });
   expect(errors).toEqual([]);
   await writeFile('artifacts/readme-refresh/capture-results.json', JSON.stringify({ viewport: page.viewportSize(), fixture: 'webui/e2e/api.ts', songIDs: songs.map(song => song.id), categoryCoverIDs: songs.filter(song => !covers.get(song.id)).map(song => song.id), catalogRevision: snapshot.catalogRevision, errors, images: 3 }, null, 2));
   console.log('Captured three current WebUI screenshots with real default-priority songs and sample activity; no page errors.');

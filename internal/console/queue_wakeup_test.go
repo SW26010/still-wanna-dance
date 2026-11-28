@@ -40,7 +40,7 @@ func TestQueuePersistentLogFailureUsesFaultCenter(t *testing.T) {
 		center := faults.New()
 		q := &queueTask{}
 		q.setLogFaultObserver(func(err error) { center.Retry("queue:log", err) })
-		q.start(tail, engine)
+		q.start(tail, engine, vrclog.RoomSnapshot{})
 		t.Cleanup(q.stop)
 		synctest.Wait()
 		time.Sleep(vrclog.DiscoverInterval + vrclog.PollInterval)
@@ -149,7 +149,7 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 			t.Fatal(err)
 		}
 		q := &queueTask{}
-		q.start(tail, engine)
+		q.start(tail, engine, vrclog.RoomSnapshot{})
 		t.Cleanup(q.stop)
 		synctest.Wait()
 		logs := "[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":1}]\n" +
@@ -176,6 +176,34 @@ func TestQueueLogBatchAndStaleReset(t *testing.T) {
 		synctest.Wait()
 		if calls.Load() != before {
 			t.Fatal("stale queue kept retrying", calls.Load())
+		}
+	})
+}
+
+func TestStartQueueRestoresOnlyFinalSnapshot(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		engine, calls := failingQueueEngine(t)
+		dir := t.TempDir()
+		c := &Console{service: engine, settings: Settings{VRChatLogDir: dir}}
+		stamp := time.Now().Add(-20 * time.Second).Format("2006.01.02 15:04:05")
+		log := stamp + " [Behaviour] Successfully joined room\n" +
+			stamp + " [VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [{\"songId\":1}]\n" +
+			stamp + " [VideoQueueManager] OnDeserialization: syncedQueuedInfoJson = [{\"songId\":2}]\n"
+		if err := os.WriteFile(filepath.Join(dir, "output_log_test.txt"), []byte(log), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.startQueueLocked(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(c.queue.stop)
+		synctest.Wait()
+		if err := c.startQueueLocked(); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		status := c.queue.snapshot()
+		if len(status.Failures) != 1 || status.Failures[0].ID != 2 || calls.Load() != 1 {
+			t.Fatal("enabled queue resolved obsolete work or replayed twice", status, calls.Load())
 		}
 	})
 }
@@ -227,18 +255,19 @@ func TestRoomLogAppliesPlaybackAndQueueAndClearsBothOnStop(t *testing.T) {
 		t.Cleanup(q.stop)
 		start := func() {
 			t.Helper()
-			tail := &vrclog.Tail{Dir: dir}
-			if _, err := tail.Poll(time.Now()); err != nil {
+			tail, room, err := vrclog.OpenRoomLog(dir, time.Now())
+			if err != nil {
 				t.Fatal(err)
 			}
-			q.start(tail, engine)
+			q.start(tail, engine, room)
 			synctest.Wait()
 		}
 		start()
 		at := time.Now().In(time.Local).Truncate(time.Second)
 		stamp := at.Format("2006.01.02 15:04:05")
-		lines := stamp + " Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n" +
-			"[VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":42}]\n" +
+		lines := stamp + " Debug - [Behaviour] Successfully joined room\n" +
+			stamp + " Debug - [USharpVideo (WannaDance)] Started video: http://api.udon.dance/Api/Songs/play?id=1, since I'm the owner\n" +
+			stamp + " Debug - [VideoQueueManager] OnPreSerialization: queue info serialized: [{\"songId\":42}]\n" +
 			stamp + " Debug - [USharpVideo (WannaDance)] Syncing video to 15.00, current time = 0\n"
 		if err := os.WriteFile(path, []byte(lines), 0600); err != nil {
 			t.Fatal(err)
@@ -269,8 +298,14 @@ func TestRoomLogAppliesPlaybackAndQueueAndClearsBothOnStop(t *testing.T) {
 		}
 		start()
 		time.Sleep(vrclog.PollInterval)
+		if got := playbackEnd(); got != want || len(q.snapshot().Songs) != 0 {
+			t.Fatal("restart lost original playback end or restored malformed queue", got, want, q.snapshot())
+		}
+		q.stop()
+		time.Sleep(90 * time.Second)
+		start()
 		if got := playbackEnd(); got != 0 || len(q.snapshot().Songs) != 0 {
-			t.Fatal("restarting the reader replayed history", got, q.snapshot())
+			t.Fatal("restart installed already expired playback", got, q.snapshot())
 		}
 	})
 }
@@ -320,7 +355,7 @@ func TestRoomLogLeaveFreezesQueueHeadBeforeClearingPlayback(t *testing.T) {
 			t.Fatal(err)
 		}
 		q := &queueTask{}
-		q.start(tail, engine)
+		q.start(tail, engine, vrclog.RoomSnapshot{})
 		t.Cleanup(q.stop)
 		synctest.Wait()
 		appendLog := func(lines string) *cacheproxy.BlockSnapshot {
@@ -373,7 +408,7 @@ func TestQueueRestartClearsPreviousRun(t *testing.T) {
 		}
 		q := &queueTask{}
 		t.Cleanup(q.stop)
-		q.start(tail, engine)
+		q.start(tail, engine, vrclog.RoomSnapshot{})
 		q.setQueueSongs([]vrclog.Song{{ID: 1}}, false)
 		synctest.Wait()
 		if status := q.snapshot(); calls.Load() != 1 || len(status.Failures) != 1 {
@@ -383,7 +418,7 @@ func TestQueueRestartClearsPreviousRun(t *testing.T) {
 		if status := q.snapshot(); status.Running || len(status.Songs) != 0 || len(status.Failures) != 0 {
 			t.Fatal("stop left the previous queue visible", status)
 		}
-		q.start(tail, engine)
+		q.start(tail, engine, vrclog.RoomSnapshot{})
 		synctest.Wait()
 		if status := q.snapshot(); !status.Running || len(status.Songs) != 0 || len(status.Failures) != 0 || calls.Load() != 1 {
 			t.Fatal("restart restored the previous queue", calls.Load(), status)
@@ -416,7 +451,7 @@ func TestQueueIdleDirectoryWaitsForNewLogs(t *testing.T) {
 					t.Fatal(err)
 				}
 				q := &queueTask{}
-				q.start(tail, engine)
+				q.start(tail, engine, vrclog.RoomSnapshot{})
 				t.Cleanup(q.stop)
 				synctest.Wait()
 				time.Sleep(6 * time.Minute)

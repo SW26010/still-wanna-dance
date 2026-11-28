@@ -258,23 +258,24 @@ func (c *Console) startQueueLocked() error {
 	if err != nil {
 		return err
 	}
-	// Establish EOF synchronously so events arriving after start are not missed.
-	tail := &vrclog.Tail{Dir: logDir}
-	_, err = tail.Poll(time.Now())
+	tail, room, err := vrclog.OpenRoomLog(logDir, time.Now())
 	if err != nil {
 		return err
 	}
-	c.queue.start(tail, engine)
+	c.queue.start(tail, engine, room)
 	return nil
 }
 
 // Starts and stops are serialized by the Console lifecycle.
-func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
+func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server, room vrclog.RoomSnapshot) {
 	ctx, cancel := context.WithCancel(context.Background())
+	if !room.LastActivity.IsZero() {
+		engine.RestoreRoomLog(room)
+	}
 	q.mu.Lock()
 	q.cancel = cancel
 	q.done = make(chan struct{})
-	q.QueueStatus = QueueStatus{Running: true, File: logName(tail.Path)}
+	q.QueueStatus = QueueStatus{Running: true, File: logName(tail.Path), Songs: room.Songs, Updated: room.QueueAt}
 	q.generation = 0
 	q.waiters = nil
 	q.prepared = nil
@@ -282,10 +283,10 @@ func (q *queueTask) start(tail *vrclog.Tail, engine *cacheproxy.Server) {
 	done := q.done
 	q.mu.Unlock()
 	slog.Info("房间队列监控已开始", "event_name", "queue_started", "file", logName(tail.Path))
-	go q.runRoomLog(ctx, tail, engine, done)
+	go q.runRoomLog(ctx, tail, engine, done, room)
 }
 
-func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}) {
+func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *cacheproxy.Server, done chan struct{}, room vrclog.RoomSnapshot) {
 	defer close(done)
 	defer q.observeLogFault(nil)
 	wake := make(chan struct{}, 1)
@@ -307,8 +308,11 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 	}()
 	ticker := time.NewTicker(vrclog.PollInterval)
 	defer ticker.Stop()
-	var timeline vrclog.PlayerTimeline
-	lastActivity := time.Now()
+	timeline := room.Timeline
+	lastActivity := room.LastActivity
+	if lastActivity.IsZero() {
+		lastActivity = time.Now()
+	}
 	stale := false
 	lastReadError := ""
 	for {
@@ -352,7 +356,7 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 			eventEnd := len(updates)
 			// An idle log can simply mean VRChat is not running. Withdraw
 			// old work without turning inactivity into a read error.
-			if tail.Path != "" && err == nil && now.Sub(lastActivity) >= 5*time.Minute && !stale {
+			if tail.Path != "" && err == nil && now.Sub(lastActivity) >= vrclog.IdleTimeout && !stale {
 				updates = append(updates, vrclog.Event{Reset: true})
 			}
 			// Apply playback and queue events in file order before the worker

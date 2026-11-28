@@ -11,6 +11,7 @@ import (
 
 const PollInterval = 3 * time.Second
 const DiscoverInterval = 15 * time.Second
+const IdleTimeout = 5 * time.Minute
 const maxChunk = 4 << 20
 const maxLine = 1 << 20
 
@@ -48,6 +49,19 @@ type Tail struct {
 }
 
 func (t *Tail) Poll(now time.Time) ([]Event, error) {
+	return t.poll(now, nil)
+}
+
+// OpenRoomLog captures startup EOF and recovers the current room from that
+// same file handle. Poll resumes at the captured offset, including partial lines.
+func OpenRoomLog(dir string, now time.Time) (*Tail, RoomSnapshot, error) {
+	t := &Tail{Dir: dir}
+	var room RoomSnapshot
+	_, err := t.poll(now, &room)
+	return t, room, err
+}
+
+func (t *Tail) poll(now time.Time, room *RoomSnapshot) ([]Event, error) {
 	path := t.Path
 	starting := !t.initialized
 	if !now.Before(t.nextScan) {
@@ -82,6 +96,17 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 	}
 	var events []Event
 	if path != t.lastPath || !os.SameFile(t.info, info) || info.Size() < t.Offset {
+		if starting && room != nil {
+			t.Offset, t.lastPath, t.info = info.Size(), path, info
+			*room, err = t.recoverRoom(f, now)
+			if err == io.EOF {
+				// The captured file was truncated during reverse reading.
+				// Let the first live poll start the replacement from zero.
+				t.lastPath, t.pending, t.discard = "", nil, false
+				return nil, nil
+			}
+			return nil, err
+		}
 		var offset int64
 		var discard bool
 		if starting && info.Size() > 0 {
@@ -122,10 +147,7 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 			t.discard = false
 			continue
 		}
-		e, ok, parseErr := ParseWithPlayback(string(line))
-		if parseErr != nil {
-			e, ok = Event{QueueReset: true}, true
-		}
+		e, ok := parseLogLine(string(line))
 		if ok {
 			events = append(events, e)
 		}
@@ -140,4 +162,12 @@ func (t *Tail) Poll(now time.Time) ([]Event, error) {
 		t.pending = bytes.Clone(t.pending)
 	}
 	return events, nil
+}
+
+func parseLogLine(line string) (Event, bool) {
+	e, ok, err := ParseWithPlayback(line)
+	if err != nil {
+		return Event{QueueReset: true}, true
+	}
+	return e, ok
 }

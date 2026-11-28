@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"still-wanna-dance/internal/vrclog"
 )
 
 // All handoffs share a fixed lifetime, retain the source clock and use the same
@@ -135,12 +137,7 @@ func (s *Server) UpdatePrefetchQueueWithRoute(ids []int64, reset bool, routedSon
 		}
 	}
 	selected := s.selectedRoomSong
-	selectedDeparted := selected != 0 && slices.Contains(s.prefetchOrder, selected) && !slices.Contains(ids, selected)
-	if selected == -1 && len(s.prefetchOrder) > 0 && s.prefetchOrder[0] == -1 {
-		// Other external entries have the same ID. Removing the
-		// head can leave more placeholders in the new snapshot.
-		selectedDeparted = selectedDeparted || slices.Equal(s.prefetchOrder[1:], ids)
-	}
+	selectedDeparted := selected != 0 && vrclog.SelectedSongDeparted(s.prefetchOrder, ids, selected, -1)
 	routedHeadDeparted := routedSong > 0 && len(s.prefetchOrder) > 0 && s.prefetchOrder[0] == routedSong && !slices.Contains(ids, routedSong)
 	selectedHeadDeparted := selectedDeparted && s.prefetchOrder[0] == selected
 	holdSuccessors := !reset && len(ids) > 0 && s.queueSchedule == queueRolling && (selectedHeadDeparted || routedHeadDeparted)

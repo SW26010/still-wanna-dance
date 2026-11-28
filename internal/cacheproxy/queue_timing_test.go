@@ -75,6 +75,27 @@ func TestRoomEntryWaitFollowsRoomLifecycle(t *testing.T) {
 	})
 }
 
+func TestRecoveredQueueUsesOriginalEntryWait(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		first := time.Now().Add(-7 * time.Second)
+		s.RestoreRoomLog(vrclog.RoomSnapshot{FirstQueueAt: first})
+		if err := s.UpdatePrefetchQueue([]int64{1}, false); err != nil {
+			t.Fatal(err)
+		}
+		registerQueueResource(t, s, "1", w.v.key)
+		plan, _, _ := w.plan(time.Now())
+		if !plan[0].need.WindowClosed {
+			t.Fatal("lost remaining entry wait")
+		}
+		time.Sleep(3 * time.Second)
+		plan, _, _ = w.plan(time.Now())
+		if plan[0].need.WindowClosed {
+			t.Fatal("startup restarted entry wait")
+		}
+	})
+}
+
 func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)

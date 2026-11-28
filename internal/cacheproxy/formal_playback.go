@@ -32,6 +32,23 @@ func (s *Server) ClearPlaybackLog() {
 	s.endPlaybackFromLog(vrclog.UnknownRole)
 }
 
+// RestoreRoomLog installs the final historical clock before any queue worker
+// starts. Normal playback admission checks the catalog and the original end time.
+func (s *Server) RestoreRoomLog(room vrclog.RoomSnapshot) {
+	s.applyPlaybackTimeline(room.Timeline, !room.Timeline.Anchor.At.IsZero())
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
+	s.selectedRoomSong = room.SelectedSong
+	s.awaitEntryQueue = room.AwaitFirstQueue
+	if until := room.FirstQueueAt.Add(roomEntryQueueWait); time.Now().Before(until) {
+		s.queueWaitUntil = until
+		s.armUseTimerLocked()
+	}
+}
+
 // ObservePlaybackLog applies the supplied events in file order. The caller owns
 // the timeline and serializes delivery and shutdown for this gateway run.
 func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {

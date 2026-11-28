@@ -5,12 +5,21 @@ package vrclog
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 )
 
 type Song struct {
 	ID int64 `json:"songId"`
+}
+
+// SelectedSongDeparted compares snapshots by catalog identity. External
+// placeholders share an ID, so a remaining external entry needs an exact
+// head removal to attribute the departure to the selected external head.
+func SelectedSongDeparted[T comparable](before, after []T, selected, external T) bool {
+	return slices.Contains(before, selected) && !slices.Contains(after, selected) ||
+		selected == external && len(before) > 0 && before[0] == external && slices.Equal(before[1:], after)
 }
 
 type Event struct {

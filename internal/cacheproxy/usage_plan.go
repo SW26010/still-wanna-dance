@@ -39,7 +39,7 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 				offset := ready.Sub(rollingBase)
 				p.need.ReadyBy = time.Time{}
 				p.need.Rolling = blocksched.RollingDeadline{Base: rollingBase, Offset: offset}
-				p.need.WindowClosed = p.need.Rolling.WindowAt(ahead).IsZero()
+				p.need.WindowClosed = closed || p.need.Rolling.WindowAt(ahead).IsZero()
 			}
 			visit(id, source, p)
 		}
@@ -74,7 +74,7 @@ func (s *Server) visitUseLocked(scope useSpan, now time.Time, visit func(useBloc
 			continue
 		}
 		clock := q.clock()
-		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), false, rollingBase, 0)
+		add(q.use, blockSource{"queue", q}, &clock, now.Add(sourceLease), now.Before(s.queueWaitUntil), rollingBase, 0)
 	}
 	for _, h := range s.useHandoffs {
 		add(h.span, blockSource{"handoff", h}, &h.clock, h.until, true, time.Time{}, 0)
@@ -88,6 +88,10 @@ func (s *Server) refreshUseSourcesLocked(now time.Time) {
 	if keys := s.expireUseLocked(now); len(keys) > 0 {
 		s.publishUseChangedLocked(keys...)
 	}
+	s.removeExitedDemandsLocked()
+}
+
+func (s *Server) removeExitedDemandsLocked() {
 	for d := range s.demands {
 		if !d.exit.active(d.ctx) {
 			s.removeDemandLocked(d)

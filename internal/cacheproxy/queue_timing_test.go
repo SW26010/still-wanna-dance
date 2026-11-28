@@ -23,6 +23,58 @@ func setFormalPlaybackEnd(t *testing.T, s *Server, end time.Time) {
 	}, time.Now(), false)
 }
 
+func TestRoomEntryWaitFollowsRoomLifecycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		w, s := testSession(t)
+		s.cfg.Logger = slog.Default()
+		var timeline vrclog.PlayerTimeline
+		observe := func(e vrclog.Event) {
+			s.ObservePlaybackLog(&timeline, []vrclog.Event{e}, time.Now())
+		}
+		queue := func(wantClosed bool) {
+			t.Helper()
+			if err := s.UpdatePrefetchQueue([]int64{1}, false); err != nil {
+				t.Fatal(err)
+			}
+			registerQueueResource(t, s, "1", w.v.key)
+			plan, _, _ := w.plan(time.Now())
+			if plan[0].need.WindowClosed != wantClosed {
+				t.Fatalf("queue closed = %v, want %v", plan[0].need.WindowClosed, wantClosed)
+			}
+		}
+		reset := func() {
+			t.Helper()
+			if err := s.UpdatePrefetchQueue(nil, true); err != nil {
+				t.Fatal(err)
+			}
+			observe(vrclog.Event{Reset: true})
+		}
+		reset()
+		queue(false) // Attaching to an existing room is not a new join.
+		reset()
+		observe(vrclog.Event{EnteredRoom: true})
+		observe(vrclog.Event{Playback: &vrclog.PlaybackEvent{At: time.Now(), Kind: "room-stop"}})
+		queue(false)
+		reset()
+		observe(vrclog.Event{EnteredRoom: true})
+		queue(true)
+		time.Sleep(6 * time.Second)
+		reset()
+		observe(vrclog.Event{EnteredRoom: true})
+		queue(true)
+		time.Sleep(4 * time.Second)
+		plan, _, _ := w.plan(time.Now())
+		if !plan[0].need.WindowClosed {
+			t.Fatal("previous room's deadline opened the new room's queue")
+		}
+		time.Sleep(6 * time.Second)
+		if err := s.UpdatePrefetchQueue(nil, false); err != nil {
+			t.Fatal(err)
+		}
+		queue(false) // Later additions in the same room do not restart the wait.
+	})
+}
+
 func TestIdleQueueClockMovesWithoutSourceUpdatesOrDownloads(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w, s := testSession(t)

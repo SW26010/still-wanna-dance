@@ -19,9 +19,9 @@ func TestParseSnapshotsAndLifecycle(t *testing.T) {
 			t.Fatalf("%+v %v %v", e, ok, err)
 		}
 	}
-	for _, line := range []string{"[Behaviour] OnLeftRoom", "[Behaviour] Entering Room: Home", "VRCApplication: HandleApplicationQuit"} {
+	for _, line := range []string{"[Behaviour] OnLeftRoom", "[Behaviour] Joining wrld_test", "[Behaviour] Entering Room: Home", "VRCApplication: HandleApplicationQuit"} {
 		e, ok, err := Parse(line)
-		if !ok || err != nil || !e.Reset {
+		if !ok || err != nil || !e.Reset || e.EnteredRoom {
 			t.Fatal(line)
 		}
 	}

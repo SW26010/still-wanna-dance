@@ -112,6 +112,7 @@ func (s *Server) UpdatePrefetchQueueWithRoute(ids []int64, reset bool, routedSon
 		return context.Canceled
 	}
 	defer s.wg.Done()
+	received := time.Now()
 	timings, err := s.queueTimings(context.Background(), ids)
 	if err != nil {
 		return err
@@ -120,6 +121,10 @@ func (s *Server) UpdatePrefetchQueueWithRoute(ids []int64, reset bool, routedSon
 	defer s.mu.Unlock()
 	now := time.Now()
 	s.refreshUseSourcesLocked(now)
+	if s.awaitEntryQueue && len(ids) > 0 {
+		s.awaitEntryQueue = false
+		s.queueWaitUntil = received.Add(roomEntryQueueWait)
+	}
 	previous := s.prefetchSources
 	var changedKeys []string
 	next := make(map[string]*queueSource, len(ids))

@@ -64,6 +64,9 @@ func main() {
 				previous = nil
 				continue
 			}
+			if e.Songs == nil {
+				continue
+			}
 			stats.Snapshots++
 			if len(e.Songs) == 0 {
 				stats.Empty++

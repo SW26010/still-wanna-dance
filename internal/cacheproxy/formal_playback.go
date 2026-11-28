@@ -36,6 +36,12 @@ func (s *Server) ClearPlaybackLog() {
 // the timeline and serializes delivery and shutdown for this gateway run.
 func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Event, now time.Time) {
 	for _, e := range events {
+		if e.EnteredRoom {
+			s.mu.Lock()
+			s.awaitEntryQueue = t.Anchor.At.IsZero() && len(s.prefetchOrder) == 0 && s.queueWaitUntil.IsZero()
+			s.mu.Unlock()
+			continue
+		}
 		role, anchor := t.Role, t.Anchor
 		change := t.Observe(e, now)
 		if change.SelectedSong != nil {
@@ -53,6 +59,11 @@ func (s *Server) ObservePlaybackLog(t *vrclog.PlayerTimeline, events []vrclog.Ev
 			continue
 		}
 		s.applyPlaybackTimeline(*t, anchorChanged)
+		if anchorChanged && !t.Anchor.At.IsZero() {
+			s.mu.Lock()
+			s.finishEntryQueueWaitLocked()
+			s.mu.Unlock()
+		}
 	}
 }
 
@@ -66,6 +77,7 @@ func (s *Server) endPlaybackFromLog(role vrclog.PlayerRole) {
 	now := time.Now()
 	s.refreshUseSourcesLocked(now)
 	s.clearFormalLocked(now)
+	s.finishEntryQueueWaitLocked()
 }
 
 func (p *formalPlayback) setPosition(at time.Time, position float64) {

@@ -114,6 +114,77 @@ func TestIdleQueueBoundaryDoesNotEnterBetweenRefreshes(t *testing.T) {
 	}
 }
 
+func TestRoomEntryQueueWait(t *testing.T) {
+	for _, release := range []string{"timeout", "stop", "sync"} {
+		t.Run(release, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, calls, key := idleBoundaryServer(t, 240)
+				var timeline vrclog.PlayerTimeline
+				observe := func(e vrclog.Event) {
+					s.ObservePlaybackLog(&timeline, []vrclog.Event{e}, time.Now())
+				}
+				queue := func(ids ...int64) {
+					t.Helper()
+					if err := s.UpdatePrefetchQueue(ids, false); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for _, line := range []string{"[Behaviour] Entering Room: Test", "[Behaviour] Joining wrld_test", "[Behaviour] Successfully joined room"} {
+					event, ok, err := vrclog.ParseWithPlayback(line)
+					if err != nil || !ok {
+						t.Fatalf("room log event %q: %v", line, err)
+					}
+					observe(event)
+				}
+				queue() // An empty snapshot does not start the wait.
+				time.Sleep(12 * time.Second)
+				queue(42)
+				done := make(chan error, 1)
+				go func() { _, err := s.PrefetchQueuePlayback(t.Context(), 42); done <- err }()
+				synctest.Wait()
+				time.Sleep(7 * time.Second)
+				queue(42)
+				observe(vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "room-route", SongID: 99, At: time.Now()}})
+				synctest.Wait()
+				if calls[0].Load() != 0 || calls[1].Load() != 0 || !protectionFor(s, key, 0).active(time.Now()) {
+					t.Fatal("queue should retain the block without starting downloads")
+				}
+				switch release {
+				case "timeout":
+					r := httptest.NewRequest(http.MethodGet, "https://api.udon.dance/Api/Songs/play?id=42", nil)
+					r.Header.Set("Range", "bytes=0-0")
+					w := httptest.NewRecorder()
+					start := time.Now()
+					s.ServeHTTP(w, r)
+					if w.Code != http.StatusPartialContent || w.Body.String() != "r" || calls[0].Load() != 1 || time.Since(start) >= 3*time.Second {
+						t.Fatalf("independent GET did not complete during wait: HTTP %d, elapsed %v", w.Code, time.Since(start))
+					}
+					time.Sleep(3*time.Second - time.Since(start) - time.Nanosecond)
+					synctest.Wait()
+					if calls[1].Load() != 0 {
+						t.Fatal("queue download started before the deadline")
+					}
+					time.Sleep(time.Nanosecond)
+				case "stop":
+					observe(vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "room-stop", At: time.Now()}})
+				case "sync":
+					observe(vrclog.Event{Playback: &vrclog.PlaybackEvent{Kind: "room-sync", Position: 80, At: time.Now()}})
+				}
+				synctest.Wait()
+				if calls[0].Load() != 1 && calls[1].Load() != 1 {
+					t.Fatal("queue remained closed after release")
+				}
+				if release == "timeout" && calls[1].Load() != 1 {
+					t.Fatal("queue missed its original deadline without a new log event")
+				}
+				if err := <-done; err != nil || calls[0].Load() != 1 || calls[1].Load() != 1 {
+					t.Fatalf("queue did not finish once per block: %v, requests %d,%d", err, calls[0].Load(), calls[1].Load())
+				}
+			})
+		})
+	}
+}
+
 func TestIdleQueueKeepsCompletedBlocksOutsideWindow(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s, calls, key := idleBoundaryServer(t, 240)

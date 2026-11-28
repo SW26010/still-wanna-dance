@@ -366,7 +366,7 @@ func (q *queueTask) runRoomLog(ctx context.Context, tail *vrclog.Tail, engine *c
 			}
 			for i, e := range updates {
 				fromLog := i >= firstEvent && i < eventEnd
-				if e.Playback != nil {
+				if e.Playback != nil || e.EnteredRoom {
 					q.mu.Unlock()
 					engine.ObservePlaybackLog(&timeline, updates[i:i+1], received)
 					q.mu.Lock()

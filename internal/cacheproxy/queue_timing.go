@@ -18,6 +18,7 @@ const (
 )
 
 const queueSongGap = 10 * time.Second
+const roomEntryQueueWait = 10 * time.Second
 
 type queueMetadata struct {
 	timing mediaTiming
@@ -232,14 +233,35 @@ func (s *Server) firstQueueExpiryLocked() (*queueSource, time.Time) {
 
 func (s *Server) nextQueueExpiryLocked() time.Time {
 	if s.queueSchedule != queueFixed {
-		return time.Time{}
+		return s.queueWaitUntil
 	}
 	_, at := s.firstQueueExpiryLocked()
-	return at
+	return earlier(at, s.queueWaitUntil)
+}
+
+func (s *Server) finishEntryQueueWaitLocked() {
+	s.awaitEntryQueue = false
+	if !s.queueWaitUntil.IsZero() {
+		s.notifyUseChangedLocked(s.releaseEntryQueueWaitLocked()...)
+	}
+}
+
+func (s *Server) releaseEntryQueueWaitLocked() []string {
+	s.queueWaitUntil = time.Time{}
+	var keys []string
+	for _, q := range s.prefetchSources {
+		if q.use.key != "" {
+			keys = append(keys, q.use.key)
+		}
+	}
+	return keys
 }
 
 func (s *Server) expireQueueUseLocked(now time.Time) []string {
 	var keys []string
+	if !s.queueWaitUntil.IsZero() && !now.Before(s.queueWaitUntil) {
+		keys = s.releaseEntryQueueWaitLocked()
+	}
 	if s.queueSchedule == queueFixed {
 		for {
 			q, at := s.firstQueueExpiryLocked()

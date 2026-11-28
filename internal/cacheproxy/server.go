@@ -83,6 +83,8 @@ type Server struct {
 	prefetchOrder    []int64
 	queueStart       time.Time // Rolling base: estimated next start after formal playback, or a time at or before now.
 	queueSchedule    queueSchedule
+	awaitEntryQueue  bool // First nonempty snapshot after an observed room entry.
+	queueWaitUntil   time.Time
 	selectedRoomSong int64                     // Accepted selection awaiting a verified formal clock or queue departure.
 	playbackChecks   map[string]*playbackCheck // protected by mu
 	localChecks      chan struct{}             // whole-file merge, checksum and publication capacity

@@ -14,11 +14,12 @@ type Song struct {
 }
 
 type Event struct {
-	Reset      bool
-	QueueReset bool // Invalid input clears the queue while retaining the playback timeline.
-	Songs      []Song
-	Playback   *PlaybackEvent
-	queueAt    time.Time // Log second of a queue snapshot, when present.
+	Reset       bool
+	EnteredRoom bool // Confirmed room entry, distinct from leave and log resets.
+	QueueReset  bool // Invalid input clears the queue while retaining the playback timeline.
+	Songs       []Song
+	Playback    *PlaybackEvent
+	queueAt     time.Time // Log second of a queue snapshot, when present.
 }
 
 func roomReset(line string) bool {
@@ -55,6 +56,9 @@ func Parse(line string) (Event, bool, error) {
 	}
 	if roomReset(line) {
 		return Event{Reset: true}, true, nil
+	}
+	if strings.Contains(line, "[Behaviour] Successfully joined room") {
+		return Event{EnteredRoom: true}, true, nil
 	}
 	return Event{}, false, nil
 }

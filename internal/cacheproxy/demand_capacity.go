@@ -158,7 +158,10 @@ func (s *Server) armUseTimerLocked() {
 		if s.closed {
 			return
 		}
-		s.refreshUseSourcesLocked(time.Now())
+		// A room-entry wait can expire before a queue resource is attached.
+		// Rearm the next deadline even when this expiry changes no resource.
+		s.publishUseChangedLocked()
+		s.removeExitedDemandsLocked()
 	})
 }
 

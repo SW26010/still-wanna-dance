@@ -110,6 +110,11 @@ func TestRangeDuringPublicationDoesNotWaitForMediaRegistration(t *testing.T) {
 		assertResponse(t, request(s, http.MethodGet, target, nil), http.StatusOK, payload)
 		receiveDemandEvent(t, verified)
 
+		// Drain the initial GET's history while the flight is paused. The next
+		// writer wait should come from media registration.
+		if err := s.Store.usage.flush(t.Context()); err != nil {
+			t.Fatalf("flush request history: %v", err)
+		}
 		db := s.Store.db
 		conn, err := db.Conn(t.Context())
 		if err != nil {

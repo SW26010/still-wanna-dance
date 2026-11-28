@@ -293,7 +293,7 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
   }, [active, expanded, width, defaultSpan, data.downloadGraceMS]);
 
   const showBlocks = (blocks: BlockView[], x: number, y: number, pinned: boolean) => {
-    if (!blocks.length) { if (!selection?.pinned) closeSelection(); return; }
+    if (!blocks.length) { closeSelection(); return; }
     clearHoverTimers();
     const ids = blocks.map(b => b.id);
     setSelection(old => old?.pinned && !pinned ? old : { ids, index: pinned && old && ids.includes(old.ids[old.index]) ? ids.indexOf(old.ids[old.index]) : 0, x, y, pinned });
@@ -402,15 +402,16 @@ const TimelineViewport = memo(function TimelineViewport({ data, active, expanded
       if (!active || selection?.pinned && !pinned) return;
       clearHoverTimers();
       selectionTarget.current = target;
-      if (!blocks.length) { if (pinned) closeSelection(); else scheduleClose({ clientX: x, clientY: y }); return; }
       if (pinned) { showBlocks(blocks, x, y, true); return; }
+      if (!blocks.length) { scheduleClose({ clientX: x, clientY: y }); return; }
       hoverBlocks(blocks, x, y);
     }} />}
     <span className="timeline-selection-status" role="status" aria-atomic="true">{selectedBlock && selectedNeedBy && `${videoLabel(selectedBlock)}，块 ${blockNumber(selectedBlock)}，${blockStateNames[selectedBlock.state]}，${selectedNeedBy.label} ${selectedNeedBy.time ? absoluteTime(selectedNeedBy.time) : '无期限'}。`}</span>
     <Popover open={!!selectedBlock && active} onOpenChange={(event, value) => {
-      // A pinned selection survives toolbar clicks. Escape
-      // and the close button still dismiss it explicitly.
-      if (!value.open && (!selection?.pinned || event.type === 'keydown' && 'key' in event && event.key === 'Escape')) closeSelection();
+      if (value.open) return;
+      // Both canvases handle taps themselves: hit-testing selects a block or dismisses on empty space.
+      if ((event.type === 'click' || event.type === 'touchstart') && event.target instanceof HTMLCanvasElement && root.current?.contains(event.target)) return;
+      closeSelection();
     }} positioning={{ target: virtualTarget, strategy: 'fixed', autoSize: 'height', shiftToCoverTarget: false, overflowBoundaryPadding: 12, position: 'above', align: 'center', offset: 16 }} withArrow unstable_disableAutoFocus>
       <PopoverSurface ref={surface} className="timeline-popover" aria-label="块需求详情" onPointerEnter={clearHoverTimers} onPointerLeave={scheduleClose}>
         {selection && selectedID && <><div className="timeline-detail-toolbar"><Text weight="semibold">块 {selectedBlock ? blockNumber(selectedBlock) : '已退出'}</Text><div>

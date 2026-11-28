@@ -257,10 +257,13 @@ test('hidden page preserves pinned details until an explicit close', async ({ pa
   await expect.poll(f.totalStreams).toBe(0); await expect(popup).toHaveCount(0);
   await setPageHidden(page, false);
   await expect(popup).toContainText('块 1/?'); await expect.poll(f.totalStreams).toBe(2);
-  // Pinned details can cover nearby controls; keyboard access keeps the selection open.
+  // Focus alone preserves the detail; activating an outside control dismisses it.
   const layered = f.panel.getByRole('button', { name: '分层显示' });
-  await layered.focus(); await layered.press('Space'); await expect(layered).toHaveAttribute('aria-pressed', 'true');
+  await layered.focus();
   await expect(popup).toContainText('块 1/?');
+  await layered.press('Space'); await expect(layered).toHaveAttribute('aria-pressed', 'true');
+  await expect(popup).toHaveCount(0); await expect(layered).toBeFocused();
+  await f.canvas.press('Home'); await expect(popup).toContainText('块 1/?');
   await popup.getByRole('button', { name: '关闭块详情' }).focus();
   await page.keyboard.press('Escape');
   await expect(popup).toHaveCount(0); await f.canvas.scrollIntoViewIfNeeded(); await expect.poll(f.totalStreams).toBe(1);
@@ -954,8 +957,8 @@ test('protection-only blocks are muted and translucent, and sparse demands keep 
   await expect.poll(() => alphaAt(0, 9)).toBe(0);
   expect(await alphaAt(0, 15)).toBe(255);
   await strips.first().focus(); await strips.first().press('Home'); await expect(popup).toContainText('块 16/');
-  await strips.first().press('Escape');
-  await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
+  await f.panel.getByRole('button', { name: '收起时间轴视图' }).click();
+  await expect(f.canvas).toBeHidden(); await expect(popup).toHaveCount(0); await expect.poll(f.totalStreams).toBe(1);
 });
 
 test('demand rows use the saturation-capped tab10 palette in both themes', async ({ page }, info) => {
@@ -1145,13 +1148,19 @@ for (const view of ['timeline', 'demand'] as const) test(`hover refreshes the fu
   await expect(popup).toContainText('块 2/64');
   await move(firstOnly);
   await expect(popup).toContainText('块 2/64'); await expect(popup).toContainText('重叠 2 块');
-  await popup.getByRole('button', { name: '关闭块详情' }).click();
+  await target.click({ position: { x: overlap, y } });
+  await expect(popup).toContainText('块 2/64');
+  await target.click({ position: { x: firstOnly, y } });
+  await expect(popup).toContainText('块 1/64');
+  await target.click({ position: { x: rect.width - 4, y } });
+  await expect(popup).toHaveCount(0); await expect.poll(f.totalStreams).toBe(1);
   // Clicking a single block likewise keeps its detail fixed on entering an overlap.
   await target.click({ position: { x: secondOnly, y } });
   await expect(popup).toContainText('块 2/64'); await expect(popup).not.toContainText('重叠');
   await move(overlap);
   await expect(popup).toContainText('块 2/64'); await expect(popup).not.toContainText('重叠');
-  await popup.getByRole('button', { name: '关闭块详情' }).click();
+  await f.panel.locator('.block-demand-capacity').click();
+  await expect(popup).toHaveCount(0);
   await expect.poll(f.totalStreams).toBe(1);
 });
 

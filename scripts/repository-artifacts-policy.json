@@ -2341,6 +2341,13 @@
       "bytes": 1321113,
       "sha256": "99109d7427199682d15cc4316c4ced738fbb86c1cca440f534635464c60c5928",
       "reason": "离线 WebUI 的时间轴使用贯通绘图区的窗口底色、调整后的层间距和饱和度上限为 45% 的视频配色，块详情保留需求结束时刻。"
+    },
+    {
+      "path": "internal/console/assets/webui/app.js",
+      "kind": "large-text",
+      "bytes": 1321144,
+      "sha256": "b3289a749c873fe7d125c6c962357c23b19c57a6c8e51567c824d5a2ef644489",
+      "reason": "离线 WebUI 的首页时间轴提供块状态图例、视图控制按钮和可点击外部关闭的块详情浮层。"
     }
   ]
 }

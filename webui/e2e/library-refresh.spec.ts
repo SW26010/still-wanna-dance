@@ -24,8 +24,8 @@ test('library reconciles each download baseline then checks local files only on 
   const initial=reads().filter(path=>path!=='downloads');
   await page.clock.fastForward(31000);
   await expect.poll(()=>api.calls.filter(c=>c.path==='status').length).toBeGreaterThan(1);
+  await expectWithClock(page,()=>api.calls.filter(c=>c.path==='downloads').length).toBeGreaterThan(1);
   expect(reads().filter(path=>path!=='downloads')).toEqual(initial);
-  expect(api.calls.filter(c=>c.path==='downloads').length).toBeGreaterThan(1);
   const local=page.getByRole('group',{name:'本地视频',exact:true});
   const previous=await checkTime(page,'检查本地视频');
   const coverageTime=await checkTime(page,'更新曲库');

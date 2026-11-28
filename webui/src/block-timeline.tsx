@@ -452,7 +452,7 @@ function BlockProperties({ id, block, active, clock, paintTime }: { id: string; 
       <dt>本地保护</dt><dd>{b.protected ? b.protectionUntil && !b.inUse ? `保护至 ${absoluteTime(b.protectionUntil)}` : '保护中' : b.protectionStart ? `开始于 ${absoluteTime(b.protectionStart)}` : '未保护'}</dd>
       <dt>字节范围</dt><dd>{b.byteOffset.toLocaleString()} – {b.bytes ? (b.byteOffset + b.bytes - 1).toLocaleString() : '末端待定'}</dd>
     </dl>
-    {b.timeBasis === 'ended' && <Caption1 as="p">按需求结束时间定位；此前的 need-by 未记录。</Caption1>}
+    {b.timeBasis === 'ended' && <Caption1 as="p">需求于 {absoluteTime(b.at)} 结束，时间轴按此定位。此前的 need-by 未记录。</Caption1>}
     {b.timeBasis === 'last-need-by' && <Caption1 as="p">{b.inUse ? '短期交接期间沿用原 need-by 的位置。' : '沿用最后一次 need-by 的位置；当前已无需求。'}</Caption1>}
     {b.opportunistic && b.inUse && <Caption1 as="p">同时允许机会下载。</Caption1>}
     <Text weight="semibold" className="timeline-source-heading">需求来源 · {b.sources}</Text>

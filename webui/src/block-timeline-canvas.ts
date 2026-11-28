@@ -1,15 +1,16 @@
 import { scaleUtc } from 'd3-scale';
-import { blockNumber, rollingNeedBy, timeLabel, type BlockView, type TimelineData } from './block-timeline-model';
+import { rollingNeedBy, timeLabel, type BlockView, type TimelineData } from './block-timeline-model';
 
 const laneNames = ['待下载', '下载中', '本地'];
 const canvasInset = 12;
 const readerDotOffset = 9, readerDotRadius = 2.5;
+const readerHeadroom = Math.ceil(readerDotOffset + readerDotRadius) + 2;
 const selectionPadding = 3, selectionStroke = 2;
 const selectionOutset = selectionPadding + selectionStroke / 2;
 
 export function timelineLayout(layers: boolean, timed: boolean, untimed: boolean, size: number) {
-  const plotTop = 16, timedY = 28;
-  const lanePitch = Math.ceil(size + selectionOutset + readerDotOffset + readerDotRadius);
+  const plotTop = 8, timedY = plotTop + readerHeadroom;
+  const lanePitch = size + selectionOutset + readerHeadroom;
   const lanesHeight = size + (layers ? 2 * lanePitch : 0);
   const axis = timedY + lanesHeight + 12, untimedY = timed ? axis + 64 : 40;
   return { plotTop, timedY, lanePitch, axis, untimedY, height: untimed ? untimedY + size + 12 : timed ? axis + 40 : 0 };
@@ -203,9 +204,9 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
   const draw = (block: BlockView, x: number, y: number) =>
     paint(block, data.colorPool.byResource.get(block.resource)!, x, y, block.id === frame.selected);
   const { plotTop, timedY, lanePitch, axis, untimedY, height } = timelineLayout(layers, !!timed.length, !!untimed.length, size);
-  const textStyle = getComputedStyle(ctx.canvas), textSizeFamily = `${textStyle.fontSize} ${textStyle.fontFamily}`;
+  const textStyle = getComputedStyle(ctx.canvas);
   const captionSizeFamily = `${textStyle.getPropertyValue('--fontSizeBase200').trim()} ${textStyle.fontFamily}`;
-  const font = `${textStyle.fontWeight} ${textSizeFamily}`, captionFont = `${textStyle.fontWeight} ${captionSizeFamily}`;
+  const captionFont = `${textStyle.fontWeight} ${captionSizeFamily}`;
   const strongCaptionFont = `${textStyle.getPropertyValue('--fontWeightSemibold').trim()} ${captionSizeFamily}`;
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = p.background; ctx.fillRect(0, 0, width, height);
@@ -215,9 +216,9 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     const [plotStart, plotEnd] = timelineRange(width), plotWidth = plotEnd - plotStart;
     const x = timeScale(frame), [left, right] = timelineClipRange(width);
     const cutoffX = x(now - data.downloadGraceMS), nowX = x(now), aheadX = x(now + data.prepareAheadMS);
-    ctx.save(); ctx.beginPath(); ctx.rect(left, plotTop, right - left, axis - plotTop - 8); ctx.clip();
-    ctx.fillStyle = p.amberWash; ctx.fillRect(cutoffX, plotTop, nowX - cutoffX, axis - plotTop - 8);
-    ctx.fillStyle = p.blueWash; ctx.fillRect(nowX, plotTop, aheadX - nowX, axis - plotTop - 8);
+    ctx.save(); ctx.beginPath(); ctx.rect(left, 0, right - left, axis); ctx.clip();
+    ctx.fillStyle = p.amberWash; ctx.fillRect(cutoffX, 0, nowX - cutoffX, axis);
+    ctx.fillStyle = p.blueWash; ctx.fillRect(nowX, 0, aheadX - nowX, axis);
     drawWindowEdge(nowX, p.amber);
     drawWindowEdge(nowX, p.blue);
     drawWindowEdge(aheadX, p.blue);
@@ -257,11 +258,9 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
     }
     ctx.save(); ctx.beginPath(); ctx.rect(left, timedY - 13, right - left, axis - timedY + 9); ctx.clip();
     const min = +x.invert(left - size), max = +x.invert(right + size);
-    let selected: TimedPoint | undefined;
     const visible = timedBetween(timed, now, min, max);
     for (let i = visible.length - 1; i >= 0; i--) {
       const { block, at } = visible[i];
-      if (block.id === frame.selected) selected = visible[i];
       draw(block, x(at) - size / 2, blockY(block, layers, size));
     }
     ctx.restore();
@@ -270,13 +269,6 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
       laneNames.forEach((label, row) => drawLaneLabel(label, timedY + row * lanePitch + size / 2, cutoffX));
     }
     if (cutoffX >= left && cutoffX <= right) drawWindowEdge(cutoffX, p.amber);
-    if (selected) {
-      const { block, at } = selected;
-      const label = `块 ${blockNumber(block)} · ${block.timeBasis === 'ended' ? '需求结束' : block.timeBasis === 'last-need-by' ? '原 need-by' : 'need-by'} ${timeLabel(at)}`;
-      ctx.fillStyle = p.foreground; ctx.textAlign = 'center'; ctx.font = font;
-      const half = ctx.measureText(label).width / 2;
-      ctx.fillText(label, Math.max(12 + half, Math.min(width - 12 - half, x(at))), 8, width - 24);
-    }
   }
   if (untimed.length) {
     const { start, end, pitch } = untimedLayout(width, untimed.length, size);
@@ -293,7 +285,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, frame: TimelineFrame
   function drawWindowEdge(x: number, color: string) {
     ctx.save();
     ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = .35; ctx.setLineDash([3, 5]);
-    ctx.beginPath(); ctx.moveTo(x, plotTop); ctx.lineTo(x, axis - 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, axis); ctx.stroke();
     ctx.restore();
   }
   function drawLaneLabel(label: string, centerY: number, cutoffX: number) {

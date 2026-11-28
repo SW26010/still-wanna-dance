@@ -118,8 +118,7 @@ test('reduced motion samples rolling details with the canvas on redraw', async (
   await page.addInitScript(() => {
     const fillText = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (label, ...args) {
-      const selected = /^块 .+ · need-by (.+)$/.exec(label);
-      if (selected) this.canvas.dataset.selectedTime = selected[1];
+      if (label.startsWith('现在 ')) this.canvas.dataset.nowTime = label.slice(3);
       fillText.call(this, label, ...args);
     };
   });
@@ -133,7 +132,7 @@ test('reduced motion samples rolling details with the canvas on redraw', async (
   const needBy = popup.locator('dd').nth(1), source = popup.locator('.timeline-sources');
   const checkSample = async () => {
     const stamp = await needBy.innerText();
-    await expect(f.canvas).toHaveAttribute('data-selected-time', stamp.split(' ').pop()!.padStart(8, '0'));
+    await expect(f.canvas).toHaveAttribute('data-now-time', stamp.split(' ').pop()!.padStart(8, '0'));
     await expect(source).toContainText(stamp);
     await expect(f.panel.locator('.timeline-selection-status')).toContainText(stamp);
     return stamp;
@@ -910,7 +909,7 @@ test('protection-only blocks are muted and translucent, and sparse demands keep 
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await setup(page);
-  const protectedBlock = block(0, f.at - 18000, { state: 'protected', inUse: false, protected: true, sources: 0, needBy: 0, timeBasis: 'last-need-by', protectionUntil: f.at + 45000 });
+  const protectedBlock = block(0, f.at - 18000, { state: 'protected', inUse: false, protected: true, sources: 0, needBy: 0, deadline: 0, timeBasis: 'ended', protectionUntil: f.at + 45000 });
   const middle = block(9, f.at + 150000, { state: 'available' }), later = block(15, f.at + 300000, { state: 'waiting' });
   const first = demand(1, [middle, later], { totalBlocks: 20 }), second = demand(2, [later], { kind: 'queue', position: 2, totalBlocks: 20 });
   for (const b of [protectedBlock, middle, later]) await f.detail(b, b.inUse ? undefined : []);
@@ -931,6 +930,11 @@ test('protection-only blocks are muted and translucent, and sparse demands keep 
     expect(Math.abs(pixels.protected[channel] - (.25 * muted + .75 * pixels.background[channel]))).toBeLessThanOrEqual(2);
   }
   const strips = f.panel.locator('.demand-block-canvas'), popup = page.getByRole('group', { name: '块需求详情' });
+  await f.canvas.click({ position: { x: await f.xAt(protectedBlock.at), y: singleY } });
+  const endedAt = await page.evaluate(at => new Date(at).toLocaleString('zh-CN', { hour12: false }), protectedBlock.at);
+  await expect(popup).toContainText(`需求于 ${endedAt} 结束`);
+  await expect(popup).toContainText('此前的 need-by 未记录');
+  await f.canvas.press('Escape');
   await expect(strips.first()).toHaveAccessibleName(/需要 2 个块，视频共 20 块/);
   const width = await strips.first().evaluate(c => c.clientWidth), x = (index: number) => 20 + index * (width - 40) / 19;
   const alphaAt = (row: number, index: number) => strips.nth(row).evaluate((c, at) => {
@@ -954,7 +958,7 @@ test('protection-only blocks are muted and translucent, and sparse demands keep 
   await f.panel.getByRole('button', { name: '收起时间轴视图' }).click(); await expect.poll(f.totalStreams).toBe(1);
 });
 
-test('demand rows use all nine non-gray tab10 colors in both themes', async ({ page }, info) => {
+test('demand rows use the saturation-capped tab10 palette in both themes', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 980 });
   await page.emulateMedia({ colorScheme: 'light' });
   const f = await setup(page, 0);
@@ -964,21 +968,21 @@ test('demand rows use all nine non-gray tab10 colors in both themes', async ({ p
   await f.emit({ blocks, demands });
   const rows = f.panel.locator('.demand-row');
   const borders = () => rows.evaluateAll(items => items.map(row => getComputedStyle(row).borderTopColor));
-  const tab10 = [
-    'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)', 'rgb(214, 39, 40)', 'rgb(148, 103, 189)',
-    'rgb(140, 86, 75)', 'rgb(227, 119, 194)', 'rgb(188, 189, 34)', 'rgb(23, 190, 207)',
+  const cappedTab10 = [
+    'rgb(59, 114, 152)', 'rgb(188, 131, 81)', 'rgb(57, 147, 57)', 'rgb(183, 70, 71)', 'rgb(148, 103, 189)',
+    'rgb(140, 86, 75)', 'rgb(209, 137, 187)', 'rgb(160, 161, 62)', 'rgb(64, 157, 166)',
   ];
   await expect(rows.first()).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await expect.poll(borders).toEqual(tab10);
+  await expect.poll(borders).toEqual(cappedTab10);
   const firstBlock = rows.first().locator('canvas');
   await expect.poll(() => firstBlock.evaluate(el => {
     const canvas = el as HTMLCanvasElement, ctx = canvas.getContext('2d')!;
     return [...ctx.getImageData(Math.floor(canvas.width / 2), Math.round(20 * devicePixelRatio), 1, 1).data];
-  })).toEqual([31, 119, 180, 255]);
+  })).toEqual([59, 114, 152, 255]);
   await f.panel.screenshot({ path: info.outputPath('tab10-light.png') });
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(rows.first()).toHaveCSS('background-color', 'rgb(41, 41, 41)');
-  await expect.poll(borders).toEqual(tab10);
+  await expect.poll(borders).toEqual(cappedTab10);
   await f.panel.screenshot({ path: info.outputPath('tab10-dark.png') });
   await page.emulateMedia({ forcedColors: 'active' });
   await expect.poll(async () => new Set(await borders()).size).toBe(1);
@@ -1330,10 +1334,10 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
     pills: { x: number; y: number; width: number; height: number; opacity: number }[];
     dots: { y: number; radius: number }[];
     outlines: { y: number; height: number; stroke: number }[];
-    bandStarts: number[];
+    bands: { x: number; y: number; height: number }[];
   };
   await page.addInitScript(() => {
-    const paint: AxisPaint = { labels: [], blocks: [], pills: [], dots: [], outlines: [], bandStarts: [] };
+    const paint: AxisPaint = { labels: [], blocks: [], pills: [], dots: [], outlines: [], bands: [] };
     Object.assign(window, { axisPaint: paint });
     const clear = CanvasRenderingContext2D.prototype.clearRect, text = CanvasRenderingContext2D.prototype.fillText, rounded = CanvasRenderingContext2D.prototype.roundRect, arc = CanvasRenderingContext2D.prototype.arc;
     CanvasRenderingContext2D.prototype.clearRect = function (...args) {
@@ -1342,7 +1346,12 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
     };
     const fillRect = CanvasRenderingContext2D.prototype.fillRect;
     CanvasRenderingContext2D.prototype.fillRect = function (x, y, width, height) {
-      if (y !== 0 && this.canvas.classList.contains('timeline-canvas')) paint.bandStarts.push(x);
+      if (this.canvas.classList.contains('timeline-canvas')) {
+        const style = getComputedStyle(this.canvas);
+        if (['--timeline-amber-wash', '--timeline-blue-wash'].some(token => style.getPropertyValue(token).trim() === this.fillStyle)) {
+          paint.bands.push({ x, y, height });
+        }
+      }
       return fillRect.call(this, x, y, width, height);
     };
     CanvasRenderingContext2D.prototype.arc = function (x, y, radius, start, end, counterclockwise) {
@@ -1403,11 +1412,16 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
       }
       const paint = await readPaint();
       const plotStart = timelineRange(await f.canvas.evaluate(canvas => canvas.clientWidth))[0];
-      expect(paint.bandStarts[0]).toBeCloseTo(plotStart);
+      expect(paint.bands).toHaveLength(2);
+      for (const band of paint.bands) {
+        expect(band.y).toBe(0);
+        expect(band.height).toBe(timelineLayout(layers, true, untimed, 16).axis);
+      }
+      expect(paint.bands[0].x).toBeCloseTo(plotStart);
       if (layers) {
-        for (const [index, start] of paint.bandStarts.entries()) expect(start).toBeCloseTo(singleBands[index]);
+        for (const [index, band] of paint.bands.entries()) expect(band.x).toBeCloseTo(singleBands[index]);
       } else {
-        singleBands = paint.bandStarts;
+        singleBands = paint.bands.map(band => band.x);
         expect(lanePills(paint)).toHaveLength(0);
       }
       const height = await f.canvas.evaluate(c => c.clientHeight), now = paint.labels.find(label => label.text.startsWith('现在 '))!;
@@ -1418,11 +1432,14 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
       expect.soft(Math.abs(gaps.top - gaps.bottom), `Vertical centering: ${JSON.stringify(gaps)}`).toBeLessThanOrEqual(1);
       expect.soft(Math.max(gaps.left, gaps.right), 'Compact horizontal padding').toBeLessThanOrEqual(8);
       expect.soft(Math.max(gaps.top, gaps.bottom), 'Compact vertical padding').toBeLessThanOrEqual(5);
-      for (const label of paint.labels) expect(label.font).toContain(`${label.text.startsWith('块 ') ? bodySize + 'px' : caption.fontSize} ${caption.fontFamily}`);
+      expect(paint.labels.some(label => label.text.startsWith('块 '))).toBe(false);
+      for (const label of paint.labels) expect(label.font).toContain(`${caption.fontSize} ${caption.fontFamily}`);
       expect(now.font).toBe(`${caption.weight} ${caption.fontSize} ${caption.fontFamily}`);
       expect(paint.blocks.length).toBe(untimed ? 6 : 3);
       for (const b of paint.blocks) { expect(b.height).toBe(16); expect(b.y - 12).toBeGreaterThanOrEqual(0); expect(b.y + b.height + 4).toBeLessThan(height); }
       const timedBlocks = paint.blocks.slice(0, 3);
+      const topDotEdge = Math.min(...paint.dots.map(dot => dot.y - dot.radius));
+      expect(topDotEdge - timelineLayout(layers, true, untimed, 16).plotTop).toBe(2.5);
       expect(now.y).toBeGreaterThan(Math.max(...timedBlocks.map(b => b.y + b.height)));
       if (layers) {
         const laneBlocks = [...timedBlocks].sort((a, b) => a.y - b.y);
@@ -1435,18 +1452,18 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
         for (const [index, block] of laneBlocks.entries()) {
           const label = laneLabels[index];
           const overlay = overlays[index];
-          expect(overlay.x + overlay.width).toBeLessThan(paint.bandStarts[0]);
+          expect(overlay.x + overlay.width).toBeLessThan(paint.bands[0].x);
           expect(overlay.x + overlay.width).toBeGreaterThan(label.ink.right);
           expect(overlay.opacity).toBeGreaterThan(0);
           expect(label.x).toBe(12);
           expect((label.ink.top + label.ink.bottom) / 2).toBeCloseTo(block.y + 8);
           if (index > 0) {
             const previous = laneBlocks[index - 1];
-            expect(block.y - previous.y).toBe(32);
+            expect(block.y - previous.y).toBe(34);
             const previousBottom = Math.max(previous.y + 16.75, ...paint.outlines.filter(outline => outline.y >= previous.y - 4 && outline.y <= previous.y).map(outline => outline.y + outline.height + outline.stroke / 2));
             const gap = dots[index].y - dots[index].radius - previousBottom;
-            expect(gap).toBeGreaterThanOrEqual(0);
-            if (index === 1) expect(gap).toBeLessThan(1);
+            expect(gap).toBeGreaterThanOrEqual(2.5);
+            if (index === 1) expect(gap).toBe(2.5);
           }
         }
       }
@@ -1470,11 +1487,11 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
     }
   }
   await f.canvas.dispatchEvent('wheel', { deltaX: 20 });
-  await expect.poll(async () => (await readPaint()).bandStarts[0]).toBeCloseTo(40, 0);
+  await expect.poll(async () => (await readPaint()).bands[0].x).toBeCloseTo(40, 0);
   const crossing = await readPaint();
   expect(readLaneLabels(crossing).map(label => [label.text, label.x])).toEqual([['待下载', 12], ['下载中', 12], ['本地', 12]]);
   expect(lanePills(crossing)).toHaveLength(3);
-  for (const pill of lanePills(crossing)) expect(pill.x + pill.width).toBeLessThan(crossing.bandStarts[0]);
+  for (const pill of lanePills(crossing)) expect(pill.x + pill.width).toBeLessThan(crossing.bands[0].x);
 
   await f.canvas.dispatchEvent('wheel', { deltaX: 35 });
   await expect.poll(async () => lanePills(await readPaint())).toHaveLength(0);
@@ -1488,7 +1505,7 @@ test('fixed blocks fit timeline lanes and labels follow Fluent caption typograph
   await f.emit({ reset: true, blocks: [older, ...timed], used: 4 });
   await expect(f.canvas).toHaveAccessibleName(/4 个块/);
   const olderX = await f.xAt(older.at);
-  expect(olderX).toBeLessThan((await readPaint()).bandStarts[0]);
+  expect(olderX).toBeLessThan((await readPaint()).bands[0].x);
   await f.canvas.click({ position: { x: olderX, y: singleY } });
   const popup = page.getByRole('group', { name: '块需求详情' });
   await expect(popup).toContainText('块 10/');

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,43 +21,31 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 	c.settings.UpstreamMode = "proxy"
 	var failCatalog atomic.Bool
 	var playback, resource atomic.Int32
-	playbackStarted, resourceStarted := make(chan struct{}, 1), make(chan struct{}, 1)
-	faultReady, releaseFault := make(chan struct{}), make(chan struct{})
-	defer func() {
-		select {
-		case <-releaseFault:
-		default:
-			close(releaseFault)
-		}
-	}()
-	var waitForPeers atomic.Bool
-	waitForPeers.Store(true)
+	playbackStarted, resourceStarted := make(chan struct{}), make(chan struct{})
+	markPlaybackStarted := sync.OnceFunc(func() { close(playbackStarted) })
+	markResourceStarted := sync.OnceFunc(func() { close(resourceStarted) })
+	releaseCatalog := make(chan struct{})
 	c.client.Transport = noCandidatesTransport{catalogTransport(func(r *http.Request) (*http.Response, error) {
 		resp := automaticConnectivityResponse(r)
 		if r.URL.Path == "/Api/Songs/play" {
 			playback.Add(1)
 			if failCatalog.Load() {
-				playbackStarted <- struct{}{}
+				markPlaybackStarted()
 				<-r.Context().Done()
 				return nil, r.Context().Err()
 			}
 		} else if r.Header.Get("Range") != "" {
 			resource.Add(1)
 			if failCatalog.Load() {
-				resourceStarted <- struct{}{}
+				markResourceStarted()
 				<-r.Context().Done()
 				return nil, r.Context().Err()
 			}
 		} else if failCatalog.Load() {
-			if waitForPeers.Swap(false) {
-				<-playbackStarted
-				<-resourceStarted
-				close(faultReady)
-				select {
-				case <-releaseFault:
-				case <-r.Context().Done():
-					return nil, r.Context().Err()
-				}
+			select {
+			case <-releaseCatalog:
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
 			}
 			resp.Body.Close()
 			resp.Body = io.NopCloser(strings.NewReader(`{"time":"20261101000000","groups":{"contents":[{"songInfos":[{"id":900001},{"id":900002}]}]}}`))
@@ -83,7 +72,6 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 	if counts[0] == 0 || counts[1] == 0 {
 		t.Fatal("fixture needs previous observations", before.Results)
 	}
-	failDatabaseWrites(t, c.settings.DatabasePath)
 	failCatalog.Store(true)
 	for attempt := range 2 {
 		var previousSnapshot networkConnectivityStatus
@@ -91,15 +79,21 @@ func TestConnectivityReviewEarlyStorageFailureRetainsUnobservedResults(t *testin
 			if err := c.controlNetworkConnectivity(false); err != nil {
 				t.Fatal(err)
 			}
-			select {
-			case <-faultReady:
-			case <-time.After(5 * time.Second):
-				t.Fatal("parallel checks did not start")
+			peersDeadline := time.After(5 * time.Second)
+			for _, started := range []<-chan struct{}{playbackStarted, resourceStarted} {
+				select {
+				case <-started:
+				case <-peersDeadline:
+					t.Fatal("parallel checks did not start")
+				}
 			}
 			func() {
 				c.lifecycleMu.Lock()
 				defer c.lifecycleMu.Unlock()
-				close(releaseFault)
+				// The journal obstruction can also affect reads on Windows. Let both
+				// peers load their saved samples before failing the catalog write.
+				failDatabaseWrites(t, c.settings.DatabasePath)
+				close(releaseCatalog)
 				for {
 					c.mu.Lock()
 					current, changed := c.networkDiagnostics.connectivitySnapshot()
